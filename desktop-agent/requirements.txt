@@ -1,0 +1,63 @@
+# GURU Desktop Agent Dependencies
+# Production-grade dependencies for secure personal automation
+
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Security & Cryptography
+cryptography==41.0.8
+pyjwt==2.8.0
+bcrypt==4.1.2
+argon2-cffi==23.1.0
+
+# Windows Integration
+pywin32==306
+pyautogui==0.9.54
+pywinauto==0.6.8
+psutil==5.9.6
+
+# Audio Processing (Local)
+whisper-cpp-python==0.1.0
+piper-tts==1.2.0
+pyaudio==0.2.11
+numpy==1.25.2
+scipy==1.11.4
+
+# Database & Storage
+sqlalchemy==2.0.23
+alembic==1.13.1
+sqlite3  # Built-in
+
+# Logging & Monitoring
+structlog==23.2.0
+prometheus-client==0.19.0
+
+# Testing & Development
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+hypothesis==6.92.1  # Property-based testing
+factory-boy==3.3.0
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+mypy==1.7.1
+safety==2.3.5
+
+# Type Hints
+types-requests==2.31.0.10
+types-python-dateutil==2.8.19.14
+
+# QR Code & Pairing
+qrcode[pil]==7.4.2
+pillow==10.1.0
+pyzbar==0.1.9
+
+# Utilities
+python-dateutil==2.8.2
+click==8.1.7
+rich==13.7.0
