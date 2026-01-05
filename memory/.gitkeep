@@ -1,0 +1,6 @@
+# Memory Service
+# MIRIX multi-agent memory system
+# SQLite for structured data
+# Vector embeddings for similarity search (local only)
+# AES-256 encryption for sensitive data
+# Configurable retention policies

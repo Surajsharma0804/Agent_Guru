@@ -1,0 +1,187 @@
+{
+  "name": "guru-personal-assistant",
+  "version": "1.0.0",
+  "description": "Production-Grade, Cross-Device Personal Automation System with Security-First Design",
+  "private": true,
+  "workspaces": [
+    "desktop-agent",
+    "phone-agent",
+    "shared",
+    "memory",
+    "skills",
+    "agents",
+    "infra/ci"
+  ],
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "scripts": {
+    "install:all": "npm install && npm run install:desktop && npm run install:android",
+    "install:desktop": "cd desktop-agent && pip install -r requirements.txt",
+    "install:android": "cd phone-agent && ./gradlew build --dry-run",
+    
+    "build": "npm run build:shared && npm run build:desktop && npm run build:android",
+    "build:shared": "cd shared && npm run build",
+    "build:desktop": "cd desktop-agent && python -m build",
+    "build:android": "cd phone-agent && ./gradlew assembleRelease",
+    "build:ci": "cd infra/ci && npm run build",
+    
+    "dev": "concurrently \"npm run dev:desktop\" \"npm run dev:memory\" \"npm run dev:skills\"",
+    "dev:desktop": "cd desktop-agent && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:memory": "cd memory && npm run dev",
+    "dev:skills": "cd skills && npm run dev",
+    "dev:agents": "cd agents && npm run dev",
+    
+    "test": "npm run test:unit && npm run test:integration && npm run test:security && npm run test:properties",
+    "test:unit": "npm run test:unit:shared && npm run test:unit:desktop && npm run test:unit:memory",
+    "test:unit:shared": "cd shared && npm test",
+    "test:unit:desktop": "cd desktop-agent && python -m pytest tests/unit/",
+    "test:unit:memory": "cd memory && npm test",
+    "test:unit:skills": "cd skills && npm test",
+    "test:unit:agents": "cd agents && npm test",
+    
+    "test:integration": "npm run test:integration:desktop && npm run test:integration:android",
+    "test:integration:desktop": "cd desktop-agent && python -m pytest tests/integration/",
+    "test:integration:android": "cd phone-agent && ./gradlew connectedAndroidTest",
+    
+    "test:security": "npm run test:security:authority && npm run test:security:crypto && npm run test:security:sandbox",
+    "test:security:authority": "cd desktop-agent && python -m pytest tests/security/test_authority.py",
+    "test:security:crypto": "cd shared && npm run test:crypto",
+    "test:security:sandbox": "cd skills && npm run test:security",
+    "test:security:audit": "cd desktop-agent && python -m pytest tests/security/test_audit.py",
+    
+    "test:properties": "npm run test:properties:authority && npm run test:properties:crypto && npm run test:properties:sandbox",
+    "test:properties:authority": "cd desktop-agent && python -m pytest tests/properties/test_authority_properties.py",
+    "test:properties:crypto": "cd shared && npm run test:properties",
+    "test:properties:sandbox": "cd skills && npm run test:properties",
+    "test:properties:memory": "cd memory && npm run test:properties",
+    
+    "test:negative": "npm run test:negative:permissions && npm run test:negative:injection && npm run test:negative:tampering",
+    "test:negative:permissions": "cd desktop-agent && python -m pytest tests/negative/test_permission_failures.py",
+    "test:negative:injection": "cd shared && npm run test:negative:injection",
+    "test:negative:tampering": "cd desktop-agent && python -m pytest tests/negative/test_audit_tampering.py",
+    
+    "lint": "npm run lint:js && npm run lint:python && npm run lint:kotlin",
+    "lint:js": "eslint . --ext .js,.ts,.jsx,.tsx",
+    "lint:python": "cd desktop-agent && flake8 . && black --check . && mypy .",
+    "lint:kotlin": "cd phone-agent && ./gradlew ktlintCheck",
+    
+    "format": "npm run format:js && npm run format:python && npm run format:kotlin",
+    "format:js": "prettier --write \"**/*.{js,ts,jsx,tsx,json,md}\"",
+    "format:python": "cd desktop-agent && black . && isort .",
+    "format:kotlin": "cd phone-agent && ./gradlew ktlintFormat",
+    
+    "security:scan": "npm run security:scan:deps && npm run security:scan:code && npm run security:scan:secrets",
+    "security:scan:deps": "npm audit && cd desktop-agent && safety check",
+    "security:scan:code": "semgrep --config=auto .",
+    "security:scan:secrets": "truffleHog --regex --entropy=False .",
+    
+    "validate:structure": "node scripts/validate-structure.js",
+    "validate:permissions": "node scripts/validate-permissions.js",
+    "validate:security": "npm run security:scan && npm run test:security",
+    
+    "clean": "npm run clean:build && npm run clean:cache && npm run clean:logs",
+    "clean:build": "rm -rf */build */dist */target */.next */out",
+    "clean:cache": "rm -rf */node_modules */.pytest_cache */.mypy_cache",
+    "clean:logs": "rm -rf */logs */*.log */audit_logs",
+    
+    "docs": "npm run docs:generate && npm run docs:security",
+    "docs:generate": "typedoc --out docs/api shared/src",
+    "docs:security": "cd docs && python generate_security_docs.py",
+    
+    "deploy:staging": "cd infra/ci && npm run deploy:staging",
+    "deploy:production": "cd infra/ci && npm run deploy:production",
+    
+    "setup:dev": "npm run install:all && npm run build:shared && npm run validate:structure",
+    "setup:production": "npm run install:all && npm run build && npm run test && npm run security:scan",
+    "setup:hooks": "node scripts/setup-hooks.js",
+    
+    "start": "npm run start:desktop",
+    "start:desktop": "cd desktop-agent && python -m uvicorn main:app --host 0.0.0.0 --port 8000",
+    "start:memory": "cd memory && npm start",
+    "start:skills": "cd skills && npm start",
+    
+    "postinstall": "npm run validate:structure && npm run setup:hooks"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "babel-jest": "^29.7.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-security": "^1.7.1",
+    "husky": "^8.0.3",
+    "jest": "^29.7.0",
+    "lint-staged": "^15.1.0",
+    "prettier": "^3.1.0",
+    "ts-jest": "^29.1.1",
+    "typedoc": "^0.25.4",
+    "typescript": "^5.3.2"
+  },
+  "dependencies": {
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.3.1"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged && npm run test:security",
+      "pre-push": "npm run test && npm run security:scan"
+    }
+  },
+  "lint-staged": {
+    "*.{js,ts,jsx,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ],
+    "*.py": [
+      "cd desktop-agent && black",
+      "cd desktop-agent && isort"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/guru-personal-assistant.git"
+  },
+  "keywords": [
+    "personal-assistant",
+    "voice-control",
+    "automation",
+    "security",
+    "privacy",
+    "biometric-authentication",
+    "local-first",
+    "cross-platform",
+    "windows",
+    "android",
+    "cryptography",
+    "audit-logging"
+  ],
+  "author": "GURU Development Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/your-org/guru-personal-assistant/issues"
+  },
+  "homepage": "https://github.com/your-org/guru-personal-assistant#readme",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/your-org"
+  },
+  "config": {
+    "security": {
+      "audit_level": "high",
+      "vulnerability_threshold": "moderate",
+      "dependency_check": true
+    },
+    "testing": {
+      "coverage_threshold": 85,
+      "property_test_iterations": 1000,
+      "security_test_required": true
+    }
+  }
+}
