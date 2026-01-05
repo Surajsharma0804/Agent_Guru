@@ -14,7 +14,6 @@ Security Features:
 """
 
 import threading
-from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 import structlog
@@ -26,7 +25,6 @@ from src.authority.state import (
     AuthorityConfiguration
 )
 from src.biometric.providers import (
-    BiometricProviderManager,
     BiometricProviderConfig,
     BiometricProviderType,
     BiometricResult,

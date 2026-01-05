@@ -18,21 +18,15 @@ import time
 import platform
 import psutil
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, Dict, Any, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
 import hashlib
 import hmac
-import base64
 
 import qrcode
-from qrcode.image.pil import PilImage
 from PIL import Image
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from pydantic import BaseModel, Field, validator
 import structlog
 
 logger = structlog.get_logger(__name__)

@@ -8,9 +8,8 @@ handles corrupted state, and fails safely under adverse conditions.
 import pytest
 import threading
 import time
-import os
 from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from src.authority.state import (
     AuthorityState,

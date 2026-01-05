@@ -9,22 +9,21 @@ import json
 import time
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
-from cryptography.fernet import Fernet, InvalidToken
-from PIL import Image
+from cryptography.fernet import Fernet
 
 from src.pairing.qr_pairing import (
     QRPairingManager, PairingToken, DeviceFingerprint, 
     PairingResult, PairingStatus
 )
 from src.pairing.key_exchange import (
-    KeyExchangeManager, DeviceKeyPair, KeyExchangeMessage,
+    KeyExchangeManager, KeyExchangeMessage,
     KeyExchangeResult, KeyExchangeStatus
 )
 from src.pairing.device_registry import (
-    DeviceRegistry, DeviceIdentity, DeviceStatus
+    DeviceRegistry, DeviceIdentity
 )
 
 

@@ -11,12 +11,12 @@ Validates: Requirements 3.1, 3.2, 24.4, 24.5
 """
 
 import pytest
-from hypothesis import given, strategies as st, assume, settings, HealthCheck
+from hypothesis import given, strategies as st, settings, HealthCheck
 from hypothesis.stateful import RuleBasedStateMachine, rule, invariant, initialize
 import threading
 import time
 from datetime import datetime, timedelta
-from typing import Dict, List, Set
+from typing import Dict
 
 from src.authority.state import (
     AuthorityState,
@@ -27,7 +27,7 @@ from src.authority.state import (
     AuthorityStateMachine,
     AuthorityStateIntegrityError,
     AuthorityTransitionError,
-    create_authority_state_machine
+    get_default_authority_config
 )
 
 

@@ -17,16 +17,13 @@ All device data is stored locally with user-controlled encryption keys.
 import json
 import time
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass, asdict
 from enum import Enum
 from pathlib import Path
-import hashlib
 
 from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import structlog
 
 logger = structlog.get_logger(__name__)

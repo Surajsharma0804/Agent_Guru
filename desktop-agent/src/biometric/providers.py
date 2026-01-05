@@ -16,9 +16,8 @@ Security Features:
 
 import asyncio
 import threading
-import time
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass
@@ -28,8 +27,6 @@ import structlog
 # Windows-specific imports (with fallbacks for testing)
 try:
     import win32api
-    import win32con
-    import win32security
     import winsdk.windows.security.credentials.ui as credentials_ui
     import winsdk.windows.security.authentication.web.core as web_auth
     from winsdk.windows.security.credentials.ui import UserConsentVerificationResult
