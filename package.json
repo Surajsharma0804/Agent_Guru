@@ -10,7 +10,7 @@
     "memory",
     "skills",
     "agents",
-    "infra/ci"
+    "infra"
   ],
   "engines": {
     "node": ">=18.0.0",
@@ -21,17 +21,23 @@
     "install:desktop": "cd desktop-agent && pip install -r requirements.txt",
     "install:android": "cd phone-agent && ./gradlew build --dry-run",
     
-    "build": "npm run build:shared && npm run build:desktop && npm run build:android",
-    "build:shared": "cd shared && npm run build",
+    "build": "tsc --build && npm run build:desktop && npm run build:android",
+    "build:shared": "cd shared && tsc --build",
+    "build:memory": "cd memory && tsc --build",
+    "build:skills": "cd skills && tsc --build", 
+    "build:agents": "cd agents && tsc --build",
+    "build:infra": "cd infra && tsc --build",
     "build:desktop": "cd desktop-agent && python -m build",
     "build:android": "cd phone-agent && ./gradlew assembleRelease",
-    "build:ci": "cd infra/ci && npm run build",
+    "build:ci": "cd infra && tsc --build",
     
-    "dev": "concurrently \"npm run dev:desktop\" \"npm run dev:memory\" \"npm run dev:skills\"",
+    "dev": "concurrently \"npm run dev:shared\" \"npm run dev:memory\" \"npm run dev:skills\" \"npm run dev:agents\" \"npm run dev:infra\"",
+    "dev:shared": "cd shared && tsc --build --watch",
     "dev:desktop": "cd desktop-agent && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000",
-    "dev:memory": "cd memory && npm run dev",
-    "dev:skills": "cd skills && npm run dev",
-    "dev:agents": "cd agents && npm run dev",
+    "dev:memory": "cd memory && tsc --build --watch",
+    "dev:skills": "cd skills && tsc --build --watch",
+    "dev:agents": "cd agents && tsc --build --watch",
+    "dev:infra": "cd infra && tsc --build --watch",
     
     "test": "npm run test:unit && npm run test:integration && npm run test:security && npm run test:properties",
     "test:unit": "npm run test:unit:shared && npm run test:unit:desktop && npm run test:unit:memory",
