@@ -218,8 +218,8 @@ Automation SHALL be immediately disabled on:
 **Phase Philosophy:** Enable secure voice-based identity verification only
 **Phase Non-Goals:** No automation execution, no input simulation, no system control
 
-- [ ] 4. Implement voice processing and speaker verification
-  - [ ] 4.1 Integrate whisper.cpp for local speech-to-text
+- [-] 4. Implement voice processing and speaker verification
+  - [x] 4.1 Integrate whisper.cpp for local speech-to-text
     - Set up whisper.cpp Python bindings and model loading
     - Implement audio preprocessing and noise reduction
     - Create voice command processing pipeline with confidence scoring
@@ -228,7 +228,7 @@ Automation SHALL be immediately disabled on:
     - **Negative Tests:** Corrupted audio, missing models, preprocessing failures
     - _Requirements: 9.1, 21.3_
 
-  - [ ] 4.2 Create voice fingerprint and speaker identification
+  - [x] 4.2 Create voice fingerprint and speaker identification
     - Implement voice pattern analysis using spectral features
     - Create speaker enrollment and verification system
     - Add voice confidence threshold validation and calibration
@@ -237,7 +237,7 @@ Automation SHALL be immediately disabled on:
     - **Negative Tests:** Unrecognized speakers, corrupted patterns, calibration failures
     - _Requirements: 4.4, 4.7_
 
-  - [ ] 4.3 Write property test for voice re-arming security
+  - [x] 4.3 Write property test for voice re-arming security
     - **Property 3: Voice Re-arming Security**
     - **Validates: Requirements 4.1, 4.3, 4.4, 4.5, 4.7, 4.8**
     - **Testing Required:** Voice verification across conditions, phrase security
