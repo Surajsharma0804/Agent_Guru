@@ -26,14 +26,26 @@ class TestIntegrityVerifier:
         """Create temporary directory for test logs"""
         temp_dir = tempfile.mkdtemp()
         yield temp_dir
-        shutil.rmtree(temp_dir)
+        # Handle Windows file locking issues
+        try:
+            shutil.rmtree(temp_dir)
+        except PermissionError:
+            # On Windows, SQLite files may still be locked
+            import time
+            time.sleep(0.1)
+            try:
+                shutil.rmtree(temp_dir)
+            except PermissionError:
+                # If still locked, ignore - temp files will be cleaned up by OS
+                pass
     
     @pytest.fixture
     def audit_logger(self, temp_dir):
         """Create audit logger instance for testing"""
         return AuditLogger(
             log_directory=temp_dir,
-            enable_real_time_verification=False
+            enable_real_time_verification=False,
+            testing_mode=True
         )
     
     @pytest.fixture

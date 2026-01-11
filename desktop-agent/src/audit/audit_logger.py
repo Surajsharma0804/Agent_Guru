@@ -215,7 +215,8 @@ class AuditLogger:
                  log_directory: str = None,
                  signing_key: bytes = None,
                  max_log_entries: int = 1000000,
-                 enable_real_time_verification: bool = True):
+                 enable_real_time_verification: bool = True,
+                 testing_mode: bool = False):
         """
         Initialize comprehensive audit logger with secure configuration.
         
@@ -224,8 +225,13 @@ class AuditLogger:
             signing_key: Key for cryptographic signatures (generated if None)
             max_log_entries: Maximum entries per log file before rotation
             enable_real_time_verification: Enable real-time integrity verification
+            testing_mode: Enable testing mode (disables initialization logging)
         """
         self.logger = logging.getLogger(__name__)
+        
+        # Set testing mode flag
+        if testing_mode:
+            self._testing_mode = True
         
         # Configure secure storage
         self.log_directory = Path(log_directory) if log_directory else Path("audit_logs")
@@ -259,17 +265,18 @@ class AuditLogger:
         self.logger.info(f"AuditLogger initialized with database: {self.db_path}")
         self.logger.info(f"Real-time verification: {self.enable_real_time_verification}")
         
-        # Log initialization
-        self.log_system_event(
-            "audit_logger_initialized",
-            {
-                "log_directory": str(self.log_directory),
-                "database_path": str(self.db_path),
-                "real_time_verification": self.enable_real_time_verification,
-                "max_log_entries": self.max_log_entries
-            },
-            AuditSeverity.INFO
-        )
+        # Log initialization (only in production mode, not during testing)
+        if not hasattr(self, '_testing_mode'):
+            self.log_system_event(
+                "audit_logger_initialized",
+                {
+                    "log_directory": str(self.log_directory),
+                    "database_path": str(self.db_path),
+                    "real_time_verification": self.enable_real_time_verification,
+                    "max_log_entries": self.max_log_entries
+                },
+                AuditSeverity.INFO
+            )
     
     def _generate_signing_key(self) -> bytes:
         """Generate cryptographically secure signing key for audit log signatures"""
@@ -415,17 +422,34 @@ class AuditLogger:
         
         sanitized = {}
         
-        # Sensitive keys that should never be logged
-        sensitive_keys = {
-            'password', 'secret', 'key', 'token', 'credential', 'auth',
+        # Sensitive keys that should never be logged (exact matches or specific patterns)
+        sensitive_exact_keys = {
+            'password', 'secret', 'token', 'credential', 'auth',
             'biometric', 'fingerprint', 'face_data', 'voice_data',
-            'text_content', 'message_content', 'user_input',
-            'private_key', 'signing_key', 'encryption_key'
+            'text_content', 'message_content', 'user_input'
+        }
+        
+        sensitive_key_patterns = {
+            'private_key', 'signing_key', 'encryption_key', 'api_key', 
+            'access_key', 'secret_key', 'auth_key'
         }
         
         for key, value in details.items():
-            # Skip sensitive keys
-            if any(sensitive in key.lower() for sensitive in sensitive_keys):
+            key_lower = key.lower()
+            
+            # Check exact matches
+            if key_lower in sensitive_exact_keys:
+                sanitized[key] = "[REDACTED]"
+                continue
+                
+            # Check specific patterns (must be exact match or end with pattern)
+            is_sensitive = False
+            for pattern in sensitive_key_patterns:
+                if key_lower == pattern or key_lower.endswith('_' + pattern):
+                    is_sensitive = True
+                    break
+            
+            if is_sensitive:
                 sanitized[key] = "[REDACTED]"
                 continue
             

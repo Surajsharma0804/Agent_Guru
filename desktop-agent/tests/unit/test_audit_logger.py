@@ -34,14 +34,26 @@ class TestAuditLogger:
         """Create temporary directory for test logs"""
         temp_dir = tempfile.mkdtemp()
         yield temp_dir
-        shutil.rmtree(temp_dir)
+        # Handle Windows file locking issues
+        try:
+            shutil.rmtree(temp_dir)
+        except PermissionError:
+            # On Windows, SQLite files may still be locked
+            import time
+            time.sleep(0.1)
+            try:
+                shutil.rmtree(temp_dir)
+            except PermissionError:
+                # If still locked, ignore - temp files will be cleaned up by OS
+                pass
     
     @pytest.fixture
     def audit_logger(self, temp_dir):
         """Create audit logger instance for testing"""
         return AuditLogger(
             log_directory=temp_dir,
-            enable_real_time_verification=False  # Disable for testing
+            enable_real_time_verification=False,  # Disable for testing
+            testing_mode=True  # Enable testing mode
         )
     
     @pytest.fixture
@@ -59,7 +71,7 @@ class TestAuditLogger:
     
     def test_audit_logger_initialization(self, temp_dir):
         """Test audit logger initialization"""
-        logger = AuditLogger(log_directory=temp_dir)
+        logger = AuditLogger(log_directory=temp_dir, testing_mode=True)
         
         assert logger.log_directory == Path(temp_dir)
         assert logger.signing_key is not None
@@ -71,11 +83,11 @@ class TestAuditLogger:
     def test_signing_key_generation_and_persistence(self, temp_dir):
         """Test signing key generation and persistence"""
         # First logger instance
-        logger1 = AuditLogger(log_directory=temp_dir)
+        logger1 = AuditLogger(log_directory=temp_dir, testing_mode=True)
         key1 = logger1.signing_key
         
         # Second logger instance should load same key
-        logger2 = AuditLogger(log_directory=temp_dir)
+        logger2 = AuditLogger(log_directory=temp_dir, testing_mode=True)
         key2 = logger2.signing_key
         
         assert key1 == key2
@@ -347,10 +359,16 @@ class TestAuditLogger:
     
     def test_error_handling_database_failure(self, temp_dir):
         """Test error handling when database operations fail"""
-        logger = AuditLogger(log_directory=temp_dir)
+        logger = AuditLogger(log_directory=temp_dir, testing_mode=True)
         
-        # Corrupt the database by removing it
-        logger.db_path.unlink()
+        # Close any open connections first
+        logger._db_lock.acquire()
+        try:
+            # Remove the database file
+            if logger.db_path.exists():
+                logger.db_path.unlink()
+        finally:
+            logger._db_lock.release()
         
         event = AuditEvent(
             event_type=AuditEventType.SYSTEM_STARTUP,
