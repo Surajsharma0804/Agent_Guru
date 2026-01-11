@@ -369,7 +369,7 @@ class TestAudioPreprocessor:
         
         metrics = preprocessor._calculate_audio_metrics(audio, sample_rate)
         
-        assert metrics.clipping_detected is True
+        assert metrics.clipping_detected == True
         assert metrics.peak_level >= 0.99
         assert "clipping_detected" in metrics.security_flags
     

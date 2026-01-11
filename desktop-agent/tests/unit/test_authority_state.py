@@ -175,7 +175,7 @@ class TestAuthorityStateMachine:
         state_machine.initiate_voice_rearm(0.90, True)
         
         # Verify face biometric
-        result = state_machine.verify_biometric_factor(
+        result = state_machine.enforce_biometric_factor_verification_boundary(
             factor=BiometricFactor.FACE,
             provider="windows_hello",
             confidence=0.95,
@@ -193,7 +193,7 @@ class TestAuthorityStateMachine:
         state_machine.initiate_voice_rearm(0.90, True)
         
         # Fail face biometric
-        result = state_machine.verify_biometric_factor(
+        result = state_machine.enforce_biometric_factor_verification_boundary(
             factor=BiometricFactor.FACE,
             provider="windows_hello",
             confidence=0.50,
@@ -271,8 +271,11 @@ class TestAuthorityStateMachine:
         assert state_machine.verify_state_integrity() is True
         
         # Simulate integrity corruption by directly modifying internal state
+        # DANGEROUS: Enable test corruption mode for this test only
         with state_machine._lock:
+            state_machine._test_corruption_mode = True
             state_machine._state_checksum = "corrupted_checksum"
+            delattr(state_machine, "_test_corruption_mode")
         
         # Should detect corruption
         assert state_machine.verify_state_integrity() is False
@@ -285,7 +288,7 @@ class TestAuthorityStateMachine:
         """Test that invalid state transitions are rejected."""
         # Try to verify biometric without being in identity verification
         with pytest.raises(AuthorityTransitionError):
-            state_machine.verify_biometric_factor(
+            state_machine.enforce_biometric_factor_verification_boundary(
                 factor=BiometricFactor.FACE,
                 provider="test",
                 confidence=0.95,
@@ -522,7 +525,7 @@ class TestSecurityInvariants:
         
         # Direct biometric verification should fail
         with pytest.raises(AuthorityTransitionError):
-            state_machine.verify_biometric_factor(
+            state_machine.enforce_biometric_factor_verification_boundary(
                 BiometricFactor.FACE, "test", 0.95, True
             )
         

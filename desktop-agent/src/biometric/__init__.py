@@ -3,24 +3,24 @@
 
 from .providers import (
     BiometricFactor,
-    BiometricResult,
     BiometricProvider,
     BiometricProviderConfig,
+    BiometricProviderSecurityBoundary,
+    BiometricResult,
     MockBiometricProvider,
     WindowsHelloProvider,
-    BiometricProviderManager,
     create_biometric_provider_manager,
-    get_default_biometric_config
+    get_default_biometric_config,
 )
 
 __all__ = [
     "BiometricFactor",
-    "BiometricResult", 
+    "BiometricResult",
     "BiometricProvider",
     "BiometricProviderConfig",
     "MockBiometricProvider",
     "WindowsHelloProvider",
-    "BiometricProviderManager",
+    "BiometricProviderSecurityBoundary",
     "create_biometric_provider_manager",
-    "get_default_biometric_config"
+    "get_default_biometric_config",
 ]

@@ -579,3 +579,5 @@ class KeyExchangeManager:
                            expired_count=len(expired_exchanges))
         
         return len(expired_exchanges)
+# Alias for compatibility with tests
+CryptographicDeviceKeyPair = DeviceKeyPair

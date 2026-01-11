@@ -172,7 +172,7 @@ class TestMockBiometricProvider:
         # Create provider with 100% success rate
         provider = MockBiometricProvider(config, mock_success_rate=1.0)
         
-        result = await provider.verify_biometric(BiometricFactor.FACE)
+        result = await provider.enforce_biometric_verification_boundary(BiometricFactor.FACE)
         
         assert result.success is True
         assert result.confidence_score >= 0.85  # Within expected range
@@ -186,7 +186,7 @@ class TestMockBiometricProvider:
         # Create provider with 0% success rate
         provider = MockBiometricProvider(config, mock_success_rate=0.0)
         
-        result = await provider.verify_biometric(BiometricFactor.FINGERPRINT)
+        result = await provider.enforce_biometric_verification_boundary(BiometricFactor.FINGERPRINT)
         
         assert result.success is False
         assert result.confidence_score < 0.5  # Low confidence for failures
@@ -199,8 +199,8 @@ class TestMockBiometricProvider:
         """Test verification attempt tracking."""
         initial_count = mock_provider._verification_count
         
-        await mock_provider.verify_biometric(BiometricFactor.FACE)
-        await mock_provider.verify_biometric(BiometricFactor.FINGERPRINT)
+        await mock_provider.enforce_biometric_verification_boundary(BiometricFactor.FACE)
+        await mock_provider.enforce_biometric_verification_boundary(BiometricFactor.FINGERPRINT)
         
         assert mock_provider._verification_count == initial_count + 2
         assert mock_provider._last_verification is not None
@@ -270,7 +270,7 @@ class TestWindowsHelloProvider:
                 with patch.object(windows_provider, 'get_supported_factors', 
                                 return_value=[BiometricFactor.FACE]):
                     
-                    result = await windows_provider.verify_biometric(BiometricFactor.FACE)
+                    result = await windows_provider.enforce_biometric_verification_boundary(BiometricFactor.FACE)
                     
                     assert result.success is True
                     assert result.confidence_score == 0.95
@@ -294,7 +294,7 @@ class TestWindowsHelloProvider:
                 with patch.object(windows_provider, 'get_supported_factors', 
                                 return_value=[BiometricFactor.FINGERPRINT]):
                     
-                    result = await windows_provider.verify_biometric(BiometricFactor.FINGERPRINT)
+                    result = await windows_provider.enforce_biometric_verification_boundary(BiometricFactor.FINGERPRINT)
                     
                     assert result.success is True
                     assert result.confidence_score == 0.98
@@ -309,7 +309,7 @@ class TestWindowsHelloProvider:
                             return_value=[BiometricFactor.FACE]):  # Only face supported
                 
                 with pytest.raises(BiometricProviderError) as exc_info:
-                    await windows_provider.verify_biometric(BiometricFactor.FINGERPRINT)
+                    await windows_provider.enforce_biometric_verification_boundary(BiometricFactor.FINGERPRINT)
                 
                 assert "not supported" in str(exc_info.value)
     
@@ -319,7 +319,7 @@ class TestWindowsHelloProvider:
         with patch.object(windows_provider, 'is_available', return_value=False):
             
             with pytest.raises(BiometricProviderNotAvailableError):
-                await windows_provider.verify_biometric(BiometricFactor.FACE)
+                await windows_provider.enforce_biometric_verification_boundary(BiometricFactor.FACE)
     
     def test_provider_info(self, windows_provider):
         """Test provider information retrieval."""
@@ -385,7 +385,7 @@ class TestBiometricProviderManager:
     @pytest.mark.asyncio
     async def test_verification_with_best_provider(self, manager):
         """Test verification using best available provider."""
-        result = await manager.verify_biometric(BiometricFactor.FACE)
+        result = await manager.enforce_biometric_verification_boundary(BiometricFactor.FACE)
         
         assert isinstance(result, BiometricResult)
         assert result.factor_type == BiometricFactor.FACE
@@ -394,7 +394,7 @@ class TestBiometricProviderManager:
     @pytest.mark.asyncio
     async def test_verification_with_preferred_provider(self, manager):
         """Test verification with preferred provider."""
-        result = await manager.verify_biometric(
+        result = await manager.enforce_biometric_verification_boundary(
             BiometricFactor.FACE,
             preferred_provider=BiometricProviderType.MOCK_PROVIDER
         )
@@ -411,7 +411,7 @@ class TestBiometricProviderManager:
         manager.providers.clear()  # Remove all providers
         
         with pytest.raises(BiometricProviderNotAvailableError):
-            await manager.verify_biometric(BiometricFactor.FACE)
+            await manager.enforce_biometric_verification_boundary(BiometricFactor.FACE)
     
     def test_system_info(self, manager):
         """Test system information retrieval."""
@@ -475,10 +475,10 @@ class TestErrorHandling:
                 verification_time=datetime.utcnow()
             )
         
-        with patch.object(provider, 'verify_biometric', side_effect=slow_verification):
+        with patch.object(provider, 'enforce_biometric_verification_boundary', side_effect=slow_verification):
             with pytest.raises(asyncio.TimeoutError):
                 await asyncio.wait_for(
-                    provider.verify_biometric(BiometricFactor.FACE), 
+                    provider.enforce_biometric_verification_boundary(BiometricFactor.FACE), 
                     timeout=1
                 )
     
@@ -500,9 +500,9 @@ class TestErrorHandling:
         provider = MockBiometricProvider(config)
         
         # Mock verification to raise exception
-        with patch.object(provider, 'verify_biometric', side_effect=Exception("Test error")):
+        with patch.object(provider, 'enforce_biometric_verification_boundary', side_effect=Exception("Test error")):
             with pytest.raises(Exception) as exc_info:
-                await provider.verify_biometric(BiometricFactor.FACE)
+                await provider.enforce_biometric_verification_boundary(BiometricFactor.FACE)
             
             assert "Test error" in str(exc_info.value)
 
@@ -520,10 +520,10 @@ class TestConcurrency:
         """Test concurrent biometric verifications."""
         # Start multiple concurrent verifications
         tasks = [
-            manager.verify_biometric(BiometricFactor.FACE),
-            manager.verify_biometric(BiometricFactor.FINGERPRINT),
-            manager.verify_biometric(BiometricFactor.FACE),
-            manager.verify_biometric(BiometricFactor.FINGERPRINT)
+            manager.enforce_biometric_verification_boundary(BiometricFactor.FACE),
+            manager.enforce_biometric_verification_boundary(BiometricFactor.FINGERPRINT),
+            manager.enforce_biometric_verification_boundary(BiometricFactor.FACE),
+            manager.enforce_biometric_verification_boundary(BiometricFactor.FINGERPRINT)
         ]
         
         results = await asyncio.gather(*tasks, return_exceptions=True)

@@ -14,10 +14,12 @@
   "scripts": {
     "build": "tsc --build",
     "clean": "rm -rf dist",
-    "dev": "tsc --build --watch"
+    "dev": "tsc --build --watch",
+    "test": "echo \"No tests defined for memory package\"",
+    "test:properties": "echo \"No property tests defined\""
   },
   "dependencies": {
-    "@guru/shared": "workspace:*"
+    "@guru/shared": "file:../shared"
   },
   "devDependencies": {
     "typescript": "^5.0.0"

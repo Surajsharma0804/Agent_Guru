@@ -57,6 +57,9 @@ qrcode[pil]==7.4.2
 pillow==10.1.0
 pyzbar==0.1.9
 
+# Build System
+build==1.0.3
+
 # Utilities
 python-dateutil==2.8.2
 click==8.1.7

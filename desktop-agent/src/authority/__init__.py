@@ -1,28 +1,28 @@
 # Authority Management Module
 # Core security and authorization components
 
+from .biometric_integration import (
+    BiometricAuthorityVerificationEngine,
+    BiometricVerificationBoundaries,
+    BiometricVerificationBoundaryViolation,
+    create_biometric_authority_verification_engine,
+)
 from .state import (
+    AuthorityConfiguration,
     AuthorityState,
-    AuthorityConfiguration, 
     AuthorityStateMachine,
     create_authority_state_machine,
-    get_default_authority_config
-)
-from .biometric_integration import (
-    BiometricIntegrationError,
-    BiometricIntegrationConfig,
-    BiometricAuthority,
-    create_biometric_authority
+    get_default_authority_config,
 )
 
 __all__ = [
     "AuthorityState",
     "AuthorityConfiguration",
-    "AuthorityStateMachine", 
+    "AuthorityStateMachine",
     "create_authority_state_machine",
     "get_default_authority_config",
-    "BiometricIntegrationError",
-    "BiometricIntegrationConfig",
-    "BiometricAuthority",
-    "create_biometric_authority"
+    "BiometricVerificationBoundaryViolation",
+    "BiometricVerificationBoundaries",
+    "BiometricAuthorityVerificationEngine",
+    "create_biometric_authority_verification_engine",
 ]

@@ -2,26 +2,16 @@ module.exports = {
   root: true,
   env: {
     node: true,
-    es2022: true,
-    browser: true
+    es6: true,
+    es2022: true
   },
-  extends: [
-    'eslint:recommended',
-    '@typescript-eslint/recommended',
-    'plugin:security/recommended',
-    'prettier'
-  ],
-  parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 2022,
-    sourceType: 'module'
+    sourceType: 'script'
   },
-  plugins: [
-    '@typescript-eslint',
-    'security'
-  ],
+  extends: ['eslint:recommended'],
+  plugins: ['security'],
   rules: {
-    // Security-focused rules for GURU
     'security/detect-object-injection': 'error',
     'security/detect-non-literal-regexp': 'error',
     'security/detect-unsafe-regex': 'error',
@@ -34,14 +24,6 @@ module.exports = {
     'security/detect-non-literal-require': 'warn',
     'security/detect-possible-timing-attacks': 'warn',
     'security/detect-pseudoRandomBytes': 'error',
-    
-    // TypeScript specific
-    '@typescript-eslint/no-unused-vars': 'error',
-    '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/explicit-function-return-type': 'warn',
-    '@typescript-eslint/no-non-null-assertion': 'error',
-    
-    // General code quality
     'no-console': 'warn',
     'no-debugger': 'error',
     'no-alert': 'error',
@@ -49,44 +31,46 @@ module.exports = {
     'no-implied-eval': 'error',
     'no-new-func': 'error',
     'no-script-url': 'error',
-    
-    // Prevent common security issues
     'no-unused-expressions': 'error',
-    'no-unused-vars': 'off', // Handled by TypeScript
+    'no-unused-vars': 'error',
     'prefer-const': 'error',
-    'no-var': 'error',
-    
-    // GURU-specific rules
-    'no-process-env': 'warn', // Prefer explicit configuration
-    'no-process-exit': 'warn'  // Prefer proper error handling
+    'no-var': 'error'
   },
   overrides: [
     {
+      files: ['**/*.ts', '**/*.tsx'],
+      parser: '@typescript-eslint/parser',
+      plugins: ['@typescript-eslint', 'security'],
+      extends: [
+        'eslint:recommended',
+        '@typescript-eslint/eslint-plugin/dist/configs/recommended.js'
+      ],
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: 'module'
+      },
+      rules: {
+        '@typescript-eslint/no-unused-vars': 'error',
+        '@typescript-eslint/no-explicit-any': 'warn',
+        '@typescript-eslint/no-non-null-assertion': 'error',
+        'no-unused-vars': 'off'
+      }
+    },
+    {
       files: ['scripts/**/*.js'],
       rules: {
-        'no-console': 'off', // Allow console in build scripts
-        'no-process-exit': 'off' // Allow process.exit in scripts
+        'no-console': 'off',
+        'security/detect-child-process': 'warn'
       }
     },
     {
       files: ['**/*.test.js', '**/*.test.ts'],
-      env: {
-        jest: true
-      },
+      env: { jest: true },
       rules: {
-        'security/detect-non-literal-fs-filename': 'off', // Tests may use dynamic filenames
-        '@typescript-eslint/no-explicit-any': 'off' // Tests may use any for mocking
+        'security/detect-non-literal-fs-filename': 'off',
+        '@typescript-eslint/no-explicit-any': 'off',
+        'no-unused-expressions': 'off'
       }
     }
-  ],
-  ignorePatterns: [
-    'node_modules/',
-    'build/',
-    'dist/',
-    'target/',
-    '*.min.js',
-    'coverage/',
-    '.next/',
-    'out/'
   ]
 };

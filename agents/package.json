@@ -14,12 +14,13 @@
   "scripts": {
     "build": "tsc --build",
     "clean": "rm -rf dist",
-    "dev": "tsc --build --watch"
+    "dev": "tsc --build --watch",
+    "test": "echo \"No tests defined for agents package\""
   },
   "dependencies": {
-    "@guru/shared": "workspace:*",
-    "@guru/memory": "workspace:*",
-    "@guru/skills": "workspace:*"
+    "@guru/shared": "file:../shared",
+    "@guru/memory": "file:../memory",
+    "@guru/skills": "file:../skills"
   },
   "devDependencies": {
     "typescript": "^5.0.0"

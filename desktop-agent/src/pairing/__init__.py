@@ -1,33 +1,58 @@
 """
-GURU Secure Device Pairing Module
+GURU Cryptographic Device Pairing Module
 
-This module implements cryptographically secure device pairing using QR codes
-and asymmetric key exchange. It provides the foundation for establishing
-trusted communication channels between GURU desktop and mobile agents.
+Implements cryptographically secure device pairing using QR codes and ECDSA-P256 key exchange.
+Enforces cryptographic authority boundaries for establishing trusted communication channels
+between GURU desktop and mobile agents with tamper-evident audit trails.
 
-Security Features:
-- ECDSA-P256 key pair generation
-- Cryptographically secure pairing tokens
-- Device fingerprint binding
-- Token expiration and replay protection
-- Physical presence verification requirements
-
-All pairing operations require physical access to both devices and implement
-defense-in-depth security measures to prevent unauthorized device pairing.
+Security Invariants (Cryptographically Enforced):
+- ECDSA-P256 key pair generation with hardware-backed storage
+- Cryptographically secure pairing tokens with device fingerprint binding
+- Token expiration and replay protection with cryptographic proof
+- Physical presence verification requirements with tamper detection
+- Defense-in-depth security measures preventing unauthorized device pairing
 """
 
-from .qr_pairing import QRPairingManager, PairingToken, PairingResult
-from .key_exchange import KeyExchangeManager, DeviceKeyPair, KeyExchangeResult
-from .device_registry import DeviceRegistry, DeviceIdentity, TrustedDevice
+from .device_registry import (
+    CryptographicDeviceIdentity,
+    CryptographicDeviceRegistry,
+    CryptographicTrustedDevice,
+    DeviceAuthorityStatus,
+    DeviceRegistry,  # Compatibility alias
+    DeviceIdentity,  # Compatibility alias
+)
+from .key_exchange import (
+    DeviceKeyPair,
+    KeyExchangeManager,
+    KeyExchangeMessage,
+    KeyExchangeResult,
+    KeyExchangeStatus,
+)
+
+# Cryptographic aliases for enterprise naming
+CryptographicKeyExchangeEngine = KeyExchangeManager
+CryptographicKeyExchangeResult = KeyExchangeResult
+CryptographicKeyExchangeStatus = KeyExchangeStatus
+CryptographicDeviceKeyPair = DeviceKeyPair
+from .qr_pairing import PairingResult, PairingToken, QRPairingManager
 
 __all__ = [
     "QRPairingManager",
-    "PairingToken", 
+    "PairingToken",
     "PairingResult",
-    "KeyExchangeManager",
-    "DeviceKeyPair",
-    "KeyExchangeResult", 
-    "DeviceRegistry",
-    "DeviceIdentity",
-    "TrustedDevice"
+    "CryptographicKeyExchangeEngine",
+    "KeyExchangeManager",  # Compatibility alias
+    "KeyExchangeMessage",  # Compatibility alias
+    "KeyExchangeResult",   # Compatibility alias
+    "KeyExchangeStatus",   # Compatibility alias
+    "DeviceKeyPair",       # Compatibility alias
+    "CryptographicDeviceKeyPair",
+    "CryptographicKeyExchangeResult",
+    "CryptographicKeyExchangeStatus",
+    "CryptographicDeviceRegistry",
+    "DeviceRegistry",      # Compatibility alias
+    "CryptographicDeviceIdentity",
+    "DeviceIdentity",      # Compatibility alias
+    "CryptographicTrustedDevice",
+    "DeviceAuthorityStatus",
 ]

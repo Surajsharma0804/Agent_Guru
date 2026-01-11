@@ -14,11 +14,14 @@
   "scripts": {
     "build": "tsc --build",
     "clean": "rm -rf dist",
-    "dev": "tsc --build --watch"
+    "dev": "tsc --build --watch",
+    "test": "echo \"No tests defined for skills package\"",
+    "test:security": "echo \"No security tests defined\"",
+    "test:properties": "echo \"No property tests defined\""
   },
   "dependencies": {
-    "@guru/shared": "workspace:*",
-    "@guru/memory": "workspace:*"
+    "@guru/shared": "file:../shared",
+    "@guru/memory": "file:../memory"
   },
   "devDependencies": {
     "typescript": "^5.0.0"

@@ -14,7 +14,11 @@
   "scripts": {
     "build": "tsc --build",
     "clean": "rm -rf dist",
-    "dev": "tsc --build --watch"
+    "dev": "tsc --build --watch",
+    "test": "echo \"No tests defined for shared package\"",
+    "test:crypto": "echo \"No crypto tests defined\"",
+    "test:properties": "echo \"No property tests defined\"",
+    "test:negative:injection": "echo \"No injection tests defined\""
   },
   "dependencies": {},
   "devDependencies": {

@@ -175,6 +175,9 @@ class TestIntegrityProtection:
         # Verify initial integrity
         assert state_machine.verify_state_integrity() is True
         
+        # Enable test corruption mode to allow checksum modification
+        state_machine.enable_test_corruption_mode()
+        
         # Simulate integrity corruption by modifying internal checksum
         with state_machine._lock:
             original_checksum = state_machine._state_checksum
@@ -187,9 +190,15 @@ class TestIntegrityProtection:
         with pytest.raises(AuthorityStateIntegrityError):
             _ = state_machine.current_state
         
-        # Restore integrity for cleanup
+        # Restore integrity for cleanup (keep corruption mode enabled)
         with state_machine._lock:
             state_machine._state_checksum = original_checksum
+        
+        # Should be valid again
+        assert state_machine.verify_state_integrity() is True
+        
+        # Disable test corruption mode
+        state_machine.disable_test_corruption_mode()
     
     def test_state_history_integrity(self, state_machine):
         """Test integrity of state transition history."""
