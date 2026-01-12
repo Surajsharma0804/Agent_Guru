@@ -21,11 +21,27 @@ from datetime import datetime
 
 
 class ValidationSeverity(Enum):
-    """Severity levels for validation violations"""
+    """
+    Severity levels for validation violations.
+    
+    CRITICAL SECURITY FIX: Added proper ordering for severity comparison
+    to ensure the highest severity is preserved when multiple violations exist.
+    """
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
     CRITICAL = "critical"
+    
+    def __lt__(self, other):
+        if not isinstance(other, ValidationSeverity):
+            return NotImplemented
+        severity_order = {
+            ValidationSeverity.INFO: 0,
+            ValidationSeverity.WARNING: 1,
+            ValidationSeverity.ERROR: 2,
+            ValidationSeverity.CRITICAL: 3
+        }
+        return severity_order[self] < severity_order[other]
 
 
 @dataclass
@@ -155,34 +171,25 @@ class InputValidator:
         return allowed
     
     def _initialize_dangerous_key_combinations(self) -> Set[Tuple[str, ...]]:
-        """Initialize dangerous key combinations that require special validation"""
-        return {
-            # System shutdown/restart
-            ('ALT', 'F4'),
-            ('CTRL', 'ALT', 'DELETE'),
-            ('CTRL', 'SHIFT', 'ESCAPE'),
-            
-            # System access
-            ('WINDOWS', 'R'),
-            ('WINDOWS', 'X'),
-            ('WINDOWS', 'I'),
-            
-            # Task manager and system tools
-            ('CTRL', 'SHIFT', 'ESCAPE'),
-            ('CTRL', 'ALT', 'T'),
-            
-            # Registry and system configuration
-            ('WINDOWS', 'R'),  # Run dialog
-            
-            # Command prompt access
-            ('WINDOWS', 'R'),  # Could be used to open cmd
-            
-            # Browser developer tools (potential security risk)
-            ('F12',),
-            ('CTRL', 'SHIFT', 'I'),
-            ('CTRL', 'SHIFT', 'J'),
-            ('CTRL', 'SHIFT', 'C'),
-        }
+        """
+        Initialize dangerous key combinations that require special validation.
+        
+        CRITICAL SECURITY FIX: Store combinations in sorted order to match
+        the sorting logic used during validation.
+        """
+        # Define combinations and sort them to match validation logic
+        dangerous_combos = [
+            ('ALT', 'F4'),                    # System shutdown
+            ('CTRL', 'ALT', 'DELETE'),        # Secure attention sequence  
+            ('CTRL', 'SHIFT', 'ESCAPE'),      # Task manager
+            ('WINDOWS', 'R'),                 # Run dialog
+            ('WINDOWS', 'X'),                 # Power user menu
+            ('WINDOWS', 'I'),                 # Settings
+            ('CTRL', 'ALT', 'T'),             # Terminal (some systems)
+        ]
+        
+        # Sort each combination and return as set
+        return {tuple(sorted(combo)) for combo in dangerous_combos}
     
     def _initialize_system_keys(self) -> Set[str]:
         """Initialize system keys that require elevated validation"""
@@ -222,7 +229,7 @@ class InputValidator:
             warnings.append("Empty text input")
         elif len(text) > self.max_text_length:
             violations.append(f"Text length {len(text)} exceeds maximum {self.max_text_length}")
-            severity = ValidationSeverity.ERROR
+            severity = max(severity, ValidationSeverity.ERROR)
         
         # Character validation
         invalid_chars = []
@@ -235,14 +242,14 @@ class InputValidator:
         
         if invalid_chars:
             violations.append(f"Invalid characters found: {', '.join(invalid_chars)}")
-            severity = ValidationSeverity.WARNING
+            severity = max(severity, ValidationSeverity.WARNING)
         
         # Dangerous pattern detection
         for pattern in self.dangerous_patterns:
             matches = pattern.findall(text)
             if matches:
                 violations.append(f"Dangerous pattern detected: {pattern.pattern}")
-                severity = ValidationSeverity.CRITICAL
+                severity = max(severity, ValidationSeverity.CRITICAL)
                 break  # Stop on first critical violation
         
         # Encoding validation
@@ -250,7 +257,7 @@ class InputValidator:
             text.encode('utf-8')
         except UnicodeEncodeError as e:
             violations.append(f"Text encoding error: {str(e)}")
-            severity = ValidationSeverity.ERROR
+            severity = max(severity, ValidationSeverity.ERROR)
         
         # Excessive repetition check
         if len(text) > 100:
@@ -262,7 +269,7 @@ class InputValidator:
             max_char_count = max(char_counts.values()) if char_counts else 0
             if max_char_count > len(text) * 0.8:  # More than 80% same character
                 violations.append("Excessive character repetition detected")
-                severity = ValidationSeverity.WARNING
+                severity = max(severity, ValidationSeverity.WARNING)
         
         # Binary data detection
         try:
@@ -270,11 +277,14 @@ class InputValidator:
             printable_count = sum(1 for char in text if char.isprintable() or char.isspace())
             if len(text) > 10 and printable_count / len(text) < 0.7:
                 violations.append("Potential binary data detected")
-                severity = ValidationSeverity.WARNING
+                severity = max(severity, ValidationSeverity.WARNING)
         except Exception:
             pass
         
-        is_valid = len(violations) == 0 or severity in [ValidationSeverity.INFO, ValidationSeverity.WARNING]
+        # CRITICAL SECURITY FIX: Validation logic correction
+        # Previous logic incorrectly treated WARNING severity as valid
+        # Security principle: ANY violation should result in is_valid=False
+        is_valid = len(violations) == 0
         
         # Log validation result
         if violations:
@@ -315,46 +325,49 @@ class InputValidator:
         # Length validation
         if len(keys) > self.max_key_combination_length:
             violations.append(f"Key combination length {len(keys)} exceeds maximum {self.max_key_combination_length}")
-            severity = ValidationSeverity.ERROR
+            severity = max(severity, ValidationSeverity.ERROR)
         
         # Individual key validation
         for key in keys:
             if not isinstance(key, str):
                 violations.append(f"Key must be string, got {type(key)}")
-                severity = ValidationSeverity.ERROR
+                severity = max(severity, ValidationSeverity.ERROR)
                 continue
             
             if len(key) > self.max_single_key_length:
                 violations.append(f"Key name '{key}' too long (max {self.max_single_key_length})")
-                severity = ValidationSeverity.ERROR
+                severity = max(severity, ValidationSeverity.ERROR)
             
             # Check for invalid characters in key names
             if not re.match(r'^[A-Z0-9_]+$', key):
                 violations.append(f"Invalid key name format: '{key}'")
-                severity = ValidationSeverity.WARNING
+                severity = max(severity, ValidationSeverity.WARNING)
         
         # Dangerous combination check
         key_tuple = tuple(sorted(keys))  # Sort for consistent comparison
         if key_tuple in self.dangerous_key_combinations:
             warnings.append(f"Potentially dangerous key combination: {'+'.join(keys)}")
-            severity = ValidationSeverity.WARNING
+            severity = max(severity, ValidationSeverity.WARNING)
         
         # System key validation
         system_key_count = sum(1 for key in keys if key in self.system_keys)
         if system_key_count > 2:
             warnings.append(f"Multiple system keys in combination: {system_key_count}")
-            severity = ValidationSeverity.WARNING
+            severity = max(severity, ValidationSeverity.WARNING)
         
         # Duplicate key check
         if len(keys) != len(set(keys)):
             violations.append("Duplicate keys in combination")
-            severity = ValidationSeverity.WARNING
+            severity = max(severity, ValidationSeverity.WARNING)
         
         # Logical validation (e.g., conflicting modifiers)
         if 'CTRL' in keys and 'ALT' in keys and 'SHIFT' in keys and len(keys) > 4:
             warnings.append("Complex modifier combination may not work as expected")
         
-        is_valid = len(violations) == 0 or severity in [ValidationSeverity.INFO, ValidationSeverity.WARNING]
+        # CRITICAL SECURITY FIX: Key combination validation logic correction
+        # Previous logic incorrectly treated WARNING severity as valid
+        # Security principle: ANY violation should result in is_valid=False
+        is_valid = len(violations) == 0
         
         # Log validation result
         if violations:

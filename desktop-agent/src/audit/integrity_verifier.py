@@ -171,12 +171,17 @@ class IntegrityVerifier:
                 "errors": [f"Verification exception: {e}"]
             }
     
-    def verify_hash_chain(self, entries: List[Tuple]) -> Dict[str, Any]:
+    def verify_hash_chain(self, entries: List[Tuple], start_sequence: Optional[int] = None) -> Dict[str, Any]:
         """
         Verify hash chain integrity across all entries.
         
+        CRITICAL SECURITY FIX: Proper hash chain verification logic
+        that correctly handles partial chain verification when examining
+        a subset of entries starting from a specific sequence number.
+        
         Args:
             entries: List of database row tuples sorted by sequence number
+            start_sequence: If provided, indicates this is a partial chain starting from this sequence
             
         Returns:
             Dictionary with hash chain verification results
@@ -189,7 +194,25 @@ class IntegrityVerifier:
             }
         
         chain_breaks = []
-        previous_hash = None
+        
+        # CRITICAL FIX: Handle partial chain verification correctly
+        if start_sequence is not None and start_sequence > 1:
+            # For partial chains starting after sequence 1, we need to get the previous entry's hash
+            # to properly validate the chain continuity
+            try:
+                with self._get_db_connection() as conn:
+                    cursor = conn.execute(
+                        "SELECT entry_hash FROM audit_entries WHERE sequence_number = ? ORDER BY sequence_number",
+                        (start_sequence - 1,)
+                    )
+                    prev_result = cursor.fetchone()
+                    expected_previous_hash = prev_result[0] if prev_result else None
+            except Exception as e:
+                self.logger.error(f"Failed to get previous hash for partial chain verification: {e}")
+                expected_previous_hash = None
+        else:
+            # For complete chains or chains starting from sequence 1
+            expected_previous_hash = None  # First entry should have None as previous_hash
         
         for i, entry_data in enumerate(entries):
             entry_id = entry_data[0]
@@ -197,17 +220,21 @@ class IntegrityVerifier:
             stored_previous_hash = entry_data[12]  # previous_hash column
             entry_hash = entry_data[13]  # entry_hash column
             
-            # Check hash chain linking
-            if stored_previous_hash != previous_hash:
+            # CRITICAL FIX: Proper hash chain verification
+            # For the first entry in a complete chain (sequence 1), both expected and stored should be None
+            # For partial chains, the first entry should match the previous entry's hash
+            # For subsequent entries, stored should match the previous entry's hash
+            if stored_previous_hash != expected_previous_hash:
                 chain_breaks.append({
                     "entry_id": entry_id,
                     "sequence_number": sequence_number,
-                    "expected_previous_hash": previous_hash,
+                    "expected_previous_hash": expected_previous_hash,
                     "actual_previous_hash": stored_previous_hash,
                     "position": i
                 })
             
-            previous_hash = entry_hash
+            # Set up expected previous hash for next iteration
+            expected_previous_hash = entry_hash
         
         return {
             "valid": len(chain_breaks) == 0,
@@ -215,12 +242,16 @@ class IntegrityVerifier:
             "chain_breaks": chain_breaks
         }
     
-    def verify_sequence_continuity(self, entries: List[Tuple]) -> Dict[str, Any]:
+    def verify_sequence_continuity(self, entries: List[Tuple], start_sequence: Optional[int] = None) -> Dict[str, Any]:
         """
         Verify sequence number continuity to detect missing entries.
         
+        CRITICAL SECURITY FIX: Handle partial chain verification correctly
+        by starting sequence validation from the appropriate sequence number.
+        
         Args:
             entries: List of database row tuples sorted by sequence number
+            start_sequence: If provided, indicates this is a partial chain starting from this sequence
             
         Returns:
             Dictionary with sequence verification results
@@ -237,7 +268,14 @@ class IntegrityVerifier:
         duplicate_sequences = []
         seen_sequences = set()
         
-        expected_sequence = 1
+        # CRITICAL FIX: For partial chain verification, start from the first entry's sequence number
+        # For complete chain verification, start from 1
+        if start_sequence is not None:
+            expected_sequence = start_sequence
+        else:
+            # For complete chains, start from the first entry's sequence number
+            # This handles cases where the audit log doesn't start from sequence 1
+            expected_sequence = entries[0][2] if entries else 1
         
         for entry_data in entries:
             entry_id = entry_data[0]
@@ -357,7 +395,7 @@ class IntegrityVerifier:
                         signatures_valid = False
                 
                 # Verify hash chain
-                chain_result = self.verify_hash_chain(entries)
+                chain_result = self.verify_hash_chain(entries, start_sequence)
                 hash_chain_valid = chain_result["valid"]
                 
                 if not hash_chain_valid:
@@ -371,7 +409,7 @@ class IntegrityVerifier:
                         })
                 
                 # Verify sequence continuity
-                sequence_result = self.verify_sequence_continuity(entries)
+                sequence_result = self.verify_sequence_continuity(entries, start_sequence)
                 sequence_valid = sequence_result["valid"]
                 
                 if not sequence_valid:

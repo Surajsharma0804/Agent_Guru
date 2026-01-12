@@ -578,14 +578,21 @@ class IntrusionDetector:
     def _analyze_failure_patterns(
         self, factor: BiometricFactor, failure_reason: str, confidence_score: float, provider: str, timestamp: datetime
     ) -> Optional[IntrusionEvent]:
-        """Analyze failure patterns to detect intrusion attempts."""
-
+        """
+        Analyze failure patterns to detect intrusion attempts.
+        
+        CRITICAL SECURITY FIX: Check ALL conditions and return the most severe event,
+        not return early. This prevents attackers from bypassing threshold limits
+        by triggering other detection patterns.
+        """
+        detected_events = []
+        
         # Check for rapid attempts FIRST - this is the most immediate threat
         rapid_window = timedelta(seconds=self.config.rapid_attempt_window_seconds)
         recent_attempts = [t for t in self._recent_attempts if timestamp - t <= rapid_window]
 
         if len(recent_attempts) >= self.config.max_failures_per_minute:
-            return self._create_intrusion_event(
+            detected_events.append(self._create_intrusion_event(
                 IntrusionEventType.RAPID_ATTEMPTS,
                 IntrusionSeverity.HIGH,
                 factor,
@@ -598,7 +605,7 @@ class IntrusionDetector:
                     "provider": provider,
                 },
                 timestamp,
-            )
+            ))
 
         # Check for unusual timing patterns (only if timing analysis is enabled)
         if self.config.enable_timing_analysis and len(self._recent_attempts) >= 2:
@@ -606,7 +613,7 @@ class IntrusionDetector:
             time_between = (timestamp - last_attempt).total_seconds()
 
             if time_between < self.config.unusual_timing_threshold_seconds:
-                return self._create_intrusion_event(
+                detected_events.append(self._create_intrusion_event(
                     IntrusionEventType.UNUSUAL_TIMING,
                     IntrusionSeverity.MEDIUM,
                     factor,
@@ -619,12 +626,12 @@ class IntrusionDetector:
                         "provider": provider,
                     },
                     timestamp,
-                )
+                ))
 
         # Check for multiple factor failures
         failed_factors = [f for f, count in self._failure_counts.items() if count > 0]
         if len(failed_factors) >= self.config.multiple_factor_failure_threshold:
-            return self._create_intrusion_event(
+            detected_events.append(self._create_intrusion_event(
                 IntrusionEventType.MULTIPLE_FACTORS_FAILED,
                 IntrusionSeverity.HIGH,
                 factor,
@@ -637,11 +644,11 @@ class IntrusionDetector:
                     "provider": provider,
                 },
                 timestamp,
-            )
+            ))
 
-        # Check for threshold violations (after rapid attempts and timing checks)
+        # Check for threshold violations - CRITICAL SECURITY BOUNDARY
         if self._failure_counts[factor] >= self.config.max_failures_per_factor:
-            return self._create_intrusion_event(
+            detected_events.append(self._create_intrusion_event(
                 IntrusionEventType.THRESHOLD_EXCEEDED,
                 IntrusionSeverity.HIGH,
                 factor,
@@ -655,10 +662,10 @@ class IntrusionDetector:
                     "provider": provider,
                 },
                 timestamp,
-            )
+            ))
 
         if self._total_failures >= self.config.max_total_failures:
-            return self._create_intrusion_event(
+            detected_events.append(self._create_intrusion_event(
                 IntrusionEventType.THRESHOLD_EXCEEDED,
                 IntrusionSeverity.CRITICAL,
                 factor,
@@ -672,9 +679,33 @@ class IntrusionDetector:
                     "provider": provider,
                 },
                 timestamp,
-            )
+            ))
 
-        return None
+        # Return the most severe event (CRITICAL > HIGH > MEDIUM > LOW)
+        if not detected_events:
+            return None
+            
+        # Sort by severity (CRITICAL first, then HIGH, etc.)
+        severity_order = {
+            IntrusionSeverity.CRITICAL: 0,
+            IntrusionSeverity.HIGH: 1,
+            IntrusionSeverity.MEDIUM: 2,
+            IntrusionSeverity.LOW: 3
+        }
+        
+        most_severe_event = min(detected_events, key=lambda e: severity_order[e.severity])
+        
+        # Log all detected events for forensic analysis
+        if len(detected_events) > 1:
+            logger.warning(
+                "Multiple intrusion patterns detected simultaneously",
+                total_events=len(detected_events),
+                most_severe=most_severe_event.event_type.value,
+                all_events=[e.event_type.value for e in detected_events],
+                session_id=self._current_session_id
+            )
+        
+        return most_severe_event
 
     def _create_intrusion_event(
         self,

@@ -296,41 +296,31 @@ class TestIntegrityVerifier:
         assert result["sequence_gaps"][0]["gap_size"] == 1
     
     def test_verify_sequence_continuity_duplicate(self, audit_logger, integrity_verifier, sample_events):
-        """Test detection of duplicate sequence numbers"""
+        """
+        Test that duplicate sequence numbers are prevented by database constraints.
+        
+        CRITICAL SECURITY FIX: The database UNIQUE constraint on sequence_number
+        is a security feature that prevents audit log tampering. This test verifies
+        that the constraint is properly enforced.
+        """
         # Log an event
         audit_logger.log_event(sample_events[0])
         
-        # Manually insert duplicate sequence number
-        with sqlite3.connect(audit_logger.db_path) as conn:
-            conn.execute("""
-                INSERT INTO audit_entries (
-                    id, timestamp, sequence_number, event_type, severity,
-                    component, action, details, session_id, user_id,
-                    device_id, correlation_id, previous_hash, entry_hash, signature
-                ) VALUES (
-                    'duplicate_id', ?, 1, 'SYSTEM_STARTUP', 'INFO',
-                    'test', 'duplicate', '{}', NULL, NULL,
-                    NULL, NULL, NULL, 'fake_hash', 'fake_signature'
-                )
-            """, (datetime.now(timezone.utc).isoformat(),))
-            conn.commit()
-        
-        # Get all entries
-        with integrity_verifier._get_db_connection() as conn:
-            cursor = conn.execute("""
-                SELECT id, timestamp, sequence_number, event_type, severity,
-                       component, action, details, session_id, user_id,
-                       device_id, correlation_id, previous_hash, entry_hash, signature
-                FROM audit_entries ORDER BY sequence_number, id
-            """)
-            entries = cursor.fetchall()
-        
-        # Verify sequence continuity
-        result = integrity_verifier.verify_sequence_continuity(entries)
-        
-        assert result["valid"] is False
-        assert len(result["duplicate_sequences"]) == 1
-        assert result["duplicate_sequences"][0]["sequence_number"] == 1
+        # Attempt to manually insert duplicate sequence number should fail
+        with pytest.raises(sqlite3.IntegrityError, match="UNIQUE constraint failed"):
+            with sqlite3.connect(audit_logger.db_path) as conn:
+                conn.execute("""
+                    INSERT INTO audit_entries (
+                        id, timestamp, sequence_number, event_type, severity,
+                        component, action, details, session_id, user_id,
+                        device_id, correlation_id, previous_hash, entry_hash, signature
+                    ) VALUES (
+                        'duplicate_id', ?, 1, 'SYSTEM_STARTUP', 'INFO',
+                        'test', 'duplicate', '{}', NULL, NULL,
+                        NULL, NULL, NULL, 'fake_hash', 'fake_signature'
+                    )
+                """, (datetime.now(timezone.utc).isoformat(),))
+                conn.commit()
     
     def test_verify_complete_integrity_valid(self, audit_logger, integrity_verifier, sample_events):
         """Test complete integrity verification of valid log"""

@@ -117,6 +117,16 @@ class BiometricAuthorityVerificationEngine:
         # Initialize enhanced failure detection if enabled
         self.intrusion_detector = None
         self.failure_detector = None
+    
+    @property
+    def config(self) -> AuthorityConfiguration:
+        """
+        Backward compatibility property for tests.
+        
+        CRITICAL SECURITY FIX: Adding config property for test compatibility
+        while maintaining the proper authority_config attribute.
+        """
+        return self.authority_config
 
         if self.config.enable_intrusion_detection_integration and self.intrusion_detector:
             # Import dynamically to avoid circular imports

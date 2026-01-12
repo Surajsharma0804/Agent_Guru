@@ -16,12 +16,13 @@ import tempfile
 import os
 import threading
 import time
+import sqlite3
 from pathlib import Path
 from datetime import datetime, timezone
 
 from src.memory.database import (
     DatabaseManager, DatabaseConfig, DatabaseMigrator, 
-    DatabaseConnectionPool, DatabaseError, MigrationError
+    DatabaseConnectionPool, DatabaseError, MigrationError, ConnectionPoolError
 )
 from src.memory.memory_types import CoreMemory, DataType
 
@@ -537,11 +538,17 @@ class TestDatabaseErrorHandling:
     """Test database error handling."""
     
     def test_connection_failure_handling(self):
-        """Test handling of connection failures."""
-        # Test with invalid database path
-        config = DatabaseConfig(db_path="/invalid/path/test.db")
+        """
+        Test handling of connection failures.
         
-        with pytest.raises(Exception):
+        CRITICAL SECURITY FIX: Test actual connection failures, not just invalid paths
+        that get auto-created. Use a path that will definitely fail on Windows.
+        """
+        # Test with a path that cannot be created (invalid characters on Windows)
+        invalid_path = "CON:/invalid<>path/test.db"  # CON is reserved on Windows
+        config = DatabaseConfig(db_path=invalid_path)
+        
+        with pytest.raises((ConnectionPoolError, OSError, sqlite3.OperationalError)):
             DatabaseConnectionPool(config)
     
     def test_migration_failure_handling(self):
@@ -553,11 +560,16 @@ class TestDatabaseErrorHandling:
             pool = DatabaseConnectionPool(config)
             migrator = DatabaseMigrator(pool)
             
-            # Test invalid SQL migration
-            with pytest.raises(MigrationError):
-                migrator.apply_migration(1, "invalid", "Invalid SQL", "INVALID SQL STATEMENT;")
-            
-            pool.shutdown()
+            try:
+                # Test invalid SQL migration
+                with pytest.raises(MigrationError):
+                    migrator.apply_migration(1, "invalid", "Invalid SQL", "INVALID SQL STATEMENT;")
+            finally:
+                # CRITICAL FIX: Ensure proper resource cleanup
+                # Shutdown pool and force garbage collection to release file handles
+                pool.shutdown()
+                import gc
+                gc.collect()  # Force garbage collection to release any remaining references
     
     def test_transaction_failure_handling(self):
         """Test transaction failure handling."""

@@ -154,34 +154,54 @@ class DatabaseConnectionPool:
             raise ConnectionPoolError("Connection pool is shutdown")
             
         conn = None
+        connection_acquired = False
+        
         try:
             # Try to get existing connection from pool
             try:
                 conn = self._pool.get(block=False)
+                connection_acquired = True
             except queue.Empty:
                 # Create new connection if pool is empty and under limit
                 with self._lock:
                     if self._active_connections < self.config.max_connections:
                         conn = self._create_connection()
+                        connection_acquired = True
                     else:
                         # Wait for available connection
                         conn = self._pool.get(timeout=self.config.connection_timeout)
+                        connection_acquired = True
             
             # Verify connection health
             if not self._is_connection_healthy(conn):
                 self._close_connection(conn)
                 conn = self._create_connection()
+                connection_acquired = True
                 
             yield conn
             
         except Exception as e:
-            logger.error(f"Connection pool error: {e}")
-            if conn:
-                self._close_connection(conn)
-            raise ConnectionPoolError(f"Failed to get connection: {e}")
+            # CRITICAL FIX: Preserve original exception type and message
+            # Only wrap in ConnectionPoolError if it's a connection acquisition issue
+            if not connection_acquired:
+                logger.error(f"Connection pool error: {e}")
+                if conn:
+                    self._close_connection(conn)
+                raise ConnectionPoolError(f"Failed to get connection: {e}")
+            else:
+                # Connection was acquired successfully, so this is an application error
+                # Clean up the connection but re-raise the original exception
+                if conn:
+                    try:
+                        # Attempt to rollback any pending transaction
+                        conn.rollback()
+                    except Exception:
+                        pass  # Ignore rollback errors during cleanup
+                    self._close_connection(conn)
+                raise  # Re-raise original exception
         finally:
-            # Return connection to pool if healthy
-            if conn and not self._shutdown:
+            # Return connection to pool if healthy and no exception occurred
+            if conn and not self._shutdown and connection_acquired:
                 if self._is_connection_healthy(conn):
                     try:
                         self._pool.put(conn, block=False)

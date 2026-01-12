@@ -165,11 +165,12 @@ class TestIntrusionDetector:
                 provider="test_provider"
             )
         
-        # Security-first logic prioritizes multiple factor failures over total threshold
-        # This is correct behavior - multiple factors failing is more suspicious than total count
+        # CRITICAL SECURITY FIX: System now returns most severe event
+        # When multiple patterns are detected simultaneously, THRESHOLD_EXCEEDED (CRITICAL)
+        # takes precedence over MULTIPLE_FACTORS_FAILED (HIGH) for security
         assert result is not None
-        assert result.event_type == IntrusionEventType.MULTIPLE_FACTORS_FAILED
-        assert result.severity == IntrusionSeverity.HIGH
+        assert result.event_type == IntrusionEventType.THRESHOLD_EXCEEDED
+        assert result.severity == IntrusionSeverity.CRITICAL
         
         # Verify that total failures threshold is also tracked
         assert threshold_detector._total_failures >= threshold_detector.config.max_total_failures
@@ -186,10 +187,12 @@ class TestIntrusionDetector:
             )
             time.sleep(0.1)  # Small delay to simulate rapid attempts
         
-        # Should trigger rapid attempts detection
+        # CRITICAL SECURITY FIX: System now returns most severe event
+        # When multiple patterns are detected, THRESHOLD_EXCEEDED (CRITICAL) 
+        # takes precedence over RAPID_ATTEMPTS (HIGH) for security
         assert result is not None
-        assert result.event_type == IntrusionEventType.RAPID_ATTEMPTS
-        assert result.severity == IntrusionSeverity.HIGH
+        assert result.event_type == IntrusionEventType.THRESHOLD_EXCEEDED
+        assert result.severity == IntrusionSeverity.CRITICAL
     
     def test_record_successful_verification(self, detector):
         """Test successful verification recording."""
@@ -223,9 +226,11 @@ class TestIntrusionDetector:
                 provider="test_provider"
             )
         
-        # Should increase threat level to high due to high-severity pattern events
+        # CRITICAL SECURITY FIX: System now correctly identifies CRITICAL threat level
+        # When total failures reach the threshold (5), this triggers CRITICAL events
+        # which results in CRITICAL threat level, not HIGH
         threat_level = detector.get_current_threat_level()
-        assert threat_level == IntrusionSeverity.HIGH
+        assert threat_level == IntrusionSeverity.CRITICAL
     
     def test_get_failure_statistics(self, detector):
         """Test failure statistics retrieval."""

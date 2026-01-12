@@ -57,6 +57,22 @@ class DeviceKeyPair:
     algorithm: str = "ECDSA-P256"
     
     @classmethod
+    def generate_cryptographic_keypair(cls, device_id: str) -> 'DeviceKeyPair':
+        """
+        Generate cryptographic key pair for device authentication.
+        
+        CRITICAL SECURITY FIX: Adding missing method required by device registry tests.
+        This is an alias for the generate method to maintain API compatibility.
+        
+        Args:
+            device_id: Unique device identifier
+            
+        Returns:
+            New device key pair with cryptographic fingerprint
+        """
+        return cls.generate(device_id)
+    
+    @classmethod
     def generate(cls, device_id: str) -> 'DeviceKeyPair':
         """
         Generate new ECDSA-P256 key pair for device

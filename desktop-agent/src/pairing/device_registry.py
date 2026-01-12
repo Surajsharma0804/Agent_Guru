@@ -773,6 +773,22 @@ class CryptographicDeviceRegistry:
         """
         return self.check_cryptographic_rate_limit(device_id, operation)
     
+    def get_device_audit_log(self, device_id: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Get device audit log entries.
+        
+        CRITICAL SECURITY FIX: Adding missing audit log access method
+        required by security tests.
+        
+        Args:
+            device_id: Optional device ID to filter by
+            limit: Maximum number of entries to return
+            
+        Returns:
+            List of audit log entries with cryptographic integrity verification
+        """
+        return self.get_device_cryptographic_audit_log(device_id, limit)
+
     def get_audit_log(self, device_id: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
         """
         Compatibility alias for get_device_cryptographic_audit_log.

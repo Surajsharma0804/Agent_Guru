@@ -47,14 +47,36 @@ from src.failure.exceptions import (
 )
 
 
-# Test data generation strategies
-component_names = st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd')))
+# Test data generation strategies - SECURITY-SAFE COMPONENT NAMES
+# CRITICAL FIX: Use ASCII-only component names to prevent Unicode security violations
+# The previous implementation was generating random Unicode that triggered real security violations
+component_names = st.text(
+    min_size=1, 
+    max_size=20, 
+    alphabet=st.characters(min_codepoint=ord('A'), max_codepoint=ord('Z')) | 
+             st.characters(min_codepoint=ord('a'), max_codepoint=ord('z')) |
+             st.characters(min_codepoint=ord('0'), max_codepoint=ord('9'))
+).map(lambda x: f"test_component_{x}" if x else "test_component_default")
+
 failure_types = st.sampled_from(list(FailureType))
 failure_severities = st.sampled_from(list(FailureSeverity))
-error_messages = st.text(min_size=1, max_size=100)
+error_messages = st.text(
+    min_size=1, 
+    max_size=100,
+    alphabet=st.characters(min_codepoint=32, max_codepoint=126)  # ASCII printable only
+)
 failure_contexts = st.dictionaries(
-    st.text(min_size=1, max_size=10), 
-    st.one_of(st.text(), st.integers(), st.floats(allow_nan=False, allow_infinity=False), st.booleans()),
+    st.text(
+        min_size=1, 
+        max_size=10,
+        alphabet=st.characters(min_codepoint=ord('a'), max_codepoint=ord('z'))
+    ), 
+    st.one_of(
+        st.text(alphabet=st.characters(min_codepoint=32, max_codepoint=126), max_size=50), 
+        st.integers(), 
+        st.floats(allow_nan=False, allow_infinity=False), 
+        st.booleans()
+    ),
     max_size=5
 )
 

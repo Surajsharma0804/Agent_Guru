@@ -234,7 +234,7 @@ class TestBiometricIntrusionIntegration:
         biometric = integrated_system['biometric']
         intrusion = integrated_system['intrusion']
 
-        with patch.object(biometric.provider_manager, 'verify_biometric') as mock_verify:
+        with patch.object(biometric.provider_manager, 'enforce_biometric_verification_boundary') as mock_verify:
             # Configure mock to return low confidence (below threshold)
             mock_verify.return_value = BiometricResult(
                 success=True,  # Provider says success
@@ -245,13 +245,13 @@ class TestBiometricIntrusionIntegration:
             )
 
             # Attempt verification
-            success = await biometric.verify_biometric_for_authority(authority, BiometricFactor.FACE)
+            success = await biometric.verify_biometric_authority_boundary(authority, BiometricFactor.FACE)
 
             # Should fail due to low confidence
             assert success is False
 
             # Authority state should not be ARMED
-            assert authority.get_current_state() != AuthorityState.ARMED
+            assert authority.current_state != AuthorityState.ARMED
 
     @pytest.mark.asyncio
     async def test_successful_verification_resets_counters(self, integrated_system):
