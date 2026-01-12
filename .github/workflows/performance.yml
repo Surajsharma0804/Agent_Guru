@@ -1,0 +1,75 @@
+# GURU Personal Assistant - Performance Benchmarking Pipeline
+# Comprehensive performance testing and monitoring
+# Tracks performance regressions and system resource usage
+
+name: 'Performance Benchmarks'
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Weekly performance benchmarks on Sundays at 04:00 UTC
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+    inputs:
+      benchmark_suite:
+        description: 'Benchmark suite to run'
+        required: true
+        default: 'comprehensive'
+        type: choice
+        options:
+          - 'quick'
+          - 'comprehensive'
+          - 'stress'
+      iterations:
+        description: 'Number of benchmark iterations'
+        required: false
+        default: '100'
+        type: string
+
+env:
+  BENCHMARK_TIMEOUT: 60
+  PERFORMANCE_THRESHOLD_CPU: 80
+  PERFORMANCE_THRESHOLD_MEMORY: 512
+  PERFORMANCE_THRESHOLD_LATENCY: 100
+
+permissions:
+  contents: read
+  actions: write
+  checks: write
+
+jobs:
+  # ============================================================================
+  # DESKTOP AGENT PERFORMANCE BENCHMARKS
+  # ============================================================================
+  desktop-performance:
+    name: 'Desktop Agent Performance'
+    runs-on: windows-latest
+    timeout-minutes: ${{ fromJSON(env.BENCHMARK_TIMEOUT) }}
+    
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+        benchmark-type: ['cpu', 'memory', 'io', 'crypto']
+        
+    steps:
+      - name: 'Checkout Repository'
+        uses: actions/checkout@v4
+        
+      - name: 'Setup Python'
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          
+      - name: 'Install Dependencies'
+        working-directory: desktop-agent
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-benchmark memory-profiler psutil
+          
+      - name: 'Setup Performance Monitoring'
+        run: |
+    

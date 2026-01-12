@@ -705,7 +705,7 @@ def create_biometric_provider_manager(
         config: Optional configuration, uses defaults if None
 
     Returns:
-        Configured BiometricProviderManager instance
+        Configured BiometricProviderSecurityBoundary instance
     """
     return BiometricProviderSecurityBoundary(config)
 

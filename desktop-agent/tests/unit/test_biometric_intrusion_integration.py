@@ -21,7 +21,7 @@ from src.authority.biometric_integration import (
     BiometricIntegrationConfig
 )
 from src.biometric.providers import (
-    BiometricProviderManager,
+    BiometricProviderSecurityBoundary,
     BiometricProviderConfig,
     BiometricResult,
     BiometricProviderType,

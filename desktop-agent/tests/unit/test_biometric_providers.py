@@ -21,7 +21,7 @@ from src.biometric.providers import (
     BiometricVerificationTimeoutError,
     WindowsHelloProvider,
     MockBiometricProvider,
-    BiometricProviderManager,
+    BiometricProviderSecurityBoundary,
     create_biometric_provider_manager,
     get_default_biometric_config
 )
@@ -333,8 +333,8 @@ class TestWindowsHelloProvider:
         assert 'verification_count' in info
 
 
-class TestBiometricProviderManager:
-    """Test BiometricProviderManager functionality."""
+class TestBiometricProviderSecurityBoundary:
+    """Test BiometricProviderSecurityBoundary functionality."""
     
     @pytest.fixture
     def config(self):
@@ -344,7 +344,7 @@ class TestBiometricProviderManager:
     @pytest.fixture
     def manager(self, config):
         """Create biometric provider manager."""
-        return BiometricProviderManager(config)
+        return BiometricProviderSecurityBoundary(config)
     
     def test_initialization(self, manager):
         """Test manager initialization."""
@@ -407,7 +407,7 @@ class TestBiometricProviderManager:
     async def test_verification_no_available_provider(self, config):
         """Test verification when no provider supports the factor."""
         # Create manager with no providers
-        manager = BiometricProviderManager(config)
+        manager = BiometricProviderSecurityBoundary(config)
         manager.providers.clear()  # Remove all providers
         
         with pytest.raises(BiometricProviderNotAvailableError):
@@ -434,13 +434,13 @@ class TestFactoryFunctions:
         """Test factory function for creating provider manager."""
         # With default config
         manager1 = create_biometric_provider_manager()
-        assert isinstance(manager1, BiometricProviderManager)
+        assert isinstance(manager1, BiometricProviderSecurityBoundary)
         assert isinstance(manager1.config, BiometricProviderConfig)
         
         # With custom config
         config = BiometricProviderConfig(verification_timeout_seconds=60)
         manager2 = create_biometric_provider_manager(config)
-        assert isinstance(manager2, BiometricProviderManager)
+        assert isinstance(manager2, BiometricProviderSecurityBoundary)
         assert manager2.config.verification_timeout_seconds == 60
     
     def test_get_default_biometric_config(self):
@@ -513,7 +513,7 @@ class TestConcurrency:
     @pytest.fixture
     def manager(self):
         """Create provider manager for concurrency tests."""
-        return BiometricProviderManager()
+        return BiometricProviderSecurityBoundary()
     
     @pytest.mark.asyncio
     async def test_concurrent_verifications(self, manager):

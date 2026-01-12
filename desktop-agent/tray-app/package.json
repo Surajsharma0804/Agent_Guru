@@ -1,0 +1,15 @@
+{
+  "name": "guru-system-tray",
+  "version": "0.1.0",
+  "description": "GURU System Tray Application",
+  "scripts": {
+    "dev": "echo 'Frontend is static HTML - no dev server needed'",
+    "build": "echo 'Frontend is static HTML - no build needed'",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.6"
+  }
+}

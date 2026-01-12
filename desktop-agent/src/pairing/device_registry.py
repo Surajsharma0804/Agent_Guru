@@ -708,6 +708,85 @@ class CryptographicDeviceRegistry:
         except Exception as e:
             self.logger.error("Failed to retrieve cryptographic audit log", error=str(e))
             return []
+
+    # COMPATIBILITY METHODS - Backward compatibility for tests and legacy code
+    def get_trusted_device(self, device_id: str) -> Optional[CryptographicTrustedDevice]:
+        """
+        Compatibility alias for get_cryptographic_trusted_device.
+        
+        Args:
+            device_id: Device identifier
+            
+        Returns:
+            Cryptographic trusted device or None if not found
+        """
+        return self.get_cryptographic_trusted_device(device_id)
+    
+    def list_trusted_devices(self, include_revoked: bool = False) -> List[CryptographicDeviceIdentity]:
+        """
+        Compatibility alias for list_cryptographic_trusted_devices.
+        
+        Args:
+            include_revoked: Include revoked devices in results
+            
+        Returns:
+            List of cryptographic device identities
+        """
+        return self.list_cryptographic_trusted_devices(include_revoked)
+    
+    def verify_device_fingerprint(self, device_id: str, expected_fingerprint: str) -> bool:
+        """
+        Compatibility alias for verify_device_cryptographic_fingerprint.
+        
+        Args:
+            device_id: Device identifier
+            expected_fingerprint: Expected key fingerprint
+            
+        Returns:
+            True if fingerprint matches cryptographic boundary
+        """
+        return self.verify_device_cryptographic_fingerprint(device_id, expected_fingerprint)
+    
+    def check_device_permissions(self, device_id: str, required_permission: str) -> bool:
+        """
+        Compatibility alias for check_device_authority_permissions.
+        
+        Args:
+            device_id: Device identifier
+            required_permission: Permission to check
+            
+        Returns:
+            True if device has cryptographic authority permission
+        """
+        return self.check_device_authority_permissions(device_id, required_permission)
+    
+    def check_rate_limit(self, device_id: str, operation: str) -> bool:
+        """
+        Compatibility alias for check_cryptographic_rate_limit.
+        
+        Args:
+            device_id: Device identifier
+            operation: Operation type
+            
+        Returns:
+            True if operation is allowed within cryptographic boundaries
+        """
+        return self.check_cryptographic_rate_limit(device_id, operation)
+    
+    def get_audit_log(self, device_id: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Compatibility alias for get_device_cryptographic_audit_log.
+        
+        Args:
+            device_id: Filter by device ID (all devices if None)
+            limit: Maximum number of entries to return
+            
+        Returns:
+            List of tamper-evident audit log entries
+        """
+        return self.get_device_cryptographic_audit_log(device_id, limit)
+
+
 # COMPATIBILITY ALIASES - Remove AI-generated naming inconsistencies
 DeviceRegistry = CryptographicDeviceRegistry
 DeviceIdentity = CryptographicDeviceIdentity

@@ -287,7 +287,7 @@ class TestAuditLogger:
             """)
             
             sequences = [row[0] for row in cursor.fetchall()]
-            expected_sequences = list(range(1, 6))
+            expected_sequences = list(range(1, 6))  # [1, 2, 3, 4, 5]
             assert sequences == expected_sequences
     
     def test_convenience_logging_methods(self, audit_logger):
@@ -305,9 +305,9 @@ class TestAuditLogger:
             {"violation_type": "unauthorized_access"}
         )
         
-        # Test system event logging
+        # Test system event logging (will create CONFIGURATION_CHANGE since "startup" not in action)
         system_id = audit_logger.log_system_event(
-            "startup",
+            "config_change",
             {"component": "test_system"}
         )
         
@@ -331,7 +331,7 @@ class TestAuditLogger:
             events = cursor.fetchall()
             assert events[0][0] == AuditEventType.AUTHORITY_STATE_CHANGE.value
             assert events[1][0] == AuditEventType.SECURITY_VIOLATION.value
-            assert events[2][0] == AuditEventType.CONFIGURATION_CHANGE.value  # System events map to config change
+            assert events[2][0] == AuditEventType.CONFIGURATION_CHANGE.value
             assert events[3][0] == AuditEventType.EMERGENCY_SHUTDOWN.value
             assert events[3][1] == AuditSeverity.EMERGENCY.value
     
@@ -361,26 +361,21 @@ class TestAuditLogger:
         """Test error handling when database operations fail"""
         logger = AuditLogger(log_directory=temp_dir, testing_mode=True)
         
-        # Close any open connections first
-        logger._db_lock.acquire()
-        try:
-            # Remove the database file
-            if logger.db_path.exists():
-                logger.db_path.unlink()
-        finally:
-            logger._db_lock.release()
-        
-        event = AuditEvent(
-            event_type=AuditEventType.SYSTEM_STARTUP,
-            severity=AuditSeverity.INFO,
-            component="test",
-            action="test_action",
-            details={}
-        )
-        
-        # Should raise RuntimeError for audit failure
-        with pytest.raises(RuntimeError, match="Audit system failure"):
-            logger.log_event(event)
+        # Mock the database connection to raise an exception
+        with patch.object(logger, '_get_db_connection') as mock_db:
+            mock_db.side_effect = Exception("Database connection failed")
+            
+            event = AuditEvent(
+                event_type=AuditEventType.SYSTEM_STARTUP,
+                severity=AuditSeverity.INFO,
+                component="test",
+                action="test_action",
+                details={}
+            )
+            
+            # Should raise RuntimeError for audit failure
+            with pytest.raises(RuntimeError, match="Audit system failure"):
+                logger.log_event(event)
     
     def test_thread_safety_basic(self, audit_logger):
         """Test basic thread safety of audit logging"""

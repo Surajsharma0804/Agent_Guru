@@ -477,10 +477,15 @@ class TestIntrusionDetectionResponseProperties:
             
             # Property: Should trigger lockdown for sufficient rapid attempts
             if len(rapid_events) >= test_config.max_total_failures:
-                # Should have triggered workstation lock
-                if hasattr(detector, '_workstation_locker'):
+                # Should have triggered workstation lock only if workstation locking is enabled
+                if hasattr(detector, '_workstation_locker') and test_config.enable_workstation_locking:
                     lock_stats = detector.get_workstation_lock_statistics()
                     assert lock_stats['total_lock_attempts'] > 0
+                elif not test_config.enable_workstation_locking:
+                    # If workstation locking is disabled, should still detect intrusion but no lock attempts
+                    if hasattr(detector, '_workstation_locker'):
+                        lock_stats = detector.get_workstation_lock_statistics()
+                        assert lock_stats['total_lock_attempts'] == 0
     
     @given(config=intrusion_detection_config_strategy(),
            event_timing_scenarios=st.lists(

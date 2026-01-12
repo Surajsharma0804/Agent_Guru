@@ -1,0 +1,138 @@
+# GURU Personal Assistant - Dynamic CI Matrix Configuration
+# Advanced matrix generation for comprehensive multi-platform testing
+# Supports dynamic matrix generation based on build context
+
+name: 'CI Matrix Generator'
+
+on:
+  workflow_call:
+    inputs:
+      build_type:
+        description: 'Build type for matrix generation'
+        required: true
+        type: string
+        default: 'comprehensive'
+      target_platforms:
+        description: 'Target platforms for builds'
+        required: false
+        type: string
+        default: 'all'
+    outputs:
+      build-matrix:
+        description: 'Generated build matrix'
+        value: ${{ jobs.generate-matrix.outputs.build-matrix }}
+      test-matrix:
+        description: 'Generated test matrix'
+        value: ${{ jobs.generate-matrix.outputs.test-matrix }}
+
+jobs:
+  generate-matrix:
+    name: 'Generate CI Matrix'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    
+    outputs:
+      build-matrix: ${{ steps.matrix.outputs.build-matrix }}
+      test-matrix: ${{ steps.matrix.outputs.test-matrix }}
+      
+    steps:
+      - name: 'Generate Dynamic Matrix'
+        id: matrix
+        run: |
+          # Matrix generation based on build type and context
+          BUILD_TYPE="${{ inputs.build_type }}"
+          TARGET_PLATFORMS="${{ inputs.target_platforms }}"
+          
+          case "$BUILD_TYPE" in
+            "quick")
+              # Minimal matrix for quick validation
+              BUILD_MATRIX='{
+                "os": ["ubuntu-22.04"],
+                "python": ["3.11"],
+                "node": ["18.x"],
+                "build-config": ["debug"]
+              }'
+              TEST_MATRIX='{
+                "suite": ["unit", "security"],
+                "os": ["ubuntu-22.04"],
+                "python": ["3.11"]
+              }'
+              ;;
+              
+            "comprehensive")
+              # Full matrix for comprehensive testing
+              BUILD_MATRIX='{
+                "os": ["windows-2022", "ubuntu-22.04"],
+                "python": ["3.11", "3.12"],
+                "node": ["18.x", "20.x"],
+                "build-config": ["debug", "release"]
+              }'
+              TEST_MATRIX='{
+                "suite": ["unit", "integration", "property", "security", "negative"],
+                "os": ["windows-2022", "ubuntu-22.04"],
+                "python": ["3.11", "3.12"]
+              }'
+              ;;
+              
+            "security-focused")
+              # Security-focused matrix
+              BUILD_MATRIX='{
+                "os": ["ubuntu-22.04"],
+                "python": ["3.11"],
+                "node": ["18.x"],
+                "build-config": ["release"]
+              }'
+              TEST_MATRIX='{
+                "suite": ["security", "negative", "property"],
+                "os": ["ubuntu-22.04"],
+                "python": ["3.11"]
+              }'
+              ;;
+              
+            "performance-focused")
+              # Performance testing matrix
+              BUILD_MATRIX='{
+                "os": ["windows-2022"],
+                "python": ["3.11"],
+                "node": ["18.x"],
+                "build-config": ["release"]
+              }'
+              TEST_MATRIX='{
+                "suite": ["unit", "integration", "performance"],
+                "os": ["windows-2022"],
+                "python": ["3.11"]
+              }'
+              ;;
+              
+            *)
+              # Default comprehensive matrix
+              BUILD_MATRIX='{
+                "os": ["windows-2022", "ubuntu-22.04"],
+                "python": ["3.11", "3.12"],
+                "node": ["18.x"],
+                "build-config": ["debug", "release"]
+              }'
+              TEST_MATRIX='{
+                "suite": ["unit", "integration", "property", "security"],
+                "os": ["windows-2022", "ubuntu-22.04"],
+                "python": ["3.11"]
+              }'
+              ;;
+          esac
+          
+          # Platform filtering
+          if [[ "$TARGET_PLATFORMS" == "windows-only" ]]; then
+            BUILD_MATRIX=$(echo "$BUILD_MATRIX" | jq '.os = ["windows-2022"]')
+            TEST_MATRIX=$(echo "$TEST_MATRIX" | jq '.os = ["windows-2022"]')
+          elif [[ "$TARGET_PLATFORMS" == "linux-only" ]]; then
+            BUILD_MATRIX=$(echo "$BUILD_MATRIX" | jq '.os = ["ubuntu-22.04"]')
+            TEST_MATRIX=$(echo "$TEST_MATRIX" | jq '.os = ["ubuntu-22.04"]')
+          fi
+          
+          # Output matrices
+          echo "build-matrix=$(echo "$BUILD_MATRIX" | jq -c .)" >> $GITHUB_OUTPUT
+          echo "test-matrix=$(echo "$TEST_MATRIX" | jq -c .)" >> $GITHUB_OUTPUT
+          
+          # Debug output
+          echo "Generated build matrix: $BUILD_MATRIX"
+          echo "Generated test matrix: $TEST_MATRIX"

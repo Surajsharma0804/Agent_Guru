@@ -121,9 +121,15 @@ class TestCorruptedState:
         # Verify initial integrity
         assert state_machine.verify_state_integrity() is True
         
+        # Enable test corruption mode (required for testing)
+        state_machine.enable_test_corruption_mode()
+        
         # Corrupt the integrity checksum
         with state_machine._lock:
             state_machine._state_checksum = "definitely_corrupted_checksum"
+        
+        # Disable test corruption mode to restore normal protection
+        state_machine.disable_test_corruption_mode()
         
         # Should detect corruption
         assert state_machine.verify_state_integrity() is False
@@ -363,6 +369,9 @@ class TestConcurrentFailures:
         errors = []
         corruption_attempts = 0
         
+        # Enable test corruption mode for this test
+        state_machine.enable_test_corruption_mode()
+        
         def corruption_attempt():
             nonlocal corruption_attempts
             try:
@@ -398,6 +407,9 @@ class TestConcurrentFailures:
         
         for thread in threads:
             thread.join()
+        
+        # Disable test corruption mode
+        state_machine.disable_test_corruption_mode()
         
         # Should detect corruption but not crash
         # Some operations may fail with integrity errors, which is expected
