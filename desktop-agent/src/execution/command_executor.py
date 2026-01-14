@@ -26,14 +26,14 @@ from dataclasses import dataclass
 from enum import Enum
 import logging
 
-# Windows-specific imports
-try:
-    import win32com.client
-    import win32api
-    import win32con
-    WINDOWS_AVAILABLE = True
-except ImportError:
-    WINDOWS_AVAILABLE = False
+# PAL imports - platform-agnostic interfaces
+from pal.interfaces import (
+    ApplicationController,
+    InputAutomation,
+    AppDescriptor,
+    AutomationTarget,
+    PlatformCapabilityError
+)
 
 logger = logging.getLogger(__name__)
 
@@ -341,72 +341,65 @@ class IntentRecognizer:
 
 class ApplicationLauncher:
     """
-    Launches Windows applications safely.
+    Launches applications using platform-agnostic PAL interface.
     
-    Handles application discovery, launching, and error recovery.
+    Handles application discovery, launching, and error recovery through
+    the ApplicationController interface, ensuring platform independence.
     """
     
-    def __init__(self):
-        """Initialize application launcher"""
-        self.running_processes: Dict[str, subprocess.Popen] = {}
+    def __init__(self, app_controller: ApplicationController):
+        """
+        Initialize application launcher with PAL interface.
         
-        # Common installation paths
-        self.search_paths = [
-            Path(os.environ.get("ProgramFiles", "C:\\Program Files")),
-            Path(os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)")),
-            Path(os.environ.get("LOCALAPPDATA", "")) / "Programs",
-            Path.home() / "AppData" / "Local" / "Microsoft" / "WindowsApps",
-        ]
+        Args:
+            app_controller: Platform-specific ApplicationController implementation
+        """
+        self.app_controller = app_controller
+        self.running_processes: Dict[str, bool] = {}  # Track running apps
+        
+        # Get platform capabilities
+        self.capabilities = app_controller.get_capabilities()
+        
+        logger.info(
+            "Application launcher initialized",
+            platform_capabilities=self.capabilities
+        )
     
     def find_executable(self, executable: str) -> Optional[str]:
         """
-        Find executable in system paths.
+        Find executable using platform-agnostic app discovery.
         
         Args:
-            executable: Executable name (e.g., "chrome.exe")
+            executable: Executable name (e.g., "chrome.exe", "notepad")
         
         Returns:
-            Full path to executable or None
+            App ID if found, None otherwise
         """
-        # Try direct execution first (in PATH)
-        try:
-            result = subprocess.run(
-                ["where", executable],
-                capture_output=True,
-                text=True,
-                timeout=2
-            )
-            if result.returncode == 0:
-                paths = result.stdout.strip().split('\n')
-                if paths:
-                    return paths[0].strip()
-        except:
-            pass
+        # Discover all apps
+        apps = self.app_controller.discover_apps()
         
-        # Search in common installation paths
-        for search_path in self.search_paths:
-            if not search_path.exists():
-                continue
+        # Normalize executable name for matching
+        exec_lower = executable.lower().replace(".exe", "")
+        
+        # Search for matching app
+        for app in apps:
+            app_name_lower = app.display_name.lower()
+            app_id_lower = app.app_id.lower()
             
-            # Search recursively (max depth 3)
-            for root, dirs, files in os.walk(search_path):
-                # Limit depth
-                depth = root[len(str(search_path)):].count(os.sep)
-                if depth > 3:
-                    continue
-                
-                if executable.lower() in [f.lower() for f in files]:
-                    return str(Path(root) / executable)
+            if exec_lower in app_name_lower or exec_lower in app_id_lower:
+                logger.info(f"Found app: {app.display_name} (ID: {app.app_id})")
+                return app.app_id
         
-        return None
+        # If not found, try using the executable name as app_id directly
+        return executable
     
     def launch(self, executable: str, args: Optional[List[str]] = None) -> ExecutionResult:
         """
-        Launch an application.
+        Launch an application using PAL interface.
         
         Args:
-            executable: Application executable name or path
-            args: Optional command-line arguments
+            executable: Application executable name or ID
+            args: Optional command-line arguments (may not be supported on all platforms)
         
         Returns:
             ExecutionResult with launch status
@@ -414,64 +407,62 @@ class ApplicationLauncher:
         start_time = time.time()
         
         try:
-            # Try to find executable if not a full path
-            if not os.path.isabs(executable):
-                found_path = self.find_executable(executable)
-                if found_path:
-                    executable = found_path
-                    logger.info(f"Found executable at: {executable}")
+            # Find app ID
+            app_id = self.find_executable(executable)
+            if not app_id:
+                execution_time = time.time() - start_time
+                return ExecutionResult(
+                    status=ExecutionStatus.NOT_FOUND,
+                    message=f"Could not find application: {executable}",
+                    error="Application not found",
+                    execution_time=execution_time
+                )
             
-            # Build command
-            cmd = [executable]
-            if args:
-                cmd.extend(args)
+            # Check if we can open apps on this platform
+            if not self.capabilities.get("can_open_apps", False):
+                execution_time = time.time() - start_time
+                return ExecutionResult(
+                    status=ExecutionStatus.FAILED,
+                    message=f"Platform does not support opening applications",
+                    error="PlatformCapabilityError",
+                    execution_time=execution_time
+                )
             
-            # Launch process
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0
-            )
-            
-            # Store process reference
-            self.running_processes[executable] = process
+            # Launch application using PAL
+            success = self.app_controller.open_app(app_id)
             
             execution_time = time.time() - start_time
             
-            logger.info(f"Launched {executable} (PID: {process.pid})")
-            
-            # Extract app name for user-friendly message
-            app_name = Path(executable).stem
-            
-            return ExecutionResult(
-                status=ExecutionStatus.SUCCESS,
-                message=f"Opened {app_name} successfully",
-                execution_time=execution_time
-            )
+            if success:
+                # Track running app
+                self.running_processes[app_id] = True
+                
+                logger.info(f"Launched {app_id}")
+                
+                # Extract app name for user-friendly message
+                app_name = Path(executable).stem if executable else "application"
+                
+                return ExecutionResult(
+                    status=ExecutionStatus.SUCCESS,
+                    message=f"Opened {app_name} successfully",
+                    execution_time=execution_time
+                )
+            else:
+                return ExecutionResult(
+                    status=ExecutionStatus.FAILED,
+                    message=f"Failed to launch {executable}",
+                    error="Launch failed",
+                    execution_time=execution_time
+                )
         
-        except FileNotFoundError:
+        except PlatformCapabilityError as e:
             execution_time = time.time() - start_time
-            logger.error(f"Application not found: {executable}")
-            
-            # Extract app name
-            app_name = Path(executable).stem if executable else "application"
+            logger.error(f"Platform capability error: {e}")
             
             return ExecutionResult(
-                status=ExecutionStatus.NOT_FOUND,
-                message=f"Could not find {app_name}. Make sure it's installed.",
-                error="FileNotFoundError",
-                execution_time=execution_time
-            )
-        
-        except PermissionError:
-            execution_time = time.time() - start_time
-            logger.error(f"Permission denied: {executable}")
-            
-            return ExecutionResult(
-                status=ExecutionStatus.PERMISSION_DENIED,
-                message=f"Permission denied to launch '{executable}'",
-                error="PermissionError",
+                status=ExecutionStatus.FAILED,
+                message=f"Platform does not support this operation",
+                error=str(e),
                 execution_time=execution_time
             )
         
@@ -609,21 +600,36 @@ class FileOperator:
             )
 
 
-class WindowsAutomation:
+class TextAutomation:
     """
-    Windows automation using COM and Win32 APIs.
+    Text automation using platform-agnostic PAL interface.
     
-    Provides high-level automation for Windows applications
-    like typing text into Notepad, controlling Office apps, etc.
+    Provides high-level automation for typing text into applications
+    using the InputAutomation interface.
     """
     
-    def __init__(self):
-        """Initialize Windows automation"""
-        self.available = WINDOWS_AVAILABLE
+    def __init__(self, input_automation: InputAutomation, app_controller: ApplicationController):
+        """
+        Initialize text automation with PAL interfaces.
+        
+        Args:
+            input_automation: Platform-specific InputAutomation implementation
+            app_controller: Platform-specific ApplicationController implementation
+        """
+        self.input_automation = input_automation
+        self.app_controller = app_controller
+        
+        # Get platform capabilities
+        self.capabilities = input_automation.get_capabilities()
+        
+        logger.info(
+            "Text automation initialized",
+            platform_capabilities=self.capabilities
+        )
     
     def type_into_notepad(self, text: str) -> ExecutionResult:
         """
-        Type text into Notepad using Windows automation.
+        Type text into Notepad using platform-agnostic automation.
         
         Args:
             text: Text to type
@@ -631,39 +637,66 @@ class WindowsAutomation:
         Returns:
             ExecutionResult with automation status
         """
-        if not self.available:
-            return ExecutionResult(
-                status=ExecutionStatus.FAILED,
-                message="Windows automation not available",
-                error="win32com not installed"
-            )
-        
         start_time = time.time()
         
         try:
-            # Launch Notepad
-            subprocess.Popen(["notepad.exe"])
+            # Check if we can type text on this platform
+            if not self.capabilities.get("can_type_text", False):
+                execution_time = time.time() - start_time
+                return ExecutionResult(
+                    status=ExecutionStatus.FAILED,
+                    message="Platform does not support text automation",
+                    error="PlatformCapabilityError",
+                    execution_time=execution_time
+                )
+            
+            # Launch Notepad using app controller
+            success = self.app_controller.open_app("notepad")
+            if not success:
+                execution_time = time.time() - start_time
+                return ExecutionResult(
+                    status=ExecutionStatus.FAILED,
+                    message="Failed to launch Notepad",
+                    error="Application launch failed",
+                    execution_time=execution_time
+                )
             
             # Wait for Notepad to open
             time.sleep(1.0)
             
-            # Use Windows Shell to send keystrokes
-            shell = win32com.client.Dispatch("WScript.Shell")
-            
-            # Activate Notepad window
-            shell.AppActivate("Untitled - Notepad")
+            # Focus Notepad
+            self.input_automation.focus_app("notepad")
             time.sleep(0.5)
             
-            # Type the text
-            shell.SendKeys(text)
+            # Type the text using PAL
+            success = self.input_automation.type_text(text)
             
             execution_time = time.time() - start_time
             
-            logger.info(f"Typed text into Notepad: {len(text)} characters")
+            if success:
+                logger.info(f"Typed text into Notepad: {len(text)} characters")
+                
+                return ExecutionResult(
+                    status=ExecutionStatus.SUCCESS,
+                    message=f"Text typed into Notepad successfully",
+                    execution_time=execution_time
+                )
+            else:
+                return ExecutionResult(
+                    status=ExecutionStatus.FAILED,
+                    message=f"Failed to type text into Notepad",
+                    error="Text automation failed",
+                    execution_time=execution_time
+                )
+        
+        except PlatformCapabilityError as e:
+            execution_time = time.time() - start_time
+            logger.error(f"Platform capability error: {e}")
             
             return ExecutionResult(
-                status=ExecutionStatus.SUCCESS,
-                message=f"Text typed into Notepad successfully",
+                status=ExecutionStatus.FAILED,
+                message=f"Platform does not support this operation",
+                error=str(e),
                 execution_time=execution_time
             )
         
@@ -681,20 +714,44 @@ class WindowsAutomation:
 
 class CommandExecutor:
     """
-    Main command execution system.
+    Main command execution system using platform-agnostic PAL interfaces.
     
-    Coordinates intent recognition, action dispatching, and execution.
+    Coordinates intent recognition, action dispatching, and execution through
+    PAL interfaces, ensuring platform independence and security.
+    
     This is the missing layer that makes GURU an AI assistant instead of a chatbot.
     """
     
-    def __init__(self):
-        """Initialize command executor"""
-        self.intent_recognizer = IntentRecognizer()
-        self.app_launcher = ApplicationLauncher()
-        self.file_operator = FileOperator()
-        self.windows_automation = WindowsAutomation()
+    def __init__(
+        self,
+        app_controller: ApplicationController,
+        input_automation: InputAutomation
+    ):
+        """
+        Initialize command executor with PAL interfaces.
         
-        logger.info("Command Executor initialized")
+        Args:
+            app_controller: Platform-specific ApplicationController implementation
+            input_automation: Platform-specific InputAutomation implementation
+        """
+        self.intent_recognizer = IntentRecognizer()
+        self.app_launcher = ApplicationLauncher(app_controller)
+        self.file_operator = FileOperator()
+        self.text_automation = TextAutomation(input_automation, app_controller)
+        
+        # Store PAL interfaces for direct use
+        self.app_controller = app_controller
+        self.input_automation = input_automation
+        
+        # Get platform capabilities
+        self.app_capabilities = app_controller.get_capabilities()
+        self.automation_capabilities = input_automation.get_capabilities()
+        
+        logger.info(
+            "Command Executor initialized",
+            app_capabilities=self.app_capabilities,
+            automation_capabilities=self.automation_capabilities
+        )
     
     def execute(self, user_input: str) -> ExecutionResult:
         """
@@ -732,7 +789,7 @@ class CommandExecutor:
             )
     
     def _execute_open_application(self, params: Dict[str, Any]) -> ExecutionResult:
-        """Execute application opening"""
+        """Execute application opening using PAL"""
         executable = params.get("executable")
         app_name = params.get("application", "application")
         
@@ -745,8 +802,8 @@ class CommandExecutor:
         
         # Check if we need to write content to the application
         if params.get("application") == "notepad" and "content" in params:
-            # Use Windows automation to type into Notepad
-            return self.windows_automation.type_into_notepad(params["content"])
+            # Use text automation to type into Notepad
+            return self.text_automation.type_into_notepad(params["content"])
         else:
             # Launch the application with human-like response
             result = self.app_launcher.launch(executable)
@@ -779,7 +836,7 @@ class CommandExecutor:
         
         # If writing to notepad, use automation
         if params.get("application") == "notepad":
-            return self.windows_automation.type_into_notepad(content)
+            return self.text_automation.type_into_notepad(content)
         else:
             return self.file_operator.write_file(content, filename)
     
@@ -822,11 +879,42 @@ class CommandExecutor:
 _executor: Optional[CommandExecutor] = None
 
 
-def get_command_executor() -> CommandExecutor:
-    """Get global command executor instance"""
+def get_command_executor(
+    app_controller: Optional[ApplicationController] = None,
+    input_automation: Optional[InputAutomation] = None
+) -> CommandExecutor:
+    """
+    Get global command executor instance.
+    
+    Args:
+        app_controller: Optional ApplicationController (creates default if None)
+        input_automation: Optional InputAutomation (creates default if None)
+    
+    Returns:
+        CommandExecutor instance
+    
+    Note:
+        If PAL interfaces are not provided, this function will attempt to
+        create platform-specific implementations automatically.
+    """
     global _executor
     if _executor is None:
-        _executor = CommandExecutor()
+        # If no PAL interfaces provided, create platform-specific ones
+        if app_controller is None or input_automation is None:
+            from pal.platform_detector import PlatformDetector
+            from pal.backend_factory import PlatformBackendFactory
+            
+            # Detect platform
+            platform = PlatformDetector.detect()
+            factory = PlatformBackendFactory(platform)
+            
+            # Create PAL interfaces
+            if app_controller is None:
+                app_controller = factory.create_application_controller()
+            if input_automation is None:
+                input_automation = factory.create_input_automation()
+        
+        _executor = CommandExecutor(app_controller, input_automation)
     return _executor
 
 
