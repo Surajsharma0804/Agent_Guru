@@ -168,7 +168,7 @@ Each push triggers:
   - **Git: Commit and push after completion**
   - **Commit message**: `[Task 1.4] Create platform capability matrix`
 
-- [ ] 1.5 Write property tests for capability matrix
+- [x] 1.5 Write property tests for capability matrix
   - **Property 108: Capability Matrix Runtime Query**
   - **Validates: Requirements 41.7**
   - **Git: Commit and push after completion**
