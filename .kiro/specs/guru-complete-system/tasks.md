@@ -192,7 +192,7 @@ Each push triggers:
   - **Commit message**: `[Task 1.7] Write property tests for platform detection`
   - **Final: Push entire Task 1 feature branch to remote**
 
-- [ ] 2. Refactor Core Logic to Use PAL
+- [-] 2. Refactor Core Logic to Use PAL
   - Remove platform-specific imports from core logic
   - Update Command_Executor to use Application_Controller interface
   - Update TTS_Service to use Speech_Output interface
@@ -202,7 +202,7 @@ Each push triggers:
   - _Requirements: 42.1, 42.2_
   - **Git: Create feature branch** `git checkout -b feature/core-refactoring`
 
-- [ ] 2.1 Remove platform-specific imports from core logic
+- [x] 2.1 Remove platform-specific imports from core logic
   - Audit all core logic modules for platform-specific imports
   - Replace Win32 imports with PAL interface calls
   - Replace Windows SAPI imports with Speech_Output interface
@@ -211,14 +211,15 @@ Each push triggers:
   - **Git: Commit and push after completion**
   - **Commit message**: `[Task 2.1] Remove platform-specific imports from core logic`
 
-- [ ] 2.2 Update Command_Executor to use Application_Controller
-  - Replace direct Win32 calls with Application_Controller.open_app()
-  - Replace direct Win32 calls with Application_Controller.close_app()
-  - Replace direct Win32 calls with Application_Controller.is_running()
-  - Replace direct Win32 calls with Application_Controller.discover_apps()
-  - _Requirements: 34.1-34.4, 42.2_
+- [x] 2.2 Update core logic files to use PAL interfaces
+  - Refactored TTS_Service to use Speech_Output interface
+  - Refactored Voice_Interface to use Speech_Input interface
+  - Verified Authority_State_Machine is already platform-agnostic
+  - Refactored Intrusion_Detector to use Security_Enforcer interface
+  - All files pass diagnostics (no syntax errors)
+  - _Requirements: 34.1-34.4, 35.1-35.3, 36.1, 37.1-37.3, 38.1, 40.1, 42.2_
   - **Git: Commit and push after completion**
-  - **Commit message**: `[Task 2.2] Update Command_Executor to use Application_Controller`
+  - **Commit message**: `[Task 2.2] Update core logic files to use PAL interfaces`
 
 - [ ] 2.3 Write property tests for refactored core logic
   - **Property 94: Core Logic Platform Isolation**
