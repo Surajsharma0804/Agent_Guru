@@ -28,15 +28,17 @@ import structlog
 # Windows-specific imports (with fallbacks for testing)
 try:
     import win32api
+    import platform
     from winsdk.windows.security.credentials.ui import UserConsentVerificationResult
 
-    WINDOWS_AVAILABLE = True
+    # Verify we're actually on Windows
+    WINDOWS_AVAILABLE = platform.system() == "Windows"
 except ImportError:
     # Fallback for testing/development on non-Windows systems
     WINDOWS_AVAILABLE = False
     UserConsentVerificationResult = None
 
-from src.authority.state import BiometricFactor
+from ..authority.state import BiometricFactor
 
 logger = structlog.get_logger(__name__)
 

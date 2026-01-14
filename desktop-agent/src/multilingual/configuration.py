@@ -531,9 +531,20 @@ class MultilingualConfig:
         return cls(**data)
 
 
-class ConfigurationManager:
+class ConfigurationController:
     """
-    Manages multilingual configuration with integration to existing GURU configuration.
+    Direct control of multilingual configuration loading, validation, and runtime updates.
+    
+    Controls configuration lifecycle including loading, validation, hot-reloading,
+    and integration with existing GURU configuration system.
+    
+    This controller manages:
+    - Configuration file loading and parsing
+    - Schema validation and constraint checking
+    - Runtime configuration updates
+    - Configuration persistence
+    - Integration with GURU config system
+    - Configuration change notifications
     
     Provides configuration loading, validation, persistence, and runtime updates
     while maintaining compatibility with existing GURU configuration systems.

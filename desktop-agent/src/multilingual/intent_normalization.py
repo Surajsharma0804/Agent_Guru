@@ -3177,214 +3177,6 @@ class AdaptiveOptimizer:
         }
 
 
-class FailureRecoveryManager:
-    """
-    Comprehensive failure recovery system for intent normalization.
-    
-    Handles graceful degradation, automatic recovery, and system resilience
-    under various failure conditions while maintaining security invariants.
-    """
-    
-    def __init__(self, normalization_layer):
-        self.normalization_layer = normalization_layer
-        self.logger = logging.getLogger(__name__)
-        
-        # Failure tracking
-        self._failure_counts = {
-            'pattern_match_failures': 0,
-            'security_validation_failures': 0,
-            'cache_failures': 0,
-            'registry_failures': 0,
-            'timeout_failures': 0,
-            'memory_failures': 0
-        }
-        
-        # Recovery strategies
-        self._recovery_strategies = {
-            'pattern_match_failures': self._recover_from_pattern_failures,
-            'security_validation_failures': self._recover_from_security_failures,
-            'cache_failures': self._recover_from_cache_failures,
-            'registry_failures': self._recover_from_registry_failures,
-            'timeout_failures': self._recover_from_timeout_failures,
-            'memory_failures': self._recover_from_memory_failures
-        }
-        
-        # Circuit breaker parameters (more lenient for testing)
-        self._circuit_breaker_thresholds = {
-            'pattern_match_failures': 1000,  # Much higher threshold
-            'security_validation_failures': 100,  # Higher threshold
-            'cache_failures': 1000,
-            'registry_failures': 100,
-            'timeout_failures': 200,
-            'memory_failures': 50
-        }
-        
-        # Recovery state
-        self._recovery_mode = False
-        self._recovery_start_time = None
-        self._degraded_mode_active = False
-        
-    def handle_failure(self, failure_type: str, context: Dict[str, Any]) -> bool:
-        """
-        Handle system failure with appropriate recovery strategy.
-        
-        Returns True if recovery was successful, False if system should degrade.
-        """
-        self._failure_counts[failure_type] += 1
-        
-        self.logger.warning(f"Handling failure: {failure_type}, count: {self._failure_counts[failure_type]}")
-        
-        # Check if circuit breaker should trigger
-        if self._failure_counts[failure_type] >= self._circuit_breaker_thresholds[failure_type]:
-            self._trigger_circuit_breaker(failure_type)
-            return False
-            
-        # Apply recovery strategy
-        if failure_type in self._recovery_strategies:
-            try:
-                recovery_success = self._recovery_strategies[failure_type](context)
-                
-                if recovery_success:
-                    self.logger.info(f"Successfully recovered from {failure_type}")
-                    return True
-                else:
-                    self.logger.error(f"Recovery failed for {failure_type}")
-                    return False
-                    
-            except Exception as e:
-                self.logger.error(f"Recovery strategy failed for {failure_type}: {e}")
-                return False
-        else:
-            self.logger.error(f"No recovery strategy for failure type: {failure_type}")
-            return False
-            
-    def _recover_from_pattern_failures(self, context: Dict[str, Any]) -> bool:
-        """Recover from pattern matching failures."""
-        # Try fallback pattern matching strategies
-        language = context.get('language')
-        text = context.get('text')
-        
-        if language and text:
-            # Try with relaxed pattern matching
-            patterns = self.normalization_layer.intent_mappings.get_patterns(language)
-            
-            # Implement fuzzy matching as fallback
-            for pattern in patterns:
-                try:
-                    # Use more permissive matching
-                    relaxed_pattern = pattern.pattern.replace(r'\s+', r'\s*')
-                    if re.search(relaxed_pattern, text, re.IGNORECASE):
-                        return True
-                except Exception:
-                    continue
-                    
-        return False
-        
-    def _recover_from_security_failures(self, context: Dict[str, Any]) -> bool:
-        """Recover from security validation failures."""
-        # Security failures should not be recovered from - fail safe
-        self.logger.critical("Security validation failure - entering safe mode")
-        self._enter_safe_mode()
-        return False
-        
-    def _recover_from_cache_failures(self, context: Dict[str, Any]) -> bool:
-        """Recover from cache failures."""
-        try:
-            # Clear cache and reinitialize
-            self.normalization_layer.normalization_cache.clear()
-            self.logger.info("Cache cleared and reinitialized")
-            return True
-        except Exception as e:
-            self.logger.error(f"Cache recovery failed: {e}")
-            return False
-            
-    def _recover_from_registry_failures(self, context: Dict[str, Any]) -> bool:
-        """Recover from registry failures."""
-        try:
-            # Reinitialize registry with default patterns
-            self.normalization_layer.canonical_registry = CanonicalIntentRegistry()
-            self.logger.info("Registry reinitialized with defaults")
-            return True
-        except Exception as e:
-            self.logger.error(f"Registry recovery failed: {e}")
-            return False
-            
-    def _recover_from_timeout_failures(self, context: Dict[str, Any]) -> bool:
-        """Recover from timeout failures."""
-        # Reduce processing complexity for future requests
-        self._enter_degraded_mode()
-        return True
-        
-    def _recover_from_memory_failures(self, context: Dict[str, Any]) -> bool:
-        """Recover from memory failures."""
-        try:
-            # Aggressive cache cleanup
-            self.normalization_layer.normalization_cache.clear()
-            
-            # Reduce cache size
-            current_size = self.normalization_layer.normalization_cache.max_size
-            new_size = max(1000, current_size // 2)
-            self.normalization_layer.normalization_cache.max_size = new_size
-            
-            self.logger.info(f"Memory recovery: reduced cache size from {current_size} to {new_size}")
-            return True
-        except Exception as e:
-            self.logger.error(f"Memory recovery failed: {e}")
-            return False
-            
-    def _trigger_circuit_breaker(self, failure_type: str):
-        """Trigger circuit breaker for failure type."""
-        self.logger.critical(f"Circuit breaker triggered for {failure_type}")
-        self._enter_safe_mode()
-        
-    def _enter_safe_mode(self):
-        """Enter safe mode with minimal functionality."""
-        self._recovery_mode = True
-        self._recovery_start_time = datetime.utcnow()
-        
-        # Disable all non-essential features
-        self.normalization_layer.normalization_cache.clear()
-        
-        self.logger.critical("System entered safe mode - only basic functionality available")
-        
-    def _enter_degraded_mode(self):
-        """Enter degraded mode with reduced functionality."""
-        self._degraded_mode_active = True
-        
-        # Reduce cache size and TTL
-        cache = self.normalization_layer.normalization_cache
-        cache.max_size = max(1000, cache.max_size // 2)
-        cache.ttl_seconds = max(300, cache.ttl_seconds // 2)
-        
-        self.logger.warning("System entered degraded mode - reduced performance")
-        
-    def is_in_recovery_mode(self) -> bool:
-        """Check if system is in recovery mode."""
-        return self._recovery_mode
-        
-    def is_in_degraded_mode(self) -> bool:
-        """Check if system is in degraded mode."""
-        return self._degraded_mode_active
-        
-    def get_failure_statistics(self) -> Dict[str, Any]:
-        """Get failure statistics."""
-        return {
-            'failure_counts': self._failure_counts.copy(),
-            'recovery_mode': self._recovery_mode,
-            'degraded_mode': self._degraded_mode_active,
-            'recovery_start_time': self._recovery_start_time.isoformat() if self._recovery_start_time else None
-        }
-        
-    def reset_failure_counts(self):
-        """Reset failure counts (for testing or manual recovery)."""
-        self._failure_counts = {key: 0 for key in self._failure_counts}
-        self._recovery_mode = False
-        self._degraded_mode_active = False
-        self._recovery_start_time = None
-        
-        self.logger.info("Failure counts reset - system restored to normal operation")
-
-
 class AuditLogger:
     """
     Comprehensive audit logging for intent normalization operations.
@@ -3612,7 +3404,7 @@ class IntentNormalizationLayer:
         self._optimization_interval = 600  # 10 minutes
         
         # Failure recovery mechanisms
-        self._failure_recovery = FailureRecoveryManager(self)
+        self._failure_recovery = FailureRecoveryOrchestrator(self)
         
         # Audit and compliance tracking
         self._audit_logger = AuditLogger("intent_normalization")
@@ -5690,12 +5482,21 @@ class AdaptiveOptimizer:
         }
 
 
-class FailureRecoveryManager:
+class FailureRecoveryOrchestrator:
     """
-    Production-grade failure recovery manager for intent normalization.
+    Orchestrates production-grade failure recovery for intent normalization.
     
-    Handles system failures gracefully, implements circuit breaker patterns,
-    and provides comprehensive failure recovery mechanisms.
+    Coordinates system failure handling, circuit breaker patterns,
+    and comprehensive recovery mechanisms across all normalization components.
+    
+    This orchestrator manages:
+    - Failure detection and classification
+    - Circuit breaker state management
+    - Recovery mode coordination
+    - Safe mode and degraded mode transitions
+    - Failure statistics and monitoring
+    - Automatic recovery attempts
+    - System resilience under failure conditions
     """
     
     def __init__(self, normalization_layer):

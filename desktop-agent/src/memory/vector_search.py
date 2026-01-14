@@ -73,7 +73,7 @@ class VectorSearchEngine:
         self.min_similarity_threshold = min_similarity_threshold
         self.indexes: Dict[str, VectorIndex] = {}
         self._stop_words = self._get_stop_words()
-        self._text_processor = TextProcessor()
+        self._text_processor = VectorTextTransformer()
     
     def _get_stop_words(self) -> Set[str]:
         """Get common English stop words."""
@@ -362,7 +362,7 @@ class VectorSearchEngine:
             logger.info("Cleared all vector indexes")
 
 
-class TextProcessor:
+class VectorTextTransformer:
     """Text processing utilities for vector search."""
     
     def __init__(self):

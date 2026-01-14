@@ -19,7 +19,7 @@ from datetime import datetime
 
 from ..authority.state import AuthorityState, AuthorityStateMachine
 from .input_validator import InputValidator
-from .audit_logger import InputAuditLogger
+from .input_audit_logger import InputAuditLogger
 
 
 class InputType(Enum):

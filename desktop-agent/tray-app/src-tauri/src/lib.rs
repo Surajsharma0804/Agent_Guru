@@ -68,34 +68,44 @@ async fn get_system_status(state: State<'_, AppState>) -> Result<SystemStatus, S
 
 #[tauri::command]
 async fn revoke_authority(state: State<'_, AppState>) -> Result<String, String> {
-    info!("Manual authority revocation requested");
+    warn!("DEPRECATED: Manual authority revocation redirected to workstation lock for security");
     
-    // Call the desktop agent API to revoke authority
+    // SECURITY ENFORCEMENT: Use workstation lock instead of authority revocation
+    // This ensures OS-level re-authentication instead of maintaining session continuity
     let client = reqwest::Client::new();
-    let url = format!("{}/authority/revoke", state.desktop_agent_url);
+    let url = format!("{}/security/workstation-lock", state.desktop_agent_url);
     
-    match client.post(&url).send().await {
+    let lock_request = serde_json::json!({
+        "trigger": "manual_trigger",
+        "reason": "manual_authority_revocation_via_tray",
+        "immediate": true,
+        "security_enforcement": "OS_LEVEL_AUTHENTICATION_REQUIRED"
+    });
+    
+    match client.post(&url)
+        .json(&lock_request)
+        .send().await {
         Ok(response) => {
             if response.status().is_success() {
-                info!("Authority successfully revoked");
+                info!("Workstation lock triggered successfully for authority revocation");
                 
-                // Update local state
+                // Update local state to reflect that workstation will be locked
                 if let Ok(mut status) = state.system_status.lock() {
-                    status.authority_state.state = "LOCKED_LISTEN_ONLY".to_string();
+                    status.authority_state.state = "WORKSTATION_LOCKED".to_string();
                     status.authority_state.granted_at = None;
                     status.authority_state.expires_at = None;
                     status.last_updated = chrono::Utc::now().to_rfc3339();
                 }
                 
-                Ok("Authority revoked successfully".to_string())
+                Ok("Workstation lock triggered - OS re-authentication required".to_string())
             } else {
-                let error_msg = format!("Failed to revoke authority: HTTP {}", response.status());
+                let error_msg = format!("Failed to trigger workstation lock: HTTP {}", response.status());
                 warn!("{}", error_msg);
                 Err(error_msg)
             }
         }
         Err(e) => {
-            let error_msg = format!("Failed to connect to desktop agent: {}", e);
+            let error_msg = format!("Failed to connect to desktop agent for workstation lock: {}", e);
             error!("{}", error_msg);
             Err(error_msg)
         }

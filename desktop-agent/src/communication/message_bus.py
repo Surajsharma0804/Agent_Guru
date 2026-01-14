@@ -195,7 +195,7 @@ class Message:
         )
 
 
-class MessageHandler:
+class ComponentMessageProtocol:
     """Protocol for components that can handle messages."""
     
     def handle_message(self, message: Message) -> Optional[Message]:
@@ -255,7 +255,7 @@ class MessageBus:
         # Component registry and message routing
         self._components: Dict[str, weakref.ReferenceType] = {}
         self._component_queues: Dict[str, PriorityQueue] = {}
-        self._component_handlers: Dict[str, MessageHandler] = {}
+        self._component_handlers: Dict[str, ComponentMessageProtocol] = {}
         self._component_metadata: Dict[str, Dict[str, Any]] = {}
         
         # Message tracking and routing
@@ -334,7 +334,7 @@ class MessageBus:
     
     def register_component(self, 
                           component_name: str, 
-                          handler: MessageHandler,
+                          handler: ComponentMessageProtocol,
                           component_ref: Optional[Any] = None,
                           trusted: bool = False,
                           metadata: Optional[Dict[str, Any]] = None) -> None:

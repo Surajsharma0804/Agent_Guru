@@ -1,7 +1,7 @@
 """
 GURU Memory Service - Main Service Implementation
 
-The MemoryService is the primary interface for all memory operations in GURU.
+The MemorySubsystemController is the primary interface for all memory operations in GURU.
 It coordinates the MIRIX architecture agents and provides a unified API for:
 
 - Memory storage and retrieval across all six memory types
@@ -27,10 +27,10 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Union, Tuple
 from contextlib import contextmanager
 
-from .database import DatabaseManager, DatabaseConfig
+from .database import DatabaseLifecycleOrchestrator, DatabaseConfig
 from .memory_agents import (
-    MetaAgent, CoreManager, EpisodicManager, SemanticManager,
-    ProceduralManager, ResourceManager, VaultManager
+    MetaAgent, UserIdentityPersistence, TemporalEventArchive, ConceptualKnowledgeBase,
+    WorkflowExecutionLibrary, DocumentResourceCatalog, EncryptedCredentialVault
 )
 from .memory_types import (
     CoreMemory, EpisodicMemory, SemanticMemory, ProceduralMemory,
@@ -43,12 +43,12 @@ from .vector_search import VectorSearchEngine
 logger = logging.getLogger(__name__)
 
 
-class MemoryServiceError(Exception):
-    """Exception for memory service operations."""
+class MemorySubsystemControllerError(Exception):
+    """Exception for memory subsystem controller operations."""
     pass
 
 
-class MemoryService:
+class MemorySubsystemController:
     """
     Main Memory Service for GURU Personal Assistant.
     
@@ -102,7 +102,7 @@ class MemoryService:
             auto_vacuum="INCREMENTAL"
         )
         
-        self.db_manager = DatabaseManager(config)
+        self.db_orchestrator = DatabaseLifecycleOrchestrator(config)
         logger.info(f"Database initialized at {db_path}")
     
     def _initialize_encryption(self, encryption_key: Optional[bytes]) -> None:
@@ -155,8 +155,8 @@ class MemoryService:
     def _initialize_retention(self, enable_retention: bool) -> None:
         """Initialize retention policy manager."""
         if enable_retention:
-            from .retention import RetentionPolicyManager  # Local import to avoid circular dependency
-            self.retention_manager = RetentionPolicyManager(self.db_manager)
+            from .retention import MemoryRetentionEnforcer  # Local import to avoid circular dependency
+            self.retention_manager = MemoryRetentionEnforcer(self.db_orchestrator)
             logger.info("Retention policy manager initialized")
         else:
             self.retention_manager = None
@@ -165,7 +165,7 @@ class MemoryService:
     def _initialize_agents(self) -> None:
         """Initialize all memory agents."""
         self.meta_agent = MetaAgent(
-            self.db_manager, 
+            self.db_orchestrator, 
             self.encryption, 
             self.vector_search
         )
@@ -183,9 +183,9 @@ class MemoryService:
     def _ensure_initialized(self) -> None:
         """Ensure service is initialized and not shutdown."""
         if not self._initialized:
-            raise MemoryServiceError("Memory service not initialized")
+            raise MemorySubsystemControllerError("Memory service not initialized")
         if self._shutdown:
-            raise MemoryServiceError("Memory service is shutdown")
+            raise MemorySubsystemControllerError("Memory service is shutdown")
     
     # Core Memory Operations
     
@@ -540,14 +540,14 @@ class MemoryService:
             True if successful, False otherwise
         """
         if confirmation_token != "CONFIRM_PURGE_ALL_DATA":
-            raise MemoryServiceError("Invalid confirmation token")
+            raise MemorySubsystemControllerError("Invalid confirmation token")
         
         self._ensure_initialized()
         
         try:
             with self._lock:
                 # Delete all data from all tables
-                with self.db_manager.transaction() as conn:
+                with self.db_orchestrator.transaction() as conn:
                     tables = [
                         'core_memory', 'episodic_memory', 'semantic_memory',
                         'procedural_memory', 'resource_memory', 'knowledge_vault',
@@ -586,7 +586,7 @@ class MemoryService:
         
         # Check database
         try:
-            if self.db_manager.verify_integrity():
+            if self.db_orchestrator.verify_integrity():
                 health['components']['database'] = 'healthy'
             else:
                 health['components']['database'] = 'degraded'
@@ -639,8 +639,8 @@ class MemoryService:
             self._shutdown = True
             
             # Shutdown components
-            if hasattr(self, 'db_manager'):
-                self.db_manager.shutdown()
+            if hasattr(self, 'db_orchestrator'):
+                self.db_orchestrator.shutdown()
             
             if hasattr(self, 'vector_search') and self.vector_search:
                 self.vector_search.shutdown()
@@ -654,3 +654,8 @@ class MemoryService:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit with cleanup."""
         self.shutdown()
+
+
+# Alias for test compatibility
+MemoryService = MemorySubsystemController
+MemoryServiceError = MemorySubsystemControllerError

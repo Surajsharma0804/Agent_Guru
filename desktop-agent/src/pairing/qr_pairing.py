@@ -211,7 +211,7 @@ class PairingResult:
         return self.status in [PairingStatus.INITIATED, PairingStatus.PENDING_CONFIRMATION]
 
 
-class QRPairingManager:
+class CryptographicQRPairingAuthority:
     """
     Cryptographic QR Code Pairing Authority Boundary Enforcer
 
@@ -236,7 +236,7 @@ class QRPairingManager:
         self.secret_key = secret_key or secrets.token_bytes(32)
         self.active_tokens: Dict[str, PairingToken] = {}
         self.pairing_sessions: Dict[str, PairingResult] = {}
-        self.logger = structlog.get_logger(__name__).bind(component="QRPairingManager")
+        self.logger = structlog.get_logger(__name__).bind(component="CryptographicQRPairingAuthority")
 
         self.logger.info("QR pairing manager initialized")
 
@@ -545,3 +545,7 @@ class QRPairingManager:
             self.logger.info("Pairing token revoked", token_id=token_id)
 
         return revoked
+
+
+# Alias for test compatibility
+QRPairingManager = CryptographicQRPairingAuthority

@@ -23,25 +23,25 @@ from .device_registry import (
 )
 from .key_exchange import (
     DeviceKeyPair,
-    KeyExchangeManager,
+    AsymmetricKeyExchangeAuthority,
     KeyExchangeMessage,
     KeyExchangeResult,
     KeyExchangeStatus,
 )
 
 # Cryptographic aliases for enterprise naming
-CryptographicKeyExchangeEngine = KeyExchangeManager
+CryptographicKeyExchangeEngine = AsymmetricKeyExchangeAuthority
 CryptographicKeyExchangeResult = KeyExchangeResult
 CryptographicKeyExchangeStatus = KeyExchangeStatus
 CryptographicDeviceKeyPair = DeviceKeyPair
-from .qr_pairing import PairingResult, PairingToken, QRPairingManager
+from .qr_pairing import PairingResult, PairingToken, CryptographicQRPairingAuthority
 
 __all__ = [
-    "QRPairingManager",
+    "CryptographicQRPairingAuthority",
     "PairingToken",
     "PairingResult",
     "CryptographicKeyExchangeEngine",
-    "KeyExchangeManager",  # Compatibility alias
+    "AsymmetricKeyExchangeAuthority",  # Compatibility alias
     "KeyExchangeMessage",  # Compatibility alias
     "KeyExchangeResult",   # Compatibility alias
     "KeyExchangeStatus",   # Compatibility alias

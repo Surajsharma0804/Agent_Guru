@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Dict, Set, Optional, List, Any
 
 import structlog
-from src.authority.state import BiometricFactor
+from ..authority.state import BiometricFactor
 
 logger = structlog.get_logger(__name__)
 

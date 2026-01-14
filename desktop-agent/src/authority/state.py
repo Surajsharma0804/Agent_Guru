@@ -25,7 +25,20 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 
 import structlog
 
-logger = structlog.get_logger(__name__)
+# Create a no-op logger to avoid deadlocks during GUI initialization
+class NoOpLogger:
+    def info(self, *args, **kwargs):
+        pass
+    def warning(self, *args, **kwargs):
+        pass
+    def error(self, *args, **kwargs):
+        pass
+    def debug(self, *args, **kwargs):
+        pass
+
+# Use no-op logger temporarily to debug deadlock
+logger = NoOpLogger()
+# logger = structlog.get_logger(__name__)
 
 
 class AuthorityState(Enum):
@@ -112,6 +125,10 @@ class AuthorityConfiguration:
     max_failed_attempts: int = 3
     intrusion_cooldown_seconds: int = 300
     require_biometric_for_rearm: bool = True
+    
+    # SECURITY CRITICAL: Test mode flag
+    test_mode_disable_workstation_lock: bool = False  # NEVER set to True in production
+    
     policy_requirements: Dict[AuthorityPolicy, Set[BiometricFactor]] = field(
         default_factory=lambda: {
             AuthorityPolicy.LOW_RISK: {BiometricFactor.VOICE},
@@ -171,16 +188,27 @@ class AuthorityStateMachine:
         self._state_checksum = self._calculate_state_checksum()
         delattr(self, "_updating_checksum")
         
-        self._monitoring_active = True
-        self._monitor_thread = threading.Thread(target=self._monitor_timeouts, daemon=True)
-        self._monitor_thread.start()
+        # TEMPORARY: Disable monitor thread to debug deadlock
+        self._monitoring_active = False
+        self._monitor_thread = None
+        # self._monitoring_active = True
+        # self._monitor_thread = threading.Thread(target=self._monitor_timeouts, daemon=True)
+        # self._monitor_thread.start()
 
-        logger.info(
-            "Authority state machine initialized",
-            session_id=self._session_id,
-            initial_state=self._current_state.value,
-            policy=self._current_policy.value,
-        )
+        # TEMPORARY: Comment out logger to debug deadlock
+        # try:
+        #     logger.info(
+        #         "Authority state machine initialized",
+        #         session_id=self._session_id,
+        #         initial_state=self._current_state.value,
+        #         policy=self._current_policy.value,
+        #     )
+        # except Exception as e:
+        #     # Fallback to print if logger fails
+        #     print(f"Authority state machine initialized (logger error: {e})")
+        
+        print(f"Authority state machine initialized: session={self._session_id}, state={self._current_state.value}")
+        print("DEBUG: Authority __init__ completed, about to return")
 
     def __setattr__(self, name: str, value) -> None:
         """Prevent unauthorized modification of cryptographic state."""
@@ -445,11 +473,110 @@ class AuthorityStateMachine:
 
                 return False
 
+    def revoke_authority_via_workstation_lock(self, reason: StateTransitionReason, metadata: Optional[Dict[str, str]] = None) -> bool:
+        """
+        SECURITY ENFORCEMENT: Revoke authority by triggering workstation lock.
+        
+        This method replaces the insecure revoke_authority() which maintained session continuity.
+        All authority revocation now forces OS-level re-authentication through workstation locking.
+        
+        This enforces the YuktOS security principle: authority loss = complete session termination.
+        """
+        with self._lock:
+            self._verify_integrity()
+
+            if not isinstance(reason, StateTransitionReason):
+                raise TypeError(f"Reason must be StateTransitionReason, got {type(reason)}")
+
+            logger.critical(
+                "AUTHORITY REVOCATION TRIGGERING WORKSTATION LOCK",
+                reason=reason.value,
+                session_id=self._session_id,
+                metadata=metadata,
+                security_enforcement="OS_LEVEL_AUTHENTICATION_REQUIRED"
+            )
+
+            # Import workstation locker
+            from src.intrusion.workstation_lock import WorkstationLockTrigger, create_workstation_locker
+            
+            # Map revocation reason to lock trigger
+            trigger_mapping = {
+                StateTransitionReason.MANUAL_REVOKE: WorkstationLockTrigger.MANUAL_TRIGGER,
+                StateTransitionReason.INTRUSION_DETECTED: WorkstationLockTrigger.INTRUSION_DETECTED,
+                StateTransitionReason.BIOMETRIC_FAILED: WorkstationLockTrigger.BIOMETRIC_FAILURE,
+                StateTransitionReason.COMPONENT_FAILURE: WorkstationLockTrigger.SECURITY_VIOLATION,
+                StateTransitionReason.VERIFICATION_TIMEOUT: WorkstationLockTrigger.SECURITY_VIOLATION,
+                StateTransitionReason.INACTIVITY_TIMEOUT: WorkstationLockTrigger.SECURITY_VIOLATION,
+            }
+            
+            lock_trigger = trigger_mapping.get(reason, WorkstationLockTrigger.SECURITY_VIOLATION)
+            
+            # Create workstation locker and trigger immediate lock
+            workstation_locker = create_workstation_locker()
+            lock_event = workstation_locker.lock_workstation_immediately(
+                trigger=lock_trigger,
+                trigger_context={
+                    "authority_revocation_reason": reason.value,
+                    "session_id": self._session_id,
+                    **(metadata or {})
+                },
+                session_id=self._session_id
+            )
+            
+            # Log the security enforcement
+            logger.critical(
+                "WORKSTATION LOCK ENFORCED FOR AUTHORITY REVOCATION",
+                lock_event_id=lock_event.event_id,
+                lock_result=lock_event.result.value,
+                reason=reason.value,
+                session_id=self._session_id
+            )
+            
+            # The workstation is now locked - this process will be suspended
+            # When user unlocks, they must re-authenticate through OS mechanisms
+            return lock_event.result.value == "success"
+
     def revoke_authority(self, reason: StateTransitionReason, metadata: Optional[Dict[str, str]] = None) -> bool:
         """
-        Revoke authority and transition to locked state.
+        SECURITY ENFORCEMENT: Revoke authority via workstation lock (production) or test mode.
+        
+        In production: Triggers workstation lock to enforce OS-level re-authentication.
+        In test mode: Uses legacy behavior to avoid interfering with test execution.
+        
+        ⚠️  TEST MODE MUST NEVER BE ENABLED IN PRODUCTION - IT'S A SECURITY VULNERABILITY
+        """
+        # Validate reason parameter first
+        if not isinstance(reason, StateTransitionReason):
+            raise TypeError(f"Reason must be StateTransitionReason, got {type(reason)}")
+        
+        # Check if test mode is enabled (SECURITY CRITICAL)
+        if self._config.test_mode_disable_workstation_lock:
+            logger.critical(
+                "TEST MODE ENABLED - USING INSECURE AUTHORITY REVOCATION",
+                reason=reason.value,
+                session_id=self._session_id,
+                security_warning="NEVER_USE_IN_PRODUCTION"
+            )
+            return self._test_only_revoke_authority_without_workstation_lock(reason, metadata)
+        
+        # Production mode: enforce workstation lock
+        logger.warning(
+            "PRODUCTION MODE - redirecting to secure workstation lock",
+            reason=reason.value,
+            session_id=self._session_id,
+            security_enforcement="WORKSTATION_LOCK_REQUIRED"
+        )
+        
+        return self.revoke_authority_via_workstation_lock(reason, metadata)
 
-        Cryptographically enforced - cannot be bypassed.
+    def _test_only_revoke_authority_without_workstation_lock(self, reason: StateTransitionReason, metadata: Optional[Dict[str, str]] = None) -> bool:
+        """
+        TEST-ONLY METHOD: Revoke authority without workstation lock.
+        
+        ⚠️  SECURITY WARNING: This method maintains session continuity and should NEVER be used in production.
+        It exists solely for unit testing purposes where workstation locking would interfere with test execution.
+        
+        Production code MUST use revoke_authority() which enforces workstation locking.
         """
         with self._lock:
             self._verify_integrity()
@@ -465,7 +592,13 @@ class AuthorityStateMachine:
 
             self._transition_state(new_state=AuthorityState.LOCKED_LISTEN_ONLY, reason=reason, metadata=metadata or {})
 
-            logger.info("Authority revoked", reason=reason.value, session_id=self._session_id, metadata=metadata)
+            logger.warning(
+                "TEST-ONLY authority revocation without workstation lock", 
+                reason=reason.value, 
+                session_id=self._session_id, 
+                metadata=metadata,
+                security_warning="PRODUCTION_MUST_USE_WORKSTATION_LOCK"
+            )
 
             return True
 

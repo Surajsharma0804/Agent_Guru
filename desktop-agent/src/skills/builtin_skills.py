@@ -5,7 +5,7 @@ Provides essential skills that come pre-installed with GURU:
 - SystemInfo: System information and health monitoring
 - FileOps: Safe file operations with permission validation
 - AppControl: Application launching and management
-- TextProcessor: Text processing and manipulation utilities
+- VectorTextTransformer: Text processing and manipulation utilities
 """
 
 from typing import Dict, Any, List
@@ -160,8 +160,8 @@ def create_app_control_skill() -> SkillManifest:
     )
 
 
-def create_text_processor_skill() -> SkillManifest:
-    """Create TextProcessor skill manifest."""
+def create_vector_text_transformer_skill() -> SkillManifest:
+    """Create VectorTextTransformer skill manifest."""
     return SkillManifest(
         skill_id="text-processor",
         name="Text Processor",
@@ -751,7 +751,7 @@ BUILTIN_SKILL_MANIFESTS = {
     "system-info": create_system_info_skill,
     "file-ops": create_file_ops_skill,
     "app-control": create_app_control_skill,
-    "text-processor": create_text_processor_skill
+    "text-processor": create_vector_text_transformer_skill
 }
 
 

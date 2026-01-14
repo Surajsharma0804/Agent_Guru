@@ -543,7 +543,7 @@ class SecureChannel:
             }
 
 
-class ChannelManager:
+class SecureChannelOrchestrator:
     """
     Manager for multiple secure communication channels.
     

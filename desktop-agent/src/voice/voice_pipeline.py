@@ -18,6 +18,8 @@ from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 
+from .speaker_verification import VerificationResult
+
 from .audio_preprocessing import AudioMetrics, AudioPreprocessor, PreprocessingConfig
 from .speaker_verification import SpeakerVerificationEngine, VerificationResult
 from .speech_to_text import ModelSize, STTResult, WhisperSTTEngine
@@ -329,17 +331,37 @@ class VoiceProcessingPipeline:
                 # Step 3: Speaker verification
                 if self.config.enable_speaker_verification and self.speaker_verification_engine:
                     # For voice re-arming, we need to verify against enrolled speakers
-                    # This is a simplified implementation - in production, you would specify the speaker_id
-                    # For now, we'll assume there's a default enrolled speaker or skip verification
-                    result.speaker_verified = True  # Placeholder for actual verification
+                    # Get enrolled speakers and verify against the first one (primary user)
+                    enrolled_speakers = self.speaker_verification_engine.get_enrolled_speakers()
                     
-                    # TODO: Implement actual speaker verification with enrolled speaker ID
-                    # verification_result, confidence, flags = self.speaker_verification_engine.verify_speaker(
-                    #     speaker_id="primary_user", audio_data=processed_audio, sample_rate=16000
-                    # )
-                    # result.speaker_verified = (verification_result == VerificationResult.VERIFIED)
-                    # if flags:
-                    #     result.security_flags.extend(flags)
+                    if enrolled_speakers:
+                        # Use the first enrolled speaker as primary user
+                        primary_speaker_id = enrolled_speakers[0]
+                        
+                        try:
+                            verification_result, confidence, flags = self.speaker_verification_engine.verify_speaker(
+                                speaker_id=primary_speaker_id, 
+                                audio_sample=processed_audio, 
+                                sample_rate=16000
+                            )
+                            
+                            result.speaker_verified = (verification_result == VerificationResult.VERIFIED)
+                            result.confidence_score = min(result.confidence_score, confidence)  # Take minimum confidence
+                            
+                            if flags:
+                                result.security_flags.extend(flags)
+                                
+                            self.logger.info(f"Speaker verification: {verification_result.value} "
+                                           f"(confidence: {confidence:.3f})")
+                                           
+                        except Exception as e:
+                            self.logger.error(f"Speaker verification failed: {e}")
+                            result.speaker_verified = False
+                            result.security_flags.append("speaker_verification_error")
+                    else:
+                        # No enrolled speakers - verification disabled
+                        result.speaker_verified = True
+                        self.logger.warning("No enrolled speakers found - speaker verification bypassed")
                 else:
                     result.speaker_verified = True  # Disabled or not available
 

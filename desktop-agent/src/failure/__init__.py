@@ -42,11 +42,12 @@ from .failure_detector import (
     FailureDetectable
 )
 from .safe_degradation import (
-    SafeDegradationManager,
+    SystemDegradationOrchestrator,
     DegradationLevel,
     DegradationAction,
     DegradationPlan,
-    SystemState
+    SystemState,
+    SafeDegradationManager  # Alias
 )
 from .dependency_mapper import (
     DependencyMapper,
@@ -64,12 +65,11 @@ from .recovery_orchestrator import (
     RecoveryActionType,
     RecoveryStatus
 )
-# Temporarily disable system_failure_manager import
-# from .system_failure_manager import (
-#     SystemFailureManager,
-#     SystemFailureState,
-#     SystemFailureReport
-# )
+from .system_failure_orchestrator import (
+    SystemFailureOrchestrator,
+    SystemFailureState,
+    SystemFailureReport
+)
 from .exceptions import (
     ComponentFailureError,
     CriticalSystemFailureError,
@@ -94,7 +94,8 @@ __all__ = [
     'FailureDetectable',
     
     # Safe Degradation
-    'SafeDegradationManager',
+    'SystemDegradationOrchestrator',
+    'SafeDegradationManager',  # Alias
     'DegradationLevel',
     'DegradationAction',
     'DegradationPlan',
@@ -117,7 +118,7 @@ __all__ = [
     'RecoveryStatus',
     
     # System Management
-    'SystemFailureManager',
+    'SystemFailureOrchestrator',
     'SystemFailureState',
     'SystemFailureReport',
     

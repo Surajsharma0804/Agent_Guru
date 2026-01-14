@@ -12,7 +12,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Pattern, Set
+from typing import Any, Dict, List, Optional, Pattern, Set, Tuple
 from threading import RLock
 
 from .configuration import MultilingualConfig, SupportedLanguages
@@ -410,6 +410,416 @@ class ModePatternRegistry:
             )
         ])
         
+        # Chinese (Mandarin) patterns
+        self.register_patterns("zh", [
+            # Command mode patterns
+            ModePattern(
+                pattern=r"^(命令模式|切换到命令|启用命令)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(开始命令|命令开始)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=8
+            ),
+            
+            # Dictation mode patterns
+            ModePattern(
+                pattern=r"^(听写模式|开始听写|输入模式)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(开始输入|写字模式)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=8
+            ),
+            
+            # Implicit command indicators
+            ModePattern(
+                pattern=r"^(打开|关闭|点击|运行|执行)",
+                target_mode=ProcessingMode.COMMAND,
+                priority=3
+            ),
+            
+            # Implicit dictation indicators
+            ModePattern(
+                pattern=r"^(亲爱的|你好|这个|那个|我|你|我们|他们)",
+                target_mode=ProcessingMode.DICTATION,
+                priority=2
+            )
+        ])
+        
+        # Japanese patterns
+        self.register_patterns("ja", [
+            # Command mode patterns
+            ModePattern(
+                pattern=r"^(コマンドモード|命令モード|コマンドを有効にする)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(コマンド開始|命令開始)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=8
+            ),
+            
+            # Dictation mode patterns
+            ModePattern(
+                pattern=r"^(ディクテーションモード|入力モード|タイプモード)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(入力開始|書き始める)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=8
+            ),
+            
+            # Implicit command indicators
+            ModePattern(
+                pattern=r"^(開く|閉じる|クリック|実行|起動)",
+                target_mode=ProcessingMode.COMMAND,
+                priority=3
+            ),
+            
+            # Implicit dictation indicators
+            ModePattern(
+                pattern=r"^(親愛なる|こんにちは|これ|それ|私|あなた|私たち|彼ら)",
+                target_mode=ProcessingMode.DICTATION,
+                priority=2
+            )
+        ])
+        
+        # Telugu patterns
+        self.register_patterns("te", [
+            # Command mode patterns
+            ModePattern(
+                pattern=r"^(కమాండ్\s+మోడ్|ఆదేశ\s+విధానం|కమాండ్\s+ఆన్\s+చేయండి)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(కమాండ్\s+ప్రారంభించండి|ఆదేశాలు\s+ప్రారంభించండి)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=8
+            ),
+            
+            # Dictation mode patterns
+            ModePattern(
+                pattern=r"^(డిక్టేషన్\s+మోడ్|రాయడం\s+ప్రారంభించండి|టైప్\s+మోడ్)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(వ్రాయడం\s+మోడ్|టైపింగ్\s+ప్రారంభించండి)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=8
+            ),
+            
+            # Implicit command indicators
+            ModePattern(
+                pattern=r"^(తెరవండి|మూసివేయండి|క్లిక్\s+చేయండి|రన్\s+చేయండి|ప్రారంభించండి)",
+                target_mode=ProcessingMode.COMMAND,
+                priority=3
+            ),
+            
+            # Implicit dictation indicators
+            ModePattern(
+                pattern=r"^(ప్రియమైన|నమస్కారం|హలో|ఇది|అది|నేను|మీరు|మేము|వారు)",
+                target_mode=ProcessingMode.DICTATION,
+                priority=2
+            )
+        ])
+        
+        # Bengali patterns
+        self.register_patterns("bn", [
+            # Command mode patterns
+            ModePattern(
+                pattern=r"^(কমান্ড\s+মোড|আদেশ\s+মোড|কমান্ড\s+চালু\s+করুন)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(কমান্ড\s+শুরু\s+করুন|আদেশ\s+শুরু\s+করুন)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=8
+            ),
+            
+            # Dictation mode patterns
+            ModePattern(
+                pattern=r"^(ডিক্টেশন\s+মোড|লেখা\s+শুরু\s+করুন|টাইপ\s+মোড)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(লেখার\s+মোড|টাইপিং\s+শুরু\s+করুন)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=8
+            ),
+            
+            # Implicit command indicators
+            ModePattern(
+                pattern=r"^(খুলুন|বন্ধ\s+করুন|ক্লিক\s+করুন|চালান|শুরু\s+করুন)",
+                target_mode=ProcessingMode.COMMAND,
+                priority=3
+            ),
+            
+            # Implicit dictation indicators
+            ModePattern(
+                pattern=r"^(প্রিয়|নমস্কার|হ্যালো|এটি|সেটি|আমি|আপনি|আমরা|তারা)",
+                target_mode=ProcessingMode.DICTATION,
+                priority=2
+            )
+        ])
+        
+        # Marathi patterns
+        self.register_patterns("mr", [
+            # Command mode patterns
+            ModePattern(
+                pattern=r"^(कमांड\s+मोड|आदेश\s+मोड|कमांड\s+चालू\s+करा)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(कमांड\s+सुरू\s+करा|आदेश\s+सुरू\s+करा)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=8
+            ),
+            
+            # Dictation mode patterns
+            ModePattern(
+                pattern=r"^(डिक्टेशन\s+मोड|लिहिणे\s+सुरू\s+करा|टाइप\s+मोड)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(लेखन\s+मोड|टाइपिंग\s+सुरू\s+करा)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=8
+            ),
+            
+            # Implicit command indicators
+            ModePattern(
+                pattern=r"^(उघडा|बंद\s+करा|क्लिक\s+करा|चालवा|सुरू\s+करा)",
+                target_mode=ProcessingMode.COMMAND,
+                priority=3
+            ),
+            
+            # Implicit dictation indicators
+            ModePattern(
+                pattern=r"^(प्रिय|नमस्कार|हॅलो|हे|ते|मी|तुम्ही|आम्ही|ते)",
+                target_mode=ProcessingMode.DICTATION,
+                priority=2
+            )
+        ])
+        
+        # Gujarati patterns
+        self.register_patterns("gu", [
+            # Command mode patterns
+            ModePattern(
+                pattern=r"^(કમાન્ડ\s+મોડ|આદેશ\s+મોડ|કમાન્ડ\s+ચાલુ\s+કરો)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(કમાન્ડ\s+શરૂ\s+કરો|આદેશ\s+શરૂ\s+કરો)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=8
+            ),
+            
+            # Dictation mode patterns
+            ModePattern(
+                pattern=r"^(ડિક્ટેશન\s+મોડ|લખવાનું\s+શરૂ\s+કરો|ટાઇપ\s+મોડ)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(લેખન\s+મોડ|ટાઇપિંગ\s+શરૂ\s+કરો)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=8
+            ),
+            
+            # Implicit command indicators
+            ModePattern(
+                pattern=r"^(ખોલો|બંધ\s+કરો|ક્લિક\s+કરો|ચલાવો|શરૂ\s+કરો)",
+                target_mode=ProcessingMode.COMMAND,
+                priority=3
+            ),
+            
+            # Implicit dictation indicators
+            ModePattern(
+                pattern=r"^(પ્રિય|નમસ્કાર|હેલો|આ|તે|હું|તમે|અમે|તેઓ)",
+                target_mode=ProcessingMode.DICTATION,
+                priority=2
+            )
+        ])
+        
+        # Kannada patterns
+        self.register_patterns("kn", [
+            # Command mode patterns
+            ModePattern(
+                pattern=r"^(ಕಮಾಂಡ್\s+ಮೋಡ್|ಆದೇಶ\s+ವಿಧಾನ|ಕಮಾಂಡ್\s+ಆನ್\s+ಮಾಡಿ)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(ಕಮಾಂಡ್\s+ಪ್ರಾರಂಭಿಸಿ|ಆದೇಶಗಳು\s+ಪ್ರಾರಂಭಿಸಿ)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=8
+            ),
+            
+            # Dictation mode patterns
+            ModePattern(
+                pattern=r"^(ಡಿಕ್ಟೇಶನ್\s+ಮೋಡ್|ಬರೆಯುವುದು\s+ಪ್ರಾರಂಭಿಸಿ|ಟೈಪ್\s+ಮೋಡ್)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(ಬರವಣಿಗೆ\s+ಮೋಡ್|ಟೈಪಿಂಗ್\s+ಪ್ರಾರಂಭಿಸಿ)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=8
+            ),
+            
+            # Implicit command indicators
+            ModePattern(
+                pattern=r"^(ತೆರೆಯಿರಿ|ಮುಚ್ಚಿರಿ|ಕ್ಲಿಕ್\s+ಮಾಡಿ|ರನ್\s+ಮಾಡಿ|ಪ್ರಾರಂಭಿಸಿ)",
+                target_mode=ProcessingMode.COMMAND,
+                priority=3
+            ),
+            
+            # Implicit dictation indicators
+            ModePattern(
+                pattern=r"^(ಪ್ರಿಯ|ನಮಸ್ಕಾರ|ಹಲೋ|ಇದು|ಅದು|ನಾನು|ನೀವು|ನಾವು|ಅವರು)",
+                target_mode=ProcessingMode.DICTATION,
+                priority=2
+            )
+        ])
+        
+        # Malayalam patterns
+        self.register_patterns("ml", [
+            # Command mode patterns
+            ModePattern(
+                pattern=r"^(കമാൻഡ്\s+മോഡ്|ആദേശ\s+രീതി|കമാൻഡ്\s+ഓൺ\s+ചെയ്യുക)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(കമാൻഡ്\s+ആരംഭിക്കുക|ആദേശങ്ങൾ\s+ആരംഭിക്കുക)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=8
+            ),
+            
+            # Dictation mode patterns
+            ModePattern(
+                pattern=r"^(ഡിക്ടേഷൻ\s+മോഡ്|എഴുതുന്നത്\s+ആരംഭിക്കുക|ടൈപ്പ്\s+മോഡ്)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(എഴുത്ത്\s+മോഡ്|ടൈപ്പിംഗ്\s+ആരംഭിക്കുക)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=8
+            ),
+            
+            # Implicit command indicators
+            ModePattern(
+                pattern=r"^(തുറക്കുക|അടയ്ക്കുക|ക്ലിക്ക്\s+ചെയ്യുക|റൺ\s+ചെയ്യുക|ആരംഭിക്കുക)",
+                target_mode=ProcessingMode.COMMAND,
+                priority=3
+            ),
+            
+            # Implicit dictation indicators
+            ModePattern(
+                pattern=r"^(പ്രിയ|നമസ്കാരം|ഹലോ|ഇത്|അത്|ഞാൻ|നിങ്ങൾ|ഞങ്ങൾ|അവർ)",
+                target_mode=ProcessingMode.DICTATION,
+                priority=2
+            )
+        ])
+        
+        # Punjabi patterns
+        self.register_patterns("pa", [
+            # Command mode patterns
+            ModePattern(
+                pattern=r"^(ਕਮਾਂਡ\s+ਮੋਡ|ਹੁਕਮ\s+ਮੋਡ|ਕਮਾਂਡ\s+ਚਾਲੂ\s+ਕਰੋ)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(ਕਮਾਂਡ\s+ਸ਼ੁਰੂ\s+ਕਰੋ|ਹੁਕਮ\s+ਸ਼ੁਰੂ\s+ਕਰੋ)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=8
+            ),
+            
+            # Dictation mode patterns
+            ModePattern(
+                pattern=r"^(ਡਿਕਟੇਸ਼ਨ\s+ਮੋਡ|ਲਿਖਣਾ\s+ਸ਼ੁਰੂ\s+ਕਰੋ|ਟਾਈਪ\s+ਮੋਡ)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(ਲੇਖਣ\s+ਮੋਡ|ਟਾਈਪਿੰਗ\s+ਸ਼ੁਰੂ\s+ਕਰੋ)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=8
+            ),
+            
+            # Implicit command indicators
+            ModePattern(
+                pattern=r"^(ਖੋਲ੍ਹੋ|ਬੰਦ\s+ਕਰੋ|ਕਲਿੱਕ\s+ਕਰੋ|ਚਲਾਓ|ਸ਼ੁਰੂ\s+ਕਰੋ)",
+                target_mode=ProcessingMode.COMMAND,
+                priority=3
+            ),
+            
+            # Implicit dictation indicators
+            ModePattern(
+                pattern=r"^(ਪਿਆਰੇ|ਸਤ\s+ਸ਼ਰੀ\s+ਅਕਾਲ|ਹੈਲੋ|ਇਹ|ਉਹ|ਮੈਂ|ਤੁਸੀਂ|ਅਸੀਂ|ਉਹ)",
+                target_mode=ProcessingMode.DICTATION,
+                priority=2
+            )
+        ])
+        
+        # Bhojpuri patterns
+        self.register_patterns("bho", [
+            # Command mode patterns
+            ModePattern(
+                pattern=r"^(कमांड\s+मोड|आदेश\s+मोड|कमांड\s+चालू\s+करा)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(कमांड\s+शुरू\s+करा|आदेश\s+शुरू\s+करा)$",
+                target_mode=ProcessingMode.COMMAND,
+                priority=8
+            ),
+            
+            # Dictation mode patterns
+            ModePattern(
+                pattern=r"^(डिक्टेशन\s+मोड|लिखल\s+शुरू\s+करा|टाइप\s+मोड)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=10
+            ),
+            ModePattern(
+                pattern=r"^(लेखन\s+मोड|टाइपिंग\s+शुरू\s+करा)$",
+                target_mode=ProcessingMode.DICTATION,
+                priority=8
+            ),
+            
+            # Implicit command indicators
+            ModePattern(
+                pattern=r"^(खोला|बंद\s+करा|क्लिक\s+करा|चलावा|शुरू\s+करा)",
+                target_mode=ProcessingMode.COMMAND,
+                priority=3
+            ),
+            
+            # Implicit dictation indicators
+            ModePattern(
+                pattern=r"^(प्रिय|नमस्कार|हैलो|ई|ओ|हम|रउआ|हमनी|ओकरा)",
+                target_mode=ProcessingMode.DICTATION,
+                priority=2
+            )
+        ])
+        
         self.logger.info(f"Initialized mode patterns for {len(self._patterns)} languages")
         
     def register_patterns(self, language: str, patterns: List[ModePattern]):
@@ -468,6 +878,11 @@ class MultilingualModeClassifier:
         self._current_mode = ProcessingMode.COMMAND  # Default mode
         self._session_lock = RLock()
         
+        # Mode feedback system
+        self._feedback_enabled = True
+        self._audio_feedback_enabled = True
+        self._visual_feedback_enabled = True
+        
         # Classification statistics
         self._classification_stats = {
             'total_classifications': 0,
@@ -476,6 +891,241 @@ class MultilingualModeClassifier:
             'fallback_uses': 0,
             'average_processing_time_ms': 0.0
         }
+        
+    def provide_mode_feedback(self, mode: ProcessingMode, language: str, transition_type: ModeTransition) -> Dict[str, str]:
+        """
+        Provide language-appropriate feedback for mode transitions.
+        
+        Returns:
+            Dictionary with audio and visual feedback messages
+        """
+        
+        if not self._feedback_enabled:
+            return {'audio': '', 'visual': ''}
+            
+        # Language-specific feedback messages
+        feedback_messages = {
+            'en': {
+                ProcessingMode.COMMAND: {
+                    'audio': 'Command mode activated',
+                    'visual': '🎯 Command Mode'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': 'Dictation mode activated',
+                    'visual': '✍️ Dictation Mode'
+                }
+            },
+            'hi': {
+                ProcessingMode.COMMAND: {
+                    'audio': 'कमांड मोड सक्रिय',
+                    'visual': '🎯 कमांड मोड'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': 'डिक्टेशन मोड सक्रिय',
+                    'visual': '✍️ डिक्टेशन मोड'
+                }
+            },
+            'ta': {
+                ProcessingMode.COMMAND: {
+                    'audio': 'கமாண்ட் மோட் ஆக்டிவ்',
+                    'visual': '🎯 கமாண்ட் மோட்'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': 'டிக்டேஷன் மோட் ஆக்டிவ்',
+                    'visual': '✍️ டிக்டேஷன் மோட்'
+                }
+            },
+            'de': {
+                ProcessingMode.COMMAND: {
+                    'audio': 'Befehlsmodus aktiviert',
+                    'visual': '🎯 Befehlsmodus'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': 'Diktatmodus aktiviert',
+                    'visual': '✍️ Diktatmodus'
+                }
+            },
+            'fr': {
+                ProcessingMode.COMMAND: {
+                    'audio': 'Mode commande activé',
+                    'visual': '🎯 Mode Commande'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': 'Mode dictée activé',
+                    'visual': '✍️ Mode Dictée'
+                }
+            },
+            'zh': {
+                ProcessingMode.COMMAND: {
+                    'audio': '命令模式已激活',
+                    'visual': '🎯 命令模式'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': '听写模式已激活',
+                    'visual': '✍️ 听写模式'
+                }
+            },
+            'ja': {
+                ProcessingMode.COMMAND: {
+                    'audio': 'コマンドモードが有効になりました',
+                    'visual': '🎯 コマンドモード'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': 'ディクテーションモードが有効になりました',
+                    'visual': '✍️ ディクテーションモード'
+                }
+            },
+            'te': {
+                ProcessingMode.COMMAND: {
+                    'audio': 'కమాండ్ మోడ్ యాక్టివేట్ అయింది',
+                    'visual': '🎯 కమాండ్ మోడ్'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': 'డిక్టేషన్ మోడ్ యాక్టివేట్ అయింది',
+                    'visual': '✍️ డిక్టేషన్ మోడ్'
+                }
+            },
+            'bn': {
+                ProcessingMode.COMMAND: {
+                    'audio': 'কমান্ড মোড সক্রিয়',
+                    'visual': '🎯 কমান্ড মোড'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': 'ডিক্টেশন মোড সক্রিয়',
+                    'visual': '✍️ ডিক্টেশন মোড'
+                }
+            },
+            'mr': {
+                ProcessingMode.COMMAND: {
+                    'audio': 'कमांड मोड सक्रिय',
+                    'visual': '🎯 कमांड मोड'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': 'डिक्टेशन मोड सक्रिय',
+                    'visual': '✍️ डिक्टेशन मोड'
+                }
+            },
+            'gu': {
+                ProcessingMode.COMMAND: {
+                    'audio': 'કમાન્ડ મોડ સક્રિય',
+                    'visual': '🎯 કમાન્ડ મોડ'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': 'ડિક્ટેશન મોડ સક્રિય',
+                    'visual': '✍️ ડિક્ટેશન મોડ'
+                }
+            },
+            'kn': {
+                ProcessingMode.COMMAND: {
+                    'audio': 'ಕಮಾಂಡ್ ಮೋಡ್ ಸಕ್ರಿಯ',
+                    'visual': '🎯 ಕಮಾಂಡ್ ಮೋಡ್'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': 'ಡಿಕ್ಟೇಶನ್ ಮೋಡ್ ಸಕ್ರಿಯ',
+                    'visual': '✍️ ಡಿಕ್ಟೇಶನ್ ಮೋಡ್'
+                }
+            },
+            'ml': {
+                ProcessingMode.COMMAND: {
+                    'audio': 'കമാൻഡ് മോഡ് സജീവമാക്കി',
+                    'visual': '🎯 കമാൻഡ് മോഡ്'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': 'ഡിക്ടേഷൻ മോഡ് സജീവമാക്കി',
+                    'visual': '✍️ ഡിക്ടേഷൻ മോഡ്'
+                }
+            },
+            'pa': {
+                ProcessingMode.COMMAND: {
+                    'audio': 'ਕਮਾਂਡ ਮੋਡ ਸਰਗਰਮ',
+                    'visual': '🎯 ਕਮਾਂਡ ਮੋਡ'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': 'ਡਿਕਟੇਸ਼ਨ ਮੋਡ ਸਰਗਰਮ',
+                    'visual': '✍️ ਡਿਕਟੇਸ਼ਨ ਮੋਡ'
+                }
+            },
+            'bho': {
+                ProcessingMode.COMMAND: {
+                    'audio': 'कमांड मोड सक्रिय',
+                    'visual': '🎯 कमांड मोड'
+                },
+                ProcessingMode.DICTATION: {
+                    'audio': 'डिक्टेशन मोड सक्रिय',
+                    'visual': '✍️ डिक्टेशन मोड'
+                }
+            }
+        }
+        
+        # Get feedback for language, fallback to English
+        lang_feedback = feedback_messages.get(language, feedback_messages['en'])
+        mode_feedback = lang_feedback.get(mode, lang_feedback[ProcessingMode.COMMAND])
+        
+        # Add transition context for explicit switches
+        if transition_type == ModeTransition.EXPLICIT_COMMAND:
+            if language == 'en':
+                mode_feedback['audio'] += ' - Voice command recognized'
+            elif language == 'hi':
+                mode_feedback['audio'] += ' - आवाज़ कमांड पहचाना गया'
+            elif language == 'ta':
+                mode_feedback['audio'] += ' - குரல் கட்டளை அங்கீகரிக்கப்பட்டது'
+            # Add more languages as needed
+                
+        return {
+            'audio': mode_feedback['audio'] if self._audio_feedback_enabled else '',
+            'visual': mode_feedback['visual'] if self._visual_feedback_enabled else ''
+        }
+        
+    def log_mode_transition(
+        self, 
+        result: ModeClassificationResult, 
+        session_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Log mode transition for audit purposes with language context.
+        
+        Args:
+            result: Mode classification result
+            session_id: Optional session ID
+            
+        Returns:
+            Log entry dictionary
+        """
+        
+        log_entry = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'event_type': 'MODE_TRANSITION',
+            'session_id': session_id,
+            'language': result.language,
+            'previous_mode': result.previous_mode.value if result.previous_mode else None,
+            'new_mode': result.mode.value,
+            'transition_type': result.transition_type.value,
+            'confidence': result.confidence,
+            'mode_switched': result.mode_switched,
+            'processing_time_ms': result.processing_time_ms,
+            'patterns_evaluated': result.patterns_evaluated,
+            'session_context_used': result.session_context_used,
+            'fallback_used': result.fallback_used,
+            'success': result.success,
+            'error': result.error,
+            'warnings': result.warnings
+        }
+        
+        # Add switch command details if available
+        if result.switch_command:
+            log_entry['switch_command'] = {
+                'command_text': result.switch_command.command_text,
+                'pattern_matched': result.switch_command.pattern_matched,
+                'command_confidence': result.switch_command.confidence
+            }
+            
+        # Log the transition
+        if result.mode_switched:
+            self.logger.info(f"Mode transition: {result.previous_mode.value if result.previous_mode else 'unknown'} -> {result.mode.value} ({result.transition_type.value})")
+        else:
+            self.logger.debug(f"Mode classification: {result.mode.value} (confidence: {result.confidence:.2f})")
+            
+        return log_entry
         
     def classify_mode(
         self, 
@@ -526,7 +1176,24 @@ class MultilingualModeClassifier:
             # Check for explicit mode switching commands
             switch_result = self._check_mode_switch_command(text, language)
             if switch_result:
-                return self._handle_mode_switch(switch_result, start_time, language)
+                classification_result = self._handle_mode_switch(switch_result, start_time, language)
+                
+                # Provide feedback and log transition
+                if classification_result.mode_switched:
+                    feedback = self.provide_mode_feedback(
+                        classification_result.mode, 
+                        language, 
+                        classification_result.transition_type
+                    )
+                    classification_result.warnings.extend([
+                        f"Audio feedback: {feedback['audio']}", 
+                        f"Visual feedback: {feedback['visual']}"
+                    ])
+                    
+                    # Log the transition
+                    self.log_mode_transition(classification_result, session_id)
+                    
+                return classification_result
                 
             # Use session context if available and enabled
             if use_session_context:
@@ -733,3 +1400,19 @@ class MultilingualModeClassifier:
         """Cleanup resources and clear history."""
         self.mode_history.clear_history()
         self.logger.info("Mode classifier cleanup completed")
+        
+    def set_feedback_enabled(self, audio: bool = True, visual: bool = True):
+        """Enable or disable mode feedback."""
+        self._audio_feedback_enabled = audio
+        self._visual_feedback_enabled = visual
+        self._feedback_enabled = audio or visual
+        
+        self.logger.info(f"Mode feedback settings: audio={audio}, visual={visual}")
+        
+    def get_feedback_settings(self) -> Dict[str, bool]:
+        """Get current feedback settings."""
+        return {
+            'feedback_enabled': self._feedback_enabled,
+            'audio_feedback_enabled': self._audio_feedback_enabled,
+            'visual_feedback_enabled': self._visual_feedback_enabled
+        }

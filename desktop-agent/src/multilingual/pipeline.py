@@ -19,7 +19,8 @@ from .language_detection import LanguageDetectionEngine, LanguageDetectionResult
 from .intent_normalization import IntentNormalizationLayer, CanonicalIntent, ProcessingMode, NormalizationResult
 from .voice_processing import MultilingualVoiceProcessor, VoiceProcessingResult
 from .mode_classification import MultilingualModeClassifier, ModeClassificationResult
-from .audit_logging import MultilingualAuditLogger, MultilingualEvent, MultilingualEventType, LogSeverity
+from .audit_logging import MultilingualAuditLogger, MultilingualEventType, LogSeverity, MultilingualAuditContext
+from ..audit.audit_logger import AuditSeverity
 from .exceptions import (
     MultilingualError,
     SecurityBoundaryError,
@@ -334,18 +335,17 @@ class MultilingualProcessingPipeline:
             self._current_requests[result.request_id] = result
             
             # Log pipeline start
-            self.audit_logger.log_event(
-                MultilingualEvent(
-                    event_type=MultilingualEventType.PIPELINE_STARTED,
-                    session_id=session_id,
-                    request_id=result.request_id,
-                    processing_stage="pipeline_start",
-                    additional_data={
-                        'audio_length': len(audio),
-                        'expected_speaker': expected_speaker_id,
-                        'mode_hint': processing_mode_hint.value if processing_mode_hint else None
-                    }
-                )
+            self.audit_logger.log_multilingual_event(
+                event_type=MultilingualEventType.MULTILINGUAL_PIPELINE_STARTED,
+                action="pipeline_start",
+                multilingual_context=MultilingualAuditContext(),
+                session_id=session_id,
+                additional_details={
+                    'request_id': result.request_id,
+                    'audio_length': len(audio),
+                    'expected_speaker': expected_speaker_id,
+                    'mode_hint': processing_mode_hint.value if processing_mode_hint else None
+                }
             )
             
             result.state = PipelineState.PROCESSING
@@ -389,22 +389,23 @@ class MultilingualProcessingPipeline:
             result.total_processing_time_ms = int((time.time() - start_time) * 1000)
             
             # Log successful completion
-            self.audit_logger.log_event(
-                MultilingualEvent(
-                    event_type=MultilingualEventType.PIPELINE_COMPLETED,
-                    session_id=session_id,
-                    request_id=result.request_id,
-                    processing_stage="pipeline_completion",
-                    success=True,
-                    detected_language=result.language_result.language if result.language_result else None,
-                    processing_mode=result.mode_result.mode.value if result.mode_result else None,
-                    authority_required=result.authority_required,
-                    authority_granted=result.authority_granted,
-                    additional_data={
-                        'total_processing_time_ms': result.total_processing_time_ms,
-                        'canonical_action': result.canonical_intent.action.value if result.canonical_intent else None
-                    }
-                )
+            completion_context = MultilingualAuditContext(
+                detected_language=result.language_result.language if result.language_result else None,
+                processing_mode=result.mode_result.mode.value if result.mode_result else None,
+                canonical_action=result.canonical_intent.action.value if result.canonical_intent else None,
+                total_processing_time_ms=result.total_processing_time_ms
+            )
+            
+            self.audit_logger.log_multilingual_event(
+                event_type=MultilingualEventType.MULTILINGUAL_PIPELINE_COMPLETED,
+                action="pipeline_completion",
+                multilingual_context=completion_context,
+                session_id=session_id,
+                additional_details={
+                    'request_id': result.request_id,
+                    'authority_required': result.authority_required,
+                    'authority_granted': result.authority_granted
+                }
             )
             
             # Update statistics
@@ -779,20 +780,20 @@ class MultilingualProcessingPipeline:
         result.success = False
         
         # Log pipeline abort
-        self.audit_logger.log_event(
-            MultilingualEvent(
-                event_type=MultilingualEventType.PIPELINE_FAILED,
-                session_id=result.session_id,
-                request_id=result.request_id,
-                processing_stage=result.current_stage.value,
-                success=False,
-                error_message=reason,
-                additional_data={
-                    'completed_stages': [stage.value for stage in result.completed_stages],
-                    'abort_reason': reason
-                }
-            ),
-            LogSeverity.ERROR
+        abort_context = MultilingualAuditContext()
+        
+        self.audit_logger.log_multilingual_event(
+            event_type=MultilingualEventType.MULTILINGUAL_PIPELINE_FAILED,
+            action="pipeline_abort",
+            multilingual_context=abort_context,
+            severity=AuditSeverity.ERROR,
+            session_id=result.session_id,
+            additional_details={
+                'request_id': result.request_id,
+                'processing_stage': result.current_stage.value,
+                'abort_reason': reason,
+                'completed_stages': [stage.value for stage in result.completed_stages]
+            }
         )
         
         self._pipeline_stats['aborted_requests'] += 1
@@ -814,20 +815,21 @@ class MultilingualProcessingPipeline:
         result.total_processing_time_ms = int((time.time() - start_time) * 1000)
         
         # Log pipeline failure
-        self.audit_logger.log_event(
-            MultilingualEvent(
-                event_type=MultilingualEventType.PIPELINE_FAILED,
-                session_id=result.session_id,
-                request_id=result.request_id,
-                processing_stage=result.current_stage.value,
-                success=False,
-                error_message=str(exception),
-                additional_data={
-                    'exception_type': type(exception).__name__,
-                    'completed_stages': [stage.value for stage in result.completed_stages]
-                }
-            ),
-            LogSeverity.ERROR
+        failure_context = MultilingualAuditContext()
+        
+        self.audit_logger.log_multilingual_event(
+            event_type=MultilingualEventType.MULTILINGUAL_PIPELINE_FAILED,
+            action="pipeline_exception",
+            multilingual_context=failure_context,
+            severity=AuditSeverity.ERROR,
+            session_id=result.session_id,
+            additional_details={
+                'request_id': result.request_id,
+                'processing_stage': result.current_stage.value,
+                'exception_type': type(exception).__name__,
+                'error_message': str(exception),
+                'completed_stages': [stage.value for stage in result.completed_stages]
+            }
         )
         
         self._pipeline_stats['failed_requests'] += 1
@@ -891,3 +893,7 @@ class MultilingualProcessingPipeline:
         self._current_requests.clear()
         
         self.logger.info("Multilingual pipeline cleanup completed")
+
+
+# Alias for backward compatibility
+MultilingualPipeline = MultilingualProcessingPipeline

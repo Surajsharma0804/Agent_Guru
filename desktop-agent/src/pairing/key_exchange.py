@@ -258,7 +258,7 @@ class KeyExchangeResult:
         return self.status == KeyExchangeStatus.FAILED
 
 
-class KeyExchangeManager:
+class AsymmetricKeyExchangeAuthority:
     """
     Manages asymmetric key exchange for secure device pairing
     
@@ -278,7 +278,7 @@ class KeyExchangeManager:
         self.active_exchanges: Dict[str, KeyExchangeResult] = {}
         self.trusted_keys: Dict[str, str] = {}  # device_id -> public_key_pem
         self.logger = structlog.get_logger(__name__).bind(
-            component="KeyExchangeManager",
+            component="AsymmetricKeyExchangeAuthority",
             device_id=device_id
         )
         
@@ -597,3 +597,4 @@ class KeyExchangeManager:
         return len(expired_exchanges)
 # Alias for compatibility with tests
 CryptographicDeviceKeyPair = DeviceKeyPair
+KeyExchangeManager = AsymmetricKeyExchangeAuthority

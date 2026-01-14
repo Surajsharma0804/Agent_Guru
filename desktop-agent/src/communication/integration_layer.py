@@ -21,9 +21,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 import weakref
 
-from .message_bus import MessageBus, Message, MessageType, MessagePriority, MessageHandler
+from .message_bus import MessageBus, Message, MessageType, MessagePriority, ComponentMessageProtocol
 from .component_registry import ComponentRegistry, ComponentInfo, ComponentStatus, ComponentType, ComponentLifecycle
-from .secure_channel import ChannelManager, SecureChannel, ChannelSecurity, EncryptionMode
+from .secure_channel import SecureChannelOrchestrator, SecureChannel, ChannelSecurity, EncryptionMode
 from .health_monitor import CommunicationHealthMonitor, ChannelHealth, ChannelHealthStatus, CommunicationMetrics
 from .exceptions import (
     CommunicationError,
@@ -99,7 +99,7 @@ class ComponentIntegrationLayer:
         # Core components
         self.message_bus: Optional[MessageBus] = None
         self.component_registry: Optional[ComponentRegistry] = None
-        self.channel_manager: Optional[ChannelManager] = None
+        self.channel_manager: Optional[SecureChannelOrchestrator] = None
         self.health_monitor: Optional[CommunicationHealthMonitor] = None
         self.audit_logger: Optional[AuditLogger] = None
         
@@ -297,7 +297,7 @@ class ComponentIntegrationLayer:
                     )
                 
                 # Register with message bus if component handles messages
-                if isinstance(component_ref, MessageHandler) and self.message_bus:
+                if isinstance(component_ref, ComponentMessageProtocol) and self.message_bus:
                     self.message_bus.register_component(
                         component_name=component_name,
                         handler=component_ref,
@@ -318,7 +318,7 @@ class ComponentIntegrationLayer:
                 self._registered_components[component_name] = {
                     "component_info": component_info,
                     "registered_at": datetime.now(),
-                    "message_handler": isinstance(component_ref, MessageHandler),
+                    "message_handler": isinstance(component_ref, ComponentMessageProtocol),
                     "lifecycle_handler": lifecycle_handler is not None,
                     "health_monitored": True
                 }
@@ -619,7 +619,7 @@ class ComponentIntegrationLayer:
     def _initialize_channel_manager(self) -> None:
         """Initialize channel manager."""
         if self.config.enable_channel_encryption:
-            self.channel_manager = ChannelManager()
+            self.channel_manager = SecureChannelOrchestrator()
             self.logger.info("Channel manager initialized")
     
     def _initialize_health_monitor(self) -> None:

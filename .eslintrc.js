@@ -43,16 +43,27 @@ module.exports = {
       plugins: ['@typescript-eslint', 'security'],
       extends: [
         'eslint:recommended',
-        '@typescript-eslint/eslint-plugin/dist/configs/recommended.js'
+        'plugin:@typescript-eslint/recommended'
       ],
       parserOptions: {
         ecmaVersion: 2022,
-        sourceType: 'module'
+        sourceType: 'module',
+        project: './tsconfig.json'
       },
       rules: {
-        '@typescript-eslint/no-unused-vars': 'error',
+        '@typescript-eslint/no-unused-vars': ['error', { 
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_'
+        }],
         '@typescript-eslint/no-explicit-any': 'warn',
         '@typescript-eslint/no-non-null-assertion': 'error',
+        '@typescript-eslint/explicit-function-return-type': ['error', {
+          allowExpressions: true,
+          allowTypedFunctionExpressions: true
+        }],
+        '@typescript-eslint/strict-boolean-expressions': 'error',
+        '@typescript-eslint/no-floating-promises': 'error',
+        '@typescript-eslint/no-misused-promises': 'error',
         'no-unused-vars': 'off'
       }
     },

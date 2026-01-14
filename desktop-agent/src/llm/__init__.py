@@ -1,65 +1,156 @@
 """
-LLM Adapter Module for GURU Personal Assistant
+LLM System - Multi-Provider AI Runtime with Security-First Design
 
-This module provides a multi-provider LLM abstraction layer that enforces
-the critical security invariant: LLMs are advisory only, never authoritative.
+Production-grade LLM system for YuktOS GURU with:
+- Multiple local models (Ollama)
+- Cloud API providers (OpenAI, Gemini)
+- Runtime provider switching
+- Task-based routing
+- Comprehensive security controls
+- Audit logging integration
 
-All LLM outputs are structured intents that must pass through:
-- AuthorityState verification
-- SignedCommandVerifier validation  
-- Skill sandbox policy enforcement
+CRITICAL SECURITY INVARIANTS:
+- NO MODEL may directly control keyboard, mouse, filesystem, or OS
+- NO LLM may execute actions
+- ALL execution passes through Authority State Machine
+- ALL failures MUST fail closed (LOCKED_LISTEN_ONLY)
+- NO silent fallbacks without explicit configuration
 
-Key Security Principles:
-- LLMs cannot directly execute any system functions
-- All outputs are validated and sanitized
-- LLM isolation breach triggers immediate authority revocation
-- Fail-safe defaults with comprehensive audit logging
+Models are replaceable. Authority is sacred. Execution is earned.
 """
 
+# Core model router components
+from .model_router import (
+    ModelRouter,
+    RouterConfiguration,
+    TaskType,
+    ProviderType,
+    TaskConfiguration,
+    ProviderConfiguration,
+    get_model_router
+)
+
+# Integration layer
+from .integration import (
+    LLMSystemIntegration,
+    get_llm_integration,
+    initialize_llm_system
+)
+
+# Configuration management
+from .config_manager import (
+    LLMConfigManager,
+    LLMConfigPaths,
+    get_llm_config_manager
+)
+
+# Provider implementations
+from .ollama_provider import OllamaProvider
+from .openai_provider import OpenAIProvider
+from .gemini_provider import GeminiProvider
+
+# Legacy adapter (for backward compatibility)
 from .adapter import LLMAdapter
 from .providers import (
     LLMProvider,
-    GeminiProvider,
+    GeminiProvider as LegacyGeminiProvider,
     LocalProvider,
     ProviderCapabilities,
     ProviderStatus
 )
+
+# Intent processing
 from .intent import (
     IntentType,
     IntentValidator,
     StructuredIntent
 )
+
+# Safety
 from .safety import (
     LLMSafetyEngine,
     ContentSafetyFilter,
     ResponseSanitizer,
     SafeResponse
 )
+
+# Exceptions
 from .exceptions import (
-    LLMAdapterError,
+    LLMException,
+    ModelRouterError,
     ProviderError,
-    SafetyViolationError,
+    ProviderRegistrationError,
+    AuthenticationError,
+    RateLimitExceededError,
+    NetworkError,
+    ModelNotFoundError,
+    CapabilityDetectionError,
+    ConfigurationError,
+    TaskRoutingError,
     IntentValidationError,
-    IsolationBreachError
+    IsolationBreachError,
+    LLMAdapterError
 )
 
 __all__ = [
+    # Core model router
+    'ModelRouter',
+    'RouterConfiguration',
+    'TaskType',
+    'ProviderType',
+    'TaskConfiguration',
+    'ProviderConfiguration',
+    'get_model_router',
+    
+    # Integration
+    'LLMSystemIntegration',
+    'get_llm_integration',
+    'initialize_llm_system',
+    
+    # Configuration
+    'LLMConfigManager',
+    'LLMConfigPaths',
+    'get_llm_config_manager',
+    
+    # Provider implementations
+    'OllamaProvider',
+    'OpenAIProvider',
+    'GeminiProvider',
+    
+    # Legacy adapter (backward compatibility)
     'LLMAdapter',
     'LLMProvider',
-    'GeminiProvider', 
+    'LegacyGeminiProvider',
     'LocalProvider',
     'ProviderCapabilities',
     'ProviderStatus',
+    
+    # Intent processing
     'IntentType',
     'IntentValidator',
     'StructuredIntent',
+    
+    # Safety
     'LLMSafetyEngine',
     'ContentSafetyFilter',
     'ResponseSanitizer',
     'SafeResponse',
-    'LLMAdapterError',
+    
+    # Exceptions
+    'LLMException',
+    'ModelRouterError',
     'ProviderError',
-    'SafetyViolationError',
+    'ProviderRegistrationError',
+    'AuthenticationError',
+    'RateLimitExceededError',
+    'NetworkError',
+    'ModelNotFoundError',
+    'CapabilityDetectionError',
+    'ConfigurationError',
+    'TaskRoutingError',
     'IntentValidationError',
-    'IsolationBreachError'
+    'IsolationBreachError',
+    'LLMAdapterError',
 ]
+
+__version__ = '1.0.0'

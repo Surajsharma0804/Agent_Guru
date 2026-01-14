@@ -23,14 +23,14 @@ from enum import Enum
 from typing import Callable, Dict, List, Optional
 
 import structlog
-from src.biometric.providers import BiometricFactor
+from ..biometric.providers import BiometricFactor
 from .patterns import (
     FailurePattern,
     PatternAnalysisConfig,
     PatternSeverity,
     create_failure_pattern_analyzer,
 )
-from src.intrusion.workstation_lock import (
+from .workstation_lock import (
     WorkstationLockConfig,
     WorkstationLockTrigger,
     create_workstation_locker,

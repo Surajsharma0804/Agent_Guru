@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import structlog
 
-from src.authority.state import (AuthorityConfiguration, AuthorityStateMachine,
+from .state import (AuthorityConfiguration, AuthorityStateMachine,
                                  BiometricFactor)
 
 if TYPE_CHECKING:

@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Tuple, Union
 from contextlib import contextmanager
 
-from .database import DatabaseManager
+from .database import DatabaseLifecycleOrchestrator
 from .memory_types import (
     BaseMemoryRecord, CoreMemory, EpisodicMemory, SemanticMemory,
     ProceduralMemory, ResourceMemory, KnowledgeVault,
@@ -53,9 +53,9 @@ class BaseMemoryAgent(ABC):
     - Performance monitoring
     """
     
-    def __init__(self, db_manager: DatabaseManager, encryption: MemoryEncryption, 
+    def __init__(self, db_orchestrator: DatabaseLifecycleOrchestrator, encryption: MemoryEncryption, 
                  vector_search: VectorSearchEngine):
-        self.db_manager = db_manager
+        self.db_orchestrator = db_orchestrator
         self.encryption = encryption
         self.vector_search = vector_search
         self.agent_name = self.__class__.__name__
@@ -76,7 +76,7 @@ class BaseMemoryAgent(ABC):
         try:
             operation_id = str(uuid.uuid4())
             
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 conn.execute("""
                     INSERT INTO memory_access_log 
                     (operation_id, memory_type, operation_type, record_id, 
@@ -118,19 +118,19 @@ class MetaAgent:
     operations like search and cleanup.
     """
     
-    def __init__(self, db_manager: DatabaseManager, encryption: MemoryEncryption,
+    def __init__(self, db_orchestrator: DatabaseLifecycleOrchestrator, encryption: MemoryEncryption,
                  vector_search: VectorSearchEngine):
-        self.db_manager = db_manager
+        self.db_orchestrator = db_orchestrator
         self.encryption = encryption
         self.vector_search = vector_search
         
         # Initialize specialized agents
-        self.core_manager = CoreManager(db_manager, encryption, vector_search)
-        self.episodic_manager = EpisodicManager(db_manager, encryption, vector_search)
-        self.semantic_manager = SemanticManager(db_manager, encryption, vector_search)
-        self.procedural_manager = ProceduralManager(db_manager, encryption, vector_search)
-        self.resource_manager = ResourceManager(db_manager, encryption, vector_search)
-        self.vault_manager = VaultManager(db_manager, encryption, vector_search)
+        self.core_manager = UserIdentityPersistence(db_orchestrator, encryption, vector_search)
+        self.episodic_manager = TemporalEventArchive(db_orchestrator, encryption, vector_search)
+        self.semantic_manager = ConceptualKnowledgeBase(db_orchestrator, encryption, vector_search)
+        self.procedural_manager = WorkflowExecutionLibrary(db_orchestrator, encryption, vector_search)
+        self.resource_manager = DocumentResourceCatalog(db_orchestrator, encryption, vector_search)
+        self.vault_manager = EncryptedCredentialVault(db_orchestrator, encryption, vector_search)
         
         self.agents = {
             'core': self.core_manager,
@@ -188,7 +188,7 @@ class MetaAgent:
                 stats[memory_type] = {"error": str(e)}
         
         # Add database-level statistics
-        stats['database'] = self.db_manager.get_database_stats()
+        stats['database'] = self.db_orchestrator.get_database_stats()
         
         return stats
     
@@ -208,9 +208,9 @@ class MetaAgent:
         return cleanup_results
 
 
-class CoreManager(BaseMemoryAgent):
+class UserIdentityPersistence(BaseMemoryAgent):
     """
-    Core Manager: Manages persistent user preferences and identity.
+    User Identity Persistence: Manages persistent user preferences and identity.
     
     Handles fundamental user configuration and preferences that persist
     across sessions and form the foundation of user personalization.
@@ -236,7 +236,7 @@ class CoreManager(BaseMemoryAgent):
                 import base64
                 memory.value = base64.b64encode(encrypted_value.to_bytes()).decode('utf-8')
             
-            with self.db_manager.transaction() as conn:
+            with self.db_orchestrator.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT INTO core_memory 
                     (key, value, data_type, encrypted, created_at, updated_at, version)
@@ -253,7 +253,7 @@ class CoreManager(BaseMemoryAgent):
     def get(self, key: str) -> Optional[CoreMemory]:
         """Get a core memory record by key."""
         with self._operation_context("read", key):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 row = conn.execute(
                     "SELECT * FROM core_memory WHERE key = ?", (key,)
                 ).fetchone()
@@ -298,7 +298,7 @@ class CoreManager(BaseMemoryAgent):
                 import base64
                 memory.value = base64.b64encode(encrypted_value.to_bytes()).decode('utf-8')
             
-            with self.db_manager.transaction() as conn:
+            with self.db_orchestrator.transaction() as conn:
                 conn.execute("""
                     UPDATE core_memory 
                     SET value = ?, data_type = ?, encrypted = ?, updated_at = ?, version = ?
@@ -313,14 +313,14 @@ class CoreManager(BaseMemoryAgent):
     def delete(self, key: str) -> bool:
         """Delete a core memory record."""
         with self._operation_context("delete", key):
-            with self.db_manager.transaction() as conn:
+            with self.db_orchestrator.transaction() as conn:
                 cursor = conn.execute("DELETE FROM core_memory WHERE key = ?", (key,))
                 return cursor.rowcount > 0
     
     def list_all(self) -> List[CoreMemory]:
         """List all core memory records."""
         with self._operation_context("read", "all"):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 rows = conn.execute("SELECT * FROM core_memory ORDER BY key").fetchall()
                 
                 memories = []
@@ -347,7 +347,7 @@ class CoreManager(BaseMemoryAgent):
     def search(self, query: str, limit: int = 10) -> List[CoreMemory]:
         """Search core memory records."""
         with self._operation_context("search", query):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 rows = conn.execute("""
                     SELECT * FROM core_memory 
                     WHERE key LIKE ? OR value LIKE ?
@@ -359,7 +359,7 @@ class CoreManager(BaseMemoryAgent):
     
     def get_statistics(self) -> Dict[str, Any]:
         """Get core memory statistics."""
-        with self.db_manager.get_connection() as conn:
+        with self.db_orchestrator.get_connection() as conn:
             stats = {}
             
             # Total count
@@ -381,9 +381,9 @@ class CoreManager(BaseMemoryAgent):
             return stats
 
 
-class EpisodicManager(BaseMemoryAgent):
+class TemporalEventArchive(BaseMemoryAgent):
     """
-    Episodic Manager: Manages time-based activities and events.
+    Temporal Event Archive: Manages time-based activities and events.
     
     Handles specific events, interactions, and activities with temporal context.
     Used for remembering what happened when and building contextual understanding.
@@ -415,7 +415,7 @@ class EpisodicManager(BaseMemoryAgent):
             
             data = memory.to_dict()
             
-            with self.db_manager.transaction() as conn:
+            with self.db_orchestrator.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT INTO episodic_memory 
                     (event_id, summary, details, participants, location, tags, 
@@ -435,7 +435,7 @@ class EpisodicManager(BaseMemoryAgent):
     def get(self, event_id: str) -> Optional[EpisodicMemory]:
         """Get an episodic memory record by event ID."""
         with self._operation_context("read", event_id):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 row = conn.execute(
                     "SELECT * FROM episodic_memory WHERE event_id = ?", (event_id,)
                 ).fetchone()
@@ -464,7 +464,7 @@ class EpisodicManager(BaseMemoryAgent):
                            limit: int = 50) -> List[EpisodicMemory]:
         """Search episodic memories within a time range."""
         with self._operation_context("search", f"timerange_{start_time}_{end_time}"):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 rows = conn.execute("""
                     SELECT * FROM episodic_memory 
                     WHERE occurred_at BETWEEN ? AND ?
@@ -487,7 +487,7 @@ class EpisodicManager(BaseMemoryAgent):
             
             params.append(limit)
             
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 query = f"""
                     SELECT * FROM episodic_memory 
                     WHERE {' OR '.join(tag_conditions)}
@@ -501,7 +501,7 @@ class EpisodicManager(BaseMemoryAgent):
     def cleanup_expired(self) -> int:
         """Clean up expired episodic memories based on retention policy."""
         with self._operation_context("delete", "expired"):
-            with self.db_manager.transaction() as conn:
+            with self.db_orchestrator.transaction() as conn:
                 # Clean up short-term memories older than 30 days
                 cursor = conn.execute("""
                     DELETE FROM episodic_memory 
@@ -514,7 +514,7 @@ class EpisodicManager(BaseMemoryAgent):
     def search(self, query: str, limit: int = 10) -> List[EpisodicMemory]:
         """Search episodic memory records."""
         with self._operation_context("search", query):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 rows = conn.execute("""
                     SELECT * FROM episodic_memory 
                     WHERE summary LIKE ? OR details LIKE ?
@@ -526,7 +526,7 @@ class EpisodicManager(BaseMemoryAgent):
     
     def get_statistics(self) -> Dict[str, Any]:
         """Get episodic memory statistics."""
-        with self.db_manager.get_connection() as conn:
+        with self.db_orchestrator.get_connection() as conn:
             stats = {}
             
             # Total count
@@ -551,9 +551,9 @@ class EpisodicManager(BaseMemoryAgent):
             return stats
 
 
-class SemanticManager(BaseMemoryAgent):
+class ConceptualKnowledgeBase(BaseMemoryAgent):
     """
-    Semantic Manager: Manages general knowledge and concepts.
+    Conceptual Knowledge Base: Manages general knowledge and concepts.
     
     Stores conceptual knowledge, relationships between concepts, and general
     understanding that builds over time through interactions and learning.
@@ -575,7 +575,7 @@ class SemanticManager(BaseMemoryAgent):
             
             data = memory.to_dict()
             
-            with self.db_manager.transaction() as conn:
+            with self.db_orchestrator.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT INTO semantic_memory 
                     (concept_id, concept_name, description, category, relationships,
@@ -595,7 +595,7 @@ class SemanticManager(BaseMemoryAgent):
     def get(self, concept_id: str) -> Optional[SemanticMemory]:
         """Get a semantic memory record by concept ID."""
         with self._operation_context("read", concept_id):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 row = conn.execute(
                     "SELECT * FROM semantic_memory WHERE concept_id = ?", (concept_id,)
                 ).fetchone()
@@ -613,7 +613,7 @@ class SemanticManager(BaseMemoryAgent):
     
     def update_usage_stats(self, memory: SemanticMemory) -> None:
         """Update usage statistics for a semantic memory."""
-        with self.db_manager.transaction() as conn:
+        with self.db_orchestrator.transaction() as conn:
             conn.execute("""
                 UPDATE semantic_memory 
                 SET usage_count = ?, last_accessed = ?, updated_at = ?
@@ -626,7 +626,7 @@ class SemanticManager(BaseMemoryAgent):
     def search_by_category(self, category: str, limit: int = 50) -> List[SemanticMemory]:
         """Search semantic memories by category."""
         with self._operation_context("search", f"category_{category}"):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 rows = conn.execute("""
                     SELECT * FROM semantic_memory 
                     WHERE category = ?
@@ -665,7 +665,7 @@ class SemanticManager(BaseMemoryAgent):
     def search(self, query: str, limit: int = 10) -> List[SemanticMemory]:
         """Search semantic memory records."""
         with self._operation_context("search", query):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 rows = conn.execute("""
                     SELECT * FROM semantic_memory 
                     WHERE concept_name LIKE ? OR description LIKE ?
@@ -677,7 +677,7 @@ class SemanticManager(BaseMemoryAgent):
     
     def get_statistics(self) -> Dict[str, Any]:
         """Get semantic memory statistics."""
-        with self.db_manager.get_connection() as conn:
+        with self.db_orchestrator.get_connection() as conn:
             stats = {}
             
             # Total count
@@ -708,9 +708,9 @@ class SemanticManager(BaseMemoryAgent):
             return stats
 
 
-class ProceduralManager(BaseMemoryAgent):
+class WorkflowExecutionLibrary(BaseMemoryAgent):
     """
-    Procedural Manager: Manages workflows and step-by-step processes.
+    Workflow Execution Library: Manages workflows and step-by-step processes.
     
     Stores learned procedures, workflows, and step-by-step processes that can
     be executed to accomplish tasks. Includes success tracking and optimization.
@@ -732,7 +732,7 @@ class ProceduralManager(BaseMemoryAgent):
             
             data = memory.to_dict()
             
-            with self.db_manager.transaction() as conn:
+            with self.db_orchestrator.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT INTO procedural_memory 
                     (procedure_id, name, description, steps, prerequisites,
@@ -755,7 +755,7 @@ class ProceduralManager(BaseMemoryAgent):
     def get(self, procedure_id: str) -> Optional[ProceduralMemory]:
         """Get a procedural memory record by procedure ID."""
         with self._operation_context("read", procedure_id):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 row = conn.execute(
                     "SELECT * FROM procedural_memory WHERE procedure_id = ?", (procedure_id,)
                 ).fetchone()
@@ -774,7 +774,7 @@ class ProceduralManager(BaseMemoryAgent):
             
             memory.record_execution(success, duration_ms)
             
-            with self.db_manager.transaction() as conn:
+            with self.db_orchestrator.transaction() as conn:
                 conn.execute("""
                     UPDATE procedural_memory 
                     SET execution_count = ?, success_rate = ?, average_duration_ms = ?,
@@ -791,7 +791,7 @@ class ProceduralManager(BaseMemoryAgent):
     def get_best_procedures(self, limit: int = 10) -> List[ProceduralMemory]:
         """Get procedures with highest success rates."""
         with self._operation_context("search", "best_procedures"):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 rows = conn.execute("""
                     SELECT * FROM procedural_memory 
                     WHERE execution_count > 0
@@ -804,7 +804,7 @@ class ProceduralManager(BaseMemoryAgent):
     def search(self, query: str, limit: int = 10) -> List[ProceduralMemory]:
         """Search procedural memory records."""
         with self._operation_context("search", query):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 rows = conn.execute("""
                     SELECT * FROM procedural_memory 
                     WHERE name LIKE ? OR description LIKE ?
@@ -816,7 +816,7 @@ class ProceduralManager(BaseMemoryAgent):
     
     def get_statistics(self) -> Dict[str, Any]:
         """Get procedural memory statistics."""
-        with self.db_manager.get_connection() as conn:
+        with self.db_orchestrator.get_connection() as conn:
             stats = {}
             
             # Total count
@@ -840,9 +840,9 @@ class ProceduralManager(BaseMemoryAgent):
             return stats
 
 
-class ResourceManager(BaseMemoryAgent):
+class DocumentResourceCatalog(BaseMemoryAgent):
     """
-    Resource Manager: Manages documents and active files.
+    Document Resource Catalog: Manages documents and active files.
     
     Stores references to and metadata about files, documents, URLs, and other
     resources that the user interacts with. Includes access tracking and content hashing.
@@ -864,7 +864,7 @@ class ResourceManager(BaseMemoryAgent):
             
             data = memory.to_dict()
             
-            with self.db_manager.transaction() as conn:
+            with self.db_orchestrator.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT INTO resource_memory 
                     (resource_id, name, resource_type, path, content_hash,
@@ -886,7 +886,7 @@ class ResourceManager(BaseMemoryAgent):
     def get(self, resource_id: str) -> Optional[ResourceMemory]:
         """Get a resource memory record by resource ID."""
         with self._operation_context("read", resource_id):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 row = conn.execute(
                     "SELECT * FROM resource_memory WHERE resource_id = ?", (resource_id,)
                 ).fetchone()
@@ -904,7 +904,7 @@ class ResourceManager(BaseMemoryAgent):
     
     def update_access_stats(self, memory: ResourceMemory) -> None:
         """Update access statistics for a resource memory."""
-        with self.db_manager.transaction() as conn:
+        with self.db_orchestrator.transaction() as conn:
             conn.execute("""
                 UPDATE resource_memory 
                 SET access_count = ?, last_accessed = ?, updated_at = ?
@@ -917,7 +917,7 @@ class ResourceManager(BaseMemoryAgent):
     def search_by_type(self, resource_type: str, limit: int = 50) -> List[ResourceMemory]:
         """Search resource memories by type."""
         with self._operation_context("search", f"type_{resource_type}"):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 rows = conn.execute("""
                     SELECT * FROM resource_memory 
                     WHERE resource_type = ?
@@ -930,7 +930,7 @@ class ResourceManager(BaseMemoryAgent):
     def get_recently_accessed(self, limit: int = 20) -> List[ResourceMemory]:
         """Get recently accessed resources."""
         with self._operation_context("search", "recent"):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 rows = conn.execute("""
                     SELECT * FROM resource_memory 
                     ORDER BY last_accessed DESC
@@ -942,7 +942,7 @@ class ResourceManager(BaseMemoryAgent):
     def search(self, query: str, limit: int = 10) -> List[ResourceMemory]:
         """Search resource memory records."""
         with self._operation_context("search", query):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 rows = conn.execute("""
                     SELECT * FROM resource_memory 
                     WHERE name LIKE ? OR path LIKE ?
@@ -954,7 +954,7 @@ class ResourceManager(BaseMemoryAgent):
     
     def get_statistics(self) -> Dict[str, Any]:
         """Get resource memory statistics."""
-        with self.db_manager.get_connection() as conn:
+        with self.db_orchestrator.get_connection() as conn:
             stats = {}
             
             # Total count
@@ -980,9 +980,9 @@ class ResourceManager(BaseMemoryAgent):
             return stats
 
 
-class VaultManager(BaseMemoryAgent):
+class EncryptedCredentialVault(BaseMemoryAgent):
     """
-    Vault Manager: Manages encrypted sensitive data (credentials, contacts).
+    Encrypted Credential Vault: Manages encrypted sensitive data (credentials, contacts).
     
     Stores highly sensitive information with strong encryption and access controls.
     All data is encrypted at rest and requires explicit authorization to access.
@@ -1003,7 +1003,7 @@ class VaultManager(BaseMemoryAgent):
             
             data = memory.to_dict()
             
-            with self.db_manager.transaction() as conn:
+            with self.db_orchestrator.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT INTO knowledge_vault 
                     (vault_id, name, vault_type, encrypted_data, metadata,
@@ -1023,7 +1023,7 @@ class VaultManager(BaseMemoryAgent):
     def get(self, vault_id: str, require_auth: bool = True) -> Optional[KnowledgeVault]:
         """Get a knowledge vault record by vault ID."""
         with self._operation_context("read", vault_id):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 row = conn.execute(
                     "SELECT * FROM knowledge_vault WHERE vault_id = ?", (vault_id,)
                 ).fetchone()
@@ -1046,7 +1046,7 @@ class VaultManager(BaseMemoryAgent):
     
     def update_access_stats(self, memory: KnowledgeVault) -> None:
         """Update access statistics for a vault memory."""
-        with self.db_manager.transaction() as conn:
+        with self.db_orchestrator.transaction() as conn:
             conn.execute("""
                 UPDATE knowledge_vault 
                 SET access_count = ?, last_accessed = ?, updated_at = ?
@@ -1059,7 +1059,7 @@ class VaultManager(BaseMemoryAgent):
     def cleanup_expired(self) -> int:
         """Clean up expired vault items."""
         with self._operation_context("delete", "expired"):
-            with self.db_manager.transaction() as conn:
+            with self.db_orchestrator.transaction() as conn:
                 cursor = conn.execute("""
                     DELETE FROM knowledge_vault 
                     WHERE expires_at IS NOT NULL 
@@ -1071,7 +1071,7 @@ class VaultManager(BaseMemoryAgent):
     def search_by_type(self, vault_type: str, limit: int = 50) -> List[KnowledgeVault]:
         """Search vault items by type."""
         with self._operation_context("search", f"type_{vault_type}"):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 rows = conn.execute("""
                     SELECT * FROM knowledge_vault 
                     WHERE vault_type = ?
@@ -1085,7 +1085,7 @@ class VaultManager(BaseMemoryAgent):
     def search(self, query: str, limit: int = 10) -> List[KnowledgeVault]:
         """Search vault records by name and metadata only (never encrypted data)."""
         with self._operation_context("search", query):
-            with self.db_manager.get_connection() as conn:
+            with self.db_orchestrator.get_connection() as conn:
                 rows = conn.execute("""
                     SELECT * FROM knowledge_vault 
                     WHERE name LIKE ?
@@ -1098,7 +1098,7 @@ class VaultManager(BaseMemoryAgent):
     
     def get_statistics(self) -> Dict[str, Any]:
         """Get vault memory statistics."""
-        with self.db_manager.get_connection() as conn:
+        with self.db_orchestrator.get_connection() as conn:
             stats = {}
             
             # Total count

@@ -377,16 +377,25 @@ class DatabaseMigrator:
             return False
 
 
-class DatabaseManager:
+class DatabaseLifecycleOrchestrator:
     """
-    Main database manager for GURU Memory Service.
+    Orchestrates complete database lifecycle for GURU Memory Service.
     
-    Provides:
-    - High-level database operations
-    - Schema management and migrations
-    - Connection pool management
-    - Transaction management
-    - Performance monitoring
+    Coordinates all database operations including schema management,
+    migrations, connection pooling, transactions, and integrity verification.
+    
+    This orchestrator manages:
+    - Database schema initialization and evolution
+    - Migration application and verification
+    - Connection pool lifecycle
+    - Transaction coordination
+    - Query execution and optimization
+    - Database statistics and monitoring
+    - Integrity verification and validation
+    - Graceful shutdown coordination
+    
+    The orchestrator provides a high-level interface while delegating
+    low-level operations to specialized components (ConnectionPool, Migrator).
     """
     
     def __init__(self, config: DatabaseConfig):

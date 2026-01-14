@@ -20,7 +20,7 @@ Security Features:
 - Tamper-evident audit logging
 """
 
-from .database import DatabaseManager, DatabaseMigrator
+from .database import DatabaseLifecycleOrchestrator, DatabaseMigrator
 from .memory_types import (
     CoreMemory,
     EpisodicMemory, 
@@ -31,20 +31,20 @@ from .memory_types import (
 )
 from .memory_agents import (
     MetaAgent,
-    CoreManager,
-    EpisodicManager,
-    SemanticManager,
-    ProceduralManager,
-    ResourceManager,
-    VaultManager
+    UserIdentityPersistence,
+    TemporalEventArchive,
+    ConceptualKnowledgeBase,
+    WorkflowExecutionLibrary,
+    DocumentResourceCatalog,
+    EncryptedCredentialVault
 )
 from .encryption import MemoryEncryption
 from .vector_search import VectorSearchEngine
-# from .retention import RetentionPolicyManager  # Temporarily disabled
-from .memory_service import MemoryService
+# from .retention import MemoryRetentionEnforcer  # Temporarily disabled
+from .memory_service import MemorySubsystemController
 
 __all__ = [
-    'DatabaseManager',
+    'DatabaseLifecycleOrchestrator',
     'DatabaseMigrator', 
     'CoreMemory',
     'EpisodicMemory',
@@ -53,14 +53,14 @@ __all__ = [
     'ResourceMemory',
     'KnowledgeVault',
     'MetaAgent',
-    'CoreManager',
-    'EpisodicManager',
-    'SemanticManager',
-    'ProceduralManager',
-    'ResourceManager',
-    'VaultManager',
+    'UserIdentityPersistence',
+    'TemporalEventArchive',
+    'ConceptualKnowledgeBase',
+    'WorkflowExecutionLibrary',
+    'DocumentResourceCatalog',
+    'EncryptedCredentialVault',
     'MemoryEncryption',
     'VectorSearchEngine',
-    # 'RetentionPolicyManager',  # Temporarily disabled
-    'MemoryService'
+    # 'MemoryRetentionEnforcer',  # Temporarily disabled
+    'MemorySubsystemController'
 ]

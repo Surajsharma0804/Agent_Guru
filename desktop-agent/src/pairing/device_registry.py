@@ -1,808 +1,572 @@
 """
-Cryptographic Device Registry for Trusted Device Authority Management
+Device Registry for GURU Pairing System
 
-Enforces cryptographic device identity boundaries and pairing relationships.
-No device trust granted without verified cryptographic credentials and audit trails.
+Manages trusted device identities, authentication keys, and pairing relationships.
+Provides secure storage and retrieval of device information with encryption
+and comprehensive audit logging.
 
-Security Invariants (Cryptographically Enforced):
-- Device identities cryptographically bound to hardware fingerprints
-- All device operations audited with tamper-evident logging
-- Encrypted storage with user-controlled encryption keys
-- Instant revocation capabilities with cryptographic proof
-- Rate limiting enforced at cryptographic boundary level
+Security Features:
+- All device data encrypted at rest
+- Cryptographic device fingerprint verification
+- Comprehensive audit trail of all operations
+- Rate limiting and access control
+- Secure device revocation and cleanup
 """
 
 import json
 import sqlite3
 import time
-from dataclasses import asdict, dataclass
-from datetime import datetime
+import hashlib
+import threading
+from datetime import datetime, timezone
 from enum import Enum
+from typing import Dict, List, Optional, Any, Tuple
+from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
-import structlog
 from cryptography.fernet import Fernet
+import structlog
 
 logger = structlog.get_logger(__name__)
 
 
-class DeviceAuthorityStatus(Enum):
-    """Cryptographically enforced device authority status"""
-
+class DeviceStatus(Enum):
+    """Device status in registry"""
     ACTIVE = "active"
+    INACTIVE = "inactive"
     REVOKED = "revoked"
-    EXPIRED = "expired"
     SUSPENDED = "suspended"
 
 
-# Alias for compatibility with tests
-DeviceStatus = DeviceAuthorityStatus
-
-
 @dataclass(frozen=True)
-class CryptographicDeviceIdentity:
-    """Cryptographically bound device identity with hardware fingerprint verification"""
-
+class DeviceIdentity:
+    """Device identity information"""
     device_id: str
     device_name: str
-    device_type: str  # "desktop", "phone", "tablet"
+    device_type: str  # "phone", "tablet", "desktop", etc.
     public_key_pem: str
     key_fingerprint: str
     hardware_fingerprint: str
     pairing_timestamp: float
     last_seen_timestamp: float
-    status: DeviceAuthorityStatus = DeviceAuthorityStatus.ACTIVE
-
-    def __post_init__(self):
-        """Validate cryptographic field types and enforce security boundaries"""
-        # Validate string fields
-        string_fields = [
-            "device_id",
-            "device_name",
-            "device_type",
-            "public_key_pem",
-            "key_fingerprint",
-            "hardware_fingerprint",
-        ]
-        for field_name in string_fields:
-            value = getattr(self, field_name)
-            if not isinstance(value, str):
-                raise TypeError(f"{field_name} must be a string, got {type(value).__name__}")
-
-        # Validate float fields
-        float_fields = ["pairing_timestamp", "last_seen_timestamp"]
-        for field_name in float_fields:
-            value = getattr(self, field_name)
-            if not isinstance(value, (int, float)):
-                raise TypeError(f"{field_name} must be a number, got {type(value).__name__}")
-
-        # Validate status field
-        if not isinstance(self.status, DeviceAuthorityStatus):
-            raise TypeError(f"status must be a DeviceAuthorityStatus enum, got {type(self.status).__name__}")
-
+    
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for cryptographic storage"""
-        data = asdict(self)
-        data["status"] = self.status.value
-        return data
-
+        """Convert to dictionary for serialization"""
+        return asdict(self)
+    
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CryptographicDeviceIdentity":
-        """Create from dictionary with cryptographic validation"""
-        data["status"] = DeviceAuthorityStatus(data["status"])
+    def from_dict(cls, data: Dict[str, Any]) -> 'DeviceIdentity':
+        """Create from dictionary"""
         return cls(**data)
-
-    @property
-    def is_active(self) -> bool:
-        """Check if device has active cryptographic authority"""
-        return self.status == DeviceAuthorityStatus.ACTIVE
-
-    @property
-    def age_days(self) -> float:
-        """Get device age in days since cryptographic pairing"""
-        return (time.time() - self.pairing_timestamp) / 86400
 
 
 @dataclass
-class CryptographicTrustedDevice:
-    """Cryptographically trusted device with authority enforcement metadata"""
-
-    identity: CryptographicDeviceIdentity
+class TrustedDevice:
+    """Trusted device record with metadata"""
+    identity: DeviceIdentity
+    status: DeviceStatus
     shared_secret_hash: str
-    permissions: List[str]
     rate_limits: Dict[str, int]
-    last_command_timestamp: Optional[float] = None
-    command_count_today: int = 0
-
+    command_count_today: int
+    last_command_timestamp: float
+    trust_level: str  # "full", "limited", "restricted"
+    
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for cryptographic storage"""
+        """Convert to dictionary for serialization"""
         return {
             "identity": self.identity.to_dict(),
+            "status": self.status.value,
             "shared_secret_hash": self.shared_secret_hash,
-            "permissions": self.permissions,
             "rate_limits": self.rate_limits,
-            "last_command_timestamp": self.last_command_timestamp,
             "command_count_today": self.command_count_today,
+            "last_command_timestamp": self.last_command_timestamp,
+            "trust_level": self.trust_level
         }
-
+    
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CryptographicTrustedDevice":
-        """Create from dictionary with cryptographic validation"""
+    def from_dict(cls, data: Dict[str, Any]) -> 'TrustedDevice':
+        """Create from dictionary"""
         return cls(
-            identity=CryptographicDeviceIdentity.from_dict(data["identity"]),
+            identity=DeviceIdentity.from_dict(data["identity"]),
+            status=DeviceStatus(data["status"]),
             shared_secret_hash=data["shared_secret_hash"],
-            permissions=data["permissions"],
             rate_limits=data["rate_limits"],
-            last_command_timestamp=data.get("last_command_timestamp"),
-            command_count_today=data.get("command_count_today", 0),
+            command_count_today=data["command_count_today"],
+            last_command_timestamp=data["last_command_timestamp"],
+            trust_level=data["trust_level"]
         )
 
-    def update_last_seen(self) -> None:
-        """Update last seen timestamp with cryptographic audit trail"""
-        current_time = time.time()
 
-        # Reset daily counter if it's a new day
-        if (
-            self.last_command_timestamp
-            and datetime.fromtimestamp(current_time).date()
-            != datetime.fromtimestamp(self.last_command_timestamp).date()
-        ):
-            self.command_count_today = 0
-
-        self.last_command_timestamp = current_time
-        self.command_count_today += 1
-
-    def check_rate_limit_boundary(self, operation: str) -> bool:
-        """
-        Check if operation is within cryptographically enforced rate limits
-
-        Args:
-            operation: Operation type to check
-
-        Returns:
-            True if operation is allowed within cryptographic boundaries
-        """
-        if operation not in self.rate_limits:
-            return True  # No limit set
-
-        limit = self.rate_limits[operation]
-
-        # Negative limits are treated as no limit
-        if limit < 0:
-            return True
-
-        return self.command_count_today < limit
-
-
-class CryptographicDeviceRegistry:
+class DeviceRegistry:
     """
-    Cryptographic device registry with tamper-evident storage and authority enforcement
-
-    Enforces cryptographic device identity boundaries with comprehensive audit logging.
-    All device operations are cryptographically protected and tamper-evident.
+    Secure device registry for managing trusted device relationships
+    
+    Provides encrypted storage and retrieval of device identities,
+    authentication keys, and pairing metadata with comprehensive
+    audit logging and security controls.
     """
-
-    def __init__(self, storage_path: str, encryption_key: Optional[bytes] = None):
+    
+    def __init__(self, db_path: str, encryption_key: bytes):
         """
-        Initialize cryptographic device registry with tamper-evident storage
-
+        Initialize device registry
+        
         Args:
-            storage_path: Path to SQLite database file
-            encryption_key: Encryption key for sensitive data (generated if not provided)
+            db_path: Path to SQLite database file
+            encryption_key: Fernet encryption key for data protection
         """
-        self.storage_path = Path(storage_path)
-        self.storage_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Initialize cryptographic encryption
-        if encryption_key is None:
-            encryption_key = Fernet.generate_key()
+        self.db_path = db_path
         self.cipher = Fernet(encryption_key)
-
-        self.logger = structlog.get_logger(__name__).bind(component="CryptographicDeviceRegistry")
-
-        # Initialize database with error handling
-        try:
-            self._init_database()
-            self.logger.info("Cryptographic device registry initialized", storage_path=str(self.storage_path))
-        except Exception as e:
-            self.logger.error(
-                "Failed to initialize cryptographic device registry", storage_path=str(self.storage_path), error=str(e)
-            )
-            # Don't raise the exception - allow the registry to be created but mark it as failed
-            self._initialization_failed = True
-
+        self._lock = threading.RLock()
+        
+        self.logger = structlog.get_logger(__name__).bind(component="DeviceRegistry")
+        
+        # Initialize database
+        self._init_database()
+        
+        self.logger.info("Device registry initialized", db_path=db_path)
+    
     def _init_database(self) -> None:
-        """Initialize SQLite database schema"""
-        with sqlite3.connect(self.storage_path) as conn:
-            conn.execute(
-                """
+        """Initialize database schema"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS trusted_devices (
                     device_id TEXT PRIMARY KEY,
                     encrypted_data BLOB NOT NULL,
-                    key_fingerprint TEXT NOT NULL,
-                    device_type TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    pairing_timestamp REAL NOT NULL,
-                    last_seen_timestamp REAL NOT NULL,
                     created_at REAL NOT NULL,
                     updated_at REAL NOT NULL
                 )
-            """
-            )
-
-            conn.execute(
-                """
+            """)
+            
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS device_audit_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     device_id TEXT NOT NULL,
                     operation TEXT NOT NULL,
-                    details TEXT,
                     timestamp REAL NOT NULL,
+                    details TEXT,
                     success BOOLEAN NOT NULL
                 )
-            """
-            )
-
-            conn.execute(
-                """
-                CREATE INDEX IF NOT EXISTS idx_device_status
-                ON trusted_devices(status)
-            """
-            )
-
-            conn.execute(
-                """
-                CREATE INDEX IF NOT EXISTS idx_audit_timestamp
+            """)
+            
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_audit_device_id 
+                ON device_audit_log(device_id)
+            """)
+            
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_audit_timestamp 
                 ON device_audit_log(timestamp)
-            """
-            )
-
+            """)
+            
             conn.commit()
-
-    def register_device(
-        self,
-        device_identity: CryptographicDeviceIdentity,
-        shared_secret_hash: str,
-        permissions: Optional[List[str]] = None,
-        rate_limits: Optional[Dict[str, int]] = None,
-    ) -> bool:
-        """
-        Register new cryptographically trusted device with authority boundaries
-        
-        Alias for register_cryptographic_device for backward compatibility.
-
-        Args:
-            device_identity: Cryptographic device identity information
-            shared_secret_hash: Hash of shared secret from key exchange
-            permissions: List of granted permissions
-            rate_limits: Rate limits for operations
-
-        Returns:
-            True if device was registered successfully with cryptographic protection
-        """
-        return self.register_cryptographic_device(device_identity, shared_secret_hash, permissions, rate_limits)
-
-    def register_cryptographic_device(
-        self,
-        device_identity: CryptographicDeviceIdentity,
-        shared_secret_hash: str,
-        permissions: Optional[List[str]] = None,
-        rate_limits: Optional[Dict[str, int]] = None,
-    ) -> bool:
-        """
-        Register new cryptographically trusted device with authority boundaries
-
-        Args:
-            device_identity: Cryptographic device identity information
-            shared_secret_hash: Hash of shared secret from key exchange
-            permissions: List of granted permissions
-            rate_limits: Rate limits for operations
-
-        Returns:
-            True if device was registered successfully with cryptographic protection
-        """
-        # Check if initialization failed
-        if hasattr(self, "_initialization_failed") and self._initialization_failed:
-            self.logger.error("Cannot register device - cryptographic registry initialization failed")
-            return False
-
-        if permissions is None:
-            permissions = ["basic_commands", "input_simulation"]
-
-        if rate_limits is None:
-            rate_limits = {"commands_per_day": 1000, "input_events_per_minute": 60}
-
-        trusted_device = CryptographicTrustedDevice(
-            identity=device_identity,
-            shared_secret_hash=shared_secret_hash,
-            permissions=permissions,
-            rate_limits=rate_limits,
-        )
-
+    
+    def _log_operation(self, device_id: str, operation: str, 
+                      success: bool, details: Optional[str] = None) -> None:
+        """Log operation to audit trail"""
         try:
-            # Encrypt device data
-            device_data = json.dumps(trusted_device.to_dict()).encode("utf-8")
-            encrypted_data = self.cipher.encrypt(device_data)
-
-            current_time = time.time()
-
-            with sqlite3.connect(self.storage_path) as conn:
-                conn.execute(
-                    """
-                    INSERT OR REPLACE INTO trusted_devices
-                    (device_id, encrypted_data, key_fingerprint, device_type,
-                     status, pairing_timestamp, last_seen_timestamp,
-                     created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                    (
-                        device_identity.device_id,
-                        encrypted_data,
-                        device_identity.key_fingerprint,
-                        device_identity.device_type,
-                        device_identity.status.value,
-                        device_identity.pairing_timestamp,
-                        device_identity.last_seen_timestamp,
-                        current_time,
-                        current_time,
-                    ),
-                )
-
-                # Log registration
-                self._log_device_operation(
-                    conn,
-                    device_identity.device_id,
-                    "register",
-                    f"Device registered with fingerprint {device_identity.key_fingerprint}",
-                    True,
-                )
-
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute("""
+                    INSERT INTO device_audit_log 
+                    (device_id, operation, timestamp, details, success)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (device_id, operation, time.time(), details, success))
                 conn.commit()
-
-            self.logger.info(
-                "Cryptographic device registered successfully",
-                device_id=device_identity.device_id,
-                device_type=device_identity.device_type,
-                key_fingerprint=device_identity.key_fingerprint,
-            )
-
-            return True
-
         except Exception as e:
-            self.logger.error(
-                "Cryptographic device registration failed", device_id=device_identity.device_id, error=str(e)
-            )
-
-            # Log failed registration
-            with sqlite3.connect(self.storage_path) as conn:
-                self._log_device_operation(
-                    conn, device_identity.device_id, "register", f"Registration failed: {str(e)}", False
-                )
-                conn.commit()
-
-            return False
-
-    def get_cryptographic_trusted_device(self, device_id: str) -> Optional[CryptographicTrustedDevice]:
+            self.logger.error("Failed to log operation", 
+                            device_id=device_id, 
+                            operation=operation, 
+                            error=str(e))
+    
+    def register_device(self, device_identity: DeviceIdentity, 
+                       shared_secret: str,
+                       rate_limits: Optional[Dict[str, int]] = None,
+                       trust_level: str = "full") -> bool:
         """
-        Get cryptographically trusted device by ID with authority verification
-
+        Register a new trusted device
+        
+        Args:
+            device_identity: Device identity information
+            shared_secret: Shared secret from pairing process
+            rate_limits: Optional rate limits for device
+            trust_level: Trust level ("full", "limited", "restricted")
+            
+        Returns:
+            True if registration successful
+        """
+        with self._lock:
+            try:
+                # Check if device already exists
+                existing = self.get_trusted_device(device_identity.device_id)
+                if existing:
+                    self.logger.warning("Device already registered", 
+                                      device_id=device_identity.device_id)
+                    self._log_operation(device_identity.device_id, "register", 
+                                      False, "Device already exists")
+                    return False
+                
+                # Create trusted device record
+                shared_secret_hash = hashlib.sha256(shared_secret.encode()).hexdigest()
+                
+                trusted_device = TrustedDevice(
+                    identity=device_identity,
+                    status=DeviceStatus.ACTIVE,
+                    shared_secret_hash=shared_secret_hash,
+                    rate_limits=rate_limits or {"commands_per_day": 1000},
+                    command_count_today=0,
+                    last_command_timestamp=0.0,
+                    trust_level=trust_level
+                )
+                
+                # Encrypt device data
+                device_data = json.dumps(trusted_device.to_dict()).encode('utf-8')
+                encrypted_data = self.cipher.encrypt(device_data)
+                
+                # Store in database
+                current_time = time.time()
+                with sqlite3.connect(self.db_path) as conn:
+                    conn.execute("""
+                        INSERT INTO trusted_devices 
+                        (device_id, encrypted_data, created_at, updated_at)
+                        VALUES (?, ?, ?, ?)
+                    """, (device_identity.device_id, encrypted_data, 
+                         current_time, current_time))
+                    conn.commit()
+                
+                self._log_operation(device_identity.device_id, "register", 
+                                  True, f"Trust level: {trust_level}")
+                
+                self.logger.info("Device registered successfully",
+                               device_id=device_identity.device_id,
+                               device_name=device_identity.device_name,
+                               trust_level=trust_level)
+                
+                return True
+                
+            except Exception as e:
+                self.logger.error("Failed to register device",
+                                device_id=device_identity.device_id,
+                                error=str(e))
+                self._log_operation(device_identity.device_id, "register", 
+                                  False, f"Error: {str(e)}")
+                return False
+    
+    def get_trusted_device(self, device_id: str) -> Optional[TrustedDevice]:
+        """
+        Get trusted device by ID
+        
         Args:
             device_id: Device identifier
-
+            
         Returns:
-            Cryptographic trusted device or None if not found
+            TrustedDevice or None if not found
         """
-        try:
-            with sqlite3.connect(self.storage_path) as conn:
-                cursor = conn.execute(
-                    """
-                    SELECT encrypted_data FROM trusted_devices
-                    WHERE device_id = ? AND status = ?
-                """,
-                    (device_id, DeviceAuthorityStatus.ACTIVE.value),
-                )
-
-                row = cursor.fetchone()
-                if not row:
-                    return None
-
-                # Decrypt device data
-                encrypted_data = row[0]
-                device_data = self.cipher.decrypt(encrypted_data)
-                device_dict = json.loads(device_data.decode("utf-8"))
-
-                return CryptographicTrustedDevice.from_dict(device_dict)
-
-        except Exception as e:
-            self.logger.error("Failed to retrieve cryptographic trusted device", device_id=device_id, error=str(e))
-            return None
-
+        with self._lock:
+            try:
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.execute("""
+                        SELECT encrypted_data FROM trusted_devices 
+                        WHERE device_id = ?
+                    """, (device_id,))
+                    
+                    result = cursor.fetchone()
+                    if not result:
+                        return None
+                    
+                    # Decrypt device data
+                    encrypted_data = result[0]
+                    decrypted_data = self.cipher.decrypt(encrypted_data)
+                    device_dict = json.loads(decrypted_data.decode('utf-8'))
+                    
+                    return TrustedDevice.from_dict(device_dict)
+                    
+            except Exception as e:
+                self.logger.error("Failed to get trusted device",
+                                device_id=device_id,
+                                error=str(e))
+                return None
+    
     def update_device_last_seen(self, device_id: str) -> bool:
         """
-        Update device last seen timestamp with cryptographic audit trail
-
+        Update device last seen timestamp
+        
         Args:
             device_id: Device identifier
-
+            
         Returns:
-            True if update was successful
+            True if update successful
         """
-        trusted_device = self.get_cryptographic_trusted_device(device_id)
-        if not trusted_device:
-            return False
-
-        try:
-            # Update last seen
-            trusted_device.update_last_seen()
-
-            # Re-encrypt and store
-            device_data = json.dumps(trusted_device.to_dict()).encode("utf-8")
-            encrypted_data = self.cipher.encrypt(device_data)
-
-            with sqlite3.connect(self.storage_path) as conn:
-                conn.execute(
-                    """
-                    UPDATE trusted_devices
-                    SET encrypted_data = ?, last_seen_timestamp = ?, updated_at = ?
-                    WHERE device_id = ?
-                """,
-                    (encrypted_data, trusted_device.last_command_timestamp, time.time(), device_id),
+        with self._lock:
+            try:
+                trusted_device = self.get_trusted_device(device_id)
+                if not trusted_device:
+                    return False
+                
+                # Update last seen timestamp
+                trusted_device.identity = DeviceIdentity(
+                    device_id=trusted_device.identity.device_id,
+                    device_name=trusted_device.identity.device_name,
+                    device_type=trusted_device.identity.device_type,
+                    public_key_pem=trusted_device.identity.public_key_pem,
+                    key_fingerprint=trusted_device.identity.key_fingerprint,
+                    hardware_fingerprint=trusted_device.identity.hardware_fingerprint,
+                    pairing_timestamp=trusted_device.identity.pairing_timestamp,
+                    last_seen_timestamp=time.time()
                 )
-
-                conn.commit()
-
-            return True
-
-        except Exception as e:
-            self.logger.error("Failed to update device last seen", device_id=device_id, error=str(e))
-            return False
-
-    def revoke_device_authority(self, device_id: str, reason: str = "User revoked") -> bool:
-        """
-        Revoke cryptographic authority for a device with tamper-evident audit
-
-        Args:
-            device_id: Device identifier
-            reason: Revocation reason
-
-        Returns:
-            True if device authority was revoked successfully
-        """
-        try:
-            with sqlite3.connect(self.storage_path) as conn:
-                # Update device status
-                cursor = conn.execute(
-                    """
-                    UPDATE trusted_devices
-                    SET status = ?, updated_at = ?
-                    WHERE device_id = ? AND status = ?
-                """,
-                    (DeviceAuthorityStatus.REVOKED.value, time.time(), device_id, DeviceAuthorityStatus.ACTIVE.value),
-                )
-
-                if cursor.rowcount == 0:
-                    return False  # Device not found or already revoked
-
-                # Log revocation
-                self._log_device_operation(conn, device_id, "revoke", reason, True)
-
-                conn.commit()
-
-            self.logger.info("Device authority revoked successfully", device_id=device_id, reason=reason)
-
-            return True
-
-        except Exception as e:
-            self.logger.error("Device authority revocation failed", device_id=device_id, error=str(e))
-            return False
-
-    def list_cryptographic_trusted_devices(self, include_revoked: bool = False) -> List[CryptographicDeviceIdentity]:
-        """
-        List all cryptographically trusted devices
-
-        Args:
-            include_revoked: Include revoked devices in results
-
-        Returns:
-            List of cryptographic device identities
-        """
-        try:
-            with sqlite3.connect(self.storage_path) as conn:
-                if include_revoked:
-                    cursor = conn.execute(
-                        """
-                        SELECT encrypted_data FROM trusted_devices
-                        ORDER BY pairing_timestamp DESC
-                    """
-                    )
-                else:
-                    cursor = conn.execute(
-                        """
-                        SELECT encrypted_data FROM trusted_devices
-                        WHERE status = ?
-                        ORDER BY pairing_timestamp DESC
-                    """,
-                        (DeviceAuthorityStatus.ACTIVE.value,),
-                    )
-
-                devices = []
-                for row in cursor.fetchall():
-                    try:
-                        encrypted_data = row[0]
-                        device_data = self.cipher.decrypt(encrypted_data)
-                        device_dict = json.loads(device_data.decode("utf-8"))
-                        trusted_device = CryptographicTrustedDevice.from_dict(device_dict)
-                        devices.append(trusted_device.identity)
-                    except Exception as e:
-                        self.logger.warning("Failed to decrypt device data", error=str(e))
-                        continue
-
-                return devices
-
-        except Exception as e:
-            self.logger.error("Failed to list cryptographic trusted devices", error=str(e))
-            return []
-
-    def verify_device_cryptographic_fingerprint(self, device_id: str, expected_fingerprint: str) -> bool:
-        """
-        Verify device cryptographic key fingerprint
-
-        Args:
-            device_id: Device identifier
-            expected_fingerprint: Expected key fingerprint
-
-        Returns:
-            True if fingerprint matches cryptographic boundary
-        """
-        trusted_device = self.get_cryptographic_trusted_device(device_id)
-        if not trusted_device:
-            return False
-
-        return trusted_device.identity.key_fingerprint == expected_fingerprint
-
-    def check_device_authority_permissions(self, device_id: str, required_permission: str) -> bool:
-        """
-        Check if device has required cryptographic authority permission
-
-        Args:
-            device_id: Device identifier
-            required_permission: Permission to check
-
-        Returns:
-            True if device has cryptographic authority permission
-        """
-        trusted_device = self.get_cryptographic_trusted_device(device_id)
-        if not trusted_device:
-            return False
-
-        return required_permission in trusted_device.permissions
-
-    def check_cryptographic_rate_limit(self, device_id: str, operation: str) -> bool:
-        """
-        Check if device operation is within cryptographically enforced rate limits
-
-        Args:
-            device_id: Device identifier
-            operation: Operation type
-
-        Returns:
-            True if operation is allowed within cryptographic boundaries
-        """
-        trusted_device = self.get_cryptographic_trusted_device(device_id)
-        if not trusted_device:
-            return False
-
-        return trusted_device.check_rate_limit_boundary(operation)
-
-    def cleanup_expired_devices(self, max_age_days: int = 365) -> int:
-        """
-        Clean up old cryptographic device entries with tamper-evident audit
-
-        Args:
-            max_age_days: Maximum age for device entries (default 1 year)
-
-        Returns:
-            Number of devices cleaned up
-        """
-        cutoff_timestamp = time.time() - (max_age_days * 86400)
-
-        try:
-            with sqlite3.connect(self.storage_path) as conn:
-                cursor = conn.execute(
-                    """
-                    DELETE FROM trusted_devices
-                    WHERE status = ? AND last_seen_timestamp < ?
-                """,
-                    (DeviceAuthorityStatus.REVOKED.value, cutoff_timestamp),
-                )
-
-                deleted_count = cursor.rowcount
-
-                # Clean up old audit logs
-                audit_cutoff = time.time() - (90 * 86400)  # 90 days
-                conn.execute(
-                    """
-                    DELETE FROM device_audit_log
-                    WHERE timestamp < ?
-                """,
-                    (audit_cutoff,),
-                )
-
-                conn.commit()
-
-            if deleted_count > 0:
-                self.logger.info("Cleaned up expired cryptographic devices", deleted_count=deleted_count)
-
-            return deleted_count
-
-        except Exception as e:
-            self.logger.error("Cryptographic device cleanup failed", error=str(e))
-            return 0
-
-    def _log_device_operation(
-        self, conn: sqlite3.Connection, device_id: str, operation: str, details: str, success: bool
-    ) -> None:
-        """Log cryptographic device operation to tamper-evident audit trail"""
-        conn.execute(
-            """
-            INSERT INTO device_audit_log
-            (device_id, operation, details, timestamp, success)
-            VALUES (?, ?, ?, ?, ?)
-        """,
-            (device_id, operation, details, time.time(), success),
-        )
-
-    def get_device_cryptographic_audit_log(
-        self, device_id: Optional[str] = None, limit: int = 100
-    ) -> List[Dict[str, Any]]:
-        """
-        Get cryptographic device audit log entries
-
-        Args:
-            device_id: Filter by device ID (all devices if None)
-            limit: Maximum number of entries to return
-
-        Returns:
-            List of tamper-evident audit log entries
-        """
-        try:
-            with sqlite3.connect(self.storage_path) as conn:
-                if device_id:
-                    cursor = conn.execute(
-                        """
-                        SELECT device_id, operation, details, timestamp, success
-                        FROM device_audit_log
+                
+                # Encrypt and store updated data
+                device_data = json.dumps(trusted_device.to_dict()).encode('utf-8')
+                encrypted_data = self.cipher.encrypt(device_data)
+                
+                with sqlite3.connect(self.db_path) as conn:
+                    conn.execute("""
+                        UPDATE trusted_devices 
+                        SET encrypted_data = ?, updated_at = ?
                         WHERE device_id = ?
-                        ORDER BY timestamp DESC
-                        LIMIT ?
-                    """,
-                        (device_id, limit),
-                    )
-                else:
-                    cursor = conn.execute(
-                        """
-                        SELECT device_id, operation, details, timestamp, success
-                        FROM device_audit_log
-                        ORDER BY timestamp DESC
-                        LIMIT ?
-                    """,
-                        (limit,),
-                    )
-
-                entries = []
-                for row in cursor.fetchall():
-                    entries.append(
-                        {
-                            "device_id": row[0],
-                            "operation": row[1],
-                            "details": row[2],
-                            "timestamp": row[3],
-                            "datetime": datetime.fromtimestamp(row[3]).isoformat(),
-                            "success": bool(row[4]),
-                        }
-                    )
-
-                return entries
-
-        except Exception as e:
-            self.logger.error("Failed to retrieve cryptographic audit log", error=str(e))
-            return []
-
-    # COMPATIBILITY METHODS - Backward compatibility for tests and legacy code
-    def get_trusted_device(self, device_id: str) -> Optional[CryptographicTrustedDevice]:
+                    """, (encrypted_data, time.time(), device_id))
+                    conn.commit()
+                
+                self._log_operation(device_id, "update_last_seen", True)
+                return True
+                
+            except Exception as e:
+                self.logger.error("Failed to update device last seen",
+                                device_id=device_id,
+                                error=str(e))
+                self._log_operation(device_id, "update_last_seen", 
+                                  False, f"Error: {str(e)}")
+                return False
+    
+    def revoke_device(self, device_id: str, reason: str = "Manual revocation") -> bool:
         """
-        Compatibility alias for get_cryptographic_trusted_device.
+        Revoke trust for a device
         
         Args:
             device_id: Device identifier
+            reason: Reason for revocation
             
         Returns:
-            Cryptographic trusted device or None if not found
+            True if revocation successful
         """
-        return self.get_cryptographic_trusted_device(device_id)
+        with self._lock:
+            try:
+                trusted_device = self.get_trusted_device(device_id)
+                if not trusted_device:
+                    return False
+                
+                # Update device status to revoked
+                trusted_device.status = DeviceStatus.REVOKED
+                
+                # Encrypt and store updated data
+                device_data = json.dumps(trusted_device.to_dict()).encode('utf-8')
+                encrypted_data = self.cipher.encrypt(device_data)
+                
+                with sqlite3.connect(self.db_path) as conn:
+                    conn.execute("""
+                        UPDATE trusted_devices 
+                        SET encrypted_data = ?, updated_at = ?
+                        WHERE device_id = ?
+                    """, (encrypted_data, time.time(), device_id))
+                    conn.commit()
+                
+                self._log_operation(device_id, "revoke", True, reason)
+                
+                self.logger.info("Device revoked",
+                               device_id=device_id,
+                               reason=reason)
+                
+                return True
+                
+            except Exception as e:
+                self.logger.error("Failed to revoke device",
+                                device_id=device_id,
+                                error=str(e))
+                self._log_operation(device_id, "revoke", 
+                                  False, f"Error: {str(e)}")
+                return False
     
-    def list_trusted_devices(self, include_revoked: bool = False) -> List[CryptographicDeviceIdentity]:
+    def verify_device_fingerprint(self, device_id: str, 
+                                fingerprint: str) -> bool:
         """
-        Compatibility alias for list_cryptographic_trusted_devices.
-        
-        Args:
-            include_revoked: Include revoked devices in results
-            
-        Returns:
-            List of cryptographic device identities
-        """
-        return self.list_cryptographic_trusted_devices(include_revoked)
-    
-    def verify_device_fingerprint(self, device_id: str, expected_fingerprint: str) -> bool:
-        """
-        Compatibility alias for verify_device_cryptographic_fingerprint.
+        Verify device hardware fingerprint
         
         Args:
             device_id: Device identifier
-            expected_fingerprint: Expected key fingerprint
+            fingerprint: Hardware fingerprint to verify
             
         Returns:
-            True if fingerprint matches cryptographic boundary
+            True if fingerprint matches
         """
-        return self.verify_device_cryptographic_fingerprint(device_id, expected_fingerprint)
+        trusted_device = self.get_trusted_device(device_id)
+        if not trusted_device:
+            return False
+        
+        return trusted_device.identity.hardware_fingerprint == fingerprint
     
-    def check_device_permissions(self, device_id: str, required_permission: str) -> bool:
+    def check_rate_limit(self, device_id: str, limit_type: str) -> bool:
         """
-        Compatibility alias for check_device_authority_permissions.
+        Check if device is within rate limits
         
         Args:
             device_id: Device identifier
-            required_permission: Permission to check
+            limit_type: Type of rate limit to check
             
         Returns:
-            True if device has cryptographic authority permission
+            True if within limits, False if exceeded
         """
-        return self.check_device_authority_permissions(device_id, required_permission)
-    
-    def check_rate_limit(self, device_id: str, operation: str) -> bool:
-        """
-        Compatibility alias for check_cryptographic_rate_limit.
+        trusted_device = self.get_trusted_device(device_id)
+        if not trusted_device:
+            return False
         
-        Args:
-            device_id: Device identifier
-            operation: Operation type
+        if limit_type not in trusted_device.rate_limits:
+            return True  # No limit set
+        
+        limit = trusted_device.rate_limits[limit_type]
+        
+        if limit_type == "commands_per_day":
+            # Check daily command limit
+            current_date = datetime.now().date()
+            last_command_date = datetime.fromtimestamp(
+                trusted_device.last_command_timestamp
+            ).date()
             
-        Returns:
-            True if operation is allowed within cryptographic boundaries
-        """
-        return self.check_cryptographic_rate_limit(device_id, operation)
-    
-    def get_device_audit_log(self, device_id: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
-        """
-        Get device audit log entries.
+            if current_date != last_command_date:
+                # Reset daily counter
+                trusted_device.command_count_today = 0
+            
+            return trusted_device.command_count_today < limit
         
-        CRITICAL SECURITY FIX: Adding missing audit log access method
-        required by security tests.
+        # For other limit types, assume they're allowed
+        return True
+    
+    def get_all_trusted_devices(self) -> List[TrustedDevice]:
+        """
+        Get all trusted devices
+        
+        Returns:
+            List of all trusted devices
+        """
+        with self._lock:
+            devices = []
+            try:
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.execute("""
+                        SELECT device_id, encrypted_data FROM trusted_devices
+                    """)
+                    
+                    for device_id, encrypted_data in cursor.fetchall():
+                        try:
+                            decrypted_data = self.cipher.decrypt(encrypted_data)
+                            device_dict = json.loads(decrypted_data.decode('utf-8'))
+                            devices.append(TrustedDevice.from_dict(device_dict))
+                        except Exception as e:
+                            self.logger.error("Failed to decrypt device data",
+                                            device_id=device_id,
+                                            error=str(e))
+                            continue
+                
+                return devices
+                
+            except Exception as e:
+                self.logger.error("Failed to get all trusted devices",
+                                error=str(e))
+                return []
+    
+    def get_device_audit_log(self, device_id: Optional[str] = None,
+                           limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Get device audit log entries
         
         Args:
             device_id: Optional device ID to filter by
             limit: Maximum number of entries to return
             
         Returns:
-            List of audit log entries with cryptographic integrity verification
+            List of audit log entries
         """
-        return self.get_device_cryptographic_audit_log(device_id, limit)
-
-    def get_audit_log(self, device_id: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                if device_id:
+                    cursor = conn.execute("""
+                        SELECT device_id, operation, timestamp, details, success
+                        FROM device_audit_log
+                        WHERE device_id = ?
+                        ORDER BY timestamp DESC
+                        LIMIT ?
+                    """, (device_id, limit))
+                else:
+                    cursor = conn.execute("""
+                        SELECT device_id, operation, timestamp, details, success
+                        FROM device_audit_log
+                        ORDER BY timestamp DESC
+                        LIMIT ?
+                    """, (limit,))
+                
+                entries = []
+                for row in cursor.fetchall():
+                    entries.append({
+                        "device_id": row[0],
+                        "operation": row[1],
+                        "timestamp": row[2],
+                        "details": row[3],
+                        "success": bool(row[4])
+                    })
+                
+                return entries
+                
+        except Exception as e:
+            self.logger.error("Failed to get audit log",
+                            device_id=device_id,
+                            error=str(e))
+            return []
+    
+    def cleanup_revoked_devices(self, older_than_days: int = 30) -> int:
         """
-        Compatibility alias for get_device_cryptographic_audit_log.
+        Clean up revoked devices older than specified days
         
         Args:
-            device_id: Filter by device ID (all devices if None)
-            limit: Maximum number of entries to return
+            older_than_days: Remove revoked devices older than this many days
             
         Returns:
-            List of tamper-evident audit log entries
+            Number of devices removed
         """
-        return self.get_device_cryptographic_audit_log(device_id, limit)
+        with self._lock:
+            try:
+                cutoff_time = time.time() - (older_than_days * 24 * 3600)
+                removed_count = 0
+                
+                # Get all devices to check which ones to remove
+                all_devices = self.get_all_trusted_devices()
+                
+                for device in all_devices:
+                    if (device.status == DeviceStatus.REVOKED and 
+                        device.identity.last_seen_timestamp < cutoff_time):
+                        
+                        # Remove from database
+                        with sqlite3.connect(self.db_path) as conn:
+                            conn.execute("""
+                                DELETE FROM trusted_devices 
+                                WHERE device_id = ?
+                            """, (device.identity.device_id,))
+                            conn.commit()
+                        
+                        self._log_operation(device.identity.device_id, "cleanup", 
+                                          True, f"Removed after {older_than_days} days")
+                        removed_count += 1
+                
+                self.logger.info("Cleaned up revoked devices",
+                               removed_count=removed_count,
+                               older_than_days=older_than_days)
+                
+                return removed_count
+                
+            except Exception as e:
+                self.logger.error("Failed to cleanup revoked devices",
+                                error=str(e))
+                return 0
 
 
-# COMPATIBILITY ALIASES - Remove AI-generated naming inconsistencies
-DeviceRegistry = CryptographicDeviceRegistry
-DeviceIdentity = CryptographicDeviceIdentity
+# Aliases for test compatibility and enterprise naming
+CryptographicDeviceIdentity = DeviceIdentity
+CryptographicTrustedDevice = TrustedDevice
+CryptographicDeviceRegistry = DeviceRegistry
+DeviceAuthorityStatus = DeviceStatus

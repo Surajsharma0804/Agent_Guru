@@ -247,18 +247,44 @@ class AuthorityGate:
     
     def revoke_authority(self, reason: str, session_id: Optional[str] = None):
         """
-        Revoke authority and transition to locked state.
+        SECURITY ENFORCEMENT: Revoke authority via workstation lock.
+        
+        This method now enforces OS-level re-authentication by triggering workstation lock
+        instead of maintaining session continuity.
         
         Args:
             reason: Reason for authority revocation
             session_id: Optional session identifier
         """
-        self.logger.warning(f"Authority revocation requested: {reason}")
+        self.logger.critical(f"Authority revocation triggering workstation lock: {reason}")
         
-        # Force transition to locked state
-        self.authority_machine.force_lock(reason)
+        # Map reason to StateTransitionReason
+        from ..authority.state import StateTransitionReason
         
-        # Clear active sessions
+        reason_mapping = {
+            "manual": StateTransitionReason.MANUAL_REVOKE,
+            "timeout": StateTransitionReason.INACTIVITY_TIMEOUT,
+            "failure": StateTransitionReason.COMPONENT_FAILURE,
+            "intrusion": StateTransitionReason.INTRUSION_DETECTED,
+        }
+        
+        # Determine appropriate transition reason
+        transition_reason = StateTransitionReason.MANUAL_REVOKE
+        for key, value in reason_mapping.items():
+            if key.lower() in reason.lower():
+                transition_reason = value
+                break
+        
+        # Use the secure workstation lock method
+        result = self.authority_machine.revoke_authority_via_workstation_lock(
+            reason=transition_reason,
+            metadata={
+                "input_gate_reason": reason,
+                "session_id": session_id or "unknown"
+            }
+        )
+        
+        # Clear active sessions (if workstation lock succeeded, process will be suspended)
         if session_id and session_id in self.active_sessions:
             del self.active_sessions[session_id]
         
@@ -267,7 +293,8 @@ class AuthorityGate:
             "timestamp": datetime.now().isoformat(),
             "reason": reason,
             "session_id": session_id,
-            "event_type": "authority_revoked"
+            "event_type": "authority_revoked_via_workstation_lock",
+            "workstation_lock_result": result
         }
         
         self.authority_violations.append(revocation_event)

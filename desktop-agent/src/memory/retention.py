@@ -94,7 +94,7 @@ class CleanupResult:
     error_message: Optional[str] = None
 
 
-class RetentionPolicyManager:
+class MemoryRetentionEnforcer:
     """
     Manages retention policies and automatic data cleanup.
     

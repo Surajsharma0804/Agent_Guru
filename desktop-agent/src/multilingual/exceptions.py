@@ -166,7 +166,17 @@ class ConfigurationError(MultilingualError):
         actual_value: Optional[Any] = None,
         **kwargs
     ):
-        super().__init__(message, error_code="CONFIGURATION_ERROR", **kwargs)
+        # Extract only the kwargs that MultilingualError accepts
+        context = kwargs.pop('context', {})
+        recovery_suggestions = kwargs.pop('recovery_suggestions', [])
+        
+        super().__init__(
+            message, 
+            error_code="CONFIGURATION_ERROR",
+            context=context,
+            recovery_suggestions=recovery_suggestions
+        )
+        
         self.config_section = config_section
         self.config_key = config_key
         self.expected_type = expected_type
@@ -179,6 +189,10 @@ class ConfigurationError(MultilingualError):
             'expected_type': expected_type,
             'actual_value_type': type(actual_value).__name__ if actual_value is not None else None
         })
+        
+        # Add any extra kwargs to context
+        if kwargs:
+            self.context.update(kwargs)
         
         # Add configuration recovery suggestions
         self.recovery_suggestions.extend([
@@ -246,6 +260,58 @@ class PipelineError(MultilingualError):
             'input_data_type': input_data_type,
             'processing_time_ms': processing_time_ms
         })
+
+
+class DictationError(MultilingualError):
+    """Raised when dictation mode encounters errors or content preservation violations."""
+    
+    def __init__(
+        self,
+        message: str,
+        language: Optional[str] = None,
+        text_length: Optional[int] = None,
+        preservation_violated: bool = False,
+        script_rendering_failed: bool = False,
+        input_method_error: bool = False,
+        **kwargs
+    ):
+        super().__init__(message, error_code="DICTATION_ERROR", **kwargs)
+        self.language = language
+        self.text_length = text_length
+        self.preservation_violated = preservation_violated
+        self.script_rendering_failed = script_rendering_failed
+        self.input_method_error = input_method_error
+        
+        # Add dictation-specific context
+        self.context.update({
+            'language': language,
+            'text_length': text_length,
+            'preservation_violated': preservation_violated,
+            'script_rendering_failed': script_rendering_failed,
+            'input_method_error': input_method_error
+        })
+        
+        # Add dictation recovery suggestions
+        if preservation_violated:
+            self.recovery_suggestions.extend([
+                "CRITICAL: Content preservation violated - investigate immediately",
+                "Check dictation mode configuration for content alteration",
+                "Verify no normalization or filtering is enabled"
+            ])
+        
+        if script_rendering_failed:
+            self.recovery_suggestions.extend([
+                "Check script rendering configuration for the language",
+                "Verify Unicode support is properly configured",
+                "Test with simpler text to isolate rendering issues"
+            ])
+            
+        if input_method_error:
+            self.recovery_suggestions.extend([
+                "Check input method installation for the language",
+                "Verify keyboard layout configuration",
+                "Test input method activation manually"
+            ])
 
 
 class PerformanceError(MultilingualError):
@@ -385,3 +451,126 @@ def handle_multilingual_exception(
             f"Multilingual processing failed during {operation}: {str(exception)}",
             context
         )
+
+
+class GuruIntegrationError(MultilingualError):
+    """Raised when GURU integration encounters errors."""
+    
+    def __init__(self, message: str, component: Optional[str] = None, integration_mode: Optional[str] = None, **kwargs):
+        super().__init__(message, **kwargs)
+        self.component = component
+        self.integration_mode = integration_mode
+
+
+class AuthorityIntegrationError(MultilingualError):
+    """Raised when authority integration encounters errors."""
+    
+    def __init__(
+        self,
+        message: str,
+        authority_state: Optional[str] = None,
+        verification_type: Optional[str] = None,
+        security_level: Optional[str] = None,
+        **kwargs
+    ):
+        super().__init__(message, error_code="AUTHORITY_INTEGRATION_FAILED", **kwargs)
+        self.authority_state = authority_state
+        self.verification_type = verification_type
+        self.security_level = security_level
+        
+        # Add authority-specific context
+        self.context.update({
+            'authority_state': authority_state,
+            'verification_type': verification_type,
+            'security_level': security_level
+        })
+        
+        # Add authority recovery suggestions
+        self.recovery_suggestions.extend([
+            "Verify authority state machine is properly initialized",
+            "Check biometric verification configuration",
+            "Ensure security boundaries are properly configured",
+            "Review authority integration logs for detailed error information"
+        ])
+
+
+class PerformanceError(MultilingualError):
+    """Raised when performance requirements are not met."""
+    
+    def __init__(self, message: str, performance_metric: Optional[str] = None, threshold: Optional[float] = None, actual: Optional[float] = None, **kwargs):
+        super().__init__(message, **kwargs)
+        self.performance_metric = performance_metric
+        self.threshold = threshold
+        self.actual = actual
+
+
+class MigrationError(MultilingualError):
+    """Raised when migration operations fail."""
+    
+    def __init__(
+        self,
+        message: str,
+        migration_phase: Optional[str] = None,
+        backup_available: bool = False,
+        rollback_possible: bool = False,
+        **kwargs
+    ):
+        super().__init__(message, error_code="MIGRATION_FAILED", **kwargs)
+        self.migration_phase = migration_phase
+        self.backup_available = backup_available
+        self.rollback_possible = rollback_possible
+        
+        # Add migration-specific context
+        self.context.update({
+            'migration_phase': migration_phase,
+            'backup_available': backup_available,
+            'rollback_possible': rollback_possible
+        })
+        
+        # Add migration recovery suggestions
+        if rollback_possible:
+            self.recovery_suggestions.extend([
+                "Consider rolling back to previous state",
+                "Review migration logs for detailed error information",
+                "Verify system requirements are met before retrying"
+            ])
+        else:
+            self.recovery_suggestions.extend([
+                "Contact support for manual recovery assistance",
+                "Do not attempt further migration without backup",
+                "Preserve current system state for analysis"
+            ])
+
+
+class ValidationError(MultilingualError):
+    """Raised when validation operations fail."""
+    
+    def __init__(
+        self,
+        message: str,
+        validation_type: Optional[str] = None,
+        validation_failures: Optional[List[str]] = None,
+        **kwargs
+    ):
+        super().__init__(message, error_code="VALIDATION_FAILED", **kwargs)
+        self.validation_type = validation_type
+        self.validation_failures = validation_failures or []
+        
+        # Add validation-specific context
+        self.context.update({
+            'validation_type': validation_type,
+            'validation_failures': self.validation_failures,
+            'failure_count': len(self.validation_failures)
+        })
+        
+        # Add validation recovery suggestions
+        self.recovery_suggestions.extend([
+            "Review validation failures for specific issues",
+            "Verify all required components are properly configured",
+            "Check system logs for additional error details"
+        ])
+
+
+
+# Alias for backward compatibility
+SecurityViolationError = SecurityBoundaryError
