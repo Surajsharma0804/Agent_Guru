@@ -54,6 +54,13 @@ from .interfaces import (
 
 from .platform_detector import PlatformDetector
 from .backend_factory import PlatformBackendFactory
+from .capability_matrix import (
+    CapabilityMatrix,
+    CapabilityLevel,
+    Capability,
+    PlatformCapabilities,
+    get_capability_matrix,
+)
 
 __all__ = [
     # Interfaces
@@ -81,6 +88,13 @@ __all__ = [
     # Platform detection and factory
     'PlatformDetector',
     'PlatformBackendFactory',
+    
+    # Capability matrix
+    'CapabilityMatrix',
+    'CapabilityLevel',
+    'Capability',
+    'PlatformCapabilities',
+    'get_capability_matrix',
 ]
 
 __version__ = '1.0.0'

@@ -158,7 +158,7 @@ Each push triggers:
   - **Git: Commit and push after completion**
   - **Commit message**: `[Task 1.3] Write property tests for PAL interfaces`
 
-- [ ] 1.4 Create platform capability matrix
+- [x] 1.4 Create platform capability matrix
   - Document Windows capabilities (full desktop control)
   - Document macOS capabilities (full with permissions)
   - Document Android capabilities (partial automation)
