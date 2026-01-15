@@ -862,7 +862,7 @@ Each push triggers:
   - **Git: Commit and push after completion**
   - **Commit message**: `[Task 30.1] Remove dead code`
 
-- [-] 30.2 Remove unnecessary test files
+- [x] 30.2 Remove unnecessary test files
   - Identify duplicate test files
   - Remove obsolete test fixtures
   - Remove unused mock objects
@@ -873,7 +873,7 @@ Each push triggers:
   - **Git: Commit and push after completion**
   - **Commit message**: `[Task 30.2] Remove unnecessary test files`
 
-- [ ] 30.3 Clean up configuration files
+- [x] 30.3 Clean up configuration files
   - Remove unused configuration entries
   - Remove obsolete environment variables
   - Remove deprecated configuration files
