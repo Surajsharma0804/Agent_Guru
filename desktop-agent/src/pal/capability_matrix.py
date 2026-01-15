@@ -1204,7 +1204,7 @@ class CapabilityMatrix:
 
     def _generate_json_documentation(self) -> dict:
         """Generate JSON format documentation."""
-        _result = {}
+        result = {}
 
         for platform_name, platform_caps in self._platforms.items():
             platform_data = {

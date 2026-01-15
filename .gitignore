@@ -171,6 +171,9 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# Ruff cache
+.ruff_cache/
+
 # ============================================================================
 # NODE.JS / JAVASCRIPT (Build System)
 # ============================================================================
@@ -554,3 +557,106 @@ profiling_data/
 security_tests/
 penetration_tests/
 vulnerability_scans/
+
+# ============================================================================
+# BUILD ARTIFACTS (Production)
+# ============================================================================
+
+# TypeScript build outputs
+*/dist/
+*/build/
+*.tsbuildinfo
+
+# Python build outputs
+desktop-agent/dist/
+desktop-agent/build/
+*.whl
+*.tar.gz
+
+# Android build outputs
+phone-agent/build/
+phone-agent/app/build/
+*.apk
+*.aab
+
+# Gradle wrapper (generated)
+phone-agent/gradlew
+phone-agent/gradlew.bat
+
+# iOS build outputs (if applicable)
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# ============================================================================
+# CACHE DIRECTORIES
+# ============================================================================
+
+# All cache directories
+**/.cache/
+**/__pycache__/
+**/node_modules/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.hypothesis/
+**/.tsbuildinfo
+
+# ============================================================================
+# LOG FILES (Except Audit Logs)
+# ============================================================================
+
+# All log files except audit logs
+*.log
+!audit_logs/*.log
+logs/
+!audit_logs/
+
+# Multilingual audit logs (keep)
+!logs/multilingual_audit.jsonl
+
+# ============================================================================
+# TEMPORARY FILES
+# ============================================================================
+
+# All temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.swp
+*.swo
+*~
+temp/
+tmp/
+
+# ============================================================================
+# IDE-SPECIFIC FILES
+# ============================================================================
+
+# VSCode
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/.ropeproject
+!.vscode/extensions.json
+!.vscode/recommended-settings.json
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*

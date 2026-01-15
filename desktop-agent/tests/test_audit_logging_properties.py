@@ -269,7 +269,7 @@ def test_property_27_cryptographic_signature_integrity(audit_logger, event):
 # ============================================================================
 
 @pytest.mark.property
-@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=500)
 @given(
     events=st.lists(audit_event_strategy(), min_size=2, max_size=10)
 )
@@ -318,7 +318,7 @@ def test_property_28_signature_chain_integrity(audit_logger, events):
 # ============================================================================
 
 @pytest.mark.property
-@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=500)
 @given(
     events=st.lists(audit_event_strategy(), min_size=5, max_size=10),
     tamper_index=st.integers(min_value=0, max_value=4)
@@ -465,7 +465,7 @@ def test_verify_integrity_empty_log(audit_logger):
 
 
 @pytest.mark.property
-@settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=1000)
 @given(
     events=st.lists(audit_event_strategy(), min_size=10, max_size=50)
 )

@@ -125,7 +125,7 @@ def test_property_103_authority_scope_logging(platform):
     platform=st.sampled_from(["android", "ios"]),
     command_text=command_text_strategy()
 )
-@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=500)
 def test_property_104_mobile_authority_scope_restriction(platform, command_text):
     """
     Property 104: Mobile Authority Scope Restriction

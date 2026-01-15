@@ -994,7 +994,7 @@ Each push triggers:
   - **Git: Commit and push after completion**
   - **Commit message**: `[Task 30.13] Generate production build`
 
-- [ ] 30.14 Update .gitignore and cleanup rules
+- [x] 30.14 Update .gitignore and cleanup rules
   - Add all build artifacts to .gitignore
   - Add all temporary files to .gitignore
   - Add all cache directories to .gitignore
@@ -1005,7 +1005,7 @@ Each push triggers:
   - **Git: Commit and push after completion**
   - **Commit message**: `[Task 30.14] Update .gitignore and cleanup rules`
 
-- [ ] 30.15 Final verification and documentation
+- [-] 30.15 Final verification and documentation
   - Run complete test suite one final time
   - Verify all 43 requirements are met
   - Verify all 117 properties pass
