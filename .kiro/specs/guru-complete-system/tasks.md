@@ -610,7 +610,7 @@ Each push triggers:
   - Test interrupt functionality
   - _Requirements: 9.3, 9.4_
 
-- [ ] 10.2 Write property tests for TTS service
+- [x] 10.2 Write property tests for TTS service
   - **Property 33: Priority Queue Ordering**
   - **Property 34: Silence During Dictation**
   - **Property 35: Concise Action Speech**
