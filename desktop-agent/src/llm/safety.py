@@ -72,6 +72,7 @@ class SafeResponse:
     error_message: Optional[str] = None
     original_filtered: Optional[str] = None
     processing_time_ms: Optional[int] = None
+    metadata: Optional[Dict[str, Any]] = None  # Additional metadata for enhanced features
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -85,7 +86,8 @@ class SafeResponse:
                 'explanation': self.safety_assessment.explanation
             } if self.safety_assessment else None,
             'error_message': self.error_message,
-            'processing_time_ms': self.processing_time_ms
+            'processing_time_ms': self.processing_time_ms,
+            'metadata': self.metadata
         }
 
 

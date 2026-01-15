@@ -172,7 +172,7 @@ class StructuredIntent:
     def to_dict(self) -> Dict[str, Any]:
         """Convert intent to dictionary for serialization."""
         return {
-            'intent_type': self.intent_type.value,
+            'intent_type': self.intent_type.value if hasattr(self.intent_type, 'value') else str(self.intent_type),
             'parameters': self.parameters,
             'confidence': self.confidence,
             'context': self.context,

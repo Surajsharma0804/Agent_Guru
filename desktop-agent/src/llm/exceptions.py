@@ -81,6 +81,11 @@ class ProviderError(LLMException):
         provider_error: Optional[Exception] = None,
         **kwargs
     ):
+        # Remove conflicting kwargs
+        kwargs.pop('error_code', None)
+        kwargs.pop('severity', None)
+        kwargs.pop('recoverable', None)
+        
         metadata = kwargs.pop('metadata', {})
         metadata['provider_name'] = provider_name
         if provider_error:
@@ -115,16 +120,21 @@ class ProviderRegistrationError(ProviderError):
         registration_phase: str,
         **kwargs
     ):
+        # Remove conflicting kwargs before passing to parent
+        kwargs.pop('error_code', None)
+        
         metadata = kwargs.pop('metadata', {})
         metadata['registration_phase'] = registration_phase
         
+        # ProviderError will handle error_code, severity, recoverable
         super().__init__(
             message,
             provider_name=provider_name,
-            error_code="PROVIDER_REGISTRATION_ERROR",
             metadata=metadata,
             **kwargs
         )
+        # Override error_code after parent initialization
+        self.error_code = "PROVIDER_REGISTRATION_ERROR"
         self.registration_phase = registration_phase
     
     def get_recovery_guidance(self) -> str:
@@ -145,18 +155,24 @@ class AuthenticationError(ProviderError):
         auth_method: str = "api_key",
         **kwargs
     ):
+        # Remove conflicting kwargs
+        kwargs.pop('error_code', None)
+        kwargs.pop('severity', None)
+        kwargs.pop('recoverable', None)
+        
         metadata = kwargs.pop('metadata', {})
         metadata['auth_method'] = auth_method
         
         super().__init__(
             message,
             provider_name=provider_name,
-            error_code="AUTHENTICATION_ERROR",
-            severity="error",
-            recoverable=True,
             metadata=metadata,
             **kwargs
         )
+        # Override after parent initialization
+        self.error_code = "AUTHENTICATION_ERROR"
+        self.severity = "error"
+        self.recoverable = True
         self.auth_method = auth_method
     
     def get_recovery_guidance(self) -> str:
@@ -175,18 +191,24 @@ class RateLimitExceededError(ProviderError):
         retry_after: Optional[int] = None,
         **kwargs
     ):
+        # Remove conflicting kwargs
+        kwargs.pop('error_code', None)
+        kwargs.pop('severity', None)
+        kwargs.pop('recoverable', None)
+        
         metadata = kwargs.pop('metadata', {})
         metadata['retry_after'] = retry_after
         
         super().__init__(
             message,
             provider_name=provider_name,
-            error_code="RATE_LIMIT_EXCEEDED",
-            severity="warning",
-            recoverable=True,
             metadata=metadata,
             **kwargs
         )
+        # Override after parent initialization
+        self.error_code = "RATE_LIMIT_EXCEEDED"
+        self.severity = "warning"
+        self.recoverable = True
         self.retry_after = retry_after
     
     def get_recovery_guidance(self) -> str:
@@ -205,18 +227,24 @@ class NetworkError(ProviderError):
         endpoint: Optional[str] = None,
         **kwargs
     ):
+        # Remove conflicting kwargs
+        kwargs.pop('error_code', None)
+        kwargs.pop('severity', None)
+        kwargs.pop('recoverable', None)
+        
         metadata = kwargs.pop('metadata', {})
         metadata['endpoint'] = endpoint
         
         super().__init__(
             message,
             provider_name=provider_name,
-            error_code="NETWORK_ERROR",
-            severity="error",
-            recoverable=True,
             metadata=metadata,
             **kwargs
         )
+        # Override after parent initialization
+        self.error_code = "NETWORK_ERROR"
+        self.severity = "error"
+        self.recoverable = True
         self.endpoint = endpoint
     
     def get_recovery_guidance(self) -> str:
@@ -234,6 +262,11 @@ class ModelNotFoundError(ProviderError):
         available_models: Optional[List[str]] = None,
         **kwargs
     ):
+        # Remove conflicting kwargs
+        kwargs.pop('error_code', None)
+        kwargs.pop('severity', None)
+        kwargs.pop('recoverable', None)
+        
         metadata = kwargs.pop('metadata', {})
         metadata['model_name'] = model_name
         metadata['available_models'] = available_models
@@ -241,12 +274,13 @@ class ModelNotFoundError(ProviderError):
         super().__init__(
             message,
             provider_name=provider_name,
-            error_code="MODEL_NOT_FOUND",
-            severity="error",
-            recoverable=True,
             metadata=metadata,
             **kwargs
         )
+        # Override after parent initialization
+        self.error_code = "MODEL_NOT_FOUND"
+        self.severity = "error"
+        self.recoverable = True
         self.model_name = model_name
         self.available_models = available_models
     
@@ -266,18 +300,24 @@ class CapabilityDetectionError(ProviderError):
         capability_type: str,
         **kwargs
     ):
+        # Remove conflicting kwargs
+        kwargs.pop('error_code', None)
+        kwargs.pop('severity', None)
+        kwargs.pop('recoverable', None)
+        
         metadata = kwargs.pop('metadata', {})
         metadata['capability_type'] = capability_type
         
         super().__init__(
             message,
             provider_name=provider_name,
-            error_code="CAPABILITY_DETECTION_ERROR",
-            severity="warning",
-            recoverable=True,
             metadata=metadata,
             **kwargs
         )
+        # Override after parent initialization
+        self.error_code = "CAPABILITY_DETECTION_ERROR"
+        self.severity = "warning"
+        self.recoverable = True
         self.capability_type = capability_type
 
 
@@ -291,6 +331,11 @@ class ConfigurationError(LLMException):
         config_value: Optional[Any] = None,
         **kwargs
     ):
+        # Remove conflicting kwargs
+        kwargs.pop('error_code', None)
+        kwargs.pop('severity', None)
+        kwargs.pop('recoverable', None)
+        
         metadata = kwargs.pop('metadata', {})
         metadata['config_key'] = config_key
         if config_value is not None:
@@ -324,6 +369,11 @@ class TaskRoutingError(LLMException):
         attempts: Optional[int] = None,
         **kwargs
     ):
+        # Remove conflicting kwargs
+        kwargs.pop('error_code', None)
+        kwargs.pop('severity', None)
+        kwargs.pop('recoverable', None)
+        
         metadata = kwargs.pop('metadata', {})
         metadata['task_type'] = task_type
         metadata['provider'] = provider
@@ -355,6 +405,11 @@ class IntentValidationError(LLMException):
         raw_response: Optional[str] = None,
         **kwargs
     ):
+        # Remove conflicting kwargs
+        kwargs.pop('error_code', None)
+        kwargs.pop('severity', None)
+        kwargs.pop('recoverable', None)
+        
         metadata = kwargs.pop('metadata', {})
         metadata['validation_errors'] = validation_errors
         # Do not log raw_response - may contain sensitive data
@@ -389,6 +444,11 @@ class IsolationBreachError(LLMException):
         attempted_action: str,
         **kwargs
     ):
+        # Remove conflicting kwargs
+        kwargs.pop('error_code', None)
+        kwargs.pop('severity', None)
+        kwargs.pop('recoverable', None)
+        
         metadata = kwargs.pop('metadata', {})
         metadata['breach_type'] = breach_type
         metadata['attempted_action'] = attempted_action
@@ -412,6 +472,11 @@ class LLMAdapterError(LLMException):
     """LLM adapter error."""
     
     def __init__(self, message: str, **kwargs):
+        # Remove conflicting kwargs
+        kwargs.pop('error_code', None)
+        kwargs.pop('severity', None)
+        kwargs.pop('recoverable', None)
+        
         super().__init__(
             message,
             error_code="LLM_ADAPTER_ERROR",
@@ -430,6 +495,11 @@ class SafetyViolationError(LLMException):
         violation_type: Optional[str] = None,
         **kwargs
     ):
+        # Remove conflicting kwargs
+        kwargs.pop('error_code', None)
+        kwargs.pop('severity', None)
+        kwargs.pop('recoverable', None)
+        
         metadata = kwargs.pop('metadata', {})
         metadata['violation_type'] = violation_type
         

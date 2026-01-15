@@ -500,8 +500,8 @@ class LLMAdapter:
             registration = self.providers[provider_name]
             return {
                 'provider_name': provider_name,
-                'status': registration.provider.status.value,
-                'priority': registration.priority.value,
+                'status': registration.provider.status.value if hasattr(registration.provider.status, 'value') else str(registration.provider.status),
+                'priority': registration.priority.value if hasattr(registration.priority, 'value') else str(registration.priority),
                 'enabled': registration.enabled,
                 'healthy': registration.is_healthy(),
                 'success_rate': registration.get_success_rate(),
@@ -520,8 +520,8 @@ class LLMAdapter:
                 'healthy_providers': sum(1 for r in self.providers.values() if r.is_healthy()),
                 'providers': {
                     name: {
-                        'status': reg.provider.status.value,
-                        'priority': reg.priority.value,
+                        'status': reg.provider.status.value if hasattr(reg.provider.status, 'value') else str(reg.provider.status),
+                        'priority': reg.priority.value if hasattr(reg.priority, 'value') else str(reg.priority),
                         'enabled': reg.enabled,
                         'healthy': reg.is_healthy(),
                         'success_rate': reg.get_success_rate()
