@@ -941,7 +941,7 @@ Each push triggers:
   - **Git: Commit and push after completion**
   - **Commit message**: `[Task 30.8] Clean up documentation files`
 
-- [ ] 30.9 Remove unused assets and resources
+- [x] 30.9 Remove unused assets and resources
   - Remove unused images
   - Remove unused icons (keep only platform-required)
   - Remove unused fonts
