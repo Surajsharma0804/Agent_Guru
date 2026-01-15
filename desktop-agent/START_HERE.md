@@ -136,6 +136,37 @@ After launching GURU, verify these work:
 
 ---
 
+## 🔬 Run System Diagnostics
+
+**NEW**: Comprehensive diagnostic tool to test all components!
+
+```cmd
+.\RUN_DIAGNOSTICS.bat
+```
+
+**Or with Python:**
+```cmd
+python run_diagnostics.py
+```
+
+**What it tests:**
+- ✓ Platform detection
+- ✓ PAL backend interfaces
+- ✓ Configuration integrity
+- ✓ TTS synthesis and audio
+- ✓ Voice recognition
+- ✓ Biometric authentication
+- ✓ LLM connectivity
+- ✓ Component health
+- ✓ Audit logging
+
+**Duration**: 5-15 seconds
+
+**See**: `DIAGNOSTICS_QUICK_START.md` for quick reference  
+**Full docs**: `docs/DIAGNOSTIC_TOOL.md`
+
+---
+
 ## 🚨 Troubleshooting
 
 ### Problem: GURU doesn't speak

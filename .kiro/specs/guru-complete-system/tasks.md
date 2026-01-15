@@ -763,13 +763,13 @@ Each push triggers:
   - Generate llm_config.json automatically
   - _Requirements: 18.1, 18.2, 18.3, 18.4_
 
-- [ ] 18. Complete Setup Wizard
+- [x] 18. Complete Setup Wizard
   - Implement first-run detection
   - Implement biometric configuration page
   - Implement biometric testing
   - _Requirements: 16_
 
-- [ ] 18.1 Implement setup wizard flow
+- [x] 18.1 Implement setup wizard flow
   - Detect first run
   - Guide through microphone/speaker permissions
   - Guide through profile creation
@@ -777,19 +777,19 @@ Each push triggers:
   - Guide through preferences
   - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.6_
 
-- [ ] 18.2 Implement biometric testing
+- [x] 18.2 Implement biometric testing
   - Detect Windows Hello availability
   - Detect fingerprint/face hardware
   - Provide "Test Biometric Authentication" button
   - _Requirements: 16.5_
 
-- [ ] 19. Complete Diagnostic Tools
+- [x] 19. Complete Diagnostic Tools
   - Implement comprehensive diagnostic script
   - Test all components
   - Provide detailed error messages
   - _Requirements: 19_
 
-- [ ] 19.1 Implement diagnostic script
+- [x] 19.1 Implement diagnostic script
   - Test TTS synthesis and audio output
   - Test voice recognition and wake word detection
   - Test biometric authentication availability
