@@ -18,8 +18,10 @@ try:
 except ImportError:
     def safe_print(text, **kwargs):
         try:
+            print(text, **kwargs)
         except UnicodeEncodeError:
             text = str(text).replace('✓', '[OK]').replace('✗', '[X]').replace('⚠', '[!]')
+            print(text, **kwargs)
 
 
 @dataclass
@@ -270,3 +272,4 @@ if __name__ == "__main__":
         for user_input in test_inputs:
             response = engine.generate_response(user_input)
     else:
+        pass

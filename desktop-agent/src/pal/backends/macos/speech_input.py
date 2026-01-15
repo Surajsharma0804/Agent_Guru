@@ -140,10 +140,12 @@ class macOSSpeechInput(SpeechInput):
                     self._stream.stop_stream()
                     self._stream.close()
                 except Exception as e:
+                    pass
                 finally:
                     self._stream = None
                     
         except Exception as e:
+            pass
     
     def transcribe(self, audio_data: bytes) -> Transcription:
         """
@@ -380,8 +382,8 @@ class macOSSpeechInput(SpeechInput):
                     
                 except Exception as e:
                     time.sleep(0.1)
-            
         except Exception as e:
+            pass
         finally:
             if self._stream:
                 self._stream.stop_stream()

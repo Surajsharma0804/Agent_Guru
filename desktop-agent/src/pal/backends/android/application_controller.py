@@ -360,6 +360,7 @@ class AndroidApplicationController(ApplicationController):
             # This would typically use Kivy's android module or similar
             pass
         except Exception as e:
+            pass
     
     def _get_package_name(self, app_id: str) -> Optional[str]:
         """
@@ -540,8 +541,8 @@ class AndroidApplicationController(ApplicationController):
                             )
                             discovered.append(descriptor)
                             self._app_cache[app_id] = descriptor
-            
         except Exception as e:
+            pass
         
         return discovered
     
@@ -572,8 +573,8 @@ class AndroidApplicationController(ApplicationController):
                     elif 'versionName=' in line:
                         info['version'] = line.split('=')[1].strip()
                 return info if info else None
-            
         except Exception as e:
+            pass
         
         return None
     
@@ -624,8 +625,8 @@ class AndroidApplicationController(ApplicationController):
                         package_name = line.replace('package:', '')
                         if app_name.lower() in package_name.lower():
                             return package_name
-            
         except Exception as e:
+            pass
         
         return None
     

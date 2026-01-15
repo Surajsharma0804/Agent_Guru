@@ -241,16 +241,17 @@ class WindowsApplicationController(ApplicationController):
                 )
                 discovered_apps.append(descriptor)
                 self._app_cache[app_id] = descriptor
-        
         # Search registry for installed applications
         try:
             discovered_apps.extend(self._discover_from_registry(seen_paths))
         except Exception as e:
+            pass
         
         # Search filesystem
         try:
             discovered_apps.extend(self._discover_from_filesystem(seen_paths))
         except Exception as e:
+            pass
         
         return discovered_apps
     

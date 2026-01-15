@@ -29,8 +29,10 @@ except ImportError:
     # Fallback if utils not available
     def safe_print(text, **kwargs):
         try:
+            print(text, **kwargs)
         except UnicodeEncodeError:
             text = str(text).replace('✓', '[OK]').replace('✗', '[X]').replace('⚠', '[!]')
+            print(text, **kwargs)
 
 # Import Ollama engine
 try:

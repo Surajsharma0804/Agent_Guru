@@ -103,11 +103,11 @@ class AndroidSpeechOutput(SpeechOutput):
                 priority=priority,
                 timestamp=time.time()
             )
-            
             # Add to priority queue
             self._speech_queue.put((priority.value, speech_request))
             
         except Exception as e:
+            pass
     
     def stop(self) -> None:
         """Stop current speech and clear queue."""
@@ -124,8 +124,8 @@ class AndroidSpeechOutput(SpeechOutput):
                 self._stop_android_tts()
             
             self._is_speaking = False
-            
         except Exception as e:
+            pass
     
     def is_speaking(self) -> bool:
         """Check if currently speaking."""
@@ -145,8 +145,8 @@ class AndroidSpeechOutput(SpeechOutput):
             
             if self._is_android:
                 self._set_android_volume(volume)
-            
         except Exception as e:
+            pass
     
     def set_rate(self, rate: int) -> None:
         """
@@ -162,8 +162,8 @@ class AndroidSpeechOutput(SpeechOutput):
             
             if self._is_android:
                 self._set_android_rate(rate)
-            
         except Exception as e:
+            pass
     
     def get_capabilities(self) -> Dict[str, bool]:
         """Return Android TTS capabilities."""
@@ -225,8 +225,9 @@ class AndroidSpeechOutput(SpeechOutput):
             )
             
             if result.returncode != 0:
-            
+                pass
         except Exception as e:
+            pass
     
     def _start_speech_thread(self) -> None:
         """Start background thread for speech processing."""
@@ -237,8 +238,8 @@ class AndroidSpeechOutput(SpeechOutput):
                 name="AndroidTTSWorker"
             )
             self._speech_thread.start()
-            
         except Exception as e:
+            pass
     
     def _speech_worker(self) -> None:
         """Background worker thread for processing speech queue."""
@@ -275,8 +276,8 @@ class AndroidSpeechOutput(SpeechOutput):
             else:
                 # Development/testing mode
                 time.sleep(len(request.text) * 0.05)  # Simulate speech duration
-            
         except Exception as e:
+            pass
         finally:
             self._is_speaking = False
     
@@ -301,8 +302,9 @@ class AndroidSpeechOutput(SpeechOutput):
             )
             
             if result.returncode != 0:
-            
+                pass
         except Exception as e:
+            pass
     
     def _stop_android_tts(self) -> None:
         """Stop Android TTS engine."""
@@ -314,8 +316,8 @@ class AndroidSpeechOutput(SpeechOutput):
                 text=True,
                 timeout=5
             )
-            
         except Exception as e:
+            pass
     
     def _set_android_volume(self, volume: int) -> None:
         """
@@ -334,8 +336,8 @@ class AndroidSpeechOutput(SpeechOutput):
                 text=True,
                 timeout=5
             )
-            
         except Exception as e:
+            pass
     
     def _set_android_rate(self, rate: int) -> None:
         """
@@ -352,8 +354,8 @@ class AndroidSpeechOutput(SpeechOutput):
             # This would typically be set via TTS API
             # For now, store for future TTS calls
             self._android_tts_rate = android_rate
-            
         except Exception as e:
+            pass
     
     def _cleanup(self) -> None:
         """Cleanup resources."""
@@ -365,8 +367,8 @@ class AndroidSpeechOutput(SpeechOutput):
             
             # Stop any ongoing speech
             self.stop()
-            
         except Exception as e:
+            pass
 
 
 class SpeechRequest:

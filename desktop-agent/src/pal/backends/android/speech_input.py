@@ -128,8 +128,8 @@ class AndroidSpeechInput(SpeechInput):
             if self._is_android:
                 self._cleanup_android_speech_recognition()
             
-            
         except Exception as e:
+            pass
     
     def transcribe(self, audio_data: bytes) -> Transcription:
         """
@@ -243,10 +243,12 @@ class AndroidSpeechInput(SpeechInput):
             )
             
             if 'android.hardware.microphone' not in result.stdout:
+                pass
             
             if 'android.software.speech' not in result.stdout:
-            
+                pass
         except Exception as e:
+            pass
     
     def _init_whisper_cpp(self) -> None:
         """Initialize Whisper.cpp for local processing."""
@@ -262,7 +264,7 @@ class AndroidSpeechInput(SpeechInput):
             if result.returncode != 0:
                 self.use_local_whisper = False
             else:
-            
+                pass
         except FileNotFoundError:
             self.use_local_whisper = False
         except Exception as e:
@@ -371,8 +373,8 @@ class AndroidSpeechInput(SpeechInput):
                 # No wake word found, call callback directly
                 if self._voice_callback:
                     self._voice_callback(transcription)
-                    
         except Exception as e:
+            pass
     
     def _transcribe_whisper(self, audio_data: bytes) -> Transcription:
         """
@@ -417,15 +419,15 @@ class AndroidSpeechInput(SpeechInput):
                         metadata={'engine': 'whisper.cpp'}
                     )
                 else:
-                    
+                    pass
             finally:
                 # Clean up temporary file
                 try:
                     os.unlink(temp_file_path)
                 except OSError:
                     pass
-            
         except Exception as e:
+            pass
         
         # Return empty transcription on error
         return Transcription(
@@ -500,8 +502,8 @@ class AndroidSpeechInput(SpeechInput):
                     audio_duration=1.0,
                     metadata={'engine': 'android_stt_mock'}
                 )
-                
         except Exception as e:
+            pass
         
         # Return empty transcription on error
         return Transcription(
@@ -588,5 +590,5 @@ class AndroidSpeechInput(SpeechInput):
                     text=True,
                     timeout=5
                 )
-                
         except Exception as e:
+            pass

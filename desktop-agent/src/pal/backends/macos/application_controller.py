@@ -295,16 +295,17 @@ class macOSApplicationController(ApplicationController):
                 )
                 discovered_apps.append(descriptor)
                 self._app_cache[app_id] = descriptor
-        
         # Use Spotlight to find all applications
         try:
             discovered_apps.extend(self._discover_via_spotlight(seen_paths))
         except Exception as e:
+            pass
         
         # Search filesystem as fallback
         try:
             discovered_apps.extend(self._discover_from_filesystem(seen_paths))
         except Exception as e:
+            pass
         
         return discovered_apps
     
@@ -345,6 +346,7 @@ class macOSApplicationController(ApplicationController):
                 if paths:
                     return paths[0]  # Return first match
         except (subprocess.TimeoutExpired, Exception) as e:
+            pass
         
         # Fallback to filesystem search
         return self._find_app_path(app_name)
@@ -419,9 +421,10 @@ class macOSApplicationController(ApplicationController):
                     )
                     discovered.append(descriptor)
                     self._app_cache[app_id] = descriptor
-                    
         except subprocess.TimeoutExpired:
+            pass
         except Exception as e:
+            pass
         
         return discovered
     

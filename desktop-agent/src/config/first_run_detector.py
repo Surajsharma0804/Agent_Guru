@@ -80,17 +80,16 @@ class FirstRunDetector:
             # Create setup complete marker
             self.setup_complete_marker.touch()
             
-        
         except Exception as e:
+            pass
     
     def reset_setup(self):
         """Reset setup (for testing or reconfiguration)"""
         try:
             if self.setup_complete_marker.exists():
                 self.setup_complete_marker.unlink()
-            
-        
         except Exception as e:
+            pass
 
 
 def detect_first_run() -> bool:

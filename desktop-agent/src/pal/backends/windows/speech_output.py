@@ -100,6 +100,7 @@ class WindowsSpeechOutput(SpeechOutput):
             self.voice.Skip("Sentence", 999999)
             self._speaking = False
         except Exception as e:
+            pass
     
     def is_speaking(self) -> bool:
         """
@@ -124,6 +125,7 @@ class WindowsSpeechOutput(SpeechOutput):
             volume = max(0, min(100, volume))
             self.voice.Volume = volume
         except Exception as e:
+            pass
     
     def set_rate(self, rate: int) -> None:
         """
@@ -137,6 +139,7 @@ class WindowsSpeechOutput(SpeechOutput):
             rate = max(-10, min(10, rate))
             self.voice.Rate = rate
         except Exception as e:
+            pass
     
     def get_capabilities(self) -> Dict[str, bool]:
         """Return Windows speech output capabilities."""

@@ -23,8 +23,10 @@ try:
 except ImportError:
     def safe_print(text, **kwargs):
         try:
+            print(text, **kwargs)
         except UnicodeEncodeError:
             text = str(text).replace('✓', '[OK]').replace('✗', '[X]').replace('⚠', '[!]').replace('🔊', '[SPEAK]')
+            print(text, **kwargs)
 
 # Response ownership imports
 from communication.response_ownership import ResponseOwner, get_response_ownership_coordinator

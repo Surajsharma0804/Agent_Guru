@@ -160,6 +160,7 @@ class VoiceInterface:
                 
                 # Log the stripping for debugging
                 if stripped != text:
+                    pass
                 
                 return stripped
             
@@ -180,6 +181,7 @@ class VoiceInterface:
                 
                 # Log the stripping for debugging
                 if stripped != text:
+                    pass
                 
                 return stripped
         
@@ -356,6 +358,7 @@ class VoiceInterface:
         try:
             energy_threshold = self.speech_input.calibrate_microphone()
         except Exception as e:
+            pass
         
         while self.is_running:
             try:
@@ -367,7 +370,9 @@ class VoiceInterface:
                 else:
                     self._set_state(VoiceState.COMMAND_MODE)
                     if conversation_turns == 0:
+                        pass
                     else:
+                        pass
                 
                 # Wait for audio input (PAL handles the actual listening)
                 # This is a simplified approach - in production, PAL would provide

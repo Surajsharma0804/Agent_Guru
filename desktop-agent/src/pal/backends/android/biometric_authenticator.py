@@ -205,14 +205,16 @@ class AndroidBiometricAuthenticator(BiometricAuthenticator):
         try:
             # Detect available biometric factors
             self._available_factors = self._detect_biometric_factors()
-            
             # Check if biometrics are configured
             self._is_configured = self._check_biometric_configuration()
             
             if self._is_configured:
+                pass
             else:
+                pass
                 
         except Exception as e:
+            pass
     
     def _detect_biometric_factors(self) -> List[str]:
         """
@@ -235,8 +237,8 @@ class AndroidBiometricAuthenticator(BiometricAuthenticator):
             # Check for iris scanner (rare)
             if self._has_iris_scanner():
                 factors.append('iris')
-                
         except Exception as e:
+            pass
         
         return factors
     

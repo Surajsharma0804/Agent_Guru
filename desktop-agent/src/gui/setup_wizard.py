@@ -597,12 +597,12 @@ class SetupWizard(QWizard):
             voice_enabled=setup_data['voice_always_on'],
             biometric_enabled=setup_data['enable_biometric']
         )
-        
         # Mark setup as complete
         try:
             from src.config.first_run_detector import mark_setup_complete
             mark_setup_complete()
         except Exception as e:
+            pass
         
         # Emit completion signal
         self.setup_complete.emit(setup_data)
@@ -638,4 +638,6 @@ def run_setup_wizard() -> Optional[dict]:
 if __name__ == "__main__":
     setup_data = run_setup_wizard()
     if setup_data:
+        pass
     else:
+        pass

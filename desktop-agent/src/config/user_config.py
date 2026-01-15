@@ -140,6 +140,7 @@ class UserConfigManager:
                 f.write(encrypted_data.decode())
         
         except Exception as e:
+            pass
     
     def is_first_time_setup(self) -> bool:
         """Check if this is first time setup"""

@@ -243,8 +243,10 @@ class AndroidInputAutomation(InputAutomation):
             self._accessibility_enabled = self._check_accessibility_service()
             
             if not self._accessibility_enabled:
+                pass
             
         except Exception as e:
+            pass
     
     def _check_accessibility_service(self) -> bool:
         """
