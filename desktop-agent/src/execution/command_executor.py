@@ -912,7 +912,7 @@ class CommandExecutor:
 
             # Check if command is allowed based on authority scope
             if not self._is_command_allowed(command_type, params):
-                _result = ExecutionResult(
+                result = ExecutionResult(
                     status=ExecutionStatus.PERMISSION_DENIED,
                     message=f"This command requires system-wide authority. Current scope: {self.authority_scope}",
                     error="Authority scope restriction",
@@ -921,22 +921,22 @@ class CommandExecutor:
 
             # Dispatch to appropriate executor
             if command_type == CommandType.OPEN_APPLICATION:
-                _result = self._execute_open_application(params)
+                result = self._execute_open_application(params)
 
             elif command_type == CommandType.WRITE_FILE:
-                _result = self._execute_write_file(params)
+                result = self._execute_write_file(params)
 
             elif command_type == CommandType.READ_FILE:
-                _result = self._execute_read_file(params)
+                result = self._execute_read_file(params)
 
             elif command_type == CommandType.WEB_SEARCH:
-                _result = self._execute_web_search(params)
+                result = self._execute_web_search(params)
 
             elif command_type == CommandType.WHATSAPP_MESSAGE:
-                _result = self._execute_whatsapp_message(params)
+                result = self._execute_whatsapp_message(params)
 
             else:
-                _result = ExecutionResult(
+                result = ExecutionResult(
                     status=ExecutionStatus.FAILED,
                     message="I'm not sure how to do that yet. I can open applications, write files, and search the web.",
                     error="Unknown command type",
@@ -1017,7 +1017,7 @@ class CommandExecutor:
             return self.text_automation.type_into_notepad(params["content"])
         else:
             # Launch the application with human-like response
-            _result = self.app_launcher.launch(executable)
+            result = self.app_launcher.launch(executable)
 
             # Make response more natural
             if result.status == ExecutionStatus.SUCCESS:
