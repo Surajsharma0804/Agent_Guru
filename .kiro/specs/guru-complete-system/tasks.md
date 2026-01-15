@@ -221,7 +221,7 @@ Each push triggers:
   - **Git: Commit and push after completion**
   - **Commit message**: `[Task 2.2] Update core logic files to use PAL interfaces`
 
-- [ ] 2.3 Write property tests for refactored core logic
+- [x] 2.3 Write property tests for refactored core logic
   - **Property 94: Core Logic Platform Isolation**
   - **Property 109: Core Logic State Machine Consistency**
   - **Property 110: Core Logic Security Invariants**

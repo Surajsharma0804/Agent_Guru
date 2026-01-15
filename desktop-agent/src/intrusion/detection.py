@@ -33,8 +33,8 @@ import structlog
 # PAL imports - platform-agnostic interfaces
 from pal.interfaces import SecurityEnforcer
 
-from ..biometric.providers import BiometricFactor
-from .patterns import (
+from biometric.providers import BiometricFactor
+from intrusion.patterns import (
     FailurePattern,
     PatternAnalysisConfig,
     PatternSeverity,

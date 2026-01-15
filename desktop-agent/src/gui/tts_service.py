@@ -243,22 +243,26 @@ def get_tts_service(speech_output: Optional[SpeechOutput] = None) -> TTSService:
         TTSService instance
     
     Note:
-        If SpeechOutput interface is not provided, this function will attempt to
-        create a platform-specific implementation automatically.
+        If SpeechOutput interface is provided, a new instance is created.
+        If SpeechOutput interface is not provided, returns singleton instance.
     """
     global _tts_service
+    
+    # If explicit PAL interface provided, create new instance (for testing/DI)
+    if speech_output is not None:
+        return TTSService(speech_output)
+    
+    # Otherwise use singleton pattern
     if _tts_service is None:
-        # If no PAL interface provided, create platform-specific one
-        if speech_output is None:
-            from pal.platform_detector import PlatformDetector
-            from pal.backend_factory import PlatformBackendFactory
-            
-            # Detect platform
-            platform = PlatformDetector.detect()
-            factory = PlatformBackendFactory(platform)
-            
-            # Create PAL interface
-            speech_output = factory.create_speech_output()
+        from pal.platform_detector import PlatformDetector
+        from pal.backend_factory import PlatformBackendFactory
+        
+        # Detect platform
+        platform = PlatformDetector.detect()
+        factory = PlatformBackendFactory(platform)
+        
+        # Create PAL interface
+        speech_output = factory.create_speech_output()
         
         _tts_service = TTSService(speech_output)
         _tts_service.start()

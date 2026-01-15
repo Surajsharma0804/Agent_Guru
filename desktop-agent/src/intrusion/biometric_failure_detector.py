@@ -11,8 +11,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import structlog
-from ..authority.state import BiometricFactor
-from ..biometric.providers import BiometricProviderType, BiometricResult
+from authority.state import BiometricFactor
+from biometric.providers import BiometricProviderType, BiometricResult
 
 if TYPE_CHECKING:
     from src.intrusion.detection import IntrusionDetector

@@ -894,25 +894,29 @@ def get_command_executor(
         CommandExecutor instance
     
     Note:
-        If PAL interfaces are not provided, this function will attempt to
-        create platform-specific implementations automatically.
+        If PAL interfaces are provided, a new instance is created.
+        If PAL interfaces are not provided, returns singleton instance.
     """
     global _executor
+    
+    # If explicit PAL interfaces provided, create new instance (for testing/DI)
+    if app_controller is not None and input_automation is not None:
+        return CommandExecutor(app_controller, input_automation)
+    
+    # Otherwise use singleton pattern
     if _executor is None:
-        # If no PAL interfaces provided, create platform-specific ones
-        if app_controller is None or input_automation is None:
-            from pal.platform_detector import PlatformDetector
-            from pal.backend_factory import PlatformBackendFactory
-            
-            # Detect platform
-            platform = PlatformDetector.detect()
-            factory = PlatformBackendFactory(platform)
-            
-            # Create PAL interfaces
-            if app_controller is None:
-                app_controller = factory.create_application_controller()
-            if input_automation is None:
-                input_automation = factory.create_input_automation()
+        from pal.platform_detector import PlatformDetector
+        from pal.backend_factory import PlatformBackendFactory
+        
+        # Detect platform
+        platform = PlatformDetector.detect()
+        factory = PlatformBackendFactory(platform)
+        
+        # Create PAL interfaces
+        if app_controller is None:
+            app_controller = factory.create_application_controller()
+        if input_automation is None:
+            input_automation = factory.create_input_automation()
         
         _executor = CommandExecutor(app_controller, input_automation)
     return _executor
