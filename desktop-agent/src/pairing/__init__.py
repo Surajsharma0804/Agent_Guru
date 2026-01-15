@@ -43,16 +43,16 @@ __all__ = [
     "CryptographicKeyExchangeEngine",
     "AsymmetricKeyExchangeAuthority",  # Compatibility alias
     "KeyExchangeMessage",  # Compatibility alias
-    "KeyExchangeResult",   # Compatibility alias
-    "KeyExchangeStatus",   # Compatibility alias
-    "DeviceKeyPair",       # Compatibility alias
+    "KeyExchangeResult",  # Compatibility alias
+    "KeyExchangeStatus",  # Compatibility alias
+    "DeviceKeyPair",  # Compatibility alias
     "CryptographicDeviceKeyPair",
     "CryptographicKeyExchangeResult",
     "CryptographicKeyExchangeStatus",
     "CryptographicDeviceRegistry",
-    "DeviceRegistry",      # Compatibility alias
+    "DeviceRegistry",  # Compatibility alias
     "CryptographicDeviceIdentity",
-    "DeviceIdentity",      # Compatibility alias
+    "DeviceIdentity",  # Compatibility alias
     "CryptographicTrustedDevice",
     "DeviceAuthorityStatus",
 ]

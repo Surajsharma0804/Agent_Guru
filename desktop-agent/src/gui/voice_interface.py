@@ -25,16 +25,17 @@ import threading
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, Optional
+from typing import Callable, Optional
 
 from gui.tts_service import get_tts_service
 
 # PAL imports - platform-agnostic interfaces
-from pal.interfaces import SpeechInput, SpeechOutput, Transcription, TTSPriority
+from pal.interfaces import SpeechInput, SpeechOutput, TTSPriority
 
 
 class VoiceState(Enum):
     """Voice interface states"""
+
     IDLE = "idle"
     LISTENING = "listening"
     PROCESSING = "processing"
@@ -47,6 +48,7 @@ class VoiceState(Enum):
 @dataclass
 class VoiceCommand:
     """Recognized voice command"""
+
     text: str
     confidence: float
     timestamp: float
@@ -57,26 +59,23 @@ class VoiceCommand:
 class VoiceInterface:
     """
     Natural voice interaction interface for GURU using PAL interfaces.
-    
+
     Provides continuous voice recognition, natural language processing,
     and text-to-speech for human-like conversation across all platforms.
-    
+
     Architecture:
     - Uses PAL SpeechInput for platform-agnostic voice recognition
     - Uses PAL SpeechOutput for platform-agnostic speech synthesis
     - Maintains conversation state and wake word detection
     - Thread-safe operation with proper resource management
     """
-    
+
     def __init__(
-        self,
-        speech_input: SpeechInput,
-        speech_output: Optional[SpeechOutput] = None,
-        wake_word: str = "hey guru"
+        self, speech_input: SpeechInput, speech_output: Optional[SpeechOutput] = None, wake_word: str = "hey guru"
     ):
         """
         Initialize voice interface with PAL interfaces.
-        
+
         Args:
             speech_input: Platform-specific SpeechInput implementation
             speech_output: Optional SpeechOutput (uses TTS service if None)
@@ -90,65 +89,64 @@ class VoiceInterface:
             "hi guru",
             "hey guro",  # Common mispronunciation
             "hello guro",
-            "hi guro"
+            "hi guro",
         ]
         self.is_running = False
         self.current_state = VoiceState.IDLE
         self.is_active = False  # Track if wake word has been detected
         self.dictation_mode = False  # Track if in dictation mode
         self.silence_start_time: Optional[float] = None  # Track silence for dictation exit
-        
+
         # Callbacks
         self.on_command_callback: Optional[Callable[[VoiceCommand], None]] = None
         self.on_state_change_callback: Optional[Callable[[VoiceState], None]] = None
         self.on_audio_level_callback: Optional[Callable[[float], None]] = None
-        
+
         # Get platform capabilities
         self.capabilities = speech_input.get_capabilities()
-        
+
         # Text-to-speech service (uses PAL internally)
         self.tts_service = get_tts_service(speech_output)
         self.tts_available = self.tts_service.available
-        
+
         # Threading
         self.listen_thread: Optional[threading.Thread] = None
         self.command_queue = queue.Queue()
-        
-    
+
     def set_command_callback(self, callback: Callable[[VoiceCommand], None]):
         """Set callback for voice commands"""
         self.on_command_callback = callback
-    
+
     def set_state_change_callback(self, callback: Callable[[VoiceState], None]):
         """Set callback for state changes"""
         self.on_state_change_callback = callback
-    
+
     def set_audio_level_callback(self, callback: Callable[[float], None]):
         """Set callback for audio level updates"""
         self.on_audio_level_callback = callback
-    
+
     def strip_wake_word(self, text: str) -> str:
         """
         Strip wake word from transcribed text.
-        
+
         CRITICAL: Once the Voice_Interface is in ACTIVE state, the wake word
         must be removed from all transcribed text to prevent downstream
         interference with Intent_Pre_Filter, Command_Executor, and LLM_Adapter.
-        
+
         Args:
             text: Transcribed text that may contain wake word
-        
+
         Returns:
             Text with wake word removed and whitespace normalized
-        
+
         Requirements: 30.1, 30.2, 30.3, 30.4, 30.5, 30.6
         """
         if not text:
             return text
-        
+
         # Convert to lowercase for case-insensitive matching
         text_lower = text.lower().strip()
-        
+
         # Try to strip each wake word variation
         for wake_word_variant in self.wake_word_variations:
             # Check if text starts with wake word
@@ -157,13 +155,13 @@ class VoiceInterface:
                 # Find the position after the wake word in the original text
                 wake_word_len = len(wake_word_variant)
                 stripped = text[wake_word_len:].strip()
-                
+
                 # Log the stripping for debugging
                 if stripped != text:
                     pass
-                
+
                 return stripped
-            
+
             # Check if wake word appears anywhere in the text (mid-sentence)
             # This handles cases like "open notepad hey guru"
             if wake_word_variant in text_lower:
@@ -171,80 +169,80 @@ class VoiceInterface:
                 pos = text_lower.find(wake_word_variant)
                 # Remove wake word and normalize whitespace
                 before = text[:pos].strip()
-                after = text[pos + len(wake_word_variant):].strip()
-                
+                after = text[pos + len(wake_word_variant) :].strip()
+
                 # Combine before and after with single space
                 if before and after:
                     stripped = f"{before} {after}"
                 else:
                     stripped = before or after
-                
+
                 # Log the stripping for debugging
                 if stripped != text:
                     pass
-                
+
                 return stripped
-        
+
         # No wake word found, return original text
         return text
-    
+
     def enter_dictation_mode(self):
         """
         Enter DICTATION_MODE state.
-        
+
         In dictation mode:
         - Intent_Pre_Filter is bypassed
         - LLM_Adapter is bypassed
         - TTS_Service is muted
         - Text is typed exactly as spoken
-        
+
         Requirements: 29.1, 29.2, 29.3, 29.4, 29.5
         """
         self.dictation_mode = True
         self._set_state(VoiceState.DICTATION_MODE)
         self.silence_start_time = None
-    
+
     def exit_dictation_mode(self):
         """
         Exit DICTATION_MODE and return to COMMAND_MODE.
-        
+
         Requirements: 29.6, 29.7
         """
         self.dictation_mode = False
         self._set_state(VoiceState.COMMAND_MODE)
         self.silence_start_time = None
-    
+
     def is_dictation_mode(self) -> bool:
         """Check if currently in dictation mode"""
         return self.dictation_mode
-    
+
     def check_dictation_exit_conditions(self, text: str, has_speech: bool) -> bool:
         """
         Check if dictation mode should be exited.
-        
+
         Exit conditions:
         1. 2 seconds of silence detected
         2. User says "done" or "stop writing"
-        
+
         Args:
             text: Current transcribed text (if any)
             has_speech: Whether speech is currently detected
-        
+
         Returns:
             True if should exit dictation mode, False otherwise
-        
+
         Requirements: 29.6, 29.7
         """
         if not self.dictation_mode:
             return False
-        
+
         # Check for exit commands
         if text:
             text_lower = text.lower().strip()
             exit_commands = ["done", "stop writing", "stop typing", "finish"]
             if any(cmd in text_lower for cmd in exit_commands):
                 return True
-        
+
         # Check for silence timeout (2 seconds)
         current_time = time.time()
         if not has_speech:
@@ -255,111 +253,111 @@ class VoiceInterface:
         else:
             # Reset silence timer when speech is detected
             self.silence_start_time = None
-        
+
         return False
-    
+
     def should_enter_dictation_mode(self, text: str) -> bool:
         """
         Check if command should trigger dictation mode entry.
-        
+
         Dictation mode is triggered by commands containing:
         - "write"
         - "type"
         - "dictate"
-        
+
         Args:
             text: Command text to check
-        
+
         Returns:
             True if should enter dictation mode, False otherwise
-        
+
         Requirements: 29.2
         """
         if not text:
             return False
-        
+
         text_lower = text.lower().strip()
         dictation_triggers = ["write", "type", "dictate"]
-        
+
         return any(trigger in text_lower for trigger in dictation_triggers)
-    
+
     def start_listening(self):
         """Start continuous voice recognition using PAL SpeechInput"""
         if self.is_running:
             return
-        
+
         # Start PAL speech input
         self.speech_input.start_listening()
-        
+
         self.is_running = True
         self.listen_thread = threading.Thread(target=self._listen_loop, daemon=True)
         self.listen_thread.start()
-    
+
     def stop_listening(self):
         """Stop voice recognition and cleanup resources"""
         self.is_running = False
-        
+
         # Stop PAL speech input
         self.speech_input.stop_listening()
-        
+
         if self.listen_thread:
             self.listen_thread.join(timeout=2.0)
-    
+
     def speak(self, text: str, interrupt: bool = False):
         """
         Speak text using text-to-speech service.
-        
+
         Args:
             text: Text to speak
             interrupt: Whether to interrupt current speech
         """
-        
+
         if not self.tts_available:
             return
-        
+
         self._set_state(VoiceState.SPEAKING)
-        
+
         # Use TTS service
         priority = TTSPriority.URGENT if interrupt else TTSPriority.NORMAL
         self.tts_service.speak(text, priority, interrupt)
-        
+
         # Wait for TTS to finish speaking before returning to idle
         def wait_for_speech():
             # Wait for speech to start
             time.sleep(0.5)
-            
+
             # Wait while speaking
             while self.tts_service.is_speaking():
                 time.sleep(0.1)
-            
+
             # Small delay after speech completes
             time.sleep(0.5)
-            
+
             # Return to idle state
             self._set_state(VoiceState.IDLE)
-        
+
         threading.Thread(target=wait_for_speech, daemon=True).start()
-    
+
     def _listen_loop(self):
         """
         Main listening loop using PAL SpeechInput interface.
-        
+
         This method continuously processes transcriptions from the PAL backend,
         handling wake word detection, wake word stripping, and conversation
         state management including dictation mode.
-        
+
         Requirements: 22, 29, 30
         """
         wake_word_mode = True
         conversation_turns = 0
-        max_conversation_turns = 5
-        
+        _max_conversation_turns = 5
+
         # Calibrate microphone using PAL
         try:
-            energy_threshold = self.speech_input.calibrate_microphone()
-        except Exception as e:
+            _energy_threshold = self.speech_input.calibrate_microphone()
+        except Exception:
             pass
-        
+
         while self.is_running:
             try:
                 # Determine current mode
@@ -373,54 +371,51 @@ class VoiceInterface:
                         pass
                     else:
                         pass
-                
+
                 # Wait for audio input (PAL handles the actual listening)
                 # This is a simplified approach - in production, PAL would provide
                 # a callback-based or async interface for continuous listening
                 time.sleep(0.5)
-                
+
                 # In a real implementation, PAL would provide audio data
                 # For now, we simulate by checking if PAL has transcription available
                 # This would be replaced with actual PAL callback mechanism
-                
+
                 # Process transcription
                 self._set_state(VoiceState.PROCESSING)
-                
+
                 # NOTE: This is a placeholder for PAL integration
                 # In production, PAL SpeechInput would provide a callback or
                 # async interface for receiving transcriptions
                 # For now, we maintain compatibility by noting this needs
                 # full PAL callback integration
-                
+
                 # Simulated transcription for demonstration
                 # In production, this would come from PAL callback
                 transcribed_text = ""  # Would come from PAL
                 has_speech = False  # Would come from PAL audio detection
-                
+
                 # CRITICAL: Strip wake word if in active state
                 if self.is_active and transcribed_text:
                     transcribed_text = self.strip_wake_word(transcribed_text)
-                
+
                 # Check for wake word detection
                 if wake_word_mode and transcribed_text:
                     text_lower = transcribed_text.lower()
-                    wake_word_detected = any(
-                        wake_word in text_lower 
-                        for wake_word in self.wake_word_variations
-                    )
-                    
+                    wake_word_detected = any(wake_word in text_lower for wake_word in self.wake_word_variations)
+
                     if wake_word_detected:
                         self.is_active = True
                         wake_word_mode = False
                         # Strip wake word from the transcription
                         transcribed_text = self.strip_wake_word(transcribed_text)
                         self._set_state(VoiceState.COMMAND_MODE)
-                
+
                 # Check for dictation mode entry
                 if self.is_active and not self.dictation_mode and transcribed_text:
                     if self.should_enter_dictation_mode(transcribed_text):
                         self.enter_dictation_mode()
-                
+
                 # Check for dictation mode exit
                 if self.dictation_mode:
                     if self.check_dictation_exit_conditions(transcribed_text, has_speech):
@@ -428,7 +423,7 @@ class VoiceInterface:
                         # Speak confirmation
                         if self.tts_available:
                             self.speak("Done", interrupt=False)
-                
+
                 # Check for deactivation commands
                 if self.is_active and transcribed_text:
                     text_lower = transcribed_text.lower()
@@ -439,7 +434,7 @@ class VoiceInterface:
                         conversation_turns = 0
                         if self.dictation_mode:
                             self.exit_dictation_mode()
-                
+
                 # Process command if we have transcribed text
                 if transcribed_text and self.on_command_callback:
                     command = VoiceCommand(
@@ -447,31 +442,31 @@ class VoiceInterface:
                         confidence=0.9,  # Would come from PAL
                         timestamp=time.time(),
                         language="en-US",
-                        wake_word_detected=False  # Already stripped
+                        wake_word_detected=False,  # Already stripped
                     )
                     self.on_command_callback(command)
-                
+
                 time.sleep(1.0)
-                
+
                 # Note: PAL interface could be extended for callback-based transcription
                 # with continuous listening, wake word detection, audio level monitoring,
                 # and silence detection for dictation mode
-                
-            except Exception as e:
+
+            except Exception:
                 self._set_state(VoiceState.ERROR)
                 time.sleep(1)
-    
+
     def _set_state(self, state: VoiceState):
         """Set voice interface state"""
         if self.current_state != state:
             self.current_state = state
             if self.on_state_change_callback:
                 self.on_state_change_callback(state)
-    
+
     def get_state(self) -> VoiceState:
         """Get current voice interface state"""
         return self.current_state
-    
+
     def is_available(self) -> bool:
         """Check if voice interface is available"""
         return SPEECH_RECOGNITION_AVAILABLE and self.tts_available
@@ -480,19 +475,19 @@ class VoiceInterface:
 def create_voice_interface(
     speech_input: Optional[SpeechInput] = None,
     speech_output: Optional[SpeechOutput] = None,
-    wake_word: str = "hey guru"
+    wake_word: str = "hey guru",
 ) -> VoiceInterface:
     """
     Factory function to create voice interface with PAL interfaces.
-    
+
     Args:
         speech_input: Optional SpeechInput (creates default if None)
         speech_output: Optional SpeechOutput (creates default if None)
         wake_word: Wake word to activate voice commands
-    
+
     Returns:
         VoiceInterface instance
-    
+
     Note:
         If PAL interfaces are not provided, this function will attempt to
         create platform-specific implementations automatically.
@@ -505,15 +500,15 @@ def create_voice_interface(
         # Detect platform
         platform = PlatformDetector.detect()
         factory = PlatformBackendFactory(platform)
-        
+
         # Create PAL interfaces
         if speech_input is None:
             speech_input = factory.create_speech_input()
         if speech_output is None:
             speech_output = factory.create_speech_output()
-    
+
     return VoiceInterface(speech_input, speech_output, wake_word)
 
 
 # Export
-__all__ = ['VoiceInterface', 'VoiceCommand', 'VoiceState', 'create_voice_interface']
+__all__ = ["VoiceInterface", "VoiceCommand", "VoiceState", "create_voice_interface"]

@@ -22,6 +22,7 @@ See docs/IOS_LIMITATIONS.md for complete documentation.
 
 Requirements: 34.8, 35.7, 36.6, 37.6, 38.5, 39.2, 39.3, 39.6, 40.5, 41.5
 """
+
 from .application_controller import iOSApplicationController
 from .biometric_authenticator import iOSBiometricAuthenticator
 from .input_automation import iOSInputAutomation
@@ -29,5 +30,11 @@ from .security_enforcer import iOSSecurityEnforcer
 from .speech_input import iOSSpeechInput
 from .speech_output import iOSSpeechOutput
 
-__all__ = ['iOSApplicationController', 'iOSInputAutomation', 'iOSSpeechOutput', 
-           'iOSSpeechInput', 'iOSBiometricAuthenticator', 'iOSSecurityEnforcer']
+__all__ = [
+    "iOSApplicationController",
+    "iOSInputAutomation",
+    "iOSSpeechOutput",
+    "iOSSpeechInput",
+    "iOSBiometricAuthenticator",
+    "iOSSecurityEnforcer",
+]

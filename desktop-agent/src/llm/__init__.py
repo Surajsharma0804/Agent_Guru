@@ -72,63 +72,56 @@ from .safety import ContentSafetyFilter, LLMSafetyEngine, ResponseSanitizer, Saf
 
 __all__ = [
     # Core model router
-    'ModelRouter',
-    'RouterConfiguration',
-    'TaskType',
-    'ProviderType',
-    'TaskConfiguration',
-    'ProviderConfiguration',
-    'get_model_router',
-    
+    "ModelRouter",
+    "RouterConfiguration",
+    "TaskType",
+    "ProviderType",
+    "TaskConfiguration",
+    "ProviderConfiguration",
+    "get_model_router",
     # Integration
-    'LLMSystemIntegration',
-    'get_llm_integration',
-    'initialize_llm_system',
-    
+    "LLMSystemIntegration",
+    "get_llm_integration",
+    "initialize_llm_system",
     # Configuration
-    'LLMConfigManager',
-    'LLMConfigPaths',
-    'get_llm_config_manager',
-    
+    "LLMConfigManager",
+    "LLMConfigPaths",
+    "get_llm_config_manager",
     # Provider implementations
-    'OllamaProvider',
-    'OpenAIProvider',
-    'GeminiProvider',
-    
+    "OllamaProvider",
+    "OpenAIProvider",
+    "GeminiProvider",
     # Legacy adapter (backward compatibility)
-    'LLMAdapter',
-    'LLMProvider',
-    'LegacyGeminiProvider',
-    'LocalProvider',
-    'ProviderCapabilities',
-    'ProviderStatus',
-    
+    "LLMAdapter",
+    "LLMProvider",
+    "LegacyGeminiProvider",
+    "LocalProvider",
+    "ProviderCapabilities",
+    "ProviderStatus",
     # Intent processing
-    'IntentType',
-    'IntentValidator',
-    'StructuredIntent',
-    
+    "IntentType",
+    "IntentValidator",
+    "StructuredIntent",
     # Safety
-    'LLMSafetyEngine',
-    'ContentSafetyFilter',
-    'ResponseSanitizer',
-    'SafeResponse',
-    
+    "LLMSafetyEngine",
+    "ContentSafetyFilter",
+    "ResponseSanitizer",
+    "SafeResponse",
     # Exceptions
-    'LLMException',
-    'ModelRouterError',
-    'ProviderError',
-    'ProviderRegistrationError',
-    'AuthenticationError',
-    'RateLimitExceededError',
-    'NetworkError',
-    'ModelNotFoundError',
-    'CapabilityDetectionError',
-    'ConfigurationError',
-    'TaskRoutingError',
-    'IntentValidationError',
-    'IsolationBreachError',
-    'LLMAdapterError',
+    "LLMException",
+    "ModelRouterError",
+    "ProviderError",
+    "ProviderRegistrationError",
+    "AuthenticationError",
+    "RateLimitExceededError",
+    "NetworkError",
+    "ModelNotFoundError",
+    "CapabilityDetectionError",
+    "ConfigurationError",
+    "TaskRoutingError",
+    "IntentValidationError",
+    "IsolationBreachError",
+    "LLMAdapterError",
 ]
 
-__version__ = '1.0.0'
+__version__ = "1.0.0"

@@ -107,15 +107,12 @@ class WorkstationLockError(Exception):
     """Base exception for workstation locking errors."""
 
 
-
 class WorkstationLockPermissionError(WorkstationLockError):
     """Exception for permission-related lock failures."""
 
 
-
 class WorkstationLockSystemError(WorkstationLockError):
     """Exception for system-level lock failures."""
-
 
 
 class WorkstationLocker:
@@ -276,7 +273,7 @@ class WorkstationLocker:
                 event_id=str(uuid.uuid4()),
                 timestamp=current_time,
                 trigger=trigger,
-                result=lock_result,
+                _result=lock_result,
                 trigger_context=trigger_context,
                 error_details=None if lock_result == WorkstationLockResult.SUCCESS else self._get_last_error_details(),
                 session_id=session_id,
@@ -328,7 +325,7 @@ class WorkstationLocker:
                 )
 
                 # Call Windows LockWorkStation API
-                result = self._user32.LockWorkStation()
+                _result = self._user32.LockWorkStation()
 
                 if result:
                     logger.critical("WORKSTATION LOCKED SUCCESSFULLY", attempt=attempt + 1, api_result=result)
@@ -350,7 +347,7 @@ class WorkstationLocker:
                             continue
                         return WorkstationLockResult.FAILED_API_CALL
 
-            except OSError as e:
+            except OSError:
                 logger.error("OS error during workstation lock attempt", attempt=attempt + 1, error=str(e))
                 if attempt < self.config.max_lock_attempts - 1:
                     time.sleep(self.config.retry_delay_seconds)
@@ -394,7 +391,7 @@ class WorkstationLocker:
             "WORKSTATION LOCK FAILED - SECURITY BREACH POSSIBLE",
             event_id=lock_event.event_id,
             trigger=lock_event.trigger.value,
-            result=lock_event.result.value,
+            _result=lock_event.result.value,
             error_details=lock_event.error_details,
             consecutive_failures=self._consecutive_failures,
         )
@@ -420,7 +417,7 @@ class WorkstationLocker:
         try:
             # Alternative approach using ExitWindowsEx with EWX_LOCK flag
             EWX_LOCK = 0x00000000  # Lock the workstation
-            result = ctypes.windll.user32.ExitWindowsEx(EWX_LOCK, 0)
+            _result = ctypes.windll.user32.ExitWindowsEx(EWX_LOCK, 0)
 
             if result:
                 logger.warning("Fallback lock mechanism succeeded", method="ExitWindowsEx")
@@ -452,7 +449,7 @@ class WorkstationLocker:
         if lock_event.error_details:
             log_data["error_details"] = lock_event.error_details
 
-        if lock_event.result == WorkstationLockResult.SUCCESS:
+        if lock_event._result == WorkstationLockResult.SUCCESS:
             if self.config.log_successful_locks:
                 logger.critical("WORKSTATION LOCKED - SECURITY RESPONSE ACTIVATED", **log_data)
         else:
@@ -493,7 +490,7 @@ class WorkstationLocker:
             # Count events by result
             result_counts = {}
             for result in WorkstationLockResult:
-                result_counts[result.value] = sum(1 for event in self._lock_events if event.result == result)
+                result_counts[result.value] = sum(1 for event in self._lock_events if event._result == result)
 
             # Count events by trigger
             trigger_counts = {}
@@ -601,9 +598,7 @@ class WorkstationLocker:
         """
         return self.emergency_lock_workstation(reason)
 
-    def emergency_lock_workstation(
-        self, reason: str = "Emergency lock triggered"
-    ) -> WorkstationLockEvent:
+    def emergency_lock_workstation(self, reason: str = "Emergency lock triggered") -> WorkstationLockEvent:
         """
         Emergency workstation lock for immediate security response.
 

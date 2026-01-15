@@ -26,10 +26,10 @@ from .speech_input import WindowsSpeechInput
 from .speech_output import WindowsSpeechOutput
 
 __all__ = [
-    'WindowsApplicationController',
-    'WindowsInputAutomation',
-    'WindowsSpeechOutput',
-    'WindowsSpeechInput',
-    'WindowsBiometricAuthenticator',
-    'WindowsSecurityEnforcer',
+    "WindowsApplicationController",
+    "WindowsInputAutomation",
+    "WindowsSpeechOutput",
+    "WindowsSpeechInput",
+    "WindowsBiometricAuthenticator",
+    "WindowsSecurityEnforcer",
 ]

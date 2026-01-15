@@ -56,38 +56,33 @@ from .platform_detector import PlatformDetector
 
 __all__ = [
     # Interfaces
-    'ApplicationController',
-    'InputAutomation',
-    'SpeechOutput',
-    'SpeechInput',
-    'BiometricAuthenticator',
-    'SecurityEnforcer',
-    
+    "ApplicationController",
+    "InputAutomation",
+    "SpeechOutput",
+    "SpeechInput",
+    "BiometricAuthenticator",
+    "SecurityEnforcer",
     # Data structures
-    'AppDescriptor',
-    'AutomationTarget',
-    'Transcription',
-    'AuthResult',
-    
+    "AppDescriptor",
+    "AutomationTarget",
+    "Transcription",
+    "AuthResult",
     # Enums
-    'TTSPriority',
-    'AuthResultStatus',
-    
+    "TTSPriority",
+    "AuthResultStatus",
     # Exceptions
-    'PlatformNotSupportedError',
-    'PlatformCapabilityError',
-    
+    "PlatformNotSupportedError",
+    "PlatformCapabilityError",
     # Platform detection and factory
-    'PlatformDetector',
-    'PlatformBackendFactory',
-    
+    "PlatformDetector",
+    "PlatformBackendFactory",
     # Capability matrix
-    'CapabilityMatrix',
-    'CapabilityLevel',
-    'Capability',
-    'PlatformCapabilities',
-    'get_capability_matrix',
+    "CapabilityMatrix",
+    "CapabilityLevel",
+    "Capability",
+    "PlatformCapabilities",
+    "get_capability_matrix",
 ]
 
-__version__ = '1.0.0'
-__author__ = 'GURU Development Team'
+__version__ = "1.0.0"
+__author__ = "GURU Development Team"

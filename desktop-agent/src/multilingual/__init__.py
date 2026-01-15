@@ -51,25 +51,23 @@ except ImportError:
 __all__ = [
     # Language Detection (implemented)
     "LanguageDetectionEngine",
-    "LanguageDetectionResult", 
+    "LanguageDetectionResult",
     "MixedLanguageResult",
     "LanguageSegment",
     "LanguageConfidenceScore",
     "DetectionMethod",
     "ConfidenceLevel",
     "FallbackReason",
-    "FallbackDecision", 
+    "FallbackDecision",
     "FallbackNotification",
     "FallbackNotificationLevel",
-    
     # Configuration (partial)
     "MultilingualConfig",
     "LanguageConfig",
-    
     # Exceptions (partial)
     "MultilingualError",
     "LanguageDetectionError",
-    "ModelLoadingError"
+    "ModelLoadingError",
 ]
 
 # Version information

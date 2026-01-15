@@ -213,7 +213,7 @@ class WhisperSTTEngine:
 
         self.logger.error(
             f"Model {target_size.value} not found at {model_path}. "
-            f"Please download the model manually from the official whisper.cpp repository "
+            "Please download the model manually from the official whisper.cpp repository "
             f"and place it at {model_path}"
         )
 

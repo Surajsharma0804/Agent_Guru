@@ -1,7 +1,7 @@
 """
 GURU Memory Service - MIRIX Architecture Implementation
 
-This module implements the MIRIX (Multi-agent Intelligent Resource Information eXchange) 
+This module implements the MIRIX (Multi-agent Intelligent Resource Information eXchange)
 memory architecture with six specialized memory types for the GURU Personal Assistant.
 
 The memory service provides:
@@ -38,27 +38,27 @@ from .retention_scheduler import RetentionScheduleConfig, RetentionScheduler
 from .vector_search import VectorSearchEngine
 
 __all__ = [
-    'DatabaseLifecycleOrchestrator',
-    'DatabaseMigrator', 
-    'CoreMemory',
-    'EpisodicMemory',
-    'SemanticMemory', 
-    'ProceduralMemory',
-    'ResourceMemory',
-    'KnowledgeVault',
-    'MetaAgent',
-    'UserIdentityPersistence',
-    'TemporalEventArchive',
-    'ConceptualKnowledgeBase',
-    'WorkflowExecutionLibrary',
-    'DocumentResourceCatalog',
-    'EncryptedCredentialVault',
-    'MemoryEncryption',
-    'VectorSearchEngine',
-    'ConversationStorage',
-    'ConversationTurn',
-    'RetentionScheduler',
-    'RetentionScheduleConfig',
+    "DatabaseLifecycleOrchestrator",
+    "DatabaseMigrator",
+    "CoreMemory",
+    "EpisodicMemory",
+    "SemanticMemory",
+    "ProceduralMemory",
+    "ResourceMemory",
+    "KnowledgeVault",
+    "MetaAgent",
+    "UserIdentityPersistence",
+    "TemporalEventArchive",
+    "ConceptualKnowledgeBase",
+    "WorkflowExecutionLibrary",
+    "DocumentResourceCatalog",
+    "EncryptedCredentialVault",
+    "MemoryEncryption",
+    "VectorSearchEngine",
+    "ConversationStorage",
+    "ConversationTurn",
+    "RetentionScheduler",
+    "RetentionScheduleConfig",
     # 'MemoryRetentionEnforcer',  # Temporarily disabled
-    'MemorySubsystemController'
+    "MemorySubsystemController",
 ]

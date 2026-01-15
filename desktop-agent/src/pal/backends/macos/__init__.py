@@ -30,10 +30,10 @@ from .speech_input import macOSSpeechInput
 from .speech_output import macOSSpeechOutput
 
 __all__ = [
-    'macOSApplicationController',
-    'macOSInputAutomation',
-    'macOSSpeechOutput',
-    'macOSSpeechInput',
-    'macOSBiometricAuthenticator',
-    'macOSSecurityEnforcer',
+    "macOSApplicationController",
+    "macOSInputAutomation",
+    "macOSSpeechOutput",
+    "macOSSpeechInput",
+    "macOSBiometricAuthenticator",
+    "macOSSecurityEnforcer",
 ]

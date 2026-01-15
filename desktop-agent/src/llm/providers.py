@@ -27,6 +27,7 @@ from .intent import IntentValidator, StructuredIntent
 
 class ProviderStatus(Enum):
     """Provider operational status."""
+
     AVAILABLE = "available"
     UNAVAILABLE = "unavailable"
     RATE_LIMITED = "rate_limited"
@@ -38,97 +39,97 @@ class ProviderStatus(Enum):
 @dataclass
 class ProviderCapabilities:
     """Comprehensive provider capability specification."""
-    
+
     # Core capabilities
     supports_structured_output: bool = False
     supports_streaming: bool = False
     supports_function_calling: bool = False
     supports_image_input: bool = False
     supports_audio_input: bool = False
-    
+
     # Model specifications
     max_tokens: int = 4096
     context_window: int = 4096
     model_name: str = "unknown"
     model_version: str = "unknown"
-    
+
     # Rate limits
     requests_per_minute: int = 60
     requests_per_hour: int = 1000
     requests_per_day: int = 10000
     tokens_per_minute: int = 100000
-    
+
     # Latency characteristics
     average_latency_ms: int = 1000
     p95_latency_ms: int = 3000
-    
+
     # Cost information (if applicable)
     cost_per_1k_tokens: Optional[float] = None
-    
+
     # Security features
     supports_content_filtering: bool = True
     supports_safety_classification: bool = False
-    
+
     # Provider metadata
     provider_type: Literal["cloud", "local", "hybrid"] = "cloud"
     requires_api_key: bool = True
     requires_internet: bool = True
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert capabilities to dictionary."""
         return {
-            'supports_structured_output': self.supports_structured_output,
-            'supports_streaming': self.supports_streaming,
-            'supports_function_calling': self.supports_function_calling,
-            'supports_image_input': self.supports_image_input,
-            'supports_audio_input': self.supports_audio_input,
-            'max_tokens': self.max_tokens,
-            'context_window': self.context_window,
-            'model_name': self.model_name,
-            'model_version': self.model_version,
-            'requests_per_minute': self.requests_per_minute,
-            'requests_per_hour': self.requests_per_hour,
-            'requests_per_day': self.requests_per_day,
-            'tokens_per_minute': self.tokens_per_minute,
-            'average_latency_ms': self.average_latency_ms,
-            'p95_latency_ms': self.p95_latency_ms,
-            'cost_per_1k_tokens': self.cost_per_1k_tokens,
-            'supports_content_filtering': self.supports_content_filtering,
-            'supports_safety_classification': self.supports_safety_classification,
-            'provider_type': self.provider_type,
-            'requires_api_key': self.requires_api_key,
-            'requires_internet': self.requires_internet
+            "supports_structured_output": self.supports_structured_output,
+            "supports_streaming": self.supports_streaming,
+            "supports_function_calling": self.supports_function_calling,
+            "supports_image_input": self.supports_image_input,
+            "supports_audio_input": self.supports_audio_input,
+            "max_tokens": self.max_tokens,
+            "context_window": self.context_window,
+            "model_name": self.model_name,
+            "model_version": self.model_version,
+            "requests_per_minute": self.requests_per_minute,
+            "requests_per_hour": self.requests_per_hour,
+            "requests_per_day": self.requests_per_day,
+            "tokens_per_minute": self.tokens_per_minute,
+            "average_latency_ms": self.average_latency_ms,
+            "p95_latency_ms": self.p95_latency_ms,
+            "cost_per_1k_tokens": self.cost_per_1k_tokens,
+            "supports_content_filtering": self.supports_content_filtering,
+            "supports_safety_classification": self.supports_safety_classification,
+            "provider_type": self.provider_type,
+            "requires_api_key": self.requires_api_key,
+            "requires_internet": self.requires_internet,
         }
 
 
 @dataclass
 class RateLimitState:
     """Track rate limiting state for a provider."""
-    
+
     requests_this_minute: int = 0
     requests_this_hour: int = 0
     requests_this_day: int = 0
     tokens_this_minute: int = 0
-    
+
     last_minute_reset: datetime = field(default_factory=datetime.utcnow)
     last_hour_reset: datetime = field(default_factory=datetime.utcnow)
     last_day_reset: datetime = field(default_factory=datetime.utcnow)
-    
+
     def reset_if_needed(self):
         """Reset counters if time windows have passed."""
         now = datetime.utcnow()
-        
+
         # Reset minute counter
         if now - self.last_minute_reset >= timedelta(minutes=1):
             self.requests_this_minute = 0
             self.tokens_this_minute = 0
             self.last_minute_reset = now
-            
+
         # Reset hour counter
         if now - self.last_hour_reset >= timedelta(hours=1):
             self.requests_this_hour = 0
             self.last_hour_reset = now
-            
+
         # Reset day counter
         if now - self.last_day_reset >= timedelta(days=1):
             self.requests_this_day = 0
@@ -138,16 +139,12 @@ class RateLimitState:
 class LLMProvider(ABC):
     """
     Abstract base class for all LLM providers.
-    
+
     Enforces the critical security invariant: providers are advisory only,
     never authoritative. All outputs must be structured intents.
     """
-    
-    def __init__(
-        self, 
-        provider_name: str,
-        config: Optional[Dict[str, Any]] = None
-    ):
+
+    def __init__(self, provider_name: str, config: Optional[Dict[str, Any]] = None):
         self.provider_name = provider_name
         self.config = config or {}
         self.status = ProviderStatus.UNKNOWN
@@ -155,97 +152,89 @@ class LLMProvider(ABC):
         self.rate_limit_state = RateLimitState()
         self.intent_validator = IntentValidator()
         self._lock = Lock()
-        
+
         # Initialize logging
         self.logger = logging.getLogger(f"llm.provider.{provider_name}")
-        
+
     @abstractmethod
     async def initialize(self) -> bool:
         """
         Initialize the provider and detect capabilities.
-        
+
         Returns:
             bool: True if initialization successful
         """
-        
+
     @abstractmethod
-    async def generate_intent(
-        self, 
-        user_input: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> StructuredIntent:
+    async def generate_intent(self, user_input: str, context: Optional[Dict[str, Any]] = None) -> StructuredIntent:
         """
         Generate structured intent from user input.
-        
+
         CRITICAL: This method MUST return structured intent only.
         Direct execution is strictly forbidden.
-        
+
         Args:
             user_input: User's natural language input
             context: Optional context information
-            
+
         Returns:
             StructuredIntent: Validated structured intent
-            
+
         Raises:
             ProviderError: If generation fails
             RateLimitExceededError: If rate limits exceeded
         """
-        
+
     @abstractmethod
     async def detect_capabilities(self) -> ProviderCapabilities:
         """
         Detect and return provider capabilities.
-        
+
         Returns:
             ProviderCapabilities: Comprehensive capability specification
         """
-        
+
     @abstractmethod
     async def health_check(self) -> bool:
         """
         Perform provider health check.
-        
+
         Returns:
             bool: True if provider is healthy
         """
-        
+
     def check_rate_limits(self, estimated_tokens: int = 100) -> bool:
         """
         Check if request would exceed rate limits.
-        
+
         Args:
             estimated_tokens: Estimated token count for request
-            
+
         Returns:
             bool: True if request is within limits
         """
         with self._lock:
             self.rate_limit_state.reset_if_needed()
-            
+
             if not self.capabilities:
                 return True  # No limits if capabilities unknown
-                
+
             # Check request limits
-            if (self.rate_limit_state.requests_this_minute >= 
-                self.capabilities.requests_per_minute):
+            if self.rate_limit_state.requests_this_minute >= self.capabilities.requests_per_minute:
                 return False
-                
-            if (self.rate_limit_state.requests_this_hour >= 
-                self.capabilities.requests_per_hour):
+
+            if self.rate_limit_state.requests_this_hour >= self.capabilities.requests_per_hour:
                 return False
-                
-            if (self.rate_limit_state.requests_this_day >= 
-                self.capabilities.requests_per_day):
+
+            if self.rate_limit_state.requests_this_day >= self.capabilities.requests_per_day:
                 return False
-                
+
             # Check token limits
-            if (self.rate_limit_state.tokens_this_minute + estimated_tokens > 
-                self.capabilities.tokens_per_minute):
+            if self.rate_limit_state.tokens_this_minute + estimated_tokens > self.capabilities.tokens_per_minute:
                 return False
-                
+
             return True
-            
+
     def record_request(self, token_count: int = 100):
         """Record a successful request for rate limiting."""
         with self._lock:
@@ -253,40 +242,40 @@ class LLMProvider(ABC):
             self.rate_limit_state.requests_this_hour += 1
             self.rate_limit_state.requests_this_day += 1
             self.rate_limit_state.tokens_this_minute += token_count
-            
+
     def get_status(self) -> Dict[str, Any]:
         """Get comprehensive provider status."""
         return {
-            'provider_name': self.provider_name,
-            'status': self.status.value,
-            'capabilities': self.capabilities.to_dict() if self.capabilities else None,
-            'rate_limit_state': {
-                'requests_this_minute': self.rate_limit_state.requests_this_minute,
-                'requests_this_hour': self.rate_limit_state.requests_this_hour,
-                'requests_this_day': self.rate_limit_state.requests_this_day,
-                'tokens_this_minute': self.rate_limit_state.tokens_this_minute
-            }
+            "provider_name": self.provider_name,
+            "status": self.status.value,
+            "capabilities": self.capabilities.to_dict() if self.capabilities else None,
+            "rate_limit_state": {
+                "requests_this_minute": self.rate_limit_state.requests_this_minute,
+                "requests_this_hour": self.rate_limit_state.requests_this_hour,
+                "requests_this_day": self.rate_limit_state.requests_this_day,
+                "tokens_this_minute": self.rate_limit_state.tokens_this_minute,
+            },
         }
 
 
 class GeminiProvider(LLMProvider):
     """
     Google Gemini provider implementation with comprehensive security controls.
-    
+
     Features:
     - Structured output generation
     - Rate limiting and backoff
     - Content safety filtering
     - Authentication management
     """
-    
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__("gemini", config)
-        self.api_key = self.config.get('api_key')
-        self.model_name = self.config.get('model_name', 'gemini-pro')
-        self.base_url = self.config.get('base_url', 'https://generativelanguage.googleapis.com')
-        self.timeout = self.config.get('timeout', 30)
-        
+        self.api_key = self.config.get("api_key")
+        self.model_name = self.config.get("model_name", "gemini-pro")
+        self.base_url = self.config.get("base_url", "https://generativelanguage.googleapis.com")
+        self.timeout = self.config.get("timeout", 30)
+
     async def initialize(self) -> bool:
         """Initialize Gemini provider."""
         try:
@@ -294,10 +283,10 @@ class GeminiProvider(LLMProvider):
                 self.logger.error("Gemini API key not provided")
                 self.status = ProviderStatus.AUTHENTICATION_FAILED
                 return False
-                
+
             # Detect capabilities
             self.capabilities = await self.detect_capabilities()
-            
+
             # Perform health check
             if await self.health_check():
                 self.status = ProviderStatus.AVAILABLE
@@ -306,50 +295,40 @@ class GeminiProvider(LLMProvider):
             else:
                 self.status = ProviderStatus.UNAVAILABLE
                 return False
-                
+
         except Exception as e:
             self.logger.error(f"Failed to initialize Gemini provider: {e}")
             self.status = ProviderStatus.UNAVAILABLE
             return False
-            
-    async def generate_intent(
-        self, 
-        user_input: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> StructuredIntent:
+
+    async def generate_intent(self, user_input: str, context: Optional[Dict[str, Any]] = None) -> StructuredIntent:
         """Generate structured intent using Gemini."""
-        
+
         # Check rate limits
         if not self.check_rate_limits():
-            raise RateLimitExceededError(
-                "Gemini rate limit exceeded",
-                provider_name=self.provider_name,
-                retry_after=60
-            )
-            
+            raise RateLimitExceededError("Gemini rate limit exceeded", provider_name=self.provider_name, retry_after=60)
+
         try:
             # Construct prompt for structured output
             prompt = self._build_structured_prompt(user_input, context)
-            
+
             # Make API request (simulated - would use actual Gemini API)
             response = await self._make_api_request(prompt)
-            
+
             # Validate and parse response
             intent = self.intent_validator.validate_raw_response(response)
-            
+
             # Record successful request
             self.record_request(len(response))
-            
+
             return intent
-            
+
         except Exception as e:
             self.logger.error(f"Failed to generate intent: {e}")
             raise ProviderError(
-                f"Gemini intent generation failed: {str(e)}",
-                provider_name=self.provider_name,
-                provider_error=e
+                f"Gemini intent generation failed: {str(e)}", provider_name=self.provider_name, provider_error=e
             )
-            
+
     async def detect_capabilities(self) -> ProviderCapabilities:
         """Detect Gemini capabilities."""
         return ProviderCapabilities(
@@ -373,9 +352,9 @@ class GeminiProvider(LLMProvider):
             supports_safety_classification=True,
             provider_type="cloud",
             requires_api_key=True,
-            requires_internet=True
+            requires_internet=True,
         )
-        
+
     async def health_check(self) -> bool:
         """Perform Gemini health check."""
         try:
@@ -384,14 +363,10 @@ class GeminiProvider(LLMProvider):
             return True
         except Exception:
             return False
-            
-    def _build_structured_prompt(
-        self, 
-        user_input: str, 
-        context: Optional[Dict[str, Any]] = None
-    ) -> str:
+
+    def _build_structured_prompt(self, user_input: str, context: Optional[Dict[str, Any]] = None) -> str:
         """Build prompt that enforces structured output."""
-        
+
         system_prompt = """
 You are GURU's intent parser. You MUST respond with valid JSON only.
 
@@ -417,58 +392,61 @@ Response format:
   "context": "User wants to type greeting"
 }
 """
-        
+
         user_prompt = f"User input: {user_input}"
         if context:
             user_prompt += f"\nContext: {json.dumps(context)}"
-            
+
         return f"{system_prompt}\n\n{user_prompt}"
-        
+
     async def _make_api_request(self, prompt: str) -> str:
         """Make API request to Gemini (simulated)."""
-        
+
         # Simulate API call delay
         await asyncio.sleep(0.5)
-        
+
         # Simulate structured response
-        return json.dumps({
-            "intent_type": "type_text",
-            "parameters": {"text": "Hello from Gemini"},
-            "confidence": 0.95,
-            "context": "Generated by Gemini provider"
-        })
+        return json.dumps(
+            {
+                "intent_type": "type_text",
+                "parameters": {"text": "Hello from Gemini"},
+                "confidence": 0.95,
+                "context": "Generated by Gemini provider",
+            }
+        )
 
 
 class LocalProvider(LLMProvider):
     """
     Local LLM provider for on-device inference.
-    
+
     Features:
     - Complete privacy (no network calls)
     - Quantized model support
     - Resource monitoring
     - Offline operation
     """
-    
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__("local", config)
-        self.model_path = self.config.get('model_path', './models/local-llm.gguf')
-        self.max_memory_mb = self.config.get('max_memory_mb', 4096)
-        self.threads = self.config.get('threads', 4)
-        
+        self.model_path = self.config.get("model_path", "./models/local-llm.ggu")
+        self.max_memory_mb = self.config.get("max_memory_mb", 4096)
+        self.threads = self.config.get("threads", 4)
+
     async def initialize(self) -> bool:
         """Initialize local LLM provider."""
         try:
             # Check if model file exists
             import os
+
             if not os.path.exists(self.model_path):
                 self.logger.error(f"Local model not found: {self.model_path}")
                 self.status = ProviderStatus.UNAVAILABLE
                 return False
-                
+
             # Initialize model (simulated)
             self.capabilities = await self.detect_capabilities()
-            
+
             if await self.health_check():
                 self.status = ProviderStatus.AVAILABLE
                 self.logger.info("Local provider initialized successfully")
@@ -476,39 +454,31 @@ class LocalProvider(LLMProvider):
             else:
                 self.status = ProviderStatus.UNAVAILABLE
                 return False
-                
+
         except Exception as e:
             self.logger.error(f"Failed to initialize local provider: {e}")
             self.status = ProviderStatus.UNAVAILABLE
             return False
-            
-    async def generate_intent(
-        self, 
-        user_input: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> StructuredIntent:
+
+    async def generate_intent(self, user_input: str, context: Optional[Dict[str, Any]] = None) -> StructuredIntent:
         """Generate structured intent using local model."""
-        
+
         try:
             # Build prompt
             prompt = self._build_local_prompt(user_input, context)
-            
+
             # Generate response (simulated)
             response = await self._generate_local_response(prompt)
-            
+
             # Validate and parse
             intent = self.intent_validator.validate_raw_response(response)
-            
+
             return intent
-            
+
         except Exception as e:
             self.logger.error(f"Local intent generation failed: {e}")
-            raise ProviderError(
-                f"Local provider failed: {str(e)}",
-                provider_name=self.provider_name,
-                provider_error=e
-            )
-            
+            raise ProviderError(f"Local provider failed: {str(e)}", provider_name=self.provider_name, provider_error=e)
+
     async def detect_capabilities(self) -> ProviderCapabilities:
         """Detect local model capabilities."""
         return ProviderCapabilities(
@@ -532,9 +502,9 @@ class LocalProvider(LLMProvider):
             supports_safety_classification=False,
             provider_type="local",
             requires_api_key=False,
-            requires_internet=False
+            requires_internet=False,
         )
-        
+
     async def health_check(self) -> bool:
         """Perform local provider health check."""
         try:
@@ -543,15 +513,11 @@ class LocalProvider(LLMProvider):
             return True
         except Exception:
             return False
-            
-    def _build_local_prompt(
-        self, 
-        user_input: str, 
-        context: Optional[Dict[str, Any]] = None
-    ) -> str:
+
+    def _build_local_prompt(self, user_input: str, context: Optional[Dict[str, Any]] = None) -> str:
         """Build prompt optimized for local model."""
-        
-        prompt = f"""<|system|>
+
+        prompt = """<|system|>
 You are GURU's local intent parser. Respond with JSON only.
 
 Valid intents: type_text, press_key, mouse_action, launch_app, get_status
@@ -565,17 +531,19 @@ Format:
 <|assistant|>
 """
         return prompt
-        
+
     async def _generate_local_response(self, prompt: str) -> str:
         """Generate response using local model (simulated)."""
-        
+
         # Simulate local inference delay
         await asyncio.sleep(1.0)
-        
+
         # Simulate local model response
-        return json.dumps({
-            "intent_type": "type_text",
-            "parameters": {"text": "Hello from local model"},
-            "confidence": 0.85,
-            "context": "Generated by local provider"
-        })
+        return json.dumps(
+            {
+                "intent_type": "type_text",
+                "parameters": {"text": "Hello from local model"},
+                "confidence": 0.85,
+                "context": "Generated by local provider",
+            }
+        )

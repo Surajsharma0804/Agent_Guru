@@ -22,9 +22,4 @@ from .input_audit_logger import InputAuditLogger
 from .input_validator import InputValidator
 from .windows_input_engine import WindowsInputEngine
 
-__all__ = [
-    'WindowsInputEngine',
-    'InputValidator', 
-    'AuthorityGate',
-    'InputAuditLogger'
-]
+__all__ = ["WindowsInputEngine", "InputValidator", "AuthorityGate", "InputAuditLogger"]

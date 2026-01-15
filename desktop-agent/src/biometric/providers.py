@@ -107,15 +107,12 @@ class BiometricProviderError(Exception):
     """Base exception for biometric provider errors."""
 
 
-
 class BiometricProviderNotAvailableError(BiometricProviderError):
     """Raised when a biometric provider is not available."""
 
 
-
 class BiometricVerificationTimeoutError(BiometricProviderError):
     """Raised when biometric verification times out."""
-
 
 
 class BiometricProvider(ABC):
@@ -691,7 +688,7 @@ class BiometricProviderSecurityBoundary:
 
 
 def create_biometric_provider_manager(
-    config: Optional[BiometricProviderConfig] = None
+    config: Optional[BiometricProviderConfig] = None,
 ) -> BiometricProviderSecurityBoundary:
     """
     Factory function to create a biometric provider manager.

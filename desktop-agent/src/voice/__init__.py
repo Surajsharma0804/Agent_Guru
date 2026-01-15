@@ -42,7 +42,6 @@ __all__ = [
     "TranscriptionResult",
     "get_whisper_engine",
     "initialize_whisper_engine",
-    
     # Legacy components
     "WhisperSTTEngine",
     "SpeakerVerificationEngine",

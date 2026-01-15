@@ -108,7 +108,6 @@ class BiometricFailureDetectionError(Exception):
     """Base exception for biometric failure detection errors."""
 
 
-
 class EnhancedBiometricFailureDetector:
     """
     Enhanced biometric verification failure detector.
@@ -473,7 +472,7 @@ class EnhancedBiometricFailureDetector:
             return BiometricFailureType.HARDWARE_FAILURE
         elif "cancelled" in failure_reason_lower or "user" in failure_reason_lower:
             return BiometricFailureType.USER_CANCELLED
-        elif "spoof" in failure_reason_lower or "fake" in failure_reason_lower:
+        elif "spoo" in failure_reason_lower or "fake" in failure_reason_lower:
             return BiometricFailureType.SPOOFING_DETECTED
         elif "enrollment" in failure_reason_lower or "not enrolled" in failure_reason_lower:
             return BiometricFailureType.ENROLLMENT_MISSING
@@ -533,14 +532,14 @@ class EnhancedBiometricFailureDetector:
         if self.config.cross_provider_analysis:
             recent_factors = set(e.factor for e in recent_attempts)
             if len(recent_factors) >= 2:
-              # Multiple factors being attacked
+                # Multiple factors being attacked
                 return True
 
         # Check for confidence manipulation patterns
         if len(recent_attempts) >= 3:
             confidences = [e.confidence_score for e in recent_attempts]
             if all(c < 0.3 for c in confidences):
-              # All very low confidence
+                # All very low confidence
                 return True
 
         return False
@@ -564,7 +563,7 @@ class EnhancedBiometricFailureDetector:
             recent_providers = [e.provider_type for e in recent_events]
             unique_providers = set(recent_providers)
             if len(unique_providers) >= 2:
-              # Switching between providers
+                # Switching between providers
                 return True
 
         # Check against behavioral baseline
@@ -839,7 +838,7 @@ class EnhancedBiometricFailureDetector:
 
                     # Limit total events stored
                     if len(self._failure_events) > self.config.max_failure_events_stored:
-                        self._failure_events = self._failure_events[-self.config.max_failure_events_stored:]
+                        self._failure_events = self._failure_events[-self.config.max_failure_events_stored :]
 
                     # Perform periodic analysis
                     self._periodic_analysis()
@@ -878,8 +877,7 @@ class EnhancedBiometricFailureDetector:
 
 
 def create_enhanced_biometric_failure_detector(
-    config: Optional[BiometricFailureDetectionConfig] = None,
-    intrusion_detector: Optional["IntrusionDetector"] = None
+    config: Optional[BiometricFailureDetectionConfig] = None, intrusion_detector: Optional["IntrusionDetector"] = None
 ) -> EnhancedBiometricFailureDetector:
     """
     Factory function to create an enhanced biometric failure detector.

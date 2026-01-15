@@ -9,10 +9,10 @@ from .conversation_manager import ConversationManager, create_conversation_manag
 from .voice_interface import VoiceInterface, create_voice_interface
 
 __all__ = [
-    'GURUAvatarWindow',
-    'create_guru_window',
-    'VoiceInterface',
-    'create_voice_interface',
-    'ConversationManager',
-    'create_conversation_manager'
+    "GURUAvatarWindow",
+    "create_guru_window",
+    "VoiceInterface",
+    "create_voice_interface",
+    "ConversationManager",
+    "create_conversation_manager",
 ]

@@ -49,7 +49,7 @@ class VoiceFeatures:
         return {
             "mfcc_features": self.mfcc_features.tolist(),
             "spectral_centroid": float(self.spectral_centroid),
-            "spectral_rolloff": float(self.spectral_rolloff),
+            "spectral_rollof": float(self.spectral_rolloff),
             "zero_crossing_rate": float(self.zero_crossing_rate),
             "pitch_mean": float(self.pitch_mean),
             "pitch_std": float(self.pitch_std),
@@ -59,13 +59,12 @@ class VoiceFeatures:
         }
 
     @classmethod
-    def from_dict(cls, data:
-        Dict[str, Any]) -> "VoiceFeatures":
+    def from_dict(cls, data: Dict[str, Any]) -> "VoiceFeatures":
         """Create features from dictionary"""
         return cls(
             mfcc_features=np.array(data["mfcc_features"]),
             spectral_centroid=data["spectral_centroid"],
-            spectral_rolloff=data["spectral_rolloff"],
+            spectral_rolloff=data["spectral_rollof"],
             zero_crossing_rate=data["zero_crossing_rate"],
             pitch_mean=data["pitch_mean"],
             pitch_std=data["pitch_std"],
@@ -108,7 +107,7 @@ class SpeakerProfile:
         max_formants = max(len(f.formant_frequencies) for f in self.voice_features)
         formant_matrix = np.zeros((len(self.voice_features), max_formants))
         for i, f in enumerate(self.voice_features):
-            formant_matrix[i, :len(f.formant_frequencies)] = f.formant_frequencies
+            formant_matrix[i, : len(f.formant_frequencies)] = f.formant_frequencies
         avg_formants = np.mean(formant_matrix, axis=0).tolist()
 
         # Average energy distribution
@@ -136,13 +135,13 @@ class SpeakerProfile:
 class VerificationAttempt:
     """Record of a verification attempt"""
 
-    timestamp:float
-    speaker_id:str
-    result:VerificationResult
-    confidence_score:float
-    features_similarity:float
-    security_flags:List[str]
-    processing_time_ms:int
+    timestamp: float
+    speaker_id: str
+    result: VerificationResult
+    confidence_score: float
+    features_similarity: float
+    security_flags: List[str]
+    processing_time_ms: int
 
 
 class SpeakerVerificationEngine:
@@ -160,13 +159,12 @@ class SpeakerVerificationEngine:
 
     def __init__(
         self,
-        profiles_dir:
-            Optional[Path] = None,
-        default_confidence_threshold:float = 0.75,
-        min_enrollment_samples:int = 3,
-        max_enrollment_samples:int = 10,
-        enable_security_checks:bool = True,
-        enable_adaptive_thresholds:bool = True,
+        profiles_dir: Optional[Path] = None,
+        default_confidence_threshold: float = 0.75,
+        min_enrollment_samples: int = 3,
+        max_enrollment_samples: int = 10,
+        enable_security_checks: bool = True,
+        enable_adaptive_thresholds: bool = True,
     ):
         self.profiles_dir = profiles_dir or Path.home() / ".guru" / "voice_profiles"
         self.default_confidence_threshold = default_confidence_threshold
@@ -179,10 +177,10 @@ class SpeakerVerificationEngine:
         self._lock = threading.RLock()
 
         # In-memory profiles cache
-        self._profiles:Dict[str, SpeakerProfile] = {}
+        self._profiles: Dict[str, SpeakerProfile] = {}
 
         # Verification history for monitoring
-        self._verification_history:List[VerificationAttempt] = []
+        self._verification_history: List[VerificationAttempt] = []
         self._max_history_size = 1000
 
         # Statistics
@@ -216,8 +214,7 @@ class SpeakerVerificationEngine:
             self.logger.error(f"Failed to create profiles directory: {e}")
             raise RuntimeError(f"Cannot initialize profiles directory: {e}")
 
-    def _extract_voice_features(self, audio:
-         np.ndarray, sample_rate: int = 16000) -> VoiceFeatures:
+    def _extract_voice_features(self, audio: np.ndarray, sample_rate: int = 16000) -> VoiceFeatures:
         """
         Extract comprehensive voice features from audio
 
@@ -268,8 +265,7 @@ class SpeakerVerificationEngine:
             self.logger.error(f"Feature extraction failed: {e}")
             raise RuntimeError(f"Voice feature extraction failed: {e}")
 
-    def _compute_mfcc(self, audio:
-         np.ndarray, sample_rate: int, n_mfcc: int = 13) -> np.ndarray:
+    def _compute_mfcc(self, audio: np.ndarray, sample_rate: int, n_mfcc: int = 13) -> np.ndarray:
         """Compute MFCC features using proper spectral analysis"""
         from scipy.fft import fft
         from scipy.signal import get_window
@@ -283,7 +279,7 @@ class SpeakerVerificationEngine:
 
         frames = []
         for i in range(0, len(pre_emphasized) - frame_size, frame_stride):
-            frame = pre_emphasized[i:i + frame_size]
+            frame = pre_emphasized[i : i + frame_size]
             # Apply Hamming window
             windowed = frame * get_window("hamming", len(frame))
             frames.append(windowed)
@@ -297,10 +293,10 @@ class SpeakerVerificationEngine:
         for frame in frames:
             # Zero-pad to nfft length
             padded_frame = np.zeros(nfft)
-            padded_frame[:len(frame)] = frame
+            padded_frame[: len(frame)] = frame
 
             fft_result = fft(padded_frame)
-            power_spectrum = np.abs(fft_result[:nfft // 2]) ** 2
+            power_spectrum = np.abs(fft_result[: nfft // 2]) ** 2
             power_spectra.append(power_spectrum)
 
         # Average across frames
@@ -320,8 +316,7 @@ class SpeakerVerificationEngine:
 
         return mfcc
 
-    def _create_mel_filter_bank(self, nfft:
-        int, sample_rate:int, n_mels:int = 26) -> np.ndarray:
+    def _create_mel_filter_bank(self, nfft: int, sample_rate: int, n_mels: int = 26) -> np.ndarray:
         """Create mel-scale filter bank"""
 
         # Helper function to convert Hz to mel scale
@@ -359,8 +354,7 @@ class SpeakerVerificationEngine:
 
         return filter_bank
 
-    def _dct(self, x:
-        np.ndarray) -> np.ndarray:
+    def _dct(self, x: np.ndarray) -> np.ndarray:
         """Discrete Cosine Transform"""
         N = len(x)
         result = np.zeros(N)
@@ -373,23 +367,21 @@ class SpeakerVerificationEngine:
 
         return result
 
-    def _compute_spectral_centroid(self, audio:
-        np.ndarray, sample_rate:int) -> float:
+    def _compute_spectral_centroid(self, audio: np.ndarray, sample_rate: int) -> float:
         """Compute spectral centroid (brightness measure)"""
         fft = np.fft.fft(audio)
-        magnitude = np.abs(fft[:len(fft) // 2])
-        freqs = np.fft.fftfreq(len(audio), 1 / sample_rate)[:len(fft) // 2]
+        magnitude = np.abs(fft[: len(fft) // 2])
+        freqs = np.fft.fftfreq(len(audio), 1 / sample_rate)[: len(fft) // 2]
 
         # Weighted average of frequencies
         centroid = np.sum(freqs * magnitude) / (np.sum(magnitude) + 1e-10)
         return float(centroid)
 
-    def _compute_spectral_rolloff(self, audio:
-        np.ndarray, sample_rate:int, rolloff_percent:float = 0.85) -> float:
+    def _compute_spectral_rolloff(self, audio: np.ndarray, sample_rate: int, rolloff_percent: float = 0.85) -> float:
         """Compute spectral rolloff (frequency below which X% of energy is contained)"""
         fft = np.fft.fft(audio)
-        magnitude = np.abs(fft[:len(fft) // 2])
-        freqs = np.fft.fftfreq(len(audio), 1 / sample_rate)[:len(fft) // 2]
+        magnitude = np.abs(fft[: len(fft) // 2])
+        freqs = np.fft.fftfreq(len(audio), 1 / sample_rate)[: len(fft) // 2]
 
         total_energy = np.sum(magnitude)
         cumulative_energy = np.cumsum(magnitude)
@@ -397,16 +389,15 @@ class SpeakerVerificationEngine:
         rolloff_idx = np.where(cumulative_energy >= rolloff_percent * total_energy)[0]
         if len(rolloff_idx) > 0:
             return float(freqs[rolloff_idx[0]])
-        else:return float(freqs[-1])
+        else:
+            return float(freqs[-1])
 
-    def _compute_zero_crossing_rate(self, audio:
-        np.ndarray) -> float:
+    def _compute_zero_crossing_rate(self, audio: np.ndarray) -> float:
         """Compute zero crossing rate"""
         zero_crossings = np.sum(np.abs(np.diff(np.sign(audio))))
         return float(zero_crossings / (2 * len(audio)))
 
-    def _compute_pitch_features(self, audio:
-        np.ndarray, sample_rate:int) -> Tuple[float, float]:
+    def _compute_pitch_features(self, audio: np.ndarray, sample_rate: int) -> Tuple[float, float]:
         """Compute pitch mean and standard deviation using advanced autocorrelation"""
         try:
             # Frame-based pitch analysis for more robust estimation
@@ -416,19 +407,20 @@ class SpeakerVerificationEngine:
             pitch_values = []
 
             for i in range(0, len(audio) - frame_size, frame_stride):
-                frame = audio[i:i + frame_size]
+                frame = audio[i : i + frame_size]
 
                 # Apply window to reduce edge effects
                 windowed_frame = frame * np.hamming(len(frame))
 
                 # Compute autocorrelation
                 autocorr = np.correlate(windowed_frame, windowed_frame, mode="full")
-                autocorr = autocorr[len(autocorr) // 2:]
+                autocorr = autocorr[len(autocorr) // 2 :]
 
                 # Normalize autocorrelation
                 if autocorr[0] > 0:
                     autocorr = autocorr / autocorr[0]
-                else:continue
+                else:
+                    continue
 
                 # Define search range for pitch (50 Hz to 500 Hz)
                 min_period = int(sample_rate / 500)  # 500 Hz max
@@ -441,8 +433,7 @@ class SpeakerVerificationEngine:
                     continue
 
                 # Find the period with maximum autocorrelation in the valid range
-                search_range = autocorr[min_period:
-            max_period]
+                search_range = autocorr[min_period:max_period]
                 if len(search_range) == 0:
                     continue
 
@@ -454,7 +445,8 @@ class SpeakerVerificationEngine:
                     y1, y2, y3 = autocorr[peak_idx - 1], autocorr[peak_idx], autocorr[peak_idx + 1]
                     x0 = 0.5 * (y1 - y3) / (y1 - 2 * y2 + y3)
                     refined_peak = peak_idx + x0
-                else:refined_peak = peak_idx
+                else:
+                    refined_peak = peak_idx
 
                 # Convert to frequency
                 if refined_peak > 0:
@@ -485,8 +477,7 @@ class SpeakerVerificationEngine:
             self.logger.warning(f"Pitch analysis failed: {e}")
             return 150.0, 20.0  # Default values
 
-    def _compute_formants(self, audio:
-        np.ndarray, sample_rate:int) -> List[float]:
+    def _compute_formants(self, audio: np.ndarray, sample_rate: int) -> List[float]:
         """Compute formant frequencies using Linear Predictive Coding (LPC) analysis"""
         try:
             # Apply pre-emphasis
@@ -501,14 +492,14 @@ class SpeakerVerificationEngine:
 
             # Autocorrelation method for LPC coefficients
             autocorr = np.correlate(windowed, windowed, mode="full")
-            autocorr = autocorr[len(autocorr) // 2:]
+            autocorr = autocorr[len(autocorr) // 2 :]
 
             if len(autocorr) < order + 1:
                 # Fallback to spectral peak detection
                 return self._compute_formants_spectral(audio, sample_rate)
 
             # Solve Yule-Walker equations using Levinson-Durbin algorithm
-            lpc_coeffs = self._levinson_durbin(autocorr[:order + 1])
+            lpc_coeffs = self._levinson_durbin(autocorr[: order + 1])
 
             # Find roots of LPC polynomial
             roots = np.roots(lpc_coeffs)
@@ -546,8 +537,7 @@ class SpeakerVerificationEngine:
             # Fallback to spectral method
             return self._compute_formants_spectral(audio, sample_rate)
 
-    def _levinson_durbin(self, autocorr:
-        np.ndarray) -> np.ndarray:
+    def _levinson_durbin(self, autocorr: np.ndarray) -> np.ndarray:
         """Levinson-Durbin algorithm for LPC coefficient computation"""
         n = len(autocorr) - 1
         lpc = np.zeros(n + 1)
@@ -572,15 +562,14 @@ class SpeakerVerificationEngine:
 
         return lpc
 
-    def _compute_formants_spectral(self, audio:
-        np.ndarray, sample_rate:int) -> List[float]:
+    def _compute_formants_spectral(self, audio: np.ndarray, sample_rate: int) -> List[float]:
         """Fallback formant computation using spectral peak detection"""
         from scipy.signal import find_peaks
 
         # Compute power spectrum
         fft = np.fft.fft(audio)
-        magnitude = np.abs(fft[:len(fft) // 2])
-        freqs = np.fft.fftfreq(len(audio), 1 / sample_rate)[:len(fft) // 2]
+        magnitude = np.abs(fft[: len(fft) // 2])
+        freqs = np.fft.fftfreq(len(audio), 1 / sample_rate)[: len(fft) // 2]
 
         # Find peaks in the spectrum
         peaks, properties = find_peaks(
@@ -608,11 +597,10 @@ class SpeakerVerificationEngine:
 
         return formant_freqs[:5] if len(formant_freqs) >= 5 else formant_freqs  # Return up to 5 formants
 
-    def _compute_energy_distribution(self, audio:
-        np.ndarray, n_bands:int = 8) -> np.ndarray:
+    def _compute_energy_distribution(self, audio: np.ndarray, n_bands: int = 8) -> np.ndarray:
         """Compute energy distribution across frequency bands"""
         fft = np.fft.fft(audio)
-        magnitude = np.abs(fft[:len(fft) // 2])
+        magnitude = np.abs(fft[: len(fft) // 2])
 
         # Divide spectrum into bands
         band_size = len(magnitude) // n_bands
@@ -630,8 +618,7 @@ class SpeakerVerificationEngine:
 
         return np.array(normalized_energy)
 
-    def _compute_temporal_features(self, audio:
-        np.ndarray, sample_rate:int) -> np.ndarray:
+    def _compute_temporal_features(self, audio: np.ndarray, sample_rate: int) -> np.ndarray:
         """Compute temporal dynamics features"""
         # Frame-based analysis
         frame_size = int(0.025 * sample_rate)  # 25ms frames
@@ -639,7 +626,7 @@ class SpeakerVerificationEngine:
 
         frame_energies = []
         for i in range(0, len(audio) - frame_size, frame_stride):
-            frame = audio[i:i + frame_size]
+            frame = audio[i : i + frame_size]
             energy = np.sum(frame**2)
             frame_energies.append(energy)
 
@@ -655,8 +642,7 @@ class SpeakerVerificationEngine:
 
         return np.array([energy_mean, energy_std, energy_range])
 
-    def _compute_similarity(self, features1:
-        VoiceFeatures, features2:VoiceFeatures) -> float:
+    def _compute_similarity(self, features1: VoiceFeatures, features2: VoiceFeatures) -> float:
         """Compute similarity between two voice feature sets"""
         try:
             similarities = []
@@ -707,10 +693,9 @@ class SpeakerVerificationEngine:
             self.logger.error(f"Similarity computation failed: {e}")
             return 0.0
 
-    def _validate_audio_for_spoofing(self, audio:
-        np.ndarray, sample_rate:int) -> List[str]:
+    def _validate_audio_for_spoofing(self, audio: np.ndarray, sample_rate: int) -> List[str]:
         """Detect potential voice spoofing attempts"""
-        security_flags:List[str] = []
+        security_flags: List[str] = []
 
         if not self.enable_security_checks:
             return security_flags
@@ -718,7 +703,7 @@ class SpeakerVerificationEngine:
         try:
             # Check for unnatural frequency patterns
             fft = np.fft.fft(audio)
-            magnitude = np.abs(fft[:len(fft) // 2])
+            magnitude = np.abs(fft[: len(fft) // 2])
 
             # Check for suspicious frequency spikes (potential synthetic audio)
             max_magnitude = np.max(magnitude)
@@ -733,7 +718,7 @@ class SpeakerVerificationEngine:
 
             frame_energies = []
             for i in range(0, len(audio) - frame_size, frame_stride):
-                frame = audio[i:i + frame_size]
+                frame = audio[i : i + frame_size]
                 energy = np.sum(frame**2)
                 frame_energies.append(energy)
 
@@ -765,15 +750,14 @@ class SpeakerVerificationEngine:
 
             # Check for frequency domain artifacts
             # Look for unnatural harmonics that might indicate voice synthesis
-            freqs = np.fft.fftfreq(len(audio), 1 / sample_rate)[:len(audio) // 2]
+            freqs = np.fft.fftfreq(len(audio), 1 / sample_rate)[: len(audio) // 2]
 
             # Check for suspicious periodic patterns in spectrum
             if len(magnitude) > 100:
                 # Look for overly regular harmonic structure
                 peak_indices = []
                 for i in range(10, len(magnitude) - 10):
-                    if magnitude[i] > magnitude[i - 10:
-                        i].max() and magnitude[i] > magnitude[i + 1:i + 11].max():
+                    if magnitude[i] > magnitude[i - 10 : i].max() and magnitude[i] > magnitude[i + 1 : i + 11].max():
                         peak_indices.append(i)
 
                 if len(peak_indices) > 5:
@@ -793,9 +777,9 @@ class SpeakerVerificationEngine:
                 phase_coherences = []
 
                 for i in range(0, len(audio) - window_size, window_size // 2):
-                    window = audio[i:i + window_size]
+                    window = audio[i : i + window_size]
                     fft_window = np.fft.fft(window)
-                    phases = np.angle(fft_window[:len(fft_window) // 2])
+                    phases = np.angle(fft_window[: len(fft_window) // 2])
 
                     # Measure phase coherence (synthetic audio often has too-perfect phase alignment)
                     phase_variance = np.var(phases)
@@ -815,11 +799,10 @@ class SpeakerVerificationEngine:
 
     def enroll_speaker(
         self,
-        speaker_id:
-        str,
-        audio_samples:List[np.ndarray],
-        sample_rate:int = 16000,
-        confidence_threshold:Optional[float] = None,
+        speaker_id: str,
+        audio_samples: List[np.ndarray],
+        sample_rate: int = 16000,
+        confidence_threshold: Optional[float] = None,
     ) -> bool:
         """
         Enroll a new speaker with voice samples
@@ -842,7 +825,7 @@ class SpeakerVerificationEngine:
                     return False
 
                 if len(audio_samples) > self.max_enrollment_samples:
-                    audio_samples = audio_samples[:self.max_enrollment_samples]
+                    audio_samples = audio_samples[: self.max_enrollment_samples]
                     self.logger.info(f"Truncated enrollment samples to {self.max_enrollment_samples}")
 
                 # Extract features from all samples
@@ -997,8 +980,7 @@ class SpeakerVerificationEngine:
 
         return base_threshold
 
-    def _save_profile(self, profile:
-        SpeakerProfile) -> None:
+    def _save_profile(self, profile: SpeakerProfile) -> None:
         """Save speaker profile to disk"""
         try:
             profile_file = self.profiles_dir / f"{profile.speaker_id}.json"
@@ -1067,8 +1049,7 @@ class SpeakerVerificationEngine:
         with self._lock:
             return list(self._profiles.keys())
 
-    def remove_speaker(self, speaker_id:
-        str) -> bool:
+    def remove_speaker(self, speaker_id: str) -> bool:
         """Remove enrolled speaker"""
         with self._lock:
             try:
@@ -1112,8 +1093,7 @@ class SpeakerVerificationEngine:
 
             return stats
 
-    def calibrate_threshold(self, speaker_id:
-        str, target_false_rejection_rate:float = 0.05) -> bool:
+    def calibrate_threshold(self, speaker_id: str, target_false_rejection_rate: float = 0.05) -> bool:
         """Calibrate confidence threshold for a speaker based on verification history"""
         with self._lock:
             try:

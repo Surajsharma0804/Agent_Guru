@@ -33,10 +33,15 @@ export class InMemoryStore<T = unknown> implements MemoryStore<T> {
 }
 
 export class PersistentStore<T = unknown> implements MemoryStore<T> {
-  constructor(private readonly storePath: string) {}
+  private readonly path: string;
+  
+  constructor(storePath: string) {
+    this.path = storePath;
+  }
   
   async get(_key: string): Promise<T | null> {
-    // Implementation would use file system or database
+    // Implementation would use file system or database at this.path
+    console.log(`PersistentStore: Would load from ${this.path}`);
     throw new Error('Not implemented');
   }
   
