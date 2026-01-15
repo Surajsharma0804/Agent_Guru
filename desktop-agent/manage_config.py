@@ -20,20 +20,16 @@ Usage:
     python manage_config.py ollama                  # Auto-detect Ollama models
 """
 
-import sys
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Optional
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from config.configuration_manager import (
-    ConfigurationManager,
-    ConfigurationLevel,
-    get_configuration_manager
-)
+from config.configuration_manager import ConfigurationLevel, ConfigurationManager, get_configuration_manager
 from config.ollama_detector import auto_configure_ollama
 
 

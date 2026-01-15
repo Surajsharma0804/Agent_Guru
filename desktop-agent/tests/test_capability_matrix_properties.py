@@ -25,17 +25,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import pytest
-from hypothesis import given, strategies as st, assume, settings, Phase
-from hypothesis import HealthCheck
+from hypothesis import HealthCheck, Phase, assume, given, settings
+from hypothesis import strategies as st
 
 from pal.capability_matrix import (
-    CapabilityMatrix,
-    CapabilityLevel,
     Capability,
+    CapabilityLevel,
+    CapabilityMatrix,
     PlatformCapabilities,
     get_capability_matrix,
 )
-
 
 # ============================================================================
 # Property 108: Capability Matrix Runtime Query
@@ -348,6 +347,7 @@ def test_property_108_documentation_generation_deterministic(format_type: str):
     
     if format_type == 'json':
         import json
+
         # Should be valid JSON
         parsed = json.loads(doc1)
         assert isinstance(parsed, dict)

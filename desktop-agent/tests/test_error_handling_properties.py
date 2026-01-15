@@ -11,23 +11,23 @@ Feature: guru-complete-system
 Validates: Requirements 20.1, 20.2, 20.3, 20.4, 20.5, 20.6
 """
 
-import pytest
-from hypothesis import given, strategies as st, settings, assume, HealthCheck
-from hypothesis import Phase
+import threading
 import time
 from datetime import datetime
 from typing import Optional
-import threading
+
+import pytest
+from hypothesis import HealthCheck, Phase, assume, given, settings
+from hypothesis import strategies as st
 
 from src.failure.error_handler import (
-    ErrorHandler,
-    ErrorSeverity,
     ErrorCategory,
     ErrorContext,
+    ErrorHandler,
+    ErrorSeverity,
     safe_execute,
-    safe_execute_with_retry
+    safe_execute_with_retry,
 )
-
 
 # ============================================================================
 # Test Strategies

@@ -14,22 +14,19 @@ Properties Tested:
 Validates: Requirements 28.1, 28.2, 28.4, 28.5, 28.6, 28.7
 """
 
-import pytest
-from hypothesis import given, strategies as st, settings, assume
-from hypothesis import HealthCheck
 import sys
 from pathlib import Path
+
+import pytest
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
 
 # Add src to path
 src_path = Path(__file__).parent.parent / "src"
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
-from communication.response_ownership import (
-    ResponseOwnershipCoordinator,
-    ResponseOwner,
-    OwnershipPriority
-)
+from communication.response_ownership import OwnershipPriority, ResponseOwner, ResponseOwnershipCoordinator
 
 
 # Strategies for generating test data

@@ -14,30 +14,24 @@ Tests validate:
 Requirements validated: 5.1, 5.4, 5.5, 5.6, 5.8
 """
 
-import sys
-from pathlib import Path
-import tempfile
-import shutil
-import json
 import hashlib
 import hmac
+import json
+import shutil
+import sys
+import tempfile
 from datetime import datetime, timezone
-from typing import Dict, Any
+from pathlib import Path
+from typing import Any, Dict
 
 import pytest
-from hypothesis import given, strategies as st, settings, HealthCheck, assume
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from audit.audit_logger import (
-    AuditLogger,
-    AuditEvent,
-    AuditEventType,
-    AuditSeverity,
-    IntegrityVerificationResult
-)
-
+from audit.audit_logger import AuditEvent, AuditEventType, AuditLogger, AuditSeverity, IntegrityVerificationResult
 
 # ============================================================================
 # Test Fixtures

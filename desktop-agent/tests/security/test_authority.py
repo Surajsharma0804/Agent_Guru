@@ -6,14 +6,15 @@ access control and security boundaries are enforced.
 """
 
 import pytest
+
 from src.authority.state import (
-    AuthorityState,
-    AuthorityStateMachine,
     AuthorityConfiguration,
     AuthorityPolicy,
     AuthorityScope,
+    AuthorityState,
+    AuthorityStateMachine,
     BiometricFactor,
-    StateTransitionReason
+    StateTransitionReason,
 )
 
 
@@ -125,7 +126,7 @@ class TestAuthorityFailureHandling:
 def test_authority_system_exists():
     """Verify authority system modules are importable"""
     try:
-        from src.authority.state import AuthorityStateMachine, AuthorityState
+        from src.authority.state import AuthorityState, AuthorityStateMachine
         assert True
     except ImportError:
         pytest.skip("Authority system not fully implemented yet")
@@ -134,7 +135,8 @@ def test_authority_system_exists():
 def test_security_boundaries_defined():
     """Verify security boundaries are defined"""
     try:
-        from src.authority.state import AuthorityScope, AuthorityPolicy
+        from src.authority.state import AuthorityPolicy, AuthorityScope
+
         # Should have multiple security scopes defined
         assert len([s for s in AuthorityScope]) > 0
         assert len([p for p in AuthorityPolicy]) > 0

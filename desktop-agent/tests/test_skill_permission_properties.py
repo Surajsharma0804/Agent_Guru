@@ -8,13 +8,10 @@ Properties: 58, 59
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings, assume, HealthCheck
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
 
-from src.authority.permission_model import (
-    SkillPermissionValidator,
-    create_skill_permission_validator
-)
-
+from src.authority.permission_model import SkillPermissionValidator, create_skill_permission_validator
 
 # Generators
 

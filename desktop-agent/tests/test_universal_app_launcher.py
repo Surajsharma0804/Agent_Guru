@@ -7,18 +7,14 @@ and 1-second launch performance.
 Validates: Requirements 2.1, 2.2, 2.3, 2.7
 """
 
-import pytest
 import time
-from unittest.mock import Mock, MagicMock, patch
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
-from src.execution.command_executor import (
-    IntentRecognizer,
-    ApplicationLauncher,
-    CommandExecutor,
-    ExecutionStatus
-)
-from src.pal.interfaces import ApplicationController, InputAutomation, AppDescriptor
+import pytest
+
+from src.execution.command_executor import ApplicationLauncher, CommandExecutor, ExecutionStatus, IntentRecognizer
+from src.pal.interfaces import AppDescriptor, ApplicationController, InputAutomation
 
 
 class TestUniversalApplicationDatabase:

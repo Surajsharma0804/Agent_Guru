@@ -14,24 +14,23 @@ Requirements validated: 6.1, 6.2, 6.3, 6.4
 """
 
 import sys
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from biometric.providers import BiometricFactor
 from intrusion.detection import (
-    IntrusionDetector,
     IntrusionDetectionConfig,
+    IntrusionDetector,
     IntrusionEventType,
     IntrusionSeverity,
 )
-from biometric.providers import BiometricFactor
 from pal.interfaces import SecurityEnforcer
-
 
 # ============================================================================
 # Test 1: Repeated Failed Authentication Detection

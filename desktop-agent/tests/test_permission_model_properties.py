@@ -7,20 +7,21 @@ Feature: guru-complete-system
 Properties: 55, 56, 57
 """
 
-import pytest
-from hypothesis import given, strategies as st, settings, assume, HealthCheck
-from datetime import datetime, timedelta
 import time
+from datetime import datetime, timedelta
 
-from src.authority.permission_model import (
-    PermissionModel,
-    PermissionLevel,
-    UACResult,
-    ElevationRequest,
-    create_permission_model
-)
+import pytest
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
+
 from src.audit.audit_logger import AuditLogger, AuditSeverity
-
+from src.authority.permission_model import (
+    ElevationRequest,
+    PermissionLevel,
+    PermissionModel,
+    UACResult,
+    create_permission_model,
+)
 
 # Generators
 

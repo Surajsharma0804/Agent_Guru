@@ -20,26 +20,26 @@ import ast
 import inspect
 import sys
 from pathlib import Path
-from typing import List, Set, Dict, Any
-from unittest.mock import Mock, MagicMock, patch
+from typing import Any, Dict, List, Set
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from hypothesis import given, strategies as st, settings, HealthCheck
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from pal.interfaces import (
     ApplicationController,
-    InputAutomation,
-    SpeechOutput,
-    SpeechInput,
-    BiometricAuthenticator,
-    SecurityEnforcer,
-    TTSPriority,
     AuthResultStatus,
+    BiometricAuthenticator,
+    InputAutomation,
+    SecurityEnforcer,
+    SpeechInput,
+    SpeechOutput,
+    TTSPriority,
 )
-
 
 # ============================================================================
 # Property 94: Core Logic Platform Isolation
@@ -139,7 +139,7 @@ def test_property_95_pal_interface_communication_tts(text, priority):
     Validates: Requirements 42.2
     """
     from gui.tts_service import TTSService
-    
+
     # Create mock PAL interface
     mock_speech_output = Mock(spec=SpeechOutput)
     mock_speech_output.get_capabilities.return_value = {
@@ -176,7 +176,7 @@ def test_property_95_pal_interface_communication_command_executor(app_id):
     Validates: Requirements 42.2
     """
     from execution.command_executor import CommandExecutor
-    
+
     # Create mock PAL interfaces
     mock_app_controller = Mock(spec=ApplicationController)
     mock_app_controller.get_capabilities.return_value = {
@@ -221,8 +221,8 @@ def test_property_95_pal_interface_communication_intrusion_detector(reason):
     
     Validates: Requirements 42.2
     """
-    from intrusion.detection import IntrusionDetector, IntrusionDetectionConfig
-    
+    from intrusion.detection import IntrusionDetectionConfig, IntrusionDetector
+
     # Create mock PAL interface
     mock_security_enforcer = Mock(spec=SecurityEnforcer)
     mock_security_enforcer.get_capabilities.return_value = {
@@ -264,7 +264,7 @@ def test_property_116_dependency_injection_voice_interface(wake_word):
     Validates: Requirements 43.5
     """
     from gui.voice_interface import VoiceInterface
-    
+
     # Create mock PAL interfaces
     mock_speech_input = Mock(spec=SpeechInput)
     mock_speech_input.get_capabilities.return_value = {
@@ -309,7 +309,7 @@ def test_property_116_dependency_injection_factory_functions():
     from execution.command_executor import get_command_executor
     from gui.tts_service import get_tts_service
     from intrusion.detection import create_intrusion_detector
-    
+
     # Test with explicit dependency injection
     mock_app_controller = Mock(spec=ApplicationController)
     mock_app_controller.get_capabilities.return_value = {'can_open_apps': True}
@@ -349,10 +349,10 @@ def test_property_117_platform_logging_at_startup():
     
     Validates: Requirements 43.6
     """
-    from gui.tts_service import TTSService
     from execution.command_executor import CommandExecutor
-    from intrusion.detection import IntrusionDetector, IntrusionDetectionConfig
-    
+    from gui.tts_service import TTSService
+    from intrusion.detection import IntrusionDetectionConfig, IntrusionDetector
+
     # Create mock PAL interfaces with capabilities
     mock_speech_output = Mock(spec=SpeechOutput)
     mock_speech_output.get_capabilities.return_value = {
@@ -426,7 +426,7 @@ def test_property_109_core_logic_state_machine_consistency(state_transitions):
     Validates: Requirements 42.3
     """
     from gui.voice_interface import VoiceInterface, VoiceState
-    
+
     # Create mock PAL interfaces
     mock_speech_input = Mock(spec=SpeechInput)
     mock_speech_input.get_capabilities.return_value = {'supports_continuous': True}
@@ -464,9 +464,9 @@ def test_property_110_core_logic_security_invariants(failure_count):
     
     Validates: Requirements 42.4
     """
-    from intrusion.detection import IntrusionDetector, IntrusionDetectionConfig
     from biometric.providers import BiometricFactor
-    
+    from intrusion.detection import IntrusionDetectionConfig, IntrusionDetector
+
     # Create mock PAL interface
     mock_security_enforcer = Mock(spec=SecurityEnforcer)
     mock_security_enforcer.get_capabilities.return_value = {'can_lock_system': True}
@@ -517,9 +517,9 @@ def test_property_111_core_logic_audit_logging_consistency(event_count):
     
     Validates: Requirements 42.5
     """
-    from intrusion.detection import IntrusionDetector, IntrusionDetectionConfig
     from biometric.providers import BiometricFactor
-    
+    from intrusion.detection import IntrusionDetectionConfig, IntrusionDetector
+
     # Create mock PAL interface
     mock_security_enforcer = Mock(spec=SecurityEnforcer)
     mock_security_enforcer.get_capabilities.return_value = {'can_lock_system': True}

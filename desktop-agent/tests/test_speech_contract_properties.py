@@ -16,22 +16,23 @@ Validates: Requirements 32.1, 32.2, 32.4, 32.5, 32.6, 32.7
 Feature: guru-complete-system
 """
 
-import pytest
-from hypothesis import given, strategies as st, settings, assume
-from hypothesis import HealthCheck
+import os
 
 # Import speech contract components
 import sys
-import os
+
+import pytest
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from communication.speech_contract import (
-    SpeechContractValidator,
     SpeechContext,
+    SpeechContractValidator,
     ValidationResult,
-    get_speech_contract_validator
+    get_speech_contract_validator,
 )
-
 
 # Test data generators
 

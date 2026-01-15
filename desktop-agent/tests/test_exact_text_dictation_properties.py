@@ -12,27 +12,19 @@ Uses Hypothesis for property-based testing with 100+ iterations per property.
 Validates: Requirements 2.5, 14, 21.6, 29.3, 29.4
 """
 
-import pytest
-from hypothesis import given, settings, strategies as st, assume
-from unittest.mock import Mock, MagicMock, patch, call
 import time
 from typing import Optional
+from unittest.mock import MagicMock, Mock, call, patch
+
+import pytest
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 # Import command executor components
-from src.execution.command_executor import (
-    CommandExecutor,
-    ExecutionStatus,
-    ExecutionResult
-)
+from src.execution.command_executor import CommandExecutor, ExecutionResult, ExecutionStatus
 
 # Import PAL interfaces for mocking
-from src.pal.interfaces import (
-    ApplicationController,
-    InputAutomation,
-    AutomationTarget,
-    PlatformCapabilityError
-)
-
+from src.pal.interfaces import ApplicationController, AutomationTarget, InputAutomation, PlatformCapabilityError
 
 # ============================================================================
 # Test Data Generators

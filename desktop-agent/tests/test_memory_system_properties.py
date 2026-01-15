@@ -15,29 +15,30 @@ Validates Requirements: 10.1, 10.3, 10.4, 10.5, 10.6, 27.2, 27.3, 27.6
 Uses Hypothesis for property-based testing with 100+ iterations per property.
 """
 
-import pytest
-import tempfile
-import shutil
-import os
-import time
 import json
-from datetime import datetime, timezone, timedelta
+import os
+import shutil
+import tempfile
+import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from hypothesis import given, strategies as st, settings, HealthCheck
-from hypothesis.stateful import RuleBasedStateMachine, rule, invariant, initialize
+
+import pytest
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
+from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, rule
 
 # Import memory system components
 from src.memory import (
-    MemorySubsystemController,
     ConversationStorage,
     ConversationTurn,
     MemoryEncryption,
+    MemorySubsystemController,
+    RetentionScheduler,
     VectorSearchEngine,
-    RetentionScheduler
 )
 from src.memory.encryption import EncryptedData
 from src.memory.retention_scheduler import RetentionScheduleConfig
-
 
 # Test fixtures
 

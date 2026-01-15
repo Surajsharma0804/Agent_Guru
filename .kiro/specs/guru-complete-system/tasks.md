@@ -908,7 +908,7 @@ Each push triggers:
   - **Git: Commit and push after completion**
   - **Commit message**: `[Task 30.5] Remove unused dependencies`
 
-- [ ] 30.6 Optimize import statements
+- [x] 30.6 Optimize import statements
   - Remove unused imports (Python: autoflake, TypeScript: ts-unused-exports)
   - Sort imports alphabetically (Python: isort, TypeScript: organize-imports)
   - Group imports by category (stdlib, third-party, local)

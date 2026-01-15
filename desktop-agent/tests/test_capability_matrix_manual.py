@@ -14,8 +14,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from pal.capability_matrix import (
-    CapabilityMatrix,
     CapabilityLevel,
+    CapabilityMatrix,
     get_capability_matrix,
 )
 

@@ -14,20 +14,21 @@ Requirements validated: 39.2, 39.3, 39.4, 39.7
 
 import sys
 from pathlib import Path
-from typing import Dict, Any
-from unittest.mock import Mock, MagicMock, patch
+from typing import Any, Dict
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from hypothesis import given, strategies as st, settings, HealthCheck
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from authority.state import (
-    AuthorityStateMachine,
     AuthorityConfiguration,
     AuthorityScope,
     AuthorityState,
+    AuthorityStateMachine,
     BiometricFactor,
     StateTransitionReason,
 )
@@ -37,12 +38,11 @@ from execution.command_executor import (
     ExecutionStatus,
 )
 from pal.interfaces import (
-    ApplicationController,
-    InputAutomation,
     AppDescriptor,
+    ApplicationController,
     AutomationTarget,
+    InputAutomation,
 )
-
 
 # ============================================================================
 # Test Strategies

@@ -12,26 +12,22 @@ Validates: Requirements 9.3, 9.4, 23.1, 23.2, 23.6, 23.7
 Feature: guru-complete-system
 """
 
-import pytest
-import time
 import threading
-from hypothesis import given, strategies as st, settings, Phase, assume
-from typing import List, Tuple
+import time
 from dataclasses import dataclass
 from enum import Enum
+from typing import List, Tuple
+
+import pytest
+from hypothesis import Phase, assume, given, settings
+from hypothesis import strategies as st
+
+from communication.response_ownership import ResponseOwner, ResponseOwnershipCoordinator
+from communication.speech_contract import SpeechContext, SpeechContractValidator
 
 # Import TTS service and dependencies
-from gui.tts_service import TTSService, SpeechRequest
+from gui.tts_service import SpeechRequest, TTSService
 from pal.interfaces import SpeechOutput, TTSPriority
-from communication.response_ownership import (
-    ResponseOwnershipCoordinator,
-    ResponseOwner
-)
-from communication.speech_contract import (
-    SpeechContractValidator,
-    SpeechContext
-)
-
 
 # ============================================================================
 # Mock Speech Output for Testing

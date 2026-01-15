@@ -12,29 +12,25 @@ Uses Hypothesis for property-based testing with 100+ iterations per property.
 Validates: Requirements 26.1, 26.4, 26.5, 26.6
 """
 
-import pytest
-from hypothesis import given, settings, strategies as st, assume
-from unittest.mock import Mock, MagicMock, patch
 import time
 from typing import List, Tuple
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 # Import WhatsApp automation components
 from src.execution.whatsapp_automation import (
+    ContactMatcher,
+    ExecutionResult,
+    ExecutionStatus,
     WhatsAppAutomation,
     WhatsAppConfig,
-    ContactMatcher,
-    ExecutionStatus,
-    ExecutionResult
 )
 
 # Import PAL interfaces for mocking
-from src.pal.interfaces import (
-    ApplicationController,
-    InputAutomation,
-    AutomationTarget,
-    PlatformCapabilityError
-)
-
+from src.pal.interfaces import ApplicationController, AutomationTarget, InputAutomation, PlatformCapabilityError
 
 # ============================================================================
 # Test Data Generators

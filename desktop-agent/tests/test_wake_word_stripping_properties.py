@@ -8,9 +8,11 @@ Requirements: 30.1, 30.2, 30.3, 30.4
 Properties: 79, 80, 81, 82
 """
 
+from unittest.mock import MagicMock, Mock
+
 import pytest
-from hypothesis import given, strategies as st, settings, assume
-from unittest.mock import Mock, MagicMock
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 # Import the VoiceInterface class
 from gui.voice_interface import VoiceInterface, VoiceState

@@ -12,25 +12,25 @@ Requirements validated: 6.2
 """
 
 import sys
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock
-from datetime import datetime
 
 import pytest
-from hypothesis import given, strategies as st, settings, assume, HealthCheck
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from biometric.providers import BiometricFactor
 from intrusion.detection import (
-    IntrusionDetector,
     IntrusionDetectionConfig,
+    IntrusionDetector,
     IntrusionEventType,
     IntrusionSeverity,
 )
-from biometric.providers import BiometricFactor
 from pal.interfaces import SecurityEnforcer
-
 
 # ============================================================================
 # Hypothesis Strategies

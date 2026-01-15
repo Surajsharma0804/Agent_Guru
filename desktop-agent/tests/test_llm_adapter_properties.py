@@ -12,27 +12,28 @@ and performance guarantees across all execution paths.
 Feature: guru-complete-system
 """
 
-import pytest
-from hypothesis import given, strategies as st, settings, assume, HealthCheck
-from hypothesis import Phase
 import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
 import json
+import os
 
 # Import LLM adapter components
 import sys
-import os
+from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
+
+import pytest
+from hypothesis import HealthCheck, Phase, assume, given, settings
+from hypothesis import strategies as st
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from llm.enhanced_adapter import EnhancedLLMAdapter, EnhancedAdapterConfiguration
-from llm.response_cache import ResponseCache
-from llm.template_responses import TemplateResponseSystem, ResponseCategory
-from llm.intent import StructuredIntent, IntentType
-from llm.safety import SafeResponse
-from llm.providers import LLMProvider, ProviderCapabilities, ProviderStatus
+from llm.enhanced_adapter import EnhancedAdapterConfiguration, EnhancedLLMAdapter
 from llm.exceptions import ProviderError
-
+from llm.intent import IntentType, StructuredIntent
+from llm.providers import LLMProvider, ProviderCapabilities, ProviderStatus
+from llm.response_cache import ResponseCache
+from llm.safety import SafeResponse
+from llm.template_responses import ResponseCategory, TemplateResponseSystem
 
 # ============================================================================
 # Test Fixtures and Helpers

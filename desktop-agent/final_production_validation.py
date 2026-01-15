@@ -4,14 +4,14 @@ Final Production Validation Script for GURU System
 Validates all 43 requirements, 117 properties, and system metrics
 """
 
-import sys
+import json
 import os
 import subprocess
-import json
+import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
-from datetime import datetime
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -287,28 +287,28 @@ def validate_cross_platform_pal(report: ValidationReport) -> bool:
     
     try:
         # Check PAL interfaces exist
-        from src.pal.interfaces import (
-            ApplicationController,
-            InputAutomation,
-            SpeechOutput,
-            SpeechInput,
-            BiometricAuthenticator,
-            SecurityEnforcer
-        )
-        
+        from src.pal.backend_factory import PlatformBackendFactory
+
         # Check Windows backend exists
         from src.pal.backends.windows import (
             WindowsApplicationController,
-            WindowsInputAutomation,
-            WindowsSpeechOutput,
-            WindowsSpeechInput,
             WindowsBiometricAuthenticator,
-            WindowsSecurityEnforcer
+            WindowsInputAutomation,
+            WindowsSecurityEnforcer,
+            WindowsSpeechInput,
+            WindowsSpeechOutput,
         )
-        
+        from src.pal.interfaces import (
+            ApplicationController,
+            BiometricAuthenticator,
+            InputAutomation,
+            SecurityEnforcer,
+            SpeechInput,
+            SpeechOutput,
+        )
+
         # Check platform detection
         from src.pal.platform_detector import PlatformDetector
-        from src.pal.backend_factory import PlatformBackendFactory
         
         platform = PlatformDetector.detect()
         factory = PlatformBackendFactory(platform)
@@ -340,10 +340,10 @@ def validate_security_invariants(report: ValidationReport) -> bool:
     try:
         # Check audit logger integrity
         from src.audit.audit_logger import AuditLogger
-        
+
         # Check authority state machine
         from src.authority.state import AuthorityStateMachine
-        
+
         # Check intrusion detector
         from src.intrusion.detection import IntrusionDetector
         

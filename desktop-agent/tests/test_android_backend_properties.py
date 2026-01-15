@@ -17,33 +17,29 @@ Properties tested:
 All tests validate Requirements: 35.8, 38.7, 40.4, 40.6
 """
 
-import pytest
-from hypothesis import given, strategies as st, assume, settings
-from typing import List, Dict
-from datetime import datetime
-import sys
 import os
+import sys
+from datetime import datetime
+from typing import Dict, List
+
+import pytest
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 # Import PAL interfaces
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+# Import Android backend implementations
+from pal.backends.android import AndroidBiometricAuthenticator, AndroidInputAutomation, AndroidSecurityEnforcer
 from pal.interfaces import (
-    InputAutomation,
-    BiometricAuthenticator,
-    SecurityEnforcer,
-    AutomationTarget,
     AuthResult,
     AuthResultStatus,
-    PlatformCapabilityError
+    AutomationTarget,
+    BiometricAuthenticator,
+    InputAutomation,
+    PlatformCapabilityError,
+    SecurityEnforcer,
 )
-
-# Import Android backend implementations
-from pal.backends.android import (
-    AndroidInputAutomation,
-    AndroidBiometricAuthenticator,
-    AndroidSecurityEnforcer
-)
-
 
 # ============================================================================
 # Property 97: Input Automation Capability Declaration

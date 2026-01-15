@@ -14,14 +14,14 @@ Validates: Requirements 9.2, 9.5
 Task: 10.3 Verify Windows SAPI volume bypass
 """
 
-import pytest
 import platform
 from typing import Optional
+
+import pytest
 
 # Import TTS service and dependencies
 from gui.tts_service import TTSService
 from pal.interfaces import SpeechOutput, TTSPriority
-
 
 # ============================================================================
 # Platform Detection
@@ -51,7 +51,7 @@ def test_windows_sapi_volume_default_maximum():
     Validates: Requirements 9.2, 9.5
     """
     from pal.backends.windows.speech_output import WindowsSpeechOutput
-    
+
     # Create Windows SAPI backend
     speech_output = WindowsSpeechOutput()
     
@@ -75,7 +75,7 @@ def test_windows_sapi_volume_control():
     Validates: Requirements 9.2, 9.5
     """
     from pal.backends.windows.speech_output import WindowsSpeechOutput
-    
+
     # Create Windows SAPI backend
     speech_output = WindowsSpeechOutput()
     
@@ -103,7 +103,7 @@ def test_windows_sapi_volume_clamping():
     Validates: Requirements 9.2, 9.5
     """
     from pal.backends.windows.speech_output import WindowsSpeechOutput
-    
+
     # Create Windows SAPI backend
     speech_output = WindowsSpeechOutput()
     
@@ -133,7 +133,7 @@ def test_windows_sapi_rate_control():
     Validates: Requirements 9.2, 9.5
     """
     from pal.backends.windows.speech_output import WindowsSpeechOutput
-    
+
     # Create Windows SAPI backend
     speech_output = WindowsSpeechOutput()
     
@@ -161,7 +161,7 @@ def test_windows_sapi_rate_clamping():
     Validates: Requirements 9.2, 9.5
     """
     from pal.backends.windows.speech_output import WindowsSpeechOutput
-    
+
     # Create Windows SAPI backend
     speech_output = WindowsSpeechOutput()
     
@@ -191,7 +191,7 @@ def test_windows_sapi_capabilities():
     Validates: Requirements 9.2, 9.5
     """
     from pal.backends.windows.speech_output import WindowsSpeechOutput
-    
+
     # Create Windows SAPI backend
     speech_output = WindowsSpeechOutput()
     
@@ -233,7 +233,7 @@ def test_tts_service_with_windows_backend_volume():
     Validates: Requirements 9.2, 9.5
     """
     from pal.backends.windows.speech_output import WindowsSpeechOutput
-    
+
     # Create Windows SAPI backend
     speech_output = WindowsSpeechOutput()
     
@@ -268,7 +268,7 @@ def test_windows_sapi_volume_bypass_documentation():
     Validates: Requirements 9.2, 9.5
     """
     from pal.backends.windows.speech_output import WindowsSpeechOutput
-    
+
     # Check class docstring
     class_doc = WindowsSpeechOutput.__doc__
     assert class_doc is not None, "WindowsSpeechOutput missing docstring"
@@ -302,8 +302,9 @@ def test_windows_sapi_volume_bypass_manual():
     
     Validates: Requirements 9.2, 9.5
     """
-    from pal.backends.windows.speech_output import WindowsSpeechOutput
     import time
+
+    from pal.backends.windows.speech_output import WindowsSpeechOutput
     
     print("\n" + "="*70)
     print("MANUAL VERIFICATION TEST")
@@ -365,9 +366,9 @@ def test_tts_service_volume_control_cross_platform():
     
     Validates: Requirements 9.2, 9.5, 36.8
     """
-    from pal.platform_detector import PlatformDetector
     from pal.backend_factory import PlatformBackendFactory
-    
+    from pal.platform_detector import PlatformDetector
+
     # Detect platform and create backend
     platform_name = PlatformDetector.detect()
     factory = PlatformBackendFactory(platform_name)

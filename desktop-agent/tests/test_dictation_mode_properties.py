@@ -8,10 +8,12 @@ Requirements: 29.1, 29.2, 29.6, 29.7
 Properties: 73, 77, 78
 """
 
-import pytest
-from hypothesis import given, strategies as st, settings, assume
-from unittest.mock import Mock, MagicMock
 import time
+from unittest.mock import MagicMock, Mock
+
+import pytest
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 # Import the VoiceInterface class
 from gui.voice_interface import VoiceInterface, VoiceState

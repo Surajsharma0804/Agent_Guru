@@ -18,36 +18,36 @@ Properties tested:
 All tests validate Requirements: 34.9, 36.2, 36.7, 37.7, 38.6
 """
 
-import pytest
-from hypothesis import given, strategies as st, assume, settings
-from typing import List, Dict
-from datetime import datetime
-import sys
 import os
+import sys
+from datetime import datetime
+from typing import Dict, List
+
+import pytest
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 # Import PAL interfaces
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from pal.interfaces import (
-    ApplicationController,
-    SpeechOutput,
-    SpeechInput,
-    BiometricAuthenticator,
-    AppDescriptor,
-    TTSPriority,
-    Transcription,
-    AuthResult,
-    AuthResultStatus
-)
-
 # Import macOS backend implementations
 from pal.backends.macos import (
     macOSApplicationController,
-    macOSSpeechOutput,
+    macOSBiometricAuthenticator,
     macOSSpeechInput,
-    macOSBiometricAuthenticator
+    macOSSpeechOutput,
 )
-
+from pal.interfaces import (
+    AppDescriptor,
+    ApplicationController,
+    AuthResult,
+    AuthResultStatus,
+    BiometricAuthenticator,
+    SpeechInput,
+    SpeechOutput,
+    Transcription,
+    TTSPriority,
+)
 
 # ============================================================================
 # Property 96: Application Controller Consistency

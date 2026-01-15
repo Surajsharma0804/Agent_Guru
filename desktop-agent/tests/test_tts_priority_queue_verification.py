@@ -15,16 +15,16 @@ Validates: Requirements 9.3, 9.4
 Task: 10.1 Verify TTS priority queue
 """
 
-import pytest
-import time
 import threading
-from typing import List, Tuple
+import time
 from dataclasses import dataclass
+from typing import List, Tuple
+
+import pytest
 
 # Import TTS service and dependencies
-from gui.tts_service import TTSService, SpeechRequest
+from gui.tts_service import SpeechRequest, TTSService
 from pal.interfaces import SpeechOutput, TTSPriority
-
 
 # ============================================================================
 # Mock Speech Output for Verification
@@ -636,7 +636,7 @@ def test_priority_queue_with_speech_contract(tts_service, verification_output):
     """
     # Import ResponseOwner enum
     from communication.response_ownership import ResponseOwner
-    
+
     # Set response owner to COMMAND_EXECUTOR
     tts_service.ownership_coordinator.claim_ownership(ResponseOwner.COMMAND_EXECUTOR)
     

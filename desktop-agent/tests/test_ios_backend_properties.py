@@ -15,26 +15,21 @@ Properties tested:
 All tests validate Requirements: 39.2, 40.5
 """
 
-import pytest
-from hypothesis import given, strategies as st, assume, settings
-from typing import List, Dict
-from datetime import datetime
-import sys
 import os
+import sys
+from datetime import datetime
+from typing import Dict, List
+
+import pytest
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 # Import PAL interfaces
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from pal.interfaces import (
-    SecurityEnforcer,
-    PlatformCapabilityError
-)
-
 # Import iOS backend implementations
-from pal.backends.ios import (
-    iOSSecurityEnforcer
-)
-
+from pal.backends.ios import iOSSecurityEnforcer
+from pal.interfaces import PlatformCapabilityError, SecurityEnforcer
 
 # ============================================================================
 # Property 104: Mobile Authority Scope Restriction

@@ -14,25 +14,24 @@ Requirements validated: 4.1, 4.2, 4.3, 4.4, 4.5
 """
 
 import sys
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from pal.interfaces import BiometricAuthenticator, AuthResult, AuthResultStatus
-from pal.backends.windows.biometric_authenticator import WindowsBiometricAuthenticator
 from authority.state import (
-    AuthorityStateMachine,
     AuthorityConfiguration,
     AuthorityState,
+    AuthorityStateMachine,
     BiometricFactor,
     StateTransitionReason,
 )
-
+from pal.backends.windows.biometric_authenticator import WindowsBiometricAuthenticator
+from pal.interfaces import AuthResult, AuthResultStatus, BiometricAuthenticator
 
 # ============================================================================
 # Test 1: Windows Hello Integration

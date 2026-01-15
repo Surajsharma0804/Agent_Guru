@@ -10,25 +10,19 @@ Tests for Requirement 31: Deterministic-First Guarantee
 Validates: Requirements 31.1, 31.2, 31.3, 31.6
 """
 
-import pytest
-from hypothesis import given, settings, strategies as st, assume
-from hypothesis import HealthCheck
-
 import sys
 from pathlib import Path
+
+import pytest
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from llm.intent_pre_filter import (
-    IntentPreFilter, 
-    PreFilterResult, 
-    RoutingDecision,
-    ActionPattern
-)
 from llm.intent import IntentType
+from llm.intent_pre_filter import ActionPattern, IntentPreFilter, PreFilterResult, RoutingDecision
 from llm.intent_router import IntentRouter
-
 
 # ============================================================================
 # Test Data Generators

@@ -21,13 +21,13 @@ This is a production-grade diagnostic tool that provides:
 Requirements validated: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6
 """
 
+import asyncio
 import sys
 import time
-from pathlib import Path
-from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
-import asyncio
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 # Setup Python path
 src_path = Path(__file__).parent / "src"
@@ -239,8 +239,8 @@ def test_platform_detection() -> TestResult:
 def test_pal_backend_factory() -> TestResult:
     """Test PAL backend factory and interface creation."""
     try:
-        from pal.platform_detector import PlatformDetector
         from pal.backend_factory import PlatformBackendFactory
+        from pal.platform_detector import PlatformDetector
         
         platform = PlatformDetector.detect()
         factory = PlatformBackendFactory(platform)
@@ -317,9 +317,9 @@ def test_pal_backend_factory() -> TestResult:
 def test_tts_synthesis() -> TestResult:
     """Test TTS synthesis and audio output."""
     try:
-        from pal.platform_detector import PlatformDetector
         from pal.backend_factory import PlatformBackendFactory
         from pal.interfaces import TTSPriority
+        from pal.platform_detector import PlatformDetector
         
         platform = PlatformDetector.detect()
         factory = PlatformBackendFactory(platform)
@@ -378,8 +378,8 @@ def test_tts_synthesis() -> TestResult:
 def test_voice_recognition() -> TestResult:
     """Test voice recognition and wake word detection."""
     try:
-        from pal.platform_detector import PlatformDetector
         from pal.backend_factory import PlatformBackendFactory
+        from pal.platform_detector import PlatformDetector
         
         platform = PlatformDetector.detect()
         factory = PlatformBackendFactory(platform)
@@ -431,8 +431,8 @@ def test_voice_recognition() -> TestResult:
 def test_biometric_authentication() -> TestResult:
     """Test biometric authentication availability."""
     try:
-        from pal.platform_detector import PlatformDetector
         from pal.backend_factory import PlatformBackendFactory
+        from pal.platform_detector import PlatformDetector
         
         platform = PlatformDetector.detect()
         factory = PlatformBackendFactory(platform)
@@ -480,8 +480,8 @@ def test_biometric_authentication() -> TestResult:
 def test_llm_connectivity() -> TestResult:
     """Test LLM connectivity and response times."""
     try:
-        from llm.enhanced_adapter import EnhancedLLMAdapter, EnhancedAdapterConfiguration
-        
+        from llm.enhanced_adapter import EnhancedAdapterConfiguration, EnhancedLLMAdapter
+
         # Create adapter with short timeout for testing
         config = EnhancedAdapterConfiguration(
             default_timeout_seconds=5.0,
@@ -577,9 +577,10 @@ def test_llm_connectivity() -> TestResult:
 def test_configuration_integrity() -> TestResult:
     """Test configuration file integrity and validity."""
     try:
-        from config.configuration_manager import ConfigurationManager
         from pathlib import Path
-        
+
+        from config.configuration_manager import ConfigurationManager
+
         # Create configuration manager (it will use default paths)
         config_manager = ConfigurationManager()
         
@@ -650,9 +651,9 @@ def test_configuration_integrity() -> TestResult:
 def test_component_health() -> TestResult:
     """Test component health monitoring system."""
     try:
-        from failure.system_failure_orchestrator import SystemFailureOrchestrator
         from communication.health_monitor import HealthMonitor
-        
+        from failure.system_failure_orchestrator import SystemFailureOrchestrator
+
         # Create health monitor
         health_monitor = HealthMonitor()
         
@@ -711,8 +712,8 @@ def test_component_health() -> TestResult:
 def test_audit_logging() -> TestResult:
     """Test audit logging system integrity."""
     try:
-        from audit.audit_logger import AuditLogger, AuditSeverity, AuditEventType
-        
+        from audit.audit_logger import AuditEventType, AuditLogger, AuditSeverity
+
         # Create audit logger
         audit_logger = AuditLogger()
         

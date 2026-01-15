@@ -17,26 +17,26 @@ Requirements validated: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 4.5, 6.2
 """
 
 import sys
+import time
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch
-from datetime import datetime, timedelta
-import time
 
 import pytest
-from hypothesis import given, strategies as st, settings, HealthCheck, assume
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from authority.state import (
-    AuthorityStateMachine,
     AuthorityConfiguration,
-    AuthorityState,
     AuthorityPolicy,
+    AuthorityState,
+    AuthorityStateMachine,
     BiometricFactor,
     StateTransitionReason,
 )
-
 
 # ============================================================================
 # Test Strategies

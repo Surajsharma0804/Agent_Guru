@@ -12,27 +12,29 @@ Properties tested:
 Validates: Requirements 43.1, 43.2, 43.3, 43.4
 """
 
-import pytest
-from hypothesis import given, strategies as st, settings
-from unittest.mock import patch
+import os
 import platform
 import sys
-import os
+from unittest.mock import patch
+
+import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 # Import PAL modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from pal.platform_detector import PlatformDetector
 from pal.backend_factory import PlatformBackendFactory
 from pal.interfaces import (
     ApplicationController,
-    InputAutomation,
-    SpeechOutput,
-    SpeechInput,
     BiometricAuthenticator,
+    InputAutomation,
+    PlatformNotSupportedError,
     SecurityEnforcer,
-    PlatformNotSupportedError
+    SpeechInput,
+    SpeechOutput,
 )
+from pal.platform_detector import PlatformDetector
 
 
 # Property 113: Automatic Platform Detection

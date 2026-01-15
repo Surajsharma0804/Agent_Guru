@@ -5,8 +5,10 @@ Tests for the audit logging system to ensure all security-relevant
 events are properly logged and tamper-proof.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from src.audit.audit_logger import AuditLogger
 from src.audit.integrity_verifier import IntegrityVerifier
 

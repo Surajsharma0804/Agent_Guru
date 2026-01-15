@@ -72,8 +72,8 @@ print("=" * 70)
 
 # Import Qt
 try:
-    from PyQt6.QtWidgets import QApplication
     from PyQt6.QtCore import QTimer
+    from PyQt6.QtWidgets import QApplication
     print("[OK] PyQt6")
 except ImportError as e:
     print(f"[ERROR] PyQt6 required: pip install PyQt6")
@@ -81,7 +81,7 @@ except ImportError as e:
 
 # Import TTS
 try:
-    from gui.tts_service import get_tts_service, TTSPriority
+    from gui.tts_service import TTSPriority, get_tts_service
     tts = get_tts_service()
     print("[OK] TTS Service")
 except Exception as e:
@@ -90,7 +90,7 @@ except Exception as e:
 
 # Import Voice Interface
 try:
-    from gui.voice_interface import create_voice_interface, VoiceCommand
+    from gui.voice_interface import VoiceCommand, create_voice_interface
     voice = create_voice_interface(wake_word="hey guru")
     print("[OK] Voice Interface")
 except Exception as e:
@@ -108,7 +108,7 @@ except Exception as e:
 
 # Import Avatar
 try:
-    from gui.avatar_window import create_guru_window, AvatarState
+    from gui.avatar_window import AvatarState, create_guru_window
     print("[OK] Avatar Window")
 except Exception as e:
     print(f"[ERROR] Avatar: {e}")

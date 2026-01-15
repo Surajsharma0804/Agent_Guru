@@ -24,20 +24,20 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import List, Dict, Any
-from unittest.mock import Mock, MagicMock, patch
 from queue import Queue
+from typing import Any, Dict, List
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from hypothesis import given, strategies as st, settings, HealthCheck, assume
-from PyQt6.QtCore import QObject, pyqtSignal, Qt, QThread, QCoreApplication
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
+from PyQt6.QtCore import QCoreApplication, QObject, Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import QApplication
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from gui.thread_safe_bridge import ThreadSafeBridge, get_thread_safe_bridge
-
 
 # ============================================================================
 # Test Fixtures and Helpers
@@ -391,7 +391,7 @@ def test_property_32_no_direct_widget_access_verification(qt_app):
     Feature: guru-complete-system, Property 32: No Direct Widget Access from Background Threads
     """
     from PyQt6.QtWidgets import QLabel
-    
+
     # Create a widget in the main thread
     label = QLabel("Test Label")
     assert threading.current_thread().name == 'MainThread'
@@ -449,7 +449,7 @@ def test_property_32_thread_safe_bridge_architecture(qt_app, thread_safe_bridge)
     Validates: Requirements 8.3, 8.6
     """
     from PyQt6.QtWidgets import QLabel
-    
+
     # Create a mock widget
     label = QLabel("Initial Text")
     

@@ -16,15 +16,15 @@ Tests validate:
 Requirements validated: 5.7
 """
 
-import sys
-from pathlib import Path
-import tempfile
-import shutil
-import json
 import gzip
-import time
+import json
+import shutil
 import sqlite3
+import sys
+import tempfile
+import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import List
 
 import pytest
@@ -32,13 +32,7 @@ import pytest
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from audit.audit_logger import (
-    AuditLogger,
-    AuditEvent,
-    AuditEventType,
-    AuditSeverity
-)
-
+from audit.audit_logger import AuditEvent, AuditEventType, AuditLogger, AuditSeverity
 
 # ============================================================================
 # Test Fixtures

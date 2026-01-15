@@ -11,51 +11,39 @@ Tests the comprehensive failure management system including:
 These tests validate Requirements 11.1, 11.2, 11.3, 11.5, 11.6
 """
 
-import pytest
-from hypothesis import given, strategies as st, settings, assume, HealthCheck
-from hypothesis.stateful import RuleBasedStateMachine, rule, invariant, initialize
-from datetime import datetime, timedelta
-import time
-import threading
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass
-from enum import Enum
 import logging
+import threading
+import time
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
-# Import failure orchestrator components
-from src.failure.system_failure_orchestrator import (
-    SystemFailureOrchestrator,
-    SystemFailureState,
-    SystemFailureReport
+import pytest
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
+from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, rule
+
+from src.failure.failure_detector import (
+    ComponentFailure,
+    FailureDetectable,
+    FailureDetector,
+    FailureSeverity,
+    FailureType,
 )
 from src.failure.health_monitor import (
-    ComponentHealthMonitor,
     ComponentHealth,
-    HealthStatus,
-    HealthMetrics,
+    ComponentHealthMonitor,
+    HealthCheckable,
     HealthLimits,
-    HealthCheckable
+    HealthMetrics,
+    HealthStatus,
 )
-from src.failure.failure_detector import (
-    FailureDetector,
-    ComponentFailure,
-    FailureType,
-    FailureSeverity,
-    FailureDetectable
-)
-from src.failure.recovery_orchestrator import (
-    RecoveryOrchestrator,
-    RecoveryPlan,
-    RecoveryResult,
-    RecoveryStatus
-)
-from src.failure.safe_degradation import (
-    SystemDegradationOrchestrator,
-    DegradationLevel,
-    DegradationPlan,
-    SystemState
-)
+from src.failure.recovery_orchestrator import RecoveryOrchestrator, RecoveryPlan, RecoveryResult, RecoveryStatus
+from src.failure.safe_degradation import DegradationLevel, DegradationPlan, SystemDegradationOrchestrator, SystemState
 
+# Import failure orchestrator components
+from src.failure.system_failure_orchestrator import SystemFailureOrchestrator, SystemFailureReport, SystemFailureState
 
 # ============================================================================
 # Mock Components for Testing
