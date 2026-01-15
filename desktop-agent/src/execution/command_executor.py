@@ -725,7 +725,8 @@ class CommandExecutor:
     def __init__(
         self,
         app_controller: ApplicationController,
-        input_automation: InputAutomation
+        input_automation: InputAutomation,
+        authority_scope: Optional[str] = None
     ):
         """
         Initialize command executor with PAL interfaces.
@@ -733,6 +734,8 @@ class CommandExecutor:
         Args:
             app_controller: Platform-specific ApplicationController implementation
             input_automation: Platform-specific InputAutomation implementation
+            authority_scope: Optional authority scope ("system_wide" or "app_level")
+                           If None, will be detected from platform
         """
         self.intent_recognizer = IntentRecognizer()
         self.app_launcher = ApplicationLauncher(app_controller)
@@ -747,10 +750,23 @@ class CommandExecutor:
         self.app_capabilities = app_controller.get_capabilities()
         self.automation_capabilities = input_automation.get_capabilities()
         
+        # Determine authority scope
+        if authority_scope is None:
+            # Detect from platform
+            from src.pal.platform_detector import PlatformDetector
+            platform = PlatformDetector.detect()
+            if platform in ("windows", "macos"):
+                self.authority_scope = "system_wide"
+            else:  # android, ios
+                self.authority_scope = "app_level"
+        else:
+            self.authority_scope = authority_scope
+        
         logger.info(
             "Command Executor initialized",
             app_capabilities=self.app_capabilities,
-            automation_capabilities=self.automation_capabilities
+            automation_capabilities=self.automation_capabilities,
+            authority_scope=self.authority_scope
         )
     
     def execute(self, user_input: str) -> ExecutionResult:
@@ -767,6 +783,14 @@ class CommandExecutor:
         command_type, params = self.intent_recognizer.recognize(user_input)
         
         logger.info(f"Recognized command: {command_type.value}, params: {params}")
+        
+        # Check if command is allowed based on authority scope
+        if not self._is_command_allowed(command_type, params):
+            return ExecutionResult(
+                status=ExecutionStatus.PERMISSION_DENIED,
+                message=f"This command requires system-wide authority. Current scope: {self.authority_scope}",
+                error="Authority scope restriction"
+            )
         
         # Dispatch to appropriate executor
         if command_type == CommandType.OPEN_APPLICATION:
@@ -787,6 +811,55 @@ class CommandExecutor:
                 message="I'm not sure how to do that yet. I can open applications, write files, and search the web.",
                 error="Unknown command type"
             )
+    
+    def _is_command_allowed(self, command_type: CommandType, params: Dict[str, Any]) -> bool:
+        """
+        Check if command is allowed based on authority scope.
+        
+        Desktop (system_wide): All commands allowed
+        Mobile (app_level): Only app-level commands allowed
+        
+        Args:
+            command_type: Type of command
+            params: Command parameters
+        
+        Returns:
+            True if command is allowed, False otherwise
+        
+        Validates: Requirements 39.2, 39.3, 39.4
+        """
+        # System-wide authority: all commands allowed
+        if self.authority_scope == "system_wide":
+            return True
+        
+        # App-level authority: restricted commands
+        # On mobile, we can only control apps within our sandbox
+        # System-level operations are not allowed
+        
+        if command_type == CommandType.OPEN_APPLICATION:
+            # Check if app is within our control
+            # For now, allow all app launches (they'll be sandboxed by OS)
+            return True
+        
+        elif command_type == CommandType.WRITE_FILE:
+            # File operations within app sandbox are allowed
+            return True
+        
+        elif command_type == CommandType.READ_FILE:
+            # File operations within app sandbox are allowed
+            return True
+        
+        elif command_type == CommandType.WEB_SEARCH:
+            # Web search is allowed (opens browser)
+            return True
+        
+        elif command_type == CommandType.SYSTEM_COMMAND:
+            # System commands NOT allowed on mobile
+            return False
+        
+        else:
+            # Unknown commands: deny by default (fail-safe)
+            return False
     
     def _execute_open_application(self, params: Dict[str, Any]) -> ExecutionResult:
         """Execute application opening using PAL"""

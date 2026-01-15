@@ -233,37 +233,37 @@ Each push triggers:
   - **Commit message**: `[Task 2.3] Write property tests for refactored core logic`
   - **Final: Push entire Task 2 feature branch to remote**
 
-- [ ] 3. Implement Authority Scope Separation
+- [x] 3. Implement Authority Scope Separation
   - Add authority scope tracking (system-wide vs app-level)
   - Implement platform-specific authority scope logic
   - Update audit logging to include authority scope
   - _Requirements: 39_
 
-- [ ] 3.1 Add authority scope tracking
+- [x] 3.1 Add authority scope tracking
   - Extend Authority_State_Machine with scope field
   - Implement get_authority_scope() method
   - Implement platform detection logic
   - _Requirements: 39.1_
 
-- [ ] 3.2 Implement platform-specific authority scope
+- [x] 3.2 Implement platform-specific authority scope
   - On Windows/macOS: Set scope to "system-wide"
   - On Android/iOS: Set scope to "app-level"
   - Enforce scope restrictions in Command_Executor
   - _Requirements: 39.2, 39.3, 39.4_
 
-- [ ] 3.3 Update audit logging for authority scope
+- [x] 3.3 Update audit logging for authority scope
   - Log platform in authority grant events
   - Log authority scope in authority grant events
   - Log capability limitations in authority grant events
   - _Requirements: 39.7_
 
-- [ ] 3.4 Write property tests for authority scope
+- [x] 3.4 Write property tests for authority scope
   - **Property 103: Authority Scope Logging**
   - **Property 104: Mobile Authority Scope Restriction**
   - **Property 105: Desktop Authority Scope Permission**
   - **Validates: Requirements 39.2, 39.3, 39.4, 39.7**
 
-- [ ] 4. Implement macOS Backend
+- [x] 4. Implement macOS Backend
   - Implement macOSApplicationController using LaunchServices
   - Implement macOSInputAutomation using CGEvent
   - Implement macOSSpeechOutput using NSSpeechSynthesizer
@@ -272,19 +272,19 @@ Each push triggers:
   - Implement macOSSecurityEnforcer using CGSession
   - _Requirements: 34.6, 35.5, 36.4, 37.4, 38.3, 40.3_
 
-- [ ] 4.1 Implement macOS application control
+- [x] 4.1 Implement macOS application control
   - Use LaunchServices for app launching
   - Use Apple Events for app control
   - Use NSWorkspace for app discovery
   - _Requirements: 34.6_
 
-- [ ] 4.2 Implement macOS input automation
+- [x] 4.2 Implement macOS input automation
   - Use CGEvent for keyboard simulation
   - Use CGEvent for mouse simulation
   - Require Accessibility permission
   - _Requirements: 35.5_
 
-- [ ] 4.3 Write property tests for macOS backend
+- [x] 4.3 Write property tests for macOS backend
   - **Property 96: Application Controller Consistency**
   - **Property 98: Speech Output Personality Consistency**
   - **Property 99: Speech Output Priority Queue Cross-Platform**
@@ -292,7 +292,7 @@ Each push triggers:
   - **Property 101: Biometric Authentication Result Consistency**
   - **Validates: Requirements 34.9, 36.2, 36.7, 37.7, 38.6**
 
-- [ ] 5. Implement Android Backend
+- [x] 5. Implement Android Backend
   - Implement AndroidApplicationController using Intent system
   - Implement AndroidInputAutomation using Accessibility Service
   - Implement AndroidSpeechOutput using Android TTS
@@ -301,19 +301,19 @@ Each push triggers:
   - Implement AndroidSecurityEnforcer for app + screen lock
   - _Requirements: 34.7, 35.6, 36.5, 37.5, 38.4, 40.4_
 
-- [ ] 5.1 Implement Android application control
+- [x] 5.1 Implement Android application control
   - Use Intent system for app launching (startActivity)
   - Use PackageManager for app discovery
   - Use ActivityManager for running app detection
   - _Requirements: 34.7_
 
-- [ ] 5.2 Implement Android input automation
+- [x] 5.2 Implement Android input automation
   - Use Accessibility Service for UI automation
   - Require user permission grant
   - Document partial automation capabilities
   - _Requirements: 35.6_
 
-- [ ] 5.3 Write property tests for Android backend
+- [x] 5.3 Write property tests for Android backend
   - **Property 97: Input Automation Capability Declaration**
   - **Property 102: Biometric Failure Lockout Cross-Platform**
   - **Property 106: Security Enforcer Lock Scope Declaration**
