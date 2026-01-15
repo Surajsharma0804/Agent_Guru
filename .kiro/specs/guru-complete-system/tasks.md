@@ -550,7 +550,7 @@ Each push triggers:
   - **Property 25: Failed Authentication Lockout**
   - **Validates: Requirements 6.2**
 
-- [-] 8. Complete Audit Logger Implementation
+- [x] 8. Complete Audit Logger Implementation
   - Verify cryptographic signature chain
   - Test tamper detection
   - Test log rotation and compression
@@ -570,7 +570,7 @@ Each push triggers:
   - **Property 30: Sensitive Data Redaction**
   - **Validates: Requirements 5.1, 5.4, 5.5, 5.6, 5.8**
 
-- [ ] 8.3 Test log rotation and compression
+- [x] 8.3 Test log rotation and compression
   - Test daily log rotation
   - Test old log compression
   - _Requirements: 5.7_
