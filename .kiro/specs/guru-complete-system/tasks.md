@@ -192,7 +192,7 @@ Each push triggers:
   - **Commit message**: `[Task 1.7] Write property tests for platform detection`
   - **Final: Push entire Task 1 feature branch to remote**
 
-- [-] 2. Refactor Core Logic to Use PAL
+- [x] 2. Refactor Core Logic to Use PAL
   - Remove platform-specific imports from core logic
   - Update Command_Executor to use Application_Controller interface
   - Update TTS_Service to use Speech_Output interface
