@@ -45,13 +45,24 @@ from communication.speech_contract import (
 )
 
 
-@dataclass
+@dataclass(order=True)
 class SpeechRequest:
-    """Speech request with priority"""
-    text: str
-    priority: TTSPriority
-    interrupt: bool
+    """
+    Speech request with priority.
+    
+    Uses @dataclass(order=True) to enable comparison for priority queue.
+    Comparison is based on field order: priority first, then timestamp.
+    """
+    # Priority value (negated for correct ordering in min-heap)
+    priority_value: int
+    # Timestamp for FIFO ordering within same priority
     timestamp: float
+    # Text to speak (not used in comparison)
+    text: str = ""
+    # Original priority enum (not used in comparison)
+    priority: TTSPriority = TTSPriority.NORMAL
+    # Interrupt flag (not used in comparison)
+    interrupt: bool = False
 
 
 class TTSService:
@@ -155,6 +166,12 @@ class TTSService:
         
         Uses SpeechContractValidator for comprehensive validation.
         
+        Algorithm:
+            1. Validate text against speech contract
+            2. If interrupt flag set, clear queue and stop current speech
+            3. Create SpeechRequest with proper ordering fields
+            4. Add to priority queue (min-heap with negated priority)
+        
         Args:
             text: Text to speak
             priority: Speech priority
@@ -206,51 +223,83 @@ class TTSService:
                 # Truncate to 5 words
                 text = self.speech_validator.truncate_to_word_limit(text, 5)
         
-        request = SpeechRequest(
-            text=text,
-            priority=priority,
-            interrupt=interrupt,
-            timestamp=time.time()
-        )
-        
-        # If interrupt requested, signal current speech to stop
+        # If interrupt requested, clear queue and stop current speech BEFORE adding new item
         if interrupt:
             self.interrupt_event.set()
             # Clear queue of lower priority items
             self._clear_lower_priority(priority)
         
-        # Add to queue (priority queue uses tuple: (priority_value, timestamp, request))
-        # Lower priority value = higher priority
-        priority_value = -priority.value  # Negate so higher enum value = higher priority
-        self.speech_queue.put((priority_value, request.timestamp, request))
+        # Create request with proper ordering fields
+        # Priority queue is a min-heap, so use priority value directly
+        # CRITICAL=0 (processed first, highest priority)
+        # HIGH=1
+        # NORMAL=2
+        # LOW=3 (processed last, lowest priority)
+        priority_value = priority.value  # Use value directly (no negation)
+        timestamp = time.time()
+        
+        request = SpeechRequest(
+            priority_value=priority_value,
+            timestamp=timestamp,
+            text=text,
+            priority=priority,
+            interrupt=interrupt
+        )
+        
+        # Add to queue
+        self.speech_queue.put(request)
         
         safe_print(f"TTS queued: '{text[:50]}...' (Priority: {priority.name})")
     
     def _clear_lower_priority(self, min_priority: TTSPriority):
-        """Clear queue items with lower priority"""
+        """
+        Clear queue items with lower priority than min_priority.
+        
+        Algorithm:
+            1. Create new empty queue
+            2. Drain old queue
+            3. Keep only items with priority >= min_priority
+            4. Replace old queue with new queue
+        
+        Args:
+            min_priority: Minimum priority to keep (items with lower priority are discarded)
+        """
         new_queue = queue.PriorityQueue()
         
         while not self.speech_queue.empty():
             try:
-                item = self.speech_queue.get_nowait()
-                priority_value, timestamp, request = item
+                request = self.speech_queue.get_nowait()
                 
                 # Keep items with equal or higher priority
-                if -priority_value >= min_priority.value:
-                    new_queue.put(item)
+                # Remember: priority_value is negated, so more negative = higher priority
+                # CRITICAL=0 → priority_value=0
+                # HIGH=1 → priority_value=-1
+                # NORMAL=2 → priority_value=-2
+                # LOW=3 → priority_value=-3
+                if request.priority.value <= min_priority.value:
+                    new_queue.put(request)
             except queue.Empty:
                 break
         
         self.speech_queue = new_queue
     
     def _tts_loop(self):
-        """Main TTS thread loop using PAL SpeechOutput interface"""
+        """
+        Main TTS thread loop using PAL SpeechOutput interface.
+        
+        Algorithm:
+            1. Wait for speech request from priority queue (with timeout)
+            2. Clear interrupt flag
+            3. Synthesize speech using PAL interface
+            4. Wait for speech to complete (checking for interrupts)
+            5. Repeat until stop requested
+        """
         # Main loop
         while self.running and not self.stop_event.is_set():
             try:
                 # Get next speech request (with timeout)
                 try:
-                    priority_value, timestamp, request = self.speech_queue.get(timeout=0.5)
+                    request = self.speech_queue.get(timeout=0.5)
                 except queue.Empty:
                     continue
                 
