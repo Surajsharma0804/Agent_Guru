@@ -38,6 +38,8 @@ from .memory_types import (
 )
 from .encryption import MemoryEncryption
 from .vector_search import VectorSearchEngine
+from .conversation_storage import ConversationStorage, ConversationTurn
+from .retention_scheduler import RetentionScheduler, RetentionScheduleConfig
 # from .retention import RetentionPolicyManager  # Import locally to avoid circular import
 
 logger = logging.getLogger(__name__)
@@ -57,7 +59,8 @@ class MemorySubsystemController:
     """
     
     def __init__(self, data_dir: str, encryption_key: Optional[bytes] = None,
-                 enable_vector_search: bool = True, enable_retention: bool = True):
+                 enable_vector_search: bool = True, enable_retention: bool = True,
+                 enable_auto_purge: bool = True):
         """
         Initialize the Memory Service.
         
@@ -66,6 +69,7 @@ class MemorySubsystemController:
             encryption_key: User-controlled encryption key (generated if None)
             enable_vector_search: Enable vector similarity search
             enable_retention: Enable automatic retention policy enforcement
+            enable_auto_purge: Enable automatic conversation purging
         """
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -80,6 +84,13 @@ class MemorySubsystemController:
         self._initialize_vector_search(enable_vector_search)
         self._initialize_retention(enable_retention)
         self._initialize_agents()
+        
+        # Initialize retention scheduler
+        if enable_auto_purge:
+            self.retention_scheduler = RetentionScheduler(self)
+            self.retention_scheduler.start()
+        else:
+            self.retention_scheduler = None
         
         self._initialized = True
         logger.info("Memory Service initialized successfully")
@@ -140,9 +151,7 @@ class MemorySubsystemController:
         if enable_vector_search:
             try:
                 self.vector_search = VectorSearchEngine(
-                    model_path=None,  # Use default local model
-                    dimension=384,    # Standard sentence transformer dimension
-                    index_file=str(self.data_dir / "vector_index.faiss")
+                    min_similarity_threshold=0.1  # Minimum similarity for results
                 )
                 logger.info("Vector search engine initialized")
             except Exception as e:
@@ -177,6 +186,13 @@ class MemorySubsystemController:
         self.procedural_manager = self.meta_agent.procedural_manager
         self.resource_manager = self.meta_agent.resource_manager
         self.vault_manager = self.meta_agent.vault_manager
+        
+        # Initialize conversation storage
+        self.conversation_storage = ConversationStorage(
+            self.db_orchestrator,
+            self.encryption,
+            self.vector_search
+        )
         
         logger.info("Memory agents initialized")
     
@@ -458,6 +474,94 @@ class MemorySubsystemController:
         
         return self.vault_manager.search(query, limit)
     
+    # Conversation Storage Operations
+    
+    def store_conversation(self, user_message: str, assistant_response: str,
+                          context_metadata: Optional[Dict[str, Any]] = None) -> ConversationTurn:
+        """
+        Store a conversation turn with encryption.
+        
+        Args:
+            user_message: User's message
+            assistant_response: Assistant's response
+            context_metadata: Optional context metadata
+            
+        Returns:
+            ConversationTurn: Stored conversation turn
+            
+        Validates: Requirements 10.1, 10.2
+        """
+        self._ensure_initialized()
+        
+        return self.conversation_storage.store_conversation(
+            user_message, assistant_response, context_metadata
+        )
+    
+    def get_conversation(self, turn_id: str) -> Optional[ConversationTurn]:
+        """Get a conversation turn by ID."""
+        self._ensure_initialized()
+        
+        return self.conversation_storage.get_conversation(turn_id)
+    
+    def search_conversations(self, query: str, limit: int = 10) -> List[ConversationTurn]:
+        """
+        Search conversations using vector similarity.
+        
+        Validates: Requirements 10.3
+        """
+        self._ensure_initialized()
+        
+        return self.conversation_storage.search_conversations(query, limit)
+    
+    def get_recent_conversations(self, limit: int = 10) -> List[ConversationTurn]:
+        """Get recent conversation history."""
+        self._ensure_initialized()
+        
+        return self.conversation_storage.get_recent_conversations(limit)
+    
+    def get_conversations_by_timerange(self, start_time: datetime, end_time: datetime,
+                                      limit: int = 100) -> List[ConversationTurn]:
+        """Get conversations within a time range."""
+        self._ensure_initialized()
+        
+        return self.conversation_storage.get_conversations_by_timerange(
+            start_time, end_time, limit
+        )
+    
+    def purge_old_conversations(self, days: int = 90) -> int:
+        """
+        Purge conversations older than specified days.
+        
+        Validates: Requirements 10.5
+        """
+        self._ensure_initialized()
+        
+        return self.conversation_storage.purge_old_conversations(days)
+    
+    def delete_conversation(self, turn_id: str) -> bool:
+        """Delete a specific conversation."""
+        self._ensure_initialized()
+        
+        return self.conversation_storage.delete_conversation(turn_id)
+    
+    def delete_all_conversations(self, confirmation_token: str) -> int:
+        """Delete all conversations (requires confirmation)."""
+        self._ensure_initialized()
+        
+        return self.conversation_storage.delete_all_conversations(confirmation_token)
+    
+    def get_conversation_count(self) -> int:
+        """Get total number of stored conversations."""
+        self._ensure_initialized()
+        
+        return self.conversation_storage.get_conversation_count()
+    
+    def get_conversation_stats(self) -> Dict[str, Any]:
+        """Get conversation storage statistics."""
+        self._ensure_initialized()
+        
+        return self.conversation_storage.get_storage_stats()
+    
     # Cross-Memory Operations
     
     def search_all_memories(self, query: str, memory_types: Optional[List[str]] = None,
@@ -637,6 +741,10 @@ class MemorySubsystemController:
         
         with self._lock:
             self._shutdown = True
+            
+            # Stop retention scheduler
+            if hasattr(self, 'retention_scheduler') and self.retention_scheduler:
+                self.retention_scheduler.stop()
             
             # Shutdown components
             if hasattr(self, 'db_orchestrator'):

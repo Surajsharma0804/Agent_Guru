@@ -599,7 +599,7 @@ class DatabaseLifecycleOrchestrator:
             memory_type TEXT NOT NULL,
             max_age_days INTEGER,
             max_records INTEGER,
-            cleanup_strategy TEXT NOT NULL CHECK (cleanup_strategy IN ('oldest_first', 'least_accessed', 'lowest_confidence')),
+            cleanup_strategy TEXT NOT NULL CHECK (cleanup_strategy IN ('oldest_first', 'least_accessed', 'lowest_confidence', 'expired_only')),
             enabled BOOLEAN NOT NULL DEFAULT TRUE,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP

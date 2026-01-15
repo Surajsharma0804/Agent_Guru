@@ -40,6 +40,8 @@ from .memory_agents import (
 )
 from .encryption import MemoryEncryption
 from .vector_search import VectorSearchEngine
+from .conversation_storage import ConversationStorage, ConversationTurn
+from .retention_scheduler import RetentionScheduler, RetentionScheduleConfig
 # from .retention import MemoryRetentionEnforcer  # Temporarily disabled
 from .memory_service import MemorySubsystemController
 
@@ -61,6 +63,10 @@ __all__ = [
     'EncryptedCredentialVault',
     'MemoryEncryption',
     'VectorSearchEngine',
+    'ConversationStorage',
+    'ConversationTurn',
+    'RetentionScheduler',
+    'RetentionScheduleConfig',
     # 'MemoryRetentionEnforcer',  # Temporarily disabled
     'MemorySubsystemController'
 ]

@@ -360,6 +360,11 @@ class VectorSearchEngine:
         else:
             self.indexes.clear()
             logger.info("Cleared all vector indexes")
+    
+    def shutdown(self) -> None:
+        """Shutdown the vector search engine and clean up resources."""
+        self.indexes.clear()
+        logger.info("Vector search engine shutdown complete")
 
 
 class VectorTextTransformer:
