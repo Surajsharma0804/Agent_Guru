@@ -13,6 +13,12 @@ THREAD SAFETY ARCHITECTURE:
 
 SIGNAL FLOW:
 Background Thread → Bridge Signal → Qt Event Loop → Main Thread → Widget Update
+
+FIRST-RUN DETECTION:
+- Checks for user configuration file
+- If not found, launches setup wizard
+- Setup wizard creates user profile and preferences
+- After setup, launches main application
 """
 
 import sys
@@ -24,6 +30,44 @@ sys.path.insert(0, str(src_path))
 
 print("=" * 70)
 print("GURU AI ASSISTANT")
+print("=" * 70)
+
+# Check for first-time setup and run wizard if needed
+try:
+    from config.first_run_detector import run_setup_wizard_if_needed
+    
+    setup_completed = run_setup_wizard_if_needed()
+    
+    if setup_completed:
+        # Reload configuration after setup
+        from config.user_config import get_config_manager
+        config_manager = get_config_manager()
+        profile = config_manager.get_profile()
+        
+        print(f"\n[WELCOME] Hello, {profile.display_name}!")
+        print("=" * 70 + "\n")
+    else:
+        # Check if user has existing profile
+        from config.user_config import get_config_manager
+        config_manager = get_config_manager()
+        
+        if not config_manager.is_first_time_setup():
+            profile = config_manager.get_profile()
+            print(f"\n[WELCOME BACK] {profile.display_name}")
+            print("=" * 70 + "\n")
+        else:
+            # Setup was cancelled or failed
+            print("\n[ERROR] Setup required but not completed. Exiting...")
+            sys.exit(1)
+
+except Exception as e:
+    print(f"[ERROR] Configuration check failed: {e}")
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+
+print("=" * 70)
+print("INITIALIZING GURU COMPONENTS")
 print("=" * 70)
 
 # Import Qt

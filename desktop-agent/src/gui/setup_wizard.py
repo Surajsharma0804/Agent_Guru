@@ -244,19 +244,34 @@ class BiometricPage(QWizardPage):
             # Import BiometricFactor for comparison
             from src.authority.state import BiometricFactor
             
+            # Display detected hardware
+            hardware_status = QLabel("Detected biometric hardware:")
+            hardware_status.setStyleSheet("font-weight: bold;")
+            layout.addWidget(hardware_status)
+            
+            layout.addSpacing(5)
+            
             self.fingerprint = QCheckBox("Use fingerprint (Windows Hello)")
             self.fingerprint.setEnabled(False)
             if BiometricFactor.FINGERPRINT in available_factors:
+                self.fingerprint.setText("✓ Use fingerprint (Windows Hello) - DETECTED")
+                self.fingerprint.setStyleSheet("color: #5cb85c;")
                 self.fingerprint.setToolTip("Fingerprint sensor detected and configured")
             else:
+                self.fingerprint.setText("✗ Use fingerprint (Windows Hello) - NOT AVAILABLE")
+                self.fingerprint.setStyleSheet("color: #999;")
                 self.fingerprint.setToolTip("No fingerprint sensor detected or not configured")
             layout.addWidget(self.fingerprint)
             
             self.face_recognition = QCheckBox("Use face recognition (Windows Hello)")
             self.face_recognition.setEnabled(False)
             if BiometricFactor.FACE in available_factors:
+                self.face_recognition.setText("✓ Use face recognition (Windows Hello) - DETECTED")
+                self.face_recognition.setStyleSheet("color: #5cb85c;")
                 self.face_recognition.setToolTip("Face recognition camera detected and configured")
             else:
+                self.face_recognition.setText("✗ Use face recognition (Windows Hello) - NOT AVAILABLE")
+                self.face_recognition.setStyleSheet("color: #999;")
                 self.face_recognition.setToolTip("No face recognition camera detected or not configured")
             layout.addWidget(self.face_recognition)
             
@@ -574,6 +589,13 @@ class SetupWizard(QWizard):
             voice_enabled=setup_data['voice_always_on'],
             biometric_enabled=setup_data['enable_biometric']
         )
+        
+        # Mark setup as complete
+        try:
+            from src.config.first_run_detector import mark_setup_complete
+            mark_setup_complete()
+        except Exception as e:
+            print(f"[WARNING] Failed to mark setup complete: {e}")
         
         # Emit completion signal
         self.setup_complete.emit(setup_data)
