@@ -320,7 +320,7 @@ Each push triggers:
   - **Property 107: Security Violation Detection Cross-Platform**
   - **Validates: Requirements 35.8, 38.7, 40.4, 40.6**
 
-- [ ] 6. Implement iOS Backend
+- [x] 6. Implement iOS Backend
   - Implement iOSApplicationController using deep links
   - Implement iOSSpeechOutput using AVSpeechSynthesizer
   - Implement iOSSpeechInput using system STT
@@ -329,25 +329,25 @@ Each push triggers:
   - Document severe iOS limitations
   - _Requirements: 34.8, 36.6, 37.6, 38.5, 40.5_
 
-- [ ] 6.1 Implement iOS application control (limited)
+- [x] 6.1 Implement iOS application control (limited)
   - Use openURL for deep links only
   - Document inability to close apps
   - Document limited app discovery
   - _Requirements: 34.8_
 
-- [ ] 6.2 Document iOS limitations explicitly
+- [x] 6.2 Document iOS limitations explicitly
   - No input automation capability
   - No system-wide control
   - App-level authority only
   - System STT mandatory (no local models)
   - _Requirements: 35.7, 39.3, 39.6_
 
-- [ ] 6.3 Write property tests for iOS backend
+- [x] 6.3 Write property tests for iOS backend
   - **Property 104: Mobile Authority Scope Restriction**
   - **Property 106: Security Enforcer Lock Scope Declaration**
   - **Validates: Requirements 39.2, 40.5**
 
-- [ ] 7. Checkpoint - Test Cross-Platform PAL
+- [x] 7. Checkpoint - Test Cross-Platform PAL
   - Ensure all PAL interface tests pass
   - Ensure all platform backend tests pass
   - Verify core logic is platform-agnostic

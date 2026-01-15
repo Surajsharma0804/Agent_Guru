@@ -213,7 +213,7 @@ class TestProperty95PALInterfaceCommunication:
         performed through the abstract PAL interfaces without direct API calls.
         """
         # Create platform-specific backends
-        from conftest import (
+        from tests.conftest import (
             MockApplicationController, MockInputAutomation, MockSpeechOutput,
             MockBiometricAuthenticator, MockSecurityEnforcer
         )
@@ -267,7 +267,7 @@ class TestProperty95PALInterfaceCommunication:
         This property ensures that core logic can call interface methods
         without knowing the underlying platform.
         """
-        from conftest import (
+        from tests.conftest import (
             MockApplicationController, MockInputAutomation, MockSpeechOutput,
             MockSpeechInput, MockBiometricAuthenticator, MockSecurityEnforcer
         )

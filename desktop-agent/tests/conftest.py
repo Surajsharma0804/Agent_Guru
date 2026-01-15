@@ -251,6 +251,15 @@ class MockBiometricAuthenticator(BiometricAuthenticator):
         elif self.platform == "ios":
             return ["face", "fingerprint"]
         return ["fingerprint"]
+    
+    def get_capabilities(self) -> Dict[str, bool]:
+        """Get platform-specific biometric capabilities."""
+        return {
+            "can_authenticate": True,
+            "supports_fingerprint": "fingerprint" in self.get_available_factors(),
+            "supports_face": "face" in self.get_available_factors(),
+            "supports_iris": "iris" in self.get_available_factors()
+        }
 
 
 class MockSecurityEnforcer(SecurityEnforcer):
@@ -274,6 +283,14 @@ class MockSecurityEnforcer(SecurityEnforcer):
         elif self.platform == "ios":
             return "app"
         return "unknown"
+    
+    def get_capabilities(self) -> Dict[str, bool]:
+        """Get platform-specific security enforcement capabilities."""
+        return {
+            "can_lock_session": True,
+            "lock_scope": self.get_lock_scope(),
+            "system_wide_lock": self.platform in ["windows", "macos"]
+        }
 
 
 # Pytest Fixtures
