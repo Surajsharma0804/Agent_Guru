@@ -27,8 +27,8 @@ from .detection import (
     create_intrusion_detector,
 )
 from .patterns import (
-    FailurePattern,
     CryptographicFailurePatternAnalyzer,
+    FailurePattern,
     FailurePatternType,
     PatternAnalysisConfig,
     PatternSeverity,

@@ -27,8 +27,9 @@ import structlog
 
 # Windows-specific imports (with fallbacks for testing)
 try:
-    import win32api
     import platform
+
+    import win32api
     from winsdk.windows.security.credentials.ui import UserConsentVerificationResult
 
     # Verify we're actually on Windows
@@ -38,7 +39,7 @@ except ImportError:
     WINDOWS_AVAILABLE = False
     UserConsentVerificationResult = None
 
-from ..authority.state import BiometricFactor
+from authority.state import BiometricFactor
 
 logger = structlog.get_logger(__name__)
 
@@ -105,19 +106,13 @@ class BiometricProviderConfig:
 class BiometricProviderError(Exception):
     """Base exception for biometric provider errors."""
 
-    pass
-
 
 class BiometricProviderNotAvailableError(BiometricProviderError):
     """Raised when a biometric provider is not available."""
 
-    pass
-
 
 class BiometricVerificationTimeoutError(BiometricProviderError):
     """Raised when biometric verification times out."""
-
-    pass
 
 
 class BiometricProvider(ABC):
@@ -139,22 +134,18 @@ class BiometricProvider(ABC):
     @abstractmethod
     def get_provider_type(self) -> BiometricProviderType:
         """Get the type of this provider."""
-        pass
 
     @abstractmethod
     def get_supported_factors(self) -> List[BiometricFactor]:
         """Get list of biometric factors supported by this provider."""
-        pass
 
     @abstractmethod
     def is_available(self) -> bool:
         """Check if the provider is available on this system."""
-        pass
 
     @abstractmethod
     def get_capabilities(self) -> List[BiometricCapability]:
         """Get detailed capabilities of this provider."""
-        pass
 
     @abstractmethod
     async def enforce_biometric_verification_boundary(
@@ -174,7 +165,6 @@ class BiometricProvider(ABC):
             BiometricProviderError: If verification fails due to provider issues
             BiometricVerificationTimeoutError: If verification times out
         """
-        pass
 
     def get_provider_info(self) -> Dict[str, Union[str, int, bool, List[str]]]:
         """Get comprehensive provider information."""
@@ -698,7 +688,7 @@ class BiometricProviderSecurityBoundary:
 
 
 def create_biometric_provider_manager(
-    config: Optional[BiometricProviderConfig] = None
+    config: Optional[BiometricProviderConfig] = None,
 ) -> BiometricProviderSecurityBoundary:
     """
     Factory function to create a biometric provider manager.

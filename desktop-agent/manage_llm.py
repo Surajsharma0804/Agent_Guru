@@ -13,24 +13,19 @@ Features:
 - Manage configuration
 """
 
-import asyncio
-import sys
 import argparse
+import asyncio
 import json
+import sys
 from pathlib import Path
 from typing import Optional
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from src.llm.model_router import (
-    get_model_router,
-    TaskType,
-    ProviderType,
-    RouterConfiguration
-)
 from src.llm.config_manager import get_llm_config_manager
 from src.llm.integration import get_llm_integration
+from src.llm.model_router import ProviderType, RouterConfiguration, TaskType, get_model_router
 
 
 class LLMManager:

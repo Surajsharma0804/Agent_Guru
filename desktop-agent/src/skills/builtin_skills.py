@@ -8,19 +8,10 @@ Provides essential skills that come pre-installed with GURU:
 - VectorTextTransformer: Text processing and manipulation utilities
 """
 
-from typing import Dict, Any, List
 from pathlib import Path
-import json
-import subprocess
-import psutil
-import platform
-import os
-from datetime import datetime
+from typing import Dict
 
-from .manifest import (
-    SkillManifest, PermissionSet, PermissionType, RiskLevel, 
-    ResourceLimits, RollbackStrategy
-)
+from .manifest import PermissionSet, PermissionType, ResourceLimits, RiskLevel, RollbackStrategy, SkillManifest
 
 
 def create_system_info_skill() -> SkillManifest:
@@ -32,10 +23,7 @@ def create_system_info_skill() -> SkillManifest:
         version="1.0.0",
         author="GURU Built-in",
         permissions=PermissionSet(
-            permissions={PermissionType.SYSTEM_INFO},
-            filesystem_paths=[],
-            network_hosts=[],
-            ui_applications=[]
+            permissions={PermissionType.SYSTEM_INFO}, filesystem_paths=[], network_hosts=[], ui_applications=[]
         ),
         risk_level=RiskLevel.LOW,
         resource_limits=ResourceLimits(
@@ -45,7 +33,7 @@ def create_system_info_skill() -> SkillManifest:
             max_network_kb=0,
             max_execution_time_seconds=10,
             max_file_handles=10,
-            max_processes=1
+            max_processes=1,
         ),
         entry_point="system_info.py",
         supported_platforms=["windows"],
@@ -55,11 +43,7 @@ def create_system_info_skill() -> SkillManifest:
         max_calls_per_minute=30,
         max_calls_per_hour=1000,
         max_concurrent_executions=3,
-        metadata={
-            "category": "system",
-            "required_parameters": [],
-            "optional_parameters": ["info_type"]
-        }
+        metadata={"category": "system", "required_parameters": [], "optional_parameters": ["info_type"]},
     )
 
 
@@ -76,10 +60,10 @@ def create_file_ops_skill() -> SkillManifest:
             filesystem_paths=[
                 str(Path.home() / "Documents"),
                 str(Path.home() / "Desktop"),
-                str(Path.home() / "Downloads")
+                str(Path.home() / "Downloads"),
             ],
             network_hosts=[],
-            ui_applications=[]
+            ui_applications=[],
         ),
         risk_level=RiskLevel.MEDIUM,
         resource_limits=ResourceLimits(
@@ -89,16 +73,14 @@ def create_file_ops_skill() -> SkillManifest:
             max_network_kb=0,
             max_execution_time_seconds=30,
             max_file_handles=20,
-            max_processes=1
+            max_processes=1,
         ),
         entry_point="file_ops.py",
         supported_platforms=["windows"],
         dependencies=[],
         side_effects=["modifies_files", "creates_files", "deletes_files"],
         rollback_strategy=RollbackStrategy(
-            strategy_type="file_restore",
-            rollback_data={"backup_location": "temp/backups"},
-            cleanup_commands=[]
+            strategy_type="file_restore", rollback_data={"backup_location": "temp/backups"}, cleanup_commands=[]
         ),
         max_calls_per_minute=20,
         max_calls_per_hour=500,
@@ -106,8 +88,8 @@ def create_file_ops_skill() -> SkillManifest:
         metadata={
             "category": "file_system",
             "required_parameters": ["operation"],
-            "optional_parameters": ["path", "content", "destination"]
-        }
+            "optional_parameters": ["path", "content", "destination"],
+        },
     )
 
 
@@ -123,12 +105,7 @@ def create_app_control_skill() -> SkillManifest:
             permissions={PermissionType.PROCESS_CONTROL, PermissionType.UI_AUTOMATION},
             filesystem_paths=[],
             network_hosts=[],
-            ui_applications=[
-                "notepad.exe",
-                "calc.exe",
-                "mspaint.exe",
-                "explorer.exe"
-            ]
+            ui_applications=["notepad.exe", "calc.exe", "mspaint.exe", "explorer.exe"],
         ),
         risk_level=RiskLevel.HIGH,
         resource_limits=ResourceLimits(
@@ -138,16 +115,14 @@ def create_app_control_skill() -> SkillManifest:
             max_network_kb=0,
             max_execution_time_seconds=60,
             max_file_handles=30,
-            max_processes=3
+            max_processes=3,
         ),
         entry_point="app_control.py",
         supported_platforms=["windows"],
         dependencies=[],
         side_effects=["launches_applications", "modifies_processes"],
         rollback_strategy=RollbackStrategy(
-            strategy_type="process_kill",
-            rollback_data={"track_launched_processes": True},
-            cleanup_commands=[]
+            strategy_type="process_kill", rollback_data={"track_launched_processes": True}, cleanup_commands=[]
         ),
         max_calls_per_minute=10,
         max_calls_per_hour=200,
@@ -155,8 +130,8 @@ def create_app_control_skill() -> SkillManifest:
         metadata={
             "category": "application",
             "required_parameters": ["operation"],
-            "optional_parameters": ["application", "arguments", "working_directory"]
-        }
+            "optional_parameters": ["application", "arguments", "working_directory"],
+        },
     )
 
 
@@ -172,7 +147,7 @@ def create_vector_text_transformer_skill() -> SkillManifest:
             permissions=set(),  # No special permissions needed
             filesystem_paths=[],
             network_hosts=[],
-            ui_applications=[]
+            ui_applications=[],
         ),
         risk_level=RiskLevel.LOW,
         resource_limits=ResourceLimits(
@@ -182,7 +157,7 @@ def create_vector_text_transformer_skill() -> SkillManifest:
             max_network_kb=0,
             max_execution_time_seconds=15,
             max_file_handles=5,
-            max_processes=1
+            max_processes=1,
         ),
         entry_point="text_processor.py",
         supported_platforms=["windows"],
@@ -192,11 +167,7 @@ def create_vector_text_transformer_skill() -> SkillManifest:
         max_calls_per_minute=50,
         max_calls_per_hour=2000,
         max_concurrent_executions=5,
-        metadata={
-            "category": "text",
-            "required_parameters": ["operation", "text"],
-            "optional_parameters": ["options"]
-        }
+        metadata={"category": "text", "required_parameters": ["operation", "text"], "optional_parameters": ["options"]},
     )
 
 
@@ -213,7 +184,7 @@ from datetime import datetime
 
 def get_system_info(info_type="basic"):
     """Get system information based on requested type."""
-    
+
     if info_type == "basic":
         return {
             "platform": platform.system(),
@@ -224,7 +195,7 @@ def get_system_info(info_type="basic"):
             "python_version": platform.python_version(),
             "timestamp": datetime.now().isoformat()
         }
-    
+
     elif info_type == "performance":
         return {
             "cpu_percent": psutil.cpu_percent(interval=1),
@@ -240,7 +211,7 @@ def get_system_info(info_type="basic"):
             },
             "timestamp": datetime.now().isoformat()
         }
-    
+
     elif info_type == "processes":
         processes = []
         for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
@@ -248,7 +219,7 @@ def get_system_info(info_type="basic"):
                 processes.append(proc.info)
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
-        
+
         # Sort by CPU usage and return top 10
         processes.sort(key=lambda x: x.get('cpu_percent', 0), reverse=True)
         return {
@@ -256,7 +227,7 @@ def get_system_info(info_type="basic"):
             "total_processes": len(processes),
             "timestamp": datetime.now().isoformat()
         }
-    
+
     else:
         raise ValueError(f"Unknown info_type: {info_type}")
 
@@ -283,14 +254,14 @@ from datetime import datetime
 
 def perform_file_operation(operation, path=None, content=None, destination=None):
     """Perform file operation with safety checks."""
-    
+
     if operation == "read":
         if not path:
             raise ValueError("path parameter required for read operation")
-        
+
         if not validate_file_access(path):
             raise PermissionError(f"Access denied to path: {path}")
-        
+
         with safe_open(path, 'r', encoding='utf-8') as f:
             return {
                 "operation": "read",
@@ -299,24 +270,24 @@ def perform_file_operation(operation, path=None, content=None, destination=None)
                 "size_bytes": os.path.getsize(path),
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     elif operation == "write":
         if not path or content is None:
             raise ValueError("path and content parameters required for write operation")
-        
+
         if not validate_file_access(path):
             raise PermissionError(f"Access denied to path: {path}")
-        
+
         # Create backup if file exists
         path_obj = Path(path)
         backup_path = None
         if path_obj.exists():
             backup_path = path_obj.with_suffix(path_obj.suffix + '.backup')
             shutil.copy2(path, backup_path)
-        
+
         with safe_open(path, 'w', encoding='utf-8') as f:
             f.write(content)
-        
+
         return {
             "operation": "write",
             "path": path,
@@ -324,16 +295,16 @@ def perform_file_operation(operation, path=None, content=None, destination=None)
             "backup_created": str(backup_path) if backup_path else None,
             "timestamp": datetime.now().isoformat()
         }
-    
+
     elif operation == "copy":
         if not path or not destination:
             raise ValueError("path and destination parameters required for copy operation")
-        
+
         if not validate_file_access(path) or not validate_file_access(destination):
             raise PermissionError("Access denied to source or destination path")
-        
+
         shutil.copy2(path, destination)
-        
+
         return {
             "operation": "copy",
             "source": path,
@@ -341,18 +312,18 @@ def perform_file_operation(operation, path=None, content=None, destination=None)
             "size_bytes": os.path.getsize(destination),
             "timestamp": datetime.now().isoformat()
         }
-    
+
     elif operation == "list":
         if not path:
             path = "."
-        
+
         if not validate_file_access(path):
             raise PermissionError(f"Access denied to path: {path}")
-        
+
         path_obj = Path(path)
         if not path_obj.exists():
             raise FileNotFoundError(f"Path does not exist: {path}")
-        
+
         if path_obj.is_file():
             return {
                 "operation": "list",
@@ -361,7 +332,7 @@ def perform_file_operation(operation, path=None, content=None, destination=None)
                 "size_bytes": path_obj.stat().st_size,
                 "timestamp": datetime.now().isoformat()
             }
-        
+
         items = []
         for item in path_obj.iterdir():
             try:
@@ -374,7 +345,7 @@ def perform_file_operation(operation, path=None, content=None, destination=None)
                 })
             except (OSError, PermissionError):
                 pass
-        
+
         return {
             "operation": "list",
             "path": path,
@@ -382,7 +353,7 @@ def perform_file_operation(operation, path=None, content=None, destination=None)
             "count": len(items),
             "timestamp": datetime.now().isoformat()
         }
-    
+
     else:
         raise ValueError(f"Unknown operation: {operation}")
 
@@ -391,14 +362,14 @@ try:
     operation = parameters.get("operation")
     if not operation:
         raise ValueError("operation parameter is required")
-    
+
     result = perform_file_operation(
         operation=operation,
         path=parameters.get("path"),
         content=parameters.get("content"),
         destination=parameters.get("destination")
     )
-    
+
     print(json.dumps(result, indent=2))
 except Exception as e:
     print(f"Error: {e}", file=sys.stderr)
@@ -419,20 +390,20 @@ from pathlib import Path
 
 def perform_app_operation(operation, application=None, arguments=None, working_directory=None):
     """Perform application control operation."""
-    
+
     if operation == "launch":
         if not application:
             raise ValueError("application parameter required for launch operation")
-        
+
         # Validate application is in allowed list
         allowed_apps = [
             "notepad.exe", "calc.exe", "mspaint.exe", "explorer.exe"
         ]
-        
+
         app_name = Path(application).name.lower()
         if app_name not in [app.lower() for app in allowed_apps]:
             raise PermissionError(f"Application not in allowed list: {application}")
-        
+
         # Prepare command
         cmd = [application]
         if arguments:
@@ -440,7 +411,7 @@ def perform_app_operation(operation, application=None, arguments=None, working_d
                 cmd.extend(arguments.split())
             elif isinstance(arguments, list):
                 cmd.extend(arguments)
-        
+
         # Launch process
         try:
             process = subprocess.Popen(
@@ -450,10 +421,10 @@ def perform_app_operation(operation, application=None, arguments=None, working_d
                 stderr=subprocess.PIPE,
                 text=True
             )
-            
+
             # Wait a moment to see if process starts successfully
             time.sleep(1)
-            
+
             if process.poll() is None:
                 # Process is still running
                 return {
@@ -476,10 +447,10 @@ def perform_app_operation(operation, application=None, arguments=None, working_d
                     "stderr": stderr,
                     "timestamp": datetime.now().isoformat()
                 }
-        
+
         except Exception as e:
             raise RuntimeError(f"Failed to launch application: {e}")
-    
+
     elif operation == "list":
         # List running processes
         processes = []
@@ -491,32 +462,32 @@ def perform_app_operation(operation, application=None, arguments=None, working_d
                     processes.append(info)
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
-        
+
         # Sort by creation time (newest first)
         processes.sort(key=lambda x: x['create_time'], reverse=True)
-        
+
         return {
             "operation": "list",
             "processes": processes[:20],  # Return top 20
             "total_count": len(processes),
             "timestamp": datetime.now().isoformat()
         }
-    
+
     elif operation == "status":
         if not application:
             raise ValueError("application parameter required for status operation")
-        
+
         # Find processes matching application name
         matching_processes = []
         app_name = Path(application).name.lower()
-        
+
         for proc in psutil.process_iter(['pid', 'name', 'exe', 'status', 'cpu_percent', 'memory_percent']):
             try:
                 if proc.info['name'].lower() == app_name:
                     matching_processes.append(proc.info)
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
-        
+
         return {
             "operation": "status",
             "application": application,
@@ -524,7 +495,7 @@ def perform_app_operation(operation, application=None, arguments=None, working_d
             "processes": matching_processes,
             "timestamp": datetime.now().isoformat()
         }
-    
+
     else:
         raise ValueError(f"Unknown operation: {operation}")
 
@@ -533,14 +504,14 @@ try:
     operation = parameters.get("operation")
     if not operation:
         raise ValueError("operation parameter is required")
-    
+
     result = perform_app_operation(
         operation=operation,
         application=parameters.get("application"),
         arguments=parameters.get("arguments"),
         working_directory=parameters.get("working_directory")
     )
-    
+
     print(json.dumps(result, indent=2))
 except Exception as e:
     print(f"Error: {e}", file=sys.stderr)
@@ -559,10 +530,10 @@ from typing import Dict, Any, List
 
 def perform_text_operation(operation: str, text: str, options: Dict[str, Any] = None) -> Dict[str, Any]:
     """Perform text processing operation."""
-    
+
     if options is None:
         options = {}
-    
+
     if operation == "count":
         return {
             "operation": "count",
@@ -573,10 +544,10 @@ def perform_text_operation(operation: str, text: str, options: Dict[str, Any] = 
             "paragraphs": len([p for p in text.split("\\n\\n") if p.strip()]),
             "timestamp": datetime.now().isoformat()
         }
-    
+
     elif operation == "transform":
         transform_type = options.get("type", "upper")
-        
+
         if transform_type == "upper":
             result_text = text.upper()
         elif transform_type == "lower":
@@ -591,7 +562,7 @@ def perform_text_operation(operation: str, text: str, options: Dict[str, Any] = 
             result_text = text.strip()
         else:
             raise ValueError(f"Unknown transform type: {transform_type}")
-        
+
         return {
             "operation": "transform",
             "type": transform_type,
@@ -600,19 +571,19 @@ def perform_text_operation(operation: str, text: str, options: Dict[str, Any] = 
             "result": result_text,
             "timestamp": datetime.now().isoformat()
         }
-    
+
     elif operation == "search":
         pattern = options.get("pattern", "")
         if not pattern:
             raise ValueError("pattern option required for search operation")
-        
+
         case_sensitive = options.get("case_sensitive", False)
         flags = 0 if case_sensitive else re.IGNORECASE
-        
+
         try:
             matches = re.finditer(pattern, text, flags)
             match_list = []
-            
+
             for match in matches:
                 match_list.append({
                     "text": match.group(),
@@ -620,7 +591,7 @@ def perform_text_operation(operation: str, text: str, options: Dict[str, Any] = 
                     "end": match.end(),
                     "groups": match.groups()
                 })
-            
+
             return {
                 "operation": "search",
                 "pattern": pattern,
@@ -629,23 +600,23 @@ def perform_text_operation(operation: str, text: str, options: Dict[str, Any] = 
                 "matches": match_list,
                 "timestamp": datetime.now().isoformat()
             }
-        
-        except re.error as e:
+
+        except re.error as _e:
             raise ValueError(f"Invalid regex pattern: {e}")
-    
+
     elif operation == "replace":
         pattern = options.get("pattern", "")
         replacement = options.get("replacement", "")
-        
+
         if not pattern:
             raise ValueError("pattern option required for replace operation")
-        
+
         case_sensitive = options.get("case_sensitive", False)
         flags = 0 if case_sensitive else re.IGNORECASE
-        
+
         try:
             result_text, count = re.subn(pattern, replacement, text, flags=flags)
-            
+
             return {
                 "operation": "replace",
                 "pattern": pattern,
@@ -657,27 +628,27 @@ def perform_text_operation(operation: str, text: str, options: Dict[str, Any] = 
                 "result": result_text,
                 "timestamp": datetime.now().isoformat()
             }
-        
-        except re.error as e:
+
+        except re.error as _e:
             raise ValueError(f"Invalid regex pattern: {e}")
-    
+
     elif operation == "extract":
         extract_type = options.get("type", "lines")
-        
+
         if extract_type == "lines":
             start_line = options.get("start_line", 1)
             end_line = options.get("end_line", None)
-            
+
             lines = text.splitlines()
             if end_line is None:
                 end_line = len(lines)
-            
+
             # Convert to 0-based indexing
             start_idx = max(0, start_line - 1)
             end_idx = min(len(lines), end_line)
-            
+
             extracted_lines = lines[start_idx:end_idx]
-            
+
             return {
                 "operation": "extract",
                 "type": "lines",
@@ -687,21 +658,21 @@ def perform_text_operation(operation: str, text: str, options: Dict[str, Any] = 
                 "result": "\\n".join(extracted_lines),
                 "timestamp": datetime.now().isoformat()
             }
-        
+
         elif extract_type == "words":
             start_word = options.get("start_word", 1)
             end_word = options.get("end_word", None)
-            
+
             words = text.split()
             if end_word is None:
                 end_word = len(words)
-            
+
             # Convert to 0-based indexing
             start_idx = max(0, start_word - 1)
             end_idx = min(len(words), end_word)
-            
+
             extracted_words = words[start_idx:end_idx]
-            
+
             return {
                 "operation": "extract",
                 "type": "words",
@@ -711,10 +682,10 @@ def perform_text_operation(operation: str, text: str, options: Dict[str, Any] = 
                 "result": " ".join(extracted_words),
                 "timestamp": datetime.now().isoformat()
             }
-        
+
         else:
             raise ValueError(f"Unknown extract type: {extract_type}")
-    
+
     else:
         raise ValueError(f"Unknown operation: {operation}")
 
@@ -723,16 +694,16 @@ try:
     operation = parameters.get("operation")
     text = parameters.get("text")
     options = parameters.get("options", {})
-    
+
     if not operation:
         raise ValueError("operation parameter is required")
-    
+
     if text is None:
         raise ValueError("text parameter is required")
-    
+
     result = perform_text_operation(operation, text, options)
     print(json.dumps(result, indent=2))
-    
+
 except Exception as e:
     print(f"Error: {e}", file=sys.stderr)
     sys.exit(1)
@@ -743,7 +714,7 @@ BUILTIN_SKILL_CODES = {
     "system-info": SYSTEM_INFO_SKILL_CODE,
     "file-ops": FILE_OPS_SKILL_CODE,
     "app-control": APP_CONTROL_SKILL_CODE,
-    "text-processor": TEXT_PROCESSOR_SKILL_CODE
+    "text-processor": TEXT_PROCESSOR_SKILL_CODE,
 }
 
 # Skill manifest creators
@@ -751,21 +722,18 @@ BUILTIN_SKILL_MANIFESTS = {
     "system-info": create_system_info_skill,
     "file-ops": create_file_ops_skill,
     "app-control": create_app_control_skill,
-    "text-processor": create_vector_text_transformer_skill
+    "text-processor": create_vector_text_transformer_skill,
 }
 
 
 def get_builtin_skills() -> Dict[str, SkillManifest]:
     """Get all built-in skill manifests."""
-    return {
-        skill_id: creator()
-        for skill_id, creator in BUILTIN_SKILL_MANIFESTS.items()
-    }
+    return {skill_id: creator() for skill_id, creator in BUILTIN_SKILL_MANIFESTS.items()}
 
 
 def get_builtin_skill_code(skill_id: str) -> str:
     """Get the code for a built-in skill."""
     if skill_id not in BUILTIN_SKILL_CODES:
         raise ValueError(f"Unknown built-in skill: {skill_id}")
-    
+
     return BUILTIN_SKILL_CODES[skill_id]

@@ -18,15 +18,10 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import structlog
 
-from .state import (AuthorityConfiguration, AuthorityStateMachine,
-                                 BiometricFactor)
+from .state import AuthorityConfiguration, AuthorityStateMachine, BiometricFactor
 
 if TYPE_CHECKING:
-    from src.biometric.providers import (BiometricProviderConfig,
-                                         BiometricProviderNotAvailableError,
-                                         BiometricProviderType, BiometricResult,
-                                         BiometricVerificationTimeoutError,
-                                         BiometricProviderSecurityBoundary)
+    pass
 
 # Use TYPE_CHECKING to avoid circular imports
 if TYPE_CHECKING:
@@ -73,8 +68,6 @@ BiometricIntegrationConfig = BiometricVerificationBoundaries
 class BiometricVerificationBoundaryViolation(Exception):
     """Raised when biometric verification boundaries are violated."""
 
-    pass
-
 
 class BiometricAuthorityVerificationEngine:
     """
@@ -103,11 +96,13 @@ class BiometricAuthorityVerificationEngine:
 
         # Import biometric config at runtime to avoid circular imports
         from src.biometric.providers import BiometricProviderConfig
+
         self.biometric_config = biometric_config or BiometricProviderConfig()
         self.verification_boundaries = verification_boundaries or BiometricVerificationBoundaries()
 
         # Initialize biometric provider manager
         from src.biometric.providers import create_biometric_provider_manager
+
         self.provider_manager = create_biometric_provider_manager(self.biometric_config)
 
         # Thread safety
@@ -117,12 +112,12 @@ class BiometricAuthorityVerificationEngine:
         # Initialize enhanced failure detection if enabled
         self.intrusion_detector = None
         self.failure_detector = None
-    
+
     @property
     def config(self) -> AuthorityConfiguration:
         """
         Backward compatibility property for tests.
-        
+
         CRITICAL SECURITY FIX: Adding config property for test compatibility
         while maintaining the proper authority_config attribute.
         """
@@ -130,8 +125,7 @@ class BiometricAuthorityVerificationEngine:
 
         if self.config.enable_intrusion_detection_integration and self.intrusion_detector:
             # Import dynamically to avoid circular imports
-            from src.intrusion.detection import (IntrusionDetectionConfig,
-                                                 create_intrusion_detector)
+            from src.intrusion.detection import IntrusionDetectionConfig, create_intrusion_detector
 
             intrusion_config = self.verification_boundaries.intrusion_detection_config or IntrusionDetectionConfig()
             self.intrusion_detector = create_intrusion_detector(intrusion_config)
@@ -140,7 +134,8 @@ class BiometricAuthorityVerificationEngine:
             # Import dynamically to avoid circular imports
             from src.intrusion.biometric_failure_detector import (
                 BiometricFailureDetectionConfig,
-                create_enhanced_biometric_failure_detector)
+                create_enhanced_biometric_failure_detector,
+            )
 
             failure_config = self.verification_boundaries.failure_detection_config or BiometricFailureDetectionConfig()
             self.failure_detector = create_enhanced_biometric_failure_detector(failure_config, self.intrusion_detector)
@@ -208,7 +203,7 @@ class BiometricAuthorityVerificationEngine:
                 preferred_provider = self._get_preferred_provider(factor)
 
                 # Perform biometric verification
-                result = await self.provider_manager.enforce_biometric_verification_boundary(
+                _result = await self.provider_manager.enforce_biometric_verification_boundary(
                     factor=factor,
                     preferred_provider=preferred_provider,
                     timeout_seconds=self.verification_boundaries.verification_timeout_seconds,
@@ -305,9 +300,10 @@ class BiometricAuthorityVerificationEngine:
                         failure_reason=failure_reason,
                     )
 
-            except Exception as e:
+            except Exception:
                 # Check if it's a BiometricVerificationTimeoutError
                 from src.biometric.providers import BiometricVerificationTimeoutError
+
                 if isinstance(e, BiometricVerificationTimeoutError):
                     logger.warning(
                         "Biometric verification timeout",
@@ -319,6 +315,7 @@ class BiometricAuthorityVerificationEngine:
 
                 # Check if it's a BiometricProviderNotAvailableError
                 from src.biometric.providers import BiometricProviderNotAvailableError
+
                 if isinstance(e, BiometricProviderNotAvailableError):
                     logger.error("Biometric provider not available", factor=factor.value, error=str(e))
                     return False

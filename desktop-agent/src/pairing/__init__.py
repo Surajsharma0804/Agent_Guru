@@ -13,17 +13,17 @@ Security Invariants (Cryptographically Enforced):
 - Defense-in-depth security measures preventing unauthorized device pairing
 """
 
+from .device_registry import DeviceIdentity  # Compatibility alias
+from .device_registry import DeviceRegistry  # Compatibility alias
 from .device_registry import (
     CryptographicDeviceIdentity,
     CryptographicDeviceRegistry,
     CryptographicTrustedDevice,
     DeviceAuthorityStatus,
-    DeviceRegistry,  # Compatibility alias
-    DeviceIdentity,  # Compatibility alias
 )
 from .key_exchange import (
-    DeviceKeyPair,
     AsymmetricKeyExchangeAuthority,
+    DeviceKeyPair,
     KeyExchangeMessage,
     KeyExchangeResult,
     KeyExchangeStatus,
@@ -34,7 +34,7 @@ CryptographicKeyExchangeEngine = AsymmetricKeyExchangeAuthority
 CryptographicKeyExchangeResult = KeyExchangeResult
 CryptographicKeyExchangeStatus = KeyExchangeStatus
 CryptographicDeviceKeyPair = DeviceKeyPair
-from .qr_pairing import PairingResult, PairingToken, CryptographicQRPairingAuthority
+from .qr_pairing import CryptographicQRPairingAuthority, PairingResult, PairingToken
 
 __all__ = [
     "CryptographicQRPairingAuthority",
@@ -43,16 +43,16 @@ __all__ = [
     "CryptographicKeyExchangeEngine",
     "AsymmetricKeyExchangeAuthority",  # Compatibility alias
     "KeyExchangeMessage",  # Compatibility alias
-    "KeyExchangeResult",   # Compatibility alias
-    "KeyExchangeStatus",   # Compatibility alias
-    "DeviceKeyPair",       # Compatibility alias
+    "KeyExchangeResult",  # Compatibility alias
+    "KeyExchangeStatus",  # Compatibility alias
+    "DeviceKeyPair",  # Compatibility alias
     "CryptographicDeviceKeyPair",
     "CryptographicKeyExchangeResult",
     "CryptographicKeyExchangeStatus",
     "CryptographicDeviceRegistry",
-    "DeviceRegistry",      # Compatibility alias
+    "DeviceRegistry",  # Compatibility alias
     "CryptographicDeviceIdentity",
-    "DeviceIdentity",      # Compatibility alias
+    "DeviceIdentity",  # Compatibility alias
     "CryptographicTrustedDevice",
     "DeviceAuthorityStatus",
 ]

@@ -8,33 +8,34 @@ This module provides:
 - Test utilities and helpers
 """
 
-import pytest
-from hypothesis import settings, Verbosity
-from typing import Dict, List, Optional
-from dataclasses import dataclass
-from datetime import datetime
-from enum import Enum
+import os
 
 # Import PAL interfaces
 import sys
-import os
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Dict, List, Optional
+
+import pytest
+from hypothesis import Verbosity, settings
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from pal.interfaces import (
-    ApplicationController,
-    InputAutomation,
-    SpeechOutput,
-    SpeechInput,
-    BiometricAuthenticator,
-    SecurityEnforcer,
     AppDescriptor,
-    AutomationTarget,
-    TTSPriority,
-    Transcription,
+    ApplicationController,
     AuthResult,
-    AuthResultStatus
+    AuthResultStatus,
+    AutomationTarget,
+    BiometricAuthenticator,
+    InputAutomation,
+    SecurityEnforcer,
+    SpeechInput,
+    SpeechOutput,
+    Transcription,
+    TTSPriority,
 )
-
 
 # Hypothesis settings for property-based tests
 # Minimum 100 iterations per property as per requirements
@@ -251,6 +252,15 @@ class MockBiometricAuthenticator(BiometricAuthenticator):
         elif self.platform == "ios":
             return ["face", "fingerprint"]
         return ["fingerprint"]
+    
+    def get_capabilities(self) -> Dict[str, bool]:
+        """Get platform-specific biometric capabilities."""
+        return {
+            "can_authenticate": True,
+            "supports_fingerprint": "fingerprint" in self.get_available_factors(),
+            "supports_face": "face" in self.get_available_factors(),
+            "supports_iris": "iris" in self.get_available_factors()
+        }
 
 
 class MockSecurityEnforcer(SecurityEnforcer):
@@ -274,6 +284,14 @@ class MockSecurityEnforcer(SecurityEnforcer):
         elif self.platform == "ios":
             return "app"
         return "unknown"
+    
+    def get_capabilities(self) -> Dict[str, bool]:
+        """Get platform-specific security enforcement capabilities."""
+        return {
+            "can_lock_session": True,
+            "lock_scope": self.get_lock_scope(),
+            "system_wide_lock": self.platform in ["windows", "macos"]
+        }
 
 
 # Pytest Fixtures

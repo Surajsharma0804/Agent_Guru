@@ -401,7 +401,7 @@ class VoiceSignalSecurityValidator:
                             if len(chunks) >= 4:
                                 # Limit to 4 chunks for efficiency
                                 break
-                            chunks.append(audio[i:i + chunk_size])
+                            chunks.append(audio[i : i + chunk_size])
 
                         if len(chunks) >= 3:
                             # Need at least 3 chunks for pattern detection
@@ -635,7 +635,9 @@ class VoiceSignalSecurityValidator:
                 )
                 return None, error_metrics
 
-    def enforce_voice_signal_security_boundary_from_file(self, file_path: str) -> Tuple[Optional[np.ndarray], AudioMetrics]:
+    def enforce_voice_signal_security_boundary_from_file(
+        self, file_path: str
+    ) -> Tuple[Optional[np.ndarray], AudioMetrics]:
         """
         Process audio from file
 
@@ -685,6 +687,7 @@ class VoiceSignalSecurityValidator:
                 "average_snr": 0.0,
                 "average_processing_time_ms": 0.0,
             }
+
 
 # Alias for backward compatibility
 AudioPreprocessor = VoiceSignalSecurityValidator

@@ -43,12 +43,10 @@ Shutdown Sequence:
 8. Clean shutdown
 """
 
-import asyncio
 import logging
 import signal
 import sys
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Optional
 
 import structlog
@@ -58,7 +56,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from .audit.audit_logger import AuditEvent, AuditEventType, AuditLogger, AuditSeverity
+from .audit.audit_logger import AuditLogger, AuditSeverity
 from .authority.state import (
     AuthorityConfiguration,
     AuthorityStateMachine,
@@ -147,9 +145,7 @@ async def lifespan(app: FastAPI):
     try:
         # Initialize audit logger (CRITICAL - must succeed)
         logger.info("Initializing audit logging system...")
-        audit_logger = AuditLogger(
-            log_directory="audit_logs", enable_real_time_verification=True, testing_mode=False
-        )
+        audit_logger = AuditLogger(log_directory="audit_logs", enable_real_time_verification=True, testing_mode=False)
         audit_logger.log_system_event(
             "system_startup", {"version": "1.0.0", "environment": "production"}, AuditSeverity.INFO
         )
@@ -349,7 +345,10 @@ async def process_voice_command(command: VoiceCommandRequest):
     # This is a placeholder for the full command processing pipeline
 
     return CommandResponse(
-        success=True, message="Command received and queued for processing", command_id="placeholder", authority_required=True
+        success=True,
+        message="Command received and queued for processing",
+        command_id="placeholder",
+        authority_required=True,
     )
 
 
@@ -376,7 +375,6 @@ def main():
 
     Starts the FastAPI service with production-grade configuration.
     """
-    import logging
 
     # Setup signal handlers for graceful shutdown
     def signal_handler(signum, frame):

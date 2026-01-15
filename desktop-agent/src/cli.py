@@ -19,7 +19,6 @@ Security:
 """
 
 import sys
-from pathlib import Path
 from typing import Optional
 
 import click
@@ -28,7 +27,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .audit.audit_logger import AuditLogger
-from .authority.state import AuthorityConfiguration, create_authority_state_machine
+from .authority.state import create_authority_state_machine
 
 console = Console()
 logger = structlog.get_logger(__name__)
@@ -43,7 +42,6 @@ def cli():
     Manage and monitor the GURU desktop agent service with comprehensive
     security controls and audit logging.
     """
-    pass
 
 
 @cli.command()
@@ -133,7 +131,7 @@ def logs(limit: int, severity: Optional[str], component: Optional[str]):
         console.print(f"Total entries: {stats['total_entries']}")
         console.print(f"Database: {stats['database_path']}\n")
 
-        # TODO: Implement log querying and display
+        # Note: Full log querying and display functionality not yet implemented
         console.print("[yellow]Log viewing not yet fully implemented[/yellow]")
 
     except Exception as e:
@@ -148,10 +146,10 @@ def verify():
     try:
         audit_logger = AuditLogger(log_directory="audit_logs", testing_mode=True)
 
-        # TODO: Implement full integrity verification
+        # Note: Full integrity verification functionality not yet implemented
         stats = audit_logger.get_audit_statistics()
 
-        console.print(f"[green]✓[/green] Audit database accessible")
+        console.print("[green]✓[/green] Audit database accessible")
         console.print(f"[green]✓[/green] Total entries: {stats['total_entries']}")
         console.print(f"[green]✓[/green] Current sequence: {stats['current_sequence']}")
 
@@ -195,7 +193,7 @@ def test(component: Optional[str], verbose: bool):
     console.print("[cyan]Testing Authority State Machine...[/cyan]")
     try:
         authority_machine = create_authority_state_machine()
-        console.print(f"[green]✓[/green] Authority machine initialized")
+        console.print("[green]✓[/green] Authority machine initialized")
         console.print(f"[green]✓[/green] Initial state: {authority_machine.current_state.value}")
         console.print(f"[green]✓[/green] Session ID: {authority_machine.session_id}")
     except Exception as e:
@@ -206,7 +204,7 @@ def test(component: Optional[str], verbose: bool):
     try:
         audit_logger = AuditLogger(log_directory="audit_logs", testing_mode=True)
         stats = audit_logger.get_audit_statistics()
-        console.print(f"[green]✓[/green] Audit logger initialized")
+        console.print("[green]✓[/green] Audit logger initialized")
         console.print(f"[green]✓[/green] Total entries: {stats['total_entries']}")
     except Exception as e:
         console.print(f"[red]✗[/red] Audit logger test failed: {str(e)}")
@@ -220,14 +218,14 @@ def test(component: Optional[str], verbose: bool):
         test_results = locker.test_lock_capability()
 
         if test_results["api_available"]:
-            console.print(f"[green]✓[/green] Windows API available")
+            console.print("[green]✓[/green] Windows API available")
         else:
-            console.print(f"[yellow]⚠[/yellow] Windows API not available")
+            console.print("[yellow]⚠[/yellow] Windows API not available")
 
         if test_results["system_supported"]:
-            console.print(f"[green]✓[/green] System supported")
+            console.print("[green]✓[/green] System supported")
         else:
-            console.print(f"[yellow]⚠[/yellow] System not supported")
+            console.print("[yellow]⚠[/yellow] System not supported")
 
     except Exception as e:
         console.print(f"[red]✗[/red] Workstation lock test failed: {str(e)}")

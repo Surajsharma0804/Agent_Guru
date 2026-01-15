@@ -13,6 +13,12 @@ THREAD SAFETY ARCHITECTURE:
 
 SIGNAL FLOW:
 Background Thread → Bridge Signal → Qt Event Loop → Main Thread → Widget Update
+
+FIRST-RUN DETECTION:
+- Checks for user configuration file
+- If not found, launches setup wizard
+- Setup wizard creates user profile and preferences
+- After setup, launches main application
 """
 
 import sys
@@ -26,10 +32,48 @@ print("=" * 70)
 print("GURU AI ASSISTANT")
 print("=" * 70)
 
+# Check for first-time setup and run wizard if needed
+try:
+    from config.first_run_detector import run_setup_wizard_if_needed
+    
+    setup_completed = run_setup_wizard_if_needed()
+    
+    if setup_completed:
+        # Reload configuration after setup
+        from config.user_config import get_config_manager
+        config_manager = get_config_manager()
+        profile = config_manager.get_profile()
+        
+        print(f"\n[WELCOME] Hello, {profile.display_name}!")
+        print("=" * 70 + "\n")
+    else:
+        # Check if user has existing profile
+        from config.user_config import get_config_manager
+        config_manager = get_config_manager()
+        
+        if not config_manager.is_first_time_setup():
+            profile = config_manager.get_profile()
+            print(f"\n[WELCOME BACK] {profile.display_name}")
+            print("=" * 70 + "\n")
+        else:
+            # Setup was cancelled or failed
+            print("\n[ERROR] Setup required but not completed. Exiting...")
+            sys.exit(1)
+
+except Exception as e:
+    print(f"[ERROR] Configuration check failed: {e}")
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+
+print("=" * 70)
+print("INITIALIZING GURU COMPONENTS")
+print("=" * 70)
+
 # Import Qt
 try:
-    from PyQt6.QtWidgets import QApplication
     from PyQt6.QtCore import QTimer
+    from PyQt6.QtWidgets import QApplication
     print("[OK] PyQt6")
 except ImportError as e:
     print(f"[ERROR] PyQt6 required: pip install PyQt6")
@@ -37,7 +81,7 @@ except ImportError as e:
 
 # Import TTS
 try:
-    from gui.tts_service import get_tts_service, TTSPriority
+    from gui.tts_service import TTSPriority, get_tts_service
     tts = get_tts_service()
     print("[OK] TTS Service")
 except Exception as e:
@@ -46,7 +90,7 @@ except Exception as e:
 
 # Import Voice Interface
 try:
-    from gui.voice_interface import create_voice_interface, VoiceCommand
+    from gui.voice_interface import VoiceCommand, create_voice_interface
     voice = create_voice_interface(wake_word="hey guru")
     print("[OK] Voice Interface")
 except Exception as e:
@@ -64,7 +108,7 @@ except Exception as e:
 
 # Import Avatar
 try:
-    from gui.avatar_window import create_guru_window, AvatarState
+    from gui.avatar_window import AvatarState, create_guru_window
     print("[OK] Avatar Window")
 except Exception as e:
     print(f"[ERROR] Avatar: {e}")

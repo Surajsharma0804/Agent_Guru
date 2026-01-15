@@ -18,21 +18,21 @@ whisper.cpp Integration:
 All audio processing occurs locally without external dependencies.
 """
 
-# whisper.cpp integration (production-grade)
-from .whisper_cpp_engine import (
-    WhisperCppEngine,
-    WhisperConfig,
-    WhisperModel,
-    TranscriptionResult,
-    get_whisper_engine,
-    initialize_whisper_engine
-)
-
 # Legacy components (backward compatibility)
 from .audio_preprocessing import AudioPreprocessor
 from .speaker_verification import SpeakerVerificationEngine
 from .speech_to_text import WhisperSTTEngine
 from .voice_pipeline import VoiceProcessingPipeline
+
+# whisper.cpp integration (production-grade)
+from .whisper_cpp_engine import (
+    TranscriptionResult,
+    WhisperConfig,
+    WhisperCppEngine,
+    WhisperModel,
+    get_whisper_engine,
+    initialize_whisper_engine,
+)
 
 __all__ = [
     # whisper.cpp (production)
@@ -42,7 +42,6 @@ __all__ = [
     "TranscriptionResult",
     "get_whisper_engine",
     "initialize_whisper_engine",
-    
     # Legacy components
     "WhisperSTTEngine",
     "SpeakerVerificationEngine",

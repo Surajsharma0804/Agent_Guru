@@ -18,8 +18,6 @@ from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 
-from .speaker_verification import VerificationResult
-
 from .audio_preprocessing import AudioMetrics, AudioPreprocessor, PreprocessingConfig
 from .speaker_verification import SpeakerVerificationEngine, VerificationResult
 from .speech_to_text import ModelSize, STTResult, WhisperSTTEngine
@@ -116,7 +114,7 @@ class VoiceProcessingPipeline:
         if self.config.enable_speaker_verification:
             self.speaker_verification_engine = SpeakerVerificationEngine(
                 enable_security_checks=self.config.enable_security_validation,
-                default_confidence_threshold=0.65  # Slightly lower threshold for better test compatibility
+                default_confidence_threshold=0.65,  # Slightly lower threshold for better test compatibility
             )
         else:
             self.speaker_verification_engine = None
@@ -219,7 +217,7 @@ class VoiceProcessingPipeline:
     ) -> VoiceProcessingResult:
         """
         Process voice command through the complete pipeline
-        
+
         Alias for enforce_voice_authority_boundary for backward compatibility.
 
         Args:
@@ -333,27 +331,28 @@ class VoiceProcessingPipeline:
                     # For voice re-arming, we need to verify against enrolled speakers
                     # Get enrolled speakers and verify against the first one (primary user)
                     enrolled_speakers = self.speaker_verification_engine.get_enrolled_speakers()
-                    
+
                     if enrolled_speakers:
                         # Use the first enrolled speaker as primary user
                         primary_speaker_id = enrolled_speakers[0]
-                        
+
                         try:
                             verification_result, confidence, flags = self.speaker_verification_engine.verify_speaker(
-                                speaker_id=primary_speaker_id, 
-                                audio_sample=processed_audio, 
-                                sample_rate=16000
+                                speaker_id=primary_speaker_id, audio_sample=processed_audio, sample_rate=16000
                             )
-                            
-                            result.speaker_verified = (verification_result == VerificationResult.VERIFIED)
-                            result.confidence_score = min(result.confidence_score, confidence)  # Take minimum confidence
-                            
+
+                            result.speaker_verified = verification_result == VerificationResult.VERIFIED
+                            result.confidence_score = min(
+                                result.confidence_score, confidence
+                            )  # Take minimum confidence
+
                             if flags:
                                 result.security_flags.extend(flags)
-                                
-                            self.logger.info(f"Speaker verification: {verification_result.value} "
-                                           f"(confidence: {confidence:.3f})")
-                                           
+
+                            self.logger.info(
+                                f"Speaker verification: {verification_result.value} " f"(confidence: {confidence:.3f})"
+                            )
+
                         except Exception as e:
                             self.logger.error(f"Speaker verification failed: {e}")
                             result.speaker_verified = False

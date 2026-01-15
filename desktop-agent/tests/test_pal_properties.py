@@ -18,27 +18,28 @@ Properties tested:
 All tests validate Requirements: 33.1, 33.2, 34.9, 35.8, 42.1, 42.2, 42.6
 """
 
-import pytest
-from hypothesis import given, strategies as st, assume, settings
-from typing import List, Dict
 import inspect
-import sys
 import os
+import sys
+from typing import Dict, List
+
+import pytest
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 # Import PAL interfaces
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from pal.interfaces import (
-    ApplicationController,
-    InputAutomation,
-    SpeechOutput,
-    SpeechInput,
-    BiometricAuthenticator,
-    SecurityEnforcer,
     AppDescriptor,
-    TTSPriority
+    ApplicationController,
+    BiometricAuthenticator,
+    InputAutomation,
+    SecurityEnforcer,
+    SpeechInput,
+    SpeechOutput,
+    TTSPriority,
 )
-
 
 # ============================================================================
 # Property 94: Core Logic Platform Isolation
@@ -213,9 +214,12 @@ class TestProperty95PALInterfaceCommunication:
         performed through the abstract PAL interfaces without direct API calls.
         """
         # Create platform-specific backends
-        from conftest import (
-            MockApplicationController, MockInputAutomation, MockSpeechOutput,
-            MockBiometricAuthenticator, MockSecurityEnforcer
+        from tests.conftest import (
+            MockApplicationController,
+            MockBiometricAuthenticator,
+            MockInputAutomation,
+            MockSecurityEnforcer,
+            MockSpeechOutput,
         )
         
         backends = {
@@ -267,9 +271,13 @@ class TestProperty95PALInterfaceCommunication:
         This property ensures that core logic can call interface methods
         without knowing the underlying platform.
         """
-        from conftest import (
-            MockApplicationController, MockInputAutomation, MockSpeechOutput,
-            MockSpeechInput, MockBiometricAuthenticator, MockSecurityEnforcer
+        from tests.conftest import (
+            MockApplicationController,
+            MockBiometricAuthenticator,
+            MockInputAutomation,
+            MockSecurityEnforcer,
+            MockSpeechInput,
+            MockSpeechOutput,
         )
         
         backends = {
