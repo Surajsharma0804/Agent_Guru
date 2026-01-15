@@ -897,7 +897,7 @@ Each push triggers:
   - **Git: Commit and push after completion**
   - **Commit message**: `[Task 30.4] Remove temporary and build artifacts`
 
-- [ ] 30.5 Remove unused dependencies
+- [x] 30.5 Remove unused dependencies
   - Analyze Python dependencies (pip-autoremove, pipdeptree)
   - Analyze Node.js dependencies (depcheck, npm-check)
   - Remove unused Python packages from requirements.txt
