@@ -354,62 +354,62 @@ Each push triggers:
   - Verify capability matrix is accurate
   - Ask the user if questions arise
 
-- [ ] 8. Fix Critical Voice Interface Issues
+- [x] 8. Fix Critical Voice Interface Issues
   - Implement wake word stripping to prevent downstream interference
   - Add DICTATION_MODE state to voice interface state machine
   - Implement dictation mode entry/exit logic
   - _Requirements: 29, 30_
 
-- [ ] 1.1 Implement wake word stripping algorithm
+- [x] 1.1 Implement wake word stripping algorithm
   - Add wake word removal function to voice interface
   - Strip "hey guru", "hello guru", "hi guru" (case-insensitive)
   - Ensure stripped text is passed to all downstream systems
   - _Requirements: 30.1, 30.2, 30.3, 30.4, 30.5_
 
-- [ ] 1.2 Write property test for wake word stripping
+- [x] 1.2 Write property test for wake word stripping
   - **Property 79: Wake Word Removal in Active State**
   - **Property 80: Intent Pre-Filter Never Sees Wake Word**
   - **Property 81: Command Executor Never Sees Wake Word**
   - **Property 82: LLM Never Sees Wake Word**
   - **Validates: Requirements 30.1, 30.2, 30.3, 30.4**
 
-- [ ] 1.3 Add DICTATION_MODE to voice interface state machine
+- [x] 1.3 Add DICTATION_MODE to voice interface state machine
   - Extend VoiceState enum with DICTATION_MODE
   - Implement state transition logic for dictation entry/exit
   - Add 2-second silence timeout for dictation mode
   - Add "done"/"stop writing" command detection
   - _Requirements: 29.1, 29.2, 29.6, 29.7_
 
-- [ ] 1.4 Write property tests for dictation mode
+- [x] 1.4 Write property tests for dictation mode
   - **Property 73: Dictation Mode Entry**
   - **Property 77: Dictation Mode Exit on Silence**
   - **Property 78: Dictation Mode Exit on Command**
   - **Validates: Requirements 29.2, 29.6, 29.7**
 
-- [ ] 2. Implement Single Response Ownership System
+- [x] 2. Implement Single Response Ownership System
   - Create response ownership coordinator
   - Implement subsystem suppression logic
   - Add response priority enforcement
   - _Requirements: 28_
 
-- [ ] 2.1 Create ResponseOwnershipCoordinator class
+- [x] 2.1 Create ResponseOwnershipCoordinator class
   - Track which subsystem currently owns response
   - Implement ownership priority: Command_Executor > Error_Handler > Conversation_Manager
   - Add methods to claim/release ownership
   - _Requirements: 28.1_
 
-- [ ] 2.2 Integrate ownership coordinator with Command_Executor
+- [x] 2.2 Integrate ownership coordinator with Command_Executor
   - Claim ownership when action execution starts
   - Suppress Conversation_Manager responses during execution
   - Release ownership when action completes
   - _Requirements: 28.2, 28.4_
 
-- [ ] 2.3 Integrate ownership coordinator with TTS_Service
+- [x] 2.3 Integrate ownership coordinator with TTS_Service
   - Limit TTS to action phrases when Command_Executor owns response
   - Allow conversational speech only when Conversation_Manager owns response
   - _Requirements: 28.3_
 
-- [ ] 2.4 Write property tests for response ownership
+- [x] 2.4 Write property tests for response ownership
   - **Property 68: Exclusive Response Ownership**
   - **Property 69: Action Execution Suppresses Conversation**
   - **Property 70: Action Success Speaks Only Result**
@@ -417,55 +417,55 @@ Each push triggers:
   - **Property 72: No Duplicate Responses**
   - **Validates: Requirements 28.1, 28.2, 28.4, 28.5, 28.6, 28.7**
 
-- [ ] 3. Enhance Intent Pre-Filter with Deterministic-First Guarantee
+- [-] 3. Enhance Intent Pre-Filter with Deterministic-First Guarantee
   - Implement confidence threshold enforcement (≥ 0.7)
   - Add LLM bypass tracking and logging
   - Implement bypass rate monitoring
   - _Requirements: 31_
 
-- [ ] 3.1 Update Intent_Pre_Filter classification logic
+- [x] 3.1 Update Intent_Pre_Filter classification logic
   - Enforce confidence ≥ 0.7 threshold for deterministic routing
   - Add bypass_llm flag to ActionIntent
   - Implement parameter completeness check
   - _Requirements: 31.1, 31.2_
 
-- [ ] 3.2 Add LLM bypass logging and monitoring
+- [x] 3.2 Add LLM bypass logging and monitoring
   - Log whether LLM was bypassed for each command
   - Track bypass rate over rolling window of 100 commands
   - Alert if bypass rate drops below 70%
   - _Requirements: 31.4, 31.5_
 
-- [ ] 3.3 Restrict LLM usage to genuine ambiguity
+- [x] 3.3 Restrict LLM usage to genuine ambiguity
   - Only invoke LLM for ambiguous targets, vague pronouns, or clarification
   - Add explicit checks before LLM invocation
   - _Requirements: 31.3_
 
-- [ ] 3.4 Write property tests for deterministic-first guarantee
+- [x] 3.4 Write property tests for deterministic-first guarantee
   - **Property 84: High Confidence Bypasses LLM**
   - **Property 85: Complete Parameters Bypass LLM**
   - **Property 86: LLM Only for Ambiguity**
   - **Property 88: High Bypass Rate Target**
   - **Validates: Requirements 31.1, 31.2, 31.3, 31.6**
 
-- [ ] 4. Implement Human Co-Worker Speech Contract
+- [x] 4. Implement Human Co-Worker Speech Contract
   - Create speech phrase validator
   - Implement approved/forbidden phrase enforcement
   - Update TTS_Service to enforce contract
   - _Requirements: 32_
 
-- [ ] 4.1 Create SpeechContractValidator class
+- [x] 4.1 Create SpeechContractValidator class
   - Define approved action phrases: "Opening [app]", "Done", "Typed", "Sent", "Failed: [reason]"
   - Define forbidden phrases: "How can I help you?", "Sure, I can...", "Let me know if..."
   - Implement validation logic
   - _Requirements: 32.4, 32.5, 32.6, 32.7_
 
-- [ ] 4.2 Integrate speech contract with TTS_Service
+- [x] 4.2 Integrate speech contract with TTS_Service
   - Validate all TTS output against speech contract
   - Enforce verb-first ≤ 5 words during action execution
   - Reject forbidden phrases
   - _Requirements: 32.1, 32.2_
 
-- [ ] 4.3 Write property tests for speech contract
+- [x] 4.3 Write property tests for speech contract
   - **Property 89: Action Speech Brevity**
   - **Property 90: No Questions During Actions**
   - **Property 91: No Chatbot Greeting Phrases**
@@ -473,64 +473,64 @@ Each push triggers:
   - **Property 93: Approved Action Phrases Only**
   - **Validates: Requirements 32.1, 32.2, 32.4, 32.5, 32.6, 32.7**
 
-- [ ] 5. Complete Command Executor Implementation
+- [-] 5. Complete Command Executor Implementation
   - Verify universal application support
   - Implement WhatsApp automation with fallback
   - Add exact text dictation support
   - _Requirements: 2, 15, 26_
 
-- [ ] 5.1 Verify and test universal application launcher
+- [x] 5.1 Verify and test universal application launcher
   - Test 100+ application database
   - Test dynamic discovery for unlisted apps
   - Verify 1-second launch performance
   - _Requirements: 2.1, 2.2, 2.3, 2.7_
 
-- [ ] 5.2 Implement WhatsApp Desktop automation with fallback
+- [x] 5.2 Implement WhatsApp Desktop automation with fallback
   - Implement UI Automation for WhatsApp Desktop
   - Add fallback to manual prompt if automation fails
   - Implement contact fuzzy matching (80% threshold)
   - Implement message send verification
   - _Requirements: 26.1, 26.2, 26.3, 26.4, 26.5, 26.6_
 
-- [ ] 5.3 Write property tests for WhatsApp automation
+- [x] 5.3 Write property tests for WhatsApp automation
   - **Property 60: WhatsApp Desktop Targeting**
   - **Property 61: Startup Delay Handling**
   - **Property 62: Message Send Verification**
   - **Property 63: Contact Name Fuzzy Matching**
   - **Validates: Requirements 26.1, 26.4, 26.5, 26.6**
 
-- [ ] 5.4 Implement exact text dictation
+- [x] 5.4 Implement exact text dictation
   - Integrate with DICTATION_MODE from voice interface
   - Bypass Intent_Pre_Filter and LLM in dictation mode
   - Type exact text without interpretation
   - _Requirements: 2.5, 14, 21.6, 29.3, 29.4_
 
-- [ ] 5.5 Write property tests for exact text dictation
+- [x] 5.5 Write property tests for exact text dictation
   - **Property 9: Exact Text Dictation**
   - **Property 74: Intent Pre-Filter Bypass in Dictation**
   - **Property 75: LLM Bypass in Dictation**
   - **Validates: Requirements 2.5, 14, 21.6, 29.3, 29.4**
 
-- [ ] 6. Checkpoint - Test Voice and Command Integration
+- [x] 6. Checkpoint - Test Voice and Command Integration
   - Ensure all voice interface tests pass
   - Ensure all command execution tests pass
   - Verify wake word stripping works end-to-end
   - Verify dictation mode works end-to-end
   - Ask the user if questions arise
 
-- [ ] 7. Complete Authority State Machine and Security
+- [x] 7. Complete Authority State Machine and Security
   - Verify biometric authentication integration
   - Test authority timeout and revocation
   - Test security lockout scenarios
   - _Requirements: 3, 4, 6_
 
-- [ ] 7.1 Verify biometric authentication flow
+- [x] 7.1 Verify biometric authentication flow
   - Test Windows Hello integration
   - Test fingerprint and face recognition
   - Test failed authentication lockout (3 attempts)
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [ ] 7.2 Write property tests for authority state machine
+- [x] 7.2 Write property tests for authority state machine
   - **Property 18: Initial State is UNARMED**
   - **Property 19: Biometric Authentication Grants Authority**
   - **Property 20: Commands Require ARMED State**
@@ -540,13 +540,13 @@ Each push triggers:
   - **Property 25: Failed Authentication Lockout**
   - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 4.5, 6.2**
 
-- [ ] 7.3 Test intrusion detection and response
+- [x] 7.3 Test intrusion detection and response
   - Test repeated failed authentication detection
   - Test suspicious command pattern detection
   - Test workstation lock invocation
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 7.4 Write property tests for intrusion detection
+- [x] 7.4 Write property tests for intrusion detection
   - **Property 25: Failed Authentication Lockout**
   - **Validates: Requirements 6.2**
 
