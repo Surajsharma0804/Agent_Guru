@@ -5,6 +5,10 @@ Production-grade TTS service with proper threading, queue management,
 and error recovery. Handles concurrent speech requests safely.
 
 Uses platform-agnostic PAL SpeechOutput interface for cross-platform compatibility.
+
+Integrates with Response Ownership Coordinator to enforce speech contract:
+- During action execution: Only brief action phrases allowed
+- During conversation: Full conversational speech allowed
 """
 
 import threading
@@ -26,6 +30,19 @@ except ImportError:
 
 # PAL imports - platform-agnostic interfaces
 from pal.interfaces import SpeechOutput, TTSPriority
+
+# Response ownership imports
+from communication.response_ownership import (
+    get_response_ownership_coordinator,
+    ResponseOwner
+)
+
+# Speech contract imports
+from communication.speech_contract import (
+    get_speech_contract_validator,
+    SpeechContext,
+    ValidationResult
+)
 
 
 @dataclass
@@ -81,6 +98,20 @@ class TTSService:
         # Get platform capabilities
         self.capabilities = speech_output.get_capabilities()
         
+        # Get response ownership coordinator
+        self.ownership_coordinator = get_response_ownership_coordinator()
+        
+        # Get speech contract validator
+        self.speech_validator = get_speech_contract_validator()
+        
+        # Approved action phrases for speech contract enforcement (DEPRECATED - use validator)
+        self.approved_action_phrases = {
+            "opening", "opened", "done", "typed", "sent", "failed",
+            "searching", "closing", "closed", "starting", "started",
+            "stopping", "stopped", "creating", "created", "deleting",
+            "deleted", "saving", "saved", "loading", "loaded"
+        }
+        
         safe_print(f"TTS Service initialized (Platform-agnostic via PAL, Capabilities: {self.capabilities})")
     
     def start(self):
@@ -117,16 +148,66 @@ class TTSService:
         """
         Queue text for speech.
         
+        Enforces speech contract based on response ownership:
+        - If Command_Executor owns response: Only action phrases allowed
+        - If Conversation_Manager owns response: Full speech allowed
+        - If no owner: Full speech allowed
+        
+        Uses SpeechContractValidator for comprehensive validation.
+        
         Args:
             text: Text to speak
             priority: Speech priority
             interrupt: Whether to interrupt current speech
+        
+        Validates: Requirements 28.3, 32.1, 32.2, 32.4, 32.5, 32.6, 32.7
         """
         if not text or not text.strip():
             return
         
+        text = text.strip()
+        
+        # Check response ownership and enforce speech contract
+        current_owner = self.ownership_coordinator.get_current_owner()
+        
+        # Determine speech context based on ownership
+        if current_owner == ResponseOwner.COMMAND_EXECUTOR:
+            speech_context = SpeechContext.ACTION_EXECUTION
+        elif current_owner == ResponseOwner.ERROR_HANDLER:
+            speech_context = SpeechContext.ERROR
+        else:
+            speech_context = SpeechContext.CONVERSATION
+        
+        # Validate speech against contract
+        validation_result = self.speech_validator.validate(text, speech_context)
+        
+        if not validation_result.is_valid:
+            # Speech contract violation - reject
+            safe_print(
+                f"TTS rejected: '{text[:50]}...' - {validation_result.reason}"
+            )
+            
+            # If there's a suggested alternative, use it
+            if validation_result.suggested_alternative:
+                safe_print(f"TTS using alternative: '{validation_result.suggested_alternative}'")
+                text = validation_result.suggested_alternative
+            else:
+                # No alternative - suppress speech
+                return
+        
+        # Additional enforcement for action execution context
+        if current_owner == ResponseOwner.COMMAND_EXECUTOR:
+            # Enforce brevity: ≤ 5 words for action phrases
+            word_count = self.speech_validator.get_word_count(text)
+            if word_count > 5:
+                safe_print(
+                    f"TTS truncated: '{text}' exceeds 5 words ({word_count} words)"
+                )
+                # Truncate to 5 words
+                text = self.speech_validator.truncate_to_word_limit(text, 5)
+        
         request = SpeechRequest(
-            text=text.strip(),
+            text=text,
             priority=priority,
             interrupt=interrupt,
             timestamp=time.time()

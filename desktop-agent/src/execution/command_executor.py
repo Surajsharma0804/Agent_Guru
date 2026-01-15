@@ -12,6 +12,7 @@ Architecture:
 - Application Launcher: Open applications with proper error handling
 - File Operations: Read/write files with permission checks
 - Security Boundary: Authority-based permission system
+- Response Ownership: Claims ownership during execution to suppress conversation
 
 This is the missing layer that transforms GURU from a chatbot into an AI assistant.
 """
@@ -35,6 +36,12 @@ from pal.interfaces import (
     PlatformCapabilityError
 )
 
+# Response ownership imports
+from communication.response_ownership import (
+    get_response_ownership_coordinator,
+    ResponseOwner
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,6 +52,7 @@ class CommandType(Enum):
     READ_FILE = "read_file"
     SYSTEM_COMMAND = "system_command"
     WEB_SEARCH = "web_search"
+    WHATSAPP_MESSAGE = "whatsapp_message"
     UNKNOWN = "unknown"
 
 
@@ -93,6 +101,10 @@ class IntentRecognizer:
             CommandType.WEB_SEARCH: [
                 "search", "google", "find", "look up",
                 "dhundo", "search karo"  # Hindi
+            ],
+            CommandType.WHATSAPP_MESSAGE: [
+                "whatsapp", "send whatsapp", "message on whatsapp",
+                "whatsapp message", "send message to"
             ]
         }
         
@@ -190,17 +202,83 @@ class IntentRecognizer:
             "trello": "trello.exe",
             "todoist": "todoist.exe",
             "obsidian": "obsidian.exe",
+            "asana": "asana.exe",
+            "monday": "monday.exe",
+            "clickup": "clickup.exe",
             
             # File Management
             "7zip": "7zfm.exe",
             "winrar": "winrar.exe",
             "total commander": "totalcmd64.exe",
+            "filezilla": "filezilla.exe",
             
             # System Utilities
             "ccleaner": "ccleaner64.exe",
             "malwarebytes": "mbam.exe",
             "steam": "steam.exe",
             "epic games": "epicgameslauncher.exe",
+            "origin": "origin.exe",
+            "uplay": "uplay.exe",
+            "gog galaxy": "galaxyclient.exe",
+            
+            # Additional Browsers
+            "vivaldi": "vivaldi.exe",
+            "tor browser": "firefox.exe",
+            
+            # Additional Communication
+            "viber": "viber.exe",
+            "wechat": "wechat.exe",
+            "line": "line.exe",
+            "signal": "signal.exe",
+            
+            # Additional Development
+            "sublime text": "sublime_text.exe",
+            "atom": "atom.exe",
+            "notepad++": "notepad++.exe",
+            "eclipse": "eclipse.exe",
+            "netbeans": "netbeans64.exe",
+            "webstorm": "webstorm64.exe",
+            "phpstorm": "phpstorm64.exe",
+            "rider": "rider64.exe",
+            "datagrip": "datagrip64.exe",
+            "clion": "clion64.exe",
+            "goland": "goland64.exe",
+            "rubymine": "rubymine64.exe",
+            
+            # Additional Media
+            "audacity": "audacity.exe",
+            "obs studio": "obs64.exe",
+            "handbrake": "handbrake.exe",
+            "kodi": "kodi.exe",
+            "plex": "plex.exe",
+            "itunes": "itunes.exe",
+            "winamp": "winamp.exe",
+            
+            # Additional Graphics
+            "paint.net": "paintdotnet.exe",
+            "lightroom": "lightroom.exe",
+            "davinci resolve": "resolve.exe",
+            "camtasia": "camtasiastudio.exe",
+            "snagit": "snagit32.exe",
+            
+            # Additional Office
+            "libreoffice": "soffice.exe",
+            "openoffice": "soffice.exe",
+            "google docs": "chrome.exe",
+            "google sheets": "chrome.exe",
+            "google slides": "chrome.exe",
+            
+            # Additional Utilities
+            "putty": "putty.exe",
+            "winscp": "winscp.exe",
+            "virtualbox": "virtualbox.exe",
+            "vmware": "vmware.exe",
+            "teamviewer": "teamviewer.exe",
+            "anydesk": "anydesk.exe",
+            "dropbox": "dropbox.exe",
+            "google drive": "googledrivesync.exe",
+            "onedrive": "onedrive.exe",
+            "box": "box.exe",
             
             # Kiro (if installed)
             "kiro": "kiro.exe",
@@ -226,6 +304,13 @@ class IntentRecognizer:
             Tuple of (CommandType, parameters dict)
         """
         text_lower = text.lower()
+        
+        # Check for WhatsApp message (highest priority to avoid false positives)
+        for keyword in self.patterns[CommandType.WHATSAPP_MESSAGE]:
+            if keyword in text_lower:
+                params = self._extract_whatsapp_params(text)
+                if params:
+                    return CommandType.WHATSAPP_MESSAGE, params
         
         # Check for application opening
         for keyword in self.patterns[CommandType.OPEN_APPLICATION]:
@@ -337,6 +422,82 @@ class IntentRecognizer:
         """Extract file reading parameters from text"""
         # TODO: Implement file reading parameter extraction
         return None
+    
+    def _extract_whatsapp_params(self, text: str) -> Optional[Dict[str, Any]]:
+        """
+        Extract WhatsApp message parameters from text.
+        
+        Patterns:
+        - "send whatsapp message to [contact] saying [message]"
+        - "whatsapp [contact] [message]"
+        - "message [contact] on whatsapp [message]"
+        
+        Args:
+            text: User input text
+        
+        Returns:
+            Dict with contact and message, or None if extraction fails
+        """
+        text_lower = text.lower()
+        
+        # Pattern 1: "send whatsapp message to [contact] saying [message]"
+        if "send whatsapp message to" in text_lower and "saying" in text_lower:
+            # Extract contact (between "to" and "saying")
+            to_pos = text_lower.find("to") + 2
+            saying_pos = text_lower.find("saying")
+            
+            if to_pos > 2 and saying_pos > to_pos:
+                contact = text[to_pos:saying_pos].strip()
+                message = text[saying_pos + 6:].strip()  # +6 for "saying"
+                
+                if contact and message:
+                    return {
+                        "contact": contact,
+                        "message": message
+                    }
+        
+        # Pattern 2: "whatsapp [contact] [message]"
+        if text_lower.startswith("whatsapp "):
+            # Extract everything after "whatsapp"
+            rest = text[9:].strip()  # +9 for "whatsapp "
+            
+            # Split on common separators
+            for separator in [" saying ", " that ", " - ", ": "]:
+                if separator in rest.lower():
+                    parts = rest.split(separator, 1)
+                    if len(parts) == 2:
+                        return {
+                            "contact": parts[0].strip(),
+                            "message": parts[1].strip()
+                        }
+            
+            # If no separator, try to split on first few words as contact
+            words = rest.split()
+            if len(words) >= 3:
+                # Assume first 1-2 words are contact name
+                contact = " ".join(words[:2])
+                message = " ".join(words[2:])
+                return {
+                    "contact": contact,
+                    "message": message
+                }
+        
+        # Pattern 3: "message [contact] on whatsapp [message]"
+        if "message" in text_lower and "on whatsapp" in text_lower:
+            message_pos = text_lower.find("message") + 7
+            whatsapp_pos = text_lower.find("on whatsapp")
+            
+            if message_pos > 7 and whatsapp_pos > message_pos:
+                contact = text[message_pos:whatsapp_pos].strip()
+                message = text[whatsapp_pos + 11:].strip()  # +11 for "on whatsapp"
+                
+                if contact and message:
+                    return {
+                        "contact": contact,
+                        "message": message
+                    }
+        
+        return None
 
 
 class ApplicationLauncher:
@@ -390,8 +551,9 @@ class ApplicationLauncher:
                 logger.info(f"Found app: {app.display_name} (ID: {app.app_id})")
                 return app.app_id
         
-        # If not found, try using the executable name as app_id directly
-        return executable
+        # If not found in discovered apps, return None
+        logger.warning(f"Could not find app: {executable}")
+        return None
     
     def launch(self, executable: str, args: Optional[List[str]] = None) -> ExecutionResult:
         """
@@ -407,6 +569,16 @@ class ApplicationLauncher:
         start_time = time.time()
         
         try:
+            # Check if we can open apps on this platform
+            if not self.capabilities.get("can_open_apps", False):
+                execution_time = time.time() - start_time
+                return ExecutionResult(
+                    status=ExecutionStatus.FAILED,
+                    message=f"Platform does not support opening applications",
+                    error="PlatformCapabilityError: can_open_apps=False",
+                    execution_time=execution_time
+                )
+            
             # Find app ID
             app_id = self.find_executable(executable)
             if not app_id:
@@ -414,17 +586,7 @@ class ApplicationLauncher:
                 return ExecutionResult(
                     status=ExecutionStatus.NOT_FOUND,
                     message=f"Could not find application: {executable}",
-                    error="Application not found",
-                    execution_time=execution_time
-                )
-            
-            # Check if we can open apps on this platform
-            if not self.capabilities.get("can_open_apps", False):
-                execution_time = time.time() - start_time
-                return ExecutionResult(
-                    status=ExecutionStatus.FAILED,
-                    message=f"Platform does not support opening applications",
-                    error="PlatformCapabilityError",
+                    error="Application not found in discovery",
                     execution_time=execution_time
                 )
             
@@ -762,6 +924,9 @@ class CommandExecutor:
         else:
             self.authority_scope = authority_scope
         
+        # Get response ownership coordinator
+        self.ownership_coordinator = get_response_ownership_coordinator()
+        
         logger.info(
             "Command Executor initialized",
             app_capabilities=self.app_capabilities,
@@ -773,44 +938,72 @@ class CommandExecutor:
         """
         Execute a command from user input.
         
+        Claims response ownership during execution to suppress conversation responses.
+        
         Args:
             user_input: User's natural language command
         
         Returns:
             ExecutionResult with execution status
+        
+        Validates: Requirements 28.2, 28.4
         """
-        # Recognize intent
-        command_type, params = self.intent_recognizer.recognize(user_input)
+        # Claim response ownership for action execution
+        ownership_claimed = self.ownership_coordinator.claim_ownership(
+            ResponseOwner.COMMAND_EXECUTOR,
+            context={"command": user_input}
+        )
         
-        logger.info(f"Recognized command: {command_type.value}, params: {params}")
-        
-        # Check if command is allowed based on authority scope
-        if not self._is_command_allowed(command_type, params):
-            return ExecutionResult(
-                status=ExecutionStatus.PERMISSION_DENIED,
-                message=f"This command requires system-wide authority. Current scope: {self.authority_scope}",
-                error="Authority scope restriction"
+        if not ownership_claimed:
+            logger.warning(
+                "Failed to claim response ownership - higher priority owner active"
             )
         
-        # Dispatch to appropriate executor
-        if command_type == CommandType.OPEN_APPLICATION:
-            return self._execute_open_application(params)
+        try:
+            # Recognize intent
+            command_type, params = self.intent_recognizer.recognize(user_input)
+            
+            logger.info(f"Recognized command: {command_type.value}, params: {params}")
+            
+            # Check if command is allowed based on authority scope
+            if not self._is_command_allowed(command_type, params):
+                result = ExecutionResult(
+                    status=ExecutionStatus.PERMISSION_DENIED,
+                    message=f"This command requires system-wide authority. Current scope: {self.authority_scope}",
+                    error="Authority scope restriction"
+                )
+                return result
+            
+            # Dispatch to appropriate executor
+            if command_type == CommandType.OPEN_APPLICATION:
+                result = self._execute_open_application(params)
+            
+            elif command_type == CommandType.WRITE_FILE:
+                result = self._execute_write_file(params)
+            
+            elif command_type == CommandType.READ_FILE:
+                result = self._execute_read_file(params)
+            
+            elif command_type == CommandType.WEB_SEARCH:
+                result = self._execute_web_search(params)
+            
+            elif command_type == CommandType.WHATSAPP_MESSAGE:
+                result = self._execute_whatsapp_message(params)
+            
+            else:
+                result = ExecutionResult(
+                    status=ExecutionStatus.FAILED,
+                    message="I'm not sure how to do that yet. I can open applications, write files, and search the web.",
+                    error="Unknown command type"
+                )
+            
+            return result
         
-        elif command_type == CommandType.WRITE_FILE:
-            return self._execute_write_file(params)
-        
-        elif command_type == CommandType.READ_FILE:
-            return self._execute_read_file(params)
-        
-        elif command_type == CommandType.WEB_SEARCH:
-            return self._execute_web_search(params)
-        
-        else:
-            return ExecutionResult(
-                status=ExecutionStatus.FAILED,
-                message="I'm not sure how to do that yet. I can open applications, write files, and search the web.",
-                error="Unknown command type"
-            )
+        finally:
+            # Always release ownership when execution completes
+            if ownership_claimed:
+                self.ownership_coordinator.release_ownership(ResponseOwner.COMMAND_EXECUTOR)
+                logger.debug("Released response ownership")
     
     def _is_command_allowed(self, command_type: CommandType, params: Dict[str, Any]) -> bool:
         """
@@ -946,6 +1139,140 @@ class CommandExecutor:
             status=ExecutionStatus.SUCCESS,
             message=f"Searching for: {query}"
         )
+    
+    def _execute_whatsapp_message(self, params: Dict[str, Any]) -> ExecutionResult:
+        """
+        Execute WhatsApp message sending.
+        
+        Args:
+            params: Parameters containing contact and message
+        
+        Returns:
+            ExecutionResult with send status
+        
+        Validates: Requirements 26.1, 26.2, 26.3, 26.4, 26.5, 26.6
+        """
+        contact = params.get("contact")
+        message = params.get("message")
+        
+        if not contact:
+            return ExecutionResult(
+                status=ExecutionStatus.FAILED,
+                message="No contact specified for WhatsApp message",
+                error="Missing contact"
+            )
+        
+        if not message:
+            return ExecutionResult(
+                status=ExecutionStatus.FAILED,
+                message="No message specified for WhatsApp",
+                error="Missing message"
+            )
+        
+        # Import WhatsApp automation
+        from execution.whatsapp_automation import WhatsAppAutomation
+        
+        # Create WhatsApp automation instance
+        whatsapp = WhatsAppAutomation(self.app_controller, self.input_automation)
+        
+        # Send message with fallback
+        return whatsapp.send_message(contact, message, fallback_to_manual=True)
+    
+    def execute_dictation(self, text: str, target_app: Optional[str] = None) -> ExecutionResult:
+        """
+        Execute exact text dictation without interpretation.
+        
+        This method types text exactly as provided, bypassing Intent_Pre_Filter
+        and LLM_Adapter. It's used when the voice interface is in DICTATION_MODE.
+        
+        Args:
+            text: Exact text to type (no interpretation or modification)
+            target_app: Optional target application (defaults to focused app)
+        
+        Returns:
+            ExecutionResult with dictation status
+        
+        Validates: Requirements 2.5, 14, 21.6, 29.3, 29.4
+        
+        CRITICAL RULES:
+        - Text is typed EXACTLY as provided
+        - NO grammar correction
+        - NO rephrasing
+        - NO interpretation
+        - Intent_Pre_Filter is BYPASSED
+        - LLM_Adapter is BYPASSED
+        - TTS_Service should be MUTED during dictation
+        """
+        start_time = time.time()
+        
+        try:
+            # Check if we can type text on this platform
+            if not self.automation_capabilities.get("can_type_text", False):
+                execution_time = time.time() - start_time
+                return ExecutionResult(
+                    status=ExecutionStatus.FAILED,
+                    message="Platform does not support text automation",
+                    error="PlatformCapabilityError: Text automation not available",
+                    execution_time=execution_time
+                )
+            
+            # If target app specified, focus it first
+            if target_app:
+                focus_success = self.input_automation.focus_app(target_app)
+                if not focus_success:
+                    logger.warning(f"Failed to focus target app: {target_app}")
+                    # Continue anyway - might still work with currently focused app
+                
+                # Wait for focus to take effect
+                time.sleep(0.3)
+            
+            # Type the exact text using PAL (NO MODIFICATION)
+            logger.info(f"[Dictation] Typing exact text: {len(text)} characters")
+            
+            success = self.input_automation.type_text(text)
+            
+            execution_time = time.time() - start_time
+            
+            if success:
+                logger.info(f"[Dictation] Successfully typed {len(text)} characters")
+                
+                return ExecutionResult(
+                    status=ExecutionStatus.SUCCESS,
+                    message="Typed",  # Brief confirmation per speech contract
+                    output=f"Typed {len(text)} characters",
+                    execution_time=execution_time
+                )
+            else:
+                logger.error("[Dictation] Failed to type text")
+                
+                return ExecutionResult(
+                    status=ExecutionStatus.FAILED,
+                    message="Failed to type text",
+                    error="Text automation failed",
+                    execution_time=execution_time
+                )
+        
+        except PlatformCapabilityError as e:
+            execution_time = time.time() - start_time
+            logger.error(f"[Dictation] Platform capability error: {e}")
+            
+            return ExecutionResult(
+                status=ExecutionStatus.FAILED,
+                message="Platform does not support text automation",
+                error=str(e),
+                execution_time=execution_time
+            )
+        
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(f"[Dictation] Failed to type text: {e}")
+            
+            return ExecutionResult(
+                status=ExecutionStatus.FAILED,
+                message="Failed to type text",
+                error=str(e),
+                execution_time=execution_time
+            )
 
 
 # Global executor instance

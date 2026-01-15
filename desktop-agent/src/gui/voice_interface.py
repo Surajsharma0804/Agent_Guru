@@ -40,6 +40,8 @@ class VoiceState(Enum):
     PROCESSING = "processing"
     SPEAKING = "speaking"
     ERROR = "error"
+    COMMAND_MODE = "command_mode"  # Normal command processing
+    DICTATION_MODE = "dictation_mode"  # Exact text typing without interpretation
 
 
 @dataclass
@@ -82,8 +84,19 @@ class VoiceInterface:
         """
         self.speech_input = speech_input
         self.wake_word = wake_word.lower()
+        self.wake_word_variations = [
+            "hey guru",
+            "hello guru",
+            "hi guru",
+            "hey guro",  # Common mispronunciation
+            "hello guro",
+            "hi guro"
+        ]
         self.is_running = False
         self.current_state = VoiceState.IDLE
+        self.is_active = False  # Track if wake word has been detected
+        self.dictation_mode = False  # Track if in dictation mode
+        self.silence_start_time: Optional[float] = None  # Track silence for dictation exit
         
         # Callbacks
         self.on_command_callback: Optional[Callable[[VoiceCommand], None]] = None
@@ -114,6 +127,166 @@ class VoiceInterface:
     def set_audio_level_callback(self, callback: Callable[[float], None]):
         """Set callback for audio level updates"""
         self.on_audio_level_callback = callback
+    
+    def strip_wake_word(self, text: str) -> str:
+        """
+        Strip wake word from transcribed text.
+        
+        CRITICAL: Once the Voice_Interface is in ACTIVE state, the wake word
+        must be removed from all transcribed text to prevent downstream
+        interference with Intent_Pre_Filter, Command_Executor, and LLM_Adapter.
+        
+        Args:
+            text: Transcribed text that may contain wake word
+        
+        Returns:
+            Text with wake word removed and whitespace normalized
+        
+        Requirements: 30.1, 30.2, 30.3, 30.4, 30.5, 30.6
+        """
+        if not text:
+            return text
+        
+        # Convert to lowercase for case-insensitive matching
+        text_lower = text.lower().strip()
+        
+        # Try to strip each wake word variation
+        for wake_word_variant in self.wake_word_variations:
+            # Check if text starts with wake word
+            if text_lower.startswith(wake_word_variant):
+                # Remove wake word from original text (preserving case of remaining text)
+                # Find the position after the wake word in the original text
+                wake_word_len = len(wake_word_variant)
+                stripped = text[wake_word_len:].strip()
+                
+                # Log the stripping for debugging
+                if stripped != text:
+                    print(f"[Wake Word Strip] '{text}' -> '{stripped}'")
+                
+                return stripped
+            
+            # Check if wake word appears anywhere in the text (mid-sentence)
+            # This handles cases like "open notepad hey guru"
+            if wake_word_variant in text_lower:
+                # Find position in original text
+                pos = text_lower.find(wake_word_variant)
+                # Remove wake word and normalize whitespace
+                before = text[:pos].strip()
+                after = text[pos + len(wake_word_variant):].strip()
+                
+                # Combine before and after with single space
+                if before and after:
+                    stripped = f"{before} {after}"
+                else:
+                    stripped = before or after
+                
+                # Log the stripping for debugging
+                if stripped != text:
+                    print(f"[Wake Word Strip] '{text}' -> '{stripped}'")
+                
+                return stripped
+        
+        # No wake word found, return original text
+        return text
+    
+    def enter_dictation_mode(self):
+        """
+        Enter DICTATION_MODE state.
+        
+        In dictation mode:
+        - Intent_Pre_Filter is bypassed
+        - LLM_Adapter is bypassed
+        - TTS_Service is muted
+        - Text is typed exactly as spoken
+        
+        Requirements: 29.1, 29.2, 29.3, 29.4, 29.5
+        """
+        self.dictation_mode = True
+        self._set_state(VoiceState.DICTATION_MODE)
+        self.silence_start_time = None
+        print("[Dictation Mode] ENTERED - typing exact text without interpretation")
+    
+    def exit_dictation_mode(self):
+        """
+        Exit DICTATION_MODE and return to COMMAND_MODE.
+        
+        Requirements: 29.6, 29.7
+        """
+        self.dictation_mode = False
+        self._set_state(VoiceState.COMMAND_MODE)
+        self.silence_start_time = None
+        print("[Dictation Mode] EXITED - returning to command mode")
+    
+    def is_dictation_mode(self) -> bool:
+        """Check if currently in dictation mode"""
+        return self.dictation_mode
+    
+    def check_dictation_exit_conditions(self, text: str, has_speech: bool) -> bool:
+        """
+        Check if dictation mode should be exited.
+        
+        Exit conditions:
+        1. 2 seconds of silence detected
+        2. User says "done" or "stop writing"
+        
+        Args:
+            text: Current transcribed text (if any)
+            has_speech: Whether speech is currently detected
+        
+        Returns:
+            True if should exit dictation mode, False otherwise
+        
+        Requirements: 29.6, 29.7
+        """
+        if not self.dictation_mode:
+            return False
+        
+        # Check for exit commands
+        if text:
+            text_lower = text.lower().strip()
+            exit_commands = ["done", "stop writing", "stop typing", "finish"]
+            if any(cmd in text_lower for cmd in exit_commands):
+                print(f"[Dictation Mode] Exit command detected: '{text}'")
+                return True
+        
+        # Check for silence timeout (2 seconds)
+        current_time = time.time()
+        if not has_speech:
+            if self.silence_start_time is None:
+                self.silence_start_time = current_time
+            elif current_time - self.silence_start_time >= 2.0:
+                print("[Dictation Mode] 2 seconds of silence detected")
+                return True
+        else:
+            # Reset silence timer when speech is detected
+            self.silence_start_time = None
+        
+        return False
+    
+    def should_enter_dictation_mode(self, text: str) -> bool:
+        """
+        Check if command should trigger dictation mode entry.
+        
+        Dictation mode is triggered by commands containing:
+        - "write"
+        - "type"
+        - "dictate"
+        
+        Args:
+            text: Command text to check
+        
+        Returns:
+            True if should enter dictation mode, False otherwise
+        
+        Requirements: 29.2
+        """
+        if not text:
+            return False
+        
+        text_lower = text.lower().strip()
+        dictation_triggers = ["write", "type", "dictate"]
+        
+        return any(trigger in text_lower for trigger in dictation_triggers)
     
     def start_listening(self):
         """Start continuous voice recognition using PAL SpeechInput"""
@@ -187,7 +360,10 @@ class VoiceInterface:
         Main listening loop using PAL SpeechInput interface.
         
         This method continuously processes transcriptions from the PAL backend,
-        handling wake word detection and conversation state management.
+        handling wake word detection, wake word stripping, and conversation
+        state management including dictation mode.
+        
+        Requirements: 22, 29, 30
         """
         wake_word_mode = True
         conversation_turns = 0
@@ -202,11 +378,15 @@ class VoiceInterface:
         
         while self.is_running:
             try:
+                # Determine current mode
                 if wake_word_mode:
                     self._set_state(VoiceState.IDLE)
                     print(f"Listening for wake word: '{self.wake_word}'...")
+                elif self.dictation_mode:
+                    self._set_state(VoiceState.DICTATION_MODE)
+                    print("Dictation mode active - speak text to type...")
                 else:
-                    self._set_state(VoiceState.LISTENING)
+                    self._set_state(VoiceState.COMMAND_MODE)
                     if conversation_turns == 0:
                         print("✓ Ready to listen - speak your command now...")
                     else:
@@ -230,6 +410,67 @@ class VoiceInterface:
                 # For now, we maintain compatibility by noting this needs
                 # full PAL callback integration
                 
+                # Simulated transcription for demonstration
+                # In production, this would come from PAL callback
+                transcribed_text = ""  # Would come from PAL
+                has_speech = False  # Would come from PAL audio detection
+                
+                # CRITICAL: Strip wake word if in active state
+                if self.is_active and transcribed_text:
+                    transcribed_text = self.strip_wake_word(transcribed_text)
+                
+                # Check for wake word detection
+                if wake_word_mode and transcribed_text:
+                    text_lower = transcribed_text.lower()
+                    wake_word_detected = any(
+                        wake_word in text_lower 
+                        for wake_word in self.wake_word_variations
+                    )
+                    
+                    if wake_word_detected:
+                        print(f"✓ Wake word detected!")
+                        self.is_active = True
+                        wake_word_mode = False
+                        # Strip wake word from the transcription
+                        transcribed_text = self.strip_wake_word(transcribed_text)
+                        self._set_state(VoiceState.COMMAND_MODE)
+                
+                # Check for dictation mode entry
+                if self.is_active and not self.dictation_mode and transcribed_text:
+                    if self.should_enter_dictation_mode(transcribed_text):
+                        self.enter_dictation_mode()
+                
+                # Check for dictation mode exit
+                if self.dictation_mode:
+                    if self.check_dictation_exit_conditions(transcribed_text, has_speech):
+                        self.exit_dictation_mode()
+                        # Speak confirmation
+                        if self.tts_available:
+                            self.speak("Done", interrupt=False)
+                
+                # Check for deactivation commands
+                if self.is_active and transcribed_text:
+                    text_lower = transcribed_text.lower()
+                    deactivation_commands = ["stop", "sleep", "exit", "that's all"]
+                    if any(cmd in text_lower for cmd in deactivation_commands):
+                        print("Deactivation command detected")
+                        self.is_active = False
+                        wake_word_mode = True
+                        conversation_turns = 0
+                        if self.dictation_mode:
+                            self.exit_dictation_mode()
+                
+                # Process command if we have transcribed text
+                if transcribed_text and self.on_command_callback:
+                    command = VoiceCommand(
+                        text=transcribed_text,
+                        confidence=0.9,  # Would come from PAL
+                        timestamp=time.time(),
+                        language="en-US",
+                        wake_word_detected=False  # Already stripped
+                    )
+                    self.on_command_callback(command)
+                
                 print("PAL SpeechInput integration: Waiting for callback-based transcription...")
                 time.sleep(1.0)
                 
@@ -238,6 +479,7 @@ class VoiceInterface:
                 # 1. Callback registration for transcription events
                 # 2. Continuous listening with wake word detection
                 # 3. Audio level monitoring
+                # 4. Silence detection for dictation mode
                 
             except Exception as e:
                 print(f"Listen loop error: {e}")

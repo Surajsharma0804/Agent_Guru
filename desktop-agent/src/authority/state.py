@@ -35,6 +35,8 @@ class NoOpLogger:
         pass
     def debug(self, *args, **kwargs):
         pass
+    def critical(self, *args, **kwargs):
+        pass
 
 # Use no-op logger temporarily to debug deadlock
 logger = NoOpLogger()

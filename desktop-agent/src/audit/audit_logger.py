@@ -790,3 +790,250 @@ class AuditLogger:
         except Exception as e:
             self.logger.error(f"Failed to get audit statistics: {e}")
             return {"error": str(e)}
+    
+    def verify_integrity(self) -> IntegrityVerificationResult:
+        """
+        Verify complete integrity of audit log chain.
+        
+        This performs comprehensive verification of:
+        1. Hash chain integrity (each entry links to previous)
+        2. Cryptographic signature validity (HMAC-SHA256)
+        3. Sequence number continuity (no gaps or duplicates)
+        
+        Returns:
+            IntegrityVerificationResult with detailed verification status
+        """
+        try:
+            with self._get_db_connection() as conn:
+                # Get all entries in sequence order
+                cursor = conn.execute("""
+                    SELECT id, timestamp, sequence_number, event_type, component, action,
+                           details, previous_hash, entry_hash, signature
+                    FROM audit_entries
+                    ORDER BY sequence_number ASC
+                """)
+                
+                entries = cursor.fetchall()
+                total_entries = len(entries)
+                
+                if total_entries == 0:
+                    return IntegrityVerificationResult(
+                        verified=True,
+                        total_entries=0,
+                        hash_chain_valid=True,
+                        signatures_valid=True,
+                        sequence_valid=True,
+                        invalid_entries=[],
+                        verification_timestamp=datetime.now(timezone.utc).isoformat()
+                    )
+                
+                # Track verification state
+                hash_chain_valid = True
+                signatures_valid = True
+                sequence_valid = True
+                invalid_entries = []
+                expected_previous_hash = None
+                expected_sequence = 1
+                
+                for entry_data in entries:
+                    entry_id = entry_data[0]
+                    sequence_number = entry_data[2]
+                    previous_hash = entry_data[7]
+                    entry_hash = entry_data[8]
+                    signature = entry_data[9]
+                    
+                    # Verify sequence continuity
+                    if sequence_number != expected_sequence:
+                        sequence_valid = False
+                        invalid_entries.append({
+                            "entry_id": entry_id,
+                            "sequence_number": sequence_number,
+                            "expected_sequence": expected_sequence,
+                            "violation": "sequence_gap"
+                        })
+                    
+                    # Verify hash chain
+                    if expected_previous_hash is not None and previous_hash != expected_previous_hash:
+                        hash_chain_valid = False
+                        invalid_entries.append({
+                            "entry_id": entry_id,
+                            "sequence_number": sequence_number,
+                            "previous_hash": previous_hash,
+                            "expected_previous_hash": expected_previous_hash,
+                            "violation": "hash_chain_break"
+                        })
+                    
+                    # Reconstruct entry data for hash verification
+                    verify_data = {
+                        "id": entry_data[0],
+                        "timestamp": entry_data[1],
+                        "sequence_number": entry_data[2],
+                        "event_type": entry_data[3],
+                        "component": entry_data[4],
+                        "action": entry_data[5],
+                        "details": json.loads(entry_data[6]),
+                        "previous_hash": entry_data[7]
+                    }
+                    
+                    # Verify entry hash
+                    expected_hash = self._calculate_entry_hash(verify_data)
+                    if expected_hash != entry_hash:
+                        hash_chain_valid = False
+                        invalid_entries.append({
+                            "entry_id": entry_id,
+                            "sequence_number": sequence_number,
+                            "entry_hash": entry_hash,
+                            "expected_hash": expected_hash,
+                            "violation": "hash_mismatch"
+                        })
+                    
+                    # Verify signature
+                    expected_signature = self._sign_entry(entry_hash)
+                    if expected_signature != signature:
+                        signatures_valid = False
+                        invalid_entries.append({
+                            "entry_id": entry_id,
+                            "sequence_number": sequence_number,
+                            "signature": signature,
+                            "expected_signature": expected_signature,
+                            "violation": "signature_invalid"
+                        })
+                    
+                    # Update expected values for next iteration
+                    expected_previous_hash = entry_hash
+                    expected_sequence = sequence_number + 1
+                
+                # Overall verification result
+                verified = hash_chain_valid and signatures_valid and sequence_valid
+                
+                # Store verification result in database
+                verification_timestamp = datetime.now(timezone.utc).isoformat()
+                conn.execute("""
+                    INSERT INTO integrity_verifications (
+                        verification_timestamp, total_entries, verified,
+                        hash_chain_valid, signatures_valid, sequence_valid,
+                        invalid_entries_count, verification_details
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    verification_timestamp,
+                    total_entries,
+                    verified,
+                    hash_chain_valid,
+                    signatures_valid,
+                    sequence_valid,
+                    len(invalid_entries),
+                    json.dumps(invalid_entries) if invalid_entries else None
+                ))
+                conn.commit()
+                
+                result = IntegrityVerificationResult(
+                    verified=verified,
+                    total_entries=total_entries,
+                    hash_chain_valid=hash_chain_valid,
+                    signatures_valid=signatures_valid,
+                    sequence_valid=sequence_valid,
+                    invalid_entries=invalid_entries,
+                    verification_timestamp=verification_timestamp
+                )
+                
+                if not verified:
+                    self.logger.error(f"Audit log integrity verification FAILED: {len(invalid_entries)} violations detected")
+                else:
+                    self.logger.info(f"Audit log integrity verification PASSED: {total_entries} entries verified")
+                
+                return result
+                
+        except Exception as e:
+            self.logger.error(f"Integrity verification failed with exception: {e}")
+            return IntegrityVerificationResult(
+                verified=False,
+                total_entries=0,
+                hash_chain_valid=False,
+                signatures_valid=False,
+                sequence_valid=False,
+                invalid_entries=[],
+                verification_timestamp=datetime.now(timezone.utc).isoformat(),
+                error_message=str(e)
+            )
+    
+    def log_command_execution(self, command: str, result: str, user: str = "system",
+                             session_id: str = None, execution_time: float = 0.0):
+        """
+        Log command execution audit event.
+        
+        Args:
+            command: Command text that was executed
+            result: Execution result (success/failure)
+            user: User who executed the command
+            session_id: Authority session ID
+            execution_time: Execution time in seconds
+        """
+        event = AuditEvent(
+            event_type=AuditEventType.COMMAND_EXECUTED,
+            severity=AuditSeverity.INFO,
+            component="command_executor",
+            action="execute_command",
+            details={
+                "command": command,
+                "result": result,
+                "execution_time_seconds": execution_time
+            },
+            session_id=session_id,
+            user_id=user
+        )
+        return self.log_event(event)
+    
+    def rotate_logs(self) -> bool:
+        """
+        Rotate audit logs when they exceed max_log_entries.
+        
+        This creates a new log file and archives the old one with compression.
+        The hash chain is preserved across rotations.
+        
+        Returns:
+            True if rotation was successful, False otherwise
+        """
+        try:
+            with self._lock:
+                # Check if rotation is needed
+                with self._get_db_connection() as conn:
+                    cursor = conn.execute("SELECT COUNT(*) FROM audit_entries")
+                    entry_count = cursor.fetchone()[0]
+                    
+                    if entry_count < self.max_log_entries:
+                        return False  # No rotation needed
+                
+                # Create archive filename with timestamp
+                timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+                archive_path = self.log_directory / f"audit_log_{timestamp}.db"
+                
+                # Copy current database to archive
+                import shutil
+                shutil.copy2(self.db_path, archive_path)
+                
+                # Compress archive
+                import gzip
+                with open(archive_path, 'rb') as f_in:
+                    with gzip.open(f"{archive_path}.gz", 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                
+                # Remove uncompressed archive
+                archive_path.unlink()
+                
+                # Log rotation event
+                self.log_system_event(
+                    "audit_log_rotated",
+                    {
+                        "archive_file": f"audit_log_{timestamp}.db.gz",
+                        "entries_archived": entry_count,
+                        "last_entry_hash": self.last_entry_hash
+                    },
+                    AuditSeverity.INFO
+                )
+                
+                self.logger.info(f"Audit log rotated: {entry_count} entries archived to {archive_path}.gz")
+                return True
+                
+        except Exception as e:
+            self.logger.error(f"Failed to rotate audit logs: {e}")
+            return False

@@ -550,19 +550,19 @@ Each push triggers:
   - **Property 25: Failed Authentication Lockout**
   - **Validates: Requirements 6.2**
 
-- [ ] 8. Complete Audit Logger Implementation
+- [-] 8. Complete Audit Logger Implementation
   - Verify cryptographic signature chain
   - Test tamper detection
   - Test log rotation and compression
   - _Requirements: 5_
 
-- [ ] 8.1 Verify audit log signature chain
+- [x] 8.1 Verify audit log signature chain
   - Test HMAC-SHA256 signature computation
   - Test signature chain integrity
   - Test tamper detection
   - _Requirements: 5.4, 5.5, 5.6_
 
-- [ ] 8.2 Write property tests for audit logging
+- [x] 8.2 Write property tests for audit logging
   - **Property 26: Command Execution Logging Completeness**
   - **Property 27: Cryptographic Signature Integrity**
   - **Property 28: Signature Chain Integrity**

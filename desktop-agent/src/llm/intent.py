@@ -65,6 +65,7 @@ class StructuredIntent:
     risk_level: Literal["low", "medium", "high", "admin"] = "medium"
     timestamp: datetime = field(default_factory=datetime.utcnow)
     validation_errors: List[str] = field(default_factory=list)
+    bypass_llm: bool = False  # Requirement 31.1: Flag indicating LLM was bypassed
     
     def __post_init__(self):
         """Validate intent structure after initialization."""
@@ -178,7 +179,8 @@ class StructuredIntent:
             'requires_authority': self.requires_authority,
             'risk_level': self.risk_level,
             'timestamp': self.timestamp.isoformat(),
-            'validation_errors': self.validation_errors
+            'validation_errors': self.validation_errors,
+            'bypass_llm': self.bypass_llm  # Requirement 31.1
         }
 
 
