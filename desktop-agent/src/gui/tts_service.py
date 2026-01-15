@@ -4,16 +4,14 @@ Text-to-Speech Service
 Production-grade TTS service with proper threading, queue management,
 and error recovery. Handles concurrent speech requests safely.
 
-Uses Windows SAPI directly via COM automation to bypass volume mixer issues.
+Uses platform-agnostic PAL SpeechOutput interface for cross-platform compatibility.
 """
 
-import sys
 import threading
 import queue
 import time
 from typing import Optional
 from dataclasses import dataclass
-from enum import Enum
 
 # Import console utilities for cross-platform Unicode support
 try:
@@ -26,30 +24,8 @@ except ImportError:
             text = str(text).replace('✓', '[OK]').replace('✗', '[X]').replace('⚠', '[!]').replace('🔊', '[SPEAK]')
             print(text, **kwargs)
 
-# Try Windows Direct TTS first (bypasses volume mixer issues)
-WINDOWS_DIRECT_TTS = False
-if sys.platform == "win32":
-    try:
-        import win32com.client
-        WINDOWS_DIRECT_TTS = True
-        safe_print("[TTS] Using Windows Direct SAPI (bypasses volume mixer)")
-    except ImportError:
-        safe_print("[TTS] pywin32 not available, falling back to pyttsx3")
-
-# Fallback to pyttsx3
-try:
-    import pyttsx3
-    PYTTSX3_AVAILABLE = True
-except ImportError:
-    PYTTSX3_AVAILABLE = False
-
-
-class TTSPriority(Enum):
-    """Speech priority levels"""
-    LOW = 0
-    NORMAL = 1
-    HIGH = 2
-    URGENT = 3
+# PAL imports - platform-agnostic interfaces
+from pal.interfaces import SpeechOutput, TTSPriority
 
 
 @dataclass
@@ -63,21 +39,32 @@ class SpeechRequest:
 
 class TTSService:
     """
-    Production-grade text-to-speech service.
+    Production-grade text-to-speech service using PAL SpeechOutput interface.
     
     Features:
+    - Platform-agnostic speech synthesis via PAL
     - Dedicated TTS thread with event loop
     - Priority-based speech queue
     - Interrupt support
     - Automatic error recovery
     - Thread-safe operations
     - Resource cleanup
+    
+    Architecture:
+    - Uses PAL SpeechOutput interface for platform independence
+    - Maintains queue management and threading logic
+    - Delegates actual speech synthesis to platform-specific backend
     """
     
-    def __init__(self):
-        """Initialize TTS service"""
-        self.available = WINDOWS_DIRECT_TTS or PYTTSX3_AVAILABLE
-        self.use_windows_direct = WINDOWS_DIRECT_TTS
+    def __init__(self, speech_output: SpeechOutput):
+        """
+        Initialize TTS service with PAL interface.
+        
+        Args:
+            speech_output: Platform-specific SpeechOutput implementation
+        """
+        self.speech_output = speech_output
+        self.available = True  # PAL backends handle availability internally
         self.running = False
         self.speaking = False
         
@@ -91,10 +78,10 @@ class TTSService:
         self.stop_event = threading.Event()
         self.interrupt_event = threading.Event()
         
-        # Windows Direct TTS voice object (created in TTS thread)
-        self.windows_voice = None
+        # Get platform capabilities
+        self.capabilities = speech_output.get_capabilities()
         
-        safe_print(f"TTS Service initialized (Available: {self.available}, Method: {'Windows SAPI' if self.use_windows_direct else 'pyttsx3'})")
+        safe_print(f"TTS Service initialized (Platform-agnostic via PAL, Capabilities: {self.capabilities})")
     
     def start(self):
         """Start TTS service"""
@@ -176,47 +163,7 @@ class TTSService:
         self.speech_queue = new_queue
     
     def _tts_loop(self):
-        """Main TTS thread loop"""
-        # Initialize COM for this thread (CRITICAL for Windows SAPI)
-        if self.use_windows_direct:
-            try:
-                import pythoncom
-                pythoncom.CoInitialize()
-                safe_print("✓ COM initialized for TTS thread")
-            except Exception as e:
-                safe_print(f"⚠ COM initialization warning: {e}")
-        
-        # Create TTS engine in this thread
-        try:
-            if self.use_windows_direct:
-                # Use Windows SAPI directly
-                import win32com.client
-                self.windows_voice = win32com.client.Dispatch("SAPI.SpVoice")
-                self.windows_voice.Volume = 100  # Maximum volume
-                self.windows_voice.Rate = 0  # Normal speed
-                safe_print("✓ Windows SAPI voice initialized (volume: 100)")
-            else:
-                # Use pyttsx3
-                engine = pyttsx3.init()
-                
-                # Configure voice
-                voices = engine.getProperty('voices')
-                for voice in voices:
-                    if 'female' in voice.name.lower() or 'zira' in voice.name.lower():
-                        engine.setProperty('voice', voice.id)
-                        break
-                
-                # Set volume to MAXIMUM
-                engine.setProperty('volume', 1.0)
-                engine.setProperty('rate', 175)
-                
-                safe_print("✓ pyttsx3 engine initialized")
-        
-        except Exception as e:
-            safe_print(f"✗ Failed to initialize TTS engine: {e}")
-            self.available = False
-            return
-        
+        """Main TTS thread loop using PAL SpeechOutput interface"""
         # Main loop
         while self.running and not self.stop_event.is_set():
             try:
@@ -229,34 +176,24 @@ class TTSService:
                 # Clear interrupt flag
                 self.interrupt_event.clear()
                 
-                # Speak
+                # Speak using PAL interface
                 self.speaking = True
                 safe_print(f"🔊 Speaking: {request.text}")
                 
                 try:
-                    if self.use_windows_direct:
-                        # Windows SAPI - asynchronous
-                        self.windows_voice.Speak(request.text, 1)  # 1 = SVSFlagsAsync
-                        
-                        # Wait for speech to complete
-                        while self.windows_voice.Status.RunningState == 2:  # 2 = SRSEIsSpeaking
-                            if self.interrupt_event.is_set():
-                                self.windows_voice.Speak("", 2)  # 2 = SVSFPurgeBeforeSpeak
-                                break
-                            time.sleep(0.1)
-                    else:
-                        # pyttsx3
-                        interrupted = False
-                        
-                        def on_word(name, location, length):
-                            nonlocal interrupted
-                            if self.interrupt_event.is_set():
-                                interrupted = True
-                                engine.stop()
-                        
-                        engine.connect('started-word', on_word)
-                        engine.say(request.text)
-                        engine.runAndWait()
+                    # Use PAL SpeechOutput interface
+                    self.speech_output.speak(
+                        text=request.text,
+                        priority=request.priority,
+                        interrupt=request.interrupt
+                    )
+                    
+                    # Wait for speech to complete
+                    while self.speech_output.is_speaking():
+                        if self.interrupt_event.is_set():
+                            self.speech_output.stop()
+                            break
+                        time.sleep(0.1)
                 
                 except Exception as e:
                     safe_print(f"TTS error during speech: {e}")
@@ -269,17 +206,7 @@ class TTSService:
         
         # Cleanup
         try:
-            if self.use_windows_direct:
-                self.windows_voice = None
-                # Uninitialize COM for this thread
-                try:
-                    import pythoncom
-                    pythoncom.CoUninitialize()
-                    safe_print("✓ COM uninitialized for TTS thread")
-                except:
-                    pass
-            else:
-                engine.stop()
+            self.speech_output.stop()
         except:
             pass
         
@@ -305,11 +232,39 @@ class TTSService:
 _tts_service: Optional[TTSService] = None
 
 
-def get_tts_service() -> TTSService:
-    """Get global TTS service instance"""
+def get_tts_service(speech_output: Optional[SpeechOutput] = None) -> TTSService:
+    """
+    Get global TTS service instance.
+    
+    Args:
+        speech_output: Optional SpeechOutput implementation (creates default if None)
+    
+    Returns:
+        TTSService instance
+    
+    Note:
+        If SpeechOutput interface is provided, a new instance is created.
+        If SpeechOutput interface is not provided, returns singleton instance.
+    """
     global _tts_service
+    
+    # If explicit PAL interface provided, create new instance (for testing/DI)
+    if speech_output is not None:
+        return TTSService(speech_output)
+    
+    # Otherwise use singleton pattern
     if _tts_service is None:
-        _tts_service = TTSService()
+        from pal.platform_detector import PlatformDetector
+        from pal.backend_factory import PlatformBackendFactory
+        
+        # Detect platform
+        platform = PlatformDetector.detect()
+        factory = PlatformBackendFactory(platform)
+        
+        # Create PAL interface
+        speech_output = factory.create_speech_output()
+        
+        _tts_service = TTSService(speech_output)
         _tts_service.start()
     return _tts_service
 
@@ -334,8 +289,17 @@ def stop_speaking():
 
 
 if __name__ == "__main__":
-    # Test TTS service
-    service = TTSService()
+    # Test TTS service with PAL
+    from pal.platform_detector import PlatformDetector
+    from pal.backend_factory import PlatformBackendFactory
+    
+    # Create platform-specific backend
+    platform = PlatformDetector.detect()
+    factory = PlatformBackendFactory(platform)
+    speech_output = factory.create_speech_output()
+    
+    # Create and test service
+    service = TTSService(speech_output)
     service.start()
     
     service.speak("Hello! I am GURU, your personal assistant.", TTSPriority.NORMAL)

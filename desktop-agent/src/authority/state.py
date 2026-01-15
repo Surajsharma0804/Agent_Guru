@@ -49,6 +49,12 @@ class AuthorityState(Enum):
     INTRUSION_DETECTED = "INTRUSION_DETECTED"
 
 
+class AuthorityScope(Enum):
+    """Authority scope levels per platform."""
+    SYSTEM_WIDE = "system_wide"  # Desktop: Windows, macOS - full system control
+    APP_LEVEL = "app_level"      # Mobile: Android, iOS - app-level only
+
+
 class AuthorityPolicy(Enum):
     """Authority verification requirements by risk level."""
     LOW_RISK = "low_risk"
@@ -175,6 +181,11 @@ class AuthorityStateMachine:
         self._current_policy = AuthorityPolicy.LOW_RISK
         self._required_factors: Set[BiometricFactor] = self._config.policy_requirements[self._current_policy]
         self._integrity_key = secrets.token_bytes(32)
+        
+        # Detect platform and set authority scope
+        self._platform = self._detect_platform()
+        self._authority_scope = self._determine_authority_scope(self._platform)
+        
         self._initialized = True
 
         self._log_state_transition(
@@ -207,7 +218,7 @@ class AuthorityStateMachine:
         #     # Fallback to print if logger fails
         #     print(f"Authority state machine initialized (logger error: {e})")
         
-        print(f"Authority state machine initialized: session={self._session_id}, state={self._current_state.value}")
+        print(f"Authority state machine initialized: session={self._session_id}, state={self._current_state.value}, platform={self._platform}, scope={self._authority_scope.value}")
         print("DEBUG: Authority __init__ completed, about to return")
 
     def __setattr__(self, name: str, value) -> None:
@@ -230,7 +241,7 @@ class AuthorityStateMachine:
         protected_attrs = {
             "_current_state", "_session_id", "_state_history", "_failed_attempts",
             "_last_intrusion", "_current_policy", "_required_factors", "_integrity_key",
-            "_state_checksum"
+            "_state_checksum", "_platform", "_authority_scope"
         }
 
         if name in protected_attrs:
@@ -272,6 +283,31 @@ class AuthorityStateMachine:
         """Get the current authority policy."""
         with self._lock:
             return self._current_policy
+    
+    @property
+    def platform(self) -> str:
+        """Get the detected platform."""
+        with self._lock:
+            return self._platform
+    
+    @property
+    def authority_scope(self) -> AuthorityScope:
+        """Get the authority scope for the current platform."""
+        with self._lock:
+            return self._authority_scope
+    
+    def get_authority_scope(self) -> AuthorityScope:
+        """
+        Get the authority scope for the current platform.
+        
+        Returns:
+            AuthorityScope.SYSTEM_WIDE for desktop (Windows, macOS)
+            AuthorityScope.APP_LEVEL for mobile (Android, iOS)
+        
+        Validates: Requirements 39.1, 39.2, 39.3, 39.4
+        """
+        with self._lock:
+            return self._authority_scope
 
     def get_state_info(self) -> Dict[str, Union[str, int, float, bool]]:
         """Get comprehensive state information for monitoring."""
@@ -288,6 +324,8 @@ class AuthorityStateMachine:
                 "state": self._current_state.value,
                 "session_id": self._session_id,
                 "policy": self._current_policy.value,
+                "platform": self._platform,
+                "authority_scope": self._authority_scope.value,
                 "is_armed": self.is_armed,
                 "is_locked": self.is_locked,
                 "armed_at": self._armed_at.isoformat() if self._armed_at else None,
@@ -704,6 +742,62 @@ class AuthorityStateMachine:
 
     # Private methods
 
+    def _detect_platform(self) -> str:
+        """
+        Detect the current platform.
+        
+        Returns:
+            Platform identifier: "windows", "macos", "android", or "ios"
+        
+        Validates: Requirements 39.1, 43.1
+        """
+        try:
+            # Try to import platform detector from PAL
+            from src.pal.platform_detector import PlatformDetector
+            return PlatformDetector.detect()
+        except ImportError:
+            # Fallback to basic platform detection if PAL not available
+            import platform
+            system = platform.system().lower()
+            if system == "windows":
+                return "windows"
+            elif system == "darwin":
+                return "macos"
+            elif system == "linux":
+                # Check for Android
+                import sys
+                if hasattr(sys, 'getandroidapilevel'):
+                    return "android"
+                else:
+                    # Default to windows for testing on Linux
+                    return "windows"
+            else:
+                # Default to windows for unknown platforms
+                return "windows"
+    
+    def _determine_authority_scope(self, platform: str) -> AuthorityScope:
+        """
+        Determine authority scope based on platform.
+        
+        Desktop platforms (Windows, macOS): SYSTEM_WIDE
+        Mobile platforms (Android, iOS): APP_LEVEL
+        
+        Args:
+            platform: Platform identifier
+        
+        Returns:
+            AuthorityScope.SYSTEM_WIDE or AuthorityScope.APP_LEVEL
+        
+        Validates: Requirements 39.2, 39.3, 39.4
+        """
+        if platform in ("windows", "macos"):
+            return AuthorityScope.SYSTEM_WIDE
+        elif platform in ("android", "ios"):
+            return AuthorityScope.APP_LEVEL
+        else:
+            # Default to APP_LEVEL for unknown platforms (fail-safe)
+            return AuthorityScope.APP_LEVEL
+
     def _verify_integrity(self) -> None:
         """Verify HMAC integrity of cryptographic state."""
         current_checksum = self._calculate_state_checksum()
@@ -821,12 +915,15 @@ class AuthorityStateMachine:
 
         self._state_history.append(transition)
 
+        # Enhanced logging with platform and authority scope
         logger.info(
             "Authority state transition",
             from_state=from_state.value,
             to_state=to_state.value,
             reason=reason.value,
             session_id=self._session_id,
+            platform=self._platform,
+            authority_scope=self._authority_scope.value,
             transition_id=transition.integrity_hash[:8],
             metadata=metadata,
         )
@@ -849,6 +946,8 @@ class AuthorityStateMachine:
             metadata={
                 "verified_factors": ",".join(f.value for f in self._pending_verifications.keys()),
                 "policy": self._current_policy.value,
+                "platform": self._platform,
+                "authority_scope": self._authority_scope.value,
             },
         )
 
@@ -856,6 +955,8 @@ class AuthorityStateMachine:
             "Authority granted - system armed",
             session_id=self._session_id,
             policy=self._current_policy.value,
+            platform=self._platform,
+            authority_scope=self._authority_scope.value,
             verified_factors=[f.value for f in self._pending_verifications.keys()],
         )
 
@@ -1018,6 +1119,7 @@ def get_default_authority_config() -> AuthorityConfiguration:
 # Export public interface
 __all__ = [
     "AuthorityState",
+    "AuthorityScope",
     "AuthorityPolicy",
     "BiometricFactor",
     "StateTransitionReason",

@@ -38,7 +38,7 @@ except ImportError:
     WINDOWS_AVAILABLE = False
     UserConsentVerificationResult = None
 
-from ..authority.state import BiometricFactor
+from authority.state import BiometricFactor
 
 logger = structlog.get_logger(__name__)
 
