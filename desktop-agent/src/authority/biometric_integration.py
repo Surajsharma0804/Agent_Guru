@@ -18,15 +18,10 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import structlog
 
-from .state import (AuthorityConfiguration, AuthorityStateMachine,
-                                 BiometricFactor)
+from .state import AuthorityConfiguration, AuthorityStateMachine, BiometricFactor
 
 if TYPE_CHECKING:
-    from src.biometric.providers import (BiometricProviderConfig,
-                                         BiometricProviderNotAvailableError,
-                                         BiometricProviderType, BiometricResult,
-                                         BiometricVerificationTimeoutError,
-                                         BiometricProviderSecurityBoundary)
+    pass
 
 # Use TYPE_CHECKING to avoid circular imports
 if TYPE_CHECKING:
@@ -73,7 +68,6 @@ BiometricIntegrationConfig = BiometricVerificationBoundaries
 class BiometricVerificationBoundaryViolation(Exception):
     """Raised when biometric verification boundaries are violated."""
 
-    pass
 
 
 class BiometricAuthorityVerificationEngine:
@@ -130,8 +124,7 @@ class BiometricAuthorityVerificationEngine:
 
         if self.config.enable_intrusion_detection_integration and self.intrusion_detector:
             # Import dynamically to avoid circular imports
-            from src.intrusion.detection import (IntrusionDetectionConfig,
-                                                 create_intrusion_detector)
+            from src.intrusion.detection import IntrusionDetectionConfig, create_intrusion_detector
 
             intrusion_config = self.verification_boundaries.intrusion_detection_config or IntrusionDetectionConfig()
             self.intrusion_detector = create_intrusion_detector(intrusion_config)
@@ -140,7 +133,8 @@ class BiometricAuthorityVerificationEngine:
             # Import dynamically to avoid circular imports
             from src.intrusion.biometric_failure_detector import (
                 BiometricFailureDetectionConfig,
-                create_enhanced_biometric_failure_detector)
+                create_enhanced_biometric_failure_detector,
+            )
 
             failure_config = self.verification_boundaries.failure_detection_config or BiometricFailureDetectionConfig()
             self.failure_detector = create_enhanced_biometric_failure_detector(failure_config, self.intrusion_detector)

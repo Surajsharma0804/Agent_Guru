@@ -7,13 +7,10 @@ authentication on Windows 10/11.
 Validates: Requirements 38.2, 38.6, 38.7
 """
 
-from typing import List, Dict
 from datetime import datetime
-import ctypes
-from ctypes import wintypes
+from typing import Dict, List
 
-from ...interfaces import BiometricAuthenticator, AuthResult, AuthResultStatus
-
+from ...interfaces import AuthResult, AuthResultStatus, BiometricAuthenticator
 
 # Windows Hello API constants
 WINBIO_TYPE_FINGERPRINT = 0x00000008
@@ -243,7 +240,6 @@ class WindowsBiometricAuthenticator(BiometricAuthenticator):
             )
             
         except Exception as e:
-            print(f"Error detecting biometric hardware: {e}")
             self._has_biometric_hardware = False
             self._has_fingerprint = False
             self._has_face = False
@@ -305,8 +301,6 @@ class WindowsBiometricAuthenticator(BiometricAuthenticator):
         # For testing, we can simulate authentication
         # In production, replace this with actual Windows Hello API call
         
-        print(f"[SIMULATION] Windows Hello authentication requested: {reason}")
-        print("[SIMULATION] In production, this would show Windows Hello prompt")
         
         # For development, return True to simulate successful authentication
         # In production, this will be replaced with actual Windows Hello API

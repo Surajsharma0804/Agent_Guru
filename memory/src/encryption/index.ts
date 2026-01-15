@@ -25,7 +25,6 @@ export class EncryptedStore<T = unknown> implements EncryptedMemoryStore<T> {
       if (encryptedData) {
         // Decrypt with old key, encrypt with new key
         // Implementation would handle the re-encryption process
-        console.log(`Re-encrypting key: ${key}`);
       }
     }
     

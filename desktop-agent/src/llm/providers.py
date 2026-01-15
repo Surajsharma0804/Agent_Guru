@@ -11,25 +11,18 @@ Security Principles:
 - Fail-safe defaults with comprehensive error handling
 """
 
+import asyncio
+import json
+import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, Union, Literal
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import asyncio
-import json
-import time
-import logging
 from threading import Lock
+from typing import Any, Dict, Literal, Optional
 
-from .intent import StructuredIntent, IntentValidator
-from .exceptions import (
-    ProviderError, 
-    RateLimitExceededError, 
-    AuthenticationError,
-    NetworkError,
-    CapabilityDetectionError
-)
+from .exceptions import ProviderError, RateLimitExceededError
+from .intent import IntentValidator, StructuredIntent
 
 
 class ProviderStatus(Enum):
@@ -174,7 +167,6 @@ class LLMProvider(ABC):
         Returns:
             bool: True if initialization successful
         """
-        pass
         
     @abstractmethod
     async def generate_intent(
@@ -199,7 +191,6 @@ class LLMProvider(ABC):
             ProviderError: If generation fails
             RateLimitExceededError: If rate limits exceeded
         """
-        pass
         
     @abstractmethod
     async def detect_capabilities(self) -> ProviderCapabilities:
@@ -209,7 +200,6 @@ class LLMProvider(ABC):
         Returns:
             ProviderCapabilities: Comprehensive capability specification
         """
-        pass
         
     @abstractmethod
     async def health_check(self) -> bool:
@@ -219,7 +209,6 @@ class LLMProvider(ABC):
         Returns:
             bool: True if provider is healthy
         """
-        pass
         
     def check_rate_limits(self, estimated_tokens: int = 100) -> bool:
         """

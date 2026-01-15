@@ -23,11 +23,11 @@ Validates: Requirements 34.6, 35.5, 36.4, 37.4, 38.3, 40.3
 """
 
 from .application_controller import macOSApplicationController
-from .input_automation import macOSInputAutomation
-from .speech_output import macOSSpeechOutput
-from .speech_input import macOSSpeechInput
 from .biometric_authenticator import macOSBiometricAuthenticator
+from .input_automation import macOSInputAutomation
 from .security_enforcer import macOSSecurityEnforcer
+from .speech_input import macOSSpeechInput
+from .speech_output import macOSSpeechOutput
 
 __all__ = [
     'macOSApplicationController',

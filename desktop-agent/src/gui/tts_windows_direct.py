@@ -6,19 +6,12 @@ by using Windows SAPI directly with COM automation.
 """
 
 import sys
-import threading
-import queue
-import time
-from typing import Optional
-from dataclasses import dataclass
-from enum import Enum
 
 try:
     import win32com.client
     SAPI_AVAILABLE = True
 except ImportError:
     SAPI_AVAILABLE = False
-    print("win32com not available. Install with: pip install pywin32")
 
 
 class WindowsDirectTTS:
@@ -44,10 +37,8 @@ class WindowsDirectTTS:
                 # Set rate (normal speed)
                 self.voice.Rate = 0
                 
-                print(f"[WindowsDirectTTS] Initialized with volume: {self.voice.Volume}")
                 
             except Exception as e:
-                print(f"[WindowsDirectTTS] Failed to initialize: {e}")
                 self.available = False
     
     def speak(self, text: str, wait: bool = False):
@@ -59,7 +50,6 @@ class WindowsDirectTTS:
             wait: If True, wait for speech to complete
         """
         if not self.available:
-            print(f"[WindowsDirectTTS] Not available: {text}")
             return
         
         try:
@@ -75,7 +65,6 @@ class WindowsDirectTTS:
             self.speaking = False
             
         except Exception as e:
-            print(f"[WindowsDirectTTS] Error speaking: {e}")
             self.speaking = False
     
     def stop(self):
@@ -96,12 +85,9 @@ def test_windows_direct_tts():
     tts = WindowsDirectTTS()
     
     if not tts.available:
-        print("Windows Direct TTS not available")
         return
     
-    print("Testing Windows Direct TTS...")
     tts.speak("Hello! This is a test of Windows Direct TTS. Can you hear me?", wait=True)
-    print("Test complete")
 
 
 if __name__ == "__main__":

@@ -364,7 +364,7 @@ def test_property_65_category_specific_messages(component):
 # ============================================================================
 
 @given(
-    fail_count=st.integers(min_value=1, max_value=2)  # Reduced to 2 since max_retries=3
+    fail_count=st.integers(min_value=1, max_value=3)  # max_retries=3, so test up to 3 failures
 )
 @settings(
     max_examples=100,
@@ -381,9 +381,15 @@ def test_property_66_transient_failure_retry(fail_count):
     This property verifies that transient errors are retried up to the
     configured maximum attempts.
     
-    Note: The component fails fail_count times, then succeeds.
-    The error handler makes max_retries attempts (not including the initial failure).
-    So for success, we need: fail_count <= max_retries
+    SEMANTICS: max_retries=3 means "make 3 retry attempts total"
+    - Component fails fail_count times, then succeeds on attempt (fail_count + 1)
+    - Error handler makes max_retries attempts total
+    - Success requires: fail_count < max_retries (strict inequality)
+    
+    Example: fail_count=3, max_retries=3
+    - Component fails on attempts 1, 2, 3, succeeds on attempt 4
+    - Error handler makes 3 attempts (1, 2, 3), all fail
+    - Recovery fails because we need 4 attempts but only make 3
     """
     # Create error handler
     error_handler = ErrorHandler()
@@ -403,20 +409,21 @@ def test_property_66_transient_failure_retry(fail_count):
     # Get recovery strategy for network errors
     strategy = error_handler.RECOVERY_STRATEGIES[ErrorCategory.NETWORK]
     
-    # The component fails fail_count times, then succeeds
-    # The error handler retries max_retries times
-    # So we need fail_count <= max_retries for success
-    if fail_count <= strategy.max_retries:
+    # CRITICAL: max_retries means "total retry attempts", not "retries after initial failure"
+    # Component needs (fail_count + 1) attempts to succeed
+    # Error handler makes max_retries attempts
+    # Success requires: fail_count < max_retries (component succeeds within retry budget)
+    if fail_count < strategy.max_retries:
         # Should succeed after retries
         assert success, f"Recovery failed after {fail_count} failures (max retries: {strategy.max_retries})"
         assert result == "success"
         # Component should be called: fail_count times (failures) + 1 time (success)
         assert component.call_count == fail_count + 1
     else:
-        # Should fail if exceeds max retries
-        assert not success, "Recovery succeeded when it should have failed"
-        # Component should be called at most: max_retries + 1
-        assert component.call_count <= strategy.max_retries + 1
+        # Should fail if fail_count >= max_retries (not enough retry budget)
+        assert not success, f"Recovery succeeded when it should have failed (fail_count={fail_count}, max_retries={strategy.max_retries})"
+        # Component should be called exactly max_retries times (all failures)
+        assert component.call_count == strategy.max_retries
 
 
 @given(

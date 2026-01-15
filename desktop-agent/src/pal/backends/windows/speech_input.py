@@ -11,6 +11,7 @@ import threading
 import time
 from datetime import datetime
 from typing import Dict
+
 import speech_recognition as sr
 
 from ...interfaces import SpeechInput, Transcription
@@ -128,7 +129,6 @@ class WindowsSpeechInput(SpeechInput):
                 metadata={'error': 'unintelligible'}
             )
         except Exception as e:
-            print(f"Error transcribing audio: {e}")
             return Transcription(
                 text="",
                 confidence=0.0,
@@ -152,13 +152,10 @@ class WindowsSpeechInput(SpeechInput):
         """
         try:
             with self.microphone as source:
-                print("Calibrating microphone for ambient noise...")
                 self.recognizer.adjust_for_ambient_noise(source, duration=1)
                 self.energy_threshold = self.recognizer.energy_threshold
-                print(f"Calibration complete. Energy threshold: {self.energy_threshold}")
                 return self.energy_threshold
         except Exception as e:
-            print(f"Error calibrating microphone: {e}")
             return 300  # Default threshold
     
     def get_capabilities(self) -> Dict[str, bool]:
@@ -213,7 +210,6 @@ class WindowsSpeechInput(SpeechInput):
                     # No speech detected, continue listening
                     continue
                 except Exception as e:
-                    print(f"Error in listen worker: {e}")
                     time.sleep(0.1)
     
     def __del__(self):

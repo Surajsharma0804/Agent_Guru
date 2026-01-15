@@ -9,18 +9,17 @@ This verifier ensures the audit log maintains cryptographic integrity
 and can detect any tampering attempts or corruption.
 """
 
-import json
 import hashlib
 import hmac
+import json
 import logging
 import sqlite3
-from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timezone
-from dataclasses import dataclass
-from pathlib import Path
 from contextlib import contextmanager
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
-from .audit_logger import AuditLogEntry, IntegrityVerificationResult
+from .audit_logger import IntegrityVerificationResult
 
 
 class IntegrityVerifier:

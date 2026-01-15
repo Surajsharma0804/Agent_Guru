@@ -16,20 +16,15 @@ Requirements: 16.4, 16.5
 import json
 import logging
 import threading
-from dataclasses import dataclass, field, asdict
+import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Set, Tuple
-import uuid
+from typing import Any, Dict, List, Optional
 
-from .audit_logging import (
-    MultilingualAuditLogger, MultilingualEventType, LogSeverity,
-    DataClassification, RetentionPolicy, PrivacyMetadata,
-    MultilingualAuditContext, AuditSeverity
-)
+from .audit_logging import AuditSeverity, MultilingualAuditContext, MultilingualAuditLogger, MultilingualEventType
 from .configuration import MultilingualConfig
-from .exceptions import MultilingualError, SecurityBoundaryError
 
 
 class DataResidencyRegion(Enum):

@@ -5,12 +5,12 @@ Coordinates all audit phases with strict safety enforcement.
 Ensures no destructive changes occur without proof of safety.
 """
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Set
-import json
 
 
 class AuditPhase(Enum):

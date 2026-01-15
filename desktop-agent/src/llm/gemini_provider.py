@@ -12,14 +12,13 @@ SECURITY INVARIANTS:
 - No direct execution capability
 """
 
-from typing import Dict, Any, List, Optional
 import asyncio
+import json
 import logging
 import os
-import json
-from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from .exceptions import ProviderError, AuthenticationError, RateLimitExceededError
+from .exceptions import AuthenticationError, ProviderError, RateLimitExceededError
 
 
 class GeminiProvider:

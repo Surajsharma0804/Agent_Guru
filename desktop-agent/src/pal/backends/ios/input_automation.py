@@ -13,10 +13,11 @@ This is the most restricted platform for automation.
 
 Requirements: 35.7, 39.3, 39.6, 41.5
 """
-from typing import Optional, Dict
-import platform
 import logging
-from ...interfaces import InputAutomation, AutomationTarget, PlatformCapabilityError
+import platform
+from typing import Dict, Optional
+
+from ...interfaces import AutomationTarget, InputAutomation, PlatformCapabilityError
 
 logger = logging.getLogger(__name__)
 

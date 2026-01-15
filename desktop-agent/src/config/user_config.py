@@ -5,14 +5,15 @@ Handles user preferences, authentication credentials, and system settings.
 Provides secure storage and retrieval of user data with encryption.
 """
 
-import json
-import hashlib
-import secrets
-from pathlib import Path
-from typing import Optional, Dict, Any
-from dataclasses import dataclass, asdict
-from cryptography.fernet import Fernet
 import base64
+import hashlib
+import json
+import secrets
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+from cryptography.fernet import Fernet
 
 
 @dataclass
@@ -80,9 +81,9 @@ class UserConfigManager:
             
             # Secure file permissions (Windows)
             try:
-                import win32security
                 import ntsecuritycon as con
-                
+                import win32security
+
                 # Get current user
                 user, domain, type = win32security.LookupAccountName("", win32security.GetUserName())
                 
@@ -119,7 +120,6 @@ class UserConfigManager:
             return UserProfile(**config_dict)
         
         except Exception as e:
-            print(f"Error loading config: {e}")
             return None
     
     def _save_config(self):
@@ -140,7 +140,6 @@ class UserConfigManager:
                 f.write(encrypted_data.decode())
         
         except Exception as e:
-            print(f"Error saving config: {e}")
     
     def is_first_time_setup(self) -> bool:
         """Check if this is first time setup"""

@@ -27,8 +27,9 @@ USAGE:
     # Signals are automatically queued and processed in main thread
 """
 
-from PyQt6.QtCore import QObject, pyqtSignal, Qt
 import threading
+
+from PyQt6.QtCore import QObject, Qt, pyqtSignal
 
 
 class ThreadSafeBridge(QObject):
@@ -64,7 +65,6 @@ class ThreadSafeBridge(QObject):
                 f"Current thread: {threading.current_thread().name}"
             )
         
-        print(f"[ThreadSafeBridge] Created in {threading.current_thread().name}")
     
     def connect_avatar(self, avatar_window):
         """
@@ -90,7 +90,6 @@ class ThreadSafeBridge(QObject):
             Qt.ConnectionType.QueuedConnection
         )
         
-        print(f"[ThreadSafeBridge] Connected to avatar window")
     
     def connect_voice(self, voice_interface):
         """
@@ -112,7 +111,6 @@ class ThreadSafeBridge(QObject):
             Qt.ConnectionType.QueuedConnection
         )
         
-        print(f"[ThreadSafeBridge] Connected to voice interface")
 
 
 # Global bridge instance

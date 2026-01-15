@@ -11,12 +11,12 @@ Validates: Requirements 38.4, 38.6, 38.7, 4.1-4.5, 6.2
 
 import json
 import subprocess
+import sys
 import time
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-import sys
+from typing import Any, Dict, List, Optional
 
-from ...interfaces import BiometricAuthenticator, AuthResult, AuthResultStatus, PlatformCapabilityError
+from ...interfaces import AuthResult, AuthResultStatus, BiometricAuthenticator, PlatformCapabilityError
 
 
 class AndroidBiometricAuthenticator(BiometricAuthenticator):
@@ -127,7 +127,6 @@ class AndroidBiometricAuthenticator(BiometricAuthenticator):
             return auth_result
             
         except Exception as e:
-            print(f"Error during biometric authentication: {e}")
             return AuthResult(
                 status=AuthResultStatus.FAILURE,
                 message=f"Authentication error: {str(e)}",
@@ -211,12 +210,9 @@ class AndroidBiometricAuthenticator(BiometricAuthenticator):
             self._is_configured = self._check_biometric_configuration()
             
             if self._is_configured:
-                print(f"Android biometrics available: {', '.join(self._available_factors)}")
             else:
-                print("Android biometrics not configured")
                 
         except Exception as e:
-            print(f"Warning: Could not initialize Android biometrics: {e}")
     
     def _detect_biometric_factors(self) -> List[str]:
         """
@@ -241,7 +237,6 @@ class AndroidBiometricAuthenticator(BiometricAuthenticator):
                 factors.append('iris')
                 
         except Exception as e:
-            print(f"Error detecting biometric factors: {e}")
         
         return factors
     
@@ -269,7 +264,6 @@ class AndroidBiometricAuthenticator(BiometricAuthenticator):
             return False
             
         except Exception as e:
-            print(f"Error checking fingerprint sensor: {e}")
             return False
     
     def _has_face_recognition(self) -> bool:
@@ -296,7 +290,6 @@ class AndroidBiometricAuthenticator(BiometricAuthenticator):
             return False
             
         except Exception as e:
-            print(f"Error checking face recognition: {e}")
             return False
     
     def _has_iris_scanner(self) -> bool:
@@ -322,7 +315,6 @@ class AndroidBiometricAuthenticator(BiometricAuthenticator):
             return False
             
         except Exception as e:
-            print(f"Error checking iris scanner: {e}")
             return False
     
     def _check_biometric_configuration(self) -> bool:
@@ -354,7 +346,6 @@ class AndroidBiometricAuthenticator(BiometricAuthenticator):
             return False
             
         except Exception as e:
-            print(f"Error checking biometric configuration: {e}")
             return False
     
     def _is_fingerprint_enrolled(self) -> bool:
@@ -377,7 +368,6 @@ class AndroidBiometricAuthenticator(BiometricAuthenticator):
             return result.returncode == 0 and result.stdout.strip() == '1'
             
         except Exception as e:
-            print(f"Error checking fingerprint enrollment: {e}")
             return False
     
     def _is_face_enrolled(self) -> bool:
@@ -399,7 +389,6 @@ class AndroidBiometricAuthenticator(BiometricAuthenticator):
             return result.returncode == 0 and result.stdout.strip() == '1'
             
         except Exception as e:
-            print(f"Error checking face enrollment: {e}")
             return False
     
     def _is_iris_enrolled(self) -> bool:
@@ -421,7 +410,6 @@ class AndroidBiometricAuthenticator(BiometricAuthenticator):
             return result.returncode == 0 and result.stdout.strip() == '1'
             
         except Exception as e:
-            print(f"Error checking iris enrollment: {e}")
             return False
     
     def _is_locked_out(self) -> bool:
@@ -502,7 +490,6 @@ class AndroidBiometricAuthenticator(BiometricAuthenticator):
                     )
             else:
                 # Development/testing mode
-                print(f"Would authenticate Android biometric for: {reason}")
                 
                 # Simulate authentication result
                 import random
@@ -526,7 +513,6 @@ class AndroidBiometricAuthenticator(BiometricAuthenticator):
                     )
                     
         except Exception as e:
-            print(f"Error during Android biometric authentication: {e}")
             return AuthResult(
                 status=AuthResultStatus.FAILURE,
                 message=f"Authentication error: {str(e)}",

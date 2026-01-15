@@ -106,19 +106,16 @@ class WorkstationLockConfig:
 class WorkstationLockError(Exception):
     """Base exception for workstation locking errors."""
 
-    pass
 
 
 class WorkstationLockPermissionError(WorkstationLockError):
     """Exception for permission-related lock failures."""
 
-    pass
 
 
 class WorkstationLockSystemError(WorkstationLockError):
     """Exception for system-level lock failures."""
 
-    pass
 
 
 class WorkstationLocker:

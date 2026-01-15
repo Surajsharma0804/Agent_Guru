@@ -11,25 +11,25 @@ Input Engine, LLM Adapter) while maintaining all security invariants.
 """
 
 import logging
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 # Import existing GURU components
-from ..authority.state import AuthorityStateMachine, AuthorityConfiguration
-from ..voice.voice_pipeline import VoiceProcessingPipeline, PipelineConfig
+from ..authority.state import AuthorityConfiguration, AuthorityStateMachine
 from ..input.windows_input_engine import WindowsInputEngine
 from ..llm.adapter import LLMAdapter
+from ..voice.voice_pipeline import PipelineConfig, VoiceProcessingPipeline
 
 # Import multilingual components
-from .configuration import MultilingualConfig, ConfigurationController
-from .types import SecurePipelineResult  # Import from types to avoid circular dependency
-from .exceptions import MultilingualError, SecurityBoundaryError, AuthorityIntegrationError
-from .secure_pipeline import create_secure_multilingual_pipeline, SecureMultilingualPipeline
+from .configuration import ConfigurationController, MultilingualConfig
+from .exceptions import MultilingualError, SecurityBoundaryError
 
 # Import PipelineResult for type hints
-from .pipeline import PipelineResult, MultilingualProcessingPipeline
+from .pipeline import MultilingualProcessingPipeline, PipelineResult
+from .secure_pipeline import create_secure_multilingual_pipeline
+from .types import SecurePipelineResult  # Import from types to avoid circular dependency
 
 
 @dataclass
@@ -279,7 +279,7 @@ class SecureGuruMultilingualIntegration:
         try:
             # Process through existing voice pipeline
             import numpy as np
-            
+
             # Convert bytes to numpy array (simplified - would need proper audio conversion)
             audio_array = np.frombuffer(audio, dtype=np.int16)
             sample_rate = 16000  # Assume 16kHz

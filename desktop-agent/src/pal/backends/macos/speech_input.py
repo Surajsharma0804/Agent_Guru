@@ -17,12 +17,12 @@ Capabilities:
 Validates: Requirements 37.4, 37.7
 """
 
+import io
 import threading
 import time
 import wave
-import io
 from datetime import datetime
-from typing import Dict, Optional, Callable
+from typing import Callable, Dict, Optional
 
 from ...interfaces import SpeechInput, Transcription
 
@@ -58,7 +58,6 @@ class macOSSpeechInput(SpeechInput):
         except ImportError:
             self._has_pyaudio = False
             self._pyaudio = None
-            print("Warning: PyAudio not installed. Speech input will not work.")
         
         # Audio settings
         self._sample_rate = 16000  # Whisper.cpp expects 16kHz
@@ -98,11 +97,9 @@ class macOSSpeechInput(SpeechInput):
             return
         
         if not self._has_pyaudio:
-            print("Error: PyAudio not available. Cannot start listening.")
             return
         
         if not self._whisper_executable:
-            print("Error: Whisper.cpp not found. Cannot start listening.")
             return
         
         try:
@@ -114,7 +111,6 @@ class macOSSpeechInput(SpeechInput):
             self._listen_thread.start()
             
         except Exception as e:
-            print(f"Error starting listening: {e}")
             self._is_listening = False
     
     def stop_listening(self) -> None:
@@ -144,12 +140,10 @@ class macOSSpeechInput(SpeechInput):
                     self._stream.stop_stream()
                     self._stream.close()
                 except Exception as e:
-                    print(f"Error closing audio stream: {e}")
                 finally:
                     self._stream = None
                     
         except Exception as e:
-            print(f"Error stopping listening: {e}")
     
     def transcribe(self, audio_data: bytes) -> Transcription:
         """
@@ -169,7 +163,7 @@ class macOSSpeechInput(SpeechInput):
         try:
             import subprocess
             import tempfile
-            
+
             # Write audio to temporary WAV file
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_wav:
                 temp_path = temp_wav.name
@@ -212,7 +206,6 @@ class macOSSpeechInput(SpeechInput):
             )
             
         except Exception as e:
-            print(f"Error transcribing audio: {e}")
             return Transcription(
                 text="",
                 confidence=0.0,
@@ -238,9 +231,9 @@ class macOSSpeechInput(SpeechInput):
             return self._energy_threshold
         
         try:
-            import pyaudio
             import numpy as np
-            
+            import pyaudio
+
             # Open stream
             stream = self._pyaudio.open(
                 format=self._format,
@@ -271,7 +264,6 @@ class macOSSpeechInput(SpeechInput):
             return self._energy_threshold
             
         except Exception as e:
-            print(f"Error calibrating microphone: {e}")
             return self._energy_threshold
     
     def get_capabilities(self) -> Dict[str, bool]:
@@ -304,7 +296,7 @@ class macOSSpeechInput(SpeechInput):
             Path to whisper executable if found, None otherwise
         """
         import shutil
-        
+
         # Try common locations
         locations = [
             'whisper',  # In PATH
@@ -333,9 +325,9 @@ class macOSSpeechInput(SpeechInput):
             6. Call callback with transcription
         """
         try:
-            import pyaudio
             import numpy as np
-            
+            import pyaudio
+
             # Open stream
             self._stream = self._pyaudio.open(
                 format=self._format,
@@ -387,11 +379,9 @@ class macOSSpeechInput(SpeechInput):
                                 audio_buffer = []
                     
                 except Exception as e:
-                    print(f"Error in listen loop: {e}")
                     time.sleep(0.1)
             
         except Exception as e:
-            print(f"Error opening audio stream: {e}")
         finally:
             if self._stream:
                 self._stream.stop_stream()

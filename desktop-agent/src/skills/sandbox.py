@@ -9,29 +9,22 @@ Implements comprehensive process-level sandboxing for skill execution with:
 - Sandbox escape detection and prevention
 """
 
-import subprocess
-import os
-import sys
-import tempfile
-import shutil
 import json
-import signal
-import threading
-import time
-from typing import Dict, List, Optional, Any, Callable
-from dataclasses import dataclass
-from pathlib import Path
-from datetime import datetime
 import logging
+import os
+import shutil
+import signal
+import subprocess
+import sys
+import time
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from .manifest import SkillManifest, PermissionType, ResourceLimits
+from .exceptions import SandboxInitializationError
+from .manifest import SkillManifest
 from .monitoring import ResourceMonitor, SandboxMonitor, SandboxViolation
-from .exceptions import (
-    SandboxInitializationError,
-    SandboxEscapeError,
-    ResourceLimitExceededError,
-    PermissionDeniedError
-)
 
 
 @dataclass
@@ -219,7 +212,6 @@ def setup_resource_limits():
         resource.setrlimit(resource.RLIMIT_NOFILE, (fd_limit, fd_limit))
         
     except Exception as e:
-        print(f"Warning: Could not set resource limits: {{e}}", file=sys.stderr)
 
 def validate_file_access(path):
     """Validate file access against allowed paths."""
@@ -269,10 +261,8 @@ def main():
         # Execute the actual skill code
         exec("""{skill_script}""", skill_globals)
         
-        print("Skill execution completed successfully")
         
     except Exception as e:
-        print(f"Skill execution failed: {{e}}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         sys.exit(1)
 

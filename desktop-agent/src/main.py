@@ -43,12 +43,10 @@ Shutdown Sequence:
 8. Clean shutdown
 """
 
-import asyncio
 import logging
 import signal
 import sys
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Optional
 
 import structlog
@@ -58,7 +56,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from .audit.audit_logger import AuditEvent, AuditEventType, AuditLogger, AuditSeverity
+from .audit.audit_logger import AuditLogger, AuditSeverity
 from .authority.state import (
     AuthorityConfiguration,
     AuthorityStateMachine,
@@ -376,7 +374,6 @@ def main():
 
     Starts the FastAPI service with production-grade configuration.
     """
-    import logging
 
     # Setup signal handlers for graceful shutdown
     def signal_handler(signum, frame):

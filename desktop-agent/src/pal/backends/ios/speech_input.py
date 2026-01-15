@@ -16,11 +16,12 @@ This implementation uses Apple's Speech framework, which requires:
 
 Requirements: 37.6, 37.7, 39.6
 """
-from typing import Dict
-import platform
 import logging
+import platform
 import threading
 from datetime import datetime
+from typing import Dict
+
 from ...interfaces import SpeechInput, Transcription
 
 logger = logging.getLogger(__name__)

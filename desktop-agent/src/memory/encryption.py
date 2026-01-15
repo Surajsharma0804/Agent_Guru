@@ -16,17 +16,16 @@ Security Features:
 - Memory-safe key handling
 """
 
-import os
 import hashlib
-import secrets
 import logging
-from typing import Optional, Tuple, Dict, Any
+import secrets
 from dataclasses import dataclass
+from typing import Any, Dict, Optional
+
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.backends import default_backend
-import base64
 
 logger = logging.getLogger(__name__)
 
@@ -105,17 +104,14 @@ class EncryptedData:
 
 class MemoryEncryptionError(Exception):
     """Base exception for memory encryption operations."""
-    pass
 
 
 class KeyDerivationError(MemoryEncryptionError):
     """Exception for key derivation failures."""
-    pass
 
 
 class EncryptionError(MemoryEncryptionError):
     """Exception for encryption/decryption failures."""
-    pass
 
 
 class MemoryEncryption:

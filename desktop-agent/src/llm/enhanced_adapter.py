@@ -14,18 +14,16 @@ SECURITY INVARIANTS:
 - Cache does not bypass security checks
 """
 
-from typing import Dict, Any, List, Optional
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime
-import asyncio
-import logging
+from typing import Any, Dict, Optional
 
-from .adapter import LLMAdapter, AdapterConfiguration
-from .response_cache import ResponseCache, CacheStatistics
-from .template_responses import TemplateResponseSystem, ResponseCategory
+from .adapter import AdapterConfiguration, LLMAdapter
 from .intent import StructuredIntent
+from .response_cache import ResponseCache
 from .safety import SafeResponse
-from .exceptions import LLMAdapterError, ProviderError
+from .template_responses import TemplateResponseSystem
 
 
 @dataclass

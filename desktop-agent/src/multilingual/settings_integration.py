@@ -8,36 +8,19 @@ migration support, and unified configuration access.
 Requirements: 15.4
 """
 
+import hashlib
 import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
 from threading import Lock
-import hashlib
+from typing import Any, Dict, List, Optional, Tuple
 
-from .configuration import (
-    MultilingualConfig,
-    LanguageConfig,
-    SupportedLanguages,
-    ConfigurationManager,
-    ConfigurationError
-)
-from .user_preferences import (
-    UserPreferences,
-    UserPreferencesManager,
-    DetectionSensitivity,
-    MixedLanguageStrategy,
-    FallbackBehavior
-)
-from .voice_training import (
-    VoiceTrainingManager,
-    MultilingualVoiceProfile,
-    CalibrationStatus
-)
-from .exceptions import UnsupportedLanguageError
+from .configuration import ConfigurationManager, MultilingualConfig
+from .user_preferences import UserPreferences, UserPreferencesManager
+from .voice_training import VoiceTrainingManager
 
 
 class SettingsScope(Enum):
@@ -191,7 +174,7 @@ class GuruSettingsIntegration:
             self.logger.info("Initializing GURU settings integration")
             
             # Load multilingual configuration
-            config = self.config_manager.load_configuration()
+            self.config_manager.load_configuration()
             
             # Validate configuration
             issues = self.config_manager.validate_configuration()
@@ -355,7 +338,7 @@ class GuruSettingsIntegration:
             issues.extend(pref_issues)
             
             # Validate voice profiles
-            voice_profile = self.training_manager.load_profile(user_id)
+            self.training_manager.load_profile(user_id)
             
             # Check for languages in preferences but not in config
             config = self.config_manager.get_configuration()
@@ -622,7 +605,6 @@ class GuruSettingsIntegration:
     def _check_migrations(self):
         """Check for pending migrations."""
         # Placeholder - would check for pending migrations and execute them
-        pass
         
     def _get_migration_steps(self, from_version: str, to_version: str) -> List[str]:
         """Get migration steps for version transition."""

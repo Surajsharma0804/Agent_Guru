@@ -10,10 +10,10 @@ ensuring consistency and comprehensive coverage across the system.
 """
 
 import logging
-from typing import Dict, Any, Optional
 from abc import ABC, abstractmethod
+from typing import Any, Dict, Optional
 
-from .audit_logger import AuditLogger, AuditEvent, AuditEventType, AuditSeverity
+from .audit_logger import AuditEvent, AuditEventType, AuditLogger, AuditSeverity
 
 
 class ComponentAuditLogger(ABC):
@@ -157,24 +157,20 @@ class ComponentAuditLogger(ABC):
     @abstractmethod
     def _get_default_event_type(self) -> AuditEventType:
         """Get default event type for this component"""
-        pass
     
     # Component-specific methods to be implemented by subclasses
     
     @abstractmethod
     def log_component_startup(self, details: Dict[str, Any] = None) -> str:
         """Log component startup event"""
-        pass
     
     @abstractmethod
     def log_component_shutdown(self, details: Dict[str, Any] = None) -> str:
         """Log component shutdown event"""
-        pass
     
     @abstractmethod
     def log_configuration_change(self, details: Dict[str, Any]) -> str:
         """Log configuration change event"""
-        pass
 
 
 class AuthorityAuditLogger(ComponentAuditLogger):

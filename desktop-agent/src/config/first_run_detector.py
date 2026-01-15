@@ -7,9 +7,9 @@ manages the setup wizard flow.
 Requirements: 16.1 - Detect first run
 """
 
+import sys
 from pathlib import Path
 from typing import Optional
-import sys
 
 
 class FirstRunDetector:
@@ -68,7 +68,6 @@ class FirstRunDetector:
             return False
         
         except Exception as e:
-            print(f"[WARNING] Error validating configuration: {e}")
             # If we can't validate, assume first run to be safe
             return True
     
@@ -81,10 +80,8 @@ class FirstRunDetector:
             # Create setup complete marker
             self.setup_complete_marker.touch()
             
-            print(f"[SETUP] Setup marked as complete: {self.setup_complete_marker}")
         
         except Exception as e:
-            print(f"[ERROR] Failed to mark setup complete: {e}")
     
     def reset_setup(self):
         """Reset setup (for testing or reconfiguration)"""
@@ -92,10 +89,8 @@ class FirstRunDetector:
             if self.setup_complete_marker.exists():
                 self.setup_complete_marker.unlink()
             
-            print("[SETUP] Setup reset - will run wizard on next launch")
         
         except Exception as e:
-            print(f"[ERROR] Failed to reset setup: {e}")
 
 
 def detect_first_run() -> bool:
@@ -127,14 +122,12 @@ def run_setup_wizard_if_needed() -> bool:
     if not detector.is_first_run():
         return False
     
-    print("\n" + "=" * 70)
-    print("FIRST RUN DETECTED - Launching Setup Wizard")
-    print("=" * 70 + "\n")
     
     try:
         from PyQt6.QtWidgets import QApplication
+
         from ..gui.setup_wizard import run_setup_wizard
-        
+
         # Create Qt application if needed
         app = QApplication.instance()
         if app is None:
@@ -145,20 +138,15 @@ def run_setup_wizard_if_needed() -> bool:
         setup_data = run_setup_wizard()
         
         if not setup_data:
-            print("\n[SETUP CANCELLED] Setup was cancelled.")
             return False
         
         # Mark setup as complete
         detector.mark_setup_complete()
         
-        print("\n" + "=" * 70)
-        print(f"SETUP COMPLETE - Welcome, {setup_data['display_name']}!")
-        print("=" * 70 + "\n")
         
         return True
     
     except Exception as e:
-        print(f"\n[ERROR] Setup wizard failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -168,10 +156,3 @@ if __name__ == "__main__":
     # Test first-run detection
     detector = FirstRunDetector()
     
-    print("First-Run Detection Test")
-    print("=" * 50)
-    print(f"Config directory: {detector.config_dir}")
-    print(f"Config file: {detector.config_file}")
-    print(f"Setup marker: {detector.setup_complete_marker}")
-    print(f"Is first run: {detector.is_first_run()}")
-    print("=" * 50)

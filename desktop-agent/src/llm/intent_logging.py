@@ -8,13 +8,13 @@ Requirement 31.4: Log whether LLM was bypassed for each command
 Requirement 31.5: Track bypass rate over rolling window of 100 commands
 """
 
-import logging
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from .intent_pre_filter import PreFilterResult, RoutingDecision
+from .intent_pre_filter import PreFilterResult
 
 
 class IntentPreFilterLogger:

@@ -15,13 +15,11 @@ import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
-from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
-from .configuration import MultilingualConfig, SupportedLanguages, LanguageScript
-from .exceptions import DictationError, UnsupportedLanguageError
-from ..input.windows_input_engine import WindowsInputEngine, InputResult
 from ..authority.state import AuthorityStateMachine
+from ..input.windows_input_engine import WindowsInputEngine
+from .configuration import LanguageScript, MultilingualConfig, SupportedLanguages
 
 
 class DictationSecurityLevel(Enum):

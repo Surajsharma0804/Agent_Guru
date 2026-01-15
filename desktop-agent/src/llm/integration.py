@@ -11,25 +11,13 @@ Integrates the model router with the existing GURU system components:
 This layer ensures proper security boundaries and audit logging.
 """
 
-from typing import Dict, Any, Optional
-import asyncio
 import logging
 from pathlib import Path
+from typing import Any, Dict, Optional
 
-from .model_router import (
-    ModelRouter,
-    RouterConfiguration,
-    TaskType,
-    ProviderType,
-    get_model_router
-)
-from .intent import StructuredIntent, IntentValidator
-from .exceptions import (
-    LLMException,
-    IntentValidationError,
-    IsolationBreachError,
-    TaskRoutingError
-)
+from .exceptions import IntentValidationError, IsolationBreachError
+from .intent import IntentValidator
+from .model_router import ProviderType, TaskType, get_model_router
 
 
 class LLMSystemIntegration:

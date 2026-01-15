@@ -8,19 +8,10 @@ Provides essential skills that come pre-installed with GURU:
 - VectorTextTransformer: Text processing and manipulation utilities
 """
 
-from typing import Dict, Any, List
 from pathlib import Path
-import json
-import subprocess
-import psutil
-import platform
-import os
-from datetime import datetime
+from typing import Dict
 
-from .manifest import (
-    SkillManifest, PermissionSet, PermissionType, RiskLevel, 
-    ResourceLimits, RollbackStrategy
-)
+from .manifest import PermissionSet, PermissionType, ResourceLimits, RiskLevel, RollbackStrategy, SkillManifest
 
 
 def create_system_info_skill() -> SkillManifest:

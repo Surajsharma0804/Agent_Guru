@@ -13,19 +13,13 @@ Production-grade component registry for GURU Personal Assistant providing:
 import logging
 import threading
 import time
-import uuid
+import weakref
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Set, Callable, Any, Protocol
-import weakref
+from typing import Any, Callable, Dict, List, Optional, Protocol, Set
 
-from .exceptions import (
-    RegistrationError,
-    ComponentNotFoundError,
-    ComponentLifecycleError,
-    ComponentUnavailableError
-)
+from .exceptions import ComponentLifecycleError, ComponentNotFoundError, RegistrationError
 
 
 class ComponentStatus(Enum):

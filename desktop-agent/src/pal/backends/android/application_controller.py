@@ -15,12 +15,12 @@ Validates: Requirements 34.7, 34.9, 39.2, 39.3
 
 import json
 import subprocess
+import sys
 import time
 from pathlib import Path
-from typing import List, Dict, Optional, Any
-import sys
+from typing import Any, Dict, List, Optional
 
-from ...interfaces import ApplicationController, AppDescriptor, PlatformCapabilityError
+from ...interfaces import AppDescriptor, ApplicationController, PlatformCapabilityError
 
 
 class AndroidApplicationController(ApplicationController):
@@ -151,7 +151,6 @@ class AndroidApplicationController(ApplicationController):
             return success
             
         except Exception as e:
-            print(f"Error launching {app_id}: {e}")
             return False
     
     def close_app(self, app_id: str) -> bool:
@@ -201,7 +200,6 @@ class AndroidApplicationController(ApplicationController):
             return success
             
         except Exception as e:
-            print(f"Error closing {app_id}: {e}")
             return False
     
     def is_running(self, app_id: str) -> bool:
@@ -234,7 +232,6 @@ class AndroidApplicationController(ApplicationController):
             return self._is_app_running(package_name)
             
         except Exception as e:
-            print(f"Error checking if {app_id} is running: {e}")
             return False
     
     def discover_apps(self) -> List[AppDescriptor]:
@@ -277,7 +274,6 @@ class AndroidApplicationController(ApplicationController):
             try:
                 discovered_apps = self._discover_from_package_manager()
             except Exception as e:
-                print(f"Error discovering apps from PackageManager: {e}")
                 # Fallback to known mappings
                 for app_id, package_name in self.package_mapping.items():
                     if self._is_package_installed(package_name):
@@ -364,7 +360,6 @@ class AndroidApplicationController(ApplicationController):
             # This would typically use Kivy's android module or similar
             pass
         except Exception as e:
-            print(f"Warning: Could not initialize Android components: {e}")
     
     def _get_package_name(self, app_id: str) -> Optional[str]:
         """
@@ -414,11 +409,9 @@ class AndroidApplicationController(ApplicationController):
                 return result.returncode == 0
             else:
                 # Development/testing mode
-                print(f"Would launch Android app: {package_name}")
                 return True
                 
         except Exception as e:
-            print(f"Error launching {package_name}: {e}")
             return False
     
     def _move_app_to_background(self, package_name: str) -> bool:
@@ -444,11 +437,9 @@ class AndroidApplicationController(ApplicationController):
                 return result.returncode == 0
             else:
                 # Development/testing mode
-                print(f"Would move Android app to background: {package_name}")
                 return True
                 
         except Exception as e:
-            print(f"Error moving {package_name} to background: {e}")
             return False
     
     def _clear_from_recent_tasks(self, package_name: str) -> bool:
@@ -473,11 +464,9 @@ class AndroidApplicationController(ApplicationController):
                 return result.returncode == 0
             else:
                 # Development/testing mode
-                print(f"Would clear Android app from recents: {package_name}")
                 return True
                 
         except Exception as e:
-            print(f"Error clearing {package_name} from recents: {e}")
             return False
     
     def _is_app_running(self, package_name: str) -> bool:
@@ -508,7 +497,6 @@ class AndroidApplicationController(ApplicationController):
                 return package_name in running_apps
                 
         except Exception as e:
-            print(f"Error checking if {package_name} is running: {e}")
             return False
     
     def _discover_from_package_manager(self) -> List[AppDescriptor]:
@@ -554,7 +542,6 @@ class AndroidApplicationController(ApplicationController):
                             self._app_cache[app_id] = descriptor
             
         except Exception as e:
-            print(f"Error discovering from PackageManager: {e}")
         
         return discovered
     
@@ -587,7 +574,6 @@ class AndroidApplicationController(ApplicationController):
                 return info if info else None
             
         except Exception as e:
-            print(f"Error getting app info for {package_name}: {e}")
         
         return None
     
@@ -640,7 +626,6 @@ class AndroidApplicationController(ApplicationController):
                             return package_name
             
         except Exception as e:
-            print(f"Error searching for package {app_name}: {e}")
         
         return None
     
@@ -664,7 +649,6 @@ class AndroidApplicationController(ApplicationController):
             return result.returncode == 0 and 'package:' in result.stdout
             
         except Exception as e:
-            print(f"Error checking if {package_name} is installed: {e}")
             return False
     
     def _get_app_display_name(self, package_name: str) -> str:

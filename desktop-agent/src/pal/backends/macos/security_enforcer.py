@@ -49,11 +49,9 @@ class macOSSecurityEnforcer(SecurityEnforcer):
         
         # Try to import Quartz for CGSession
         try:
-            from Quartz import CGSessionCopyCurrentDictionary
             self._has_quartz = True
         except ImportError:
             self._has_quartz = False
-            print("Warning: pyobjc-framework-Quartz not installed. Using fallback methods.")
     
     def lock_session(self, reason: str) -> bool:
         """
@@ -87,7 +85,6 @@ class macOSSecurityEnforcer(SecurityEnforcer):
             return True
         
         # All methods failed
-        print(f"Failed to lock screen. Reason: {reason}")
         return False
     
     def get_lock_scope(self) -> str:
@@ -132,7 +129,6 @@ class macOSSecurityEnforcer(SecurityEnforcer):
             return False
             
         except Exception as e:
-            print(f"Error locking via CGSession: {e}")
             return False
     
     def _lock_via_pmset(self) -> bool:
@@ -154,10 +150,8 @@ class macOSSecurityEnforcer(SecurityEnforcer):
             return result.returncode == 0
             
         except subprocess.TimeoutExpired:
-            print("Timeout locking via pmset")
             return False
         except Exception as e:
-            print(f"Error locking via pmset: {e}")
             return False
     
     def _lock_via_applescript(self) -> bool:
@@ -209,8 +203,6 @@ class macOSSecurityEnforcer(SecurityEnforcer):
             return result_alt.returncode == 0
             
         except subprocess.TimeoutExpired:
-            print("Timeout locking via AppleScript")
             return False
         except Exception as e:
-            print(f"Error locking via AppleScript: {e}")
             return False

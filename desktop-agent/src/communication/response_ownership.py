@@ -24,13 +24,12 @@ This ensures deterministic, predictable responses without duplication.
 Validates: Requirements 28.1, 28.2, 28.3, 28.4, 28.5, 28.6, 28.7
 """
 
+import logging
 import threading
-import time
-from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import logging
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

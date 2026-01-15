@@ -34,14 +34,13 @@ Components:
 """
 
 from .audit_logger import (
-    AuditLogger,
     AuditEvent,
     AuditEventType,
-    AuditSeverity,
     AuditLogEntry,
-    IntegrityVerificationResult
+    AuditLogger,
+    AuditSeverity,
+    IntegrityVerificationResult,
 )
-
 from .component_logger import ComponentAuditLogger
 from .integrity_verifier import IntegrityVerifier
 

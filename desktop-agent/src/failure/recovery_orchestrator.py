@@ -12,28 +12,22 @@ This system provides:
 - Recovery history and analytics
 """
 
+import logging
 import threading
 import time
-import logging
-from typing import Dict, List, Optional, Callable, Any, Union
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-import json
-from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 import traceback
+from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
 
-from .exceptions import (
-    RecoveryFailedError,
-    ComponentFailureError,
-    CriticalSystemFailureError
-)
 # Import types at runtime to avoid circular imports
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from .failure_detector import ComponentFailure, FailureType, FailureSeverity
-from .dependency_mapper import DependencyMapper, CascadeAnalysis
+    from .failure_detector import ComponentFailure
+
+from .dependency_mapper import DependencyMapper
 
 
 class RecoveryActionType(Enum):
@@ -362,7 +356,6 @@ class RecoveryOrchestrator:
             return None
         
         # Import at runtime to avoid circular imports
-        from .failure_detector import FailureType, FailureSeverity
         
         # Find matching strategy for this failure type
         matching_strategy = None

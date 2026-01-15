@@ -6,11 +6,11 @@ side effects, and rollback strategies. All skills must have valid manifests
 before execution.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Any
-from enum import Enum
 import json
+from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
+from typing import Any, Dict, List, Set
 
 from .exceptions import ManifestValidationError
 

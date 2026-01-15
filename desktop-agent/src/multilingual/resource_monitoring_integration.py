@@ -12,10 +12,9 @@ and throttling in production multilingual systems.
 
 import logging
 import time
-from typing import Any, Dict, List, Optional, Callable
-from datetime import datetime, timedelta
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Callable, Dict, Optional
 
 from .performance_optimization import ResourceMonitor, ResourceUsageMetrics
 
@@ -332,7 +331,6 @@ def example_resource_monitoring_workflow():
     )
     
     # Simulate processing operations
-    print("Processing operations with resource monitoring...")
     
     for i in range(10):
         # Simulate an operation
@@ -350,19 +348,11 @@ def example_resource_monitoring_workflow():
               f"Status={result.get('resource_status', 'unknown')}")
         
     # Get resource health report
-    health_report = processor.get_resource_health_report()
-    print(f"\nResource Health Report:")
-    print(f"  Status: {health_report['status']}")
-    print(f"  CPU: {health_report['current_metrics']['cpu_percent']:.1f}%")
-    print(f"  Memory: {health_report['current_metrics']['memory_percent']:.1f}%")
-    print(f"  Operations processed: {health_report['operations']['processed']}")
-    print(f"  Operations throttled: {health_report['operations']['throttled']}")
-    print(f"  Throttle rate: {health_report['operations']['throttle_rate']:.1f}%")
+    processor.get_resource_health_report()
     
     # Get resource trend
     trend = processor.get_resource_trend(duration_seconds=30)
     if trend['available']:
-        print(f"\nResource Trend (last 30s):")
         print(f"  CPU: min={trend['cpu']['min']:.1f}%, "
               f"max={trend['cpu']['max']:.1f}%, "
               f"avg={trend['cpu']['avg']:.1f}%")

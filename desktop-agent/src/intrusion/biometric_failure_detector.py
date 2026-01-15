@@ -11,6 +11,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import structlog
+
 from authority.state import BiometricFactor
 from biometric.providers import BiometricProviderType, BiometricResult
 
@@ -106,7 +107,6 @@ class BiometricFailureDetectionConfig:
 class BiometricFailureDetectionError(Exception):
     """Base exception for biometric failure detection errors."""
 
-    pass
 
 
 class EnhancedBiometricFailureDetector:
@@ -866,14 +866,12 @@ class EnhancedBiometricFailureDetector:
 
         # This could include more sophisticated threshold updates
         # based on long-term patterns and user behavior
-        pass
 
     def _analyze_long_term_trends(self) -> None:
         """Analyze long-term failure trends."""
 
         # Analyze trends over longer time periods
         # This could include weekly/monthly pattern analysis
-        pass
 
 
 # Factory function for easy instantiation

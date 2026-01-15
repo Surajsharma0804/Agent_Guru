@@ -16,14 +16,13 @@ Features:
 - Memory usage optimization
 """
 
-import math
 import logging
-import hashlib
-import pickle
-from typing import Dict, List, Tuple, Optional, Any, Set
-from dataclasses import dataclass
-from collections import defaultdict, Counter
+import math
 import re
+from collections import Counter, defaultdict
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Set
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -52,7 +51,6 @@ class VectorIndex:
 
 class VectorSearchError(Exception):
     """Base exception for vector search operations."""
-    pass
 
 
 class VectorSearchEngine:

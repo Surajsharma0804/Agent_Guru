@@ -18,13 +18,13 @@ Each memory type provides:
 """
 
 import json
+import logging
 import uuid
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Union, Tuple
 from enum import Enum
-import logging
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -73,13 +73,11 @@ class BaseMemoryRecord(ABC):
     @abstractmethod
     def to_dict(self) -> Dict[str, Any]:
         """Convert record to dictionary for storage."""
-        pass
     
     @classmethod
     @abstractmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'BaseMemoryRecord':
         """Create record from dictionary."""
-        pass
     
     def update_timestamp(self) -> None:
         """Update the last modified timestamp."""

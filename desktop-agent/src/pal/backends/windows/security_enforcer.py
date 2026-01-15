@@ -7,9 +7,8 @@ system-wide security lockdown on Windows 10/11.
 Validates: Requirements 40.2, 40.6
 """
 
-from typing import Dict
 import ctypes
-from ctypes import wintypes
+from typing import Dict
 
 from ...interfaces import SecurityEnforcer
 
@@ -62,7 +61,6 @@ class WindowsSecurityEnforcer(SecurityEnforcer):
         """
         try:
             # Log reason (for audit trail)
-            print(f"Locking workstation: {reason}")
             
             # Call LockWorkStation API
             # Returns non-zero on success, zero on failure
@@ -70,14 +68,12 @@ class WindowsSecurityEnforcer(SecurityEnforcer):
             
             if result == 0:
                 # Get error code
-                error_code = ctypes.get_last_error()
-                print(f"Failed to lock workstation. Error code: {error_code}")
+                ctypes.get_last_error()
                 return False
             
             return True
             
         except Exception as e:
-            print(f"Error locking workstation: {e}")
             return False
     
     def get_lock_scope(self) -> str:
@@ -129,7 +125,6 @@ class WindowsSecurityEnforcer(SecurityEnforcer):
                 return True
                 
         except Exception as e:
-            print(f"Error checking workstation lock status: {e}")
             return False
     
     def enable_screensaver(self) -> bool:
@@ -152,7 +147,6 @@ class WindowsSecurityEnforcer(SecurityEnforcer):
             )
             return True
         except Exception as e:
-            print(f"Error enabling screensaver: {e}")
             return False
     
     def log_off_user(self) -> bool:
@@ -173,5 +167,4 @@ class WindowsSecurityEnforcer(SecurityEnforcer):
             result = self.user32.ExitWindowsEx(EWX_LOGOFF, 0)
             return result != 0
         except Exception as e:
-            print(f"Error logging off user: {e}")
             return False

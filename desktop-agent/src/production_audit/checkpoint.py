@@ -5,12 +5,12 @@ Manages checkpoints between audit phases to ensure safety.
 No phase can proceed without passing its checkpoint validation.
 """
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Callable
-import json
+from typing import Callable, Dict, List, Optional
 
 
 class CheckpointStatus(Enum):

@@ -10,19 +10,14 @@ Requirements: 15.1, 15.2, 15.3
 
 import json
 import logging
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
 from threading import Lock
+from typing import Any, Dict, List, Optional
 
-from .configuration import (
-    LanguageConfig,
-    SupportedLanguages,
-    MultilingualConfig,
-    ConfigurationError
-)
+from .configuration import ConfigurationError, SupportedLanguages
 from .exceptions import UnsupportedLanguageError
 
 

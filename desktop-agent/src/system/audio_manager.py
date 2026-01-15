@@ -5,9 +5,9 @@ Ensures audio output is properly configured for GURU.
 Handles Windows audio routing, volume control, and device selection.
 """
 
-import sys
 import subprocess
-from typing import Optional, List, Tuple
+import sys
+from typing import List, Optional, Tuple
 
 
 class AudioManager:
@@ -61,7 +61,6 @@ class AudioManager:
                     if volume < 0.1:
                         # Volume too low, increase it
                         engine.setProperty('volume', 0.9)
-                        print(f"[AudioManager] Increased TTS volume from {volume} to 0.9")
                 except:
                     pass
                 
@@ -96,17 +95,10 @@ class AudioManager:
             # 2. Warn the user
             # 3. Provide instructions
             
-            print("[AudioManager] Checking audio configuration...")
-            print("[AudioManager] If you don't hear GURU speaking:")
-            print("[AudioManager]   1. Right-click speaker icon in taskbar")
-            print("[AudioManager]   2. Click 'Open Volume Mixer'")
-            print("[AudioManager]   3. Find 'python.exe' or 'pythonw.exe'")
-            print("[AudioManager]   4. Unmute and set volume to 100%")
             
             return True
             
         except Exception as e:
-            print(f"[AudioManager] Warning: Could not check audio mute status: {e}")
             return True
     
     def get_audio_devices(self) -> List[str]:
@@ -160,7 +152,6 @@ class AudioManager:
             return True
             
         except Exception as e:
-            print(f"[AudioManager] Audio test failed: {e}")
             return False
 
 

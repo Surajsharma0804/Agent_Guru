@@ -14,23 +14,15 @@ SECURITY PRINCIPLES:
 """
 
 import logging
-import time
 import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable
-import uuid
+from typing import Any, Callable, Dict, List, Optional
 
+from .audit_logging import LogSeverity, MultilingualAuditLogger, MultilingualEvent, MultilingualEventType
 from .configuration import MultilingualConfig
-from .audit_logging import MultilingualAuditLogger, MultilingualEvent, MultilingualEventType, LogSeverity
-from .exceptions import (
-    MultilingualError,
-    SecurityBoundaryError,
-    PipelineError,
-    AuthorityIntegrationError,
-    PerformanceError
-)
 
 
 class FailureType(Enum):
@@ -703,7 +695,7 @@ class PipelineFailureOrchestrator:
     def get_failure_statistics(self) -> Dict[str, Any]:
         """Get comprehensive failure statistics."""
         
-        total_failures = max(1, self._failure_stats['total_failures'])
+        max(1, self._failure_stats['total_failures'])
         
         return {
             **self._failure_stats,

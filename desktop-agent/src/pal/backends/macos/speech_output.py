@@ -17,8 +17,8 @@ Capabilities:
 Validates: Requirements 36.4, 36.7
 """
 
-import threading
 import queue
+import threading
 import time
 from typing import Dict
 
@@ -193,7 +193,7 @@ class macOSSpeechOutput(SpeechOutput):
             True if running under pytest or other testing framework
         """
         import sys
-        
+
         # Check for pytest
         if 'pytest' in sys.modules:
             return True
@@ -248,7 +248,6 @@ class macOSSpeechOutput(SpeechOutput):
                     self._current_priority = None
                     
             except Exception as e:
-                print(f"Error in speech queue processing: {e}")
                 time.sleep(0.1)
     
     def _synthesize(self, text: str) -> None:

@@ -21,9 +21,9 @@ Validates Requirements: 10.5
 import logging
 import threading
 import time
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional, Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

@@ -22,10 +22,11 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
+
 import psutil
 
-from ...interfaces import ApplicationController, AppDescriptor, PlatformCapabilityError
+from ...interfaces import AppDescriptor, ApplicationController, PlatformCapabilityError
 
 
 class macOSApplicationController(ApplicationController):
@@ -150,14 +151,11 @@ class macOSApplicationController(ApplicationController):
                 time.sleep(0.5)
                 return True
             else:
-                print(f"Error launching {app_id}: {result.stderr}")
                 return False
                 
         except subprocess.TimeoutExpired:
-            print(f"Timeout launching {app_id}")
             return False
         except Exception as e:
-            print(f"Error launching {app_id}: {e}")
             return False
     
     def close_app(self, app_id: str) -> bool:
@@ -222,10 +220,8 @@ class macOSApplicationController(ApplicationController):
             return terminated
             
         except subprocess.TimeoutExpired:
-            print(f"Timeout closing {app_id}")
             return False
         except Exception as e:
-            print(f"Error closing {app_id}: {e}")
             return False
     
     def is_running(self, app_id: str) -> bool:
@@ -265,7 +261,6 @@ class macOSApplicationController(ApplicationController):
             return False
             
         except Exception as e:
-            print(f"Error checking if {app_id} is running: {e}")
             return False
     
     def discover_apps(self) -> List[AppDescriptor]:
@@ -305,13 +300,11 @@ class macOSApplicationController(ApplicationController):
         try:
             discovered_apps.extend(self._discover_via_spotlight(seen_paths))
         except Exception as e:
-            print(f"Error discovering via Spotlight: {e}")
         
         # Search filesystem as fallback
         try:
             discovered_apps.extend(self._discover_from_filesystem(seen_paths))
         except Exception as e:
-            print(f"Error discovering from filesystem: {e}")
         
         return discovered_apps
     
@@ -352,7 +345,6 @@ class macOSApplicationController(ApplicationController):
                 if paths:
                     return paths[0]  # Return first match
         except (subprocess.TimeoutExpired, Exception) as e:
-            print(f"Error using mdfind: {e}")
         
         # Fallback to filesystem search
         return self._find_app_path(app_name)
@@ -429,9 +421,7 @@ class macOSApplicationController(ApplicationController):
                     self._app_cache[app_id] = descriptor
                     
         except subprocess.TimeoutExpired:
-            print("Timeout discovering applications via Spotlight")
         except Exception as e:
-            print(f"Error discovering via Spotlight: {e}")
         
         return discovered
     
@@ -471,7 +461,6 @@ class macOSApplicationController(ApplicationController):
                         discovered.append(descriptor)
                         self._app_cache[app_id] = descriptor
             except (PermissionError, OSError) as e:
-                print(f"Error scanning {search_path}: {e}")
                 continue
         
         return discovered

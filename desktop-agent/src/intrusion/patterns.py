@@ -6,16 +6,16 @@ Implements comprehensive temporal, statistical, and behavioral analysis
 with cryptographic integrity and zero-trust security architecture.
 """
 
+import statistics
 import threading
 import uuid
-import time
-import statistics
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from dataclasses import dataclass
-from typing import Dict, Set, Optional, List, Any
+from typing import Any, Dict, List, Optional, Set
 
 import structlog
+
 from authority.state import BiometricFactor
 
 logger = structlog.get_logger(__name__)

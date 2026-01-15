@@ -20,30 +20,22 @@ Security Features:
 - Tamper-evident audit logging
 """
 
-from .database import DatabaseLifecycleOrchestrator, DatabaseMigrator
-from .memory_types import (
-    CoreMemory,
-    EpisodicMemory, 
-    SemanticMemory,
-    ProceduralMemory,
-    ResourceMemory,
-    KnowledgeVault
-)
-from .memory_agents import (
-    MetaAgent,
-    UserIdentityPersistence,
-    TemporalEventArchive,
-    ConceptualKnowledgeBase,
-    WorkflowExecutionLibrary,
-    DocumentResourceCatalog,
-    EncryptedCredentialVault
-)
-from .encryption import MemoryEncryption
-from .vector_search import VectorSearchEngine
 from .conversation_storage import ConversationStorage, ConversationTurn
-from .retention_scheduler import RetentionScheduler, RetentionScheduleConfig
-# from .retention import MemoryRetentionEnforcer  # Temporarily disabled
+from .database import DatabaseLifecycleOrchestrator, DatabaseMigrator
+from .encryption import MemoryEncryption
+from .memory_agents import (
+    ConceptualKnowledgeBase,
+    DocumentResourceCatalog,
+    EncryptedCredentialVault,
+    MetaAgent,
+    TemporalEventArchive,
+    UserIdentityPersistence,
+    WorkflowExecutionLibrary,
+)
 from .memory_service import MemorySubsystemController
+from .memory_types import CoreMemory, EpisodicMemory, KnowledgeVault, ProceduralMemory, ResourceMemory, SemanticMemory
+from .retention_scheduler import RetentionScheduleConfig, RetentionScheduler
+from .vector_search import VectorSearchEngine
 
 __all__ = [
     'DatabaseLifecycleOrchestrator',

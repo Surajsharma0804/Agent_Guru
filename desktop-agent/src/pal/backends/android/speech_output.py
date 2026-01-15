@@ -12,12 +12,12 @@ Validates: Requirements 36.5, 36.7, 32.1, 32.2, 32.4-32.7
 import json
 import queue
 import subprocess
+import sys
 import threading
 import time
-from typing import Dict, Any, Optional
-import sys
+from typing import Any, Dict, Optional
 
-from ...interfaces import SpeechOutput, TTSPriority, PlatformCapabilityError
+from ...interfaces import PlatformCapabilityError, SpeechOutput, TTSPriority
 
 
 class AndroidSpeechOutput(SpeechOutput):
@@ -91,7 +91,6 @@ class AndroidSpeechOutput(SpeechOutput):
         try:
             # Validate text against speech contract
             if not self._contract_validator.validate_speech(text):
-                print(f"Speech contract violation: '{text}' - using fallback")
                 text = self._contract_validator.get_fallback_phrase(text)
             
             # Handle interrupt
@@ -109,7 +108,6 @@ class AndroidSpeechOutput(SpeechOutput):
             self._speech_queue.put((priority.value, speech_request))
             
         except Exception as e:
-            print(f"Error queuing speech: {e}")
     
     def stop(self) -> None:
         """Stop current speech and clear queue."""
@@ -128,7 +126,6 @@ class AndroidSpeechOutput(SpeechOutput):
             self._is_speaking = False
             
         except Exception as e:
-            print(f"Error stopping speech: {e}")
     
     def is_speaking(self) -> bool:
         """Check if currently speaking."""
@@ -150,7 +147,6 @@ class AndroidSpeechOutput(SpeechOutput):
                 self._set_android_volume(volume)
             
         except Exception as e:
-            print(f"Error setting volume: {e}")
     
     def set_rate(self, rate: int) -> None:
         """
@@ -168,7 +164,6 @@ class AndroidSpeechOutput(SpeechOutput):
                 self._set_android_rate(rate)
             
         except Exception as e:
-            print(f"Error setting speech rate: {e}")
     
     def get_capabilities(self) -> Dict[str, bool]:
         """Return Android TTS capabilities."""
@@ -230,10 +225,8 @@ class AndroidSpeechOutput(SpeechOutput):
             )
             
             if result.returncode != 0:
-                print("Warning: Android TTS may not be available")
             
         except Exception as e:
-            print(f"Warning: Could not initialize Android TTS: {e}")
     
     def _start_speech_thread(self) -> None:
         """Start background thread for speech processing."""
@@ -246,7 +239,6 @@ class AndroidSpeechOutput(SpeechOutput):
             self._speech_thread.start()
             
         except Exception as e:
-            print(f"Error starting speech thread: {e}")
     
     def _speech_worker(self) -> None:
         """Background worker thread for processing speech queue."""
@@ -265,7 +257,6 @@ class AndroidSpeechOutput(SpeechOutput):
                 self._speech_queue.task_done()
                 
             except Exception as e:
-                print(f"Error in speech worker: {e}")
                 time.sleep(0.1)
     
     def _process_speech_request(self, request: 'SpeechRequest') -> None:
@@ -283,11 +274,9 @@ class AndroidSpeechOutput(SpeechOutput):
                 self._speak_android_tts(request.text)
             else:
                 # Development/testing mode
-                print(f"Android TTS would speak: '{request.text}' (priority: {request.priority.name})")
                 time.sleep(len(request.text) * 0.05)  # Simulate speech duration
             
         except Exception as e:
-            print(f"Error processing speech request: {e}")
         finally:
             self._is_speaking = False
     
@@ -312,10 +301,8 @@ class AndroidSpeechOutput(SpeechOutput):
             )
             
             if result.returncode != 0:
-                print(f"Android TTS error: {result.stderr}")
             
         except Exception as e:
-            print(f"Error with Android TTS: {e}")
     
     def _stop_android_tts(self) -> None:
         """Stop Android TTS engine."""
@@ -329,7 +316,6 @@ class AndroidSpeechOutput(SpeechOutput):
             )
             
         except Exception as e:
-            print(f"Error stopping Android TTS: {e}")
     
     def _set_android_volume(self, volume: int) -> None:
         """
@@ -350,7 +336,6 @@ class AndroidSpeechOutput(SpeechOutput):
             )
             
         except Exception as e:
-            print(f"Error setting Android volume: {e}")
     
     def _set_android_rate(self, rate: int) -> None:
         """
@@ -369,7 +354,6 @@ class AndroidSpeechOutput(SpeechOutput):
             self._android_tts_rate = android_rate
             
         except Exception as e:
-            print(f"Error setting Android TTS rate: {e}")
     
     def _cleanup(self) -> None:
         """Cleanup resources."""
@@ -383,7 +367,6 @@ class AndroidSpeechOutput(SpeechOutput):
             self.stop()
             
         except Exception as e:
-            print(f"Error during cleanup: {e}")
 
 
 class SpeechRequest:

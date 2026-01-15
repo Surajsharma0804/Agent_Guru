@@ -14,26 +14,18 @@ This is the main entry point for the GURU communication system, integrating:
 
 import logging
 import threading
-import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Callable, Any, Set, Union
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
-import weakref
-
-from .message_bus import MessageBus, Message, MessageType, MessagePriority, ComponentMessageProtocol
-from .component_registry import ComponentRegistry, ComponentInfo, ComponentStatus, ComponentType, ComponentLifecycle
-from .secure_channel import SecureChannelOrchestrator, SecureChannel, ChannelSecurity, EncryptionMode
-from .health_monitor import CommunicationHealthMonitor, ChannelHealth, ChannelHealthStatus, CommunicationMetrics
-from .exceptions import (
-    CommunicationError,
-    ComponentNotFoundError,
-    RegistrationError,
-    ComponentLifecycleError
-)
+from typing import Any, Callable, Dict, List, Optional, Set
 
 # Import audit logger from existing audit system
-from ..audit.audit_logger import AuditLogger, AuditEvent, AuditEventType, AuditSeverity
+from ..audit.audit_logger import AuditLogger
+from .component_registry import ComponentInfo, ComponentLifecycle, ComponentRegistry, ComponentStatus, ComponentType
+from .exceptions import CommunicationError, RegistrationError
+from .health_monitor import ChannelHealth, ChannelHealthStatus, CommunicationHealthMonitor
+from .message_bus import ComponentMessageProtocol, Message, MessageBus, MessagePriority, MessageType
+from .secure_channel import ChannelSecurity, EncryptionMode, SecureChannelOrchestrator
 
 
 class IntegrationMode(Enum):

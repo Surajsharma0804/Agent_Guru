@@ -12,10 +12,11 @@ import subprocess
 import time
 import winreg
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
+
 import psutil
 
-from ...interfaces import ApplicationController, AppDescriptor, PlatformCapabilityError
+from ...interfaces import AppDescriptor, ApplicationController, PlatformCapabilityError
 
 
 class WindowsApplicationController(ApplicationController):
@@ -126,7 +127,6 @@ class WindowsApplicationController(ApplicationController):
             return True
             
         except Exception as e:
-            print(f"Error launching {app_id}: {e}")
             return False
     
     def close_app(self, app_id: str) -> bool:
@@ -170,7 +170,6 @@ class WindowsApplicationController(ApplicationController):
             return terminated
             
         except Exception as e:
-            print(f"Error closing {app_id}: {e}")
             return False
     
     def is_running(self, app_id: str) -> bool:
@@ -208,7 +207,6 @@ class WindowsApplicationController(ApplicationController):
             return False
             
         except Exception as e:
-            print(f"Error checking if {app_id} is running: {e}")
             return False
     
     def discover_apps(self) -> List[AppDescriptor]:
@@ -248,13 +246,11 @@ class WindowsApplicationController(ApplicationController):
         try:
             discovered_apps.extend(self._discover_from_registry(seen_paths))
         except Exception as e:
-            print(f"Error discovering from registry: {e}")
         
         # Search filesystem
         try:
             discovered_apps.extend(self._discover_from_filesystem(seen_paths))
         except Exception as e:
-            print(f"Error discovering from filesystem: {e}")
         
         return discovered_apps
     

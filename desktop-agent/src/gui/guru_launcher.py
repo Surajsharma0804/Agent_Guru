@@ -28,34 +28,32 @@ Thread Safety:
 - TTS service is thread-safe (internal queue + dedicated thread)
 """
 
-import sys
 import signal
-import threading
+import sys
 import time
+from pathlib import Path
 from typing import Optional
 
 # Import console utilities for cross-platform Unicode support
 from utils.console import safe_print
-from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 try:
+    from PyQt6.QtCore import QObject, Qt, pyqtSignal
     from PyQt6.QtWidgets import QApplication, QMessageBox
-    from PyQt6.QtCore import QTimer, pyqtSignal, QObject, Qt
     PYQT_AVAILABLE = True
 except ImportError:
     PYQT_AVAILABLE = False
-    print("PyQt6 not available. Install with: pip install PyQt6")
 
-from src.gui.avatar_window import GURUAvatarWindow, AvatarState, create_guru_window
-from src.gui.voice_interface import VoiceInterface, VoiceCommand, VoiceState, create_voice_interface
-from src.gui.conversation_manager import ConversationManager, Intent, Emotion, create_conversation_manager
+from src.audit.audit_logger import AuditLogger, AuditSeverity
 
 # Backend integration
-from src.authority.state import AuthorityStateMachine, AuthorityConfiguration, create_authority_state_machine
-from src.audit.audit_logger import AuditLogger, AuditEvent, AuditEventType, AuditSeverity
+from src.authority.state import AuthorityConfiguration, AuthorityStateMachine, create_authority_state_machine
+from src.gui.avatar_window import AvatarState, GURUAvatarWindow, create_guru_window
+from src.gui.conversation_manager import ConversationManager, Emotion, Intent, create_conversation_manager
+from src.gui.voice_interface import VoiceCommand, VoiceInterface, VoiceState, create_voice_interface
 
 # System integration
 from src.system.audio_manager import get_audio_manager
@@ -94,7 +92,6 @@ class GURUIntegrationBridge(QObject):
         # State
         self.is_initialized = False
         
-        print("GURU Integration Bridge created")
     
     def initialize_backend(self):
         """Initialize backend security and audit systems"""
@@ -181,16 +178,12 @@ class GURUIntegrationBridge(QObject):
             
             # Connect speak signal with QUEUED connection for thread safety
             # CRITICAL: Voice callbacks run in background thread, signals must be queued to main thread
-            print(f"[DEBUG] Connecting speak_text signal to voice_interface.speak...")
-            print(f"[DEBUG] Voice interface type: {type(self.voice_interface)}")
-            print(f"[DEBUG] Voice interface has speak method: {hasattr(self.voice_interface, 'speak')}")
             
             self.speak_text.connect(
                 lambda text, interrupt: self.voice_interface.speak(text, interrupt),
                 Qt.ConnectionType.QueuedConnection
             )
             
-            print(f"[DEBUG] speak_text signal connected successfully")
             
             safe_print("✓ Voice interface created")
             
@@ -211,9 +204,6 @@ class GURUIntegrationBridge(QObject):
         if not self.is_initialized:
             raise RuntimeError("Backend not initialized")
         
-        print("\n" + "="*60)
-        print("STARTING HUMANIZED GURU AI ASSISTANT")
-        print("="*60)
         
         # Verify audio configuration
         audio_manager = get_audio_manager()
@@ -263,7 +253,6 @@ class GURUIntegrationBridge(QObject):
     
     def on_voice_button_clicked(self):
         """Handle voice button click"""
-        print("Voice button clicked")
         
         if self.voice_interface.is_available():
             if self.voice_interface.is_running:
@@ -277,15 +266,10 @@ class GURUIntegrationBridge(QObject):
     
     def on_settings_clicked(self):
         """Handle settings button click"""
-        print("Settings clicked")
         self.speak_text.emit("Settings interface coming soon!", False)
     
     def on_voice_command(self, command: VoiceCommand):
         """Handle voice command from user"""
-        print(f"\n{'='*60}")
-        print(f"USER: {command.text}")
-        print(f"{'='*60}")
-        print(f"[DEBUG] on_voice_command called from thread: {threading.current_thread().name}")
         
         # Log to audit
         if self.audit_logger:
@@ -300,16 +284,11 @@ class GURUIntegrationBridge(QObject):
             )
         
         # Update avatar state
-        print(f"[DEBUG] Emitting avatar state: THINKING")
         self.update_avatar_state.emit(AvatarState.THINKING)
         
         # Process through conversation manager
-        print(f"[DEBUG] Processing input through conversation manager...")
         response, intent, emotion = self.conversation_manager.process_input(command.text)
         
-        print(f"GURU: {response}")
-        print(f"Intent: {intent.value}, Emotion: {emotion.value}")
-        print(f"{'='*60}\n")
         
         # Map emotion to avatar state
         avatar_state_map = {
@@ -323,17 +302,12 @@ class GURUIntegrationBridge(QObject):
         
         # Update avatar
         avatar_state = avatar_state_map.get(emotion, AvatarState.SPEAKING)
-        print(f"[DEBUG] Emitting avatar state: {avatar_state}")
         self.update_avatar_state.emit(avatar_state)
         
         # ALWAYS speak the response vocally
-        print(f"GURU (speaking): {response}")
-        print(f"[DEBUG] About to emit speak_text signal...")
-        print(f"[DEBUG] Voice interface available: {self.voice_interface is not None}")
         
         self.speak_text.emit(response, False)
         
-        print(f"[DEBUG] speak_text signal emitted")
         
         # Wait for speech to complete before checking for command execution
         time.sleep(1)  # Give TTS time to start
@@ -347,7 +321,6 @@ class GURUIntegrationBridge(QObject):
         # Check authority state
         if not self.authority_machine.is_armed:
             auth_response = "I need your authorization to execute commands. Please authenticate first."
-            print(f"GURU: {auth_response}")
             self.speak_text.emit(auth_response, True)
             
             # Update avatar to locked state
@@ -356,7 +329,6 @@ class GURUIntegrationBridge(QObject):
         
         # Command execution would go here
         # This integrates with the existing command execution pipeline
-        print(f"Executing command: {command_text}")
         
         # Log command execution
         if self.audit_logger:
@@ -391,7 +363,6 @@ class GURUIntegrationBridge(QObject):
     
     def shutdown(self):
         """Graceful shutdown"""
-        print("\nShutting down GURU...")
         
         # Stop voice recognition
         if self.voice_interface:
@@ -405,7 +376,6 @@ class GURUIntegrationBridge(QObject):
                 AuditSeverity.INFO
             )
         
-        print("GURU shutdown complete")
 
 
 def main():
@@ -420,14 +390,8 @@ def main():
     """
     
     if not PYQT_AVAILABLE:
-        print("ERROR: PyQt6 is required for the GUI")
-        print("Install with: pip install PyQt6")
         return 1
     
-    print("\n" + "="*60)
-    print("GURU HUMANIZED AI ASSISTANT")
-    print("Production-Grade Personal Automation with Natural Interaction")
-    print("="*60 + "\n")
     
     # Create Qt application
     app = QApplication(sys.argv)
@@ -449,7 +413,6 @@ def main():
         
         # Setup signal handlers for graceful shutdown
         def signal_handler(signum, frame):
-            print(f"\nReceived signal {signum}")
             bridge.shutdown()
             app.quit()
         
@@ -460,7 +423,6 @@ def main():
         return app.exec()
         
     except Exception as e:
-        print(f"\nFATAL ERROR: {e}")
         import traceback
         traceback.print_exc()
         

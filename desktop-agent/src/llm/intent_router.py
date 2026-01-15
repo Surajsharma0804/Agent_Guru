@@ -10,11 +10,11 @@ Requirement 31.3: Only invoke LLM for ambiguous targets, vague pronouns, or clar
 import logging
 from typing import Optional
 
-from .intent import StructuredIntent
-from .intent_pre_filter import IntentPreFilter, PreFilterResult, RoutingDecision
-from .intent_logging import IntentPreFilterLogger
 from .adapter import LLMAdapter
 from .exceptions import IntentValidationError
+from .intent import StructuredIntent
+from .intent_logging import IntentPreFilterLogger
+from .intent_pre_filter import IntentPreFilter, PreFilterResult, RoutingDecision
 
 
 class IntentRouter:

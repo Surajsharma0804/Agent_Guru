@@ -17,20 +17,21 @@ Requirements: 16.1, 16.2, 16.3
 import json
 import logging
 import threading
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone, timedelta
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Set, Tuple, Callable
-import uuid
+from typing import Any, Dict, List, Optional
 
 from .audit_logging import (
-    MultilingualAuditLogger, MultilingualEventType, LogSeverity,
-    DataClassification, RetentionPolicy, PrivacyMetadata,
-    MultilingualAuditContext, AuditSeverity
+    AuditSeverity,
+    LogSeverity,
+    MultilingualAuditContext,
+    MultilingualAuditLogger,
+    MultilingualEventType,
 )
 from .configuration import MultilingualConfig
-from .exceptions import MultilingualError, SecurityBoundaryError
 
 
 class ComplianceFramework(Enum):

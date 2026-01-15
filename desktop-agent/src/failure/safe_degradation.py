@@ -12,13 +12,11 @@ Core Principles:
 - Complete audit trail of all degradation decisions
 """
 
-import logging
 import threading
-import time
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional, Set, Any
-from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 import structlog
 

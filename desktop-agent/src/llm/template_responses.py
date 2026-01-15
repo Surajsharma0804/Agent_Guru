@@ -11,10 +11,10 @@ DESIGN PRINCIPLES:
 - Maintain user trust through transparency
 """
 
-from typing import Dict, List, Optional
-from enum import Enum
-import random
 import logging
+import random
+from enum import Enum
+from typing import Dict, List, Optional
 
 
 class ResponseCategory(Enum):

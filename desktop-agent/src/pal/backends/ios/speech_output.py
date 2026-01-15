@@ -12,12 +12,12 @@ iOS provides excellent TTS capabilities via AVFoundation framework.
 
 Requirements: 36.6, 36.7, 36.8
 """
-from typing import Dict, Optional, List
-import platform
 import logging
+import platform
 import queue
 import threading
-from enum import IntEnum
+from typing import Dict, List, Optional
+
 from ...interfaces import SpeechOutput, TTSPriority
 
 logger = logging.getLogger(__name__)

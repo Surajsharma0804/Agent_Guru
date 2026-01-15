@@ -7,17 +7,17 @@ keyboard and mouse control on Windows 10/11.
 Validates: Requirements 35.4, 35.8
 """
 
-import time
-from typing import Optional, Dict
 import ctypes
+import time
 from ctypes import wintypes
-import win32gui
-import win32con
-import win32api
+from typing import Dict, Optional
+
 import psutil
+import win32api
+import win32con
+import win32gui
 
-from ...interfaces import InputAutomation, AutomationTarget, PlatformCapabilityError
-
+from ...interfaces import AutomationTarget, InputAutomation
 
 # Win32 constants and structures
 INPUT_MOUSE = 0
@@ -151,7 +151,6 @@ class WindowsInputAutomation(InputAutomation):
             return True
             
         except Exception as e:
-            print(f"Error typing text: {e}")
             return False
     
     def click(self, target: AutomationTarget) -> bool:
@@ -200,7 +199,6 @@ class WindowsInputAutomation(InputAutomation):
             return True
             
         except Exception as e:
-            print(f"Error clicking: {e}")
             return False
     
     def focus_app(self, app_id: str) -> bool:
@@ -253,7 +251,6 @@ class WindowsInputAutomation(InputAutomation):
             return True
             
         except Exception as e:
-            print(f"Error focusing app {app_id}: {e}")
             return False
     
     def get_capabilities(self) -> Dict[str, bool]:

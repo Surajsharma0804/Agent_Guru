@@ -17,10 +17,10 @@ Security Boundaries:
 - Immediate halt on authority revocation
 """
 
-from .windows_input_engine import WindowsInputEngine
-from .input_validator import InputValidator
 from .authority_gate import AuthorityGate
 from .input_audit_logger import InputAuditLogger
+from .input_validator import InputValidator
+from .windows_input_engine import WindowsInputEngine
 
 __all__ = [
     'WindowsInputEngine',

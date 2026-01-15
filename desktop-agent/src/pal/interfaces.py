@@ -19,8 +19,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Dict, Any
-
+from typing import Any, Dict, List, Optional
 
 # ============================================================================
 # Exceptions
@@ -28,12 +27,10 @@ from typing import List, Optional, Dict, Any
 
 class PlatformNotSupportedError(Exception):
     """Raised when attempting to run on an unsupported platform."""
-    pass
 
 
 class PlatformCapabilityError(Exception):
     """Raised when attempting to use an unavailable platform capability."""
-    pass
 
 
 # ============================================================================
@@ -187,7 +184,6 @@ class ApplicationController(ABC):
             Android: Full support via Intent system
             iOS: Limited to deep links only
         """
-        pass
     
     @abstractmethod
     def close_app(self, app_id: str) -> bool:
@@ -209,7 +205,6 @@ class ApplicationController(ABC):
             Android: Full support via ActivityManager
             iOS: NOT ALLOWED (platform restriction)
         """
-        pass
     
     @abstractmethod
     def is_running(self, app_id: str) -> bool:
@@ -228,7 +223,6 @@ class ApplicationController(ABC):
             Android: Full support via ActivityManager
             iOS: Limited support (only for registered apps)
         """
-        pass
     
     @abstractmethod
     def discover_apps(self) -> List[AppDescriptor]:
@@ -244,7 +238,6 @@ class ApplicationController(ABC):
             Android: Full discovery via PackageManager
             iOS: Limited discovery (only registered apps)
         """
-        pass
     
     @abstractmethod
     def get_capabilities(self) -> Dict[str, bool]:
@@ -264,7 +257,6 @@ class ApplicationController(ABC):
             Android: All True
             iOS: can_close_apps=False, can_discover_apps=Limited
         """
-        pass
 
 
 # ============================================================================
@@ -307,7 +299,6 @@ class InputAutomation(ABC):
             Android: Partial support via Accessibility Service
             iOS: SEVERELY RESTRICTED (no system automation)
         """
-        pass
     
     @abstractmethod
     def click(self, target: AutomationTarget) -> bool:
@@ -329,7 +320,6 @@ class InputAutomation(ABC):
             Android: Partial support via Accessibility Service
             iOS: NOT ALLOWED (platform restriction)
         """
-        pass
     
     @abstractmethod
     def focus_app(self, app_id: str) -> bool:
@@ -348,7 +338,6 @@ class InputAutomation(ABC):
             Android: Full support via Intent flags
             iOS: Limited support (only for registered apps)
         """
-        pass
     
     @abstractmethod
     def get_capabilities(self) -> Dict[str, bool]:
@@ -369,7 +358,6 @@ class InputAutomation(ABC):
             Android: Partial, requires_permission=True (Accessibility Service)
             iOS: All False (severely restricted)
         """
-        pass
 
 
 # ============================================================================
@@ -410,7 +398,6 @@ class SpeechOutput(ABC):
             Android: Android TTS
             iOS: AVSpeechSynthesizer
         """
-        pass
     
     @abstractmethod
     def stop(self) -> None:
@@ -420,7 +407,6 @@ class SpeechOutput(ABC):
         Platform Behavior:
             All platforms: Immediate stop and queue clear
         """
-        pass
     
     @abstractmethod
     def is_speaking(self) -> bool:
@@ -430,7 +416,6 @@ class SpeechOutput(ABC):
         Returns:
             True if speech is active, False otherwise
         """
-        pass
     
     @abstractmethod
     def set_volume(self, volume: int) -> None:
@@ -446,7 +431,6 @@ class SpeechOutput(ABC):
             Android: Media volume control
             iOS: System volume control
         """
-        pass
     
     @abstractmethod
     def set_rate(self, rate: int) -> None:
@@ -456,7 +440,6 @@ class SpeechOutput(ABC):
         Args:
             rate: Speech rate (-10=slowest, 0=normal, 10=fastest)
         """
-        pass
     
     @abstractmethod
     def get_capabilities(self) -> Dict[str, bool]:
@@ -473,7 +456,6 @@ class SpeechOutput(ABC):
         Platform Capabilities:
             All platforms: All True
         """
-        pass
 
 
 # ============================================================================
@@ -506,7 +488,6 @@ class SpeechInput(ABC):
             Android: Whisper.cpp or system STT
             iOS: System STT (mandatory)
         """
-        pass
     
     @abstractmethod
     def stop_listening(self) -> None:
@@ -516,7 +497,6 @@ class SpeechInput(ABC):
         Platform Behavior:
             All platforms: Clean shutdown of listening thread
         """
-        pass
     
     @abstractmethod
     def transcribe(self, audio_data: bytes) -> Transcription:
@@ -534,7 +514,6 @@ class SpeechInput(ABC):
             Android: Whisper.cpp or system STT
             iOS: System STT (mandatory)
         """
-        pass
     
     @abstractmethod
     def calibrate_microphone(self) -> float:
@@ -547,7 +526,6 @@ class SpeechInput(ABC):
         Platform Behavior:
             All platforms: Measure ambient noise for 1 second
         """
-        pass
     
     @abstractmethod
     def get_capabilities(self) -> Dict[str, bool]:
@@ -566,7 +544,6 @@ class SpeechInput(ABC):
             Android: Depends on user choice
             iOS: has_local_processing=False, requires_cloud=True
         """
-        pass
 
 
 # ============================================================================
@@ -610,7 +587,6 @@ class BiometricAuthenticator(ABC):
             All platforms: 3 failures → lockout
             All platforms: Cryptographic audit logging
         """
-        pass
     
     @abstractmethod
     def is_available(self) -> bool:
@@ -626,7 +602,6 @@ class BiometricAuthenticator(ABC):
             Android: Check BiometricManager
             iOS: Check LocalAuthentication availability
         """
-        pass
     
     @abstractmethod
     def get_available_factors(self) -> List[str]:
@@ -642,7 +617,6 @@ class BiometricAuthenticator(ABC):
             Android: Query BiometricManager capabilities
             iOS: Query LocalAuthentication biometry type
         """
-        pass
     
     @abstractmethod
     def get_capabilities(self) -> Dict[str, bool]:
@@ -662,7 +636,6 @@ class BiometricAuthenticator(ABC):
             Android: Depends on hardware
             iOS: Depends on hardware
         """
-        pass
 
 
 # ============================================================================
@@ -706,7 +679,6 @@ class SecurityEnforcer(ABC):
             All platforms: Cryptographic audit logging
             All platforms: Immediate effect (no delay)
         """
-        pass
     
     @abstractmethod
     def get_lock_scope(self) -> str:
@@ -722,7 +694,6 @@ class SecurityEnforcer(ABC):
             Android: "app" (app lock, screen if allowed)
             iOS: "app" (app lock only)
         """
-        pass
     
     @abstractmethod
     def get_capabilities(self) -> Dict[str, bool]:
@@ -742,4 +713,3 @@ class SecurityEnforcer(ABC):
             Android: can_lock_app=True, has_system_authority=False
             iOS: can_lock_app=True, has_system_authority=False
         """
-        pass

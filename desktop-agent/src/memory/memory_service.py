@@ -24,30 +24,30 @@ import os
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union, Tuple
-from contextlib import contextmanager
+from typing import Any, Dict, List, Optional, Tuple
 
-from .database import DatabaseLifecycleOrchestrator, DatabaseConfig
-from .memory_agents import (
-    MetaAgent, UserIdentityPersistence, TemporalEventArchive, ConceptualKnowledgeBase,
-    WorkflowExecutionLibrary, DocumentResourceCatalog, EncryptedCredentialVault
-)
-from .memory_types import (
-    CoreMemory, EpisodicMemory, SemanticMemory, ProceduralMemory,
-    ResourceMemory, KnowledgeVault, RetentionPolicy, AccessPolicy
-)
-from .encryption import MemoryEncryption
-from .vector_search import VectorSearchEngine
 from .conversation_storage import ConversationStorage, ConversationTurn
-from .retention_scheduler import RetentionScheduler, RetentionScheduleConfig
-# from .retention import RetentionPolicyManager  # Import locally to avoid circular import
+from .database import DatabaseConfig, DatabaseLifecycleOrchestrator
+from .encryption import MemoryEncryption
+from .memory_agents import MetaAgent
+from .memory_types import (
+    AccessPolicy,
+    CoreMemory,
+    EpisodicMemory,
+    KnowledgeVault,
+    ProceduralMemory,
+    ResourceMemory,
+    RetentionPolicy,
+    SemanticMemory,
+)
+from .retention_scheduler import RetentionScheduler
+from .vector_search import VectorSearchEngine
 
 logger = logging.getLogger(__name__)
 
 
 class MemorySubsystemControllerError(Exception):
     """Exception for memory subsystem controller operations."""
-    pass
 
 
 class MemorySubsystemController:
@@ -618,7 +618,7 @@ class MemorySubsystemController:
         
         for memory_type in memory_types:
             try:
-                agent = self.meta_agent.get_agent(memory_type)
+                self.meta_agent.get_agent(memory_type)
                 
                 # Export would be implemented based on specific requirements
                 # This is a placeholder for the export functionality

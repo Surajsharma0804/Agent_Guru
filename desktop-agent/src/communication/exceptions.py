@@ -5,7 +5,7 @@ Comprehensive exception hierarchy for the GURU component communication system.
 Provides specific error types for different failure modes with detailed context.
 """
 
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class CommunicationError(Exception):

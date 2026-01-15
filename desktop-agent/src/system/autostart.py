@@ -5,11 +5,9 @@ Manages GURU auto-start on Windows boot using Task Scheduler.
 Provides production-grade startup configuration with proper error handling.
 """
 
-import sys
-import os
-from pathlib import Path
-from typing import Optional
 import subprocess
+import sys
+from pathlib import Path
 
 
 class AutoStartManager:
@@ -124,7 +122,7 @@ class AutoStartManager:
         username = getpass.getuser()
         
         # Build command
-        command = f'"{self.python_exe}" "{self.guru_path}"'
+        f'"{self.python_exe}" "{self.guru_path}"'
         working_dir = str(self.guru_path.parent)
         
         xml = f'''<?xml version="1.0" encoding="UTF-16"?>

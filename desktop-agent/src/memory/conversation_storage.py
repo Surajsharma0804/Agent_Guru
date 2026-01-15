@@ -19,15 +19,15 @@ Security Features:
 Validates Requirements: 10.1, 10.2, 10.4, 10.5, 10.6, 27.2, 27.3, 27.6
 """
 
+import json
 import logging
 import uuid
-import json
-from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
 
-from .encryption import MemoryEncryption, EncryptedData
 from .database import DatabaseLifecycleOrchestrator
+from .encryption import EncryptedData, MemoryEncryption
 from .vector_search import VectorSearchEngine
 
 logger = logging.getLogger(__name__)
@@ -75,7 +75,6 @@ class ConversationTurn:
 
 class ConversationStorageError(Exception):
     """Exception for conversation storage operations."""
-    pass
 
 
 class ConversationStorage:

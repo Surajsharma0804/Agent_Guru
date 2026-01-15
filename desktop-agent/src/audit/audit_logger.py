@@ -9,21 +9,20 @@ This is the core audit logging infrastructure that ensures all system
 operations are logged with cryptographic integrity protection.
 """
 
-import json
 import hashlib
 import hmac
+import json
 import logging
 import os
-import time
+import sqlite3
 import uuid
-from typing import Dict, List, Optional, Any, Union
+from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from dataclasses import dataclass, asdict
 from enum import Enum
 from pathlib import Path
 from threading import Lock, RLock
-import sqlite3
-from contextlib import contextmanager
+from typing import Any, Dict, List, Optional
 
 
 class AuditEventType(Enum):

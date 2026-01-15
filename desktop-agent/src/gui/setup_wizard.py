@@ -10,21 +10,30 @@ from pathlib import Path
 from typing import Optional
 
 try:
-    from PyQt6.QtWidgets import (
-        QWizard, QWizardPage, QVBoxLayout, QHBoxLayout, QLabel,
-        QLineEdit, QPushButton, QCheckBox, QComboBox, QTextEdit,
-        QMessageBox, QApplication
-    )
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QFont
+    from PyQt6.QtWidgets import (
+        QApplication,
+        QCheckBox,
+        QComboBox,
+        QHBoxLayout,
+        QLabel,
+        QLineEdit,
+        QMessageBox,
+        QPushButton,
+        QTextEdit,
+        QVBoxLayout,
+        QWizard,
+        QWizardPage,
+    )
     PYQT_AVAILABLE = True
 except ImportError:
     PYQT_AVAILABLE = False
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.config.user_config import get_config_manager
 from src.biometric.providers import BiometricFactor
+from src.config.user_config import get_config_manager
 
 
 class WelcomePage(QWizardPage):
@@ -243,7 +252,7 @@ class BiometricPage(QWizardPage):
             
             # Import BiometricFactor for comparison
             from src.authority.state import BiometricFactor
-            
+
             # Display detected hardware
             hardware_status = QLabel("Detected biometric hardware:")
             hardware_status.setStyleSheet("font-weight: bold;")
@@ -329,28 +338,26 @@ class BiometricPage(QWizardPage):
     def _check_windows_hello(self) -> bool:
         """Check if Windows Hello is available"""
         try:
-            from src.biometric.providers import WindowsHelloProvider, BiometricProviderConfig
+            from src.biometric.providers import BiometricProviderConfig, WindowsHelloProvider
             
             config = BiometricProviderConfig()
             provider = WindowsHelloProvider(config)
             
             return provider.is_available()
         except Exception as e:
-            print(f"Error checking Windows Hello: {e}")
             return False
     
     def _get_available_factors(self):
         """Get available biometric factors"""
         try:
-            from src.biometric.providers import WindowsHelloProvider, BiometricProviderConfig
             from src.authority.state import BiometricFactor
+            from src.biometric.providers import BiometricProviderConfig, WindowsHelloProvider
             
             config = BiometricProviderConfig()
             provider = WindowsHelloProvider(config)
             
             return provider.get_supported_factors()
         except Exception as e:
-            print(f"Error getting biometric factors: {e}")
             return []
     
     def _test_biometric(self):
@@ -359,9 +366,10 @@ class BiometricPage(QWizardPage):
         self.status_label.setStyleSheet("color: #5bc0de;")
         
         try:
-            from src.biometric.providers import WindowsHelloProvider, BiometricProviderConfig
-            from src.authority.state import BiometricFactor
             import asyncio
+
+            from src.authority.state import BiometricFactor
+            from src.biometric.providers import BiometricProviderConfig, WindowsHelloProvider
             
             config = BiometricProviderConfig()
             provider = WindowsHelloProvider(config)
@@ -595,7 +603,6 @@ class SetupWizard(QWizard):
             from src.config.first_run_detector import mark_setup_complete
             mark_setup_complete()
         except Exception as e:
-            print(f"[WARNING] Failed to mark setup complete: {e}")
         
         # Emit completion signal
         self.setup_complete.emit(setup_data)
@@ -604,7 +611,6 @@ class SetupWizard(QWizard):
 def run_setup_wizard() -> Optional[dict]:
     """Run setup wizard and return configuration"""
     if not PYQT_AVAILABLE:
-        print("ERROR: PyQt6 required for setup wizard")
         return None
     
     app = QApplication.instance()
@@ -632,7 +638,4 @@ def run_setup_wizard() -> Optional[dict]:
 if __name__ == "__main__":
     setup_data = run_setup_wizard()
     if setup_data:
-        print("Setup completed successfully!")
-        print(f"User: {setup_data['display_name']}")
     else:
-        print("Setup cancelled")

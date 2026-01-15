@@ -19,12 +19,12 @@ from typing import TYPE_CHECKING
 
 from .interfaces import (
     ApplicationController,
-    InputAutomation,
-    SpeechOutput,
-    SpeechInput,
     BiometricAuthenticator,
-    SecurityEnforcer,
+    InputAutomation,
     PlatformNotSupportedError,
+    SecurityEnforcer,
+    SpeechInput,
+    SpeechOutput,
 )
 from .platform_detector import PlatformType
 

@@ -19,7 +19,6 @@ Security:
 """
 
 import sys
-from pathlib import Path
 from typing import Optional
 
 import click
@@ -28,7 +27,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .audit.audit_logger import AuditLogger
-from .authority.state import AuthorityConfiguration, create_authority_state_machine
+from .authority.state import create_authority_state_machine
 
 console = Console()
 logger = structlog.get_logger(__name__)
@@ -43,7 +42,6 @@ def cli():
     Manage and monitor the GURU desktop agent service with comprehensive
     security controls and audit logging.
     """
-    pass
 
 
 @cli.command()

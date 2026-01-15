@@ -10,10 +10,10 @@ derives legitimacy from the AuthorityStateMachine.
 """
 
 import logging
-from typing import Dict, Optional, List
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from dataclasses import dataclass
+from typing import Dict, List, Optional
 
 from ..authority.state import AuthorityState, AuthorityStateMachine
 

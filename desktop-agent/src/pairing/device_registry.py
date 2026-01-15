@@ -13,19 +13,18 @@ Security Features:
 - Secure device revocation and cleanup
 """
 
+import hashlib
 import json
 import sqlite3
-import time
-import hashlib
 import threading
-from datetime import datetime, timezone
+import time
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, asdict
-from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from cryptography.fernet import Fernet
 import structlog
+from cryptography.fernet import Fernet
 
 logger = structlog.get_logger(__name__)
 

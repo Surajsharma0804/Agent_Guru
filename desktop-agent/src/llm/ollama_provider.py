@@ -11,14 +11,14 @@ SECURITY INVARIANTS:
 - All outputs are structured intents only
 """
 
-from typing import Dict, Any, List, Optional
 import asyncio
-import logging
-import requests
 import json
-from datetime import datetime
+import logging
+from typing import Any, Dict, List, Optional
 
-from .exceptions import ProviderError, ModelNotFoundError
+import requests
+
+from .exceptions import ModelNotFoundError, ProviderError
 
 
 class OllamaProvider:

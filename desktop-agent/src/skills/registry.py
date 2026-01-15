@@ -5,20 +5,14 @@ Manages skill registration, discovery, and lifecycle with comprehensive
 security validation and manifest enforcement.
 """
 
-import json
-import threading
-from typing import Dict, List, Optional, Set, Any
-from pathlib import Path
-from datetime import datetime, timedelta
 import logging
+import threading
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from .manifest import SkillManifest, RiskLevel
-from .exceptions import (
-    SkillNotFoundError,
-    SkillRegistrationError,
-    ManifestValidationError,
-    RateLimitExceededError
-)
+from .exceptions import ManifestValidationError, RateLimitExceededError, SkillNotFoundError, SkillRegistrationError
+from .manifest import RiskLevel, SkillManifest
 
 
 class RateLimiter:

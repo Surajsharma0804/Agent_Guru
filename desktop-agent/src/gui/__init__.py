@@ -5,8 +5,8 @@ Humanized AI assistant with voice interaction, visual presence, and natural conv
 """
 
 from .avatar_window import GURUAvatarWindow, create_guru_window
-from .voice_interface import VoiceInterface, create_voice_interface
 from .conversation_manager import ConversationManager, create_conversation_manager
+from .voice_interface import VoiceInterface, create_voice_interface
 
 __all__ = [
     'GURUAvatarWindow',

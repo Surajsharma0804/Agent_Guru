@@ -11,16 +11,14 @@ Security Principles:
 - Fail-safe defaults with comprehensive audit logging
 """
 
-from typing import Dict, Any, List, Optional, Set, Tuple
-from dataclasses import dataclass
-from enum import Enum
-import re
-import json
 import logging
+import re
+from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
-from .intent import StructuredIntent, IntentValidator
-from .exceptions import SafetyViolationError, IsolationBreachError
+from .intent import IntentValidator, StructuredIntent
 
 
 class SafetyLevel(Enum):

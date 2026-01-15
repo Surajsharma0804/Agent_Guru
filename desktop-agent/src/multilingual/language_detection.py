@@ -6,17 +6,18 @@ IMPLEMENTS REQUIREMENTS 1.5 and 1.6:
 - 1.6: Implement explicit fallback rules that are logged and user-visible when confidence is insufficient
 """
 
+import hashlib
 import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional
 from threading import RLock
-import hashlib
+from typing import Any, Dict, List, Optional
 
 # Import exceptions
 from .exceptions import ModelLoadingError
+
 
 # Simple audit logger for fallback handling
 class AuditLogger:
@@ -1078,7 +1079,7 @@ class LanguageDetectionEngine:
         if audio_data is None or len(audio_data) < 1000:  # Too short for reliable detection
             # Ensure minimum processing time for measurement
             time.sleep(0.001)  # 1ms minimum processing time
-            processing_time = int((time.time() - start_time) * 1000)
+            int((time.time() - start_time) * 1000)
             return None, 0.1, DetectionMethod.FASTTEXT
             
         # CRITICAL FIX: Respect configuration instead of hardcoded values
@@ -1123,7 +1124,7 @@ class LanguageDetectionEngine:
                     lang_index = hash_value % len(other_languages)
                     detected_language = other_languages[lang_index]
         
-        processing_time = int((time.time() - start_time) * 1000)
+        int((time.time() - start_time) * 1000)
         
         return detected_language, final_confidence, DetectionMethod.HYBRID
 
@@ -1367,7 +1368,7 @@ class LanguageDetectionEngine:
         This provides monitoring information for system health.
         """
         with self._fallback_lock:
-            total_fallbacks = self._fallback_stats['total_fallbacks']
+            self._fallback_stats['total_fallbacks']
             recent_decisions = self._fallback_decisions[-100:]  # Last 100 decisions
             recent_fallbacks = len([d for d in recent_decisions if d.decision_timestamp > datetime.utcnow() - timedelta(hours=1)])
             

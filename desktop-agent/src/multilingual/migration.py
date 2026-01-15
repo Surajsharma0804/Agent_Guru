@@ -14,28 +14,17 @@ This module implements:
 - Migration validation and integrity checking
 """
 
+import hashlib
 import json
 import logging
 import shutil
-import hashlib
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
-import sqlite3
+from typing import Any, Dict, List, Optional
 
-from .configuration import (
-    MultilingualConfig,
-    LanguageConfig,
-    SupportedLanguages,
-    ConfigurationManager
-)
-from .exceptions import (
-    MigrationError,
-    ConfigurationError,
-    ValidationError
-)
+from .configuration import ConfigurationManager, MultilingualConfig, SupportedLanguages
 
 
 class MigrationPhase(Enum):
@@ -915,7 +904,7 @@ class GradualLanguageEnablement:
     def _install_language_models(self, language_code: str) -> Dict[str, Any]:
         """Install models for a specific language."""
         try:
-            lang_config = SupportedLanguages.get_language_by_code(language_code)
+            SupportedLanguages.get_language_by_code(language_code)
             
             # In production, this would download/install models
             self.logger.info(f"Installing models for {language_code}")

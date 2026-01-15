@@ -11,11 +11,11 @@ Integrates with Response Ownership Coordinator to enforce speech contract:
 - During conversation: Full conversational speech allowed
 """
 
-import threading
 import queue
+import threading
 import time
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 # Import console utilities for cross-platform Unicode support
 try:
@@ -23,26 +23,17 @@ try:
 except ImportError:
     def safe_print(text, **kwargs):
         try:
-            print(text, **kwargs)
         except UnicodeEncodeError:
             text = str(text).replace('✓', '[OK]').replace('✗', '[X]').replace('⚠', '[!]').replace('🔊', '[SPEAK]')
-            print(text, **kwargs)
+
+# Response ownership imports
+from communication.response_ownership import ResponseOwner, get_response_ownership_coordinator
+
+# Speech contract imports
+from communication.speech_contract import SpeechContext, ValidationResult, get_speech_contract_validator
 
 # PAL imports - platform-agnostic interfaces
 from pal.interfaces import SpeechOutput, TTSPriority
-
-# Response ownership imports
-from communication.response_ownership import (
-    get_response_ownership_coordinator,
-    ResponseOwner
-)
-
-# Speech contract imports
-from communication.speech_contract import (
-    get_speech_contract_validator,
-    SpeechContext,
-    ValidationResult
-)
 
 
 @dataclass(order=True)
@@ -384,9 +375,9 @@ def get_tts_service(speech_output: Optional[SpeechOutput] = None) -> TTSService:
     
     # Otherwise use singleton pattern
     if _tts_service is None:
-        from pal.platform_detector import PlatformDetector
         from pal.backend_factory import PlatformBackendFactory
-        
+        from pal.platform_detector import PlatformDetector
+
         # Detect platform
         platform = PlatformDetector.detect()
         factory = PlatformBackendFactory(platform)
@@ -420,9 +411,9 @@ def stop_speaking():
 
 if __name__ == "__main__":
     # Test TTS service with PAL
-    from pal.platform_detector import PlatformDetector
     from pal.backend_factory import PlatformBackendFactory
-    
+    from pal.platform_detector import PlatformDetector
+
     # Create platform-specific backend
     platform = PlatformDetector.detect()
     factory = PlatformBackendFactory(platform)

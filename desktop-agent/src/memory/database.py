@@ -9,19 +9,17 @@ Implements SQLite database foundation with:
 - Comprehensive error handling and logging
 """
 
+import hashlib
+import logging
+import queue
 import sqlite3
 import threading
-import logging
-import hashlib
-import json
-import os
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Tuple, Union
-from contextlib import contextmanager
-from dataclasses import dataclass, asdict
-from pathlib import Path
-import queue
 import time
+from contextlib import contextmanager
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Tuple
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -56,17 +54,14 @@ class MigrationRecord:
 
 class DatabaseError(Exception):
     """Base exception for database operations."""
-    pass
 
 
 class MigrationError(DatabaseError):
     """Exception for database migration failures."""
-    pass
 
 
 class ConnectionPoolError(DatabaseError):
     """Exception for connection pool issues."""
-    pass
 
 
 class DatabaseConnectionPool:

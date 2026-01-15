@@ -16,23 +16,15 @@ CRITICAL SECURITY INVARIANTS:
 """
 
 import logging
-import time
 import threading
-from dataclasses import dataclass, field
+import time
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
-import uuid
+from typing import Any, Dict, List, Optional
 
 # Import existing GURU components (simplified for testing)
 try:
-    from src.authority.state import (
-        AuthorityStateMachine, 
-        AuthorityState, 
-        BiometricFactor,
-        StateTransitionReason,
-        BiometricVerification
-    )
+    from src.authority.state import AuthorityState, AuthorityStateMachine, BiometricFactor, StateTransitionReason
 except ImportError:
     # Fallback for testing - create mock classes
     from enum import Enum
@@ -97,30 +89,18 @@ except ImportError:
     class LLMAdapter:
         pass
 
-# Import shared types first to avoid circular dependencies
-from .types import SecurePipelineState, AuthorityIntegrationResult, SecurePipelineResult
+# Import audit logging types that are used in multiple places
+from .audit_logging import LogSeverity, MultilingualEvent, MultilingualEventType
 
 # Import multilingual components with delayed imports to break circular dependencies
 from .configuration import MultilingualConfig
-from .exceptions import (
-    SecurityBoundaryError,
-    PipelineError,
-    AuthorityIntegrationError,
-    MultilingualError,
-    PerformanceError
-)
-
-# Import audit logging types that are used in multiple places
-from .audit_logging import MultilingualEvent, MultilingualEventType, LogSeverity
+from .exceptions import AuthorityIntegrationError, PerformanceError, PipelineError, SecurityBoundaryError
 
 # Import failure handling types
-from .failure_handling import (
-    FailureType,
-    FailureSeverity,
-    AbortReason,
-    FailureContext,
-    AbortContext
-)
+from .failure_handling import AbortContext, AbortReason, FailureSeverity, FailureType
+
+# Import shared types first to avoid circular dependencies
+from .types import AuthorityIntegrationResult, SecurePipelineResult, SecurePipelineState
 
 
 class SecureMultilingualPipeline:
@@ -154,9 +134,9 @@ class SecureMultilingualPipeline:
         """
         
         # Delayed imports to break circular dependencies
-        from .pipeline import MultilingualProcessingPipeline
         from .audit_logging import MultilingualAuditLogger
         from .failure_handling import PipelineFailureHandler
+        from .pipeline import MultilingualProcessingPipeline
         
         self.config = config
         self.logger = logging.getLogger(__name__)
@@ -384,8 +364,8 @@ class SecureMultilingualPipeline:
         """Handle authority-related failures with safe abort."""
         
         # Import failure handling types
-        from .failure_handling import FailureType, FailureSeverity, AbortReason
-        
+        from .failure_handling import AbortReason, FailureSeverity, FailureType
+
         # Record failure in failure handler
         failure_context = self.failure_handler.handle_failure(
             failure_type=FailureType.AUTHORITY_CHECK_FAILURE,
@@ -426,8 +406,8 @@ class SecureMultilingualPipeline:
         """Handle multilingual processing failures with safe abort."""
         
         # Import failure handling types
-        from .failure_handling import FailureType, FailureSeverity, AbortReason
-        
+        from .failure_handling import AbortReason, FailureSeverity, FailureType
+
         # Determine specific failure type based on processing stage
         failure_type = FailureType.LANGUAGE_DETECTION_FAILURE
         if result.multilingual_result:
@@ -646,7 +626,7 @@ class SecureMultilingualPipeline:
         SECURITY INVARIANT: All commands require proper authority validation.
         """
         
-        stage_start = time.time()
+        time.time()
         result.state = SecurePipelineState.AUTHORITY_VALIDATION
         
         try:

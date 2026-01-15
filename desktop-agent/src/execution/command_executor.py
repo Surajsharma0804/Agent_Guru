@@ -17,30 +17,19 @@ Architecture:
 This is the missing layer that transforms GURU from a chatbot into an AI assistant.
 """
 
+import logging
 import os
-import subprocess
-import threading
 import time
-from pathlib import Path
-from typing import Optional, Dict, Any, List, Tuple
 from dataclasses import dataclass
 from enum import Enum
-import logging
-
-# PAL imports - platform-agnostic interfaces
-from pal.interfaces import (
-    ApplicationController,
-    InputAutomation,
-    AppDescriptor,
-    AutomationTarget,
-    PlatformCapabilityError
-)
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 # Response ownership imports
-from communication.response_ownership import (
-    get_response_ownership_coordinator,
-    ResponseOwner
-)
+from communication.response_ownership import ResponseOwner, get_response_ownership_coordinator
+
+# PAL imports - platform-agnostic interfaces
+from pal.interfaces import ApplicationController, InputAutomation, PlatformCapabilityError
 
 logger = logging.getLogger(__name__)
 
@@ -388,12 +377,10 @@ class IntentRecognizer:
         
         # Look for "write X" or "type X" pattern
         content_start = -1
-        trigger_word = None
         
         for keyword in ["write", "type", "add", "put", "likho"]:
             if keyword in text_lower:
                 content_start = text_lower.find(keyword) + len(keyword)
-                trigger_word = keyword
                 break
         
         if content_start > 0:
@@ -1171,7 +1158,7 @@ class CommandExecutor:
         
         # Import WhatsApp automation
         from execution.whatsapp_automation import WhatsAppAutomation
-        
+
         # Create WhatsApp automation instance
         whatsapp = WhatsAppAutomation(self.app_controller, self.input_automation)
         
@@ -1305,9 +1292,9 @@ def get_command_executor(
     
     # Otherwise use singleton pattern
     if _executor is None:
-        from pal.platform_detector import PlatformDetector
         from pal.backend_factory import PlatformBackendFactory
-        
+        from pal.platform_detector import PlatformDetector
+
         # Detect platform
         platform = PlatformDetector.detect()
         factory = PlatformBackendFactory(platform)

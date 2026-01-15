@@ -21,53 +21,19 @@ Security Principles:
 - Component isolation to prevent cascade failures
 """
 
-import threading
-import time
 import logging
-from typing import Dict, List, Optional, Set, Callable, Any, Union
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-import json
-from concurrent.futures import ThreadPoolExecutor, Future
+import threading
 import weakref
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
-from .exceptions import (
-    ComponentFailureError,
-    CriticalSystemFailureError,
-    CascadeFailureError,
-    DegradationNotAllowedError
-)
-from .health_monitor import (
-    ComponentHealthMonitor,
-    ComponentHealth,
-    HealthStatus,
-    HealthCheckable
-)
-from .failure_detector import (
-    FailureDetector,
-    ComponentFailure,
-    FailureType,
-    FailureSeverity,
-    FailureDetectable
-)
-from .safe_degradation import (
-    SystemDegradationOrchestrator,
-    DegradationLevel,
-    DegradationPlan,
-    SystemState
-)
-from .dependency_mapper import (
-    DependencyMapper,
-    ComponentDependency,
-    CascadeAnalysis
-)
-from .recovery_orchestrator import (
-    RecoveryOrchestrator,
-    RecoveryPlan,
-    RecoveryResult,
-    RecoveryStatus
-)
+from .dependency_mapper import CascadeAnalysis, ComponentDependency, DependencyMapper
+from .failure_detector import ComponentFailure, FailureDetectable, FailureDetector, FailureSeverity, FailureType
+from .health_monitor import ComponentHealth, ComponentHealthMonitor, HealthCheckable, HealthStatus
+from .recovery_orchestrator import RecoveryOrchestrator, RecoveryPlan, RecoveryResult
+from .safe_degradation import DegradationLevel, DegradationPlan, SystemDegradationOrchestrator, SystemState
 
 
 class SystemFailureState(Enum):
@@ -206,7 +172,7 @@ class SystemFailureOrchestrator:
     def _infer_dependency_type(self, dependent: str, dependency: str):
         """Infer dependency type based on component names."""
         from .dependency_mapper import DependencyType
-        
+
         # Security-related dependencies
         if dependency in ["authority_state_machine", "biometric_verifier", "audit_logger", "cryptographic_engine"]:
             return DependencyType.SECURITY_DEPENDENCY
@@ -378,7 +344,7 @@ class SystemFailureOrchestrator:
         """Attempt to recover a failed component."""
         recovery_plan = self.recovery_orchestrator.create_recovery_plan(failure)
         if recovery_plan:
-            future = self.recovery_orchestrator.execute_recovery_plan(recovery_plan)
+            self.recovery_orchestrator.execute_recovery_plan(recovery_plan)
             self.logger.info(f"Started recovery for component '{failure.component_name}'")
         else:
             self.logger.warning(f"No recovery plan available for component '{failure.component_name}'")
@@ -407,12 +373,11 @@ class SystemFailureOrchestrator:
         # and halt all automation. For now, we log the critical event.
         try:
             # Import here to avoid circular dependencies
-            from ..authority.state import AuthorityStateMachine
+            pass
             
             # Try to get the authority state machine and trigger emergency halt
             # This is a simplified implementation - in production, this would be
             # properly integrated with the dependency injection system
-            pass
         except ImportError:
             self.logger.warning("Authority system not available for emergency halt")
     
@@ -444,7 +409,6 @@ class SystemFailureOrchestrator:
         
         # Clear failure tracking in failure detector
         # This would need the component name from the plan
-        pass
     
     def _assess_system_state(self) -> None:
         """Assess overall system failure state."""

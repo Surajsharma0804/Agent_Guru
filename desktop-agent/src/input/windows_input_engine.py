@@ -9,17 +9,17 @@ OS security mechanisms. All input simulation requires explicit authority.
 """
 
 import ctypes
-from ctypes import wintypes, windll
-from typing import List, Dict, Optional, Tuple, Union
-from dataclasses import dataclass
-from enum import Enum
-import time
 import logging
+import time
+from ctypes import windll, wintypes
+from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
+from typing import Dict, List, Optional, Union
 
 from ..authority.state import AuthorityState, AuthorityStateMachine
-from .input_validator import InputValidator
 from .input_audit_logger import InputAuditLogger
+from .input_validator import InputValidator
 
 
 class InputType(Enum):

@@ -17,7 +17,7 @@ Validates: Requirements 41.1, 41.2, 41.3, 41.4, 41.5, 41.6, 41.7
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Literal
+from typing import Dict, List, Literal, Optional
 
 
 class CapabilityLevel(Enum):

@@ -18,8 +18,6 @@ from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 
-from .speaker_verification import VerificationResult
-
 from .audio_preprocessing import AudioMetrics, AudioPreprocessor, PreprocessingConfig
 from .speaker_verification import SpeakerVerificationEngine, VerificationResult
 from .speech_to_text import ModelSize, STTResult, WhisperSTTEngine

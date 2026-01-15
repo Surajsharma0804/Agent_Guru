@@ -12,11 +12,12 @@ iOS provides excellent biometric authentication via LocalAuthentication framewor
 
 Requirements: 38.5, 38.6, 38.7
 """
-from typing import List, Dict
-import platform
 import logging
+import platform
 from datetime import datetime
-from ...interfaces import BiometricAuthenticator, AuthResult, AuthResultStatus
+from typing import Dict, List
+
+from ...interfaces import AuthResult, AuthResultStatus, BiometricAuthenticator
 
 logger = logging.getLogger(__name__)
 

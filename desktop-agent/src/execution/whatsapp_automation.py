@@ -15,23 +15,19 @@ Architecture:
 Validates: Requirements 26.1, 26.2, 26.3, 26.4, 26.5, 26.6
 """
 
-import time
 import logging
-from typing import Optional, Tuple
+import time
 from dataclasses import dataclass
+from dataclasses import dataclass as exec_dataclass
 from difflib import SequenceMatcher
-
-# PAL imports - platform-agnostic interfaces
-from src.pal.interfaces import (
-    ApplicationController,
-    InputAutomation,
-    AutomationTarget,
-    PlatformCapabilityError
-)
 
 # Execution result types (avoid circular import by defining locally)
 from enum import Enum
-from dataclasses import dataclass as exec_dataclass
+from typing import Optional, Tuple
+
+# PAL imports - platform-agnostic interfaces
+from src.pal.interfaces import ApplicationController, InputAutomation, PlatformCapabilityError
+
 
 class ExecutionStatus(Enum):
     """Execution status"""
@@ -603,9 +599,9 @@ def get_whatsapp_automation(
     
     # Otherwise use singleton pattern
     if _whatsapp_automation is None:
-        from src.pal.platform_detector import PlatformDetector
         from src.pal.backend_factory import PlatformBackendFactory
-        
+        from src.pal.platform_detector import PlatformDetector
+
         # Detect platform
         platform = PlatformDetector.detect()
         factory = PlatformBackendFactory(platform)

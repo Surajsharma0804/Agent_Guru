@@ -23,7 +23,6 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional, Set, Tuple, Union
 
-import structlog
 
 # Create a no-op logger to avoid deadlocks during GUI initialization
 class NoOpLogger:
@@ -150,13 +149,11 @@ class AuthorityConfiguration:
 class AuthorityStateIntegrityError(Exception):
     """Raised when authority state integrity is compromised."""
 
-    pass
 
 
 class AuthorityTransitionError(Exception):
     """Raised when an invalid state transition is attempted."""
 
-    pass
 
 
 class AuthorityStateMachine:
@@ -220,8 +217,6 @@ class AuthorityStateMachine:
         #     # Fallback to print if logger fails
         #     print(f"Authority state machine initialized (logger error: {e})")
         
-        print(f"Authority state machine initialized: session={self._session_id}, state={self._current_state.value}, platform={self._platform}, scope={self._authority_scope.value}")
-        print("DEBUG: Authority __init__ completed, about to return")
 
     def __setattr__(self, name: str, value) -> None:
         """Prevent unauthorized modification of cryptographic state."""
@@ -538,7 +533,7 @@ class AuthorityStateMachine:
 
             # Import workstation locker
             from src.intrusion.workstation_lock import WorkstationLockTrigger, create_workstation_locker
-            
+
             # Map revocation reason to lock trigger
             trigger_mapping = {
                 StateTransitionReason.MANUAL_REVOKE: WorkstationLockTrigger.MANUAL_TRIGGER,

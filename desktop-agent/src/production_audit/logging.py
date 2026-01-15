@@ -5,14 +5,14 @@ Provides cryptographically-signed audit logging for all audit operations.
 All events are tamper-evident and can be verified for integrity.
 """
 
+import hashlib
+import hmac
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
-import json
-import hashlib
-import hmac
 
 
 class AuditSeverity(Enum):

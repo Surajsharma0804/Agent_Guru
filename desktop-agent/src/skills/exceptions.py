@@ -5,7 +5,7 @@ Defines all exceptions used by the skill system with clear error categories
 and security-focused error handling.
 """
 
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class SkillSystemError(Exception):

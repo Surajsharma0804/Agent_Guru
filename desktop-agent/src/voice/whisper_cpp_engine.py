@@ -19,19 +19,18 @@ CRITICAL DESIGN PRINCIPLES:
 This matches GURU's security invariants perfectly.
 """
 
+import logging
+import os
 import subprocess
 import tempfile
 import time
 import wave
-import json
-import logging
-import os
-import hashlib
-from pathlib import Path
-from typing import Optional, Dict, Any, List, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from threading import Lock
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 
 

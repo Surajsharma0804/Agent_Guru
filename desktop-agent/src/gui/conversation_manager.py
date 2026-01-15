@@ -15,12 +15,12 @@ Features:
 - Fallback to templates when AI unavailable
 """
 
-import time
 import random
-from typing import List, Dict, Any, Optional, Tuple
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 # Import console utilities for cross-platform Unicode support
 try:
@@ -29,10 +29,8 @@ except ImportError:
     # Fallback if utils not available
     def safe_print(text, **kwargs):
         try:
-            print(text, **kwargs)
         except UnicodeEncodeError:
             text = str(text).replace('✓', '[OK]').replace('✗', '[X]').replace('⚠', '[!]')
-            print(text, **kwargs)
 
 # Import Ollama engine
 try:
@@ -44,7 +42,7 @@ except ImportError:
 
 # Import command executor
 try:
-    from execution.command_executor import get_command_executor, ExecutionStatus
+    from execution.command_executor import ExecutionStatus, get_command_executor
     COMMAND_EXECUTOR_AVAILABLE = True
 except ImportError:
     COMMAND_EXECUTOR_AVAILABLE = False
@@ -222,14 +220,14 @@ class ConversationManager:
             # Import LLM config manager
             import sys
             from pathlib import Path
-            
+
             # Add src to path if not already there
             src_path = Path(__file__).parent.parent
             if str(src_path) not in sys.path:
                 sys.path.insert(0, str(src_path))
             
             from llm.config_manager import get_llm_config_manager
-            
+
             # Load configuration
             config_manager = get_llm_config_manager()
             config = config_manager.load_configuration()

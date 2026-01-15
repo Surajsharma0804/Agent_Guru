@@ -14,24 +14,18 @@ Features:
 - Smooth animations and transitions
 """
 
-import sys
-import threading
-import time
-from enum import Enum
-from typing import Optional, Callable
 import math
+import sys
+from enum import Enum
+from typing import Optional
 
 try:
-    from PyQt6.QtWidgets import (
-        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-        QLabel, QPushButton, QFrame, QGraphicsOpacityEffect
-    )
-    from PyQt6.QtCore import Qt, QTimer, QPoint, QPropertyAnimation, QEasingCurve, pyqtSignal, QObject
-    from PyQt6.QtGui import QPainter, QColor, QPen, QFont, QLinearGradient, QPalette
+    from PyQt6.QtCore import QPoint, Qt, QTimer, pyqtSignal
+    from PyQt6.QtGui import QColor, QLinearGradient, QPainter, QPen
+    from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget
     PYQT_AVAILABLE = True
 except ImportError:
     PYQT_AVAILABLE = False
-    print("PyQt6 not available. Install with: pip install PyQt6")
 
 
 class AvatarState(Enum):
@@ -441,7 +435,6 @@ def create_guru_window() -> Optional[GURUAvatarWindow]:
         GURUAvatarWindow instance or None if PyQt6 not available
     """
     if not PYQT_AVAILABLE:
-        print("ERROR: PyQt6 not available. Install with: pip install PyQt6")
         return None
     
     app = QApplication.instance()

@@ -30,9 +30,6 @@ from typing import Callable, Dict, List, Optional
 
 import structlog
 
-# PAL imports - platform-agnostic interfaces
-from pal.interfaces import SecurityEnforcer
-
 from biometric.providers import BiometricFactor
 from intrusion.patterns import (
     FailurePattern,
@@ -40,6 +37,9 @@ from intrusion.patterns import (
     PatternSeverity,
     create_failure_pattern_analyzer,
 )
+
+# PAL imports - platform-agnostic interfaces
+from pal.interfaces import SecurityEnforcer
 
 logger = structlog.get_logger(__name__)
 
@@ -133,7 +133,6 @@ class IntrusionDetectionConfig:
 class IntrusionDetectionError(Exception):
     """Base exception for intrusion detection errors."""
 
-    pass
 
 
 class IntrusionDetector:
@@ -910,9 +909,9 @@ def create_intrusion_detector(
     """
     # If no PAL interface provided, create platform-specific one
     if security_enforcer is None:
-        from pal.platform_detector import PlatformDetector
         from pal.backend_factory import PlatformBackendFactory
-        
+        from pal.platform_detector import PlatformDetector
+
         # Detect platform
         platform = PlatformDetector.detect()
         factory = PlatformBackendFactory(platform)

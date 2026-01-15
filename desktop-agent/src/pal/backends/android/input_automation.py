@@ -16,11 +16,11 @@ Validates: Requirements 35.6, 35.8, 39.2, 39.3
 
 import json
 import subprocess
-import time
-from typing import Optional, Dict, Any
 import sys
+import time
+from typing import Any, Dict, Optional
 
-from ...interfaces import InputAutomation, AutomationTarget, PlatformCapabilityError
+from ...interfaces import AutomationTarget, InputAutomation, PlatformCapabilityError
 
 
 class AndroidInputAutomation(InputAutomation):
@@ -87,7 +87,6 @@ class AndroidInputAutomation(InputAutomation):
         # In development/testing mode (not on Android), simulate behavior
         if not self._is_android:
             # Development mode: simulate typing
-            print(f"[DEV MODE] Would type text on Android: '{text}'")
             return True
         
         if not self._accessibility_enabled:
@@ -109,7 +108,6 @@ class AndroidInputAutomation(InputAutomation):
             return success
             
         except Exception as e:
-            print(f"Error typing text '{text}': {e}")
             return False
     
     def click(self, target: AutomationTarget) -> bool:
@@ -137,7 +135,6 @@ class AndroidInputAutomation(InputAutomation):
         # In development/testing mode (not on Android), simulate behavior
         if not self._is_android:
             # Development mode: simulate clicking
-            print(f"[DEV MODE] Would click Android target: {target.target_type} - {target.identifier}")
             return True
         
         if not self._accessibility_enabled:
@@ -155,11 +152,9 @@ class AndroidInputAutomation(InputAutomation):
             elif target.target_type == "window":
                 return self._click_window_element(target)
             else:
-                print(f"Unsupported target type: {target.target_type}")
                 return False
                 
         except Exception as e:
-            print(f"Error clicking target {target.identifier}: {e}")
             return False
     
     def focus_app(self, app_id: str) -> bool:
@@ -187,7 +182,6 @@ class AndroidInputAutomation(InputAutomation):
             return self._focus_app_android(package_name)
             
         except Exception as e:
-            print(f"Error focusing app {app_id}: {e}")
             return False
     
     def get_capabilities(self) -> Dict[str, bool]:
@@ -249,11 +243,8 @@ class AndroidInputAutomation(InputAutomation):
             self._accessibility_enabled = self._check_accessibility_service()
             
             if not self._accessibility_enabled:
-                print("Warning: Accessibility Service not enabled. Input automation will be limited.")
-                print("Please enable GURU in Settings > Accessibility > Downloaded Apps.")
             
         except Exception as e:
-            print(f"Warning: Could not initialize Android input automation: {e}")
     
     def _check_accessibility_service(self) -> bool:
         """
@@ -279,7 +270,6 @@ class AndroidInputAutomation(InputAutomation):
             return False
             
         except Exception as e:
-            print(f"Error checking accessibility service: {e}")
             return False
     
     def _focus_element(self, target: AutomationTarget) -> bool:
@@ -301,7 +291,6 @@ class AndroidInputAutomation(InputAutomation):
                 return True  # Assume already focused
                 
         except Exception as e:
-            print(f"Error focusing element: {e}")
             return False
     
     def _type_text_android(self, text: str) -> bool:
@@ -332,11 +321,9 @@ class AndroidInputAutomation(InputAutomation):
                 return self._type_text_uiautomator(text)
             else:
                 # Development/testing mode
-                print(f"Would type text on Android: '{text}'")
                 return True
                 
         except Exception as e:
-            print(f"Error typing text with Android input method: {e}")
             return False
     
     def _type_text_uiautomator(self, text: str) -> bool:
@@ -365,7 +352,6 @@ class AndroidInputAutomation(InputAutomation):
             return result.returncode == 0
             
         except Exception as e:
-            print(f"Error typing text with UiAutomator: {e}")
             return False
     
     def _click_coordinate(self, target: AutomationTarget) -> bool:
@@ -397,11 +383,9 @@ class AndroidInputAutomation(InputAutomation):
                 return result.returncode == 0
             else:
                 # Development/testing mode
-                print(f"Would click Android coordinate: ({x}, {y})")
                 return True
                 
         except Exception as e:
-            print(f"Error clicking coordinate: {e}")
             return False
     
     def _click_control(self, target: AutomationTarget) -> bool:
@@ -432,11 +416,9 @@ class AndroidInputAutomation(InputAutomation):
                 return result.returncode == 0
             else:
                 # Development/testing mode
-                print(f"Would click Android control: {target.identifier}")
                 return True
                 
         except Exception as e:
-            print(f"Error clicking control: {e}")
             return False
     
     def _click_window_element(self, target: AutomationTarget) -> bool:
@@ -465,11 +447,9 @@ class AndroidInputAutomation(InputAutomation):
                 return result.returncode == 0
             else:
                 # Development/testing mode
-                print(f"Would click Android window element: {window_name}")
                 return True
                 
         except Exception as e:
-            print(f"Error clicking window element: {e}")
             return False
     
     def _focus_control(self, target: AutomationTarget) -> bool:
@@ -498,11 +478,9 @@ class AndroidInputAutomation(InputAutomation):
                 return result.returncode == 0
             else:
                 # Development/testing mode
-                print(f"Would focus Android control: {target.identifier}")
                 return True
                 
         except Exception as e:
-            print(f"Error focusing control: {e}")
             return False
     
     def _focus_app_android(self, package_name: str) -> bool:
@@ -527,11 +505,9 @@ class AndroidInputAutomation(InputAutomation):
                 return result.returncode == 0
             else:
                 # Development/testing mode
-                print(f"Would focus Android app: {package_name}")
                 return True
                 
         except Exception as e:
-            print(f"Error focusing Android app: {e}")
             return False
     
     def _get_package_name(self, app_id: str) -> Optional[str]:

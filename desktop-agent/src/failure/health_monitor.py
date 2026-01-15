@@ -9,23 +9,17 @@ Implements comprehensive health monitoring for all GURU core components with:
 - Thread-safe monitoring operations
 """
 
+import logging
+import queue
 import threading
 import time
-import logging
-from typing import Dict, List, Optional, Callable, Any, Protocol
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-import psutil
-import queue
 import weakref
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Protocol
 
-from .exceptions import (
-    ComponentFailureError,
-    HealthCheckTimeoutError,
-    ComponentNotRespondingError,
-    ResourceExhaustionError
-)
+from .exceptions import ComponentFailureError, HealthCheckTimeoutError
 
 
 class HealthStatus(Enum):

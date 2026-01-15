@@ -13,28 +13,21 @@ Key Features:
 - Thread-safe operations
 """
 
-import hashlib
-import hmac
 import logging
-import os
 import secrets
 import threading
 import time
-from dataclasses import dataclass, field
+import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Callable, Any, Tuple
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-import uuid
+from typing import Any, Callable, Dict, List, Optional
 
-from .exceptions import (
-    ChannelSecurityError,
-    ChannelClosedError,
-    CommunicationSecurityError,
-    MessageValidationError
-)
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+from .exceptions import ChannelClosedError, ChannelSecurityError, MessageValidationError
 
 
 class EncryptionMode(Enum):

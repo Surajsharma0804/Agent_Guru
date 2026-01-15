@@ -12,16 +12,13 @@ This system provides:
 - Isolation boundary enforcement
 """
 
-import threading
 import logging
-from typing import Dict, List, Set, Optional, Tuple, Any
+import threading
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import json
-from collections import defaultdict, deque
-
-from .exceptions import CascadeFailureError, ComponentFailureError
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 class DependencyType(Enum):

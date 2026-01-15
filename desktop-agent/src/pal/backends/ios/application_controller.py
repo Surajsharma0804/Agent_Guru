@@ -14,10 +14,11 @@ iOS provides the most restricted application control of all supported platforms.
 
 Requirements: 34.8, 39.3, 39.6, 41.5
 """
-from typing import List, Dict, Optional
-import platform
 import logging
-from ...interfaces import ApplicationController, AppDescriptor
+import platform
+from typing import Dict, List
+
+from ...interfaces import AppDescriptor, ApplicationController
 
 logger = logging.getLogger(__name__)
 

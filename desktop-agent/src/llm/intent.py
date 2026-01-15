@@ -8,12 +8,13 @@ All intents must pass through authority gates and validation before
 any system action can be taken.
 """
 
-from typing import Dict, Any, List, Optional, Union, Literal
-from dataclasses import dataclass, field
-from enum import Enum
-from datetime import datetime
 import json
 import re
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Literal, Optional, Union
+
 from .exceptions import IntentValidationError, IsolationBreachError
 
 

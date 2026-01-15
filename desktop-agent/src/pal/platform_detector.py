@@ -19,7 +19,6 @@ from typing import Literal
 
 from .interfaces import PlatformNotSupportedError
 
-
 PlatformType = Literal["windows", "macos", "android", "ios"]
 
 

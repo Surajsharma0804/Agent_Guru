@@ -11,33 +11,27 @@ This module implements Task 8.1 requirements:
 - Create cryptographic integrity for multilingual events
 """
 
+import base64
 import hashlib
 import hmac
 import json
 import logging
 import os
-import shutil
-import tempfile
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone, timedelta
+import threading
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Set
-import uuid
-import threading
+from typing import Any, Dict, List, Optional, Set
+
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-import base64
 
 # Import existing GURU audit infrastructure
-from ..audit.audit_logger import (
-    AuditLogger, AuditEvent, AuditEventType, AuditSeverity, 
-    AuditLogEntry, IntegrityVerificationResult
-)
-
+from ..audit.audit_logger import AuditEvent, AuditEventType, AuditLogger, AuditSeverity
 from .configuration import MultilingualConfig
-from .exceptions import MultilingualError, SecurityBoundaryError
+from .exceptions import MultilingualError
 
 
 class DataClassification(Enum):
@@ -981,7 +975,7 @@ class MultilingualAuditLogger:
         Implements comprehensive PII detection and redaction for privacy protection.
         """
         import re
-        
+
         # Common PII patterns
         pii_patterns = [
             # Social Security Numbers

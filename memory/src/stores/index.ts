@@ -37,37 +37,31 @@ export class PersistentStore<T = unknown> implements MemoryStore<T> {
   
   async get(_key: string): Promise<T | null> {
     // Implementation would use file system or database
-    console.log(`PersistentStore: get from ${this.storePath}`);
     throw new Error('Not implemented');
   }
   
   async set(_key: string, _value: T): Promise<void> {
     // Implementation would use file system or database
-    console.log(`PersistentStore: set to ${this.storePath}`);
     throw new Error('Not implemented');
   }
   
   async delete(_key: string): Promise<boolean> {
     // Implementation would use file system or database
-    console.log(`PersistentStore: delete from ${this.storePath}`);
     throw new Error('Not implemented');
   }
   
   async has(_key: string): Promise<boolean> {
     // Implementation would use file system or database
-    console.log(`PersistentStore: has in ${this.storePath}`);
     throw new Error('Not implemented');
   }
   
   async keys(): Promise<string[]> {
     // Implementation would use file system or database
-    console.log(`PersistentStore: keys from ${this.storePath}`);
     throw new Error('Not implemented');
   }
   
   async clear(): Promise<void> {
     // Implementation would use file system or database
-    console.log(`PersistentStore: clear ${this.storePath}`);
     throw new Error('Not implemented');
   }
 }

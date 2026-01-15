@@ -17,13 +17,11 @@ import logging
 import statistics
 import threading
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Callable, Any, Set
-from collections import deque
-
-from .exceptions import CommunicationError
+from typing import Any, Callable, Dict, List, Optional
 
 
 class ChannelHealthStatus(Enum):

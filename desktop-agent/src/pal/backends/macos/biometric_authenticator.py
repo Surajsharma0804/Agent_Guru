@@ -18,9 +18,9 @@ Validates: Requirements 38.3, 38.6, 38.7
 """
 
 from datetime import datetime
-from typing import List, Dict
+from typing import Dict, List
 
-from ...interfaces import BiometricAuthenticator, AuthResult, AuthResultStatus
+from ...interfaces import AuthResult, AuthResultStatus, BiometricAuthenticator
 
 
 class macOSBiometricAuthenticator(BiometricAuthenticator):
@@ -48,9 +48,9 @@ class macOSBiometricAuthenticator(BiometricAuthenticator):
         # Try to import LocalAuthentication
         try:
             from LocalAuthentication import (
+                LABiometryType,
                 LAContext,
                 LAPolicyDeviceOwnerAuthenticationWithBiometrics,
-                LABiometryType,
             )
             self._has_local_auth = True
             self._LAContext = LAContext
@@ -61,7 +61,6 @@ class macOSBiometricAuthenticator(BiometricAuthenticator):
             self._LAContext = None
             self._LAPolicy = None
             self._LABiometryType = None
-            print("Warning: pyobjc-framework-LocalAuthentication not installed. Using fallback.")
         
         # Failure tracking for lockout
         self._failed_attempts = 0

@@ -20,17 +20,17 @@ Architecture:
 - Delegates platform-specific operations to PAL backends
 """
 
-import threading
 import queue
+import threading
 import time
-from typing import Optional, Callable, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
-
-# PAL imports - platform-agnostic interfaces
-from pal.interfaces import SpeechInput, SpeechOutput, TTSPriority, Transcription
+from typing import Any, Callable, Dict, Optional
 
 from gui.tts_service import get_tts_service
+
+# PAL imports - platform-agnostic interfaces
+from pal.interfaces import SpeechInput, SpeechOutput, Transcription, TTSPriority
 
 
 class VoiceState(Enum):
@@ -114,7 +114,6 @@ class VoiceInterface:
         self.listen_thread: Optional[threading.Thread] = None
         self.command_queue = queue.Queue()
         
-        print(f"Voice Interface initialized (Platform-agnostic via PAL, Capabilities: {self.capabilities}, TTS: {self.tts_available})")
     
     def set_command_callback(self, callback: Callable[[VoiceCommand], None]):
         """Set callback for voice commands"""
@@ -161,7 +160,6 @@ class VoiceInterface:
                 
                 # Log the stripping for debugging
                 if stripped != text:
-                    print(f"[Wake Word Strip] '{text}' -> '{stripped}'")
                 
                 return stripped
             
@@ -182,7 +180,6 @@ class VoiceInterface:
                 
                 # Log the stripping for debugging
                 if stripped != text:
-                    print(f"[Wake Word Strip] '{text}' -> '{stripped}'")
                 
                 return stripped
         
@@ -204,7 +201,6 @@ class VoiceInterface:
         self.dictation_mode = True
         self._set_state(VoiceState.DICTATION_MODE)
         self.silence_start_time = None
-        print("[Dictation Mode] ENTERED - typing exact text without interpretation")
     
     def exit_dictation_mode(self):
         """
@@ -215,7 +211,6 @@ class VoiceInterface:
         self.dictation_mode = False
         self._set_state(VoiceState.COMMAND_MODE)
         self.silence_start_time = None
-        print("[Dictation Mode] EXITED - returning to command mode")
     
     def is_dictation_mode(self) -> bool:
         """Check if currently in dictation mode"""
@@ -246,7 +241,6 @@ class VoiceInterface:
             text_lower = text.lower().strip()
             exit_commands = ["done", "stop writing", "stop typing", "finish"]
             if any(cmd in text_lower for cmd in exit_commands):
-                print(f"[Dictation Mode] Exit command detected: '{text}'")
                 return True
         
         # Check for silence timeout (2 seconds)
@@ -255,7 +249,6 @@ class VoiceInterface:
             if self.silence_start_time is None:
                 self.silence_start_time = current_time
             elif current_time - self.silence_start_time >= 2.0:
-                print("[Dictation Mode] 2 seconds of silence detected")
                 return True
         else:
             # Reset silence timer when speech is detected
@@ -291,7 +284,6 @@ class VoiceInterface:
     def start_listening(self):
         """Start continuous voice recognition using PAL SpeechInput"""
         if self.is_running:
-            print("Voice interface already running")
             return
         
         # Start PAL speech input
@@ -300,7 +292,6 @@ class VoiceInterface:
         self.is_running = True
         self.listen_thread = threading.Thread(target=self._listen_loop, daemon=True)
         self.listen_thread.start()
-        print("Voice interface started - listening for wake word...")
     
     def stop_listening(self):
         """Stop voice recognition and cleanup resources"""
@@ -311,7 +302,6 @@ class VoiceInterface:
         
         if self.listen_thread:
             self.listen_thread.join(timeout=2.0)
-        print("Voice interface stopped")
     
     def speak(self, text: str, interrupt: bool = False):
         """
@@ -321,22 +311,15 @@ class VoiceInterface:
             text: Text to speak
             interrupt: Whether to interrupt current speech
         """
-        print(f"[DEBUG] VoiceInterface.speak() called")
-        print(f"[DEBUG]   Text: '{text[:50]}...'")
-        print(f"[DEBUG]   Thread: {threading.current_thread().name}")
-        print(f"[DEBUG]   TTS available: {self.tts_available}")
         
         if not self.tts_available:
-            print(f"GURU: {text}")
             return
         
         self._set_state(VoiceState.SPEAKING)
         
         # Use TTS service
         priority = TTSPriority.URGENT if interrupt else TTSPriority.NORMAL
-        print(f"[DEBUG] Calling tts_service.speak()...")
         self.tts_service.speak(text, priority, interrupt)
-        print(f"[DEBUG] tts_service.speak() returned")
         
         # Wait for TTS to finish speaking before returning to idle
         def wait_for_speech():
@@ -372,25 +355,19 @@ class VoiceInterface:
         # Calibrate microphone using PAL
         try:
             energy_threshold = self.speech_input.calibrate_microphone()
-            print(f"Microphone calibrated (energy threshold: {energy_threshold})")
         except Exception as e:
-            print(f"Microphone calibration warning: {e}")
         
         while self.is_running:
             try:
                 # Determine current mode
                 if wake_word_mode:
                     self._set_state(VoiceState.IDLE)
-                    print(f"Listening for wake word: '{self.wake_word}'...")
                 elif self.dictation_mode:
                     self._set_state(VoiceState.DICTATION_MODE)
-                    print("Dictation mode active - speak text to type...")
                 else:
                     self._set_state(VoiceState.COMMAND_MODE)
                     if conversation_turns == 0:
-                        print("✓ Ready to listen - speak your command now...")
                     else:
-                        print(f"Listening for your response... (turn {conversation_turns}/{max_conversation_turns})")
                 
                 # Wait for audio input (PAL handles the actual listening)
                 # This is a simplified approach - in production, PAL would provide
@@ -428,7 +405,6 @@ class VoiceInterface:
                     )
                     
                     if wake_word_detected:
-                        print(f"✓ Wake word detected!")
                         self.is_active = True
                         wake_word_mode = False
                         # Strip wake word from the transcription
@@ -453,7 +429,6 @@ class VoiceInterface:
                     text_lower = transcribed_text.lower()
                     deactivation_commands = ["stop", "sleep", "exit", "that's all"]
                     if any(cmd in text_lower for cmd in deactivation_commands):
-                        print("Deactivation command detected")
                         self.is_active = False
                         wake_word_mode = True
                         conversation_turns = 0
@@ -471,7 +446,6 @@ class VoiceInterface:
                     )
                     self.on_command_callback(command)
                 
-                print("PAL SpeechInput integration: Waiting for callback-based transcription...")
                 time.sleep(1.0)
                 
                 # TODO: Implement full PAL callback-based transcription
@@ -482,7 +456,6 @@ class VoiceInterface:
                 # 4. Silence detection for dictation mode
                 
             except Exception as e:
-                print(f"Listen loop error: {e}")
                 self._set_state(VoiceState.ERROR)
                 time.sleep(1)
     
@@ -524,9 +497,9 @@ def create_voice_interface(
     """
     # If no PAL interfaces provided, create platform-specific ones
     if speech_input is None or speech_output is None:
-        from pal.platform_detector import PlatformDetector
         from pal.backend_factory import PlatformBackendFactory
-        
+        from pal.platform_detector import PlatformDetector
+
         # Detect platform
         platform = PlatformDetector.detect()
         factory = PlatformBackendFactory(platform)

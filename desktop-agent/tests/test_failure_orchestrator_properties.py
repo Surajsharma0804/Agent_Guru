@@ -463,9 +463,9 @@ def test_property_53_critical_failure_triggers_degradation(failed_components: Li
 @settings(max_examples=100, deadline=None)
 @given(
     degradation_level=st.sampled_from([
-        DegradationLevel.DEGRADED_OPERATION,
-        DegradationLevel.LIMITED_OPERATION,
-        DegradationLevel.EMERGENCY_MODE
+        DegradationLevel.REDUCED_FUNCTIONALITY,
+        DegradationLevel.MINIMAL_OPERATION,
+        DegradationLevel.SAFE_HALT
     ])
 )
 def test_property_53_degradation_does_not_crash_system(degradation_level: DegradationLevel):

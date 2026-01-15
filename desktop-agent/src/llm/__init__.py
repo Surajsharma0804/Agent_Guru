@@ -19,78 +19,56 @@ CRITICAL SECURITY INVARIANTS:
 Models are replaceable. Authority is sacred. Execution is earned.
 """
 
+# Legacy adapter (for backward compatibility)
+from .adapter import LLMAdapter
+
+# Configuration management
+from .config_manager import LLMConfigManager, LLMConfigPaths, get_llm_config_manager
+
+# Exceptions
+from .exceptions import (
+    AuthenticationError,
+    CapabilityDetectionError,
+    ConfigurationError,
+    IntentValidationError,
+    IsolationBreachError,
+    LLMAdapterError,
+    LLMException,
+    ModelNotFoundError,
+    ModelRouterError,
+    NetworkError,
+    ProviderError,
+    ProviderRegistrationError,
+    RateLimitExceededError,
+    TaskRoutingError,
+)
+from .gemini_provider import GeminiProvider
+
+# Integration layer
+from .integration import LLMSystemIntegration, get_llm_integration, initialize_llm_system
+
+# Intent processing
+from .intent import IntentType, IntentValidator, StructuredIntent
+
 # Core model router components
 from .model_router import (
     ModelRouter,
-    RouterConfiguration,
-    TaskType,
-    ProviderType,
-    TaskConfiguration,
     ProviderConfiguration,
-    get_model_router
-)
-
-# Integration layer
-from .integration import (
-    LLMSystemIntegration,
-    get_llm_integration,
-    initialize_llm_system
-)
-
-# Configuration management
-from .config_manager import (
-    LLMConfigManager,
-    LLMConfigPaths,
-    get_llm_config_manager
+    ProviderType,
+    RouterConfiguration,
+    TaskConfiguration,
+    TaskType,
+    get_model_router,
 )
 
 # Provider implementations
 from .ollama_provider import OllamaProvider
 from .openai_provider import OpenAIProvider
-from .gemini_provider import GeminiProvider
-
-# Legacy adapter (for backward compatibility)
-from .adapter import LLMAdapter
-from .providers import (
-    LLMProvider,
-    GeminiProvider as LegacyGeminiProvider,
-    LocalProvider,
-    ProviderCapabilities,
-    ProviderStatus
-)
-
-# Intent processing
-from .intent import (
-    IntentType,
-    IntentValidator,
-    StructuredIntent
-)
+from .providers import GeminiProvider as LegacyGeminiProvider
+from .providers import LLMProvider, LocalProvider, ProviderCapabilities, ProviderStatus
 
 # Safety
-from .safety import (
-    LLMSafetyEngine,
-    ContentSafetyFilter,
-    ResponseSanitizer,
-    SafeResponse
-)
-
-# Exceptions
-from .exceptions import (
-    LLMException,
-    ModelRouterError,
-    ProviderError,
-    ProviderRegistrationError,
-    AuthenticationError,
-    RateLimitExceededError,
-    NetworkError,
-    ModelNotFoundError,
-    CapabilityDetectionError,
-    ConfigurationError,
-    TaskRoutingError,
-    IntentValidationError,
-    IsolationBreachError,
-    LLMAdapterError
-)
+from .safety import ContentSafetyFilter, LLMSafetyEngine, ResponseSanitizer, SafeResponse
 
 __all__ = [
     # Core model router

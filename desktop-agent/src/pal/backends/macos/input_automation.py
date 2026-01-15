@@ -20,9 +20,9 @@ Validates: Requirements 35.5, 35.8
 
 import subprocess
 import time
-from typing import Optional, Dict
+from typing import Dict, Optional
 
-from ...interfaces import InputAutomation, AutomationTarget, PlatformCapabilityError
+from ...interfaces import AutomationTarget, InputAutomation, PlatformCapabilityError
 
 
 class macOSInputAutomation(InputAutomation):
@@ -52,18 +52,14 @@ class macOSInputAutomation(InputAutomation):
         # Try to import Quartz for CGEvent support
         try:
             from Quartz import (
-                CGEventCreateKeyboardEvent,
-                CGEventPost,
                 CGEventSourceCreate,
                 kCGEventSourceStateHIDSystemState,
-                kCGHIDEventTap,
             )
             self._has_quartz = True
             self._event_source = CGEventSourceCreate(kCGEventSourceStateHIDSystemState)
         except ImportError:
             self._has_quartz = False
             self._event_source = None
-            print("Warning: pyobjc-framework-Quartz not installed. Using AppleScript fallback.")
     
     def type_text(self, text: str, target: Optional[AutomationTarget] = None) -> bool:
         """
@@ -117,10 +113,8 @@ class macOSInputAutomation(InputAutomation):
             return result.returncode == 0
             
         except subprocess.TimeoutExpired:
-            print(f"Timeout typing text")
             return False
         except Exception as e:
-            print(f"Error typing text: {e}")
             return False
     
     def click(self, target: AutomationTarget) -> bool:
@@ -153,7 +147,6 @@ class macOSInputAutomation(InputAutomation):
                     x, y = map(int, target.identifier.split(','))
                     return self._click_at_coordinate(x, y)
                 except ValueError:
-                    print(f"Invalid coordinate format: {target.identifier}")
                     return False
             
             elif target.target_type == "control":
@@ -161,11 +154,9 @@ class macOSInputAutomation(InputAutomation):
                 return self._click_ui_element(target)
             
             else:
-                print(f"Unsupported target type: {target.target_type}")
                 return False
                 
         except Exception as e:
-            print(f"Error clicking: {e}")
             return False
     
     def focus_app(self, app_id: str) -> bool:
@@ -197,14 +188,11 @@ class macOSInputAutomation(InputAutomation):
                 time.sleep(0.3)  # Wait for activation
                 return True
             else:
-                print(f"Error focusing {app_id}: {result.stderr}")
                 return False
                 
         except subprocess.TimeoutExpired:
-            print(f"Timeout focusing {app_id}")
             return False
         except Exception as e:
-            print(f"Error focusing {app_id}: {e}")
             return False
     
     def get_capabilities(self) -> Dict[str, bool]:
@@ -271,7 +259,7 @@ class macOSInputAutomation(InputAutomation):
                     kCGHIDEventTap,
                     kCGMouseButtonLeft,
                 )
-                
+
                 # Create mouse down event
                 mouse_down = CGEventCreateMouseEvent(
                     None,
@@ -312,7 +300,6 @@ class macOSInputAutomation(InputAutomation):
                 return result.returncode == 0
                 
         except Exception as e:
-            print(f"Error clicking at ({x}, {y}): {e}")
             return False
     
     def _click_ui_element(self, target: AutomationTarget) -> bool:
@@ -331,7 +318,6 @@ class macOSInputAutomation(InputAutomation):
             element_description = target.identifier
             
             if not app_name:
-                print("No app_name in platform_data for UI element click")
                 return False
             
             # Use AppleScript to click UI element
@@ -353,5 +339,4 @@ class macOSInputAutomation(InputAutomation):
             return result.returncode == 0
             
         except Exception as e:
-            print(f"Error clicking UI element: {e}")
             return False

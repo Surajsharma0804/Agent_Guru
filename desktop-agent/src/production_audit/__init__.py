@@ -12,10 +12,10 @@ Components:
 - CheckpointManager: Phase validation and safety gates
 """
 
+from .checkpoint import Checkpoint, CheckpointManager, CheckpointStatus
+from .filesystem import FileOperation, FileSystemUtils, OperationResult
+from .logging import AuditEvent, AuditLogger, AuditSeverity
 from .orchestrator import AuditOrchestrator, AuditPhase
-from .filesystem import FileSystemUtils, FileOperation, OperationResult
-from .logging import AuditLogger, AuditEvent, AuditSeverity
-from .checkpoint import CheckpointManager, Checkpoint, CheckpointStatus
 
 __all__ = [
     'AuditOrchestrator',

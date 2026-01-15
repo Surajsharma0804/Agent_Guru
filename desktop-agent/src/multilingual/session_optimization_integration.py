@@ -10,16 +10,13 @@ performance optimization in the multilingual processing pipeline.
 """
 
 import logging
-from typing import Any, Dict, Optional, Callable
 from datetime import datetime
+from typing import Any, Dict, Optional
 
-from .performance_optimization import (
-    PerformanceOptimizationManager,
-    SessionPerformanceOptimizer
-)
-from .language_detection import LanguageDetectionEngine, LanguageDetectionResult
-from .intent_normalization import IntentNormalizationLayer, CanonicalIntent
 from .configuration import MultilingualConfig
+from .intent_normalization import IntentNormalizationLayer
+from .language_detection import LanguageDetectionEngine
+from .performance_optimization import PerformanceOptimizationManager
 
 
 class SessionOptimizedMultilingualProcessor:
@@ -207,21 +204,13 @@ def example_session_optimization_workflow():
               f"Cache hit: {result['metrics']['detection'].get('cache_hit', False)}")
         
     # Get session performance report
-    report = processor.get_session_performance_report(session_id)
-    print(f"\nSession Performance Report:")
-    print(f"  Total detections: {report['total_detections']}")
-    print(f"  Cache hit rate: {report['cache_hit_rate']:.1f}%")
-    print(f"  Average detection time: {report['average_detection_time_ms']:.1f}ms")
-    print(f"  Dominant language: {report['dominant_language']}")
+    processor.get_session_performance_report(session_id)
     
     # Optimize based on session patterns
     processor.optimize_for_session_pattern(session_id)
     
     # Get comprehensive statistics
-    stats = processor.get_comprehensive_statistics()
-    print(f"\nOverall Statistics:")
-    print(f"  Total operations: {stats['overall_metrics']['total_operations']}")
-    print(f"  Cache hit rate: {stats['overall_metrics']['cache_hit_rate']:.1f}%")
+    processor.get_comprehensive_statistics()
     
     # Cleanup
     processor.shutdown()

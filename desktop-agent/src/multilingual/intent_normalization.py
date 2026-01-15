@@ -6,20 +6,19 @@ language-specific commands to canonical intents while maintaining
 security boundaries and deterministic behavior.
 """
 
+import hashlib
 import json
 import logging
 import re
-import signal
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Pattern, Set, Tuple, Union
 from threading import RLock
-import hashlib
+from typing import Any, Dict, List, Optional, Pattern, Tuple, Union
 
 from .configuration import MultilingualConfig, SupportedLanguages
-from .exceptions import IntentNormalizationError, SecurityBoundaryError, UnsupportedLanguageError
+from .exceptions import IntentNormalizationError, UnsupportedLanguageError
 
 
 class IntentAction(Enum):
@@ -293,7 +292,7 @@ class IntentPattern:
     def _sanitize_filename(self, filename: str) -> str:
         """Sanitize filenames for security."""
         import re
-        
+
         # Remove path traversal attempts
         sanitized = filename.replace('..', '').replace('/', '').replace('\\', '')
         
@@ -2813,8 +2812,8 @@ class NormalizationCache:
             total_hits = stats['hits']
             if total_hits > 100:  # Only optimize with sufficient data
                 hot_ratio = stats['hot_hits'] / total_hits
-                warm_ratio = stats['warm_hits'] / total_hits
-                cold_ratio = stats['cold_hits'] / total_hits
+                stats['warm_hits'] / total_hits
+                stats['cold_hits'] / total_hits
                 
                 # If hot cache is underutilized, reduce its size
                 if hot_ratio < 0.1 and self._hot_cache_ratio > 0.1:
@@ -3730,8 +3729,8 @@ class IntentNormalizationLayer:
     def _find_pattern_match_with_timeout(self, text: str, language: str, timeout_seconds: float) -> Optional[Tuple[IntentPattern, Dict[str, str]]]:
         """Find pattern match with timeout protection (Windows-compatible)."""
         
-        import threading
         import queue
+        import threading
         
         result_queue = queue.Queue()
         exception_queue = queue.Queue()

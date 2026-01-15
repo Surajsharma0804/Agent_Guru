@@ -12,9 +12,10 @@ iOS provides app-level security only. Cannot enforce system-wide lockdown.
 
 Requirements: 40.5, 40.6, 39.2, 39.3
 """
-from typing import Dict
-import platform
 import logging
+import platform
+from typing import Dict
+
 from ...interfaces import SecurityEnforcer
 
 logger = logging.getLogger(__name__)

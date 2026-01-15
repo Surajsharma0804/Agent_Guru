@@ -6,10 +6,11 @@ Provides real-time, context-aware responses without external API dependencies.
 """
 
 import json
-import requests
-from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import requests
 
 # Import console utilities for cross-platform Unicode support
 try:
@@ -17,10 +18,8 @@ try:
 except ImportError:
     def safe_print(text, **kwargs):
         try:
-            print(text, **kwargs)
         except UnicodeEncodeError:
             text = str(text).replace('✓', '[OK]').replace('✗', '[X]').replace('⚠', '[!]')
-            print(text, **kwargs)
 
 
 @dataclass
@@ -185,15 +184,12 @@ Remember: You are a voice assistant, so keep responses brief and natural for spe
                 
                 return assistant_response.strip()
             else:
-                print(f"Ollama API error: {response.status_code}")
                 return self._fallback_response(user_input)
         
         except requests.exceptions.Timeout:
-            print("Ollama request timeout")
             return "I'm thinking a bit slowly right now. Could you ask that again?"
         
         except Exception as e:
-            print(f"Ollama error: {e}")
             return self._fallback_response(user_input)
     
     def _fallback_response(self, user_input: str) -> str:
@@ -222,7 +218,6 @@ Remember: You are a voice assistant, so keep responses brief and natural for spe
     def clear_history(self):
         """Clear conversation history"""
         self.conversation_history = []
-        print("Conversation history cleared")
     
     def get_history(self) -> List[Message]:
         """Get conversation history"""
@@ -231,7 +226,6 @@ Remember: You are a voice assistant, so keep responses brief and natural for spe
     def set_system_prompt(self, prompt: str):
         """Update system prompt"""
         self.system_prompt = prompt
-        print("System prompt updated")
 
 
 # Global engine instance
@@ -265,7 +259,6 @@ if __name__ == "__main__":
     engine = OllamaEngine()
     
     if engine.available:
-        print("\nTesting Ollama engine...")
         
         test_inputs = [
             "Hello! How are you?",
@@ -275,9 +268,5 @@ if __name__ == "__main__":
         ]
         
         for user_input in test_inputs:
-            print(f"\nUser: {user_input}")
             response = engine.generate_response(user_input)
-            print(f"GURU: {response}")
     else:
-        print("\nOllama not available. Install from: https://ollama.ai")
-        print("Then run: ollama pull llama2")

@@ -5,9 +5,9 @@ Comprehensive exception hierarchy for multilingual processing with detailed
 error information, security context, and recovery guidance.
 """
 
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 
 class MultilingualError(Exception):

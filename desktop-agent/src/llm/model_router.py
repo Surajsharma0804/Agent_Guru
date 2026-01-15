@@ -21,22 +21,17 @@ Architecture:
 - Cryptographic audit logging of all model calls
 """
 
-from typing import Dict, Any, List, Optional, Union, Literal
+import asyncio
+import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import asyncio
-import logging
-import json
 from pathlib import Path
 from threading import Lock
+from typing import Any, Dict, List, Literal, Optional
 
-from .exceptions import (
-    ModelRouterError,
-    ProviderError,
-    ConfigurationError,
-    TaskRoutingError
-)
+from .exceptions import ConfigurationError, ModelRouterError, ProviderError, TaskRoutingError
 
 
 class ProviderType(Enum):

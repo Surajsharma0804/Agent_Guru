@@ -8,25 +8,19 @@ CRITICAL SECURITY INVARIANT: LLMs are advisory only, never authoritative.
 All LLM outputs are structured intents that must pass authority gates.
 """
 
-from typing import Dict, Any, List, Optional, Union, Callable
-from dataclasses import dataclass, field
+import asyncio
+import json
+import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import asyncio
-import logging
 from threading import Lock
-import json
+from typing import Any, Dict, Optional
 
-from .providers import LLMProvider, GeminiProvider, LocalProvider, ProviderStatus, ProviderCapabilities
-from .intent import StructuredIntent, IntentValidator
+from .exceptions import CapabilityDetectionError, ProviderRegistrationError
+from .intent import IntentValidator, StructuredIntent
+from .providers import GeminiProvider, LLMProvider, LocalProvider
 from .safety import LLMSafetyEngine, SafeResponse
-from .exceptions import (
-    LLMAdapterError,
-    ProviderError,
-    ProviderRegistrationError,
-    CapabilityDetectionError,
-    IsolationBreachError
-)
 
 
 class ProviderPriority(Enum):

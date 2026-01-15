@@ -19,25 +19,17 @@ Security Principles:
 - Comprehensive audit trail of all failure events
 """
 
+import logging
 import threading
 import time
-import logging
-from typing import Dict, List, Optional, Set, Callable, Any, Protocol
+import weakref
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import weakref
-from concurrent.futures import ThreadPoolExecutor, Future
-import queue
+from typing import Any, Callable, Dict, List, Optional, Protocol, Set
 
-from .exceptions import (
-    ComponentFailureError,
-    CriticalSystemFailureError,
-    CascadeFailureError,
-    SecurityViolationError,
-    IntegrityViolationError
-)
-from .health_monitor import ComponentHealthMonitor, ComponentHealth, HealthStatus
+from .health_monitor import ComponentHealth, ComponentHealthMonitor, HealthStatus
 
 
 class FailureType(Enum):
@@ -582,12 +574,11 @@ class FailureDetector:
         # and halt all automation. For now, we log the critical event.
         try:
             # Import here to avoid circular dependencies
-            from ..authority.state import AuthorityStateMachine
+            pass
             
             # Try to get the authority state machine and trigger emergency halt
             # This is a simplified implementation - in production, this would be
             # properly integrated with the dependency injection system
-            pass
         except ImportError:
             self.logger.warning("Authority system not available for emergency halt")
     

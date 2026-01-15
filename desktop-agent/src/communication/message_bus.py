@@ -15,7 +15,6 @@ Key Features:
 - Component isolation and security boundaries
 """
 
-import asyncio
 import hashlib
 import hmac
 import json
@@ -24,21 +23,20 @@ import secrets
 import threading
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor, Future
-from dataclasses import dataclass, field, asdict
+import weakref
+from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Callable, Any, Set, Union
-from queue import Queue, PriorityQueue, Empty, Full
-import weakref
+from queue import Empty, Full, PriorityQueue, Queue
+from typing import Any, Callable, Dict, List, Optional, Set
 
 from .exceptions import (
-    MessageDeliveryError,
+    CommunicationSecurityError,
+    ComponentNotFoundError,
+    MessageQueueFullError,
     MessageTimeoutError,
     MessageValidationError,
-    MessageQueueFullError,
-    ComponentNotFoundError,
-    CommunicationSecurityError
 )
 
 
@@ -693,7 +691,7 @@ class MessageBus:
     
     def _cleanup_expired_messages(self) -> None:
         """Clean up expired pending messages."""
-        current_time = datetime.now()
+        datetime.now()
         expired_messages = []
         
         for message_id, message in self._pending_messages.items():

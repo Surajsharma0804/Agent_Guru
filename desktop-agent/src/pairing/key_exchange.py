@@ -15,21 +15,21 @@ All key operations use hardware-backed storage when available with
 software fallback for maximum security and compatibility.
 """
 
+import base64
+import hashlib
 import json
 import secrets
 import time
-from typing import Optional, Dict, Any, Tuple, List
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
-import hashlib
-import base64
+from typing import Any, Dict, Optional, Tuple
 
+import structlog
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.backends import default_backend
-from cryptography.exceptions import InvalidSignature
-import structlog
 
 logger = structlog.get_logger(__name__)
 

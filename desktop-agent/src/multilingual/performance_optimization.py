@@ -16,19 +16,18 @@ This module provides production-grade performance optimization including:
 - Adaptive performance tuning
 """
 
+import gc
 import logging
-import time
 import threading
-import psutil
-import hashlib
+import time
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Callable
-from collections import defaultdict, deque
-from threading import RLock, Lock
-import gc
+from threading import Lock, RLock
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+import psutil
 
 
 class HardwareAccelerationType(Enum):
@@ -403,7 +402,6 @@ class HardwareAccelerationController:
     def _configure_cuda(self, model: Any) -> Any:
         """Configure model for CUDA acceleration."""
         try:
-            import torch
             if hasattr(model, 'to'):
                 return model.to('cuda')
         except Exception as e:
@@ -413,7 +411,6 @@ class HardwareAccelerationController:
     def _configure_metal(self, model: Any) -> Any:
         """Configure model for Metal acceleration."""
         try:
-            import torch
             if hasattr(model, 'to'):
                 return model.to('mps')
         except Exception as e:
@@ -585,7 +582,6 @@ class ModelCacheOrchestrator:
             # For PyTorch models, get parameter size
             if hasattr(model, 'parameters'):
                 try:
-                    import torch
                     param_size = sum(p.numel() * p.element_size() for p in model.parameters())
                     size_bytes = max(size_bytes, param_size)
                 except Exception:

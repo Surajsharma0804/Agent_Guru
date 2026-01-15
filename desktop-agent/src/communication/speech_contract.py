@@ -40,9 +40,9 @@ Validates: Requirements 32.1, 32.2, 32.4, 32.5, 32.6, 32.7
 """
 
 import re
-from typing import Tuple, Optional
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
+from typing import Optional, Tuple
 
 
 class SpeechContext(Enum):

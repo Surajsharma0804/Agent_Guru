@@ -9,16 +9,16 @@ This logger implements the mandatory audit requirement that all automation
 actions must be logged with cryptographic integrity protection.
 """
 
-import json
 import hashlib
 import hmac
+import json
 import logging
-from typing import Dict, List, Optional, Any
-from datetime import datetime
-from dataclasses import dataclass, asdict
-from enum import Enum
 import os
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # InputEvent will be imported at runtime to avoid circular imports
 
@@ -256,7 +256,6 @@ class InputAuditLogger:
             input_event: Input event to log (InputEvent from windows_input_engine)
         """
         # Import InputEvent here to avoid circular imports
-        from .windows_input_engine import InputEvent, InputType, SecurityLevel
         
         # Prepare details without sensitive content
         details = {

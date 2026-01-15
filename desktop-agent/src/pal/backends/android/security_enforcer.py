@@ -16,9 +16,9 @@ Validates: Requirements 40.4, 40.5, 40.6, 39.2, 39.3
 import subprocess
 import sys
 import time
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
-from ...interfaces import SecurityEnforcer, PlatformCapabilityError
+from ...interfaces import PlatformCapabilityError, SecurityEnforcer
 
 
 class AndroidSecurityEnforcer(SecurityEnforcer):
@@ -93,7 +93,6 @@ class AndroidSecurityEnforcer(SecurityEnforcer):
         # In development/testing mode (not on Android), simulate behavior
         if not self._is_android:
             # Development mode: simulate locking
-            print(f"[DEV MODE] Would lock Android session: {reason}")
             self._app_locked = True
             self._lock_reason = reason
             self._lock_timestamp = time.time()
@@ -137,7 +136,6 @@ class AndroidSecurityEnforcer(SecurityEnforcer):
             return app_lock_success
             
         except Exception as e:
-            print(f"Error locking Android session: {e}")
             return False
     
     def get_lock_scope(self) -> str:
@@ -215,7 +213,6 @@ class AndroidSecurityEnforcer(SecurityEnforcer):
             return success
             
         except Exception as e:
-            print(f"Error unlocking Android session: {e}")
             return False
     
     def detect_security_violation(self, violation_type: str, metadata: Dict[str, Any]) -> bool:
@@ -245,7 +242,6 @@ class AndroidSecurityEnforcer(SecurityEnforcer):
             return True
             
         except Exception as e:
-            print(f"Error detecting security violation: {e}")
             return False
     
     # ========================================================================
@@ -288,12 +284,9 @@ class AndroidSecurityEnforcer(SecurityEnforcer):
             self._is_device_admin = self._check_device_admin_status()
             
             if self._is_device_admin:
-                print("Android device admin permissions available - can lock screen")
             else:
-                print("Android device admin not available - app-level locking only")
                 
         except Exception as e:
-            print(f"Warning: Could not initialize Android security: {e}")
     
     def _check_device_admin_status(self) -> bool:
         """
@@ -318,7 +311,6 @@ class AndroidSecurityEnforcer(SecurityEnforcer):
             return False
             
         except Exception as e:
-            print(f"Error checking device admin status: {e}")
             return False
     
     def _lock_guru_app(self, reason: str) -> bool:
@@ -343,18 +335,14 @@ class AndroidSecurityEnforcer(SecurityEnforcer):
                 )
                 
                 if result.returncode == 0:
-                    print(f"GURU app locked: {reason}")
                     return True
                 else:
-                    print(f"Failed to lock GURU app: {result.stderr}")
                     return False
             else:
                 # Development/testing mode
-                print(f"Would lock Android GURU app: {reason}")
                 return True
                 
         except Exception as e:
-            print(f"Error locking GURU app: {e}")
             return False
     
     def _attempt_screen_lock(self, reason: str) -> bool:
@@ -381,18 +369,14 @@ class AndroidSecurityEnforcer(SecurityEnforcer):
                 )
                 
                 if result.returncode == 0:
-                    print(f"Android screen locked: {reason}")
                     return True
                 else:
-                    print(f"Failed to lock Android screen: {result.stderr}")
                     return False
             else:
                 # Development/testing mode
-                print(f"Would lock Android screen: {reason}")
                 return True
                 
         except Exception as e:
-            print(f"Error locking Android screen: {e}")
             return False
     
     def _unlock_guru_app(self, reason: str) -> bool:
@@ -416,18 +400,14 @@ class AndroidSecurityEnforcer(SecurityEnforcer):
                 )
                 
                 if result.returncode == 0:
-                    print(f"GURU app unlocked: {reason}")
                     return True
                 else:
-                    print(f"Failed to unlock GURU app: {result.stderr}")
                     return False
             else:
                 # Development/testing mode
-                print(f"Would unlock Android GURU app: {reason}")
                 return True
                 
         except Exception as e:
-            print(f"Error unlocking GURU app: {e}")
             return False
     
     def _log_security_event(self, event_type: str, metadata: Dict[str, Any]) -> None:
@@ -441,11 +421,8 @@ class AndroidSecurityEnforcer(SecurityEnforcer):
         try:
             # This would typically integrate with the audit logger
             # For now, print to console
-            print(f"Android Security Event: {event_type}")
-            print(f"Metadata: {metadata}")
             
             # In production, this would call:
             # self.audit_logger.log_security_event(event_type, metadata, AuditSeverity.CRITICAL)
             
         except Exception as e:
-            print(f"Error logging security event: {e}")

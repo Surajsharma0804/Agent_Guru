@@ -7,9 +7,10 @@ synthesis on Windows 10/11.
 Validates: Requirements 36.3, 36.7
 """
 
-import threading
 import queue
+import threading
 from typing import Dict
+
 import win32com.client
 
 from ...interfaces import SpeechOutput, TTSPriority
@@ -99,7 +100,6 @@ class WindowsSpeechOutput(SpeechOutput):
             self.voice.Skip("Sentence", 999999)
             self._speaking = False
         except Exception as e:
-            print(f"Error stopping speech: {e}")
     
     def is_speaking(self) -> bool:
         """
@@ -124,7 +124,6 @@ class WindowsSpeechOutput(SpeechOutput):
             volume = max(0, min(100, volume))
             self.voice.Volume = volume
         except Exception as e:
-            print(f"Error setting volume: {e}")
     
     def set_rate(self, rate: int) -> None:
         """
@@ -138,7 +137,6 @@ class WindowsSpeechOutput(SpeechOutput):
             rate = max(-10, min(10, rate))
             self.voice.Rate = rate
         except Exception as e:
-            print(f"Error setting rate: {e}")
     
     def get_capabilities(self) -> Dict[str, bool]:
         """Return Windows speech output capabilities."""
@@ -182,7 +180,6 @@ class WindowsSpeechOutput(SpeechOutput):
                     self.voice.Speak(text, 0)  # 0 = synchronous
                     self._speaking = False
                 except Exception as e:
-                    print(f"Error in TTS synthesis: {e}")
                     self._speaking = False
     
     def __del__(self):

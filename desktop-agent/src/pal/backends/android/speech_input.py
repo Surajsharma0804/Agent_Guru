@@ -10,16 +10,16 @@ Validates: Requirements 37.5, 37.7, 1.1-1.6, 22.1-22.8
 """
 
 import json
+import os
 import subprocess
+import sys
+import tempfile
 import threading
 import time
 from datetime import datetime
-from typing import Dict, Any, Optional, Callable
-import sys
-import tempfile
-import os
+from typing import Any, Callable, Dict, Optional
 
-from ...interfaces import SpeechInput, Transcription, PlatformCapabilityError
+from ...interfaces import PlatformCapabilityError, SpeechInput, Transcription
 
 
 class AndroidSpeechInput(SpeechInput):
@@ -106,10 +106,8 @@ class AndroidSpeechInput(SpeechInput):
             )
             self._listen_thread.start()
             
-            print("Android speech recognition started")
             
         except Exception as e:
-            print(f"Error starting Android speech recognition: {e}")
             self._is_listening = False
     
     def stop_listening(self) -> None:
@@ -130,10 +128,8 @@ class AndroidSpeechInput(SpeechInput):
             if self._is_android:
                 self._cleanup_android_speech_recognition()
             
-            print("Android speech recognition stopped")
             
         except Exception as e:
-            print(f"Error stopping Android speech recognition: {e}")
     
     def transcribe(self, audio_data: bytes) -> Transcription:
         """
@@ -152,7 +148,6 @@ class AndroidSpeechInput(SpeechInput):
                 return self._transcribe_android_stt(audio_data)
                 
         except Exception as e:
-            print(f"Error transcribing audio: {e}")
             return Transcription(
                 text="",
                 confidence=0.0,
@@ -174,11 +169,9 @@ class AndroidSpeechInput(SpeechInput):
                 return self._calibrate_android_microphone()
             else:
                 # Development/testing mode
-                print("Would calibrate Android microphone")
                 return 300.0
                 
         except Exception as e:
-            print(f"Error calibrating microphone: {e}")
             return 300.0
     
     def set_voice_callback(self, callback: Callable[[Transcription], None]) -> None:
@@ -250,13 +243,10 @@ class AndroidSpeechInput(SpeechInput):
             )
             
             if 'android.hardware.microphone' not in result.stdout:
-                print("Warning: Microphone not available")
             
             if 'android.software.speech' not in result.stdout:
-                print("Warning: Speech recognition not available")
             
         except Exception as e:
-            print(f"Warning: Could not initialize Android speech recognition: {e}")
     
     def _init_whisper_cpp(self) -> None:
         """Initialize Whisper.cpp for local processing."""
@@ -270,16 +260,12 @@ class AndroidSpeechInput(SpeechInput):
             )
             
             if result.returncode != 0:
-                print("Warning: Whisper.cpp not found. Falling back to system STT.")
                 self.use_local_whisper = False
             else:
-                print(f"Whisper.cpp available: {result.stdout.strip()}")
             
         except FileNotFoundError:
-            print("Warning: Whisper.cpp not found. Falling back to system STT.")
             self.use_local_whisper = False
         except Exception as e:
-            print(f"Warning: Could not initialize Whisper.cpp: {e}")
             self.use_local_whisper = False
     
     def _listen_worker(self) -> None:
@@ -306,7 +292,6 @@ class AndroidSpeechInput(SpeechInput):
                     self._process_transcription(transcription)
                 
             except Exception as e:
-                print(f"Error in listen worker: {e}")
                 time.sleep(0.1)
     
     def _capture_audio_chunk(self) -> Optional[bytes]:
@@ -327,7 +312,6 @@ class AndroidSpeechInput(SpeechInput):
                 return b'\x00' * (self._chunk_size * 2)
                 
         except Exception as e:
-            print(f"Error capturing audio: {e}")
             return None
     
     def _calculate_energy(self, audio_data: bytes) -> float:
@@ -350,7 +334,6 @@ class AndroidSpeechInput(SpeechInput):
             return rms
             
         except Exception as e:
-            print(f"Error calculating energy: {e}")
             return 0.0
     
     def _process_transcription(self, transcription: Transcription) -> None:
@@ -390,7 +373,6 @@ class AndroidSpeechInput(SpeechInput):
                     self._voice_callback(transcription)
                     
         except Exception as e:
-            print(f"Error processing transcription: {e}")
     
     def _transcribe_whisper(self, audio_data: bytes) -> Transcription:
         """
@@ -435,7 +417,6 @@ class AndroidSpeechInput(SpeechInput):
                         metadata={'engine': 'whisper.cpp'}
                     )
                 else:
-                    print(f"Whisper.cpp error: {result.stderr}")
                     
             finally:
                 # Clean up temporary file
@@ -445,7 +426,6 @@ class AndroidSpeechInput(SpeechInput):
                     pass
             
         except Exception as e:
-            print(f"Error with Whisper.cpp transcription: {e}")
         
         # Return empty transcription on error
         return Transcription(
@@ -522,7 +502,6 @@ class AndroidSpeechInput(SpeechInput):
                 )
                 
         except Exception as e:
-            print(f"Error with Android STT transcription: {e}")
         
         # Return empty transcription on error
         return Transcription(
@@ -546,7 +525,7 @@ class AndroidSpeechInput(SpeechInput):
         """
         try:
             import struct
-            
+
             # WAV header
             sample_rate = self._sample_rate
             bits_per_sample = 16
@@ -566,7 +545,6 @@ class AndroidSpeechInput(SpeechInput):
             return wav_header + pcm_data
             
         except Exception as e:
-            print(f"Error converting PCM to WAV: {e}")
             return pcm_data
     
     def _calibrate_android_microphone(self) -> float:
@@ -577,7 +555,6 @@ class AndroidSpeechInput(SpeechInput):
             Energy threshold for voice detection
         """
         try:
-            print("Calibrating microphone for ambient noise...")
             
             # Capture 1 second of ambient noise
             energy_samples = []
@@ -593,14 +570,11 @@ class AndroidSpeechInput(SpeechInput):
                 avg_energy = sum(energy_samples) / len(energy_samples)
                 threshold = avg_energy * 2.0
                 self._energy_threshold = max(threshold, 100.0)  # Minimum threshold
-                print(f"Microphone calibrated. Threshold: {self._energy_threshold:.1f}")
                 return self._energy_threshold
             else:
-                print("Calibration failed. Using default threshold.")
                 return 300.0
                 
         except Exception as e:
-            print(f"Error calibrating microphone: {e}")
             return 300.0
     
     def _cleanup_android_speech_recognition(self) -> None:
@@ -616,4 +590,3 @@ class AndroidSpeechInput(SpeechInput):
                 )
                 
         except Exception as e:
-            print(f"Error cleaning up Android speech recognition: {e}")

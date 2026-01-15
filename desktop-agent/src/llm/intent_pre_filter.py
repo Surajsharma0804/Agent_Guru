@@ -23,7 +23,6 @@ from threading import RLock
 from typing import Any, Dict, List, Optional, Pattern, Tuple
 
 from .intent import IntentType, StructuredIntent
-from .exceptions import IntentValidationError
 
 
 class RoutingDecision(Enum):

@@ -8,18 +8,19 @@ voice profile management while maintaining security boundaries.
 Requirements: 15.5
 """
 
+import hashlib
 import json
 import logging
-import numpy as np
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
 from threading import Lock
-import hashlib
+from typing import Any, Dict, List, Optional, Tuple
 
-from .configuration import LanguageConfig, SupportedLanguages
+import numpy as np
+
+from .configuration import SupportedLanguages
 from .exceptions import ConfigurationError, UnsupportedLanguageError
 
 

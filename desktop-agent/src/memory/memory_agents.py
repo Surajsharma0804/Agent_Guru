@@ -21,17 +21,22 @@ Each agent provides:
 import logging
 import uuid
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Tuple, Union
 from contextlib import contextmanager
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
 from .database import DatabaseLifecycleOrchestrator
+from .encryption import EncryptedData, MemoryEncryption
 from .memory_types import (
-    BaseMemoryRecord, CoreMemory, EpisodicMemory, SemanticMemory,
-    ProceduralMemory, ResourceMemory, KnowledgeVault,
-    RetentionPolicy, AccessPolicy, DataType
+    BaseMemoryRecord,
+    CoreMemory,
+    DataType,
+    EpisodicMemory,
+    KnowledgeVault,
+    ProceduralMemory,
+    ResourceMemory,
+    SemanticMemory,
 )
-from .encryption import MemoryEncryption, EncryptedData
 from .vector_search import VectorSearchEngine
 
 logger = logging.getLogger(__name__)
@@ -39,7 +44,6 @@ logger = logging.getLogger(__name__)
 
 class MemoryOperationError(Exception):
     """Exception for memory operation failures."""
-    pass
 
 
 class BaseMemoryAgent(ABC):
@@ -63,12 +67,10 @@ class BaseMemoryAgent(ABC):
     @abstractmethod
     def get_table_name(self) -> str:
         """Get the database table name for this memory type."""
-        pass
     
     @abstractmethod
     def get_memory_type(self) -> str:
         """Get the memory type identifier."""
-        pass
     
     def _log_operation(self, operation_type: str, record_id: str, success: bool, 
                       execution_time_ms: int, error_message: Optional[str] = None) -> None:
