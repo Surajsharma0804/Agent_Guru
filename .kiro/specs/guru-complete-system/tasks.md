@@ -738,26 +738,26 @@ Each push triggers:
   - **Property 59: Excessive Permission Rejection** ✓ PASSING
   - **Validates: Requirements 25.5, 25.6**
 
-- [ ] 16. Checkpoint - Test All Core Systems
+- [x] 16. Checkpoint - Test All Core Systems
   - Ensure all memory system tests pass
   - Ensure all failure orchestrator tests pass
   - Ensure all thread safety tests pass
   - Ensure all permission model tests pass
   - Ask the user if questions arise
 
-- [ ] 17. Complete Configuration Management
+- [x] 17. Complete Configuration Management
   - Implement configuration hierarchy (user > workspace > system)
   - Implement Ollama model auto-detection
   - Implement configuration validation
   - _Requirements: 17, 18_
 
-- [ ] 17.1 Implement configuration hierarchy
+- [x] 17.1 Implement configuration hierarchy
   - Load configuration from %USERPROFILE%\.guru\
   - Support user, workspace, and system defaults
   - Implement configuration merging
   - _Requirements: 17.1, 17.2, 17.3, 17.6_
 
-- [ ] 17.2 Implement Ollama model auto-detection
+- [x] 17.2 Implement Ollama model auto-detection
   - Query Ollama for installed models
   - Select appropriate models for conversation, intent, reasoning
   - Generate llm_config.json automatically
