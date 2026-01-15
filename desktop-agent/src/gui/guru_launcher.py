@@ -31,14 +31,15 @@ Thread Safety:
 import signal
 import sys
 import time
+import logging
 from pathlib import Path
 from typing import Optional
 
-# Import console utilities for cross-platform Unicode support
-from utils.console import safe_print
-
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 try:
     from PyQt6.QtCore import QObject, Qt, pyqtSignal
@@ -95,8 +96,7 @@ class GURUIntegrationBridge(QObject):
     
     def initialize_backend(self):
         """Initialize backend security and audit systems"""
-        safe_print("Initializing backend systems...")
-        safe_print("DEBUG: About to create audit logger")
+        logger.info("Initializing backend systems...")
         
         try:
             # Initialize audit logger
@@ -105,41 +105,32 @@ class GURUIntegrationBridge(QObject):
                 enable_real_time_verification=True,
                 testing_mode=False
             )
-            safe_print("DEBUG: Audit logger created, about to log event")
             
             self.audit_logger.log_system_event(
                 "gui_launcher_start",
                 {"mode": "humanized_interface"},
                 AuditSeverity.INFO
             )
-            safe_print("DEBUG: Event logged")
-            safe_print("✓ Audit logger initialized")
+            logger.info("Audit logger initialized")
             
-            safe_print("DEBUG: About to create authority config")
             # Initialize authority machine
             config = AuthorityConfiguration(
                 test_mode_disable_workstation_lock=False  # Production mode
             )
-            safe_print("DEBUG: Config created, about to create authority machine")
             
             self.authority_machine = create_authority_state_machine(config)
-            safe_print("DEBUG: Authority machine created")
-            safe_print("✓ Authority machine initialized")
+            logger.info("Authority machine initialized")
             
-            safe_print("DEBUG: About to set is_initialized = True")
             self.is_initialized = True
-            safe_print("DEBUG: is_initialized set to True")
-            safe_print("Backend systems initialized successfully")
+            logger.info("Backend systems initialized successfully")
             
         except Exception as e:
-            safe_print(f"ERROR initializing backend: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Error initializing backend: {e}", exc_info=True)
             raise
     
     def initialize_gui(self):
         """Initialize GUI components"""
-        safe_print("Initializing GUI components...")
+        logger.info("Initializing GUI components...")
         
         try:
             # Create avatar window
@@ -184,19 +175,16 @@ class GURUIntegrationBridge(QObject):
                 Qt.ConnectionType.QueuedConnection
             )
             
-            
-            safe_print("✓ Voice interface created")
+            logger.info("Voice interface created")
             
             # Create conversation manager
             self.conversation_manager = create_conversation_manager()
-            safe_print("✓ Conversation manager created")
+            logger.info("Conversation manager created")
             
-            safe_print("GUI components initialized successfully")
+            logger.info("GUI components initialized successfully")
             
         except Exception as e:
-            safe_print(f"ERROR initializing GUI: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Error initializing GUI: {e}", exc_info=True)
             raise
     
     def start(self):
@@ -210,19 +198,19 @@ class GURUIntegrationBridge(QObject):
         audio_ok, audio_error = audio_manager.verify_audio_output()
         
         if not audio_ok:
-            safe_print(f"⚠ Audio configuration issue: {audio_error}")
+            logger.warning(f"Audio configuration issue: {audio_error}")
         
         # Warn about potential mute
         audio_manager.unmute_python_audio()
         
         # Show avatar window
         self.avatar_window.show()
-        safe_print("✓ Avatar window displayed")
+        logger.info("Avatar window displayed")
         
         # Start voice recognition
         if self.voice_interface.is_available():
             self.voice_interface.start_listening()
-            safe_print("✓ Voice recognition started")
+            logger.info("Voice recognition started")
             
             # Initial greeting
             self.speak_text.emit(
@@ -230,7 +218,7 @@ class GURUIntegrationBridge(QObject):
                 False
             )
         else:
-            safe_print("⚠ Voice recognition not available")
+            logger.warning("Voice recognition not available")
             self.update_status_text.emit("Voice recognition unavailable")
         
         # Update avatar state
@@ -247,9 +235,7 @@ class GURUIntegrationBridge(QObject):
                 AuditSeverity.INFO
             )
         
-        safe_print("\n✓ GURU is now active and listening!")
-        safe_print("Say 'Hey GURU' to start talking")
-        safe_print("="*60 + "\n")
+        logger.info("GURU is now active and listening")
     
     def on_voice_button_clicked(self):
         """Handle voice button click"""

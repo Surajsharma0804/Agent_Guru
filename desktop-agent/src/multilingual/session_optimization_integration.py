@@ -199,9 +199,9 @@ def example_session_optimization_workflow():
             mode='command'
         )
         
-        print(f"Command {i+1}: {result['success']}, "
-              f"Language: {result.get('language')}, "
-              f"Cache hit: {result['metrics']['detection'].get('cache_hit', False)}")
+        logger.info(f"Command {i+1}: {result['success']}, "
+                   f"Language: {result.get('language')}, "
+                   f"Cache hit: {result['metrics']['detection'].get('cache_hit', False)}")
         
     # Get session performance report
     processor.get_session_performance_report(session_id)

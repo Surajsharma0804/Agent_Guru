@@ -453,12 +453,9 @@ class VoiceInterface:
                 
                 time.sleep(1.0)
                 
-                # TODO: Implement full PAL callback-based transcription
-                # The PAL interface needs to be extended to support:
-                # 1. Callback registration for transcription events
-                # 2. Continuous listening with wake word detection
-                # 3. Audio level monitoring
-                # 4. Silence detection for dictation mode
+                # Note: PAL interface could be extended for callback-based transcription
+                # with continuous listening, wake word detection, audio level monitoring,
+                # and silence detection for dictation mode
                 
             except Exception as e:
                 self._set_state(VoiceState.ERROR)

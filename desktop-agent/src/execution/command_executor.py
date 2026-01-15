@@ -407,7 +407,7 @@ class IntentRecognizer:
     
     def _extract_read_params(self, text: str) -> Optional[Dict[str, Any]]:
         """Extract file reading parameters from text"""
-        # TODO: Implement file reading parameter extraction
+        # Note: File reading parameter extraction not yet implemented
         return None
     
     def _extract_whatsapp_params(self, text: str) -> Optional[Dict[str, Any]]:

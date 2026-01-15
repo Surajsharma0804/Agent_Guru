@@ -343,9 +343,9 @@ def example_resource_monitoring_workflow():
             operation_name=f"operation_{i}"
         )
         
-        print(f"Operation {i}: Success={result['success']}, "
-              f"Throttled={result.get('throttled', False)}, "
-              f"Status={result.get('resource_status', 'unknown')}")
+        logger.info(f"Operation {i}: Success={result['success']}, "
+                   f"Throttled={result.get('throttled', False)}, "
+                   f"Status={result.get('resource_status', 'unknown')}")
         
     # Get resource health report
     processor.get_resource_health_report()
@@ -353,12 +353,12 @@ def example_resource_monitoring_workflow():
     # Get resource trend
     trend = processor.get_resource_trend(duration_seconds=30)
     if trend['available']:
-        print(f"  CPU: min={trend['cpu']['min']:.1f}%, "
-              f"max={trend['cpu']['max']:.1f}%, "
-              f"avg={trend['cpu']['avg']:.1f}%")
-        print(f"  Memory: min={trend['memory']['min']:.1f}%, "
-              f"max={trend['memory']['max']:.1f}%, "
-              f"avg={trend['memory']['avg']:.1f}%")
+        logger.info(f"CPU: min={trend['cpu']['min']:.1f}%, "
+                   f"max={trend['cpu']['max']:.1f}%, "
+                   f"avg={trend['cpu']['avg']:.1f}%")
+        logger.info(f"Memory: min={trend['memory']['min']:.1f}%, "
+                   f"max={trend['memory']['max']:.1f}%, "
+                   f"avg={trend['memory']['avg']:.1f}%")
     
     # Cleanup
     processor.shutdown()

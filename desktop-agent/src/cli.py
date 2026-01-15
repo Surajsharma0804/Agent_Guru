@@ -131,7 +131,7 @@ def logs(limit: int, severity: Optional[str], component: Optional[str]):
         console.print(f"Total entries: {stats['total_entries']}")
         console.print(f"Database: {stats['database_path']}\n")
 
-        # TODO: Implement log querying and display
+        # Note: Full log querying and display functionality not yet implemented
         console.print("[yellow]Log viewing not yet fully implemented[/yellow]")
 
     except Exception as e:
@@ -146,7 +146,7 @@ def verify():
     try:
         audit_logger = AuditLogger(log_directory="audit_logs", testing_mode=True)
 
-        # TODO: Implement full integrity verification
+        # Note: Full integrity verification functionality not yet implemented
         stats = audit_logger.get_audit_statistics()
 
         console.print(f"[green]✓[/green] Audit database accessible")
