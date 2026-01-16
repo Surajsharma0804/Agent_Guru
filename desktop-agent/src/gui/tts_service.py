@@ -23,10 +23,14 @@ try:
 except ImportError:
 
     def safe_print(text, **kwargs):
+        """Safe print that handles Unicode encoding errors on Windows console"""
+        # Pre-emptively replace problematic Unicode characters for Windows console
+        text = str(text).replace("✓", "[OK]").replace("✗", "[X]").replace("⚠", "[!]").replace("🔊", "[SPEAK]")
         try:
             print(text, **kwargs)
         except UnicodeEncodeError:
-            text = str(text).replace("✓", "[OK]").replace("✗", "[X]").replace("⚠", "[!]").replace("🔊", "[SPEAK]")
+            # If still failing, use ASCII-only
+            text = text.encode('ascii', 'replace').decode('ascii')
             print(text, **kwargs)
 
 

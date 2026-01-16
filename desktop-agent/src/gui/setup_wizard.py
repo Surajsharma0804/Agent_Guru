@@ -118,7 +118,7 @@ class UserProfilePage(QWizardPage):
     def __init__(self):
         super().__init__()
         self.setTitle("Create Your Profile")
-        self.setSubTitle("Tell GURU about yoursel")
+        self.setSubTitle("Tell GURU about yourself")
 
         layout = QVBoxLayout()
 
@@ -132,7 +132,7 @@ class UserProfilePage(QWizardPage):
 
         # Username
         layout.addWidget(QLabel("Username (for system identification):"))
-        self._username = QLineEdit()
+        self.username = QLineEdit()
         self.username.setPlaceholderText("e.g., suraj_kumar")
         layout.addWidget(self.username)
 
@@ -390,7 +390,7 @@ class BiometricPage(QWizardPage):
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
-            _result = loop.run_until_complete(verify())
+            result = loop.run_until_complete(verify())
 
             if result.success:
                 self.status_label.setText(
@@ -561,7 +561,7 @@ class SetupWizard(QWizard):
         # Map language
         language_map = {"English": "en", "Hindi": "hi", "English + Hindi (Mixed)": "en-hi"}
 
-        _profile = config_manager.create_user_profile(
+        profile = config_manager.create_user_profile(
             user_name=setup_data["username"],
             display_name=setup_data["display_name"],
             password=setup_data["password"],
@@ -606,9 +606,9 @@ def run_setup_wizard() -> Optional[dict]:
 
     wizard.setup_complete.connect(on_complete)
 
-    _result = wizard.exec()
+    result = wizard.exec()
 
-    if _result == QWizard.DialogCode.Accepted:
+    if result == QWizard.DialogCode.Accepted:
         return setup_data
 
     return None

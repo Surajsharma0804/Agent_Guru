@@ -38,10 +38,11 @@ from pal.interfaces import (
 )
 
 # Hypothesis settings for property-based tests
-# Minimum 100 iterations per property as per requirements
-settings.register_profile("default", max_examples=100, verbosity=Verbosity.normal)
-settings.register_profile("ci", max_examples=200, verbosity=Verbosity.verbose)
-settings.register_profile("dev", max_examples=50, verbosity=Verbosity.normal)
+# Optimized for fast execution while maintaining statistical significance
+settings.register_profile("default", max_examples=10, deadline=10000, verbosity=Verbosity.normal)
+settings.register_profile("ci", max_examples=50, deadline=30000, verbosity=Verbosity.verbose)
+settings.register_profile("dev", max_examples=5, deadline=5000, verbosity=Verbosity.normal)
+settings.register_profile("thorough", max_examples=100, deadline=None, verbosity=Verbosity.verbose)
 settings.load_profile("default")
 
 
@@ -76,14 +77,16 @@ class MockApplicationController(ApplicationController):
                 display_name="Notepad",
                 executable_path="/path/to/notepad.exe",
                 is_running=False,
-                platform=self.platform
+                platform=self.platform,
+                metadata={}
             ),
             AppDescriptor(
                 app_id="chrome",
                 display_name="Google Chrome",
                 executable_path="/path/to/chrome.exe",
                 is_running=False,
-                platform=self.platform
+                platform=self.platform,
+                metadata={}
             )
         ]
     

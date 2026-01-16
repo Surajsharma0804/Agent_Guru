@@ -404,7 +404,7 @@ class IntentPreFilter:
             # Check for ambiguity first (Requirement 31.3)
             ambiguity_check = self._check_ambiguity(text)
             if ambiguity_check:
-                _result = PreFilterResult(
+                result = PreFilterResult(
                     routing_decision=RoutingDecision.AMBIGUOUS,
                     confidence=0.3,
                     ambiguity_reason=ambiguity_check,
@@ -430,7 +430,7 @@ class IntentPreFilter:
                         intent_type=pattern.intent_type, parameters=parameters, confidence=pattern.confidence
                     )
 
-                    _result = PreFilterResult(
+                    result = PreFilterResult(
                         routing_decision=RoutingDecision.DETERMINISTIC,
                         confidence=pattern.confidence,
                         intent=intent,
@@ -448,7 +448,7 @@ class IntentPreFilter:
                     return result
                 else:
                     # Confidence too low or parameters incomplete, requires LLM
-                    _result = PreFilterResult(
+                    result = PreFilterResult(
                         routing_decision=RoutingDecision.LLM_REQUIRED,
                         confidence=pattern.confidence,
                         bypass_llm=False,
@@ -470,7 +470,7 @@ class IntentPreFilter:
                     return result
             else:
                 # No pattern matched, requires LLM
-                _result = PreFilterResult(
+                result = PreFilterResult(
                     routing_decision=RoutingDecision.LLM_REQUIRED,
                     confidence=0.0,
                     bypass_llm=False,

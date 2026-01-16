@@ -39,7 +39,7 @@ class AutoStartManager:
             )
             return result.returncode == 0
         except Exception as e:
-            print(f"Error checking auto-start status: {e}")
+            logging.error(f"Error checking auto-start status: {e}")
             return False
 
     def enable(self, delay_seconds: int = 30) -> bool:
@@ -78,14 +78,14 @@ class AutoStartManager:
             temp_xml.unlink(missing_ok=True)
 
             if result.returncode == 0:
-                print(f"✓ Auto-start enabled: GURU will start {delay_seconds}s after Windows boot")
+                logging.info(f"Auto-start enabled: GURU will start {delay_seconds}s after Windows boot")
                 return True
             else:
-                print(f"✗ Failed to enable auto-start: {result.stderr}")
+                logging.error(f"Failed to enable auto-start: {result.stderr}")
                 return False
 
         except Exception as e:
-            print(f"Error enabling auto-start: {e}")
+            logging.error(f"Error enabling auto-start: {e}")
             return False
 
     def disable(self) -> bool:
@@ -99,14 +99,14 @@ class AutoStartManager:
             )
 
             if result.returncode == 0:
-                print("✓ Auto-start disabled")
+                logging.info("Auto-start disabled")
                 return True
             else:
                 # Task might not exist, which is fine
                 return True
 
         except Exception as e:
-            print(f"Error disabling auto-start: {e}")
+            logging.error(f"Error disabling auto-start: {e}")
             return False
 
     def _generate_task_xml(self, delay_seconds: int) -> str:
@@ -200,7 +200,7 @@ if __name__ == "__main__":
     # Test auto-start configuration
     manager = AutoStartManager()
 
-    print("Current status:", "Enabled" if manager.is_enabled() else "Disabled")
+    logging.info("Current status: %s", "Enabled" if manager.is_enabled() else "Disabled")
 
     if len(sys.argv) > 1:
         if sys.argv[1] == "enable":
@@ -208,4 +208,4 @@ if __name__ == "__main__":
         elif sys.argv[1] == "disable":
             manager.disable()
         elif sys.argv[1] == "status":
-            print("Auto-start:", "Enabled" if manager.is_enabled() else "Disabled")
+            logging.info("Auto-start: %s", "Enabled" if manager.is_enabled() else "Disabled")

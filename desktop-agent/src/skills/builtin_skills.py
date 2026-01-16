@@ -235,9 +235,9 @@ def get_system_info(info_type="basic"):
 try:
     info_type = parameters.get("info_type", "basic")
     result = get_system_info(info_type)
-    print(json.dumps(result, indent=2))
+    logging.info(json.dumps(result, indent=2))
 except Exception as e:
-    print(f"Error: {e}", file=sys.stderr)
+    logging.error(f"Error: {e}")
     sys.exit(1)
 '''
 
@@ -370,9 +370,9 @@ try:
         destination=parameters.get("destination")
     )
 
-    print(json.dumps(result, indent=2))
+    logging.info(json.dumps(result, indent=2))
 except Exception as e:
-    print(f"Error: {e}", file=sys.stderr)
+    logging.error(f"Error: {e}")
     sys.exit(1)
 '''
 
@@ -512,9 +512,9 @@ try:
         working_directory=parameters.get("working_directory")
     )
 
-    print(json.dumps(result, indent=2))
+    logging.info(json.dumps(result, indent=2))
 except Exception as e:
-    print(f"Error: {e}", file=sys.stderr)
+    logging.error(f"Error: {e}")
     sys.exit(1)
 '''
 
@@ -702,10 +702,10 @@ try:
         raise ValueError("text parameter is required")
 
     result = perform_text_operation(operation, text, options)
-    print(json.dumps(result, indent=2))
+    logging.info(json.dumps(result, indent=2))
 
 except Exception as e:
-    print(f"Error: {e}", file=sys.stderr)
+    logging.error(f"Error: {e}")
     sys.exit(1)
 '''
 

@@ -8,6 +8,7 @@ All intents must pass through authority gates and validation before
 any system action can be taken.
 """
 
+import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime

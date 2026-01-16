@@ -36,9 +36,11 @@ print("=" * 70)
 try:
     from config.first_run_detector import run_setup_wizard_if_needed
     
+    print("[INFO] Checking first-time setup status...")
     setup_completed = run_setup_wizard_if_needed()
     
     if setup_completed:
+        print("[INFO] Setup wizard completed successfully")
         # Reload configuration after setup
         from config.user_config import get_config_manager
         config_manager = get_config_manager()
@@ -48,6 +50,7 @@ try:
         print("=" * 70 + "\n")
     else:
         # Check if user has existing profile
+        print("[INFO] Setup wizard not needed or cancelled")
         from config.user_config import get_config_manager
         config_manager = get_config_manager()
         

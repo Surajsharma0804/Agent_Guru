@@ -32,6 +32,7 @@ def safe_print(text: str, end: str = "\n", flush: bool = False):
             "✓": "[OK]",
             "✗": "[X]",
             "⚠": "[!]",
+            "🔊": "[SPEAK]",
             "→": "->",
             "←": "<-",
             "↓": "|",

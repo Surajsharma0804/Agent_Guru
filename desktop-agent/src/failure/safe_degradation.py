@@ -87,11 +87,36 @@ class DegradationPlan:
 
     degradation_level: DegradationLevel
     affected_components: List[str]
-    actions: List[DegradationAction]
+    actions: List[DegradationAction] = field(default_factory=list)
     estimated_duration: Optional[float] = None
     recovery_criteria: List[str] = field(default_factory=list)
     security_implications: str = "none"
     user_notification_required: bool = True
+    
+    # Additional fields for test compatibility
+    plan_id: Optional[str] = None
+    trigger_reason: Optional[str] = None
+    degradation_actions: List[DegradationAction] = field(default_factory=list)
+    estimated_duration_seconds: Optional[float] = None
+    created_at: Optional[datetime] = None
+
+    def __post_init__(self):
+        """Post-initialization to handle field compatibility"""
+        # Ensure degradation_actions is synchronized with actions
+        if not self.degradation_actions and self.actions:
+            self.degradation_actions = self.actions
+        elif self.degradation_actions and not self.actions:
+            self.actions = self.degradation_actions
+        
+        # Ensure duration fields are synchronized
+        if self.estimated_duration_seconds is not None and self.estimated_duration is None:
+            self.estimated_duration = self.estimated_duration_seconds
+        elif self.estimated_duration is not None and self.estimated_duration_seconds is None:
+            self.estimated_duration_seconds = self.estimated_duration
+            
+        # Set created_at if not provided
+        if self.created_at is None:
+            self.created_at = datetime.now(timezone.utc)
 
     def is_security_safe(self) -> bool:
         """Check if degradation plan maintains security"""
@@ -393,6 +418,10 @@ class SystemDegradationOrchestrator:
                 ),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
+
+    def get_current_degradation_state(self) -> Dict[str, Any]:
+        """Alias for get_current_state for test compatibility"""
+        return self.get_current_state()
 
     def can_recover(self) -> bool:
         """Check if system can recover from current degradation"""

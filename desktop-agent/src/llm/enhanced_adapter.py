@@ -15,6 +15,7 @@ SECURITY INVARIANTS:
 """
 
 import asyncio
+import json
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -132,23 +133,51 @@ class EnhancedLLMAdapter(LLMAdapter):
 
         # Check cache first
         if self.cache:
-            cached_response = self.cache.get(prompt=user_input, context=context, model=preferred_provider)
+            # Create cache key from input parameters
+            cache_key_data = {
+                "user_input": user_input,
+                "context": context,
+                "preferred_provider": preferred_provider
+            }
+            
+            cached_response_data = self.cache.get(
+                prompt=user_input, 
+                context=cache_key_data, 
+                model=preferred_provider
+            )
 
-            if cached_response:
+            if cached_response_data:
                 self.logger.debug("Cache hit - returning cached response")
-
-                # Parse cached response into SafeResponse
+                
                 try:
-                    intent = self.intent_validator.validate_raw_response(cached_response)
+                    # Parse cached SafeResponse data
+                    response_dict = json.loads(cached_response_data)
+                    
+                    # Reconstruct StructuredIntent
+                    intent_data = response_dict.get("safe_intent")
+                    if intent_data:
+                        from .intent import IntentType
+                        intent = StructuredIntent(
+                            intent_type=IntentType(intent_data["intent_type"]),
+                            parameters=intent_data["parameters"],
+                            confidence=intent_data["confidence"],
+                            context=intent_data.get("context", "")
+                        )
+                    else:
+                        intent = None
+                    
+                    # Return cached SafeResponse
                     return SafeResponse(
-                        success=True,
+                        success=response_dict["success"],
                         safe_intent=intent,
-                        original_filtered=cached_response,
+                        original_filtered=response_dict.get("original_filtered"),
+                        error_message=response_dict.get("error_message"),
                         processing_time_ms=self._get_processing_time(start_time),
-                        metadata={"cache_hit": True},
+                        metadata={"cache_hit": True}
                     )
+                    
                 except Exception as e:
-                    self.logger.warning(f"Cached response validation failed: {e}")
+                    self.logger.warning(f"Failed to parse cached response: {e}")
                     # Continue to generate new response
 
         # Attempt generation with timeout
@@ -162,10 +191,30 @@ class EnhancedLLMAdapter(LLMAdapter):
             response = await asyncio.wait_for(generation_task, timeout=timeout)
 
             # Cache successful response
-            if self.cache and response.success and response.original_filtered:
-                self.cache.put(
-                    prompt=user_input, response=response.original_filtered, context=context, model=preferred_provider
-                )
+            if self.cache and response.success:
+                try:
+                    # Serialize SafeResponse for caching
+                    cache_data = {
+                        "success": response.success,
+                        "safe_intent": response.safe_intent.to_dict() if response.safe_intent else None,
+                        "original_filtered": response.original_filtered,
+                        "error_message": response.error_message
+                    }
+                    
+                    cache_key_data = {
+                        "user_input": user_input,
+                        "context": context,
+                        "preferred_provider": preferred_provider
+                    }
+                    
+                    self.cache.put(
+                        prompt=user_input,
+                        response=json.dumps(cache_data),
+                        context=cache_key_data,
+                        model=preferred_provider
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Failed to cache response: {e}")
 
             return response
 

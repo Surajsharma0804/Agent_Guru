@@ -266,9 +266,13 @@ class AuthorityStateMachine:
 
     def __del__(self):
         """Cleanup resources on destruction."""
-        self._monitoring_active = False
-        if hasattr(self, "_monitor_thread") and self._monitor_thread.is_alive():
-            self._monitor_thread.join(timeout=1.0)
+        try:
+            self._monitoring_active = False
+            if hasattr(self, "_monitor_thread") and self._monitor_thread is not None and self._monitor_thread.is_alive():
+                self._monitor_thread.join(timeout=1.0)
+        except (AttributeError, TypeError):
+            # Ignore cleanup errors during interpreter shutdown
+            pass
 
     @property
     def current_state(self) -> AuthorityState:

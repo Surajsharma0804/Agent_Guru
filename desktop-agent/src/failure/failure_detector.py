@@ -736,3 +736,15 @@ class FailureDetector:
             "min_detection_time_ms": min(self._detection_performance) * 1000,
             "total_detections": len(self._detection_performance),
         }
+
+    def get_failure_tracking(self, component_name: str) -> Dict[str, Any]:
+        """Get failure tracking information for a component."""
+        with self._detection_lock:
+            return {
+                "component_name": component_name,
+                "consecutive_failures": self._consecutive_failures.get(component_name, 0),
+                "last_failure_time": self._last_failure_time.get(component_name),
+                "active_failure": self._active_failures.get(component_name),
+                "is_in_cascade": component_name in self._cascade_in_progress,
+                "recent_failure_count": len(self._cascade_detection_window.get(component_name, [])),
+            }

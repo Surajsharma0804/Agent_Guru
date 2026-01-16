@@ -24,7 +24,7 @@ import sys
 from typing import Dict, List
 
 import pytest
-from hypothesis import assume, given, settings
+from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 
 # Import PAL interfaces
@@ -335,12 +335,13 @@ class TestProperty96ApplicationControllerConsistency:
     """
     
     @pytest.mark.properties
-    @settings(max_examples=100)
+    @settings(max_examples=100,
+        suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
     @given(
-        platform=st.sampled_from(["windows", "macos", "android", "ios"]),
         app_id=st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd')))
     )
-    def test_app_descriptor_structure_is_consistent(self, platform, app_id, platform_backends):
+    def test_app_descriptor_structure_is_consistent(self, app_id, platform_backends, platform_name):
         """
         Test that AppDescriptor objects have consistent structure across platforms.
         
@@ -369,15 +370,16 @@ class TestProperty96ApplicationControllerConsistency:
             assert isinstance(app.platform, str)
             
             # Verify platform matches
-            assert app.platform == platform
+            assert app.platform == platform_name
     
     @pytest.mark.properties
-    @settings(max_examples=100)
+    @settings(max_examples=100,
+        suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
     @given(
-        platform=st.sampled_from(["windows", "macos", "android", "ios"]),
         app_id=st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=('Ll', 'Nd')))
     )
-    def test_app_operations_return_consistent_types(self, platform, app_id, platform_backends):
+    def test_app_operations_return_consistent_types(self, app_id, platform_backends):
         """
         Test that application operations return consistent types across platforms.
         
@@ -399,9 +401,11 @@ class TestProperty96ApplicationControllerConsistency:
         assert isinstance(result, bool)
     
     @pytest.mark.properties
-    @settings(max_examples=100)
-    @given(platform=st.sampled_from(["windows", "macos", "android", "ios"]))
-    def test_discover_apps_returns_list_of_descriptors(self, platform, platform_backends):
+    @settings(max_examples=100,
+        suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    @given(dummy=st.just(None))  # Dummy parameter to make Hypothesis run
+    def test_discover_apps_returns_list_of_descriptors(self, dummy, platform_backends):
         """
         Test that discover_apps returns a list of AppDescriptor objects.
         
@@ -444,9 +448,11 @@ class TestProperty97InputAutomationCapabilityDeclaration:
     ]
     
     @pytest.mark.properties
-    @settings(max_examples=100)
-    @given(platform=st.sampled_from(["windows", "macos", "android", "ios"]))
-    def test_input_automation_declares_capabilities(self, platform, platform_backends):
+    @settings(max_examples=100,
+        suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    @given(dummy=st.just(None))  # Dummy parameter to make Hypothesis run
+    def test_input_automation_declares_capabilities(self, dummy, platform_backends):
         """
         Test that Input_Automation explicitly declares all capabilities.
         
@@ -466,9 +472,11 @@ class TestProperty97InputAutomationCapabilityDeclaration:
             assert isinstance(capabilities[key], bool), f"Capability {key} must be boolean"
     
     @pytest.mark.properties
-    @settings(max_examples=100)
-    @given(platform=st.sampled_from(["windows", "macos", "android", "ios"]))
-    def test_capability_declarations_match_platform_reality(self, platform, platform_backends):
+    @settings(max_examples=100,
+        suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    @given(dummy=st.just(None))  # Dummy parameter to make Hypothesis run
+    def test_capability_declarations_match_platform_reality(self, dummy, platform_backends, platform_name):
         """
         Test that declared capabilities match platform reality.
         
@@ -479,13 +487,13 @@ class TestProperty97InputAutomationCapabilityDeclaration:
         capabilities = automation.get_capabilities()
         
         # Windows: Full automation
-        if platform == "windows":
+        if platform_name == "windows":
             assert capabilities['full_automation'] == True
             assert capabilities['can_type_text'] == True
             assert capabilities['can_click'] == True
             
         # macOS: Full automation with permission
-        elif platform == "macos":
+        elif platform_name == "macos":
             assert capabilities['full_automation'] == True
             assert capabilities['can_type_text'] == True
             assert capabilities['can_click'] == True
@@ -493,24 +501,25 @@ class TestProperty97InputAutomationCapabilityDeclaration:
             assert 'requires_accessibility_permission' in capabilities
             
         # Android: Partial automation
-        elif platform == "android":
+        elif platform_name == "android":
             assert capabilities['full_automation'] == False
             # Should declare accessibility service requirement
             assert 'requires_accessibility_service' in capabilities
             
         # iOS: Severely restricted
-        elif platform == "ios":
+        elif platform_name == "ios":
             assert capabilities['full_automation'] == False
             assert capabilities['can_type_text'] == False
             assert capabilities['can_click'] == False
     
     @pytest.mark.properties
-    @settings(max_examples=100)
+    @settings(max_examples=100,
+        suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
     @given(
-        platform=st.sampled_from(["windows", "macos", "android", "ios"]),
         capability_key=st.sampled_from(['can_type_text', 'can_click', 'can_focus_app', 'full_automation'])
     )
-    def test_capabilities_are_boolean_values(self, platform, capability_key, platform_backends):
+    def test_capabilities_are_boolean_values(self, capability_key, platform_backends):
         """
         Test that all capability values are boolean.
         
@@ -542,12 +551,13 @@ class TestProperty112CoreLogicPlatformAgnosticTesting:
     """
     
     @pytest.mark.properties
-    @settings(max_examples=100)
+    @settings(max_examples=100,
+        suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
     @given(
-        platform=st.sampled_from(["windows", "macos", "android", "ios", "mock"]),
         operation=st.sampled_from(["app_control", "input_automation", "speech", "auth", "security"])
     )
-    def test_core_logic_testable_with_mock_interfaces(self, platform, operation, all_mock_backends):
+    def test_core_logic_testable_with_mock_interfaces(self, operation, all_mock_backends):
         """
         Test that core logic can be tested using mock PAL interfaces.
         
@@ -593,7 +603,9 @@ class TestProperty112CoreLogicPlatformAgnosticTesting:
             assert isinstance(result, bool)
     
     @pytest.mark.properties
-    @settings(max_examples=100)
+    @settings(max_examples=100,
+        suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
     @given(interface_name=st.sampled_from([
         "ApplicationController", "InputAutomation", "SpeechOutput",
         "SpeechInput", "BiometricAuthenticator", "SecurityEnforcer"
@@ -644,12 +656,13 @@ class TestProperty112CoreLogicPlatformAgnosticTesting:
             assert callable(getattr(mock_impl, method)), f"Mock method not callable: {method}"
     
     @pytest.mark.properties
-    @settings(max_examples=100)
+    @settings(max_examples=100,
+        suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
     @given(
-        platform=st.sampled_from(["windows", "macos", "android", "ios"]),
         test_scenario=st.sampled_from(["success", "failure", "edge_case"])
     )
-    def test_mock_interfaces_support_different_test_scenarios(self, platform, test_scenario, platform_backends):
+    def test_mock_interfaces_support_different_test_scenarios(self, test_scenario, platform_backends):
         """
         Test that mock interfaces can simulate different scenarios.
         
@@ -690,9 +703,11 @@ class TestPALPropertiesIntegration:
     """
     
     @pytest.mark.properties
-    @settings(max_examples=100)
-    @given(platform=st.sampled_from(["windows", "macos", "android", "ios"]))
-    def test_complete_pal_stack_is_platform_agnostic(self, platform, platform_backends):
+    @settings(max_examples=100,
+        suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    @given(dummy=st.just(None))  # Dummy parameter to make Hypothesis run
+    def test_complete_pal_stack_is_platform_agnostic(self, dummy, platform_backends, platform_name):
         """
         Test that the complete PAL stack maintains platform isolation.
         
@@ -724,4 +739,4 @@ class TestPALPropertiesIntegration:
         # Verify platform consistency
         apps = backends["app_controller"].discover_apps()
         for app in apps:
-            assert app.platform == platform
+            assert app.platform == platform_name

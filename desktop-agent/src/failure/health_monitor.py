@@ -269,7 +269,7 @@ class ComponentHealthMonitor:
             # Record performance
             self._record_check_performance(name, response_time_ms)
 
-        except HealthCheckTimeoutError:
+        except HealthCheckTimeoutError as e:
             self._record_health_check_failure(name, f"Health check timeout: {e}")
         except Exception as e:
             self._record_health_check_failure(name, f"Health check error: {e}")
@@ -280,7 +280,7 @@ class ComponentHealthMonitor:
 
         def health_check_worker():
             try:
-                _result = component.health_check()
+                result = component.health_check()
                 result_queue.put(("success", result))
             except Exception as e:
                 result_queue.put(("error", str(e)))
@@ -290,7 +290,7 @@ class ComponentHealthMonitor:
         check_thread.start()
 
         try:
-            status, _result = result_queue.get(timeout=timeout_seconds)
+            status, result = result_queue.get(timeout=timeout_seconds)
             if status == "error":
                 raise ComponentFailureError("health_check", result)
             return result

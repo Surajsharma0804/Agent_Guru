@@ -9,6 +9,7 @@ All LLM outputs are structured intents that must pass authority gates.
 """
 
 import asyncio
+import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -438,7 +439,7 @@ class LLMAdapter:
 
                 return safe_response
 
-            except Exception:
+            except Exception as e:
                 attempts += 1
 
                 # Update provider failure statistics

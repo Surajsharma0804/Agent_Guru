@@ -124,7 +124,7 @@ def run_setup_wizard_if_needed() -> bool:
     try:
         from PyQt6.QtWidgets import QApplication
 
-        from ..gui.setup_wizard import run_setup_wizard
+        from gui.setup_wizard import run_setup_wizard
 
         # Create Qt application if needed
         app = QApplication.instance()
