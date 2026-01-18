@@ -52,7 +52,7 @@ except ImportError:
 from src.audit.audit_logger import AuditLogger, AuditSeverity
 
 # Backend integration
-from src.authority.state import AuthorityConfiguration, AuthorityStateMachine, create_authority_state_machine
+from src.authority.authority_state_machine import AuthorityConfiguration, AuthorityStateMachine, create_authority_state_machine
 from src.gui.avatar_window import AvatarState, GURUAvatarWindow, create_guru_window
 from src.gui.conversation_manager import ConversationManager, Emotion, Intent, create_conversation_manager
 from src.gui.voice_interface import VoiceCommand, VoiceInterface, VoiceState, create_voice_interface

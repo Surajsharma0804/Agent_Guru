@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional
 
-from ..authority.state import AuthorityState, AuthorityStateMachine
+from ..authority.authority_state_machine import AuthorityState, AuthorityStateMachine
 
 
 class AuthorityLevel(Enum):
@@ -257,7 +257,7 @@ class AuthorityGate:
         self.logger.critical(f"Authority revocation triggering workstation lock: {reason}")
 
         # Map reason to StateTransitionReason
-        from ..authority.state import StateTransitionReason
+        from ..authority.authority_state_machine import StateTransitionReason
 
         reason_mapping = {
             "manual": StateTransitionReason.MANUAL_REVOKE,

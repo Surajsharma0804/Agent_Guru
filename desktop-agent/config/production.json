@@ -1,0 +1,129 @@
+{
+  "system": {
+    "name": "GURU Personal Assistant",
+    "version": "1.0.0",
+    "environment": "production",
+    "debug": false,
+    "log_level": "INFO",
+    "startup_timeout": 300.0,
+    "shutdown_timeout": 60.0
+  },
+  "security": {
+    "enable_biometric_auth": true,
+    "authority_timeout_minutes": 30,
+    "max_failed_attempts": 5,
+    "lockout_duration_minutes": 15,
+    "enable_intrusion_detection": true,
+    "crypto_algorithm": "ECDSA-P256",
+    "enable_audit_logging": true,
+    "audit_log_encryption": true
+  },
+  "voice": {
+    "wake_words": ["hey guru", "guru"],
+    "sample_rate": 16000,
+    "chunk_size": 1024,
+    "enable_noise_reduction": true,
+    "confidence_threshold": 0.7,
+    "timeout_seconds": 30,
+    "enable_speaker_verification": false,
+    "voice_model": "whisper-base",
+    "language": "en"
+  },
+  "llm": {
+    "providers": [
+      {
+        "name": "gemini",
+        "enabled": true,
+        "api_key_env": "GEMINI_API_KEY",
+        "model": "gemini-pro",
+        "timeout": 30,
+        "max_retries": 3,
+        "rate_limit_rpm": 60
+      },
+      {
+        "name": "openai",
+        "enabled": false,
+        "api_key_env": "OPENAI_API_KEY",
+        "model": "gpt-4",
+        "timeout": 30,
+        "max_retries": 3,
+        "rate_limit_rpm": 60
+      }
+    ],
+    "enable_caching": true,
+    "cache_ttl_seconds": 3600,
+    "enable_safety_filtering": true,
+    "max_tokens": 4000,
+    "temperature": 0.7
+  },
+  "memory": {
+    "database_path": "~/.guru/memory/mirix.db",
+    "enable_encryption": true,
+    "encryption_key_env": "GURU_MEMORY_KEY",
+    "enable_vector_search": true,
+    "vector_dimensions": 1536,
+    "retention_days": 365,
+    "max_memories": 100000,
+    "backup_enabled": true,
+    "backup_interval_hours": 24
+  },
+  "performance": {
+    "enable_monitoring": true,
+    "collection_interval": 1.0,
+    "enable_optimization": true,
+    "anomaly_sensitivity": 2.0,
+    "max_cpu_threshold": 80.0,
+    "max_memory_threshold": 85.0,
+    "health_check_interval": 30.0
+  },
+  "resources": {
+    "enable_leak_detection": true,
+    "leak_detection_interval": 60.0,
+    "enable_resource_pooling": true,
+    "resource_limits": {
+      "memory": 1073741824,
+      "file_handle": 1000,
+      "network_connection": 100,
+      "thread": 200,
+      "database_connection": 50
+    }
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8080,
+    "enable_cors": false,
+    "cors_origins": [],
+    "enable_https": false,
+    "ssl_cert_path": null,
+    "ssl_key_path": null,
+    "request_timeout": 30.0,
+    "max_request_size": 10485760
+  },
+  "platform": {
+    "enable_platform_detection": true,
+    "enable_capability_validation": true,
+    "platform_specific_optimizations": true
+  },
+  "skills": {
+    "enable_skills_system": true,
+    "skills_directory": "~/.guru/skills",
+    "enable_skill_sandboxing": true,
+    "skill_timeout_seconds": 60,
+    "max_concurrent_skills": 5
+  },
+  "ui": {
+    "enable_avatar_interface": true,
+    "avatar_position": "bottom_right",
+    "enable_notifications": true,
+    "notification_timeout_seconds": 5,
+    "theme": "dark"
+  },
+  "logging": {
+    "log_directory": "~/.guru/logs",
+    "log_level": "INFO",
+    "max_log_size_mb": 100,
+    "max_log_files": 10,
+    "enable_structured_logging": true,
+    "enable_log_encryption": false
+  }
+}

@@ -16,7 +16,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
-from ..authority.state import AuthorityState, AuthorityStateMachine
+from ..authority.authority_state_machine import AuthorityState, AuthorityStateMachine
 from .configuration import MultilingualConfig, SupportedLanguages
 from .intent_normalization import CanonicalIntent, IntentNormalizationLayer, ProcessingMode
 from .mode_classification import MultilingualModeClassifier

@@ -17,7 +17,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
-from ..authority.state import AuthorityStateMachine
+from ..authority.authority_state_machine import AuthorityStateMachine
 from ..input.windows_input_engine import WindowsInputEngine
 from .configuration import LanguageScript, MultilingualConfig, SupportedLanguages
 

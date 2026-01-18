@@ -222,11 +222,15 @@ class GURUAvatarWindow(QMainWindow):
     - Status indicators
     - Quick action buttons
     - Transparent background
+    - THREAD-SAFE GUI updates via signals
     """
 
-    # Signals
+    # Signals for thread-safe GUI updates
     voice_button_clicked = pyqtSignal()
     settings_button_clicked = pyqtSignal()
+    status_update_signal = pyqtSignal(str)  # Thread-safe status updates
+    avatar_state_signal = pyqtSignal(object)  # Thread-safe avatar state updates
+    audio_level_signal = pyqtSignal(float)  # Thread-safe audio level updates
 
     def __init__(self):
         super().__init__()
@@ -240,10 +244,35 @@ class GURUAvatarWindow(QMainWindow):
 
         # Setup UI
         self.setup_ui()
+        
+        # Connect thread-safe signals
+        self.setup_thread_safe_connections()
 
         # Position window
         self.resize(400, 500)
         self.move_to_corner()
+
+    def setup_thread_safe_connections(self):
+        """
+        Setup thread-safe signal connections.
+        
+        CRITICAL: These connections use Qt.QueuedConnection to ensure
+        GUI updates are marshalled to the main thread safely.
+        """
+        self.status_update_signal.connect(
+            self._update_status_text_safe, 
+            Qt.ConnectionType.QueuedConnection
+        )
+        
+        self.avatar_state_signal.connect(
+            self._update_avatar_state_safe, 
+            Qt.ConnectionType.QueuedConnection
+        )
+        
+        self.audio_level_signal.connect(
+            self._update_audio_level_safe, 
+            Qt.ConnectionType.QueuedConnection
+        )
 
     def setup_ui(self):
         """Setup user interface"""
@@ -372,7 +401,19 @@ class GURUAvatarWindow(QMainWindow):
         layout.addWidget(close_button, alignment=Qt.AlignmentFlag.AlignRight)
 
     def set_state(self, state: AvatarState):
-        """Set avatar state"""
+        """
+        Set avatar state - THREAD SAFE VERSION
+        
+        CRITICAL: This method can be called from any thread.
+        GUI updates are marshalled to main thread via signals.
+        """
+        # Emit signal for thread-safe avatar state update
+        self.avatar_state_signal.emit(state)
+
+    def _update_avatar_state_safe(self, state: AvatarState):
+        """
+        Thread-safe avatar state update - MUST run in main thread
+        """
         self.avatar.set_state(state)
 
         # Update status text
@@ -385,14 +426,34 @@ class GURUAvatarWindow(QMainWindow):
             AvatarState.ERROR: "Error occurred",
             AvatarState.LOCKED: "Locked - Authentication required",
         }
-        self.status_label.setText(status_texts.get(state, "Ready"))
+        status_text = status_texts.get(state, "Ready")
+        self.status_label.setText(status_text)
+
+    def _update_status_text_safe(self, text: str):
+        """
+        Thread-safe status text update - MUST run in main thread
+        """
+        self.status_label.setText(text)
 
     def set_visualizer_active(self, active: bool):
-        """Set voice visualizer active"""
+        """Set voice visualizer active - THREAD SAFE"""
+        # This is safe as it only sets a boolean flag
         self.visualizer.set_active(active)
 
     def update_audio_level(self, level: float):
-        """Update audio level visualization"""
+        """
+        Update audio level visualization - THREAD SAFE VERSION
+        
+        CRITICAL: This method can be called from audio thread.
+        GUI updates are marshalled to main thread via signals.
+        """
+        # Emit signal for thread-safe audio level update
+        self.audio_level_signal.emit(level)
+
+    def _update_audio_level_safe(self, level: float):
+        """
+        Thread-safe audio level update - MUST run in main thread
+        """
         self.visualizer.update_audio_level(level)
 
     def move_to_corner(self):

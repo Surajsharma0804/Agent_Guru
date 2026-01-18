@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Set
 
 import structlog
 
-from authority.state import BiometricFactor
+from authority.authority_state_machine import BiometricFactor
 
 logger = structlog.get_logger(__name__)
 

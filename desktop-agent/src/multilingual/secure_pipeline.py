@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional
 
 # Import existing GURU components (simplified for testing)
 try:
-    from src.authority.state import AuthorityState, AuthorityStateMachine, BiometricFactor, StateTransitionReason
+    from src.authority.authority_state_machine import AuthorityState, AuthorityStateMachine, BiometricFactor, StateTransitionReason
 except ImportError:
     # Fallback for testing - create mock classes
     from enum import Enum
@@ -86,7 +86,7 @@ except ImportError:
 
 
 try:
-    from src.llm.adapter import LLMAdapter
+    from src.language_model.adapter import LLMAdapter
 except ImportError:
     # Fallback for testing
     class LLMAdapter:

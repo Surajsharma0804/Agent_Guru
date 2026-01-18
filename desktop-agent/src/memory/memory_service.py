@@ -166,12 +166,20 @@ class MemorySubsystemController:
             logger.info("Vector search disabled")
 
     def _initialize_retention(self, enable_retention: bool) -> None:
-        """Initialize retention policy manager."""
+        """Initialize retention policy manager using dependency injection."""
         if enable_retention:
-            from .retention import MemoryRetentionEnforcer  # Local import to avoid circular dependency
-
-            self.retention_manager = MemoryRetentionEnforcer(self.db_orchestrator)
-            logger.info("Retention policy manager initialized")
+            # Use dependency injection to avoid circular imports
+            from ..core.dependency_injection import resolve
+            try:
+                # Try to resolve retention manager from DI container
+                from .retention import MemoryRetentionEnforcer
+                self.retention_manager = resolve(MemoryRetentionEnforcer)
+                logger.info("Retention policy manager resolved from DI container")
+            except Exception:
+                # Fallback to direct instantiation if not registered
+                from .retention import MemoryRetentionEnforcer
+                self.retention_manager = MemoryRetentionEnforcer(self.db_orchestrator)
+                logger.info("Retention policy manager initialized directly")
         else:
             self.retention_manager = None
             logger.info("Retention policies disabled")

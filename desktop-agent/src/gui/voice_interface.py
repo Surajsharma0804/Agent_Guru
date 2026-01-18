@@ -32,6 +32,14 @@ from gui.tts_service import get_tts_service
 # PAL imports - platform-agnostic interfaces
 from pal.interfaces import SpeechInput, SpeechOutput, TTSPriority
 
+# Speech recognition availability check
+try:
+    from pal.backend_factory import get_backend
+    _speech_backend = get_backend().get_speech_input()
+    SPEECH_RECOGNITION_AVAILABLE = _speech_backend is not None and _speech_backend.is_available()
+except Exception:
+    SPEECH_RECOGNITION_AVAILABLE = False
+
 
 class VoiceState(Enum):
     """Voice interface states"""
@@ -372,28 +380,33 @@ class VoiceInterface:
                     else:
                         pass
 
-                # Wait for audio input (PAL handles the actual listening)
-                # This is a simplified approach - in production, PAL would provide
-                # a callback-based or async interface for continuous listening
-                time.sleep(0.5)
+                # PRODUCTION PAL INTEGRATION - Event-driven audio processing
+                try:
+                    # Get transcription from PAL SpeechInput with timeout
+                    transcription_result = self.speech_input.get_transcription(timeout=0.5)
+                    
+                    if transcription_result:
+                        transcribed_text = transcription_result.text
+                        has_speech = transcription_result.has_speech
+                        confidence = transcription_result.confidence
+                        
+                        # Only process high-confidence transcriptions
+                        if confidence < 0.7:
+                            continue
+                            
+                    else:
+                        transcribed_text = ""
+                        has_speech = self.speech_input.has_active_speech()
+                        
+                except Exception as e:
+                    # PAL integration error - log and continue
+                    print(f"PAL SpeechInput error: {e}")
+                    transcribed_text = ""
+                    has_speech = False
 
-                # In a real implementation, PAL would provide audio data
-                # For now, we simulate by checking if PAL has transcription available
-                # This would be replaced with actual PAL callback mechanism
-
-                # Process transcription
-                self._set_state(VoiceState.PROCESSING)
-
-                # NOTE: This is a placeholder for PAL integration
-                # In production, PAL SpeechInput would provide a callback or
-                # async interface for receiving transcriptions
-                # For now, we maintain compatibility by noting this needs
-                # full PAL callback integration
-
-                # Simulated transcription for demonstration
-                # In production, this would come from PAL callback
-                transcribed_text = ""  # Would come from PAL
-                has_speech = False  # Would come from PAL audio detection
+                # Process transcription if available
+                if transcribed_text:
+                    self._set_state(VoiceState.PROCESSING)
 
                 # CRITICAL: Strip wake word if in active state
                 if self.is_active and transcribed_text:

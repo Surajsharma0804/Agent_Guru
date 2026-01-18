@@ -17,9 +17,9 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 # Import existing GURU components
-from ..authority.state import AuthorityConfiguration, AuthorityStateMachine
+from ..authority.authority_state_machine import AuthorityConfiguration, AuthorityStateMachine
 from ..input.windows_input_engine import WindowsInputEngine
-from ..llm.adapter import LLMAdapter
+from ..language_model.adapter import LLMAdapter
 from ..voice.voice_pipeline import PipelineConfig, VoiceProcessingPipeline
 
 # Import multilingual components
@@ -140,7 +140,7 @@ class SecureGuruMultilingualIntegration:
             test_mode_disable_workstation_lock=False
         )
 
-        from src.authority.state import create_authority_state_machine
+        from src.authority.authority_state_machine import create_authority_state_machine
 
         return create_authority_state_machine(config)
 

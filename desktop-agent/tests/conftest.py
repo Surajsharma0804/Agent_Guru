@@ -22,7 +22,7 @@ from hypothesis import Verbosity, settings
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from pal.interfaces import (
+from platform_abstraction_layer.interfaces import (
     AppDescriptor,
     ApplicationController,
     AuthResult,

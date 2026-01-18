@@ -579,13 +579,22 @@ class FailureDetector:
         # and halt all automation. For now, we log the critical event.
         try:
             # Import here to avoid circular dependencies
-            pass
-
-            # Try to get the authority state machine and trigger emergency halt
-            # This is a simplified implementation - in production, this would be
-            # properly integrated with the dependency injection system
-        except ImportError:
-            self.logger.warning("Authority system not available for emergency halt")
+            from ..authority.authority_state_machine import AuthorityStateMachine, RevocationReason
+            
+            # Get the authority state machine and trigger emergency halt
+            # This integrates with the dependency injection system
+            authority_machine = AuthorityStateMachine.get_instance()
+            if authority_machine:
+                authority_machine.revoke_authority(
+                    reason=RevocationReason.SYSTEM_FAILURE,
+                    metadata={"cascade_failure_count": len(self.cascade_failures)}
+                )
+                self.logger.critical("Emergency authority revocation triggered due to cascade failures")
+            else:
+                self.logger.error("Authority state machine not available for emergency halt")
+                
+        except ImportError as e:
+            self.logger.warning(f"Authority system not available for emergency halt: {e}")
 
     def _detect_cascade_failures(self) -> None:
         """Detect cascade failures across components."""

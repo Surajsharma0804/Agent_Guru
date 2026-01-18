@@ -6,17 +6,21 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-
-# Forward declaration to avoid circular imports
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import structlog
 
-from authority.state import BiometricFactor
-from biometric.providers import BiometricProviderType, BiometricResult
+# Use absolute imports to avoid relative import issues during testing
+try:
+    from authority.authority_state_machine import BiometricFactor
+    from biometric.biometric_authentication_providers import BiometricProviderType, BiometricResult
+except ImportError:
+    # Fallback to relative imports
+    from ..authority.authority_state_machine import BiometricFactor
+    from ..biometric.biometric_authentication_providers import BiometricProviderType, BiometricResult
 
 if TYPE_CHECKING:
-    from src.intrusion.detection import IntrusionDetector
+    from .detection import IntrusionDetector
 
 logger = structlog.get_logger(__name__)
 

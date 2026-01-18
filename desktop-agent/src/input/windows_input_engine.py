@@ -17,7 +17,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Union
 
-from ..authority.state import AuthorityState, AuthorityStateMachine
+from ..authority.authority_state_machine import AuthorityState, AuthorityStateMachine
 from .input_audit_logger import InputAuditLogger
 from .input_validator import InputValidator
 

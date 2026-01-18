@@ -23,7 +23,7 @@ import pytest
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from authority.state import (
+from authority.authority_state_machine import (
     AuthorityConfiguration,
     AuthorityState,
     AuthorityStateMachine,
@@ -341,7 +341,7 @@ class TestBiometricAuthenticationIntegration:
             authority_machine = AuthorityStateMachine(config)
             
             # Set policy to require biometric factors (not just voice)
-            from authority.state import AuthorityPolicy
+            from authority.authority_state_machine import AuthorityPolicy
             authority_machine.set_authority_policy(AuthorityPolicy.MEDIUM_RISK)
             
             # Initiate voice re-arm to enter IDENTITY_VERIFICATION

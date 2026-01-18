@@ -23,6 +23,7 @@ Security Principles:
 
 import logging
 import threading
+import time
 import weakref
 from dataclasses import dataclass
 from datetime import datetime
@@ -382,17 +383,39 @@ class SystemFailureOrchestrator:
             self._system_state = SystemFailureState.EMERGENCY_HALT
             self._performance_stats["emergency_halts"] += 1
 
-        # This would integrate with the authority system to immediately revoke all authority
-        # and halt all automation. For now, we log the critical event.
+        # Integrate with the authority system to immediately revoke all authority
+        # and halt all automation for system-wide failures.
         try:
             # Import here to avoid circular dependencies
-            pass
-
-            # Try to get the authority state machine and trigger emergency halt
-            # This is a simplified implementation - in production, this would be
-            # properly integrated with the dependency injection system
-        except ImportError:
-            self.logger.warning("Authority system not available for emergency halt")
+            from ..authority.authority_state_machine import AuthorityStateMachine, RevocationReason
+            
+            # Get the authority state machine and trigger emergency halt
+            authority_machine = AuthorityStateMachine.get_instance()
+            if authority_machine:
+                authority_machine.revoke_authority(
+                    reason=RevocationReason.SYSTEM_FAILURE,
+                    metadata={
+                        "emergency_halt": True,
+                        "failed_components": components,
+                        "halt_timestamp": time.time()
+                    }
+                )
+                self.logger.critical("EMERGENCY AUTHORITY REVOCATION: System-wide failure detected")
+                
+                # Trigger workstation lock for maximum security
+                try:
+                    from ..intrusion.workstation_lock import create_workstation_locker, WorkstationLockTrigger
+                    locker = create_workstation_locker()
+                    locker.lock_workstation(WorkstationLockTrigger.SYSTEM_FAILURE)
+                    self.logger.critical("WORKSTATION LOCKED: Emergency security protocol activated")
+                except Exception as lock_error:
+                    self.logger.error(f"Failed to lock workstation during emergency halt: {lock_error}")
+                    
+            else:
+                self.logger.error("Authority state machine not available for emergency halt")
+                
+        except ImportError as e:
+            self.logger.warning(f"Authority system not available for emergency halt: {e}")
 
     def _trigger_emergency_halt_for_components(self, components: List[str]) -> None:
         """Trigger emergency halt for multiple component failures."""

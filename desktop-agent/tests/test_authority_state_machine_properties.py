@@ -29,7 +29,7 @@ from hypothesis import strategies as st
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from authority.state import (
+from authority.authority_state_machine import (
     AuthorityConfiguration,
     AuthorityPolicy,
     AuthorityState,

@@ -27,13 +27,13 @@ from hypothesis import strategies as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from llm.enhanced_adapter import EnhancedAdapterConfiguration, EnhancedLLMAdapter
-from llm.exceptions import ProviderError
-from llm.intent import IntentType, StructuredIntent
-from llm.providers import LLMProvider, ProviderCapabilities, ProviderStatus
-from llm.response_cache import ResponseCache
-from llm.safety import SafeResponse
-from llm.template_responses import ResponseCategory, TemplateResponseSystem
+from language_model.enhanced_adapter import EnhancedAdapterConfiguration, EnhancedLLMAdapter
+from language_model.exceptions import ProviderError
+from language_model.intent import IntentType, StructuredIntent
+from language_model.providers import LLMProvider, ProviderCapabilities, ProviderStatus
+from language_model.response_cache import ResponseCache
+from language_model.safety import SafeResponse
+from language_model.template_responses import ResponseCategory, TemplateResponseSystem
 
 # ============================================================================
 # Test Fixtures and Helpers

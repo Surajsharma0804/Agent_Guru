@@ -15,14 +15,20 @@
     "build": "tsc --build",
     "clean": "rm -rf dist",
     "dev": "tsc --build --watch",
-    "test": "echo \"No tests defined for shared package\"",
-    "test:crypto": "echo \"No crypto tests defined\"",
-    "test:properties": "echo \"No property tests defined\"",
-    "test:negative:injection": "echo \"No injection tests defined\""
+    "test": "jest --run",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --run",
+    "test:properties": "jest --testNamePattern=\"Property\" --run",
+    "test:unit": "jest --testNamePattern=\"Unit\" --run"
   },
   "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "@types/jest": "^29.5.0",
+    "jest": "^29.5.0",
+    "ts-jest": "^29.1.0",
+    "fast-check": "^3.15.0",
+    "@types/node": "^20.0.0"
   },
   "files": [
     "dist/**/*",

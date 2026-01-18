@@ -245,7 +245,7 @@ class BiometricPage(QWizardPage):
             available_factors = self._get_available_factors()
 
             # Import BiometricFactor for comparison
-            from src.authority.state import BiometricFactor
+            from src.authority.authority_state_machine import BiometricFactor
 
             # Display detected hardware
             hardware_status = QLabel("Detected biometric hardware:")
@@ -361,8 +361,8 @@ class BiometricPage(QWizardPage):
         try:
             import asyncio
 
-            from src.authority.state import BiometricFactor
-            from src.biometric.providers import BiometricProviderConfig, WindowsHelloProvider
+            from src.authority.authority_state_machine import BiometricFactor
+            from src.biometric.biometric_authentication_providers import BiometricProviderConfig, WindowsHelloProvider
 
             config = BiometricProviderConfig()
             provider = WindowsHelloProvider(config)
@@ -417,7 +417,7 @@ class BiometricPage(QWizardPage):
         # Only enable options that have available hardware
         available_factors = self._get_available_factors()
 
-        from src.authority.state import BiometricFactor
+        from src.authority.authority_state_machine import BiometricFactor
 
         if BiometricFactor.FINGERPRINT in available_factors:
             self.fingerprint.setEnabled(enabled)

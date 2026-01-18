@@ -17,3 +17,6 @@ export * from './crypto/index.js';
 
 // Network and communication utilities
 export * from './network/index.js';
+
+// Avatar system interfaces and types
+export * from './avatar/index.js';

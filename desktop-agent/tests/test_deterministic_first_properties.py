@@ -20,9 +20,9 @@ from hypothesis import strategies as st
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from llm.intent import IntentType
-from llm.intent_pre_filter import ActionPattern, IntentPreFilter, PreFilterResult, RoutingDecision
-from llm.intent_router import IntentRouter
+from language_model.intent import IntentType
+from language_model.intent_pre_filter import ActionPattern, IntentPreFilter, PreFilterResult, RoutingDecision
+from language_model.intent_router import IntentRouter
 
 # ============================================================================
 # Test Data Generators

@@ -306,7 +306,7 @@ class ConversationManager:
             if str(src_path) not in sys.path:
                 sys.path.insert(0, str(src_path))
 
-            from llm.config_manager import get_llm_config_manager
+            from language_model.config_manager import get_llm_config_manager
 
             # Load configuration
             config_manager = get_llm_config_manager()
