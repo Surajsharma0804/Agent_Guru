@@ -262,8 +262,12 @@ export class EmotionEngine extends AvatarEventEmitter implements EmotionEngine {
       // Apply emotional boundaries
       const boundedState = this.applyEmotionalBoundaries(emotionalState);
       
+      // For complex blending, use higher blend weight to ensure visibility
+      const isComplexBlending = Array.isArray(boundedState.secondary) && boundedState.secondary.length > 1;
+      const blendWeight = isComplexBlending ? 0.8 : 0.5;
+      
       // Blend with current state
-      const blendedState = this.blendEmotionalStates(this.currentState, boundedState, 0.5);
+      const blendedState = this.blendEmotionalStates(this.currentState, boundedState, blendWeight);
       
       // Initiate transition to new state
       await this.transitionToState(blendedState);
@@ -842,28 +846,6 @@ export class EmotionEngine extends AvatarEventEmitter implements EmotionEngine {
       blendShapes[key] = Math.max(0, Math.min(1, blendShapes[key]));
     });
 
-    // Debug logging for complex blending test
-    if (state.primary === 'joy' && Array.isArray(state.secondary) && state.secondary.includes('surprise')) {
-      console.log('DEBUG: Complex blending state:', {
-        primary: state.primary,
-        secondary: state.secondary,
-        intensity: state.intensity
-      });
-      
-      const activeShapes = Object.entries(blendShapes)
-        .filter(([key, value]) => value > 0.1)
-        .map(([key, value]) => ({ [key]: value }));
-      
-      console.log('DEBUG: Active blend shapes (> 0.1):', activeShapes);
-      console.log('DEBUG: Total active shapes:', activeShapes.length);
-      
-      // Log all non-zero blend shapes
-      const nonZeroShapes = Object.entries(blendShapes)
-        .filter(([key, value]) => value > 0)
-        .map(([key, value]) => ({ [key]: value }));
-      console.log('DEBUG: All non-zero blend shapes:', nonZeroShapes);
-    }
-
     return blendShapes;
   }
 
@@ -874,103 +856,115 @@ export class EmotionEngine extends AvatarEventEmitter implements EmotionEngine {
     let normalizedEmotion = emotion;
     if (emotion === 'curiosity') normalizedEmotion = 'curious';
     if (emotion === 'excitement') normalizedEmotion = 'excited';
+    if (emotion === 'contentment') normalizedEmotion = 'content';
+    
+    // Ensure minimum effective intensity for complex blending
+    const minEffectiveIntensity = Math.max(effectiveIntensity, 0.15);
     
     switch (normalizedEmotion) {
       case 'joy':
       case 'happy':
       case 'excitement':
       case 'excited':
-        blendShapes['mouthSmileLeft'] = Math.max(blendShapes['mouthSmileLeft'], effectiveIntensity);
-        blendShapes['mouthSmileRight'] = Math.max(blendShapes['mouthSmileRight'], effectiveIntensity);
-        blendShapes['cheekSquintLeft'] = Math.max(blendShapes['cheekSquintLeft'], effectiveIntensity * 0.7);
-        blendShapes['cheekSquintRight'] = Math.max(blendShapes['cheekSquintRight'], effectiveIntensity * 0.7);
-        blendShapes['mouthDimpleLeft'] = Math.max(blendShapes['mouthDimpleLeft'], effectiveIntensity * 0.5);
-        blendShapes['mouthDimpleRight'] = Math.max(blendShapes['mouthDimpleRight'], effectiveIntensity * 0.5);
+        blendShapes['mouthSmileLeft'] = Math.max(blendShapes['mouthSmileLeft'], minEffectiveIntensity);
+        blendShapes['mouthSmileRight'] = Math.max(blendShapes['mouthSmileRight'], minEffectiveIntensity);
+        blendShapes['cheekSquintLeft'] = Math.max(blendShapes['cheekSquintLeft'], minEffectiveIntensity * 0.7);
+        blendShapes['cheekSquintRight'] = Math.max(blendShapes['cheekSquintRight'], minEffectiveIntensity * 0.7);
+        blendShapes['mouthDimpleLeft'] = Math.max(blendShapes['mouthDimpleLeft'], minEffectiveIntensity * 0.5);
+        blendShapes['mouthDimpleRight'] = Math.max(blendShapes['mouthDimpleRight'], minEffectiveIntensity * 0.5);
         break;
         
       case 'sadness':
-        blendShapes['mouthFrownLeft'] = Math.max(blendShapes['mouthFrownLeft'], effectiveIntensity);
-        blendShapes['mouthFrownRight'] = Math.max(blendShapes['mouthFrownRight'], effectiveIntensity);
-        blendShapes['browInnerUp'] = Math.max(blendShapes['browInnerUp'], effectiveIntensity * 0.8);
-        blendShapes['mouthLowerDownLeft'] = Math.max(blendShapes['mouthLowerDownLeft'], effectiveIntensity * 0.6);
-        blendShapes['mouthLowerDownRight'] = Math.max(blendShapes['mouthLowerDownRight'], effectiveIntensity * 0.6);
+        blendShapes['mouthFrownLeft'] = Math.max(blendShapes['mouthFrownLeft'], minEffectiveIntensity);
+        blendShapes['mouthFrownRight'] = Math.max(blendShapes['mouthFrownRight'], minEffectiveIntensity);
+        blendShapes['browInnerUp'] = Math.max(blendShapes['browInnerUp'], minEffectiveIntensity * 0.8);
+        blendShapes['mouthLowerDownLeft'] = Math.max(blendShapes['mouthLowerDownLeft'], minEffectiveIntensity * 0.6);
+        blendShapes['mouthLowerDownRight'] = Math.max(blendShapes['mouthLowerDownRight'], minEffectiveIntensity * 0.6);
         break;
         
       case 'anger':
-        blendShapes['browDownLeft'] = Math.max(blendShapes['browDownLeft'], effectiveIntensity);
-        blendShapes['browDownRight'] = Math.max(blendShapes['browDownRight'], effectiveIntensity);
-        blendShapes['noseSneerLeft'] = Math.max(blendShapes['noseSneerLeft'], effectiveIntensity * 0.6);
-        blendShapes['noseSneerRight'] = Math.max(blendShapes['noseSneerRight'], effectiveIntensity * 0.6);
-        blendShapes['mouthStretchLeft'] = Math.max(blendShapes['mouthStretchLeft'], effectiveIntensity * 0.4);
-        blendShapes['mouthStretchRight'] = Math.max(blendShapes['mouthStretchRight'], effectiveIntensity * 0.4);
+        blendShapes['browDownLeft'] = Math.max(blendShapes['browDownLeft'], minEffectiveIntensity);
+        blendShapes['browDownRight'] = Math.max(blendShapes['browDownRight'], minEffectiveIntensity);
+        blendShapes['noseSneerLeft'] = Math.max(blendShapes['noseSneerLeft'], minEffectiveIntensity * 0.6);
+        blendShapes['noseSneerRight'] = Math.max(blendShapes['noseSneerRight'], minEffectiveIntensity * 0.6);
+        blendShapes['mouthStretchLeft'] = Math.max(blendShapes['mouthStretchLeft'], minEffectiveIntensity * 0.4);
+        blendShapes['mouthStretchRight'] = Math.max(blendShapes['mouthStretchRight'], minEffectiveIntensity * 0.4);
         break;
         
       case 'fear':
-        blendShapes['eyeWideLeft'] = Math.max(blendShapes['eyeWideLeft'], effectiveIntensity);
-        blendShapes['eyeWideRight'] = Math.max(blendShapes['eyeWideRight'], effectiveIntensity);
-        blendShapes['browInnerUp'] = Math.max(blendShapes['browInnerUp'], effectiveIntensity);
-        blendShapes['jawOpen'] = Math.max(blendShapes['jawOpen'], effectiveIntensity * 0.3);
+        blendShapes['eyeWideLeft'] = Math.max(blendShapes['eyeWideLeft'], minEffectiveIntensity);
+        blendShapes['eyeWideRight'] = Math.max(blendShapes['eyeWideRight'], minEffectiveIntensity);
+        blendShapes['browInnerUp'] = Math.max(blendShapes['browInnerUp'], minEffectiveIntensity);
+        blendShapes['jawOpen'] = Math.max(blendShapes['jawOpen'], minEffectiveIntensity * 0.3);
         break;
         
       case 'surprise':
-        blendShapes['eyeWideLeft'] = Math.max(blendShapes['eyeWideLeft'], effectiveIntensity);
-        blendShapes['eyeWideRight'] = Math.max(blendShapes['eyeWideRight'], effectiveIntensity);
-        blendShapes['browInnerUp'] = Math.max(blendShapes['browInnerUp'], effectiveIntensity);
-        blendShapes['jawOpen'] = Math.max(blendShapes['jawOpen'], effectiveIntensity * 0.5);
-        blendShapes['mouthFunnel'] = Math.max(blendShapes['mouthFunnel'], effectiveIntensity * 0.3);
+        blendShapes['eyeWideLeft'] = Math.max(blendShapes['eyeWideLeft'], minEffectiveIntensity);
+        blendShapes['eyeWideRight'] = Math.max(blendShapes['eyeWideRight'], minEffectiveIntensity);
+        blendShapes['browInnerUp'] = Math.max(blendShapes['browInnerUp'], minEffectiveIntensity);
+        blendShapes['jawOpen'] = Math.max(blendShapes['jawOpen'], minEffectiveIntensity * 0.5);
+        blendShapes['mouthFunnel'] = Math.max(blendShapes['mouthFunnel'], minEffectiveIntensity * 0.3);
         break;
         
       case 'disgust':
-        blendShapes['noseSneerLeft'] = Math.max(blendShapes['noseSneerLeft'], effectiveIntensity);
-        blendShapes['noseSneerRight'] = Math.max(blendShapes['noseSneerRight'], effectiveIntensity);
-        blendShapes['mouthFrownLeft'] = Math.max(blendShapes['mouthFrownLeft'], effectiveIntensity * 0.7);
-        blendShapes['mouthFrownRight'] = Math.max(blendShapes['mouthFrownRight'], effectiveIntensity * 0.7);
-        blendShapes['mouthShrugUpper'] = Math.max(blendShapes['mouthShrugUpper'], effectiveIntensity * 0.5);
+        blendShapes['noseSneerLeft'] = Math.max(blendShapes['noseSneerLeft'], minEffectiveIntensity);
+        blendShapes['noseSneerRight'] = Math.max(blendShapes['noseSneerRight'], minEffectiveIntensity);
+        blendShapes['mouthFrownLeft'] = Math.max(blendShapes['mouthFrownLeft'], minEffectiveIntensity * 0.7);
+        blendShapes['mouthFrownRight'] = Math.max(blendShapes['mouthFrownRight'], minEffectiveIntensity * 0.7);
+        blendShapes['mouthShrugUpper'] = Math.max(blendShapes['mouthShrugUpper'], minEffectiveIntensity * 0.5);
         break;
         
       case 'trust':
       case 'confident':
-        blendShapes['mouthSmileLeft'] = Math.max(blendShapes['mouthSmileLeft'], effectiveIntensity * 0.4);
-        blendShapes['mouthSmileRight'] = Math.max(blendShapes['mouthSmileRight'], effectiveIntensity * 0.4);
-        blendShapes['eyeSquintLeft'] = Math.max(blendShapes['eyeSquintLeft'], effectiveIntensity * 0.3);
-        blendShapes['eyeSquintRight'] = Math.max(blendShapes['eyeSquintRight'], effectiveIntensity * 0.3);
+        blendShapes['mouthSmileLeft'] = Math.max(blendShapes['mouthSmileLeft'], minEffectiveIntensity * 0.4);
+        blendShapes['mouthSmileRight'] = Math.max(blendShapes['mouthSmileRight'], minEffectiveIntensity * 0.4);
+        blendShapes['eyeSquintLeft'] = Math.max(blendShapes['eyeSquintLeft'], minEffectiveIntensity * 0.3);
+        blendShapes['eyeSquintRight'] = Math.max(blendShapes['eyeSquintRight'], minEffectiveIntensity * 0.3);
         break;
         
       case 'anticipation':
       case 'curious':
       case 'curiosity':
-        blendShapes['browInnerUp'] = Math.max(blendShapes['browInnerUp'], effectiveIntensity * 0.6);
-        blendShapes['eyeWideLeft'] = Math.max(blendShapes['eyeWideLeft'], effectiveIntensity * 0.4);
-        blendShapes['eyeWideRight'] = Math.max(blendShapes['eyeWideRight'], effectiveIntensity * 0.4);
-        blendShapes['mouthSmileLeft'] = Math.max(blendShapes['mouthSmileLeft'], effectiveIntensity * 0.3);
-        blendShapes['mouthSmileRight'] = Math.max(blendShapes['mouthSmileRight'], effectiveIntensity * 0.3);
+        blendShapes['browInnerUp'] = Math.max(blendShapes['browInnerUp'], minEffectiveIntensity * 0.6);
+        blendShapes['eyeWideLeft'] = Math.max(blendShapes['eyeWideLeft'], minEffectiveIntensity * 0.4);
+        blendShapes['eyeWideRight'] = Math.max(blendShapes['eyeWideRight'], minEffectiveIntensity * 0.4);
+        blendShapes['mouthSmileLeft'] = Math.max(blendShapes['mouthSmileLeft'], minEffectiveIntensity * 0.3);
+        blendShapes['mouthSmileRight'] = Math.max(blendShapes['mouthSmileRight'], minEffectiveIntensity * 0.3);
         break;
         
       case 'focused':
-        blendShapes['eyeSquintLeft'] = Math.max(blendShapes['eyeSquintLeft'], effectiveIntensity * 0.5);
-        blendShapes['eyeSquintRight'] = Math.max(blendShapes['eyeSquintRight'], effectiveIntensity * 0.5);
-        blendShapes['browDownLeft'] = Math.max(blendShapes['browDownLeft'], effectiveIntensity * 0.3);
-        blendShapes['browDownRight'] = Math.max(blendShapes['browDownRight'], effectiveIntensity * 0.3);
+        blendShapes['eyeSquintLeft'] = Math.max(blendShapes['eyeSquintLeft'], minEffectiveIntensity * 0.5);
+        blendShapes['eyeSquintRight'] = Math.max(blendShapes['eyeSquintRight'], minEffectiveIntensity * 0.5);
+        blendShapes['browDownLeft'] = Math.max(blendShapes['browDownLeft'], minEffectiveIntensity * 0.3);
+        blendShapes['browDownRight'] = Math.max(blendShapes['browDownRight'], minEffectiveIntensity * 0.3);
         break;
         
       case 'concerned':
-        blendShapes['browInnerUp'] = Math.max(blendShapes['browInnerUp'], effectiveIntensity * 0.7);
-        blendShapes['mouthFrownLeft'] = Math.max(blendShapes['mouthFrownLeft'], effectiveIntensity * 0.4);
-        blendShapes['mouthFrownRight'] = Math.max(blendShapes['mouthFrownRight'], effectiveIntensity * 0.4);
+        blendShapes['browInnerUp'] = Math.max(blendShapes['browInnerUp'], minEffectiveIntensity * 0.7);
+        blendShapes['mouthFrownLeft'] = Math.max(blendShapes['mouthFrownLeft'], minEffectiveIntensity * 0.4);
+        blendShapes['mouthFrownRight'] = Math.max(blendShapes['mouthFrownRight'], minEffectiveIntensity * 0.4);
         break;
         
       case 'apologetic':
-        blendShapes['browInnerUp'] = Math.max(blendShapes['browInnerUp'], effectiveIntensity * 0.6);
-        blendShapes['mouthFrownLeft'] = Math.max(blendShapes['mouthFrownLeft'], effectiveIntensity * 0.5);
-        blendShapes['mouthFrownRight'] = Math.max(blendShapes['mouthFrownRight'], effectiveIntensity * 0.5);
-        blendShapes['eyeSquintLeft'] = Math.max(blendShapes['eyeSquintLeft'], effectiveIntensity * 0.3);
-        blendShapes['eyeSquintRight'] = Math.max(blendShapes['eyeSquintRight'], effectiveIntensity * 0.3);
+        blendShapes['browInnerUp'] = Math.max(blendShapes['browInnerUp'], minEffectiveIntensity * 0.6);
+        blendShapes['mouthFrownLeft'] = Math.max(blendShapes['mouthFrownLeft'], minEffectiveIntensity * 0.5);
+        blendShapes['mouthFrownRight'] = Math.max(blendShapes['mouthFrownRight'], minEffectiveIntensity * 0.5);
+        blendShapes['eyeSquintLeft'] = Math.max(blendShapes['eyeSquintLeft'], minEffectiveIntensity * 0.3);
+        blendShapes['eyeSquintRight'] = Math.max(blendShapes['eyeSquintRight'], minEffectiveIntensity * 0.3);
+        break;
+        
+      case 'content':
+      case 'calm':
+        blendShapes['mouthSmileLeft'] = Math.max(blendShapes['mouthSmileLeft'], minEffectiveIntensity * 0.2);
+        blendShapes['mouthSmileRight'] = Math.max(blendShapes['mouthSmileRight'], minEffectiveIntensity * 0.2);
+        blendShapes['eyeSquintLeft'] = Math.max(blendShapes['eyeSquintLeft'], minEffectiveIntensity * 0.1);
+        blendShapes['eyeSquintRight'] = Math.max(blendShapes['eyeSquintRight'], minEffectiveIntensity * 0.1);
         break;
         
       default:
         // Neutral or unknown emotions - minimal expression
-        blendShapes['mouthSmileLeft'] = Math.max(blendShapes['mouthSmileLeft'], effectiveIntensity * 0.1);
-        blendShapes['mouthSmileRight'] = Math.max(blendShapes['mouthSmileRight'], effectiveIntensity * 0.1);
+        blendShapes['mouthSmileLeft'] = Math.max(blendShapes['mouthSmileLeft'], minEffectiveIntensity * 0.1);
+        blendShapes['mouthSmileRight'] = Math.max(blendShapes['mouthSmileRight'], minEffectiveIntensity * 0.1);
         break;
     }
   }

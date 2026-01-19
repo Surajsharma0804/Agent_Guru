@@ -107,8 +107,13 @@ describe('EmotionEngine - Production Grade Tests', () => {
             expect(result.success).toBe(true);
             expect(result.data.blendShapes).toBeDefined();
             
-            // Verify complex blending produces multiple active blend shapes
+            // Debug: Log the actual blend shapes to understand what's happening
+            console.log('Complex blending test - Blend shapes:', result.data.blendShapes);
             const activeShapes = Object.values(result.data.blendShapes).filter(weight => weight > 0.1);
+            console.log('Active shapes (> 0.1):', activeShapes);
+            console.log('Active shapes count:', activeShapes.length);
+            
+            // Verify complex blending produces multiple active blend shapes
             expect(activeShapes.length).toBeGreaterThan(1);
         });
 
