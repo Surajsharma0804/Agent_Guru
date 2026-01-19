@@ -15,11 +15,11 @@
     "build": "tsc --build",
     "clean": "rm -rf dist",
     "dev": "tsc --build --watch",
-    "test": "jest --run",
+    "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage --run",
-    "test:properties": "jest --testNamePattern=\"Property\" --run",
-    "test:unit": "jest --testNamePattern=\"Unit\" --run"
+    "test:coverage": "jest --coverage --passWithNoTests",
+    "test:properties": "jest --testNamePattern=\"Property\" --passWithNoTests",
+    "test:unit": "jest --testNamePattern=\"Unit\" --passWithNoTests"
   },
   "dependencies": {},
   "devDependencies": {

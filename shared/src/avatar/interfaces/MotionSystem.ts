@@ -255,6 +255,13 @@ export interface MotionSystemConfig {
   gestureFrequency: number; // gestures per minute
   microMovementIntensity: number; // 0.0 to 1.0
   
+  // Feature enablement
+  enableMicroMovements: boolean;
+  enableContextualGestures: boolean;
+  enableEmotionalPostures: boolean;
+  enableAttentionTracking: boolean;
+  realTimeGeneration: boolean;
+  
   // Drift prevention
   driftPreventionEnabled: boolean;
   driftCheckInterval: number; // milliseconds
@@ -265,14 +272,37 @@ export interface MotionSystemConfig {
   gestureAppropriateness: number; // 0.0 to 1.0
   eyeContactLevel: number; // 0.0 to 1.0
   personalSpaceRespect: number; // 0.0 to 1.0
+  culturalSensitivity: number; // 0.0 to 1.0
   
   // Performance settings
   optimizeForBattery: boolean;
   backgroundProcessing: boolean;
   cacheSize: number; // bytes
+  motionSmoothness: number; // 0.0 to 1.0
+  
+  // Gesture settings
+  gestureIntensity: number; // 0.0 to 1.0
+  
+  // Physical constraints
+  physicalConstraints: PhysicalConstraints;
+  
+  // Quality assurance
+  qualityAssurance: MotionQualityAssurance;
   
   // Platform-specific settings
   platformOptimizations: Record<string, unknown>;
+}
+
+/**
+ * Motion quality assurance configuration
+ */
+export interface MotionQualityAssurance {
+  enabled: boolean;
+  naturalnessTreshold: number; // 0.0 to 1.0
+  smoothnessThreshold: number; // 0.0 to 1.0
+  consistencyThreshold: number; // 0.0 to 1.0
+  autoCorrection: boolean;
+  validationInterval: number; // milliseconds
 }
 
 /**

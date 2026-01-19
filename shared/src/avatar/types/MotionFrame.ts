@@ -23,6 +23,68 @@ export interface MotionFrame {
   gesture?: GestureFrame;
   attention?: AttentionFrame;
   
+  // Body parts for compatibility with implementation
+  head?: {
+    position: Vector3;
+    rotation: Vector3;
+  };
+  torso?: {
+    position: Vector3;
+    rotation: Vector3;
+  };
+  leftArm?: {
+    position: Vector3;
+    rotation: Vector3;
+  };
+  rightArm?: {
+    position: Vector3;
+    rotation: Vector3;
+  };
+  eyes?: {
+    direction: Vector3;
+    convergence: number;
+  };
+  posture?: {
+    spine: Vector3;
+    shoulders: Vector3;
+  };
+  microMovements?: {
+    head: Vector3;
+    torso: Vector3;
+  };
+  
+  // Additional compatibility properties
+  headPose?: {
+    position: Vector3;
+    rotation: Vector3;
+  };
+  eyeGaze?: {
+    direction: Vector3;
+    confidence: number;
+  };
+  facialExpression?: {
+    happiness: number;
+    sadness: number;
+    anger: number;
+    surprise: number;
+    fear: number;
+    disgust: number;
+  };
+  bodyPosture?: {
+    spine: Vector3;
+    shoulders: Vector3;
+  };
+  gestureState?: {
+    activeGestures: string[];
+    intensity: number;
+    blendWeights: Record<string, number>;
+  };
+  attentionState?: {
+    target: AttentionTarget | null;
+    focus: number;
+    engagement: number;
+  };
+  
   // Metadata
   emotionalInfluence: EmotionalState;
   naturalness: number; // 0.0 to 1.0
@@ -55,6 +117,11 @@ export interface BlinkState {
     left: number; // 0.0 to 1.0
     right: number; // 0.0 to 1.0
   };
+  
+  // Compatibility properties
+  leftEye?: number; // 0.0 to 1.0
+  rightEye?: number; // 0.0 to 1.0
+  naturalness?: number; // 0.0 to 1.0
 }
 
 /**
@@ -135,7 +202,17 @@ export type GestureType =
   | 'size_indication'
   | 'dismissal'
   | 'approval'
-  | 'uncertainty';
+  | 'uncertainty'
+  | 'waving'
+  | 'nodding'
+  | 'affirmation'
+  | 'negation'
+  | 'directional'
+  | 'confidence'
+  | 'defensive'
+  | 'openness'
+  | 'curiosity'
+  | 'aggressive';
 
 /**
  * Hand position and pose
@@ -218,6 +295,14 @@ export interface GestureContext {
   speechContext?: SpeechContext;
   repetitionCount: number; // how many times this gesture has been used recently
   appropriateness: number; // 0.0 to 1.0 cultural/contextual appropriateness
+  
+  // Additional properties for compatibility
+  type?: GestureType;
+  intensity?: number;
+  duration?: number;
+  emotionalContext?: string;
+  culturalContext?: string;
+  targetAudience?: string;
 }
 
 /**

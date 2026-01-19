@@ -15,19 +15,60 @@ export type PrimaryEmotion =
   | 'concerned'
   | 'confident'
   | 'apologetic'
-  | 'excited';
+  | 'excited'
+  | 'joy'
+  | 'sadness'
+  | 'anger'
+  | 'fear'
+  | 'surprise'
+  | 'disgust'
+  | 'trust'
+  | 'anticipation'
+  | 'calm'
+  | 'content'
+  | 'excitement';
+
+/**
+ * Emotion type alias for backward compatibility
+ */
+export type EmotionType = PrimaryEmotion;
+
+/**
+ * Emotion intensity levels
+ */
+export type EmotionIntensity = 'low' | 'medium' | 'high' | number;
+
+/**
+ * Emotion transition types
+ */
+export type EmotionTransition = EmotionalTransition;
 
 /**
  * Complete emotional state representation
  */
 export interface EmotionalState {
   primary: PrimaryEmotion;
+  secondary?: PrimaryEmotion | PrimaryEmotion[]; // Support both single and array formats
   intensity: number; // 0.0 to 1.0
-  secondary?: EmotionalState;
-  timestamp: number;
-  transitionSpeed: number; // 0.0 to 1.0
+  valence?: number; // -1.0 to 1.0 (negative to positive)
+  arousal?: number; // 0.0 to 1.0 (calm to excited)
+  dominance?: number; // 0.0 to 1.0 (submissive to dominant)
+  timestamp?: number;
+  transitionSpeed?: number; // 0.0 to 1.0
   duration?: number; // milliseconds, undefined for indefinite
-  context?: EmotionalContext;
+  context?: EmotionalContext | Record<string, unknown>; // Support both formats
+  confidence?: number; // 0.0 to 1.0 for backward compatibility
+  stability?: number; // 0.0 to 1.0 for emotional stability
+  
+  // Individual emotion scores for compatibility
+  joy?: number; // 0.0 to 1.0
+  sadness?: number; // 0.0 to 1.0
+  anger?: number; // 0.0 to 1.0
+  fear?: number; // 0.0 to 1.0
+  surprise?: number; // 0.0 to 1.0
+  disgust?: number; // 0.0 to 1.0
+  trust?: number; // 0.0 to 1.0
+  anticipation?: number; // 0.0 to 1.0
 }
 
 /**

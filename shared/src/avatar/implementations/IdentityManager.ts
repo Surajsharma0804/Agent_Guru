@@ -138,20 +138,12 @@ export class IdentityManagerImpl implements IdentityManager {
         personality,
         assets,
         encryption,
-        signature: await this.cryptoService.signIdentity({
-          id: identityId,
-          version: '1.0.0',
-          created: new Date(),
-          lastModified: new Date(),
-          appearance,
-          personality,
-          assets,
-          encryption,
-          signature: {} as DigitalSignature,
-          preferences
-        }),
+        signature: {} as DigitalSignature, // Temporary empty signature
         preferences
       };
+
+      // Generate signature for the complete identity (excluding the signature field itself)
+      identity.signature = await this.cryptoService.signIdentity(identity);
 
       // Store identity
       await this.storageService.storeIdentity(identity);
@@ -1530,8 +1522,10 @@ export class IdentityManagerImpl implements IdentityManager {
 
   private incrementVersion(version: string): string {
     const parts = version.split('.');
+    const major = parseInt(parts[0] || '1', 10);
+    const minor = parseInt(parts[1] || '0', 10);
     const patch = parseInt(parts[2] || '0', 10) + 1;
-    return `${parts[0]}.${parts[1]}.${patch}`;
+    return `${major}.${minor}.${patch}`;
   }
 
   private async createDefaultAppearance(config: AvatarIdentityConfig): Promise<AvatarAppearance> {

@@ -549,6 +549,17 @@ export class UserControlManagerImpl implements UserControlManager {
     return this.updateControlWithOverride(identityId, 'voicePersonality', personality, (settings, value) => {
       const originalValue = settings.voicePersonality;
       
+      // Check if user overrides are enabled
+      if (!settings.userOverrideEnabled) {
+        return {
+          applied: false,
+          originalValue,
+          newValue: value,
+          reason: 'User overrides are disabled',
+          safetyBoundaryTriggered: false
+        };
+      }
+      
       // Apply parental controls
       if (settings.parentalControlsEnabled && value === 'casual') {
         return {
