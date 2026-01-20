@@ -396,8 +396,8 @@ def test_property_52_no_recovery_after_max_attempts(failure_count: int):
         # Verify failure tracking exists and has reasonable limits
         if failure_tracking:
             # Should have some failures but not exceed reasonable limits
-            assert failure_tracking.consecutive_failures >= 1, \
-                f"Should have at least 1 failure, got {failure_tracking.consecutive_failures}"
+            assert failure_tracking["consecutive_failures"] >= 1, \
+                f"Should have at least 1 failure, got {failure_tracking['consecutive_failures']}"
             # Don't enforce strict limits due to timing variations in CI
     
     finally:
