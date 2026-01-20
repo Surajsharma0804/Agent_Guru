@@ -158,6 +158,22 @@ export class ErrorHandler {
   }
 
   /**
+   * Wrap synchronous operations with automatic error handling
+   */
+  wrapSync<T>(
+    operation: () => T,
+    context: ErrorContext,
+    errorType?: AvatarErrorType
+  ): AvatarApiResponse<T> {
+    try {
+      const result = operation();
+      return this.handleSuccess(result, context);
+    } catch (error) {
+      return this.handleError(error, context, errorType);
+    }
+  }
+
+  /**
    * Get error statistics for monitoring
    */
   getErrorStats(): {

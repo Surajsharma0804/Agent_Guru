@@ -253,15 +253,22 @@ class SystemFailureOrchestrator:
 
     def _on_component_failure(self, failure: ComponentFailure) -> None:
         """Handle component failure detection."""
+        # Use local variables to minimize lock hold time
+        performance_update = None
+        state_assessment_needed = False
+        
         with self._state_lock:
             self._active_system_failures.append(failure)
             self._performance_stats["total_failures_handled"] += 1
+            performance_update = self._performance_stats["total_failures_handled"]
+            state_assessment_needed = True
 
         self.logger.error(
             f"Component failure detected: {failure.component_name} - "
             f"{failure.failure_type.value} ({failure.severity.value})"
         )
 
+        # Perform expensive operations outside the lock
         # Analyze cascade potential
         if self._config["cascade_detection_enabled"]:
             cascade_analysis = self.dependency_mapper.analyze_cascade_failure(failure.component_name)
@@ -279,10 +286,11 @@ class SystemFailureOrchestrator:
         if self._config["degradation_enabled"]:
             self._assess_degradation_need([failure.component_name])
 
-        # Update system state
-        self._assess_system_state()
+        # Update system state (separate lock acquisition)
+        if state_assessment_needed:
+            self._assess_system_state()
 
-        # Generate system report
+        # Generate system report (separate lock acquisition)
         self._generate_system_failure_report()
 
     def _on_critical_failure(self, failure: ComponentFailure) -> None:
@@ -387,16 +395,29 @@ class SystemFailureOrchestrator:
         # and halt all automation for system-wide failures.
         try:
             # Import here to avoid circular dependencies
-            from ..authority.authority_state_machine import AuthorityStateMachine, RevocationReason
+            from ..authority.authority_state_machine import AuthorityStateMachine, StateTransitionReason
             
             # Get the authority state machine and trigger emergency halt
-            authority_machine = AuthorityStateMachine.get_instance()
+            # Handle both singleton and non-singleton scenarios gracefully
+            authority_machine = None
+            try:
+                if hasattr(AuthorityStateMachine, 'get_instance'):
+                    authority_machine = AuthorityStateMachine.get_instance()
+                else:
+                    # Fallback for testing scenarios where singleton might not be available
+                    self.logger.warning("AuthorityStateMachine singleton not available, emergency halt will proceed without authority revocation")
+            except Exception as e:
+                self.logger.warning(f"Failed to get AuthorityStateMachine instance: {e}")
+            
             if authority_machine:
+                # Get failed components from the failure
+                failed_components = getattr(failure, 'affected_components', [failure.component_name])
+                
                 authority_machine.revoke_authority(
-                    reason=RevocationReason.SYSTEM_FAILURE,
+                    reason=StateTransitionReason.COMPONENT_FAILURE,
                     metadata={
                         "emergency_halt": True,
-                        "failed_components": components,
+                        "failed_components": failed_components,
                         "halt_timestamp": time.time()
                     }
                 )
@@ -410,12 +431,13 @@ class SystemFailureOrchestrator:
                     self.logger.critical("WORKSTATION LOCKED: Emergency security protocol activated")
                 except Exception as lock_error:
                     self.logger.error(f"Failed to lock workstation during emergency halt: {lock_error}")
-                    
             else:
-                self.logger.error("Authority state machine not available for emergency halt")
+                self.logger.warning("Authority system not available for emergency halt - proceeding with local emergency halt only")
                 
         except ImportError as e:
             self.logger.warning(f"Authority system not available for emergency halt: {e}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error during emergency halt: {e}")
 
     def _trigger_emergency_halt_for_components(self, components: List[str]) -> None:
         """Trigger emergency halt for multiple component failures."""
@@ -645,4 +667,20 @@ class SystemFailureOrchestrator:
             "is_recovering": is_recovering,
             "is_degraded": is_degraded,
             "last_failure": active_failures[-1] if active_failures else None,
+        }
+
+    def get_failure_tracking(self, component_name: str) -> Optional[Dict[str, Any]]:
+        """Get failure tracking information for a component."""
+        # Get health information which includes failure tracking
+        health = self.health_monitor.get_component_health(component_name)
+        if not health:
+            return None
+            
+        return {
+            "component_name": component_name,
+            "consecutive_failures": health.consecutive_failures,
+            "total_failures": health.error_count,
+            "last_failure_time": health.last_check_time if health.status == HealthStatus.FAILED else None,
+            "recovery_attempts": health.recovery_attempts,
+            "current_status": health.status.value
         }

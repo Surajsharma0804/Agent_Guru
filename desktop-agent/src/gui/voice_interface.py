@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Optional
 
-from gui.tts_service import get_tts_service
+from gui.text_to_speech_service import get_tts_service
 
 # PAL imports - platform-agnostic interfaces
 from pal.interfaces import SpeechInput, SpeechOutput, TTSPriority

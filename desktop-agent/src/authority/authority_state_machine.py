@@ -165,7 +165,14 @@ class AuthorityStateMachine:
 
     Enforces invariant: No command executes unless state == ARMED.
     All state transitions cryptographically signed and audited.
+    
+    SINGLETON PATTERN: Ensures system-wide single source of truth for authority.
+    Thread-safe initialization with double-checked locking for performance.
     """
+    
+    _instance: Optional['AuthorityStateMachine'] = None
+    _instance_lock = threading.RLock()
+    _initialization_lock = threading.RLock()
 
     def __init__(self, config: Optional[AuthorityConfiguration] = None):
         """Initialize authority state machine with cryptographic protection."""
@@ -219,6 +226,77 @@ class AuthorityStateMachine:
         # except Exception:
         #     # Fallback to print if logger fails
         #     print(f"Authority state machine initialized (logger error: {e})")
+
+    @classmethod
+    def get_instance(cls, config: Optional[AuthorityConfiguration] = None) -> 'AuthorityStateMachine':
+        """
+        Get the singleton instance of AuthorityStateMachine.
+        
+        Thread-safe singleton implementation with double-checked locking
+        for optimal performance in high-concurrency scenarios.
+        
+        Args:
+            config: Optional configuration (only used on first initialization)
+            
+        Returns:
+            The singleton AuthorityStateMachine instance
+            
+        Raises:
+            AuthorityStateIntegrityError: If instance integrity is compromised
+        """
+        # First check without lock for performance (double-checked locking)
+        if cls._instance is not None:
+            return cls._instance
+            
+        # Acquire lock for thread-safe initialization
+        with cls._instance_lock:
+            # Second check with lock to prevent race conditions
+            if cls._instance is not None:
+                return cls._instance
+                
+            # Initialize the singleton instance
+            with cls._initialization_lock:
+                # Create instance directly (bypass normal instantiation)
+                instance = object.__new__(cls)
+                
+                # Initialize the instance
+                instance.__init__(config)
+                
+                # Atomically set the singleton instance
+                cls._instance = instance
+                
+                return cls._instance
+
+    @classmethod
+    def reset_instance(cls) -> None:
+        """
+        Reset the singleton instance (for testing purposes only).
+        
+        WARNING: This method should NEVER be called in production code.
+        It exists solely for unit testing and system recovery scenarios.
+        """
+        with cls._instance_lock:
+            if cls._instance is not None:
+                try:
+                    # Cleanup existing instance
+                    cls._instance._monitoring_active = False
+                    if hasattr(cls._instance, '_monitor_thread') and cls._instance._monitor_thread:
+                        cls._instance._monitor_thread.join(timeout=1.0)
+                except Exception:
+                    # Ignore cleanup errors
+                    pass
+                    
+            cls._instance = None
+
+    @classmethod
+    def is_initialized(cls) -> bool:
+        """
+        Check if the singleton instance has been initialized.
+        
+        Returns:
+            True if instance exists, False otherwise
+        """
+        return cls._instance is not None
 
     def __setattr__(self, name: str, value) -> None:
         """Prevent unauthorized modification of cryptographic state."""

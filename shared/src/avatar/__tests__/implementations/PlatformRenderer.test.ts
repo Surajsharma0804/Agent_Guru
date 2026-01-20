@@ -150,7 +150,23 @@ describe('PlatformRenderer', () => {
         mockErrorHandler = {
             handleError: jest.fn(),
             createContext: jest.fn().mockReturnValue({}),
-            getInstance: jest.fn()
+            getInstance: jest.fn(),
+            wrapAsync: jest.fn().mockImplementation(async (operation) => {
+                try {
+                    const result = await operation();
+                    return { success: true, data: result, executionTime: 0, timestamp: Date.now() };
+                } catch (error) {
+                    return { success: false, error: { type: 'TEST_ERROR', message: 'Test error', timestamp: Date.now(), platform: 'web', recoverable: true }, executionTime: 0, timestamp: Date.now() };
+                }
+            }),
+            wrapSync: jest.fn().mockImplementation((operation) => {
+                try {
+                    const result = operation();
+                    return { success: true, data: result, executionTime: 0, timestamp: Date.now() };
+                } catch (error) {
+                    return { success: false, error: { type: 'TEST_ERROR', message: 'Test error', timestamp: Date.now(), platform: 'web', recoverable: true }, executionTime: 0, timestamp: Date.now() };
+                }
+            })
         } as any;
         
         // Mock ErrorHandler.getInstance

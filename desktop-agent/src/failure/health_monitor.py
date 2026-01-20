@@ -220,15 +220,18 @@ class ComponentHealthMonitor:
 
     def _perform_health_checks(self) -> None:
         """Perform health checks on all registered components."""
+        # Get components list with minimal lock time
+        components_to_check = []
         with self._health_lock:
             components_to_check = list(self._components.items())
 
+        # Perform health checks outside the main lock
         for name, component_ref in components_to_check:
             try:
                 component = component_ref()
                 if component is None:
-                    # Component has been garbage collected
-                    self.unregister_component(name)
+                    # Component has been garbage collected - schedule for cleanup
+                    self._schedule_component_cleanup(name)
                     continue
 
                 self._check_component_health(name, component)
@@ -236,6 +239,14 @@ class ComponentHealthMonitor:
             except Exception as e:
                 self.logger.error(f"Error checking health of component '{name}': {e}")
                 self._record_health_check_failure(name, str(e))
+
+    def _schedule_component_cleanup(self, name: str) -> None:
+        """Schedule component cleanup (called outside main lock)."""
+        # Use a separate method to avoid nested locking
+        try:
+            self.unregister_component(name)
+        except Exception as e:
+            self.logger.error(f"Error cleaning up component '{name}': {e}")
 
     def _check_component_health(self, name: str, component: HealthCheckable) -> None:
         """Check health of a specific component."""

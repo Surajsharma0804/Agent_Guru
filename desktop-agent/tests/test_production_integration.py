@@ -34,20 +34,20 @@ from typing import Any, Dict, List, Optional
 import structlog
 
 # Import all production components
-from ..src.core.production_bootstrap import ProductionBootstrapper, BootstrapConfiguration, SystemContainer
-from ..src.core.secure_execution_gateway import (
+from src.core.production_bootstrap import ProductionBootstrapper, BootstrapConfiguration, SystemContainer
+from src.core.secure_execution_gateway import (
     SecureExecutionGateway, SecurityContext, AuthorityLevel, OperationCapability
 )
-from ..src.core.message_bus import MessageBusContainer, Event, Command
-from ..src.core.service_lifecycle import ServiceLifecycleManager, Service, ServicePriority, ServiceHealth
-from ..src.core.configuration_manager import ProductionConfigurationManager, ConfigurationScope
-from ..src.core.dependency_injection import DependencyContainer
-from ..src.core.performance_monitor import PerformanceMonitor, PerformanceMetricType
-from ..src.core.resource_manager import ResourceManager, ResourceType, ManagedResource
-from ..src.core.command_router import (
+from src.core.message_bus import MessageBusContainer, Event, Command
+from src.core.service_lifecycle import ServiceLifecycleManager, Service, ServicePriority, ServiceHealth
+from src.core.configuration_manager import ProductionConfigurationManager, ConfigurationScope
+from src.core.dependency_injection import DependencyContainer
+from src.core.performance_monitor import PerformanceMonitor, PerformanceMetricType
+from src.core.resource_manager import ResourceManager, ResourceType, ManagedResource
+from src.core.command_router import (
     CommandRouter, GuruCommand, VoiceProcessingCommand, InputAutomationCommand
 )
-from ..src.main_production import GuruProductionSystem
+from src.main_production import GuruProductionSystem
 
 logger = structlog.get_logger(__name__)
 
@@ -272,7 +272,7 @@ class TestSecurityIntegration:
         # Don't grant authority (should cause violation)
         
         # Attempt to execute command (should fail)
-        from ..src.core.secure_execution_gateway import AuthorityViolation
+        from src.core.secure_execution_gateway import AuthorityViolation
         with pytest.raises(AuthorityViolation):
             security_gateway.execute_operation(command, context)
         

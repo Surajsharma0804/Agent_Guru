@@ -98,6 +98,26 @@ class DegradationPlan:
     trigger_reason: Optional[str] = None
     degradation_actions: List[DegradationAction] = field(default_factory=list)
     estimated_duration_seconds: Optional[float] = None
+
+    def is_security_safe(self) -> bool:
+        """Check if this degradation plan maintains security boundaries"""
+        # Plans that maintain or improve security are always safe
+        safe_implications = {
+            "none",
+            "maintains_security", 
+            "safe_halt_maintains_security",
+            "no_security_impact"
+        }
+        
+        if self.security_implications in safe_implications:
+            return True
+            
+        # Check individual actions
+        for action in self.actions:
+            if action.security_impact not in safe_implications:
+                return False
+                
+        return True
     created_at: Optional[datetime] = None
 
     def __post_init__(self):
@@ -406,6 +426,11 @@ class SystemDegradationOrchestrator:
 
                 return False
 
+    def get_current_degradation_level(self) -> DegradationLevel:
+        """Get current degradation level"""
+        with self._lock:
+            return self.current_degradation_level
+
     def get_current_state(self) -> Dict[str, Any]:
         """Get current system degradation state"""
         with self._lock:
@@ -484,10 +509,13 @@ class SystemDegradationOrchestrator:
                 self.logger.error("Recovery from degradation failed")
                 return False
 
-    def get_degradation_history(self) -> List[Dict[str, Any]]:
-        """Get history of degradation events"""
+    def get_degradation_history(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Get history of degradation events."""
         with self._lock:
-            return self.degradation_history.copy()
+            history = self.degradation_history.copy()
+            if limit:
+                return history[-limit:]
+            return history
 
     def is_component_critical(self, component_name: str) -> bool:
         """Check if a component is considered critical"""
@@ -496,6 +524,13 @@ class SystemDegradationOrchestrator:
     def is_component_degradable(self, component_name: str) -> bool:
         """Check if a component can be safely degraded"""
         return component_name in self.degradable_components
+
+    def is_component_degraded(self, component_name: str) -> bool:
+        """Check if a specific component is currently degraded."""
+        with self._lock:
+            if not self.active_degradation_plan:
+                return False
+            return component_name in self.active_degradation_plan.affected_components
 
     def add_critical_component(self, component_name: str) -> None:
         """Add a component to the critical components list"""
@@ -531,11 +566,11 @@ class SystemDegradationOrchestrator:
             self._state_change_callbacks.append(callback)
             self.logger.info("Registered state change callback", callback_count=len(self._state_change_callbacks))
 
-    def _notify_degradation_callbacks(self, plan: DegradationPlan, result: bool) -> None:
+    def _notify_degradation_callbacks(self, plan: DegradationPlan, success: bool = True) -> None:
         """Notify all registered degradation callbacks."""
         for callback in self._degradation_callbacks:
             try:
-                callback(plan, result)
+                callback(plan)
             except Exception as e:
                 self.logger.error("Error in degradation callback", error=str(e))
 

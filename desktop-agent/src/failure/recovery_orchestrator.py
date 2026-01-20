@@ -513,12 +513,16 @@ class RecoveryOrchestrator:
 
     def execute_recovery_plan(self, plan: RecoveryPlan) -> Future[List[RecoveryResult]]:
         """Execute a recovery plan asynchronously."""
+        # Register the plan with minimal lock time
         with self._recovery_lock:
             self._active_recoveries[plan.plan_id] = plan
 
-        # Submit recovery execution to thread pool
+        # Submit recovery execution to thread pool (outside lock)
         future = self._recovery_executor.submit(self._execute_recovery_plan_sync, plan)
-        self._active_futures[plan.plan_id] = future
+        
+        # Store future reference with minimal lock time
+        with self._recovery_lock:
+            self._active_futures[plan.plan_id] = future
 
         self.logger.info(f"Started execution of recovery plan '{plan.plan_id}'")
         return future

@@ -262,12 +262,15 @@ export class EmotionEngine extends AvatarEventEmitter implements EmotionEngine {
       // Apply emotional boundaries
       const boundedState = this.applyEmotionalBoundaries(emotionalState);
       
+      // CRITICAL FIX: Convert primary/secondary emotions to individual emotion values
+      const enrichedState = this.enrichEmotionalState(boundedState);
+      
       // For complex blending, use higher blend weight to ensure visibility
-      const isComplexBlending = Array.isArray(boundedState.secondary) && boundedState.secondary.length > 1;
-      const blendWeight = isComplexBlending ? 0.8 : 0.5;
+      const isComplexBlending = Array.isArray(enrichedState.secondary) && enrichedState.secondary.length > 1;
+      const blendWeight = isComplexBlending ? 0.9 : 0.5; // Increased from 0.8 to 0.9 for better visibility
       
       // Blend with current state
-      const blendedState = this.blendEmotionalStates(this.currentState, boundedState, blendWeight);
+      const blendedState = this.blendEmotionalStates(this.currentState, enrichedState, blendWeight);
       
       // Initiate transition to new state
       await this.transitionToState(blendedState);
@@ -824,10 +827,10 @@ export class EmotionEngine extends AvatarEventEmitter implements EmotionEngine {
     // Process secondary emotions (support both single and array formats)
     if (state.secondary) {
       const secondaryEmotions = Array.isArray(state.secondary) ? state.secondary : [state.secondary];
-      const secondaryWeight = 0.6; // Secondary emotions have less influence
+      const secondaryWeight = 0.7; // Increased from 0.6 to 0.7 for better visibility
       
       secondaryEmotions.forEach((emotion, index) => {
-        const weight = secondaryWeight * (1 - index * 0.1); // Diminishing weight for multiple secondaries
+        const weight = secondaryWeight * (1 - index * 0.05); // Reduced diminishing factor from 0.1 to 0.05
         this.applyEmotionToBlendShapes(blendShapes, emotion, intensity, weight);
       });
     }
@@ -859,7 +862,7 @@ export class EmotionEngine extends AvatarEventEmitter implements EmotionEngine {
     if (emotion === 'contentment') normalizedEmotion = 'content';
     
     // Ensure minimum effective intensity for complex blending
-    const minEffectiveIntensity = Math.max(effectiveIntensity, 0.15);
+    const minEffectiveIntensity = Math.max(effectiveIntensity, 0.2); // Increased from 0.15 to 0.2
     
     switch (normalizedEmotion) {
       case 'joy':
@@ -1193,6 +1196,19 @@ export class EmotionEngine extends AvatarEventEmitter implements EmotionEngine {
     blended.stability = state1.stability * (1 - weight) + state2.stability * weight;
     blended.timestamp = Date.now();
     
+    // CRITICAL FIX: Preserve primary and secondary emotions from state2 when weight is significant
+    if (weight > 0.5) {
+      blended.primary = state2.primary || state1.primary;
+      blended.secondary = state2.secondary || state1.secondary;
+    } else if (weight > 0.3) {
+      // For moderate blending, combine secondary emotions
+      blended.primary = state2.primary || state1.primary;
+      const existingSecondary = Array.isArray(state1.secondary) ? state1.secondary : (state1.secondary ? [state1.secondary] : []);
+      const newSecondary = Array.isArray(state2.secondary) ? state2.secondary : (state2.secondary ? [state2.secondary] : []);
+      const combinedSecondary = [...existingSecondary, ...newSecondary];
+      blended.secondary = combinedSecondary.length > 0 ? combinedSecondary : undefined;
+    }
+    
     return blended;
   }
 
@@ -1213,11 +1229,69 @@ export class EmotionEngine extends AvatarEventEmitter implements EmotionEngine {
     });
     
     // Ensure emotional consistency (prevent conflicting emotions at high intensity)
-    const resolvedBounded = this.resolveEmotionalConflicts(bounded);
-    
-    return resolvedBounded;
+    bounded = this.resolveEmotionalConflicts(bounded);
     
     return bounded;
+  }
+
+  /**
+   * CRITICAL: Convert primary/secondary emotions to individual emotion values
+   * This ensures complex emotional states are properly represented in blend shapes
+   */
+  private enrichEmotionalState(state: EmotionalState): EmotionalState {
+    const enriched = { ...state };
+    
+    // Convert primary emotion to individual emotion value
+    if (enriched.primary && enriched.primary !== 'neutral') {
+      const primaryIntensity = enriched.intensity * 0.8; // Primary emotion gets 80% of intensity
+      this.applyEmotionValue(enriched, enriched.primary, primaryIntensity);
+    }
+    
+    // Convert secondary emotions to individual emotion values
+    if (enriched.secondary) {
+      const secondaryEmotions = Array.isArray(enriched.secondary) ? enriched.secondary : [enriched.secondary];
+      const secondaryIntensity = enriched.intensity * 0.6; // Secondary emotions get 60% of intensity
+      
+      secondaryEmotions.forEach((emotion, index) => {
+        const weight = secondaryIntensity * (1 - index * 0.1); // Diminishing weight for multiple secondaries
+        this.applyEmotionValue(enriched, emotion, weight);
+      });
+    }
+    
+    return enriched;
+  }
+
+  /**
+   * Apply emotion value to the emotional state
+   */
+  private applyEmotionValue(state: EmotionalState, emotion: string, intensity: number): void {
+    // Map emotion names to state properties
+    const emotionMap: Record<string, keyof EmotionalState> = {
+      'joy': 'joy',
+      'happy': 'joy',
+      'excitement': 'joy',
+      'excited': 'joy',
+      'sadness': 'sadness',
+      'sad': 'sadness',
+      'anger': 'anger',
+      'angry': 'anger',
+      'fear': 'fear',
+      'afraid': 'fear',
+      'surprise': 'surprise',
+      'surprised': 'surprise',
+      'disgust': 'disgust',
+      'disgusted': 'disgust',
+      'trust': 'trust',
+      'confident': 'trust',
+      'anticipation': 'anticipation',
+      'curious': 'anticipation',
+      'curiosity': 'anticipation'
+    };
+    
+    const emotionKey = emotionMap[emotion.toLowerCase()];
+    if (emotionKey && typeof state[emotionKey] === 'number') {
+      state[emotionKey] = Math.max(state[emotionKey] as number, intensity);
+    }
   }
 
   private resolveEmotionalConflicts(state: EmotionalState): EmotionalState {

@@ -7,7 +7,7 @@ from .biometric_integration import (
     BiometricVerificationBoundaryViolation,
     create_biometric_authority_verification_engine,
 )
-from .state import (
+from .authority_state_machine import (
     AuthorityConfiguration,
     AuthorityState,
     AuthorityStateMachine,

@@ -571,6 +571,17 @@ export class UserControlManagerImpl implements UserControlManager {
         };
       }
 
+      // Apply safety limits if enabled
+      if (settings.safetyLimitsEnabled && value === 'casual' && settings.parentalControlsEnabled) {
+        return {
+          applied: false,
+          originalValue,
+          newValue: value,
+          reason: 'Safety limits restrict casual voice personality with parental controls',
+          safetyBoundaryTriggered: true
+        };
+      }
+
       settings.voicePersonality = value;
       return {
         applied: true,
