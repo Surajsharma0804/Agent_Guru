@@ -1,6 +1,0 @@
-# Desktop Agent (Windows)
-# FastAPI + Uvicorn for REST API
-# Tauri for system tray interface
-# pywinauto for UI automation (permission-gated)
-# whisper.cpp for local speech-to-text
-# Piper for local text-to-speech
