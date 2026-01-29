@@ -1,0 +1,47 @@
+{
+  "task": "TASK_02_WAKE_WORD",
+  "source": "openWakeWord",
+  "intelligence": {
+    "audio_features": {
+      "melspectrogram": {
+        "description": "Compute mel-scale spectrogram from raw audio",
+        "window_size": 76,
+        "step_size": 8,
+        "mel_bins": 32,
+        "sample_rate": 16000
+      },
+      "embeddings": {
+        "description": "Google speech_embedding features from melspectrogram",
+        "input_shape": "[76, 32]",
+        "output_dim": 96,
+        "sliding_window": "76 frames with 8-frame step"
+      },
+      "streaming_buffer": {
+        "description": "Ring buffer for continuous audio processing",
+        "chunk_size": 1280,
+        "buffer_max": "10 seconds @ 16kHz",
+        "logic": "Accumulate samples until 1280 (80ms), compute melspec, then embeddings"
+      }
+    },
+    "neural_gate": {
+      "prediction_buffer": {
+        "description": "Deque storing last 30 frame predictions",
+        "maxlen": 30
+      },
+      "confidence_thresholding": {
+        "patience": "Require N consecutive frames above threshold",
+        "debounce": "Suppress detections within time window",
+        "vad_filter": "Voice Activity Detection score filtering"
+      },
+      "initialization": {
+        "warmup": "Zero predictions for first 5 frames"
+      }
+    },
+    "training_pipeline": {
+      "false_positive_suppression": {
+        "description": "Custom verifier models using sklearn",
+        "threshold": 0.1
+      }
+    }
+  }
+}
