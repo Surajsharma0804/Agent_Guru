@@ -2,7 +2,7 @@
 //! Windows Platform Bridge
 //! Direct FFI to User32.dll and Kernel32.dll.
 
-use super::os_bridge::{OSBridge, MouseButton};
+use super::super::os_bridge::{OSBridge, MouseButton};
 use std::ffi::{c_void, CString};
 use std::ptr::null_mut;
 
@@ -339,7 +339,7 @@ impl OSBridge for WindowsBridge {
              } else {
                  Err("SendInput failed".to_string())
              }
-        }
+         }
     }
 
     fn get_clipboard_text(&self) -> Result<String, String> {

@@ -1,3 +1,4 @@
+pub mod accessibility;
 pub mod os_bridge;
 
 #[cfg(target_os = "windows")]
