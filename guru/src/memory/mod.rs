@@ -1,1 +1,2 @@
-// Placeholder for memory module
+pub mod vector_store;
+pub mod semantic_memory;

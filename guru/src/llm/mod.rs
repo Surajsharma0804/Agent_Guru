@@ -1,1 +1,1 @@
-// Placeholder for llm module
+pub mod interface;

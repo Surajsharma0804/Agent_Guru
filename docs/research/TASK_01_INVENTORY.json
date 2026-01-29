@@ -1,0 +1,55 @@
+{
+  "task": "TASK_01_CRYPTO_IDENTITY",
+  "source": "libsodium",
+  "intelligence": {
+    "secure_memory": {
+      "zeroization": {
+        "logic": "Volatile pointer loop or platform intrinsic (SecureZeroMemory, memset_s).",
+        "description": "Prevent compiler optimization by using volatile writes or explicit OS calls. Must ensure memory is overwritten before release.",
+        "algorithm": "while(len--) { *volatile_ptr++ = 0; }"
+      },
+      "comparison": {
+        "logic": "Constant-time comparison.",
+        "algorithm": "d |= b1[i] ^ b2[i]; return (1 & ((d - 1) >> 8)) - 1;"
+      }
+    },
+    "ed25519": {
+      "key_generation": {
+        "steps": [
+          "H = SHA512(seed)",
+          "scalar = H[0..32]",
+          "scalar[0] &= 248; scalar[31] &= 127; scalar[31] |= 64",
+          "pk = scalar * BASE_POINT"
+        ]
+      },
+      "signing": {
+        "steps": [
+          "az = SHA512(seed)",
+          "clamp(az)",
+          "nonce = SHA512(az[32..64] || m)",
+          "r = reduce(nonce)",
+          "R = r * BASE_POINT",
+          "hram = SHA512(R || pk || m)",
+          "S = (r + hram * scalar) mod L",
+          "signature = R || S"
+        ]
+      }
+    },
+    "x25519": {
+      "key_exchange": {
+        "steps": [
+          "q = scalarmult(my_sk, their_pk)",
+          "keys = BLAKE2b(q || client_pk || server_pk)",
+          "rx = keys[0..32]",
+          "tx = keys[32..64]"
+        ]
+      }
+    },
+    "envelope": {
+      "xchacha20poly1305": {
+        "structure": "HChaCha20 derivation -> ChaCha20 encryption -> Poly1305 MAC",
+        "nonce_size": 24
+      }
+    }
+  }
+}

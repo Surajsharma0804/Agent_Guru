@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "guru"
+name = "agent-guru"
 version = "0.1.0"
