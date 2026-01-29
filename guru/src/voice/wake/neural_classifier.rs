@@ -22,7 +22,7 @@ impl WakeWordClassifier {
         // Stub weights for successful compilation
         let w1 = Tensor::new(vec![0.0; 32 * 64], vec![32, 64]);
         let b1 = Tensor::new(vec![0.0; 64], vec![1, 64]);
-        let w2 = Tensor::new(vec![0.0; 64 * 1], vec![64, 1]); // Binary output
+        let w2 = Tensor::new(vec![0.0; 64], vec![64, 1]); // Binary output
         let b2 = Tensor::new(vec![0.0; 1], vec![1, 1]);
         
         Self {

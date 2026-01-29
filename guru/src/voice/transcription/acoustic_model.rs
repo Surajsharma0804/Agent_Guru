@@ -263,13 +263,12 @@ impl ResidualAttentionBlock {
         let mut x = x.add(&attn_out);
         
         // if cross: x = x + cross_attn(ln(x), xa)
-        if let Some(ref cross) = self.cross_attn {
-             if let Some(ref context) = xa {
+        if let Some(ref cross) = self.cross_attn
+             && let Some(context) = xa {
                  let ln_x_cross = self.cross_attn_ln.as_ref().unwrap().forward(&x);
                  let cross_out = cross.forward(&ln_x_cross, Some(context), None);
                  x = x.add(&cross_out);
              }
-        }
         
         // x = x + mlp(ln(x))
         let ln_mlp = self.mlp_ln.forward(&x);

@@ -5,6 +5,12 @@ pub struct AudioProcessor {
     n_samples: usize,
 }
 
+impl Default for AudioProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AudioProcessor {
     pub fn new() -> Self {
         // Whisper defaults

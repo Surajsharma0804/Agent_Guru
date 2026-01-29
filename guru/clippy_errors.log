@@ -1,0 +1,247 @@
+    Checking agent-guru v0.1.0 (F:\MY PROJECTS\Agent_Guru\guru)
+warning: returning the result of a `let` binding from a block
+  --> src\security\crypto\symmetric_encryption.rs:10:5
+   |
+ 8 |     let mut c = plaintext.to_vec();
+   |     ------------------------------- unnecessary `let` binding
+ 9 |     // In a real system, we'd process logic.
+10 |     c
+   |     ^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#let_and_return
+   = note: `#[warn(clippy::let_and_return)]` on by default
+help: return the expression directly
+   |
+ 8 ~     
+ 9 |     // In a real system, we'd process logic.
+10 ~     plaintext.to_vec()
+   |
+
+warning: methods with the following characteristics: (`to_*` and `self` type is `Copy`) usually take `self` by value
+  --> src\security\crypto\scalar.rs:28:21
+   |
+28 |     pub fn to_bytes(&self) -> [u8; 32] {
+   |                     ^^^^^
+   |
+   = help: consider choosing a less ambiguous name
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#wrong_self_convention
+   = note: `#[warn(clippy::wrong_self_convention)]` on by default
+
+warning: methods with the following characteristics: (`to_*` and `self` type is `Copy`) usually take `self` by value
+  --> src\security\crypto\curve25519.rs:38:21
+   |
+38 |     pub fn to_bytes(&self) -> [u8; 32] {
+   |                     ^^^^^
+   |
+   = help: consider choosing a less ambiguous name
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#wrong_self_convention
+
+warning: using `clone` on type `Fe` which implements the `Copy` trait
+  --> src\security\crypto\curve25519.rs:39:21
+   |
+39 |         let mut h = self.clone();
+   |                     ^^^^^^^^^^^^ help: try dereferencing it: `*self`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#clone_on_copy
+   = note: `#[warn(clippy::clone_on_copy)]` on by default
+
+warning: using `clone` on type `Fe` which implements the `Copy` trait
+   --> src\security\crypto\curve25519.rs:217:20
+    |
+217 |         let base = self.clone();
+    |                    ^^^^^^^^^^^^ help: try dereferencing it: `*self`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#clone_on_copy
+
+warning: the loop variable `i` is only used to index `p_minus_2`
+   --> src\security\crypto\curve25519.rs:220:18
+    |
+220 |         for i in 0..32 { p_minus_2[i] = 0xFF; }
+    |                  ^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#needless_range_loop
+    = note: `#[warn(clippy::needless_range_loop)]` on by default
+help: consider using an iterator
+    |
+220 -         for i in 0..32 { p_minus_2[i] = 0xFF; }
+220 +         for <item> in &mut p_minus_2 { p_minus_2[i] = 0xFF; }
+    |
+
+warning: the loop variable `j` is used to index `filter`
+  --> src\voice\wake\feature_extraction.rs:57:22
+   |
+57 |             for j in start..center {
+   |                      ^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+   |
+57 -             for j in start..center {
+57 +             for (j, <item>) in filter.iter_mut().enumerate().take(center).skip(start) {
+   |
+
+warning: the loop variable `j` is used to index `filter`
+  --> src\voice\wake\feature_extraction.rs:60:22
+   |
+60 |             for j in center..end {
+   |                      ^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+   |
+60 -             for j in center..end {
+60 +             for (j, <item>) in filter.iter_mut().enumerate().take(end).skip(center) {
+   |
+
+warning: the loop variable `k` is used to index `spectrum`
+   --> src\voice\wake\feature_extraction.rs:136:19
+    |
+136 |          for k in 0..=n/2 {
+    |                   ^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+136 -          for k in 0..=n/2 {
+136 +          for (k, <item>) in spectrum.iter_mut().enumerate().take(n / 2 + 1) {
+    |
+
+warning: this operation has no effect
+  --> src\voice\wake\neural_classifier.rs:25:40
+   |
+25 |         let w2 = Tensor::new(vec![0.0; 64 * 1], vec![64, 1]); // Binary output
+   |                                        ^^^^^^ help: consider reducing it to: `64`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#identity_op
+   = note: `#[warn(clippy::identity_op)]` on by default
+
+warning: the loop variable `h` is used to index `heads`
+   --> src\voice\transcription\acoustic_model.rs:221:18
+    |
+221 |         for h in 0..n_head {
+    |                  ^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+221 -         for h in 0..n_head {
+221 +         for (h, <item>) in heads.iter().enumerate().take(n_head) {
+    |
+
+warning: this `if` statement can be collapsed
+   --> src\voice\transcription\acoustic_model.rs:266:9
+    |
+266 | /         if let Some(ref cross) = self.cross_attn {
+267 | |              if let Some(ref context) = xa {
+268 | |                  let ln_x_cross = self.cross_attn_ln.as_ref().unwrap().forward(&x);
+269 | |                  let cross_out = cross.forward(&ln_x_cross, Some(context), None);
+...   |
+272 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#collapsible_if
+    = note: `#[warn(clippy::collapsible_if)]` on by default
+help: collapse nested if block
+    |
+266 ~         if let Some(ref cross) = self.cross_attn
+267 ~              && let Some(ref context) = xa {
+268 |                  let ln_x_cross = self.cross_attn_ln.as_ref().unwrap().forward(&x);
+269 |                  let cross_out = cross.forward(&ln_x_cross, Some(context), None);
+270 |                  x = x.add(&cross_out);
+271 ~              }
+    |
+
+warning: this pattern creates a reference to a reference
+   --> src\voice\transcription\acoustic_model.rs:267:26
+    |
+267 |              if let Some(ref context) = xa {
+    |                          ^^^^^^^^^^^ help: try: `context`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#needless_borrow
+    = note: `#[warn(clippy::needless_borrow)]` on by default
+
+warning: usage of a legacy numeric constant
+  --> src\voice\transcription\decoding.rs:44:31
+   |
+44 |             let mut max_val = std::f32::NEG_INFINITY;
+   |                               ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#legacy_numeric_constants
+   = note: `#[warn(clippy::legacy_numeric_constants)]` on by default
+help: use the associated constant instead
+   |
+44 -             let mut max_val = std::f32::NEG_INFINITY;
+44 +             let mut max_val = f32::NEG_INFINITY;
+   |
+
+warning: you should consider adding a `Default` implementation for `AudioProcessor`
+  --> src\voice\transcription\audio_processing.rs:9:5
+   |
+ 9 | /     pub fn new() -> Self {
+10 | |         // Whisper defaults
+11 | |         Self {
+12 | |             extractor: AudioFeatureExtractor::new(16000, 400, 160, 80),
+...  |
+15 | |     }
+   | |_____^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#new_without_default
+   = note: `#[warn(clippy::new_without_default)]` on by default
+help: try adding this
+   |
+ 8 + impl Default for AudioProcessor {
+ 9 +     fn default() -> Self {
+10 +         Self::new()
+11 +     }
+12 + }
+   |
+
+warning: you should consider adding a `Default` implementation for `SpeakerEncoder`
+   --> src\voice\auth\speaker_encoder.rs:115:5
+    |
+115 | /     pub fn new() -> Self {
+116 | |         // Hyperparams: Input 80, Hidden 256, Emb 256, Layers 3
+117 | |         Self {
+118 | |             lstm1: LSTMLayer::new(80, 256),
+...   |
+124 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#new_without_default
+help: try adding this
+    |
+114 + impl Default for SpeakerEncoder {
+115 +     fn default() -> Self {
+116 +         Self::new()
+117 +     }
+118 + }
+    |
+
+warning: usage of a legacy numeric constant
+   --> src\intelligence\tensor.rs:131:49
+    |
+131 |             let max_val = row_slice.iter().fold(std::f32::NEG_INFINITY, |a, &b| a.max(b));
+    |                                                 ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#legacy_numeric_constants
+help: use the associated constant instead
+    |
+131 -             let max_val = row_slice.iter().fold(std::f32::NEG_INFINITY, |a, &b| a.max(b));
+131 +             let max_val = row_slice.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+    |
+
+warning: the loop variable `i` is used to index `data`
+  --> src\intelligence\embedding_model.rs:21:18
+   |
+21 |         for i in 0..256 {
+   |                  ^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+   |
+21 -         for i in 0..256 {
+21 +         for (i, <item>) in data.iter_mut().enumerate().take(256) {
+   |
+
+warning: `agent-guru` (lib) generated 18 warnings (run `cargo clippy --fix --lib -p agent-guru` to apply 8 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.25s

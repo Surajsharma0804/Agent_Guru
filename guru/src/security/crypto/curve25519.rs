@@ -36,7 +36,7 @@ impl Fe {
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {
-        let mut h = self.clone();
+        let mut h = *self;
         h.carry();
         h.freeze(); // Full reduction
         
@@ -214,7 +214,7 @@ impl Fe {
 
     pub fn invert(&self) -> Self {
         let mut r = Fe::ONE;
-        let base = self.clone();
+        let base = *self;
         
         let mut p_minus_2 = [0u8; 32];
         for i in 0..32 { p_minus_2[i] = 0xFF; }

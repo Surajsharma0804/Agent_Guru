@@ -1,1 +1,1 @@
-// Placeholder for policy module
+pub mod rbac;

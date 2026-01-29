@@ -111,6 +111,12 @@ pub struct SpeakerEncoder {
     projection_bias: Option<Tensor>,
 }
 
+impl Default for SpeakerEncoder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SpeakerEncoder {
     pub fn new() -> Self {
         // Hyperparams: Input 80, Hidden 256, Emb 256, Layers 3
