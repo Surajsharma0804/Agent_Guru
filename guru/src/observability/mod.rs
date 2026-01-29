@@ -1,1 +1,1 @@
-// Placeholder for observability module
+pub mod logger;
