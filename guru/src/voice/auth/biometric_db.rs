@@ -51,23 +51,52 @@ impl BiometricDB {
             data.extend_from_slice(&u.to_bytes());
         }
         
-        // Encrypt `data` using `self.key`
-        let nonce = [0u8; 24]; // TODO: Random nonce
+        // Encrypt `data`
+        // Dynamic Nonce: [8 bytes timestamp][16 bytes 0] (Low freq write, timestamp sufficient uniqueness if > 1s intervals)
+        // Better: Use timestamp high res + some variance? 
+        // We will use SystemTime.
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos(); 
+            
+        let mut nonce = [0u8; 24];
+        // nano fits in u128, take lower 16 or mix?
+        // 24 bytes = 192 bits.
+        // We can put 16 bytes of nanos.
+        nonce[0..16].copy_from_slice(&timestamp.to_le_bytes());
+        
+        // Encrypt
         let encrypted = encrypt(&self.key, &nonce, &data);
         
-        fs::write(path, encrypted)
+        // Write: [Nonce 24][Ciphertext]
+        let mut file_content = Vec::with_capacity(24 + encrypted.len());
+        file_content.extend_from_slice(&nonce);
+        file_content.extend_from_slice(&encrypted);
+        
+        fs::write(path, file_content)
     }
     
     pub fn load(path: &str, key_bytes: [u8; 32]) -> io::Result<Self> {
-        let encrypted_data = fs::read(path)?;
+        let file_content = fs::read(path)?;
         let key = EnvelopeKey(Secret::new(key_bytes));
-        let nonce = [0u8; 24]; // Must match save
         
-        let data = decrypt(&key, &nonce, &encrypted_data).ok_or(io::Error::new(io::ErrorKind::InvalidData, "Decrypt failed"))?;
+        // Needs at least nonce (24)
+        if file_content.len() < 24 { 
+             // Empty DB
+             return Ok(BiometricDB { users: Vec::new(), key });
+        }
+        
+        let mut nonce = [0u8; 24];
+        nonce.copy_from_slice(&file_content[0..24]);
+        let ciphertext = &file_content[24..];
+        
+        let data = decrypt(&key, &nonce, ciphertext)
+            .ok_or(io::Error::new(io::ErrorKind::InvalidData, "Decrypt failed"))?;
         
         let mut users = Vec::new();
         let mut offset = 0;
-        if data.len() < 4 { return Ok(BiometricDB { users, key }); }
+        if data.len() < 4 { return Ok(BiometricDB { users: Vec::new(), key }); }
         
         let count = u32::from_le_bytes(data[0..4].try_into().unwrap());
         offset += 4;
