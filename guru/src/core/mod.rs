@@ -1,1 +1,1 @@
-// Placeholder for core module
+pub mod sync;
