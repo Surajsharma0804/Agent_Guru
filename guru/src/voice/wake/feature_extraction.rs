@@ -129,24 +129,15 @@ impl AudioFeatureExtractor {
         let n = input.len();
         let mut spectrum = vec![0.0; n / 2 + 1];
         
-        // We can optimize by precomputing cos/sin tables if N is constant.
-        // For now, let's keep the naive loop but ensure it's clean.
-        // Actually, let's implement the precomputed twiddles in struct if we want "Best".
-        
-        // FALLBACK to naive for now, but cleaner.
-         for k in 0..=n/2 {
-            let mut re = 0.0;
-            let mut im = 0.0;
-            let angle_term = -2.0 * PI * k as f32 / n as f32;
-            
-            for (t, &val) in input.iter().enumerate() {
-                let angle = angle_term * t as f32;
-                let (sin, cos) = angle.sin_cos(); // slightly faster
-                re += val * cos;
-                im += val * sin;
-            }
-            spectrum[k] = (re * re + im * im).sqrt();
+        unsafe {
+            guru_dft_magnitude(input.as_ptr(), spectrum.as_mut_ptr(), n);
         }
+        
         spectrum
     }
+}
+
+// Native Binding
+unsafe extern "C" {
+    fn guru_dft_magnitude(input: *const f32, output: *mut f32, n: usize);
 }

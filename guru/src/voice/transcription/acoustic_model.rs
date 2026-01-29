@@ -1,6 +1,12 @@
 #![allow(dead_code, unused_variables)]
 use crate::intelligence::tensor::Tensor;
 
+// Native Binding for Task 3 (Transcription Engine)
+unsafe extern "C" {
+    fn guru_transformer_forward(input: *const f32, output: *mut f32, size: usize);
+}
+
+
 
 pub struct ModelDimensions {
     pub n_mels: usize,

@@ -5,6 +5,11 @@
 use std::fs::File;
 use std::io::Write;
 
+// Native Binding
+unsafe extern "C" {
+    fn guru_grayscale_kernel(bgra: *const u8, out_gray: *mut u8, width: usize, height: usize);
+}
+
 #[derive(Debug, Clone)]
 pub struct ImageBuffer {
     pub width: u32,
@@ -18,26 +23,24 @@ impl ImageBuffer {
     }
 
     pub fn to_grayscale(&self) -> ImageBuffer {
-        // Assume BGRA (4 bytes)
-        let mut gray_pixels = Vec::with_capacity((self.width * self.height) as usize);
+        let mut gray_pixels = vec![0u8; (self.width * self.height) as usize];
         
-        for chunk in self.pixels.chunks(4) {
-             if chunk.len() >= 3 {
-                 let b = chunk[0] as f32;
-                 let g = chunk[1] as f32;
-                 let r = chunk[2] as f32;
-                 // Luminance formula
-                 let y = (0.299 * r + 0.587 * g + 0.114 * b) as u8;
-                 gray_pixels.push(y);
-             }
+        unsafe {
+            guru_grayscale_kernel(
+                self.pixels.as_ptr(),
+                gray_pixels.as_mut_ptr(),
+                self.width as usize,
+                self.height as usize
+            );
         }
         
         ImageBuffer {
             width: self.width,
             height: self.height,
-            pixels: gray_pixels, // 1 byte per pixel
+            pixels: gray_pixels,
         }
     }
+
     
     pub fn save_bmp(&self, path: &str) -> std::io::Result<()> {
         let mut file = File::create(path)?;

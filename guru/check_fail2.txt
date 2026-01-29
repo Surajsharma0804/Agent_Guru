@@ -1,0 +1,39 @@
+    Checking agent-guru v0.1.0 (F:\MY PROJECTS\Agent_Guru\guru)
+error: extern block is not supported in `trait`s or `impl`s
+   --> src\voice\wake\feature_extraction.rs:128:5
+    |
+128 |     extern "C" {
+    |     ^^^^^^^^^^
+    |
+    = help: consider moving the extern block out to a nearby module scope
+
+error: extern block is not supported in `trait`s or `impl`s
+  --> src\vision\image_processing.rs:20:5
+   |
+20 |     extern "C" {
+   |     ^^^^^^^^^^
+   |
+   = help: consider moving the extern block out to a nearby module scope
+
+error: extern blocks must be unsafe
+ --> src\voice\transcription\acoustic_model.rs:5:1
+  |
+5 | / extern "C" {
+6 | |     fn guru_transformer_forward(input: *const f32, output: *mut f32, size: usize);
+7 | | }
+  | |_^
+
+error[E0425]: cannot find function `guru_dft_magnitude` in this scope
+   --> src\voice\wake\feature_extraction.rs:137:13
+    |
+137 |             guru_dft_magnitude(input.as_ptr(), spectrum.as_mut_ptr(), n);
+    |             ^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `guru_grayscale_kernel` in this scope
+  --> src\vision\image_processing.rs:28:13
+   |
+28 |             guru_grayscale_kernel(
+   |             ^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `agent-guru` (lib) due to 5 previous errors
