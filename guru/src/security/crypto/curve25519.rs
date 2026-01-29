@@ -1,3 +1,4 @@
+#![allow(dead_code, unused_variables, clippy::wrong_self_convention, clippy::needless_range_loop)]
 //! Curve25519 Field Arithmetic
 //! Radix 2^51 implementation using u64.
 //! p = 2^255 - 19.

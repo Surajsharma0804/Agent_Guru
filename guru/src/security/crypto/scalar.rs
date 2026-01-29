@@ -1,3 +1,4 @@
+#![allow(dead_code, clippy::wrong_self_convention)]
 //! Scalar Arithmetic for Ed25519
 //! Arithmetic modulo L = 2^252 + 27742317777372353535851937790883648493.
 

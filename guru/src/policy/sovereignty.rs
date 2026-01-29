@@ -12,10 +12,9 @@ impl Law for SovereigntyLaw {
 
     fn validate(&self, context: &PolicyContext) -> Result<(), String> {
         // Check for network operations
-        if context.operation.contains("network") || context.operation.contains("http") {
-            if !context.metadata.get("user_consent").map(|v| v == "true").unwrap_or(false) {
-                return Err("Network operation requires explicit user consent".to_string());
-            }
+        if (context.operation.contains("network") || context.operation.contains("http")) 
+            && !context.metadata.get("user_consent").map(|v| v == "true").unwrap_or(false) {
+            return Err("Network operation requires explicit user consent".to_string());
         }
 
         // Check for external dependencies (runtime check)

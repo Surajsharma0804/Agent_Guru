@@ -1,7 +1,7 @@
 //! LLM Interface
 //! Traits for Large Language Model interaction.
 
-use crate::intelligence::tensor::Tensor;
+
 
 #[derive(Debug, Clone)]
 pub struct CompletionRequest {

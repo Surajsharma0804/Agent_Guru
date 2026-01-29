@@ -1,7 +1,6 @@
-use std::collections::{HashMap, HashSet};
-use std::fs::File;
-use std::io::{self, BufRead, BufReader};
-use std::path::Path;
+#![allow(dead_code)]
+use std::collections::HashMap;
+use std::io;
 
 pub struct Tokenizer {
     encoder: HashMap<String, usize>,
@@ -11,15 +10,15 @@ pub struct Tokenizer {
 }
 
 impl Tokenizer {
-    pub fn new<P: AsRef<Path>>(vocab_path: P, merges_path: P) -> io::Result<Self> {
+    pub fn new<P: AsRef<std::path::Path>>(_vocab_path: P, _merges_path: P) -> io::Result<Self> {
         // Load vocab.json (token -> id)
         // For now, simpler: we assume we have a merges file and we build vocab from it + base bytes?
         // Whisper uses a specific vocab. 
         // Let's implement the structure assuming we load standard GPT-2 style files.
         
-        let mut encoder = HashMap::new();
-        let mut decoder = HashMap::new();
-        let mut bpe_ranks = HashMap::new();
+        let encoder = HashMap::new();
+        let decoder = HashMap::new();
+        let bpe_ranks = HashMap::new();
 
         // Placeholder for loading logic
         // In prod we parse "vocab.json" and "merges.txt"
@@ -47,7 +46,7 @@ impl Tokenizer {
         token.to_string()
     }
 
-    pub fn encode(&self, text: &str) -> Vec<usize> {
+    pub fn encode(&self, _text: &str) -> Vec<usize> {
         // 1. Normalize
         // 2. Regex split
         // 3. Map to bytes

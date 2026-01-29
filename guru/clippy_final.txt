@@ -1,0 +1,443 @@
+    Checking agent-guru v0.1.0 (F:\MY PROJECTS\Agent_Guru\guru)
+warning: unused import: `Zeroize`
+ --> src\security\crypto\symmetric_encryption.rs:1:36
+  |
+1 | use super::secure_memory::{Secret, Zeroize};
+  |                                    ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::f32::consts::PI`
+ --> src\voice\transcription\acoustic_model.rs:2:5
+  |
+2 | use std::f32::consts::PI;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> src\vision\image_processing.rs:4:5
+  |
+4 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::intelligence::tensor::Tensor`
+ --> src\llm\interface.rs:4:5
+  |
+4 | use crate::intelligence::tensor::Tensor;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `File`
+ --> src\policy\audit.rs:4:15
+  |
+4 | use std::fs::{File, OpenOptions};
+  |               ^^^^
+
+warning: unused import: `std::path::Path`
+ --> src\policy\audit.rs:6:5
+  |
+6 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> src\platform\networking.rs:6:5
+  |
+6 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `super::agent_trait::Agent`
+ --> src\agents\orchestrator.rs:4:5
+  |
+4 | use super::agent_trait::Agent;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `scalar`
+   --> src\security\crypto\curve25519.rs:245:28
+    |
+245 |     pub fn scalarmult_base(scalar: &[u8; 32]) -> Self {
+    |                            ^^^^^^ help: if this is intentional, prefix it with an underscore: `_scalar`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `n`
+   --> src\voice\wake\feature_extraction.rs:108:13
+    |
+108 |         let n = input.len();
+    |             ^
+    |
+help: if this is intentional, prefix it with an underscore
+    |
+108 |         let _n = input.len();
+    |             +
+help: you might have meant to pattern match on the similarly named constant `STATE_LEN`
+    |
+108 -         let n = input.len();
+108 +         let security::crypto::sha512::STATE_LEN = input.len();
+    |
+
+warning: unused variable: `m`
+   --> src\voice\transcription\acoustic_model.rs:181:25
+    |
+181 |             if let Some(m) = mask {
+    |                         ^ help: if this is intentional, prefix it with an underscore: `_m`
+
+warning: associated items `L` and `from_bytes` are never used
+  --> src\security\crypto\scalar.rs:17:15
+   |
+15 | impl Scalar {
+   | ----------- associated items in this implementation
+16 |     /// L = 2^252 + 27742317777372353535851937790883648493
+17 |     pub const L: [u8; 32] = [
+   |               ^
+...
+24 |     pub fn from_bytes(bytes: [u8; 32]) -> Self {
+   |            ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: multiple associated items are never used
+   --> src\security\crypto\curve25519.rs:20:12
+    |
+ 16 | impl Fe {
+    | ------- associated items in this implementation
+...
+ 20 |     pub fn from_bytes(bytes: &[u8; 32]) -> Self {
+    |            ^^^^^^^^^^
+...
+ 38 |     pub fn to_bytes(&self) -> [u8; 32] {
+    |            ^^^^^^^^
+...
+ 60 |     fn carry(&mut self) {
+    |        ^^^^^
+...
+ 77 |     fn freeze(&mut self) {
+    |        ^^^^^^
+...
+ 83 |     pub fn add(&self, other: &Self) -> Self {
+    |            ^^^
+...
+ 93 |     pub fn sub(&self, other: &Self) -> Self {
+    |            ^^^
+...
+165 |     pub fn neg(&self) -> Self {
+    |            ^^^
+...
+169 |     pub fn mul(&self, other: &Self) -> Self {
+    |            ^^^
+...
+211 |     pub fn square(&self) -> Self {
+    |            ^^^^^^
+...
+215 |     pub fn invert(&self) -> Self {
+    |            ^^^^^^
+
+warning: fields `x`, `y`, `z`, and `t` are never read
+   --> src\security\crypto\curve25519.rs:238:9
+    |
+237 | pub struct Ge {
+    |            -- fields in this struct
+238 |     pub x: Fe,
+    |         ^
+239 |     pub y: Fe,
+    |         ^
+240 |     pub z: Fe,
+    |         ^
+241 |     pub t: Fe,
+    |         ^
+
+warning: field `sample_rate` is never read
+ --> src\voice\wake\feature_extraction.rs:6:5
+  |
+5 | pub struct AudioFeatureExtractor {
+  |            --------------------- field in this struct
+6 |     sample_rate: u32,
+  |     ^^^^^^^^^^^
+
+warning: fields `encoder`, `bpe_ranks`, and `cache` are never read
+ --> src\voice\transcription\tokenizer.rs:5:5
+  |
+4 | pub struct Tokenizer {
+  |            --------- fields in this struct
+5 |     encoder: HashMap<String, usize>,
+  |     ^^^^^^^
+6 |     decoder: HashMap<usize, String>,
+7 |     bpe_ranks: HashMap<(String, String), usize>,
+  |     ^^^^^^^^^
+8 |     cache: HashMap<String, String>,
+  |     ^^^^^
+
+warning: method `bpe` is never used
+  --> src\voice\transcription\tokenizer.rs:33:8
+   |
+11 | impl Tokenizer {
+   | -------------- method in this implementation
+...
+33 |     fn bpe(&self, token: &str) -> String {
+   |        ^^^
+
+warning: multiple fields are never read
+   --> src\voice\transcription\acoustic_model.rs:282:5
+    |
+281 | pub struct AudioEncoder {
+    |            ------------ fields in this struct
+282 |     conv1_w: Tensor,
+    |     ^^^^^^^
+283 |     conv1_b: Tensor,
+    |     ^^^^^^^
+284 |     conv2_w: Tensor,
+    |     ^^^^^^^
+285 |     conv2_b: Tensor,
+    |     ^^^^^^^
+286 |     positional_embedding: Tensor,
+    |     ^^^^^^^^^^^^^^^^^^^^
+287 |     blocks: Vec<ResidualAttentionBlock>,
+    |     ^^^^^^
+288 |     ln_post: LayerNorm,
+    |     ^^^^^^^
+
+warning: methods with the following characteristics: (`to_*` and `self` type is `Copy`) usually take `self` by value
+  --> src\security\crypto\scalar.rs:28:21
+   |
+28 |     pub fn to_bytes(&self) -> [u8; 32] {
+   |                     ^^^^^
+   |
+   = help: consider choosing a less ambiguous name
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#wrong_self_convention
+   = note: `#[warn(clippy::wrong_self_convention)]` on by default
+
+warning: methods with the following characteristics: (`to_*` and `self` type is `Copy`) usually take `self` by value
+  --> src\security\crypto\curve25519.rs:38:21
+   |
+38 |     pub fn to_bytes(&self) -> [u8; 32] {
+   |                     ^^^^^
+   |
+   = help: consider choosing a less ambiguous name
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#wrong_self_convention
+
+warning: the loop variable `i` is only used to index `p_minus_2`
+   --> src\security\crypto\curve25519.rs:220:18
+    |
+220 |         for i in 0..32 { p_minus_2[i] = 0xFF; }
+    |                  ^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#needless_range_loop
+    = note: `#[warn(clippy::needless_range_loop)]` on by default
+help: consider using an iterator
+    |
+220 -         for i in 0..32 { p_minus_2[i] = 0xFF; }
+220 +         for <item> in &mut p_minus_2 { p_minus_2[i] = 0xFF; }
+    |
+
+warning: the loop variable `j` is used to index `filter`
+  --> src\voice\wake\feature_extraction.rs:57:22
+   |
+57 |             for j in start..center {
+   |                      ^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+   |
+57 -             for j in start..center {
+57 +             for (j, <item>) in filter.iter_mut().enumerate().take(center).skip(start) {
+   |
+
+warning: the loop variable `j` is used to index `filter`
+  --> src\voice\wake\feature_extraction.rs:60:22
+   |
+60 |             for j in center..end {
+   |                      ^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+   |
+60 -             for j in center..end {
+60 +             for (j, <item>) in filter.iter_mut().enumerate().take(end).skip(center) {
+   |
+
+warning: the loop variable `k` is used to index `spectrum`
+   --> src\voice\wake\feature_extraction.rs:136:19
+    |
+136 |          for k in 0..=n/2 {
+    |                   ^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+136 -          for k in 0..=n/2 {
+136 +          for (k, <item>) in spectrum.iter_mut().enumerate().take(n / 2 + 1) {
+    |
+
+warning: the loop variable `h` is used to index `heads`
+   --> src\voice\transcription\acoustic_model.rs:221:18
+    |
+221 |         for h in 0..n_head {
+    |                  ^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+221 -         for h in 0..n_head {
+221 +         for (h, <item>) in heads.iter().enumerate().take(n_head) {
+    |
+
+warning: usage of a legacy numeric constant
+  --> src\voice\transcription\decoding.rs:44:31
+   |
+44 |             let mut max_val = std::f32::NEG_INFINITY;
+   |                               ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#legacy_numeric_constants
+   = note: `#[warn(clippy::legacy_numeric_constants)]` on by default
+help: use the associated constant instead
+   |
+44 -             let mut max_val = std::f32::NEG_INFINITY;
+44 +             let mut max_val = f32::NEG_INFINITY;
+   |
+
+warning: usage of a legacy numeric constant
+   --> src\intelligence\tensor.rs:131:49
+    |
+131 |             let max_val = row_slice.iter().fold(std::f32::NEG_INFINITY, |a, &b| a.max(b));
+    |                                                 ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#legacy_numeric_constants
+help: use the associated constant instead
+    |
+131 -             let max_val = row_slice.iter().fold(std::f32::NEG_INFINITY, |a, &b| a.max(b));
+131 +             let max_val = row_slice.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+    |
+
+warning: the loop variable `i` is used to index `data`
+  --> src\intelligence\embedding_model.rs:21:18
+   |
+21 |         for i in 0..256 {
+   |                  ^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+   |
+21 -         for i in 0..256 {
+21 +         for (i, <item>) in data.iter_mut().enumerate().take(256) {
+   |
+
+warning: you should consider adding a `Default` implementation for `AgentRegistry`
+  --> src\agents\registry.rs:13:5
+   |
+13 | /     pub fn new() -> Self {
+14 | |         Self {
+15 | |             agents: Arc::new(RwLock::new(HashMap::new())),
+16 | |         }
+17 | |     }
+   | |_____^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#new_without_default
+   = note: `#[warn(clippy::new_without_default)]` on by default
+help: try adding this
+   |
+12 + impl Default for AgentRegistry {
+13 +     fn default() -> Self {
+14 +         Self::new()
+15 +     }
+16 + }
+   |
+
+warning: this `if` statement can be collapsed
+   --> src\agents\message_bus.rs:83:17
+    |
+ 83 | /                 if let Some(decrypted) = decrypt(&self.key, &nonce, ciphertext) {
+ 84 | |                     if let Ok(data_str) = String::from_utf8(decrypted) {
+ 85 | |                         let parts: Vec<&str> = data_str.split('|').collect();
+ 86 | |                         if parts.len() >= 4 && parts[1] == agent_id {
+...   |
+105 | |                 }
+    | |_________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#collapsible_if
+    = note: `#[warn(clippy::collapsible_if)]` on by default
+help: collapse nested if block
+    |
+ 83 ~                 if let Some(decrypted) = decrypt(&self.key, &nonce, ciphertext)
+ 84 ~                     && let Ok(data_str) = String::from_utf8(decrypted) {
+ 85 |                         let parts: Vec<&str> = data_str.split('|').collect();
+...
+103 |                         }
+104 ~                     }
+    |
+
+warning: you should consider adding a `Default` implementation for `LawEngine`
+  --> src\policy\law_engine.rs:27:5
+   |
+27 | /     pub fn new() -> Self {
+28 | |         Self {
+29 | |             laws: Arc::new(RwLock::new(Vec::new())),
+30 | |         }
+31 | |     }
+   | |_____^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#new_without_default
+help: try adding this
+   |
+26 + impl Default for LawEngine {
+27 +     fn default() -> Self {
+28 +         Self::new()
+29 +     }
+30 + }
+   |
+
+warning: this `if` statement can be collapsed
+  --> src\policy\sovereignty.rs:15:9
+   |
+15 | /         if context.operation.contains("network") || context.operation.contains("http") {
+16 | |             if !context.metadata.get("user_consent").map(|v| v == "true").unwrap_or(false) {
+17 | |                 return Err("Network operation requires explicit user consent".to_string());
+18 | |             }
+19 | |         }
+   | |_________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#collapsible_if
+help: collapse nested if block
+   |
+15 ~         if (context.operation.contains("network") || context.operation.contains("http")) {
+16 ~             && !context.metadata.get("user_consent").map(|v| v == "true").unwrap_or(false) {
+17 |                 return Err("Network operation requires explicit user consent".to_string());
+18 ~             }
+   |
+
+warning: this `if` statement can be collapsed
+  --> src\policy\privacy.rs:15:9
+   |
+15 | /         if context.operation.contains("store_sensitive") || context.operation.contains("transmit_sensitive") {
+16 | |             if !context.metadata.get("encrypted").map(|v| v == "true").unwrap_or(false) {
+17 | |                 return Err("Sensitive data must be encrypted".to_string());
+18 | |             }
+19 | |         }
+   | |_________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#collapsible_if
+help: collapse nested if block
+   |
+15 ~         if (context.operation.contains("store_sensitive") || context.operation.contains("transmit_sensitive")) {
+16 ~             && !context.metadata.get("encrypted").map(|v| v == "true").unwrap_or(false) {
+17 |                 return Err("Sensitive data must be encrypted".to_string());
+18 ~             }
+   |
+
+warning: this `if` statement can be collapsed
+  --> src\policy\privacy.rs:22:9
+   |
+22 | /         if context.operation.contains("pii") {
+23 | |             if !context.metadata.get("anonymized").map(|v| v == "true").unwrap_or(false) {
+24 | |                 return Err("PII must be anonymized or encrypted".to_string());
+25 | |             }
+26 | |         }
+   | |_________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#collapsible_if
+help: collapse nested if block
+   |
+22 ~         if context.operation.contains("pii")
+23 ~             && !context.metadata.get("anonymized").map(|v| v == "true").unwrap_or(false) {
+24 |                 return Err("PII must be anonymized or encrypted".to_string());
+25 ~             }
+   |
+
+warning: `agent-guru` (lib) generated 34 warnings (run `cargo clippy --fix --lib -p agent-guru` to apply 14 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.57s

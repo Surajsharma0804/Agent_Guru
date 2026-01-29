@@ -41,7 +41,7 @@ impl Decoder {
             
             // Argmax
             let mut best_idx = 0;
-            let mut max_val = std::f32::NEG_INFINITY;
+            let mut max_val = f32::NEG_INFINITY;
             
             for (i, &val) in last_logits.iter().enumerate() {
                 if val > max_val {

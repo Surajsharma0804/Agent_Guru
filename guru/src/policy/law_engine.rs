@@ -59,3 +59,9 @@ impl LawEngine {
         }
     }
 }
+
+impl Default for LawEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}

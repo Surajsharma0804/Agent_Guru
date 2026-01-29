@@ -39,3 +39,9 @@ impl AgentRegistry {
         agents.keys().cloned().collect()
     }
 }
+
+impl Default for AgentRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}

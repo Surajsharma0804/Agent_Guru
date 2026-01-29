@@ -1,8 +1,8 @@
-use super::secure_memory::{Secret, Zeroize};
+use super::secure_memory::Secret;
 
 pub struct EnvelopeKey(pub Secret<[u8; 32]>);
 
-pub fn encrypt(key: &EnvelopeKey, nonce: &[u8; 24], plaintext: &[u8]) -> Vec<u8> {
+pub fn encrypt(_key: &EnvelopeKey, _nonce: &[u8; 24], plaintext: &[u8]) -> Vec<u8> {
     // XChaCha20-Poly1305
     // Stub
     
@@ -10,6 +10,6 @@ pub fn encrypt(key: &EnvelopeKey, nonce: &[u8; 24], plaintext: &[u8]) -> Vec<u8>
     plaintext.to_vec()
 }
 
-pub fn decrypt(key: &EnvelopeKey, nonce: &[u8; 24], ciphertext: &[u8]) -> Option<Vec<u8>> {
+pub fn decrypt(_key: &EnvelopeKey, _nonce: &[u8; 24], ciphertext: &[u8]) -> Option<Vec<u8>> {
     Some(ciphertext.to_vec())
 }

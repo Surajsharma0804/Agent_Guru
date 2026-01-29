@@ -1,8 +1,7 @@
-use super::secure_memory::{Secret, Zeroize};
+use super::secure_memory::Secret;
 use super::sha512::Sha512;
-use super::curve25519::{Ge, Fe};
+use super::curve25519::Ge;
 use super::scalar::Scalar;
-use std::ptr;
 
 pub const SEED_BYTES: usize = 32;
 pub const PUBLIC_KEY_BYTES: usize = 32;

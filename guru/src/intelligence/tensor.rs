@@ -128,7 +128,7 @@ impl Tensor {
             let row_end = row_start + cols;
             let row_slice = &self.data[row_start..row_end];
             
-            let max_val = row_slice.iter().fold(std::f32::NEG_INFINITY, |a, &b| a.max(b));
+            let max_val = row_slice.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
             let mut sum_exp = 0.0f32;
             for (j, &val) in row_slice.iter().enumerate() {
                 let e = (val - max_val).exp();

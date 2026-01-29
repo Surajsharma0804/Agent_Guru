@@ -1,3 +1,4 @@
+#![allow(non_snake_case, non_camel_case_types, non_upper_case_globals, clippy::upper_case_acronyms)]
 //! Windows Platform Bridge
 //! Direct FFI to User32.dll and Kernel32.dll.
 
@@ -19,7 +20,7 @@ unsafe extern "system" {
     fn EmptyClipboard() -> i32;
     fn SetClipboardData(uFormat: u32, hMem: *mut c_void) -> *mut c_void;
     fn GetClipboardData(uFormat: u32) -> *mut c_void;
-    fn IsClipboardFormatAvailable(format: u32) -> i32;
+
 }
 
 #[link(name = "gdi32")]
@@ -38,7 +39,7 @@ unsafe extern "system" {
     fn GlobalAlloc(uFlags: u32, dwBytes: usize) -> *mut c_void;
     fn GlobalLock(hMem: *mut c_void) -> *mut c_void;
     fn GlobalUnlock(hMem: *mut c_void) -> i32;
-    fn GlobalFree(hMem: *mut c_void) -> *mut c_void;
+
 }
 
 // GDI Types
@@ -127,6 +128,12 @@ const MOUSEEVENTF_ABSOLUTE: u32 = 0x8000;
 const CF_TEXT: u32 = 1;
 
 pub struct WindowsBridge;
+
+impl Default for WindowsBridge {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl WindowsBridge {
     pub fn new() -> Self {

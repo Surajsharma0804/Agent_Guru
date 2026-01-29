@@ -1,7 +1,7 @@
 //! Image Processing
 //! Basic bitmap manipulation.
 
-use std::path::Path;
+
 use std::fs::File;
 use std::io::Write;
 

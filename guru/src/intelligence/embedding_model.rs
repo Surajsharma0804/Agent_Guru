@@ -1,3 +1,4 @@
+#![allow(clippy::needless_range_loop)]
 //! Embedding Model Interface
 
 use crate::intelligence::tensor::Tensor;

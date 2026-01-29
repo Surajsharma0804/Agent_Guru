@@ -1,3 +1,4 @@
+#![allow(clippy::collapsible_if)]
 //! Message Bus
 //! Secure inter-agent communication system.
 

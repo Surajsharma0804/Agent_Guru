@@ -1,7 +1,7 @@
 //! Orchestrator
 //! Coordinates multi-agent workflows.
 
-use super::agent_trait::Agent;
+
 use super::registry::AgentRegistry;
 use super::message_bus::{MessageBus, Message};
 use std::sync::Arc;

@@ -1,5 +1,6 @@
+#![allow(dead_code, unused_variables)]
 use crate::intelligence::tensor::Tensor;
-use std::f32::consts::PI;
+
 
 pub struct ModelDimensions {
     pub n_mels: usize,
@@ -218,8 +219,8 @@ impl MultiHeadAttention {
         let total_dim = n_head * dim;
         let mut data = vec![0.0; seq_len * total_dim];
         
-        for h in 0..n_head {
-             let head_data = &heads[h].data;
+        for (h, head) in heads.iter().enumerate().take(n_head) {
+             let head_data = &head.data;
              for i in 0..seq_len {
                  let row_start = i * total_dim;
                  let head_start = h * dim;

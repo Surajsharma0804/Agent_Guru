@@ -1,3 +1,4 @@
+#![allow(dead_code, clippy::needless_range_loop)]
 use std::f32::consts::PI;
 
 /// Audio Feature Extraction (STFT & Mel Spectrogram)
@@ -105,7 +106,7 @@ impl AudioFeatureExtractor {
     // Cooley-Tukey FFT (Recursive)
     // O(N log N)
     fn fft(&self, input: &[f32]) -> Vec<f32> {
-        let n = input.len();
+        let _n = input.len();
         // Pad to power of 2 if needed (assume window_size is pow2 usually, e.g. 512, but 400 is not?)
         // Whisper uses 400 for n_fft? No, n_fft=400. That's not pow2.
         // If not pow2, naive DFT is actually fallback, but Bluestein's is better.
