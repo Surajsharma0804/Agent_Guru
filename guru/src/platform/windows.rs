@@ -10,6 +10,8 @@ use std::ptr::null_mut;
 unsafe extern "system" {
     fn SendInput(cInputs: u32, pInputs: *mut INPUT, cbSize: i32) -> u32;
     fn GetSystemMetrics(nIndex: i32) -> i32;
+    fn GetDC(hWnd: *mut c_void) -> *mut c_void;
+    fn ReleaseDC(hWnd: *mut c_void, hDC: *mut c_void) -> i32;
     
     // Clipboard
     fn OpenClipboard(hWnd: *mut c_void) -> i32;
@@ -20,6 +22,17 @@ unsafe extern "system" {
     fn IsClipboardFormatAvailable(format: u32) -> i32;
 }
 
+#[link(name = "gdi32")]
+unsafe extern "system" {
+    fn CreateCompatibleDC(hDC: *mut c_void) -> *mut c_void;
+    fn CreateCompatibleBitmap(hDC: *mut c_void, nWidth: i32, nHeight: i32) -> *mut c_void;
+    fn SelectObject(hDC: *mut c_void, hgdiobj: *mut c_void) -> *mut c_void;
+    fn BitBlt(hdcDest: *mut c_void, nXDest: i32, nYDest: i32, nWidth: i32, nHeight: i32, hdcSrc: *mut c_void, nXSrc: i32, nYSrc: i32, dwRop: u32) -> i32;
+    fn DeleteDC(hDC: *mut c_void) -> i32;
+    fn DeleteObject(ho: *mut c_void) -> i32;
+    fn GetDIBits(hdc: *mut c_void, hbmp: *mut c_void, uStartScan: u32, cScanLines: u32, lpvBits: *mut c_void, lpbi: *mut BITMAPINFO, uUsage: u32) -> i32;
+}
+
 #[link(name = "kernel32")]
 unsafe extern "system" {
     fn GlobalAlloc(uFlags: u32, dwBytes: usize) -> *mut c_void;
@@ -27,6 +40,32 @@ unsafe extern "system" {
     fn GlobalUnlock(hMem: *mut c_void) -> i32;
     fn GlobalFree(hMem: *mut c_void) -> *mut c_void;
 }
+
+// GDI Types
+#[repr(C)]
+struct BITMAPINFO {
+    bmiHeader: BITMAPINFOHEADER,
+    bmiColors: [u32; 1], // Variable size, but we use RGB
+}
+
+#[repr(C)]
+struct BITMAPINFOHEADER {
+    biSize: u32,
+    biWidth: i32,
+    biHeight: i32,
+    biPlanes: u16,
+    biBitCount: u16,
+    biCompression: u32,
+    biSizeImage: u32,
+    biXPelsPerMeter: i32,
+    biYPelsPerMeter: i32,
+    biClrUsed: u32,
+    biClrImportant: u32,
+}
+
+const SRCCOPY: u32 = 0x00CC0020;
+const DIB_RGB_COLORS: u32 = 0;
+const BI_RGB: u32 = 0;
 
 // Structs
 #[repr(C)]
@@ -92,6 +131,65 @@ pub struct WindowsBridge;
 impl WindowsBridge {
     pub fn new() -> Self {
         Self
+    }
+
+    // Screen Capture
+    pub fn capture_full_screen(&self) -> Result<(u32, u32, Vec<u8>), String> {
+        unsafe {
+             let w = GetSystemMetrics(0); // SM_CXSCREEN
+             let h = GetSystemMetrics(1); // SM_CYSCREEN
+             
+             let hdc_screen = GetDC(null_mut());
+             let hdc_mem = CreateCompatibleDC(hdc_screen);
+             let h_bitmap = CreateCompatibleBitmap(hdc_screen, w, h);
+             
+             SelectObject(hdc_mem, h_bitmap);
+             
+             // BitBlt to copy screen to memory bitmap
+             if BitBlt(hdc_mem, 0, 0, w, h, hdc_screen, 0, 0, SRCCOPY) == 0 {
+                 DeleteObject(h_bitmap);
+                 DeleteDC(hdc_mem);
+                 ReleaseDC(null_mut(), hdc_screen);
+                 return Err("BitBlt failed".to_string());
+             }
+             
+             // Get Pixels
+             let mut bi = BITMAPINFO {
+                 bmiHeader: BITMAPINFOHEADER {
+                     biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                     biWidth: w,
+                     biHeight: -h, // Top-down
+                     biPlanes: 1,
+                     biBitCount: 32, // RGBA
+                     biCompression: BI_RGB,
+                     biSizeImage: 0,
+                     biXPelsPerMeter: 0,
+                     biYPelsPerMeter: 0,
+                     biClrUsed: 0,
+                     biClrImportant: 0,
+                 },
+                 bmiColors: [0; 1],
+             };
+             
+             let size = (w * h * 4) as usize;
+             let mut pixels = vec![0u8; size];
+             
+             if GetDIBits(hdc_mem, h_bitmap, 0, h as u32, pixels.as_mut_ptr() as *mut c_void, &mut bi, DIB_RGB_COLORS) == 0 {
+                 DeleteObject(h_bitmap);
+                 DeleteDC(hdc_mem);
+                 ReleaseDC(null_mut(), hdc_screen);
+                 return Err("GetDIBits failed".to_string());
+             }
+             
+             // Cleanup
+             DeleteObject(h_bitmap);
+             DeleteDC(hdc_mem);
+             ReleaseDC(null_mut(), hdc_screen);
+             
+             // GDI returns BGRA usually.
+             
+             Ok((w as u32, h as u32, pixels))
+        }
     }
 }
 
