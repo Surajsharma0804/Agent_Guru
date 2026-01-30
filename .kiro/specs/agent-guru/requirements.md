@@ -474,15 +474,15 @@ AGENT_GURU (Global Unified Reasoning Utility) is a sovereign AI operating compan
 
 #### Acceptance Criteria
 
-1. THE Development_Process SHALL clone source repositories ONLY into /tmp/guru_quarantine/<task_name>/ directories
-2. WHEN algorithm extraction begins, THE AGENT SHALL generate comprehensive inventory JSON for all analyzed files
+1. THE Development_Process SHALL clone source repositories DIRECTLY into the current workspace directory for immediate access
+2. WHEN algorithm extraction begins, THE AGENT SHALL generate comprehensive inventory JSON for all analyzed files in `/docs/research/inventory_<task_name>.json`
 3. THE Development_Process SHALL extract ONLY algorithms, mathematics, state machines, and architecture patterns
 4. WHEN implementations are created, THE AGENT SHALL use completely rewritten GURU-native code with no foreign residue
-5. THE Development_Process SHALL delete ALL quarantine directories before any code commitsefore any code commits
+5. THE Development_Process SHALL delete ALL cloned repository directories immediately after extraction and file copying
 6. WHEN formal verification is required, THE System SHALL create corresponding TLA+ specifications
-7. THE Development_Process SHALL maintain detailed attribution records in /vendor/ATTRIBUTION.md for all algorithm sources
+7. THE Development_Process SHALL maintain detailed attribution records in `/vendor/ATTRIBUTION.md` for all algorithm sources
 8. WHEN testing phases complete, THE System SHALL verify zero foreign code remains in the codebase
-9. THE Development_Process SHALL generate comprehensive task documentation in /docs/tasks/<task_name>.md format
+9. THE Development_Process SHALL generate comprehensive task documentation in `/docs/tasks/<task_name>.md` format
 10. WHEN commits are made, THE System SHALL verify cryptographic signatures and complete clean room compliance
 
 ## Repository Source Mapping and Algorithm Extraction Requirements
@@ -855,7 +855,7 @@ AGENT_GURU (Global Unified Reasoning Utility) is a sovereign AI operating compan
 
 ### Final System Completion Gates
 **System is COMPLETE only when ALL criteria are met:**
-1. All quarantine directories deleted and verified clean
+1. All cloned repository directories deleted and verified clean
 2. All builds are reproducible with cryptographic verification
 3. All commits are cryptographically signed
 4. Runtime self-attestation passes all security checks

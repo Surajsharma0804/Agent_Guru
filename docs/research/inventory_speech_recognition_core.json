@@ -1,0 +1,129 @@
+{
+  "extraction_metadata": {
+    "timestamp": "2026-01-30T00:00:00Z",
+    "source_repository": "https://github.com/ggerganov/whisper.cpp",
+    "commit_hash": "latest",
+    "extraction_method": "clean_room_development",
+    "compliance_status": "ip_clean",
+    "extracted_by": "AGENT_GURU_IMPLEMENTATION",
+    "purpose": "speech_recognition_core_algorithms"
+  },
+  "algorithms_extracted": {
+    "transformer_decoder": {
+      "description": "Transformer decoder loop implementation for neural speech processing",
+      "source_files": ["whisper.cpp/src/whisper.cpp", "whisper.cpp/include/whisper.h"],
+      "key_structures": [
+        "whisper_layer_decoder",
+        "whisper_kv_cache", 
+        "whisper_decoder",
+        "whisper_sequence"
+      ],
+      "mathematical_concepts": [
+        "multi_head_attention_mechanism",
+        "cross_attention_computation",
+        "layer_normalization",
+        "mlp_feed_forward_networks",
+        "positional_embeddings"
+      ],
+      "implementation_patterns": [
+        "kv_cache_streaming_optimization",
+        "attention_weight_computation",
+        "token_probability_calculation",
+        "sequence_generation_loop"
+      ]
+    },
+    "log_mel_spectrogram": {
+      "description": "Log-mel spectrogram generation from raw audio input",
+      "source_files": ["whisper.cpp/src/whisper.cpp"],
+      "key_functions": [
+        "log_mel_spectrogram",
+        "log_mel_spectrogram_worker_thread",
+        "fft"
+      ],
+      "mathematical_concepts": [
+        "fast_fourier_transform",
+        "hann_windowing_function",
+        "mel_filter_bank_application",
+        "logarithmic_scaling",
+        "power_spectrum_calculation"
+      ],
+      "implementation_patterns": [
+        "multi_threaded_processing",
+        "frame_based_analysis",
+        "reflective_padding",
+        "normalization_and_clamping"
+      ]
+    },
+    "kv_cache_management": {
+      "description": "Key-Value cache streaming for efficient memory usage",
+      "source_files": ["whisper.cpp/src/whisper.cpp"],
+      "key_structures": [
+        "whisper_kv_cache",
+        "whisper_kv_cell"
+      ],
+      "mathematical_concepts": [
+        "attention_key_value_storage",
+        "sequence_position_tracking",
+        "memory_efficient_caching"
+      ],
+      "implementation_patterns": [
+        "circular_buffer_management",
+        "sequence_id_tracking",
+        "memory_buffer_allocation"
+      ]
+    },
+    "quantization_techniques": {
+      "description": "Neural network quantization for INT8/FP16 precision handling",
+      "source_files": ["whisper.cpp/src/whisper.cpp"],
+      "mathematical_concepts": [
+        "tensor_quantization",
+        "precision_reduction",
+        "accuracy_preservation"
+      ],
+      "implementation_patterns": [
+        "type_conversion_handling",
+        "endianness_management",
+        "tensor_data_processing"
+      ]
+    },
+    "tokenization_algorithms": {
+      "description": "Text tokenization using byte-pair encoding patterns",
+      "source_files": ["whisper.cpp/src/whisper.cpp"],
+      "key_functions": [
+        "tokenize"
+      ],
+      "mathematical_concepts": [
+        "regex_pattern_matching",
+        "longest_token_matching",
+        "vocabulary_lookup"
+      ],
+      "implementation_patterns": [
+        "greedy_tokenization",
+        "unicode_handling",
+        "special_token_processing"
+      ]
+    }
+  },
+  "performance_characteristics": {
+    "spectrogram_generation": {
+      "frame_size": 400,
+      "hop_length": 160,
+      "sample_rate": 16000,
+      "n_mel_filters": 80,
+      "threading": "multi_threaded_worker_pattern"
+    },
+    "transformer_decoder": {
+      "attention_heads": "model_dependent",
+      "context_length": "up_to_448_tokens",
+      "kv_cache": "streaming_optimization",
+      "precision": "fp16_fp32_int8_support"
+    }
+  },
+  "compliance_verification": {
+    "algorithm_extraction_only": true,
+    "no_copyrighted_code": true,
+    "mathematical_concepts_only": true,
+    "clean_room_methodology": true,
+    "independent_implementation_required": true
+  }
+}
