@@ -13,6 +13,14 @@
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
 #![allow(clippy::module_name_repetitions, missing_docs)]
 
+// Enhanced biometric modules
+pub mod face;
+pub mod voice;
+pub mod fingerprint;
+
+#[cfg(test)]
+pub mod property_tests;
+
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
