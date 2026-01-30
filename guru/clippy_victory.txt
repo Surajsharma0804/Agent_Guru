@@ -1,2 +1,0 @@
-    Checking agent-guru v0.1.0 (F:\MY PROJECTS\Agent_Guru\guru)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.37s

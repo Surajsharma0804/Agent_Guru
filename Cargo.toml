@@ -1,0 +1,90 @@
+[package]
+name = "agent_guru"
+version = "2.0.0"
+edition = "2021"
+rust-version = "1.75"
+authors = ["AGENT_GURU Development Team"]
+description = "Production-grade sovereign AI operating companion with cryptographic governance"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/agent-guru/agent-guru"
+keywords = ["ai", "cryptography", "identity", "security", "agent"]
+categories = ["cryptography", "authentication"]
+
+[dependencies]
+# Cryptographic dependencies
+ed25519-dalek = { version = "2.1", features = ["rand_core", "serde"] }
+sha2 = "0.10"
+rand = "0.8"
+zeroize = { version = "1.7", features = ["derive"] }
+subtle = "2.5"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Utilities
+uuid = { version = "1.6", features = ["v4", "serde"] }
+hex = "0.4"
+thiserror = "1.0"
+regex = "1.10"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Logging
+log = "0.4"
+env_logger = "0.10"
+
+# Async runtime (for future use)
+tokio = { version = "1.35", features = ["full"], optional = true }
+
+# Testing dependencies
+[dev-dependencies]
+proptest = "1.4"
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3.8"
+
+[features]
+default = []
+async = ["tokio"]
+
+# Optimization settings for production builds
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# Development profile with debugging
+[profile.dev]
+opt-level = 0
+debug = true
+overflow-checks = true
+
+# Benchmarking profile
+[profile.bench]
+opt-level = 3
+debug = false
+lto = true
+
+# Security-focused compiler settings
+[profile.release.package."*"]
+opt-level = 3
+debug = false
+
+# Ensure all dependencies use secure settings
+[profile.dev.package."*"]
+opt-level = 1
+debug = true
+
+[[bench]]
+name = "crypto_benchmarks"
+harness = false
+path = "benches/crypto_benchmarks.rs"
+
+[lib]
+name = "agent_guru"
+path = "src/lib.rs"
+
+[[bin]]
+name = "agent-guru"
+path = "src/main.rs"
