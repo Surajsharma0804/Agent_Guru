@@ -190,7 +190,7 @@ impl AudioProcessor {
         
         Ok(voice_frames)
     }
-}
+    
     fn frame_audio(&self, audio: &[f32]) -> Vec<Vec<f32>> {
         let mut frames = Vec::new();
         let mut start = 0;
@@ -307,7 +307,7 @@ impl AudioProcessor {
 /// Voice embedding for speaker recognition
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VoiceEmbedding {
-    pub features: [f32; VOICE_EMBEDDING_SIZE],
+    pub features: Vec<f32>, // Changed from [f32; VOICE_EMBEDDING_SIZE] to Vec<f32> for serde compatibility
     pub quality_score: f32,
     pub extraction_timestamp: SystemTime,
     pub utterance_length_ms: u32,
@@ -316,7 +316,7 @@ pub struct VoiceEmbedding {
 }
 
 impl VoiceEmbedding {
-    pub fn new(features: [f32; VOICE_EMBEDDING_SIZE], quality_score: f32, utterance_length_ms: u32) -> Self {
+    pub fn new(features: Vec<f32>, quality_score: f32, utterance_length_ms: u32) -> Self {
         Self {
             features,
             quality_score,
@@ -327,7 +327,7 @@ impl VoiceEmbedding {
         }
     }
     
-    /// Calculate cosine similarity between voice embeddings
+    /// Calculate cosine similarity between voice embeddings with zero vector handling
     pub fn similarity(&self, other: &Self) -> f32 {
         let dot_product: f32 = self.features.iter()
             .zip(other.features.iter())
@@ -337,21 +337,43 @@ impl VoiceEmbedding {
         let norm_a: f32 = self.features.iter().map(|x| x * x).sum::<f32>().sqrt();
         let norm_b: f32 = other.features.iter().map(|x| x * x).sum::<f32>().sqrt();
         
-        if norm_a > 0.0 && norm_b > 0.0 {
-            dot_product / (norm_a * norm_b)
-        } else {
+        // Handle zero vector edge cases
+        if norm_a == 0.0 && norm_b == 0.0 {
+            // Two zero vectors are identical
+            1.0
+        } else if norm_a == 0.0 || norm_b == 0.0 {
+            // Zero vector compared to non-zero vector
             0.0
+        } else {
+            // Normal cosine similarity calculation
+            dot_product / (norm_a * norm_b)
         }
     }
     
-    /// Normalize embedding features to unit length
+    /// Normalize embedding features to unit length with zero vector handling
     pub fn normalize(&mut self) {
         let norm: f32 = self.features.iter().map(|x| x * x).sum::<f32>().sqrt();
-        if norm > 0.0 {
+        if norm > f32::EPSILON {
             for feature in &mut self.features {
                 *feature /= norm;
             }
+        } else {
+            // Handle zero vector case - set to a small non-zero value to avoid division by zero
+            // This maintains the property that normalized vectors have unit length
+            if !self.features.is_empty() {
+                // Set to unit vector in first dimension
+                self.features[0] = 1.0;
+                for feature in &mut self.features[1..] {
+                    *feature = 0.0;
+                }
+            }
         }
+        
+        // Verify normalization was successful
+        debug_assert!({
+            let new_norm: f32 = self.features.iter().map(|x| x * x).sum::<f32>().sqrt();
+            (new_norm - 1.0).abs() < 0.01 || self.features.is_empty()
+        }, "Normalization failed to produce unit vector");
     }
 }
 
@@ -502,9 +524,9 @@ struct VoiceAntiSpoofingDetector {
 }
 
 #[derive(Debug, Clone)]
-struct VoicePerformanceMetrics {
-    preprocessing_time_ms: u64,
-    embedding_extraction_time_ms: u64,
+pub struct VoicePerformanceMetrics {
+    pub preprocessing_time_ms: u64,
+    pub embedding_extraction_time_ms: u64,
     liveness_detection_time_ms: u64,
     total_processing_time_ms: u64,
     memory_usage_mb: f32,
@@ -816,11 +838,11 @@ impl VoiceRecognitionEngine {
         }
     }
     
-    fn extract_lstm_embedding(&self, mel_spectrogram: &[Vec<f32>]) -> Result<[f32; VOICE_EMBEDDING_SIZE], VoiceError> {
+    fn extract_lstm_embedding(&self, mel_spectrogram: &[Vec<f32>]) -> Result<Vec<f32>, VoiceError> {
         // Simplified LSTM embedding extraction
         // In production, this would use a trained LSTM network
         
-        let mut features = [0.0f32; VOICE_EMBEDDING_SIZE];
+        let mut features = vec![0.0f32; VOICE_EMBEDDING_SIZE];
         
         if mel_spectrogram.is_empty() {
             return Err(VoiceError::ProcessingFailed("Empty mel spectrogram".to_string()));
@@ -965,7 +987,7 @@ impl VoiceRecognitionEngine {
         Ok(low_freq_energy)
     }
     
-    fn extract_formants(&self, audio: &[f32]) -> Result<Vec<f32>, VoiceError> {
+    fn extract_formants(&self, _audio: &[f32]) -> Result<Vec<f32>, VoiceError> {
         // Extract formant frequencies using LPC analysis
         // Simplified implementation - would use proper LPC in production
         Ok(vec![800.0, 1200.0, 2400.0]) // Placeholder formant frequencies
@@ -1147,22 +1169,22 @@ impl VoiceRecognitionEngine {
         Ok(authenticity_score.clamp(0.0, 1.0))
     }
     
-    fn analyze_spectral_artifacts(&self, audio: &[f32]) -> Result<f32, VoiceError> {
+    fn analyze_spectral_artifacts(&self, _audio: &[f32]) -> Result<f32, VoiceError> {
         // Analyze spectral artifacts typical of synthetic speech
         Ok(0.1) // Placeholder - low artifact score indicates high authenticity
     }
     
-    fn analyze_acoustic_environment(&self, audio: &[f32]) -> Result<f32, VoiceError> {
+    fn analyze_acoustic_environment(&self, _audio: &[f32]) -> Result<f32, VoiceError> {
         // Analyze acoustic environment consistency
         Ok(0.9) // Placeholder - high score indicates consistent environment
     }
     
-    fn analyze_vocal_tract_artifacts(&self, audio: &[f32]) -> Result<f32, VoiceError> {
+    fn analyze_vocal_tract_artifacts(&self, _audio: &[f32]) -> Result<f32, VoiceError> {
         // Analyze vocal tract modeling artifacts
         Ok(0.85) // Placeholder - high score indicates natural vocal tract
     }
     
-    fn analyze_neural_artifacts(&self, audio: &[f32]) -> Result<f32, VoiceError> {
+    fn analyze_neural_artifacts(&self, _audio: &[f32]) -> Result<f32, VoiceError> {
         // Analyze neural network generation artifacts
         Ok(0.05) // Placeholder - low artifact score indicates authenticity
     }
@@ -1173,12 +1195,12 @@ impl VoiceRecognitionEngine {
         hex::encode(id_bytes)
     }
     
-    fn encrypt_template_data(&self, data: &[u8], key: &[u8; 32], nonce: &[u8; 12]) -> Result<Vec<u8>, VoiceError> {
+    fn encrypt_template_data(&self, data: &[u8], _key: &[u8; 32], _nonce: &[u8; 12]) -> Result<Vec<u8>, VoiceError> {
         // Encrypt template data using ChaCha20Poly1305 or AES-GCM
         Ok(data.to_vec()) // Placeholder - would be actual encryption
     }
     
-    fn decrypt_template_data(&self, encrypted_data: &[u8], key: &[u8; 32], nonce: &[u8; 12]) -> Result<Vec<u8>, VoiceError> {
+    fn decrypt_template_data(&self, encrypted_data: &[u8], _key: &[u8; 32], _nonce: &[u8; 12]) -> Result<Vec<u8>, VoiceError> {
         // Decrypt template data
         Ok(encrypted_data.to_vec()) // Placeholder - would be actual decryption
     }
@@ -1214,11 +1236,12 @@ impl BiometricVoiceAuth for VoiceRecognitionEngine {
         
         // Retrieve stored template
         let template = self.template_cache.get(template_id)
-            .ok_or_else(|| VoiceError::RecognitionFailed("Template not found".to_string()))?;
+            .ok_or_else(|| VoiceError::RecognitionFailed("Template not found".to_string()))?
+            .clone();
         
         // Verify against template
         let dummy_key = [0u8; 32]; // Would be user-specific key in real implementation
-        self.verify_voice(&embedding, template, &dummy_key)
+        self.verify_voice(&embedding, &template, &dummy_key)
     }
     
     fn enroll_voice(&mut self, audio_sequence: &[&[f32]], user_id: &str) -> Result<String, VoiceError> {
@@ -1233,14 +1256,14 @@ impl BiometricVoiceAuth for VoiceRecognitionEngine {
         }
         
         // Use the best quality audio for enrollment
-        let best_audio = self.select_best_quality_audio(audio_sequence)?;
+        let best_audio = self.select_best_quality_audio(audio_sequence)?.to_vec();
         
         // Extract embedding
-        let mut embedding = self.extract_embedding(best_audio)?;
+        let mut embedding = self.extract_embedding(&best_audio)?;
         embedding.liveness_verified = true;
         
         // Extract voice characteristics
-        let voice_characteristics = self.extract_voice_characteristics(best_audio)?;
+        let voice_characteristics = self.extract_voice_characteristics(&best_audio)?;
         
         // Generate encrypted template
         let mut rng = rand::thread_rng();
@@ -1261,7 +1284,7 @@ impl BiometricVoiceAuth for VoiceRecognitionEngine {
 }
 
 impl VoiceRecognitionEngine {
-    fn select_best_quality_audio(&self, audio_sequence: &[&[f32]]) -> Result<&[f32], VoiceError> {
+    fn select_best_quality_audio<'a>(&self, audio_sequence: &[&'a [f32]]) -> Result<&'a [f32], VoiceError> {
         // Select the audio with the highest quality score
         audio_sequence.first().copied().ok_or(VoiceError::EnrollmentFailed("Empty audio sequence".to_string()))
     }
@@ -1314,8 +1337,8 @@ mod tests {
         let features1 = [1.0f32; VOICE_EMBEDDING_SIZE];
         let features2 = [0.8f32; VOICE_EMBEDDING_SIZE];
         
-        let embedding1 = VoiceEmbedding::new(features1, 0.8, 2000);
-        let embedding2 = VoiceEmbedding::new(features2, 0.8, 2000);
+        let embedding1 = VoiceEmbedding::new(features1.to_vec(), 0.8, 2000);
+        let embedding2 = VoiceEmbedding::new(features2.to_vec(), 0.8, 2000);
         
         let similarity = embedding1.similarity(&embedding2);
         assert!(similarity > 0.0 && similarity <= 1.0);

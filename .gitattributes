@@ -1,0 +1,31 @@
+# Language detection overrides
+*.rs linguist-language=Rust
+*.py linguist-language=Python
+*.toml linguist-language=TOML
+*.md linguist-language=Markdown
+
+# Exclude vendor and generated files from language statistics
+vendor/* linguist-vendored
+target/* linguist-generated
+.hypothesis/* linguist-generated
+.pytest_cache/* linguist-generated
+proptest-regressions/* linguist-generated
+**/__pycache__/* linguist-generated
+*.rlib linguist-generated
+
+# Documentation
+docs/* linguist-documentation
+
+# Configuration files
+*.toml linguist-detectable=true
+Cargo.lock linguist-generated
+
+# Ensure Rust is properly detected
+*.rs linguist-detectable=true
+*.py linguist-detectable=true
+
+# Mark test files appropriately
+**/tests/* linguist-detectable=true
+**/*test*.rs linguist-detectable=true
+**/*test*.py linguist-detectable=true
+**/property_tests.* linguist-detectable=true

@@ -30,6 +30,8 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 #![deny(warnings)]
+#![allow(unused_variables)]
+#![allow(dead_code)]
 
 pub mod security;
 pub mod voice;

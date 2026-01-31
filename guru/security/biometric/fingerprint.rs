@@ -206,11 +206,11 @@ impl FingerprintTemplate {
             return 0.0;
         }
         
-        // Quality based on minutiae count and distribution
-        let minutiae_quality = (minutiae.len() as f32 / MAX_MINUTIAE_COUNT as f32).min(1.0);
-        
         // Quality based on average minutiae quality
         let avg_minutiae_quality = minutiae.iter().map(|m| m.quality).sum::<f32>() / minutiae.len() as f32;
+        
+        // Quality based on minutiae count and distribution
+        let minutiae_quality = (minutiae.len() as f32 / MAX_MINUTIAE_COUNT as f32).min(1.0);
         
         // Quality based on ridge coherence
         let mut total_coherence = 0.0;
@@ -229,7 +229,8 @@ impl FingerprintTemplate {
             0.0
         };
         
-        // Combine quality metrics
+        // Combine quality metrics - don't return 0 just because avg_minutiae_quality is 0
+        // The template can still have some quality based on count and coherence
         (minutiae_quality * 0.4 + avg_minutiae_quality * 0.4 + avg_coherence * 0.2).clamp(0.0, 1.0)
     }
     
@@ -501,9 +502,9 @@ struct FingerprintAntiSpoofingDetector {
 }
 
 #[derive(Debug, Clone)]
-struct FingerprintPerformanceMetrics {
-    image_processing_time_ms: u64,
-    minutiae_extraction_time_ms: u64,
+pub struct FingerprintPerformanceMetrics {
+    pub image_processing_time_ms: u64,
+    pub minutiae_extraction_time_ms: u64,
     ridge_analysis_time_ms: u64,
     liveness_detection_time_ms: u64,
     total_processing_time_ms: u64,
@@ -1464,11 +1465,12 @@ impl BiometricFingerprintAuth for FingerprintRecognitionEngine {
         
         // Retrieve stored template
         let stored_template = self.template_cache.get(template_id)
-            .ok_or_else(|| FingerprintError::RecognitionFailed("Template not found".to_string()))?;
+            .ok_or_else(|| FingerprintError::RecognitionFailed("Template not found".to_string()))?
+            .clone();
         
         // Verify against template
         let dummy_key = [0u8; 32]; // Would be user-specific key in real implementation
-        self.verify_fingerprint(&template, stored_template, &dummy_key)
+        self.verify_fingerprint(&template, &stored_template, &dummy_key)
     }
     
     fn enroll_fingerprint(&mut self, image_sequence: &[&[u8]], width: u32, height: u32, user_id: &str) -> Result<String, FingerprintError> {
@@ -1483,10 +1485,10 @@ impl BiometricFingerprintAuth for FingerprintRecognitionEngine {
         }
         
         // Use the best quality image for enrollment
-        let best_image = self.select_best_quality_image(image_sequence, width, height)?;
+        let best_image = self.select_best_quality_image(image_sequence, width, height)?.to_vec();
         
         // Extract template
-        let mut template = self.extract_template(best_image, width, height)?;
+        let mut template = self.extract_template(&best_image, width, height)?;
         template.liveness_verified = true;
         
         // Generate encrypted template
@@ -1508,7 +1510,7 @@ impl BiometricFingerprintAuth for FingerprintRecognitionEngine {
 }
 
 impl FingerprintRecognitionEngine {
-    fn select_best_quality_image(&self, image_sequence: &[&[u8]], width: u32, height: u32) -> Result<&[u8], FingerprintError> {
+    fn select_best_quality_image<'a>(&self, image_sequence: &[&'a [u8]], _width: u32, _height: u32) -> Result<&'a [u8], FingerprintError> {
         // Select the image with the highest quality score
         // This would involve running quality assessment on all images
         image_sequence.first().copied().ok_or(FingerprintError::EnrollmentFailed("Empty image sequence".to_string()))

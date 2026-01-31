@@ -13,6 +13,24 @@
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
 #![allow(clippy::module_name_repetitions, missing_docs)]
 
+/// Biometric authentication trait for face recognition
+pub trait BiometricFaceAuth {
+    fn authenticate_face(&mut self, image: &[u8], width: u32, height: u32, template_id: &str) -> Result<f32, crate::security::biometric::face::FaceError>;
+    fn enroll_face(&mut self, image_sequence: &[&[u8]], width: u32, height: u32, user_id: &str) -> Result<String, crate::security::biometric::face::FaceError>;
+}
+
+/// Biometric authentication trait for voice recognition  
+pub trait BiometricVoiceAuth {
+    fn authenticate_voice(&mut self, audio: &[f32], template_id: &str) -> Result<f32, crate::security::biometric::voice::VoiceError>;
+    fn enroll_voice(&mut self, audio_sequence: &[&[f32]], user_id: &str) -> Result<String, crate::security::biometric::voice::VoiceError>;
+}
+
+/// Biometric authentication trait for fingerprint recognition
+pub trait BiometricFingerprintAuth {
+    fn authenticate_fingerprint(&mut self, image: &[u8], width: u32, height: u32, template_id: &str) -> Result<f32, crate::security::biometric::fingerprint::FingerprintError>;
+    fn enroll_fingerprint(&mut self, image_sequence: &[&[u8]], width: u32, height: u32, user_id: &str) -> Result<String, crate::security::biometric::fingerprint::FingerprintError>;
+}
+
 // Enhanced biometric modules
 pub mod face;
 pub mod voice;
@@ -161,7 +179,7 @@ mod tests {
         let raw_data = vec![1, 2, 3, 4, 5];
         
         let result = manager.enroll_template(
-            "user123".to_string(),
+            "user123",
             BiometricModality::Face,
             &raw_data,
         );
@@ -176,7 +194,7 @@ mod tests {
         
         // Enroll template
         let _template_id = manager.enroll_template(
-            "user123".to_string(),
+            "user123",
             BiometricModality::Face,
             &raw_data,
         ).unwrap();
