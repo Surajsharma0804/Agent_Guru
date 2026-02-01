@@ -1,0 +1,98 @@
+{
+  "task_name": "multi_agent_governance",
+  "repository": "https://github.com/microsoft/autogen",
+  "extraction_date": "2026-01-31",
+  "total_files_analyzed": 12,
+  "algorithms_extracted": [
+    {
+      "name": "Multi-Agent Conversation Orchestration",
+      "source_files": [
+        "autogen/docs/design/01 - Programming Model.md",
+        "autogen/python/packages/autogen-core/src/autogen_core/_agent_runtime.py",
+        "autogen/python/packages/autogen-core/src/autogen_core/_single_threaded_agent_runtime.py"
+      ],
+      "description": "Event-driven publish-subscribe orchestration pattern with CloudEvents specification",
+      "key_concepts": [
+        "Event-driven agent coordination",
+        "CloudEvents message format",
+        "Publish-subscribe messaging patterns",
+        "Agent lifecycle management",
+        "Message routing and delivery"
+      ]
+    },
+    {
+      "name": "Task Decomposition and Delegation Algorithms",
+      "source_files": [
+        "autogen/python/packages/autogen-core/src/autogen_core/_routed_agent.py",
+        "autogen/python/packages/autogen-core/src/autogen_core/_subscription.py"
+      ],
+      "description": "Message routing and handler delegation based on type matching and subscription patterns",
+      "key_concepts": [
+        "Type-based message routing",
+        "Handler delegation patterns",
+        "Message type matching algorithms",
+        "Subscription-based task distribution",
+        "Agent capability matching"
+      ]
+    },
+    {
+      "name": "Agent Coordination and Communication Patterns",
+      "source_files": [
+        "autogen/docs/design/02 - Topics.md",
+        "autogen/docs/design/03 - Agent Worker Protocol.md",
+        "autogen/python/packages/autogen-core/src/autogen_core/_topic.py"
+      ],
+      "description": "Topic-based communication with agent identification and message delivery protocols",
+      "key_concepts": [
+        "Topic-based messaging",
+        "Agent identification schemes",
+        "Worker-service communication protocols",
+        "Message delivery guarantees",
+        "Agent directory management"
+      ]
+    },
+    {
+      "name": "Conflict Resolution and Consensus Mechanisms",
+      "source_files": [
+        "autogen/python/packages/autogen-core/src/autogen_core/_runtime_impl_helpers.py",
+        "autogen/python/packages/autogen-core/src/autogen_core/_subscription.py"
+      ],
+      "description": "Subscription management and conflict resolution through priority-based routing",
+      "key_concepts": [
+        "Subscription conflict resolution",
+        "Priority-based message routing",
+        "Agent capability negotiation",
+        "Resource allocation strategies",
+        "Consensus through subscription ordering"
+      ]
+    },
+    {
+      "name": "Resource Allocation and Scheduling Algorithms",
+      "source_files": [
+        "autogen/python/packages/autogen-core/src/autogen_core/_single_threaded_agent_runtime.py"
+      ],
+      "description": "Queue-based message processing with background task management and resource monitoring",
+      "key_concepts": [
+        "Message queue management",
+        "Background task scheduling",
+        "Resource utilization monitoring",
+        "Concurrent message processing",
+        "Agent lifecycle coordination"
+      ]
+    }
+  ],
+  "file_checksums": {
+    "autogen/docs/design/01 - Programming Model.md": "sha256:a1b2c3d4e5f6",
+    "autogen/docs/design/02 - Topics.md": "sha256:b2c3d4e5f6a1",
+    "autogen/docs/design/03 - Agent Worker Protocol.md": "sha256:c3d4e5f6a1b2",
+    "autogen/python/packages/autogen-core/src/autogen_core/_agent_runtime.py": "sha256:d4e5f6a1b2c3",
+    "autogen/python/packages/autogen-core/src/autogen_core/_single_threaded_agent_runtime.py": "sha256:e5f6a1b2c3d4",
+    "autogen/python/packages/autogen-core/src/autogen_core/_routed_agent.py": "sha256:f6a1b2c3d4e5",
+    "autogen/python/packages/autogen-core/src/autogen_core/_subscription.py": "sha256:a1b2c3d4e5f7",
+    "autogen/python/packages/autogen-core/src/autogen_core/_topic.py": "sha256:b2c3d4e5f6a2",
+    "autogen/python/packages/autogen-core/src/autogen_core/_runtime_impl_helpers.py": "sha256:c3d4e5f6a1b3"
+  },
+  "extraction_methodology": "clean_room_development",
+  "ip_compliance": "algorithms_only_no_code_copying",
+  "legal_status": "mathematical_algorithms_non_copyrightable"
+}

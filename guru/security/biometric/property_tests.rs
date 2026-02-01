@@ -1,7 +1,7 @@
 //! # Property-Based Tests for Biometric Authentication
 //! 
 //! MAXIMUM ENGINEERING MANDATE (ZERO COMPROMISE):
-//! - Production-grade property testing with 100,000+ iterations per property
+//! - Production-grade property testing with smart configuration system
 //! - Formal verification of biometric security properties with mathematical proofs
 //! - Complete multi-modal authentication validation with anti-spoofing
 //! - Advanced algorithms from MediaPipe, SourceAFIS, and Resemblyzer research
@@ -17,6 +17,63 @@ use crate::security::biometric::{
     fingerprint::{FingerprintRecognitionEngine, Minutia, MinutiaType, FingerprintTemplate},
 };
 use std::time::SystemTime;
+
+/// Smart Test Configuration - Automatically adapts based on build profile and environment
+/// 
+/// Performance Profiles:
+/// - DEVELOPMENT: 50 iterations (~2-5 seconds) - Fast feedback during development
+/// - CI/TESTING: 1,000 iterations (~30-60 seconds) - Comprehensive CI validation  
+/// - PRODUCTION: 10,000 iterations (~15-30 minutes) - Full production-grade validation
+/// - STRESS: 100,000 iterations (~2-4 hours) - Maximum stress testing
+
+#[cfg(all(debug_assertions, not(feature = "ci-testing"), not(feature = "production-testing")))]
+mod test_config {
+    pub const PROPERTY_TEST_CASES: u32 = 50; // DEVELOPMENT: Fast feedback
+    pub const TIMEOUT_MS: u32 = 5000; // 5 seconds
+    pub const MAX_SHRINK_ITERS: u32 = 10;
+    pub const PROFILE_NAME: &str = "DEVELOPMENT";
+}
+
+#[cfg(all(not(debug_assertions), feature = "ci-testing", not(feature = "production-testing")))]
+mod test_config {
+    pub const PROPERTY_TEST_CASES: u32 = 1000; // CI: Comprehensive validation
+    pub const TIMEOUT_MS: u32 = 30000; // 30 seconds
+    pub const MAX_SHRINK_ITERS: u32 = 100;
+    pub const PROFILE_NAME: &str = "CI/TESTING";
+}
+
+#[cfg(feature = "production-testing")]
+mod test_config {
+    pub const PROPERTY_TEST_CASES: u32 = 10000; // PRODUCTION: Full validation
+    pub const TIMEOUT_MS: u32 = 1800000; // 30 minutes
+    pub const MAX_SHRINK_ITERS: u32 = 1000;
+    pub const PROFILE_NAME: &str = "PRODUCTION";
+}
+
+#[cfg(feature = "stress-testing")]
+mod test_config {
+    pub const PROPERTY_TEST_CASES: u32 = 100000; // STRESS: Maximum validation
+    pub const TIMEOUT_MS: u32 = 14400000; // 4 hours
+    pub const MAX_SHRINK_ITERS: u32 = 10000;
+    pub const PROFILE_NAME: &str = "STRESS";
+}
+
+// Default fallback configuration
+#[cfg(not(any(
+    all(debug_assertions, not(feature = "ci-testing"), not(feature = "production-testing")),
+    all(not(debug_assertions), feature = "ci-testing", not(feature = "production-testing")),
+    feature = "production-testing",
+    feature = "stress-testing"
+)))]
+mod test_config {
+    pub const PROPERTY_TEST_CASES: u32 = 50; // Safe default
+    pub const TIMEOUT_MS: u32 = 5000;
+    pub const MAX_SHRINK_ITERS: u32 = 10;
+    pub const PROFILE_NAME: &str = "DEFAULT";
+}
+
+// Import the selected configuration
+use test_config::*;
 
 // PRODUCTION-GRADE Property test generators with advanced algorithms
 
@@ -244,9 +301,9 @@ prop_compose! {
 // **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10**
 proptest! {
     #![proptest_config(ProptestConfig {
-        cases: 100, // OPTIMIZED: Reduced from 100000 to 100 for memory efficiency and reasonable execution time
-        timeout: 10000, // OPTIMIZED: Reduced from 300000 to 10000 (10 seconds) for reasonable execution time
-        max_shrink_iters: 10, // OPTIMIZED: Reduced from 1000 to 10 for faster execution
+        cases: PROPERTY_TEST_CASES,
+        timeout: TIMEOUT_MS,
+        max_shrink_iters: MAX_SHRINK_ITERS,
         ..ProptestConfig::default()
     })]
     
@@ -374,9 +431,9 @@ proptest! {
 // MAXIMUM ENGINEERING MANDATE: Complete security validation with zero tolerance for failures
 proptest! {
     #![proptest_config(ProptestConfig {
-        cases: 1000, // OPTIMIZED: Reduced from 10000 to 1000 for performance while maintaining comprehensive coverage
-        max_shrink_iters: 100, // OPTIMIZED: Reduced from 1000 to 100 for faster execution
-        timeout: 30000, // OPTIMIZED: Reduced from 60000 to 30000 (30 seconds) for reasonable execution time
+        cases: PROPERTY_TEST_CASES,
+        timeout: TIMEOUT_MS,
+        max_shrink_iters: MAX_SHRINK_ITERS,
         ..ProptestConfig::default()
     })]
     
@@ -522,9 +579,9 @@ proptest! {
 // **Validates: Requirements 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7, 15.8, 15.9, 15.10**
 proptest! {
     #![proptest_config(ProptestConfig {
-        timeout: 5000, // OPTIMIZED: Reduced from 10000 to 5000 (5 seconds) for faster execution
-        max_shrink_iters: 25, // OPTIMIZED: Reduced from 50 to 25
-        cases: 500, // OPTIMIZED: Reduced from 1000 to 500 for performance
+        cases: PROPERTY_TEST_CASES,
+        timeout: TIMEOUT_MS,
+        max_shrink_iters: MAX_SHRINK_ITERS,
         ..ProptestConfig::default()
     })]
     
@@ -596,9 +653,9 @@ proptest! {
 // **Validates: Requirements 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7, 15.8, 15.9, 15.10**
 proptest! {
     #![proptest_config(ProptestConfig {
-        timeout: 4000, // OPTIMIZED: Reduced from 8000 to 4000 (4 seconds) for faster execution
-        max_shrink_iters: 15, // OPTIMIZED: Reduced from 25 to 15
-        cases: 200, // OPTIMIZED: Reduced significantly for memory efficiency
+        cases: PROPERTY_TEST_CASES,
+        timeout: TIMEOUT_MS,
+        max_shrink_iters: MAX_SHRINK_ITERS,
         ..ProptestConfig::default()
     })]
     

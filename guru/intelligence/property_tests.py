@@ -46,13 +46,54 @@ from hypothesis import given, settings, strategies as st
 from hypothesis.stateful import Bundle, RuleBasedStateMachine, initialize, rule
 from hypothesis.extra.numpy import arrays
 
-# Test configuration for production-grade validation
-hypothesis.settings.register_profile("production", 
-    max_examples=10000,  # Minimum 10,000 iterations as mandated
-    deadline=None,       # No time limits for thorough testing
-    suppress_health_check=[hypothesis.HealthCheck.too_slow]
+# Smart Test Configuration - Automatically adapts based on build profile and environment
+# 
+# Performance Profiles:
+# - DEVELOPMENT: 100 examples (~2-5 seconds) - Fast feedback during development
+# - CI/TESTING: 1,000 examples (~30-60 seconds) - Comprehensive CI validation  
+# - PRODUCTION: 10,000 examples (~15-30 minutes) - Full production-grade validation
+# - STRESS: 100,000 examples (~2-4 hours) - Maximum stress testing
+
+def get_test_config():
+    """Get test configuration based on environment variables and build profile"""
+    profile = os.environ.get('TEST_PROFILE', 'development').lower()
+    
+    if profile == 'production':
+        return {
+            'max_examples': 10000,
+            'deadline': None,
+            'profile_name': 'PRODUCTION'
+        }
+    elif profile == 'ci' or profile == 'ci-testing':
+        return {
+            'max_examples': 1000,
+            'deadline': 60000,  # 60 seconds
+            'profile_name': 'CI/TESTING'
+        }
+    elif profile == 'stress' or profile == 'stress-testing':
+        return {
+            'max_examples': 100000,
+            'deadline': None,
+            'profile_name': 'STRESS'
+        }
+    else:  # development or default
+        return {
+            'max_examples': 100,
+            'deadline': 10000,  # 10 seconds
+            'profile_name': 'DEVELOPMENT'
+        }
+
+# Apply smart configuration
+test_config = get_test_config()
+print(f"Intelligence Property Tests - Profile: {test_config['profile_name']} ({test_config['max_examples']} examples per test)")
+
+# Register test profile with Hypothesis
+hypothesis.settings.register_profile("smart_config", 
+    max_examples=test_config['max_examples'],
+    deadline=test_config['deadline'],
+    suppress_health_check=[hypothesis.HealthCheck.too_slow] if test_config['deadline'] is None else []
 )
-hypothesis.settings.load_profile("production")
+hypothesis.settings.load_profile("smart_config")
 
 # Mock implementations for testing (production implementations will be in separate files)
 @dataclass

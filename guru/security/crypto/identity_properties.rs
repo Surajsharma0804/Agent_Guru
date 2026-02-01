@@ -40,15 +40,69 @@ use crate::security::crypto::identity::{
     Ed25519Identity, Signature,
 };
 
-/// Test configuration constants for production-grade validation
-const PROPERTY_TEST_ITERATIONS: u64 = 100; // OPTIMIZED: Reduced from 100_000 to 100 for reasonable execution time and memory usage
+/// Smart Test Configuration - Automatically adapts based on build profile and environment
+/// 
+/// Performance Profiles:
+/// - DEVELOPMENT: 50 iterations (~2-5 seconds) - Fast feedback during development
+/// - CI/TESTING: 1,000 iterations (~30-60 seconds) - Comprehensive CI validation  
+/// - PRODUCTION: 10,000 iterations (~15-30 minutes) - Full production-grade validation
+/// - STRESS: 100,000 iterations (~2-4 hours) - Maximum stress testing
+
+#[cfg(all(debug_assertions, not(feature = "ci-testing"), not(feature = "production-testing")))]
+mod test_config {
+    pub const PROPERTY_TEST_ITERATIONS: u64 = 50; // DEVELOPMENT: Fast feedback
+    pub const ENDURANCE_TEST_CYCLES: usize = 10;
+    pub const ADVERSARIAL_TEST_ROUNDS: usize = 5;
+    pub const PROFILE_NAME: &str = "DEVELOPMENT";
+}
+
+#[cfg(all(not(debug_assertions), feature = "ci-testing", not(feature = "production-testing")))]
+mod test_config {
+    pub const PROPERTY_TEST_ITERATIONS: u64 = 1000; // CI: Comprehensive validation
+    pub const ENDURANCE_TEST_CYCLES: usize = 100;
+    pub const ADVERSARIAL_TEST_ROUNDS: usize = 25;
+    pub const PROFILE_NAME: &str = "CI/TESTING";
+}
+
+#[cfg(feature = "production-testing")]
+mod test_config {
+    pub const PROPERTY_TEST_ITERATIONS: u64 = 10000; // PRODUCTION: Full validation
+    pub const ENDURANCE_TEST_CYCLES: usize = 1000;
+    pub const ADVERSARIAL_TEST_ROUNDS: usize = 100;
+    pub const PROFILE_NAME: &str = "PRODUCTION";
+}
+
+#[cfg(feature = "stress-testing")]
+mod test_config {
+    pub const PROPERTY_TEST_ITERATIONS: u64 = 100000; // STRESS: Maximum validation
+    pub const ENDURANCE_TEST_CYCLES: usize = 10000;
+    pub const ADVERSARIAL_TEST_ROUNDS: usize = 1000;
+    pub const PROFILE_NAME: &str = "STRESS";
+}
+
+// Default fallback configuration
+#[cfg(not(any(
+    all(debug_assertions, not(feature = "ci-testing"), not(feature = "production-testing")),
+    all(not(debug_assertions), feature = "ci-testing", not(feature = "production-testing")),
+    feature = "production-testing",
+    feature = "stress-testing"
+)))]
+mod test_config {
+    pub const PROPERTY_TEST_ITERATIONS: u64 = 50; // Safe default
+    pub const ENDURANCE_TEST_CYCLES: usize = 10;
+    pub const ADVERSARIAL_TEST_ROUNDS: usize = 5;
+    pub const PROFILE_NAME: &str = "DEFAULT";
+}
+
+// Import the selected configuration
+use test_config::*;
+
+// Performance and timing constants (same for all profiles)
 const PERFORMANCE_TIMEOUT_MS: u64 = 100;
 const SIGNATURE_TIMEOUT_MS: u64 = 1;
 const VERIFICATION_TIMEOUT_MS: u64 = 1;
 const ZK_PROOF_TIMEOUT_MS: u64 = 50;
 const MEMORY_LEAK_THRESHOLD: usize = 1_000_000; // 1MB
-const ENDURANCE_TEST_CYCLES: usize = 100; // OPTIMIZED: Reduced from 100_000 to 100 for reasonable execution time
-const ADVERSARIAL_TEST_ROUNDS: usize = 50; // OPTIMIZED: Reduced from 1_000 to 50 for reasonable execution time
 
 /// Production-grade test message generator with comprehensive coverage
 #[derive(Debug, Clone)]
@@ -421,7 +475,7 @@ mod property_1_cryptographic_identity_integrity {
     #[test]
     pub fn run_property_1_tests() {
         println!("=== Property 1: Cryptographic Identity Integrity ===");
-        println!("Running {} iterations per test with production-grade validation", PROPERTY_TEST_ITERATIONS);
+        println!("Test Profile: {} ({} iterations per test)", PROFILE_NAME, PROPERTY_TEST_ITERATIONS);
         
         let mut qc = QuickCheck::new()
             .tests(PROPERTY_TEST_ITERATIONS)
