@@ -26,30 +26,6 @@ use std::time::SystemTime;
 /// - PRODUCTION: 10,000 iterations (~15-30 minutes) - Full production-grade validation
 /// - STRESS: 100,000 iterations (~2-4 hours) - Maximum stress testing
 
-#[cfg(all(debug_assertions, not(feature = "ci-testing"), not(feature = "production-testing")))]
-mod test_config {
-    pub const PROPERTY_TEST_CASES: u32 = 50; // DEVELOPMENT: Fast feedback
-    pub const TIMEOUT_MS: u32 = 5000; // 5 seconds
-    pub const MAX_SHRINK_ITERS: u32 = 10;
-    pub const PROFILE_NAME: &str = "DEVELOPMENT";
-}
-
-#[cfg(all(not(debug_assertions), feature = "ci-testing", not(feature = "production-testing")))]
-mod test_config {
-    pub const PROPERTY_TEST_CASES: u32 = 1000; // CI: Comprehensive validation
-    pub const TIMEOUT_MS: u32 = 30000; // 30 seconds
-    pub const MAX_SHRINK_ITERS: u32 = 100;
-    pub const PROFILE_NAME: &str = "CI/TESTING";
-}
-
-#[cfg(feature = "production-testing")]
-mod test_config {
-    pub const PROPERTY_TEST_CASES: u32 = 10000; // PRODUCTION: Full validation
-    pub const TIMEOUT_MS: u32 = 1800000; // 30 minutes
-    pub const MAX_SHRINK_ITERS: u32 = 1000;
-    pub const PROFILE_NAME: &str = "PRODUCTION";
-}
-
 #[cfg(feature = "stress-testing")]
 mod test_config {
     pub const PROPERTY_TEST_CASES: u32 = 100000; // STRESS: Maximum validation
@@ -58,13 +34,24 @@ mod test_config {
     pub const PROFILE_NAME: &str = "STRESS";
 }
 
+#[cfg(all(feature = "production-testing", not(feature = "stress-testing")))]
+mod test_config {
+    pub const PROPERTY_TEST_CASES: u32 = 10000; // PRODUCTION: Full validation
+    pub const TIMEOUT_MS: u32 = 1800000; // 30 minutes
+    pub const MAX_SHRINK_ITERS: u32 = 1000;
+    pub const PROFILE_NAME: &str = "PRODUCTION";
+}
+
+#[cfg(all(feature = "ci-testing", not(feature = "production-testing"), not(feature = "stress-testing")))]
+mod test_config {
+    pub const PROPERTY_TEST_CASES: u32 = 1000; // CI: Comprehensive validation
+    pub const TIMEOUT_MS: u32 = 30000; // 30 seconds
+    pub const MAX_SHRINK_ITERS: u32 = 100;
+    pub const PROFILE_NAME: &str = "CI/TESTING";
+}
+
 // Default fallback configuration
-#[cfg(not(any(
-    all(debug_assertions, not(feature = "ci-testing"), not(feature = "production-testing")),
-    all(not(debug_assertions), feature = "ci-testing", not(feature = "production-testing")),
-    feature = "production-testing",
-    feature = "stress-testing"
-)))]
+#[cfg(not(any(feature = "ci-testing", feature = "production-testing", feature = "stress-testing")))]
 mod test_config {
     pub const PROPERTY_TEST_CASES: u32 = 50; // Safe default
     pub const TIMEOUT_MS: u32 = 5000;

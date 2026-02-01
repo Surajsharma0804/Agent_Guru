@@ -60,7 +60,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Time handling
 chrono = { version = "0.4", features = ["serde"] }
 
-# Additional dependencies for speech recognition
+# Additional dependencies for speech recognition and avatar systems
 fastrand = "2.0"
 
 # Performance and hardware detection

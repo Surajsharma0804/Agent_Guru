@@ -44,6 +44,7 @@ pub mod policy;
 pub mod platform;
 pub mod observability;
 pub mod build;
+pub mod avatar;
 
 // Re-export core types for convenience
 pub use security::crypto::identity::{
@@ -81,8 +82,10 @@ mod tests {
     
     #[test]
     fn test_version_info() {
-        assert!(!VERSION.is_empty(), "VERSION should not be empty");
-        assert!(!BUILD_INFO.is_empty(), "BUILD_INFO should not be empty");
+        assert!(VERSION.len() > 0, "VERSION should not be empty");
+        assert!(BUILD_INFO.len() > 0, "BUILD_INFO should not be empty");
+        assert!(VERSION.chars().next().unwrap().is_ascii_digit(), "VERSION should start with a digit");
+        assert!(BUILD_INFO.contains("AGENT_GURU"), "BUILD_INFO should contain project name");
     }
     
     #[test]

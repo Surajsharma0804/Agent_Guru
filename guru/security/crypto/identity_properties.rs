@@ -48,30 +48,6 @@ use crate::security::crypto::identity::{
 /// - PRODUCTION: 10,000 iterations (~15-30 minutes) - Full production-grade validation
 /// - STRESS: 100,000 iterations (~2-4 hours) - Maximum stress testing
 
-#[cfg(all(debug_assertions, not(feature = "ci-testing"), not(feature = "production-testing")))]
-mod test_config {
-    pub const PROPERTY_TEST_ITERATIONS: u64 = 50; // DEVELOPMENT: Fast feedback
-    pub const ENDURANCE_TEST_CYCLES: usize = 10;
-    pub const ADVERSARIAL_TEST_ROUNDS: usize = 5;
-    pub const PROFILE_NAME: &str = "DEVELOPMENT";
-}
-
-#[cfg(all(not(debug_assertions), feature = "ci-testing", not(feature = "production-testing")))]
-mod test_config {
-    pub const PROPERTY_TEST_ITERATIONS: u64 = 1000; // CI: Comprehensive validation
-    pub const ENDURANCE_TEST_CYCLES: usize = 100;
-    pub const ADVERSARIAL_TEST_ROUNDS: usize = 25;
-    pub const PROFILE_NAME: &str = "CI/TESTING";
-}
-
-#[cfg(feature = "production-testing")]
-mod test_config {
-    pub const PROPERTY_TEST_ITERATIONS: u64 = 10000; // PRODUCTION: Full validation
-    pub const ENDURANCE_TEST_CYCLES: usize = 1000;
-    pub const ADVERSARIAL_TEST_ROUNDS: usize = 100;
-    pub const PROFILE_NAME: &str = "PRODUCTION";
-}
-
 #[cfg(feature = "stress-testing")]
 mod test_config {
     pub const PROPERTY_TEST_ITERATIONS: u64 = 100000; // STRESS: Maximum validation
@@ -80,13 +56,24 @@ mod test_config {
     pub const PROFILE_NAME: &str = "STRESS";
 }
 
+#[cfg(all(feature = "production-testing", not(feature = "stress-testing")))]
+mod test_config {
+    pub const PROPERTY_TEST_ITERATIONS: u64 = 10000; // PRODUCTION: Full validation
+    pub const ENDURANCE_TEST_CYCLES: usize = 1000;
+    pub const ADVERSARIAL_TEST_ROUNDS: usize = 100;
+    pub const PROFILE_NAME: &str = "PRODUCTION";
+}
+
+#[cfg(all(feature = "ci-testing", not(feature = "production-testing"), not(feature = "stress-testing")))]
+mod test_config {
+    pub const PROPERTY_TEST_ITERATIONS: u64 = 1000; // CI: Comprehensive validation
+    pub const ENDURANCE_TEST_CYCLES: usize = 100;
+    pub const ADVERSARIAL_TEST_ROUNDS: usize = 25;
+    pub const PROFILE_NAME: &str = "CI/TESTING";
+}
+
 // Default fallback configuration
-#[cfg(not(any(
-    all(debug_assertions, not(feature = "ci-testing"), not(feature = "production-testing")),
-    all(not(debug_assertions), feature = "ci-testing", not(feature = "production-testing")),
-    feature = "production-testing",
-    feature = "stress-testing"
-)))]
+#[cfg(not(any(feature = "ci-testing", feature = "production-testing", feature = "stress-testing")))]
 mod test_config {
     pub const PROPERTY_TEST_ITERATIONS: u64 = 50; // Safe default
     pub const ENDURANCE_TEST_CYCLES: usize = 10;
