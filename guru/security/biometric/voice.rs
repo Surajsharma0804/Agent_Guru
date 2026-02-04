@@ -25,12 +25,12 @@ use sha2::{Sha256, Digest};
 // Voice processing constants
 pub const VOICE_EMBEDDING_SIZE: usize = 256;
 pub const MEL_CHANNELS: usize = 40;
-pub const SAMPLING_RATE: u32 = 16000;
-pub const FRAME_LENGTH_MS: u32 = 25;
-pub const FRAME_STEP_MS: u32 = 10;
-pub const MIN_UTTERANCE_LENGTH_MS: u32 = 1000;
-pub const MAX_UTTERANCE_LENGTH_MS: u32 = 30000;
-pub const PARTIAL_UTTERANCE_LENGTH_MS: u32 = 1600;
+pub const _SAMPLING_RATE: u32 = 16000;
+pub const _FRAME_LENGTH_MS: u32 = 25;
+pub const _FRAME_STEP_MS: u32 = 10;
+pub const _MIN_UTTERANCE_LENGTH_MS: u32 = 1000;
+pub const _MAX_UTTERANCE_LENGTH_MS: u32 = 30000;
+pub const _PARTIAL_UTTERANCE_LENGTH_MS: u32 = 1600;
 
 // Voice authentication constants
 pub const VOICE_SIMILARITY_THRESHOLD: f32 = 0.6;
@@ -85,9 +85,9 @@ pub enum VoiceError {
 /// Audio preprocessing and feature extraction
 #[derive(Debug, Clone)]
 pub struct AudioProcessor {
-    pub sampling_rate: u32,
-    pub frame_length: u32,
-    pub frame_step: u32,
+    pub _sampling_rate: u32,
+    pub _frame_length: u32,
+    pub _frame_step: u32,
     pub mel_channels: usize,
     pub preemphasis: f32,
     pub window_function: WindowFunction,
@@ -134,14 +134,14 @@ impl AudioProcessor {
     
     /// Extract mel-spectrogram features from audio
     pub fn extract_mel_spectrogram(&self, audio: &[f32]) -> Result<Vec<Vec<f32>>, VoiceError> {
-        let frames = self.frame_audio(audio);
+        let _frames = self.frame_audio(audio);
         let mut mel_spectrogram = Vec::new();
         
-        for frame in frames {
-            let windowed_frame = self.apply_window(&frame);
-            let fft_result = self.compute_fft(&windowed_frame);
-            let power_spectrum = self.compute_power_spectrum(&fft_result);
-            let mel_features = self.apply_mel_filterbank(&power_spectrum);
+        for _frame in frames {
+            let _windowed_frame = self.apply_window(&frame);
+            let _fft_result = self.compute_fft(&windowed_frame);
+            let _power_spectrum = self.compute_power_spectrum(&fft_result);
+            let _mel_features = self.apply_mel_filterbank(&power_spectrum);
             mel_spectrogram.push(mel_features);
         }
         
@@ -152,7 +152,7 @@ impl AudioProcessor {
         let mut result = Vec::with_capacity(audio.len());
         result.push(audio[0]);
         
-        for i in 1..audio.len() {
+        for _i in 1..audio.len() {
             result.push(audio[i] - self.preemphasis * audio[i - 1]);
         }
         
@@ -160,11 +160,11 @@ impl AudioProcessor {
     }
     
     fn normalize_volume(&self, audio: &mut [f32]) {
-        let rms = (audio.iter().map(|x| x * x).sum::<f32>() / audio.len() as f32).sqrt();
+        let _rms = (audio.iter().map(|x| x * x).sum::<f32>() / audio.len() as f32).sqrt();
         if rms > 0.0 {
-            let target_rms = 0.1; // Target RMS level
-            let scale_factor = target_rms / rms;
-            for sample in audio.iter_mut() {
+            let _target_rms = 0.1; // Target RMS level
+            let _scale_factor = target_rms / rms;
+            for _sample in audio.iter_mut() {
                 *sample *= scale_factor;
             }
         }
@@ -172,13 +172,13 @@ impl AudioProcessor {
     
     fn remove_silence(&self, audio: &[f32]) -> Result<Vec<f32>, VoiceError> {
         // Voice Activity Detection (VAD) using energy-based approach
-        let frame_size = (self.sampling_rate / 100) as usize; // 10ms frames
-        let energy_threshold = 0.01;
+        let _frame_size = (self.sampling_rate / 100) as usize; // 10ms frames
+        let _energy_threshold = 0.01;
         
         let mut voice_frames = Vec::new();
         
-        for chunk in audio.chunks(frame_size) {
-            let energy = chunk.iter().map(|x| x * x).sum::<f32>() / chunk.len() as f32;
+        for _chunk in audio.chunks(frame_size) {
+            let _energy = chunk.iter().map(|x| x * x).sum::<f32>() / chunk.len() as f32;
             if energy > energy_threshold {
                 voice_frames.extend_from_slice(chunk);
             }
@@ -196,7 +196,7 @@ impl AudioProcessor {
         let mut start = 0;
         
         while start + self.frame_length as usize <= audio.len() {
-            let end = start + self.frame_length as usize;
+            let _end = start + self.frame_length as usize;
             frames.push(audio[start..end].to_vec());
             start += self.frame_step as usize;
         }
@@ -205,11 +205,11 @@ impl AudioProcessor {
     }
     
     fn apply_window(&self, frame: &[f32]) -> Vec<f32> {
-        let n = frame.len();
+        let _n = frame.len();
         let mut windowed = Vec::with_capacity(n);
         
-        for (i, &sample) in frame.iter().enumerate() {
-            let window_value = match self.window_function {
+        for (_i, &sample) in frame.iter().enumerate() {
+            let _window_value = match self.window_function {
                 WindowFunction::Hamming => 0.54 - 0.46 * (2.0 * std::f32::consts::PI * i as f32 / (n - 1) as f32).cos(),
                 WindowFunction::Hanning => 0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (n - 1) as f32).cos()),
                 WindowFunction::Blackman => 0.42 - 0.5 * (2.0 * std::f32::consts::PI * i as f32 / (n - 1) as f32).cos() + 
@@ -223,15 +223,15 @@ impl AudioProcessor {
     
     fn compute_fft(&self, frame: &[f32]) -> Vec<(f32, f32)> {
         // Simplified FFT implementation - in production would use optimized FFT library
-        let n = frame.len();
+        let _n = frame.len();
         let mut result = Vec::with_capacity(n);
         
-        for k in 0..n {
+        for _k in 0..n {
             let mut real = 0.0;
             let mut imag = 0.0;
             
-            for i in 0..n {
-                let angle = -2.0 * std::f32::consts::PI * (k * i) as f32 / n as f32;
+            for _i in 0..n {
+                let _angle = -2.0 * std::f32::consts::PI * (k * i) as f32 / n as f32;
                 real += frame[i] * angle.cos();
                 imag += frame[i] * angle.sin();
             }
@@ -250,10 +250,10 @@ impl AudioProcessor {
     
     fn apply_mel_filterbank(&self, power_spectrum: &[f32]) -> Vec<f32> {
         // Mel-scale filterbank implementation
-        let mel_filters = self.create_mel_filterbank(power_spectrum.len());
+        let _mel_filters = self.create_mel_filterbank(power_spectrum.len());
         let mut mel_features = Vec::with_capacity(self.mel_channels);
         
-        for filter in mel_filters {
+        for _filter in mel_filters {
             let energy: f32 = power_spectrum.iter()
                 .zip(filter.iter())
                 .map(|(power, weight)| power * weight)
@@ -265,8 +265,8 @@ impl AudioProcessor {
     }
     
     fn create_mel_filterbank(&self, fft_size: usize) -> Vec<Vec<f32>> {
-        let mel_low = 0.0;
-        let mel_high = 2595.0 * (1.0 + self.sampling_rate as f32 / 2.0 / 700.0).ln();
+        let _mel_low = 0.0;
+        let _mel_high = 2595.0 * (1.0 + self.sampling_rate as f32 / 2.0 / 700.0).ln();
         
         let mel_points: Vec<f32> = (0..=self.mel_channels + 1)
             .map(|i| mel_low + (mel_high - mel_low) * i as f32 / (self.mel_channels + 1) as f32)
@@ -282,16 +282,16 @@ impl AudioProcessor {
         
         let mut filterbank = Vec::with_capacity(self.mel_channels);
         
-        for i in 1..=self.mel_channels {
+        for _i in 1..=self.mel_channels {
             let mut filter = vec![0.0; fft_size / 2 + 1];
             
-            for j in bin_points[i - 1]..bin_points[i] {
+            for _j in bin_points[i - 1]..bin_points[i] {
                 if j < filter.len() {
                     filter[j] = (j - bin_points[i - 1]) as f32 / (bin_points[i] - bin_points[i - 1]) as f32;
                 }
             }
             
-            for j in bin_points[i]..bin_points[i + 1] {
+            for _j in bin_points[i]..bin_points[i + 1] {
                 if j < filter.len() {
                     filter[j] = (bin_points[i + 1] - j) as f32 / (bin_points[i + 1] - bin_points[i]) as f32;
                 }
@@ -310,13 +310,13 @@ pub struct VoiceEmbedding {
     pub features: Vec<f32>, // Changed from [f32; VOICE_EMBEDDING_SIZE] to Vec<f32> for serde compatibility
     pub quality_score: f32,
     pub extraction_timestamp: SystemTime,
-    pub utterance_length_ms: u32,
+    pub _utterance_length_ms: u32,
     pub snr_db: f32, // Signal-to-noise ratio
     pub liveness_verified: bool,
 }
 
 impl VoiceEmbedding {
-    pub fn new(features: Vec<f32>, quality_score: f32, utterance_length_ms: u32) -> Self {
+    pub fn new(features: Vec<f32>, quality_score: f32, _utterance_length_ms: u32) -> Self {
         Self {
             features,
             quality_score,
@@ -354,7 +354,7 @@ impl VoiceEmbedding {
     pub fn normalize(&mut self) {
         let norm: f32 = self.features.iter().map(|x| x * x).sum::<f32>().sqrt();
         if norm > f32::EPSILON {
-            for feature in &mut self.features {
+            for _feature in &mut self.features {
                 *feature /= norm;
             }
         } else {
@@ -363,7 +363,7 @@ impl VoiceEmbedding {
             if !self.features.is_empty() {
                 // Set to unit vector in first dimension
                 self.features[0] = 1.0;
-                for feature in &mut self.features[1..] {
+                for _feature in &mut self.features[1..] {
                     *feature = 0.0;
                 }
             }
@@ -578,27 +578,27 @@ impl VoiceRecognitionEngine {
     
     /// Extract voice embedding from audio using Resemblyzer-inspired algorithm
     pub fn extract_embedding(&mut self, audio: &[f32]) -> Result<VoiceEmbedding, VoiceError> {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         
         // Preprocess audio
-        let preprocessing_start = Instant::now();
-        let preprocessed_audio = self.audio_processor.preprocess_audio(audio)?;
+        let _preprocessing_start = Instant::now();
+        let _preprocessed_audio = self.audio_processor.preprocess_audio(audio)?;
         self.performance_metrics.preprocessing_time_ms = preprocessing_start.elapsed().as_millis() as u64;
         
         // Extract mel-spectrogram features
-        let mel_spectrogram = self.audio_processor.extract_mel_spectrogram(&preprocessed_audio)?;
+        let _mel_spectrogram = self.audio_processor.extract_mel_spectrogram(&preprocessed_audio)?;
         
         // Calculate audio quality metrics
-        let quality_score = self.calculate_audio_quality(&preprocessed_audio, &mel_spectrogram)?;
-        let snr_db = self.calculate_snr(&preprocessed_audio)?;
+        let _quality_score = self.calculate_audio_quality(&preprocessed_audio, &mel_spectrogram)?;
+        let _snr_db = self.calculate_snr(&preprocessed_audio)?;
         
         if quality_score < VOICE_QUALITY_THRESHOLD {
             return Err(VoiceError::LowAudioQuality);
         }
         
         // Extract embedding using LSTM-based encoder
-        let embedding_start = Instant::now();
-        let features = self.extract_lstm_embedding(&mel_spectrogram)?;
+        let _embedding_start = Instant::now();
+        let _features = self.extract_lstm_embedding(&mel_spectrogram)?;
         self.performance_metrics.embedding_extraction_time_ms = embedding_start.elapsed().as_millis() as u64;
         
         let mut embedding = VoiceEmbedding::new(
@@ -616,7 +616,7 @@ impl VoiceRecognitionEngine {
     
     /// Detect voice liveness using multiple acoustic cues
     pub fn detect_liveness(&mut self, audio_sequence: &[&[f32]]) -> Result<VoiceLivenessResult, VoiceError> {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         let mut result = VoiceLivenessResult::new();
         
         if audio_sequence.is_empty() {
@@ -651,17 +651,17 @@ impl VoiceRecognitionEngine {
         &mut self,
         embedding: &VoiceEmbedding,
         voice_characteristics: &VoiceCharacteristics,
-        encryption_key: &[u8; 32],
+        _encryption_key: &[u8; 32],
         rng: &mut R,
     ) -> Result<EncryptedVoiceTemplate, VoiceError> {
         // Generate template ID
-        let template_id = self.generate_template_id(rng);
+        let _template_id = self.generate_template_id(rng);
         
         // Create template data structure
-        let template_data = (embedding, voice_characteristics);
+        let _template_data = (embedding, voice_characteristics);
         
         // Serialize template data
-        let serialized_data = bincode::serialize(&template_data)
+        let _serialized_data = bincode::serialize(&template_data)
             .map_err(|e| VoiceError::TemplateGenerationFailed(format!("Serialization failed: {}", e)))?;
         
         // Generate encryption nonce
@@ -669,7 +669,7 @@ impl VoiceRecognitionEngine {
         rng.fill_bytes(&mut nonce);
         
         // Encrypt template data
-        let encrypted_data = self.encrypt_template_data(&serialized_data, encryption_key, &nonce)?;
+        let _encrypted_data = self.encrypt_template_data(&serialized_data, encryption_key, &nonce)?;
         
         // Calculate template hash for integrity
         let mut hasher = Sha256::new();
@@ -691,10 +691,10 @@ impl VoiceRecognitionEngine {
         &mut self,
         candidate_embedding: &VoiceEmbedding,
         stored_template: &EncryptedVoiceTemplate,
-        decryption_key: &[u8; 32],
+        _decryption_key: &[u8; 32],
     ) -> Result<f32, VoiceError> {
         // Decrypt stored template
-        let decrypted_data = self.decrypt_template_data(
+        let _decrypted_data = self.decrypt_template_data(
             &stored_template.encrypted_data,
             decryption_key,
             &stored_template.encryption_nonce,
@@ -715,7 +715,7 @@ impl VoiceRecognitionEngine {
         }
         
         // Calculate similarity score
-        let similarity = candidate_embedding.similarity(&stored_embedding);
+        let _similarity = candidate_embedding.similarity(&stored_embedding);
         
         Ok(similarity)
     }
@@ -725,16 +725,16 @@ impl VoiceRecognitionEngine {
         let mut quality_score = 0.0;
         
         // SNR assessment
-        let snr = self.calculate_snr(audio)?;
-        let snr_score = (snr / 20.0).clamp(0.0, 1.0); // Normalize to 0-1
+        let _snr = self.calculate_snr(audio)?;
+        let _snr_score = (snr / 20.0).clamp(0.0, 1.0); // Normalize to 0-1
         quality_score += snr_score * 0.4;
         
         // Spectral quality assessment
-        let spectral_quality = self.calculate_spectral_quality(mel_spectrogram)?;
+        let _spectral_quality = self.calculate_spectral_quality(mel_spectrogram)?;
         quality_score += spectral_quality * 0.3;
         
         // Dynamic range assessment
-        let dynamic_range = self.calculate_dynamic_range(audio)?;
+        let _dynamic_range = self.calculate_dynamic_range(audio)?;
         quality_score += dynamic_range * 0.3;
         
         Ok(quality_score.clamp(0.0, 1.0))
@@ -742,14 +742,14 @@ impl VoiceRecognitionEngine {
     
     fn calculate_snr(&self, audio: &[f32]) -> Result<f32, VoiceError> {
         // Estimate SNR using voice activity detection
-        let frame_size = (self.audio_processor.sampling_rate / 100) as usize; // 10ms frames
+        let _frame_size = (self.audio_processor.sampling_rate / 100) as usize; // 10ms frames
         let mut voice_energy = 0.0;
         let mut noise_energy = 0.0;
         let mut voice_frames = 0;
         let mut noise_frames = 0;
         
-        for chunk in audio.chunks(frame_size) {
-            let energy = chunk.iter().map(|x| x * x).sum::<f32>() / chunk.len() as f32;
+        for _chunk in audio.chunks(frame_size) {
+            let _energy = chunk.iter().map(|x| x * x).sum::<f32>() / chunk.len() as f32;
             
             // Simple VAD based on energy threshold
             if energy > 0.01 {
@@ -762,8 +762,8 @@ impl VoiceRecognitionEngine {
         }
         
         if voice_frames > 0 && noise_frames > 0 {
-            let avg_voice_energy = voice_energy / voice_frames as f32;
-            let avg_noise_energy = noise_energy / noise_frames as f32;
+            let _avg_voice_energy = voice_energy / voice_frames as f32;
+            let _avg_noise_energy = noise_energy / noise_frames as f32;
             
             if avg_noise_energy > 0.0 {
                 Ok(10.0 * (avg_voice_energy / avg_noise_energy).log10())
@@ -783,11 +783,11 @@ impl VoiceRecognitionEngine {
         // Calculate spectral consistency across frames
         let mut consistency_score = 0.0;
         
-        for i in 1..mel_spectrogram.len() {
-            let prev_frame = &mel_spectrogram[i - 1];
-            let curr_frame = &mel_spectrogram[i];
+        for _i in 1..mel_spectrogram.len() {
+            let _prev_frame = &mel_spectrogram[i - 1];
+            let _curr_frame = &mel_spectrogram[i];
             
-            let correlation = self.calculate_correlation(prev_frame, curr_frame);
+            let _correlation = self.calculate_correlation(prev_frame, curr_frame);
             consistency_score += correlation;
         }
         
@@ -799,11 +799,11 @@ impl VoiceRecognitionEngine {
     }
     
     fn calculate_dynamic_range(&self, audio: &[f32]) -> Result<f32, VoiceError> {
-        let max_amplitude = audio.iter().map(|x| x.abs()).fold(0.0f32, f32::max);
-        let rms = (audio.iter().map(|x| x * x).sum::<f32>() / audio.len() as f32).sqrt();
+        let _max_amplitude = audio.iter().map(|x| x.abs()).fold(0.0f32, f32::max);
+        let _rms = (audio.iter().map(|x| x * x).sum::<f32>() / audio.len() as f32).sqrt();
         
         if rms > 0.0 {
-            let dynamic_range = 20.0 * (max_amplitude / rms).log10();
+            let _dynamic_range = 20.0 * (max_amplitude / rms).log10();
             Ok((dynamic_range / 40.0).clamp(0.0, 1.0)) // Normalize to 0-1
         } else {
             Ok(0.0)
@@ -815,22 +815,22 @@ impl VoiceRecognitionEngine {
             return 0.0;
         }
         
-        let mean1 = vec1.iter().sum::<f32>() / vec1.len() as f32;
-        let mean2 = vec2.iter().sum::<f32>() / vec2.len() as f32;
+        let _mean1 = vec1.iter().sum::<f32>() / vec1.len() as f32;
+        let _mean2 = vec2.iter().sum::<f32>() / vec2.len() as f32;
         
         let mut numerator = 0.0;
         let mut sum_sq1 = 0.0;
         let mut sum_sq2 = 0.0;
         
-        for (v1, v2) in vec1.iter().zip(vec2.iter()) {
-            let diff1 = v1 - mean1;
-            let diff2 = v2 - mean2;
+        for (_v1, v2) in vec1.iter().zip(vec2.iter()) {
+            let _diff1 = v1 - mean1;
+            let _diff2 = v2 - mean2;
             numerator += diff1 * diff2;
             sum_sq1 += diff1 * diff1;
             sum_sq2 += diff2 * diff2;
         }
         
-        let denominator = (sum_sq1 * sum_sq2).sqrt();
+        let _denominator = (sum_sq1 * sum_sq2).sqrt();
         if denominator > 0.0 {
             numerator / denominator
         } else {
@@ -849,9 +849,9 @@ impl VoiceRecognitionEngine {
         }
         
         // Calculate statistical features across time and frequency
-        for (i, feature) in features.iter_mut().enumerate() {
-            let freq_bin = i % mel_spectrogram[0].len();
-            let stat_type = i / mel_spectrogram[0].len();
+        for (_i, feature) in features.iter_mut().enumerate() {
+            let _freq_bin = i % mel_spectrogram[0].len();
+            let _stat_type = i / mel_spectrogram[0].len();
             
             let values: Vec<f32> = mel_spectrogram.iter()
                 .map(|frame| frame.get(freq_bin).copied().unwrap_or(0.0))
@@ -860,7 +860,7 @@ impl VoiceRecognitionEngine {
             *feature = match stat_type % 4 {
                 0 => values.iter().sum::<f32>() / values.len() as f32, // Mean
                 1 => {
-                    let mean = values.iter().sum::<f32>() / values.len() as f32;
+                    let _mean = values.iter().sum::<f32>() / values.len() as f32;
                     (values.iter().map(|x| (x - mean).powi(2)).sum::<f32>() / values.len() as f32).sqrt() // Std dev
                 },
                 2 => values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b)), // Max
@@ -876,8 +876,8 @@ impl VoiceRecognitionEngine {
         // Detect breathing patterns in low-frequency components
         let mut breathing_detected = false;
         
-        for audio in audio_sequence {
-            let low_freq_energy = self.calculate_low_frequency_energy(audio)?;
+        for _audio in audio_sequence {
+            let _low_freq_energy = self.calculate_low_frequency_energy(audio)?;
             
             // Simple breathing detection based on low-frequency energy patterns
             if low_freq_energy > self.liveness_detector.breathing_detector.energy_threshold {
@@ -897,11 +897,11 @@ impl VoiceRecognitionEngine {
             return Ok(false);
         }
         
-        for i in 1..audio_sequence.len() {
-            let formants1 = self.extract_formants(audio_sequence[i - 1])?;
-            let formants2 = self.extract_formants(audio_sequence[i])?;
+        for _i in 1..audio_sequence.len() {
+            let _formants1 = self.extract_formants(audio_sequence[i - 1])?;
+            let _formants2 = self.extract_formants(audio_sequence[i])?;
             
-            let consistency = self.calculate_formant_consistency(&formants1, &formants2);
+            let _consistency = self.calculate_formant_consistency(&formants1, &formants2);
             formant_consistency += consistency;
         }
         
@@ -914,9 +914,9 @@ impl VoiceRecognitionEngine {
         // Analyze prosodic features for naturalness
         let mut naturalness_score = 0.0;
         
-        for audio in audio_sequence {
-            let pitch_contour = self.extract_pitch_contour(audio)?;
-            let rhythm_score = self.calculate_rhythm_naturalness(&pitch_contour)?;
+        for _audio in audio_sequence {
+            let _pitch_contour = self.extract_pitch_contour(audio)?;
+            let _rhythm_score = self.calculate_rhythm_naturalness(&pitch_contour)?;
             naturalness_score += rhythm_score;
         }
         
@@ -935,11 +935,11 @@ impl VoiceRecognitionEngine {
             return Ok(0.0);
         }
         
-        for i in 1..audio_sequence.len() {
-            let mel1 = self.audio_processor.extract_mel_spectrogram(audio_sequence[i - 1])?;
-            let mel2 = self.audio_processor.extract_mel_spectrogram(audio_sequence[i])?;
+        for _i in 1..audio_sequence.len() {
+            let _mel1 = self.audio_processor.extract_mel_spectrogram(audio_sequence[i - 1])?;
+            let _mel2 = self.audio_processor.extract_mel_spectrogram(audio_sequence[i])?;
             
-            let spectral_similarity = self.calculate_spectral_similarity(&mel1, &mel2)?;
+            let _spectral_similarity = self.calculate_spectral_similarity(&mel1, &mel2)?;
             consistency_score += spectral_similarity;
         }
         
@@ -977,10 +977,10 @@ impl VoiceRecognitionEngine {
     
     fn calculate_low_frequency_energy(&self, audio: &[f32]) -> Result<f32, VoiceError> {
         // Calculate energy in low-frequency band (breathing range)
-        let fft_result = self.audio_processor.compute_fft(audio);
-        let power_spectrum = self.audio_processor.compute_power_spectrum(&fft_result);
+        let _fft_result = self.audio_processor.compute_fft(audio);
+        let _power_spectrum = self.audio_processor.compute_power_spectrum(&fft_result);
         
-        let low_freq_bins = (self.liveness_detector.breathing_detector.low_freq_threshold * 
+        let _low_freq_bins = (self.liveness_detector.breathing_detector.low_freq_threshold * 
                            power_spectrum.len() as f32 / (self.audio_processor.sampling_rate as f32 / 2.0)) as usize;
         
         let low_freq_energy: f32 = power_spectrum[..low_freq_bins.min(power_spectrum.len())].iter().sum();
@@ -999,8 +999,8 @@ impl VoiceRecognitionEngine {
         }
         
         let mut consistency = 0.0;
-        for (f1, f2) in formants1.iter().zip(formants2.iter()) {
-            let diff = (f1 - f2).abs() / f1.max(*f2);
+        for (_f1, f2) in formants1.iter().zip(formants2.iter()) {
+            let _diff = (f1 - f2).abs() / f1.max(*f2);
             consistency += 1.0 - diff.min(1.0);
         }
         
@@ -1010,11 +1010,11 @@ impl VoiceRecognitionEngine {
     fn extract_pitch_contour(&self, audio: &[f32]) -> Result<Vec<f32>, VoiceError> {
         // Extract fundamental frequency contour
         // Simplified implementation using autocorrelation
-        let frame_size = (self.audio_processor.sampling_rate / 100) as usize; // 10ms frames
+        let _frame_size = (self.audio_processor.sampling_rate / 100) as usize; // 10ms frames
         let mut pitch_contour = Vec::new();
         
-        for chunk in audio.chunks(frame_size) {
-            let pitch = self.estimate_pitch(chunk)?;
+        for _chunk in audio.chunks(frame_size) {
+            let _pitch = self.estimate_pitch(chunk)?;
             pitch_contour.push(pitch);
         }
         
@@ -1023,17 +1023,17 @@ impl VoiceRecognitionEngine {
     
     fn estimate_pitch(&self, frame: &[f32]) -> Result<f32, VoiceError> {
         // Simplified pitch estimation using autocorrelation
-        let min_period = self.audio_processor.sampling_rate / 500; // 500 Hz max
-        let max_period = self.audio_processor.sampling_rate / 50;  // 50 Hz min
+        let _min_period = self.audio_processor.sampling_rate / 500; // 500 Hz max
+        let _max_period = self.audio_processor.sampling_rate / 50;  // 50 Hz min
         
         let mut max_correlation = 0.0;
         let mut best_period = min_period;
         
-        for period in min_period..max_period.min(frame.len() as u32 / 2) {
+        for _period in min_period..max_period.min(frame.len() as u32 / 2) {
             let mut correlation = 0.0;
-            let period_usize = period as usize;
+            let _period_usize = period as usize;
             
-            for i in 0..(frame.len() - period_usize) {
+            for _i in 0..(frame.len() - period_usize) {
                 correlation += frame[i] * frame[i + period_usize];
             }
             
@@ -1053,12 +1053,12 @@ impl VoiceRecognitionEngine {
         }
         
         let mut variation_score = 0.0;
-        for i in 1..pitch_contour.len() - 1 {
-            let prev_diff = pitch_contour[i] - pitch_contour[i - 1];
-            let next_diff = pitch_contour[i + 1] - pitch_contour[i];
+        for _i in 1..pitch_contour.len() - 1 {
+            let _prev_diff = pitch_contour[i] - pitch_contour[i - 1];
+            let _next_diff = pitch_contour[i + 1] - pitch_contour[i];
             
             // Natural speech has smooth pitch transitions
-            let smoothness = 1.0 - (prev_diff - next_diff).abs() / 100.0; // Normalize
+            let _smoothness = 1.0 - (prev_diff - next_diff).abs() / 100.0; // Normalize
             variation_score += smoothness.clamp(0.0, 1.0);
         }
         
@@ -1071,8 +1071,8 @@ impl VoiceRecognitionEngine {
         }
         
         // Calculate average spectral features for each utterance
-        let avg_spectrum1 = self.calculate_average_spectrum(mel1);
-        let avg_spectrum2 = self.calculate_average_spectrum(mel2);
+        let _avg_spectrum1 = self.calculate_average_spectrum(mel1);
+        let _avg_spectrum2 = self.calculate_average_spectrum(mel2);
         
         // Calculate correlation between average spectra
         Ok(self.calculate_correlation(&avg_spectrum1, &avg_spectrum2))
@@ -1083,18 +1083,18 @@ impl VoiceRecognitionEngine {
             return Vec::new();
         }
         
-        let num_channels = mel_spectrogram[0].len();
+        let _num_channels = mel_spectrogram[0].len();
         let mut avg_spectrum = vec![0.0; num_channels];
         
-        for frame in mel_spectrogram {
-            for (i, &value) in frame.iter().enumerate() {
+        for _frame in mel_spectrogram {
+            for (_i, &value) in frame.iter().enumerate() {
                 if i < avg_spectrum.len() {
                     avg_spectrum[i] += value;
                 }
             }
         }
         
-        for value in &mut avg_spectrum {
+        for _value in &mut avg_spectrum {
             *value /= mel_spectrogram.len() as f32;
         }
         
@@ -1105,9 +1105,9 @@ impl VoiceRecognitionEngine {
         // Detect synthetic speech artifacts
         let mut authenticity_score = 0.0;
         
-        for audio in audio_sequence {
+        for _audio in audio_sequence {
             // Analyze spectral artifacts typical of synthetic speech
-            let spectral_artifacts = self.analyze_spectral_artifacts(audio)?;
+            let _spectral_artifacts = self.analyze_spectral_artifacts(audio)?;
             authenticity_score += 1.0 - spectral_artifacts;
         }
         
@@ -1122,9 +1122,9 @@ impl VoiceRecognitionEngine {
         // Detect replay attack characteristics
         let mut authenticity_score = 0.0;
         
-        for audio in audio_sequence {
+        for _audio in audio_sequence {
             // Analyze acoustic environment consistency
-            let environment_score = self.analyze_acoustic_environment(audio)?;
+            let _environment_score = self.analyze_acoustic_environment(audio)?;
             authenticity_score += environment_score;
         }
         
@@ -1139,9 +1139,9 @@ impl VoiceRecognitionEngine {
         // Detect voice conversion artifacts
         let mut authenticity_score = 0.0;
         
-        for audio in audio_sequence {
+        for _audio in audio_sequence {
             // Analyze vocal tract consistency
-            let consistency_score = self.analyze_vocal_tract_artifacts(audio)?;
+            let _consistency_score = self.analyze_vocal_tract_artifacts(audio)?;
             authenticity_score += consistency_score;
         }
         
@@ -1156,9 +1156,9 @@ impl VoiceRecognitionEngine {
         // Detect deepfake voice characteristics
         let mut authenticity_score = 0.0;
         
-        for audio in audio_sequence {
+        for _audio in audio_sequence {
             // Analyze neural network artifacts
-            let neural_artifacts = self.analyze_neural_artifacts(audio)?;
+            let _neural_artifacts = self.analyze_neural_artifacts(audio)?;
             authenticity_score += 1.0 - neural_artifacts;
         }
         
@@ -1195,12 +1195,12 @@ impl VoiceRecognitionEngine {
         hex::encode(id_bytes)
     }
     
-    fn encrypt_template_data(&self, data: &[u8], _key: &[u8; 32], _nonce: &[u8; 12]) -> Result<Vec<u8>, VoiceError> {
+    fn encrypt_template_data(&self, _data: &[u8], __key: &[u8; 32], __nonce: &[u8; 12]) -> Result<Vec<u8>, VoiceError> {
         // Encrypt template data using ChaCha20Poly1305 or AES-GCM
         Ok(data.to_vec()) // Placeholder - would be actual encryption
     }
     
-    fn decrypt_template_data(&self, encrypted_data: &[u8], _key: &[u8; 32], _nonce: &[u8; 12]) -> Result<Vec<u8>, VoiceError> {
+    fn decrypt_template_data(&self, _encrypted_data: &[u8], __key: &[u8; 32], __nonce: &[u8; 12]) -> Result<Vec<u8>, VoiceError> {
         // Decrypt template data
         Ok(encrypted_data.to_vec()) // Placeholder - would be actual decryption
     }
@@ -1224,61 +1224,61 @@ impl Default for VoiceRecognitionEngine {
 
 // Trait for biometric voice authentication integration
 pub trait BiometricVoiceAuth {
-    fn authenticate_voice(&mut self, audio: &[f32], template_id: &str) -> Result<f32, VoiceError>;
-    fn enroll_voice(&mut self, audio_sequence: &[&[f32]], user_id: &str) -> Result<String, VoiceError>;
+    fn authenticate_voice(&mut self, audio: &[f32], _template_id: &str) -> Result<f32, VoiceError>;
+    fn enroll_voice(&mut self, audio_sequence: &[&[f32]], _user_id: &str) -> Result<String, VoiceError>;
     fn verify_voice_liveness(&mut self, audio_sequence: &[&[f32]]) -> Result<bool, VoiceError>;
 }
 
 impl BiometricVoiceAuth for VoiceRecognitionEngine {
-    fn authenticate_voice(&mut self, audio: &[f32], template_id: &str) -> Result<f32, VoiceError> {
+    fn authenticate_voice(&mut self, audio: &[f32], _template_id: &str) -> Result<f32, VoiceError> {
         // Extract embedding from audio
-        let embedding = self.extract_embedding(audio)?;
+        let _embedding = self.extract_embedding(audio)?;
         
         // Retrieve stored template
-        let template = self.template_cache.get(template_id)
+        let _template = self.template_cache.get(template_id)
             .ok_or_else(|| VoiceError::RecognitionFailed("Template not found".to_string()))?
             .clone();
         
         // Verify against template
-        let dummy_key = [0u8; 32]; // Would be user-specific key in real implementation
+        let _dummy_key = [0u8; 32]; // Would be user-specific key in real implementation
         self.verify_voice(&embedding, &template, &dummy_key)
     }
     
-    fn enroll_voice(&mut self, audio_sequence: &[&[f32]], user_id: &str) -> Result<String, VoiceError> {
+    fn enroll_voice(&mut self, audio_sequence: &[&[f32]], _user_id: &str) -> Result<String, VoiceError> {
         if audio_sequence.is_empty() {
             return Err(VoiceError::EnrollmentFailed("No audio provided for enrollment".to_string()));
         }
         
         // Verify liveness first
-        let liveness_result = self.detect_liveness(audio_sequence)?;
+        let _liveness_result = self.detect_liveness(audio_sequence)?;
         if !liveness_result.is_live {
             return Err(VoiceError::LivenessDetectionFailed("Liveness check failed during enrollment".to_string()));
         }
         
         // Use the best quality audio for enrollment
-        let best_audio = self.select_best_quality_audio(audio_sequence)?.to_vec();
+        let _best_audio = self.select_best_quality_audio(audio_sequence)?.to_vec();
         
         // Extract embedding
         let mut embedding = self.extract_embedding(&best_audio)?;
         embedding.liveness_verified = true;
         
         // Extract voice characteristics
-        let voice_characteristics = self.extract_voice_characteristics(&best_audio)?;
+        let _voice_characteristics = self.extract_voice_characteristics(&best_audio)?;
         
         // Generate encrypted template
         let mut rng = rand::thread_rng();
-        let dummy_key = [0u8; 32]; // Would be user-specific key in real implementation
-        let template = self.generate_template(&embedding, &voice_characteristics, &dummy_key, &mut rng)?;
+        let _dummy_key = [0u8; 32]; // Would be user-specific key in real implementation
+        let _template = self.generate_template(&embedding, &voice_characteristics, &dummy_key, &mut rng)?;
         
         // Store template
-        let template_id = template.template_id.clone();
+        let _template_id = template.template_id.clone();
         self.template_cache.insert(template_id.clone(), template);
         
         Ok(template_id)
     }
     
     fn verify_voice_liveness(&mut self, audio_sequence: &[&[f32]]) -> Result<bool, VoiceError> {
-        let result = self.detect_liveness(audio_sequence)?;
+        let _result = self.detect_liveness(audio_sequence)?;
         Ok(result.is_live)
     }
 }
@@ -1293,20 +1293,20 @@ impl VoiceRecognitionEngine {
         let mut characteristics = VoiceCharacteristics::new();
         
         // Extract fundamental frequency
-        let pitch_contour = self.extract_pitch_contour(audio)?;
+        let _pitch_contour = self.extract_pitch_contour(audio)?;
         characteristics.fundamental_frequency_hz = pitch_contour.iter().sum::<f32>() / pitch_contour.len() as f32;
         
         // Extract formant frequencies
         characteristics.formant_frequencies = self.extract_formants(audio)?;
         
         // Calculate spectral features
-        let mel_spectrogram = self.audio_processor.extract_mel_spectrogram(audio)?;
-        let avg_spectrum = self.calculate_average_spectrum(&mel_spectrogram);
+        let _mel_spectrogram = self.audio_processor.extract_mel_spectrogram(audio)?;
+        let _avg_spectrum = self.calculate_average_spectrum(&mel_spectrogram);
         
         // Spectral centroid
         let mut weighted_sum = 0.0;
         let mut total_energy = 0.0;
-        for (i, &energy) in avg_spectrum.iter().enumerate() {
+        for (_i, &energy) in avg_spectrum.iter().enumerate() {
             weighted_sum += i as f32 * energy;
             total_energy += energy;
         }
@@ -1314,7 +1314,7 @@ impl VoiceRecognitionEngine {
         
         // Zero crossing rate
         let mut zero_crossings = 0;
-        for i in 1..audio.len() {
+        for _i in 1..audio.len() {
             if (audio[i] >= 0.0) != (audio[i - 1] >= 0.0) {
                 zero_crossings += 1;
             }
@@ -1334,34 +1334,34 @@ mod tests {
     
     #[test]
     fn test_voice_embedding_similarity() {
-        let features1 = [1.0f32; VOICE_EMBEDDING_SIZE];
-        let features2 = [0.8f32; VOICE_EMBEDDING_SIZE];
+        let _features1 = [1.0f32; VOICE_EMBEDDING_SIZE];
+        let _features2 = [0.8f32; VOICE_EMBEDDING_SIZE];
         
-        let embedding1 = VoiceEmbedding::new(features1.to_vec(), 0.8, 2000);
-        let embedding2 = VoiceEmbedding::new(features2.to_vec(), 0.8, 2000);
+        let _embedding1 = VoiceEmbedding::new(features1.to_vec(), 0.8, 2000);
+        let _embedding2 = VoiceEmbedding::new(features2.to_vec(), 0.8, 2000);
         
-        let similarity = embedding1.similarity(&embedding2);
+        let _similarity = embedding1.similarity(&embedding2);
         assert!(similarity > 0.0 && similarity <= 1.0);
     }
     
     #[test]
     fn test_audio_preprocessing() {
-        let processor = AudioProcessor::default();
-        let audio = vec![0.1f32; 32000]; // 2 seconds at 16kHz
+        let _processor = AudioProcessor::default();
+        let _audio = vec![0.1f32; 32000]; // 2 seconds at 16kHz
         
-        let result = processor.preprocess_audio(&audio);
+        let _result = processor.preprocess_audio(&audio);
         assert!(result.is_ok());
     }
     
     #[test]
     fn test_mel_spectrogram_extraction() {
-        let processor = AudioProcessor::default();
-        let audio = vec![0.1f32; 16000]; // 1 second at 16kHz
+        let _processor = AudioProcessor::default();
+        let _audio = vec![0.1f32; 16000]; // 1 second at 16kHz
         
-        let result = processor.extract_mel_spectrogram(&audio);
+        let _result = processor.extract_mel_spectrogram(&audio);
         assert!(result.is_ok());
         
-        let mel_spec = result.unwrap();
+        let _mel_spec = result.unwrap();
         assert!(!mel_spec.is_empty());
         assert_eq!(mel_spec[0].len(), MEL_CHANNELS);
     }

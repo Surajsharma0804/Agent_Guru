@@ -1,0 +1,562 @@
+name: AGENT_GURU Enterprise CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, 'release/*', 'hotfix/*', 'feature/*' ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run nightly comprehensive validation
+    - cron: '0 2 * * *'
+    # Run weekly dependency updates
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      deploy_environment:
+        description: 'Deployment environment'
+        required: false
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+        - canary
+      skip_tests:
+        description: 'Skip test execution (emergency only)'
+        required: false
+        default: false
+        type: boolean
+      force_rebuild:
+        description: 'Force complete rebuild'
+        required: false
+        default: false
+        type: boolean
+      enable_debug:
+        description: 'Enable debug mode'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+  RUSTFLAGS: "-D warnings -D clippy::all -D clippy::pedantic -D clippy::nursery -D clippy::cargo"
+  PYTHONPATH: ${{ github.workspace }}/guru/intelligence
+  UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  # Security and signing
+  WINDOWS_SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_CERT }}
+  APPLE_SIGNING_CERT: ${{ secrets.APPLE_SIGNING_CERT }}
+  GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+  # Performance monitoring
+  PERFORMANCE_BASELINE_REPO: ${{ secrets.PERFORMANCE_BASELINE_REPO }}
+  # Deployment credentials
+  STAGING_DEPLOY_KEY: ${{ secrets.STAGING_DEPLOY_KEY }}
+  PRODUCTION_DEPLOY_KEY: ${{ secrets.PRODUCTION_DEPLOY_KEY }}
+  # Notification webhooks
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  TEAMS_WEBHOOK: ${{ secrets.TEAMS_WEBHOOK }}
+
+jobs:
+  # ============================================================================
+  # BUILD MATRIX - Cross-platform compilation with strict quality gates
+  # ============================================================================
+  build:
+    name: Build (${{ matrix.os }}-${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows builds
+          - os: windows
+            arch: x64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: agent-guru-windows-x64
+          - os: windows
+            arch: arm64
+            runner: windows-latest
+            target: aarch64-pc-windows-msvc
+            artifact_name: agent-guru-windows-arm64
+          # macOS builds
+          - os: macos
+            arch: x64
+            runner: macos-13
+            target: x86_64-apple-darwin
+            artifact_name: agent-guru-macos-x64
+          - os: macos
+            arch: arm64
+            runner: macos-14
+            target: aarch64-apple-darwin
+            artifact_name: agent-guru-macos-arm64
+          # Linux builds
+          - os: linux
+            arch: x64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            artifact_name: agent-guru-linux-x64
+          - os: linux
+            arch: arm64
+            runner: ubuntu-22.04
+            target: aarch64-unknown-linux-gnu
+            artifact_name: agent-guru-linux-arm64
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        submodules: recursive
+
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: 1.75.0
+        targets: ${{ matrix.target }}
+        components: rustfmt, clippy, miri
+
+    - name: Setup Python environment
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Setup Unity (Windows/macOS only)
+      if: matrix.os != 'linux'
+      uses: game-ci/unity-builder@v4
+      with:
+        unityVersion: 2023.2.20f1
+        targetPlatform: ${{ matrix.os == 'windows' && 'StandaloneWindows64' || 'StandaloneOSX' }}
+
+    - name: Install system dependencies (Linux)
+      if: matrix.os == 'linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          pkg-config \
+          libssl-dev \
+          libsodium-dev \
+          libasound2-dev \
+          libpulse-dev \
+          libxcb1-dev \
+          libxrandr-dev \
+          libxss-dev \
+          libglib2.0-dev \
+          libgtk-3-dev \
+          libgstreamer1.0-dev \
+          libgstreamer-plugins-base1.0-dev \
+          cross-compilation-tools
+
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos'
+      run: |
+        brew install cmake pkg-config libsodium portaudio
+
+    - name: Install system dependencies (Windows)
+      if: matrix.os == 'windows'
+      run: |
+        choco install cmake pkgconfiglite
+        vcpkg install libsodium:x64-windows portaudio:x64-windows
+
+    - name: Cache Rust dependencies
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+        cache-on-failure: true
+
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r guru/intelligence/requirements.txt
+        pip install pytest pytest-cov hypothesis
+
+    - name: Verify build environment
+      run: |
+        rustc --version
+        cargo --version
+        python --version
+        cmake --version
+
+    - name: Run pre-build validation
+      run: |
+        chmod +x scripts/build.sh
+        ./scripts/build.sh --validate-environment --target ${{ matrix.target }}
+
+    - name: Build Rust components
+      run: |
+        cargo build --release --target ${{ matrix.target }} --all-features
+        cargo build --release --target ${{ matrix.target }} --bin agent-guru
+
+    - name: Build C++ components
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ matrix.target }}.cmake
+        cmake --build . --config Release --parallel $(nproc || sysctl -n hw.ncpu || echo 4)
+
+    - name: Build Python components
+      run: |
+        cd guru/intelligence
+        python -m py_compile *.py
+        python setup.py build_ext --inplace
+
+    - name: Build Unity avatar components (Windows/macOS only)
+      if: matrix.os != 'linux'
+      run: |
+        unity-editor -batchmode -quit -projectPath avatar/ -buildTarget ${{ matrix.os == 'windows' && 'Win64' || 'OSXUniversal' }} -executeMethod BuildScript.BuildAvatar
+
+    - name: Run static analysis
+      run: |
+        cargo clippy --target ${{ matrix.target }} --all-features -- -D warnings
+        cargo fmt --check
+        pylint guru/intelligence/*.py --rcfile=.pylintrc
+
+    - name: Package artifacts
+      run: |
+        mkdir -p artifacts/${{ matrix.artifact_name }}
+        cp target/${{ matrix.target }}/release/agent-guru* artifacts/${{ matrix.artifact_name }}/
+        cp -r build/lib artifacts/${{ matrix.artifact_name }}/
+        cp -r guru/intelligence/dist artifacts/${{ matrix.artifact_name }}/
+        if [ "${{ matrix.os }}" != "linux" ]; then
+          cp -r avatar/Build artifacts/${{ matrix.artifact_name }}/
+        fi
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: artifacts/${{ matrix.artifact_name }}
+        retention-days: 30
+
+  # ============================================================================
+  # COMPREHENSIVE TEST SUITE - Unit, Integration, Property-based Testing
+  # ============================================================================
+  test:
+    name: Test Suite (${{ matrix.os }})
+    runs-on: ${{ matrix.runner }}
+    needs: build
+    if: ${{ !inputs.skip_tests }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-13
+            runner: macos-13
+            target: x86_64-apple-darwin
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup test environment
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: 1.75.0
+        components: rustfmt, clippy, miri
+
+    - name: Setup Python test environment
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install test dependencies
+      run: |
+        cargo install cargo-tarpaulin cargo-nextest
+        pip install pytest pytest-cov hypothesis pytest-xdist
+
+    - name: Run unit tests (Rust)
+      run: |
+        chmod +x scripts/test.sh
+        ./scripts/test.sh --unit --parallel --coverage
+
+    - name: Run integration tests (Rust)
+      run: |
+        ./scripts/test.sh --integration --parallel
+
+    - name: Run property-based tests (Rust)
+      run: |
+        ./scripts/test.sh --property-based --iterations 10000
+
+    - name: Run Python tests
+      run: |
+        cd guru/intelligence
+        python -m pytest tests/ -v --cov=. --cov-report=xml --cov-report=html -n auto
+
+    - name: Run memory safety tests (MIRI)
+      if: matrix.os == 'ubuntu-22.04'
+      run: |
+        cargo +nightly miri test --target ${{ matrix.target }}
+
+    - name: Run formal verification tests
+      if: matrix.os == 'ubuntu-22.04'
+      run: |
+        # Install TLA+ tools
+        wget https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+        java -cp tla2tools.jar tlc2.TLC guru/formal/*.tla
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results-${{ matrix.os }}
+        path: |
+          target/tarpaulin-report.html
+          guru/intelligence/htmlcov/
+          test-results.xml
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./target/tarpaulin-report.xml,./guru/intelligence/coverage.xml
+        flags: ${{ matrix.os }}
+        name: codecov-${{ matrix.os }}
+
+  # ============================================================================
+  # SECURITY ANALYSIS - Vulnerability scanning and penetration testing
+  # ============================================================================
+  security:
+    name: Security Analysis
+    runs-on: ubuntu-22.04
+    needs: build
+    permissions:
+      security-events: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup security tools
+      run: |
+        cargo install cargo-audit cargo-deny
+        pip install safety bandit semgrep
+
+    - name: Run Rust security audit
+      run: |
+        chmod +x scripts/security-scan.sh
+        ./scripts/security-scan.sh --rust-audit
+
+    - name: Run dependency vulnerability scan
+      run: |
+        ./scripts/security-scan.sh --dependency-scan
+
+    - name: Run Python security analysis
+      run: |
+        ./scripts/security-scan.sh --python-security
+
+    - name: Run static security analysis (Semgrep)
+      run: |
+        ./scripts/security-scan.sh --static-analysis
+
+    - name: Run cryptographic validation
+      run: |
+        ./scripts/security-scan.sh --crypto-validation
+
+    - name: Upload security scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: security-results.sarif
+
+  # ============================================================================
+  # PERFORMANCE VALIDATION - Benchmarking and regression detection
+  # ============================================================================
+  performance:
+    name: Performance Validation
+    runs-on: ubuntu-22.04
+    needs: build
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup performance testing
+      run: |
+        cargo install cargo-criterion
+        pip install pytest-benchmark
+
+    - name: Run performance benchmarks
+      run: |
+        chmod +x scripts/performance-test.sh
+        ./scripts/performance-test.sh --benchmarks --regression-detection
+
+    - name: Run latency validation
+      run: |
+        ./scripts/performance-test.sh --latency-validation
+
+    - name: Run memory profiling
+      run: |
+        ./scripts/performance-test.sh --memory-profiling
+
+    - name: Run load testing
+      run: |
+        ./scripts/performance-test.sh --load-testing
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-results
+        path: |
+          target/criterion/
+          performance-report.html
+
+  # ============================================================================
+  # QUALITY ASSURANCE - Code coverage and documentation validation
+  # ============================================================================
+  quality:
+    name: Quality Assurance
+    runs-on: ubuntu-22.04
+    needs: [test, security]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup quality tools
+      run: |
+        cargo install cargo-doc cargo-deadlinks
+        pip install sphinx sphinx-rtd-theme
+
+    - name: Validate code coverage thresholds
+      run: |
+        # Ensure 100% line coverage for critical components
+        cargo tarpaulin --out Xml --output-dir target/
+        python scripts/validate-coverage.py --threshold 100 --critical-paths "guru/security,guru/crypto"
+
+    - name: Generate and validate documentation
+      run: |
+        cargo doc --no-deps --document-private-items
+        cargo deadlinks --dir target/doc
+        cd docs && make html
+
+    - name: Validate formal specifications
+      run: |
+        # Validate TLA+ specifications are syntactically correct
+        java -cp tla2tools.jar tla2sany.SANY guru/formal/*.tla
+
+    - name: Upload quality reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: quality-reports
+        path: |
+          target/doc/
+          docs/_build/html/
+
+  # ============================================================================
+  # DEPLOYMENT - Artifact generation and cryptographic signing
+  # ============================================================================
+  deploy:
+    name: Deploy (${{ matrix.os }})
+    runs-on: ${{ matrix.runner }}
+    needs: [test, security, performance, quality]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    strategy:
+      matrix:
+        include:
+          - os: windows
+            runner: windows-latest
+            installer_type: nsis
+          - os: macos
+            runner: macos-13
+            installer_type: pkgbuild
+          - os: linux
+            runner: ubuntu-22.04
+            installer_type: appimage
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts/
+
+    - name: Setup deployment environment
+      run: |
+        chmod +x scripts/deploy.sh
+        ./scripts/deploy.sh --setup-environment --os ${{ matrix.os }}
+
+    - name: Generate installers
+      run: |
+        ./scripts/deploy.sh --generate-installer --type ${{ matrix.installer_type }}
+
+    - name: Sign artifacts (Windows)
+      if: matrix.os == 'windows'
+      run: |
+        # Sign with Authenticode certificate
+        ./scripts/deploy.sh --sign-windows --certificate "${{ secrets.WINDOWS_SIGNING_CERT }}"
+
+    - name: Sign artifacts (macOS)
+      if: matrix.os == 'macos'
+      run: |
+        # Sign with Apple Developer certificate and notarize
+        ./scripts/deploy.sh --sign-macos --certificate "${{ secrets.APPLE_SIGNING_CERT }}"
+
+    - name: Sign artifacts (Linux)
+      if: matrix.os == 'linux'
+      run: |
+        # Sign with GPG key
+        ./scripts/deploy.sh --sign-linux --gpg-key "${{ secrets.GPG_SIGNING_KEY }}"
+
+    - name: Generate SBOM and attestation
+      run: |
+        ./scripts/deploy.sh --generate-sbom --generate-attestation
+
+    - name: Upload to release
+      if: github.event_name == 'workflow_dispatch' && inputs.deploy_environment == 'production'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/*
+          sbom.json
+          attestation.json
+        tag_name: v${{ github.run_number }}
+        name: AGENT_GURU Release v${{ github.run_number }}
+        draft: false
+        prerelease: false
+
+    - name: Deploy to staging
+      if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.deploy_environment == 'staging')
+      run: |
+        ./scripts/deploy.sh --deploy-staging
+
+  # ============================================================================
+  # NOTIFICATION AND REPORTING
+  # ============================================================================
+  notify:
+    name: Pipeline Notification
+    runs-on: ubuntu-22.04
+    needs: [build, test, security, performance, quality, deploy]
+    if: always()
+
+    steps:
+    - name: Generate pipeline report
+      run: |
+        echo "## AGENT_GURU CI/CD Pipeline Report" > pipeline-report.md
+        echo "**Build Status:** ${{ needs.build.result }}" >> pipeline-report.md
+        echo "**Test Status:** ${{ needs.test.result }}" >> pipeline-report.md
+        echo "**Security Status:** ${{ needs.security.result }}" >> pipeline-report.md
+        echo "**Performance Status:** ${{ needs.performance.result }}" >> pipeline-report.md
+        echo "**Quality Status:** ${{ needs.quality.result }}" >> pipeline-report.md
+        echo "**Deploy Status:** ${{ needs.deploy.result }}" >> pipeline-report.md
+
+    - name: Upload pipeline report
+      uses: actions/upload-artifact@v3
+      with:
+        name: pipeline-report
+        path: pipeline-report.md

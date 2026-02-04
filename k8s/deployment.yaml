@@ -1,0 +1,513 @@
+# AGENT_GURU Kubernetes Deployment Configuration
+# Enterprise-grade deployment with high availability and security hardening
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-guru
+  namespace: agent-guru
+  labels:
+    app: agent-guru
+    version: v1.0.0
+    component: application
+    app.kubernetes.io/name: agent-guru
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: agent-guru-platform
+    app.kubernetes.io/managed-by: kubernetes
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    description: "AGENT_GURU Sovereign AI Operating Companion"
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: agent-guru
+      version: v1.0.0
+  template:
+    metadata:
+      labels:
+        app: agent-guru
+        version: v1.0.0
+        component: application
+        app.kubernetes.io/name: agent-guru
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/component: application
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+        co.elastic.logs/enabled: "true"
+        co.elastic.logs/json.keys_under_root: "true"
+        co.elastic.logs/json.add_error_key: "true"
+    spec:
+      # Security Context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      
+      # Service Account
+      serviceAccountName: agent-guru
+      automountServiceAccountToken: false
+      
+      # Node Selection
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-type: application
+      
+      # Tolerations
+      tolerations:
+        - key: "application"
+          operator: "Equal"
+          value: "agent-guru"
+          effect: "NoSchedule"
+      
+      # Affinity Rules
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - agent-guru
+                topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
+                      - arm64
+      
+      # Init Containers
+      initContainers:
+        - name: database-migration
+          image: agent-guru:latest
+          command: ["/usr/local/bin/agent-guru"]
+          args: ["--migrate-database"]
+          env:
+            - name: AGENT_GURU_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: agent-guru-secrets
+                  key: database-url
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      
+      # Main Container
+      containers:
+        - name: agent-guru
+          image: agent-guru:latest
+          imagePullPolicy: IfNotPresent
+          
+          # Security Context
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop:
+                - ALL
+          
+          # Ports
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: https
+              containerPort: 8443
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          
+          # Environment Variables
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: RUST_BACKTRACE
+              value: "1"
+            - name: AGENT_GURU_ENV
+              value: "production"
+            - name: AGENT_GURU_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: agent-guru-secrets
+                  key: database-url
+            - name: AGENT_GURU_REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: agent-guru-secrets
+                  key: redis-url
+            - name: AGENT_GURU_METRICS_ENABLED
+              value: "true"
+            - name: AGENT_GURU_TRACING_ENABLED
+              value: "true"
+            - name: AGENT_GURU_LOG_LEVEL
+              value: "info"
+            - name: AGENT_GURU_BIND_ADDRESS
+              value: "0.0.0.0:8080"
+            - name: AGENT_GURU_TLS_BIND_ADDRESS
+              value: "0.0.0.0:8443"
+          
+          # Environment from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: agent-guru-config
+          
+          # Volume Mounts
+          volumeMounts:
+            - name: config
+              mountPath: /etc/agent-guru
+              readOnly: true
+            - name: secrets
+              mountPath: /etc/agent-guru/secrets
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/agent-guru
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /var/cache/agent-guru
+          
+          # Resource Limits
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+              ephemeral-storage: 1Gi
+            limits:
+              cpu: 2
+              memory: 4Gi
+              ephemeral-storage: 2Gi
+          
+          # Health Checks
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 30
+          
+          # Lifecycle Hooks
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - "sleep 15"
+      
+      # Volumes
+      volumes:
+        - name: config
+          configMap:
+            name: agent-guru-config
+            defaultMode: 0444
+        - name: secrets
+          secret:
+            secretName: agent-guru-secrets
+            defaultMode: 0400
+        - name: data
+          persistentVolumeClaim:
+            claimName: agent-guru-data
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: cache
+          emptyDir:
+            sizeLimit: 2Gi
+      
+      # DNS Configuration
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "2"
+          - name: edns0
+      
+      # Termination Grace Period
+      terminationGracePeriodSeconds: 30
+      
+      # Restart Policy
+      restartPolicy: Always
+
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: agent-guru-hpa
+  namespace: agent-guru
+  labels:
+    app: agent-guru
+    component: autoscaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: agent-guru
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+      selectPolicy: Max
+
+---
+# Pod Disruption Budget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: agent-guru-pdb
+  namespace: agent-guru
+  labels:
+    app: agent-guru
+    component: disruption-budget
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: agent-guru
+
+---
+# Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-guru
+  namespace: agent-guru
+  labels:
+    app: agent-guru
+    component: service-account
+automountServiceAccountToken: false
+
+---
+# ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-guru-config
+  namespace: agent-guru
+  labels:
+    app: agent-guru
+    component: config
+data:
+  # Application Configuration
+  app.yaml: |
+    server:
+      bind_address: "0.0.0.0:8080"
+      tls_bind_address: "0.0.0.0:8443"
+      read_timeout: 30s
+      write_timeout: 30s
+      idle_timeout: 120s
+    
+    logging:
+      level: info
+      format: json
+      output: stdout
+    
+    metrics:
+      enabled: true
+      path: /metrics
+      bind_address: "0.0.0.0:9090"
+    
+    tracing:
+      enabled: true
+      endpoint: http://jaeger-collector:14268/api/traces
+      service_name: agent-guru
+      sample_rate: 0.1
+    
+    security:
+      tls:
+        cert_file: /etc/agent-guru/secrets/tls.crt
+        key_file: /etc/agent-guru/secrets/tls.key
+      cors:
+        allowed_origins: ["https://app.agent-guru.com"]
+        allowed_methods: ["GET", "POST", "PUT", "DELETE"]
+        allowed_headers: ["Content-Type", "Authorization"]
+    
+    features:
+      wake_word_detection: true
+      speech_recognition: true
+      llm_integration: true
+      avatar_rendering: true
+      biometric_auth: true
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-guru
+  namespace: agent-guru
+  labels:
+    app: agent-guru
+    component: service
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+    - name: https
+      port: 443
+      targetPort: https
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app: agent-guru
+
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agent-guru
+  namespace: agent-guru
+  labels:
+    app: agent-guru
+    component: ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+    - hosts:
+        - app.agent-guru.com
+        - api.agent-guru.com
+      secretName: agent-guru-tls
+  rules:
+    - host: app.agent-guru.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: agent-guru
+                port:
+                  number: 80
+    - host: api.agent-guru.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: agent-guru
+                port:
+                  number: 80
+
+---
+# Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: agent-guru-data
+  namespace: agent-guru
+  labels:
+    app: agent-guru
+    component: storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: fast-ssd

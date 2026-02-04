@@ -435,9 +435,7 @@ mod tests {
     
     #[test]
     fn test_zk_proof_generation_and_verification() {
-        let mut crypto = Ed25519Identity::new();
-        let mut rng = OsRng;
-        let (_public_key, secret_key) = crypto.generate_keypair(&mut rng).unwrap();
+        let identity = Ed25519Identity::new().unwrap();
         
         let zk_system = ZKProofSystem::default();
         
@@ -456,7 +454,7 @@ mod tests {
         witness.insert("secret".to_string(), vec![123, 45, 67]);
         
         // Generate proof
-        let proof_result = zk_system.generate_proof(statement, &witness, &secret_key);
+        let proof_result = zk_system.generate_proof(statement, &witness, identity.secret_key());
         assert!(proof_result.is_ok());
         
         let proof = proof_result.unwrap();
@@ -475,11 +473,9 @@ mod tests {
         assert_eq!(params.security_level, 256);
         assert_eq!(params.field_size, 2_u32.pow(256));
         
-        let mut crypto = Ed25519Identity::new();
-        let mut rng = OsRng;
-        let (public_key, _) = crypto.generate_keypair(&mut rng).unwrap();
+        let identity = Ed25519Identity::new().unwrap();
         
-        let params_with_key = params.with_public_key(public_key);
+        let params_with_key = params.with_public_key(identity.public_key().clone());
         assert!(params_with_key.public_key.is_some());
     }
     

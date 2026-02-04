@@ -53,7 +53,7 @@ mod test_config {
     pub const PROPERTY_TEST_ITERATIONS: u64 = 100000; // STRESS: Maximum validation
     pub const ENDURANCE_TEST_CYCLES: usize = 10000;
     pub const ADVERSARIAL_TEST_ROUNDS: usize = 1000;
-    pub const PROFILE_NAME: &str = "STRESS";
+    pub const _PROFILE_NAME: &str = "STRESS";
 }
 
 #[cfg(all(feature = "production-testing", not(feature = "stress-testing")))]
@@ -61,7 +61,7 @@ mod test_config {
     pub const PROPERTY_TEST_ITERATIONS: u64 = 10000; // PRODUCTION: Full validation
     pub const ENDURANCE_TEST_CYCLES: usize = 1000;
     pub const ADVERSARIAL_TEST_ROUNDS: usize = 100;
-    pub const PROFILE_NAME: &str = "PRODUCTION";
+    pub const _PROFILE_NAME: &str = "PRODUCTION";
 }
 
 #[cfg(all(feature = "ci-testing", not(feature = "production-testing"), not(feature = "stress-testing")))]
@@ -69,7 +69,7 @@ mod test_config {
     pub const PROPERTY_TEST_ITERATIONS: u64 = 1000; // CI: Comprehensive validation
     pub const ENDURANCE_TEST_CYCLES: usize = 100;
     pub const ADVERSARIAL_TEST_ROUNDS: usize = 25;
-    pub const PROFILE_NAME: &str = "CI/TESTING";
+    pub const _PROFILE_NAME: &str = "CI/TESTING";
 }
 
 // Default fallback configuration
@@ -78,7 +78,7 @@ mod test_config {
     pub const PROPERTY_TEST_ITERATIONS: u64 = 50; // Safe default
     pub const ENDURANCE_TEST_CYCLES: usize = 10;
     pub const ADVERSARIAL_TEST_ROUNDS: usize = 5;
-    pub const PROFILE_NAME: &str = "DEFAULT";
+    pub const _PROFILE_NAME: &str = "DEFAULT";
 }
 
 // Import the selected configuration
@@ -99,7 +99,7 @@ struct TestMessage {
 
 impl Arbitrary for TestMessage {
     fn arbitrary(g: &mut Gen) -> Self {
-        let size = usize::arbitrary(g) % 100_000; // Production-grade: Up to 100KB messages for comprehensive testing
+        let _size = usize::arbitrary(g) % 100_000; // Production-grade: Up to 100KB messages for comprehensive testing
         let mut data = Vec::with_capacity(size);
         
         // Generate diverse message patterns for comprehensive testing
@@ -122,13 +122,13 @@ impl Arbitrary for TestMessage {
             }
             4 => {
                 // Random bytes
-                for _ in 0..size {
+                for __ in 0..size {
                     data.push(u8::arbitrary(g));
                 }
             }
             5 => {
                 // Structured data (JSON-like)
-                let json_like = format!(
+                let _json_like = format!(
                     r#"{{"id": {}, "timestamp": {}, "data": "test_payload_{}", "nonce": {}}}"#,
                     u64::arbitrary(g),
                     SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
@@ -141,19 +141,19 @@ impl Arbitrary for TestMessage {
                 // Binary protocol simulation
                 data.extend_from_slice(&u32::arbitrary(g).to_le_bytes()); // Header
                 data.extend_from_slice(&u64::arbitrary(g).to_le_bytes()); // Timestamp
-                for _ in 0..(size.saturating_sub(12)) {
+                for __ in 0..(size.saturating_sub(12)) {
                     data.push(u8::arbitrary(g));
                 }
             }
             _ => {
                 // Cryptographic-like data
-                for i in 0..size {
+                for _i in 0..size {
                     data.push((i as u8).wrapping_mul(17).wrapping_add(u8::arbitrary(g)));
                 }
             }
         }
         
-        Self { data }
+        Self { _data }
     }
 }
 
@@ -166,10 +166,10 @@ struct CryptoSeed {
 impl Arbitrary for CryptoSeed {
     fn arbitrary(g: &mut Gen) -> Self {
         let mut entropy = [0u8; 32];
-        for byte in &mut entropy {
+        for _byte in &mut entropy {
             *byte = u8::arbitrary(g);
         }
-        Self { entropy }
+        Self { _entropy }
     }
 }
 
@@ -195,13 +195,13 @@ mod property_1_cryptographic_identity_integrity {
         let mut rng1 = rand::rngs::StdRng::from_seed(seed1.entropy);
         let mut rng2 = rand::rngs::StdRng::from_seed(seed2.entropy);
         
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         
         // Generate keypairs with performance monitoring
-        let keypair1_result = identity1.generate_keypair(&mut rng1);
-        let keypair2_result = identity2.generate_keypair(&mut rng2);
+        let _keypair1_result = identity1.generate_keypair(&mut rng1);
+        let _keypair2_result = identity2.generate_keypair(&mut rng2);
         
-        let generation_time = start_time.elapsed();
+        let _generation_time = start_time.elapsed();
         
         // Validate performance requirement: <100ms for keypair generation
         if generation_time > Duration::from_millis(PERFORMANCE_TIMEOUT_MS) {
@@ -215,23 +215,23 @@ mod property_1_cryptographic_identity_integrity {
         match (keypair1_result, keypair2_result) {
             (Ok((pk1, sk1)), Ok((pk2, sk2))) => {
                 // Validate key uniqueness with cryptographic strength
-                let keys_different = pk1.as_bytes() != pk2.as_bytes();
+                let _keys_different = pk1.as_bytes() != pk2.as_bytes();
                 
                 // Validate public key extraction consistency
-                let extracted_pk1 = sk1.public_key().unwrap();
-                let extracted_pk2 = sk2.public_key().unwrap();
-                let extraction_correct = pk1 == extracted_pk1 && pk2 == extracted_pk2;
+                let _extracted_pk1 = sk1.public_key().unwrap();
+                let _extracted_pk2 = sk2.public_key().unwrap();
+                let _extraction_correct = pk1 == extracted_pk1 && pk2 == extracted_pk2;
                 
                 // Validate key material entropy (more lenient for simplified implementation)
-                let pk1_entropy = calculate_entropy(pk1.as_bytes());
-                let pk2_entropy = calculate_entropy(pk2.as_bytes());
-                let sufficient_entropy = pk1_entropy > 2.0 && pk2_entropy > 2.0; // Reduced threshold
+                let _pk1_entropy = calculate_entropy(pk1.as_bytes());
+                let _pk2_entropy = calculate_entropy(pk2.as_bytes());
+                let _sufficient_entropy = pk1_entropy > 2.0 && pk2_entropy > 2.0; // Reduced threshold
                 
                 // Validate audit trail creation
-                let audit_trail_valid = identity1.verify_audit_trail() && identity2.verify_audit_trail();
+                let _audit_trail_valid = identity1.verify_audit_trail() && identity2.verify_audit_trail();
                 
                 // For simplified implementation, we'll be more lenient
-                let basic_requirements = keys_different && extraction_correct && audit_trail_valid;
+                let _basic_requirements = keys_different && extraction_correct && audit_trail_valid;
                 
                 if !sufficient_entropy {
                     // Log entropy warning but don't fail the test
@@ -249,7 +249,7 @@ mod property_1_cryptographic_identity_integrity {
         let mut identity = Ed25519Identity::new();
         let mut rng = OsRng;
         
-        let keypair_result = identity.generate_keypair(&mut rng);
+        let _keypair_result = identity.generate_keypair(&mut rng);
         if keypair_result.is_err() {
             return TestResult::error("Keypair generation failed");
         }
@@ -257,9 +257,9 @@ mod property_1_cryptographic_identity_integrity {
         let (public_key, secret_key) = keypair_result.unwrap();
         
         // Test signing performance with timing validation
-        let sign_start = Instant::now();
-        let signature_result = identity.sign_message(&message.data, &secret_key);
-        let sign_time = sign_start.elapsed();
+        let _sign_start = Instant::now();
+        let _signature_result = identity.sign_message(&message.data, &secret_key);
+        let _sign_time = sign_start.elapsed();
         
         if sign_time > Duration::from_millis(SIGNATURE_TIMEOUT_MS) {
             return TestResult::error(format!(
@@ -273,12 +273,12 @@ mod property_1_cryptographic_identity_integrity {
             return TestResult::error("Signature generation failed");
         }
         
-        let signature = signature_result.unwrap();
+        let _signature = signature_result.unwrap();
         
         // Test verification performance with timing validation
-        let verify_start = Instant::now();
-        let verification_result = identity.verify_signature(&message.data, &signature, &public_key);
-        let verify_time = verify_start.elapsed();
+        let _verify_start = Instant::now();
+        let _verification_result = identity.verify_signature(&message.data, &signature, &public_key);
+        let _verify_time = verify_start.elapsed();
         
         if verify_time > Duration::from_millis(VERIFICATION_TIMEOUT_MS) {
             return TestResult::error(format!(
@@ -295,7 +295,7 @@ mod property_1_cryptographic_identity_integrity {
                 }
                 
                 // Comprehensive adversarial testing
-                let adversarial_tests_passed = run_adversarial_signature_tests(
+                let _adversarial_tests_passed = run_adversarial_signature_tests(
                     &mut identity,
                     &message.data,
                     &signature,
@@ -308,7 +308,7 @@ mod property_1_cryptographic_identity_integrity {
                 }
                 
                 // Test signature non-malleability
-                let malleability_test_passed = test_signature_non_malleability(
+                let _malleability_test_passed = test_signature_non_malleability(
                     &mut identity,
                     &message.data,
                     &signature,
@@ -338,11 +338,11 @@ mod property_1_cryptographic_identity_integrity {
         let mut created_entries = Vec::new();
         
         // Create comprehensive audit trail
-        for (i, operation) in operations.iter().enumerate() {
+        for (_i, operation) in operations.iter().enumerate() {
             let mut metadata = HashMap::new();
             
             // Generate complex metadata for comprehensive testing
-            for j in 0..metadata_complexity {
+            for _j in 0..metadata_complexity {
                 metadata.insert(
                     format!("key_{}_{}", i, j),
                     format!("value_{}_{}_timestamp_{}", i, j, 
@@ -357,7 +357,7 @@ mod property_1_cryptographic_identity_integrity {
             metadata.insert("previous_entries_count".to_string(), 
                 identity.get_audit_trail().len().to_string());
             
-            let entry_result = identity.create_audit_entry(operation.clone(), metadata);
+            let _entry_result = identity.create_audit_entry(operation.clone(), metadata);
             
             match entry_result {
                 Ok(entry) => {
@@ -377,7 +377,7 @@ mod property_1_cryptographic_identity_integrity {
         }
         
         // Comprehensive audit trail validation
-        let trail_validation_passed = validate_comprehensive_audit_trail(
+        let _trail_validation_passed = validate_comprehensive_audit_trail(
             &identity,
             &created_entries,
             &operations,
@@ -388,7 +388,7 @@ mod property_1_cryptographic_identity_integrity {
         }
         
         // Test audit trail immutability under adversarial conditions
-        let immutability_test_passed = test_audit_trail_immutability(&identity);
+        let _immutability_test_passed = test_audit_trail_immutability(&identity);
         
         TestResult::from_bool(immutability_test_passed)
     }
@@ -417,25 +417,25 @@ mod property_1_cryptographic_identity_integrity {
         let mut verify_times_1 = Vec::new();
         let mut verify_times_2 = Vec::new();
         
-        for _ in 0..timing_samples {
+        for __ in 0..timing_samples {
             // Measure signing times
-            let sign_start1 = Instant::now();
-            let signature1 = identity.sign_message(&message1.data, &secret_key);
+            let _sign_start1 = Instant::now();
+            let _signature1 = identity.sign_message(&message1.data, &secret_key);
             sign_times_1.push(sign_start1.elapsed());
             
-            let sign_start2 = Instant::now();
-            let signature2 = identity.sign_message(&message2.data, &secret_key);
+            let _sign_start2 = Instant::now();
+            let _signature2 = identity.sign_message(&message2.data, &secret_key);
             sign_times_2.push(sign_start2.elapsed());
             
             match (signature1, signature2) {
                 (Ok(sig1), Ok(sig2)) => {
                     // Measure verification times
-                    let verify_start1 = Instant::now();
-                    let valid1 = identity.verify_signature(&message1.data, &sig1, &public_key);
+                    let _verify_start1 = Instant::now();
+                    let _valid1 = identity.verify_signature(&message1.data, &sig1, &public_key);
                     verify_times_1.push(verify_start1.elapsed());
                     
-                    let verify_start2 = Instant::now();
-                    let valid2 = identity.verify_signature(&message2.data, &sig2, &public_key);
+                    let _verify_start2 = Instant::now();
+                    let _valid2 = identity.verify_signature(&message2.data, &sig2, &public_key);
                     verify_times_2.push(verify_start2.elapsed());
                     
                     match (valid1, valid2) {
@@ -448,7 +448,7 @@ mod property_1_cryptographic_identity_integrity {
         }
         
         // Statistical analysis of timing differences
-        let timing_analysis_passed = analyze_constant_time_properties(
+        let _timing_analysis_passed = analyze_constant_time_properties(
             &sign_times_1,
             &sign_times_2,
             &verify_times_1,
@@ -518,15 +518,15 @@ mod property_2_policy_enforcement_consistency {
         };
         
         // Create comprehensive policy structure
-        let policy_structure = create_comprehensive_policy_structure(
+        let _policy_structure = create_comprehensive_policy_structure(
             resource_complexity,
             action_diversity,
             policy_depth,
         );
         
         // Test policy enforcement across all scenarios
-        for scenario in &policy_structure.test_scenarios {
-            let enforcement_result = test_policy_enforcement_scenario(
+        for _scenario in &policy_structure.test_scenarios {
+            let _enforcement_result = test_policy_enforcement_scenario(
                 &mut crypto,
                 &public_key,
                 &secret_key,
@@ -539,7 +539,7 @@ mod property_2_policy_enforcement_consistency {
         }
         
         // Test policy consistency under concurrent access
-        let concurrency_test_passed = test_policy_concurrency_consistency(
+        let _concurrency_test_passed = test_policy_concurrency_consistency(
             &mut crypto,
             &public_key,
             &secret_key,
@@ -551,7 +551,7 @@ mod property_2_policy_enforcement_consistency {
         }
         
         // Test cryptographic policy integrity
-        let crypto_integrity_passed = test_cryptographic_policy_integrity(
+        let _crypto_integrity_passed = test_cryptographic_policy_integrity(
             &mut crypto,
             &public_key,
             &secret_key,
@@ -576,7 +576,7 @@ mod property_2_policy_enforcement_consistency {
         let mut rng = OsRng;
         
         // Create comprehensive trust domain infrastructure
-        let trust_infrastructure = create_comprehensive_trust_infrastructure(
+        let _trust_infrastructure = create_comprehensive_trust_infrastructure(
             &mut crypto,
             &mut rng,
             domain_complexity,
@@ -584,8 +584,8 @@ mod property_2_policy_enforcement_consistency {
         );
         
         // Test trust establishment across all domains
-        for domain in &trust_infrastructure.domains {
-            let attestation_result = test_comprehensive_trust_attestation(
+        for _domain in &trust_infrastructure.domains {
+            let _attestation_result = test_comprehensive_trust_attestation(
                 &mut crypto,
                 domain,
                 attestation_rounds,
@@ -597,7 +597,7 @@ mod property_2_policy_enforcement_consistency {
         }
         
         // Test cross-domain trust relationships
-        let cross_domain_test_passed = test_cross_domain_trust_relationships(
+        let _cross_domain_test_passed = test_cross_domain_trust_relationships(
             &mut crypto,
             &trust_infrastructure,
         );
@@ -607,7 +607,7 @@ mod property_2_policy_enforcement_consistency {
         }
         
         // Test trust revocation and recovery
-        let revocation_test_passed = test_trust_revocation_and_recovery(
+        let _revocation_test_passed = test_trust_revocation_and_recovery(
             &mut crypto,
             &trust_infrastructure,
         );
@@ -636,10 +636,10 @@ mod property_2_policy_enforcement_consistency {
         // Create comprehensive policy decision audit trail
         let mut decision_audit_trail = Vec::new();
         
-        for i in 0..decision_count {
-            let decision_metadata = create_comprehensive_decision_metadata(i, audit_complexity);
+        for _i in 0..decision_count {
+            let _decision_metadata = create_comprehensive_decision_metadata(i, audit_complexity);
             
-            let audit_entry = crypto.create_audit_entry(
+            let _audit_entry = crypto.create_audit_entry(
                 format!("policy_decision_{}", i),
                 decision_metadata,
             );
@@ -656,7 +656,7 @@ mod property_2_policy_enforcement_consistency {
         }
         
         // Validate comprehensive audit trail properties
-        let audit_validation_passed = validate_comprehensive_policy_audit_trail(
+        let _audit_validation_passed = validate_comprehensive_policy_audit_trail(
             &crypto,
             &decision_audit_trail,
         );
@@ -666,7 +666,7 @@ mod property_2_policy_enforcement_consistency {
         }
         
         // Test audit trail cryptographic integrity
-        let crypto_audit_integrity_passed = test_cryptographic_audit_integrity(
+        let _crypto_audit_integrity_passed = test_cryptographic_audit_integrity(
             &crypto,
             &decision_audit_trail,
             &public_key,
@@ -731,7 +731,7 @@ mod property_3_supply_chain_verification {
         };
         
         // Create comprehensive build provenance structure
-        let build_provenance = create_comprehensive_build_provenance(
+        let _build_provenance = create_comprehensive_build_provenance(
             &mut crypto,
             &attestation_secret,
             component_hierarchy_depth,
@@ -740,7 +740,7 @@ mod property_3_supply_chain_verification {
         );
         
         // Validate complete provenance chain integrity
-        let provenance_integrity_passed = validate_comprehensive_provenance_integrity(
+        let _provenance_integrity_passed = validate_comprehensive_provenance_integrity(
             &mut crypto,
             &attestation_key,
             &build_provenance,
@@ -751,7 +751,7 @@ mod property_3_supply_chain_verification {
         }
         
         // Test provenance chain cryptographic verification
-        let crypto_verification_passed = test_provenance_cryptographic_verification(
+        let _crypto_verification_passed = test_provenance_cryptographic_verification(
             &mut crypto,
             &attestation_key,
             &build_provenance,
@@ -762,7 +762,7 @@ mod property_3_supply_chain_verification {
         }
         
         // Test supply chain attack resistance
-        let attack_resistance_passed = test_supply_chain_attack_resistance(
+        let _attack_resistance_passed = test_supply_chain_attack_resistance(
             &mut crypto,
             &build_provenance,
         );
@@ -792,7 +792,7 @@ mod property_3_supply_chain_verification {
         };
         
         // Create comprehensive SBOM structure
-        let comprehensive_sbom = create_comprehensive_sbom_structure(
+        let _comprehensive_sbom = create_comprehensive_sbom_structure(
             &mut crypto,
             &sbom_secret,
             dependency_graph_complexity,
@@ -801,7 +801,7 @@ mod property_3_supply_chain_verification {
         );
         
         // Validate SBOM integrity and completeness
-        let sbom_integrity_passed = validate_comprehensive_sbom_integrity(
+        let _sbom_integrity_passed = validate_comprehensive_sbom_integrity(
             &mut crypto,
             &sbom_key,
             &comprehensive_sbom,
@@ -812,7 +812,7 @@ mod property_3_supply_chain_verification {
         }
         
         // Test dependency graph analysis
-        let dependency_analysis_passed = test_comprehensive_dependency_analysis(
+        let _dependency_analysis_passed = test_comprehensive_dependency_analysis(
             &comprehensive_sbom,
         );
         
@@ -821,7 +821,7 @@ mod property_3_supply_chain_verification {
         }
         
         // Test vulnerability impact assessment
-        let vulnerability_assessment_passed = test_comprehensive_vulnerability_assessment(
+        let _vulnerability_assessment_passed = test_comprehensive_vulnerability_assessment(
             &comprehensive_sbom,
         );
         
@@ -844,7 +844,7 @@ mod property_3_supply_chain_verification {
         let mut rng = OsRng;
         
         // Create comprehensive attestation chain infrastructure
-        let attestation_infrastructure = create_comprehensive_attestation_infrastructure(
+        let _attestation_infrastructure = create_comprehensive_attestation_infrastructure(
             &mut crypto,
             &mut rng,
             chain_complexity,
@@ -852,7 +852,7 @@ mod property_3_supply_chain_verification {
         );
         
         // Validate end-to-end attestation chain integrity
-        let chain_integrity_passed = validate_comprehensive_attestation_chain_integrity(
+        let _chain_integrity_passed = validate_comprehensive_attestation_chain_integrity(
             &mut crypto,
             &attestation_infrastructure,
         );
@@ -862,7 +862,7 @@ mod property_3_supply_chain_verification {
         }
         
         // Test temporal consistency validation
-        let temporal_consistency_passed = test_comprehensive_temporal_consistency(
+        let _temporal_consistency_passed = test_comprehensive_temporal_consistency(
             &attestation_infrastructure,
             temporal_validation_points,
         );
@@ -872,7 +872,7 @@ mod property_3_supply_chain_verification {
         }
         
         // Test cross-reference verification
-        let cross_reference_verification_passed = test_comprehensive_cross_reference_verification(
+        let _cross_reference_verification_passed = test_comprehensive_cross_reference_verification(
             &attestation_infrastructure,
         );
         
@@ -895,7 +895,7 @@ mod property_3_supply_chain_verification {
         let mut rng = OsRng;
         
         // Create comprehensive clean room compliance structure
-        let compliance_structure = create_comprehensive_clean_room_compliance(
+        let _compliance_structure = create_comprehensive_clean_room_compliance(
             &mut crypto,
             &mut rng,
             source_repository_count,
@@ -904,7 +904,7 @@ mod property_3_supply_chain_verification {
         );
         
         // Validate clean room methodology compliance
-        let methodology_compliance_passed = validate_comprehensive_clean_room_methodology(
+        let _methodology_compliance_passed = validate_comprehensive_clean_room_methodology(
             &compliance_structure,
         );
         
@@ -913,7 +913,7 @@ mod property_3_supply_chain_verification {
         }
         
         // Test intellectual property compliance
-        let ip_compliance_passed = test_comprehensive_ip_compliance(
+        let _ip_compliance_passed = test_comprehensive_ip_compliance(
             &compliance_structure,
         );
         
@@ -922,7 +922,7 @@ mod property_3_supply_chain_verification {
         }
         
         // Test algorithm extraction verification
-        let extraction_verification_passed = test_comprehensive_algorithm_extraction_verification(
+        let _extraction_verification_passed = test_comprehensive_algorithm_extraction_verification(
             &compliance_structure,
         );
         
@@ -975,22 +975,22 @@ mod performance_and_security_properties {
         let mut rng = OsRng;
         
         // Baseline memory measurement
-        let initial_audit_count = crypto.get_audit_trail().len();
+        let _initial_audit_count = crypto.get_audit_trail().len();
         let mut peak_memory_usage = 0usize;
         let mut verification_failures = 0;
         
         // Reduced test cycles to prevent memory overflow
-        let test_cycles = 100; // Further reduced from 1000 to 100
-        for cycle in 0..test_cycles {
+        let _test_cycles = 100; // Further reduced from 1000 to 100
+        for _cycle in 0..test_cycles {
             // Generate keypair
             let (public_key, secret_key) = crypto.generate_keypair(&mut rng).unwrap();
             
             // Create simple message for testing
-            let message = format!("test_message_{}", cycle).into_bytes();
+            let _message = format!("test_message_{}", cycle).into_bytes();
             
             // Sign and verify
-            let signature = crypto.sign_message(&message, &secret_key).unwrap();
-            let is_valid = crypto.verify_signature(&message, &signature, &public_key).unwrap();
+            let _signature = crypto.sign_message(&message, &secret_key).unwrap();
+            let _is_valid = crypto.verify_signature(&message, &signature, &public_key).unwrap();
             
             if !is_valid {
                 verification_failures += 1;
@@ -1006,8 +1006,8 @@ mod performance_and_security_properties {
             crypto.create_audit_entry(format!("test_{}", cycle), metadata).unwrap();
             
             // Monitor memory usage
-            let current_audit_count = crypto.get_audit_trail().len();
-            let estimated_memory = current_audit_count * 512; // Reduced estimate
+            let _current_audit_count = crypto.get_audit_trail().len();
+            let _estimated_memory = current_audit_count * 512; // Reduced estimate
             peak_memory_usage = peak_memory_usage.max(estimated_memory);
             
             // Validate memory bounds
@@ -1025,7 +1025,7 @@ mod performance_and_security_properties {
         }
         
         // Final validation
-        let final_audit_count = crypto.get_audit_trail().len();
+        let _final_audit_count = crypto.get_audit_trail().len();
         assert!(crypto.verify_audit_trail());
         
         println!("Memory test completed: {} cycles, peak memory: {} bytes, verification success rate: {:.1}%", 
@@ -1048,11 +1048,11 @@ mod performance_and_security_properties {
         let mut verification_failures = 0;
         
         // Stress testing with performance monitoring (reduced iterations for simplified implementation)
-        for iteration in 0..20 { // Further optimized: Reduced from 100 to 20
+        for _iteration in 0..20 { // Further optimized: Reduced from 100 to 20
             // Test keypair generation performance
-            let keygen_start = Instant::now();
+            let _keygen_start = Instant::now();
             let (public_key, secret_key) = crypto.generate_keypair(&mut rng).unwrap();
-            let keygen_time = keygen_start.elapsed();
+            let _keygen_time = keygen_start.elapsed();
             keygen_times.push(keygen_time);
             
             // Validate performance requirement
@@ -1065,12 +1065,12 @@ mod performance_and_security_properties {
             );
             
             // Test signing performance with variable message sizes
-            let message_size = (iteration % 10 + 1) * 1024; // 1KB to 10KB
-            let message = vec![0xAAu8; message_size];
+            let _message_size = (iteration % 10 + 1) * 1024; // 1KB to 10KB
+            let _message = vec![0xAAu8; message_size];
             
-            let sign_start = Instant::now();
-            let signature = crypto.sign_message(&message, &secret_key).unwrap();
-            let sign_time = sign_start.elapsed();
+            let _sign_start = Instant::now();
+            let _signature = crypto.sign_message(&message, &secret_key).unwrap();
+            let _sign_time = sign_start.elapsed();
             sign_times.push(sign_time);
             
             assert!(
@@ -1082,9 +1082,9 @@ mod performance_and_security_properties {
             );
             
             // Test verification performance
-            let verify_start = Instant::now();
-            let is_valid = crypto.verify_signature(&message, &signature, &public_key).unwrap();
-            let verify_time = verify_start.elapsed();
+            let _verify_start = Instant::now();
+            let _is_valid = crypto.verify_signature(&message, &signature, &public_key).unwrap();
+            let _verify_time = verify_start.elapsed();
             verify_times.push(verify_time);
             
             if !is_valid {
@@ -1107,9 +1107,9 @@ mod performance_and_security_properties {
         }
         
         // Statistical analysis of performance
-        let avg_keygen = average_duration(&keygen_times);
-        let avg_sign = average_duration(&sign_times);
-        let avg_verify = average_duration(&verify_times);
+        let _avg_keygen = average_duration(&keygen_times);
+        let _avg_sign = average_duration(&sign_times);
+        let _avg_verify = average_duration(&verify_times);
         
         println!("Performance statistics:");
         println!("  Average keypair generation: {:.2}ms", avg_keygen.as_secs_f64() * 1000.0);
@@ -1119,9 +1119,9 @@ mod performance_and_security_properties {
                 (100 - verification_failures) as f64 / keygen_times.len() as f64 * 100.0);
         
         // Validate performance consistency
-        let keygen_variance = calculate_variance(&keygen_times);
-        let sign_variance = calculate_variance(&sign_times);
-        let verify_variance = calculate_variance(&verify_times);
+        let _keygen_variance = calculate_variance(&keygen_times);
+        let _sign_variance = calculate_variance(&sign_times);
+        let _verify_variance = calculate_variance(&verify_times);
         
         println!("Performance variance:");
         println!("  Keypair generation variance: {:.2}ms²", keygen_variance.as_secs_f64() * 1_000_000.0);
@@ -1141,16 +1141,16 @@ mod performance_and_security_properties {
         let (public_key, secret_key) = crypto.generate_keypair(&mut rng).unwrap();
         
         let mut verification_failures = 0;
-        let test_rounds = 100; // Reduced from ADVERSARIAL_TEST_ROUNDS (1000) to 100
+        let _test_rounds = 100; // Reduced from ADVERSARIAL_TEST_ROUNDS (1000) to 100
         
         // Comprehensive adversarial testing
-        for round in 0..test_rounds {
+        for _round in 0..test_rounds {
             // Test with various message types
-            let message = create_adversarial_test_message(round);
-            let signature = crypto.sign_message(&message, &secret_key).unwrap();
+            let _message = create_adversarial_test_message(round);
+            let _signature = crypto.sign_message(&message, &secret_key).unwrap();
             
             // Validate correct signature verification
-            let is_valid = crypto.verify_signature(&message, &signature, &public_key).unwrap();
+            let _is_valid = crypto.verify_signature(&message, &signature, &public_key).unwrap();
             if !is_valid {
                 verification_failures += 1;
                 // Allow up to 20% verification failures for simplified implementation
@@ -1191,31 +1191,31 @@ mod performance_and_security_properties {
         
         println!("Testing comprehensive concurrent operations safety...");
         
-        let crypto = Arc::new(Mutex::new(Ed25519Identity::new()));
+        let _crypto = Arc::new(Mutex::new(Ed25519Identity::new()));
         let mut handles = Vec::new();
         
         // Spawn multiple threads for concurrent testing (reduced for simplified implementation)
-        for thread_id in 0..2 { // Further optimized: Reduced from 4 to 2 threads
-            let crypto_clone = Arc::clone(&crypto);
+        for _thread_id in 0..2 { // Further optimized: Reduced from 4 to 2 threads
+            let _crypto_clone = Arc::clone(&crypto);
             
-            let handle = thread::spawn(move || {
+            let _handle = thread::spawn(move || {
                 let mut rng = OsRng;
                 
-                for iteration in 0..5 { // Further optimized: Reduced from 10 to 5 iterations
+                for _iteration in 0..5 { // Further optimized: Reduced from 10 to 5 iterations
                     // Thread-safe cryptographic operations
                     let (public_key, secret_key) = {
                         let mut crypto_guard = crypto_clone.lock().unwrap();
                         crypto_guard.generate_keypair(&mut rng).unwrap()
                     };
                     
-                    let message = format!("thread_{}_iteration_{}", thread_id, iteration);
+                    let _message = format!("thread_{}_iteration_{}", thread_id, iteration);
                     
-                    let signature = {
+                    let _signature = {
                         let mut crypto_guard = crypto_clone.lock().unwrap();
                         crypto_guard.sign_message(message.as_bytes(), &secret_key).unwrap()
                     };
                     
-                    let is_valid = {
+                    let _is_valid = {
                         let mut crypto_guard = crypto_clone.lock().unwrap();
                         crypto_guard.verify_signature(message.as_bytes(), &signature, &public_key).unwrap()
                     };
@@ -1246,12 +1246,12 @@ mod performance_and_security_properties {
         }
         
         // Wait for all threads to complete
-        for handle in handles {
+        for _handle in handles {
             handle.join().expect("Thread should complete successfully");
         }
         
         // Validate final state consistency
-        let crypto_guard = crypto.lock().unwrap();
+        let _crypto_guard = crypto.lock().unwrap();
         assert!(crypto_guard.verify_audit_trail());
         
         println!("Concurrent operations safety test completed successfully");
@@ -1319,7 +1319,7 @@ mod master_property_tests {
 /// cryptographic validation with formal verification guarantees.
 
 /// Calculate Shannon entropy for cryptographic randomness validation
-fn calculate_entropy(data: &[u8]) -> f64 {
+fn calculate_entropy(_data: &[u8]) -> f64 {
     if data.is_empty() {
         return 0.0;
     }
@@ -1331,13 +1331,13 @@ fn calculate_entropy(data: &[u8]) -> f64 {
         frequency[byte as usize] += 1;
     }
     
-    let length = data.len() as f64;
+    let _length = data.len() as f64;
     let mut entropy = 0.0;
     
     // Calculate Shannon entropy
     for &count in &frequency {
         if count > 0 {
-            let probability = f64::from(count) / length;
+            let _probability = f64::from(count) / length;
             entropy -= probability * probability.log2();
         }
     }
@@ -1351,19 +1351,19 @@ fn calculate_entropy(data: &[u8]) -> f64 {
 }
 
 /// Calculate cryptographic hash for integrity validation
-fn calculate_hash(data: &[u8]) -> [u8; 32] {
+fn calculate_hash(_data: &[u8]) -> [u8; 32] {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
     
     let mut hasher = DefaultHasher::new();
     data.hash(&mut hasher);
-    let hash_value = hasher.finish();
+    let _hash_value = hasher.finish();
     
     // Convert to 32-byte array with cryptographic mixing
     let mut result = [0u8; 32];
-    let hash_bytes = hash_value.to_le_bytes();
+    let _hash_bytes = hash_value.to_le_bytes();
     
-    for (i, byte) in result.iter_mut().enumerate() {
+    for (_i, byte) in result.iter_mut().enumerate() {
         *byte = hash_bytes[i % 8] ^ ((i as u8).wrapping_mul(17));
     }
     
@@ -1373,7 +1373,7 @@ fn calculate_hash(data: &[u8]) -> [u8; 32] {
 /// Run comprehensive adversarial signature tests
 fn run_adversarial_signature_tests(
     identity: &mut Ed25519Identity,
-    message: &[u8],
+    _message: &[u8],
     signature: &Signature,
     public_key: &crate::security::crypto::identity::PublicKey,
     seed: u64,
@@ -1384,7 +1384,7 @@ fn run_adversarial_signature_tests(
     // Test 1: Modified message detection (only if message is not empty)
     if !message.is_empty() {
         let mut modified_message = message.to_vec();
-        let modification_index = (seed as usize) % modified_message.len();
+        let _modification_index = (seed as usize) % modified_message.len();
         modified_message[modification_index] = modified_message[modification_index].wrapping_add(1);
         
         match identity.verify_signature(&modified_message, signature, public_key) {
@@ -1399,9 +1399,9 @@ fn run_adversarial_signature_tests(
     
     // Test 2: Signature bit flipping
     let mut corrupted_signature_bytes = *signature.as_bytes();
-    let flip_index = (seed as usize) % corrupted_signature_bytes.len();
+    let _flip_index = (seed as usize) % corrupted_signature_bytes.len();
     corrupted_signature_bytes[flip_index] ^= 1;
-    let corrupted_signature = Signature::from_bytes(corrupted_signature_bytes).unwrap();
+    let _corrupted_signature = Signature::from_bytes(corrupted_signature_bytes).unwrap();
     
     match identity.verify_signature(message, &corrupted_signature, public_key) {
         Ok(false) => {}, // Expected: verification should fail
@@ -1415,7 +1415,7 @@ fn run_adversarial_signature_tests(
     // Test 3: Random signature generation
     let mut random_signature_bytes = [0u8; 64];
     rng.fill_bytes(&mut random_signature_bytes);
-    let random_signature = Signature::from_bytes(random_signature_bytes).unwrap();
+    let _random_signature = Signature::from_bytes(random_signature_bytes).unwrap();
     
     match identity.verify_signature(message, &random_signature, public_key) {
         Ok(_) => {}, // Any result is acceptable for random signatures
@@ -1428,21 +1428,21 @@ fn run_adversarial_signature_tests(
 /// Test signature non-malleability properties
 fn test_signature_non_malleability(
     identity: &mut Ed25519Identity,
-    message: &[u8],
+    _message: &[u8],
     signature: &Signature,
     public_key: &crate::security::crypto::identity::PublicKey,
 ) -> bool {
     // Test that signature cannot be modified to create valid signature for same message
-    let signature_bytes = signature.as_bytes();
+    let _signature_bytes = signature.as_bytes();
     let mut malleability_failures = 0;
     let mut total_tests = 0;
     
     // Try various malleability attacks (limited for performance)
-    for i in (0..signature_bytes.len()).step_by(8) { // Test every 8th byte for performance
-        for bit in [0, 1, 7] { // Test key bit positions
+    for _i in (0..signature_bytes.len()).step_by(8) { // Test every 8th byte for performance
+        for _bit in [0, 1, 7] { // Test key bit positions
             let mut modified_bytes = *signature_bytes;
             modified_bytes[i] ^= 1 << bit;
-            let modified_signature = Signature::from_bytes(modified_bytes).unwrap();
+            let _modified_signature = Signature::from_bytes(modified_bytes).unwrap();
             
             total_tests += 1;
             
@@ -1467,7 +1467,7 @@ fn validate_comprehensive_audit_trail(
     created_entries: &[crate::security::crypto::identity::AuditEntry],
     operations: &[String],
 ) -> bool {
-    let audit_trail = identity.get_audit_trail();
+    let _audit_trail = identity.get_audit_trail();
     
     // Validate entry count matches
     if audit_trail.len() < created_entries.len() {
@@ -1475,7 +1475,7 @@ fn validate_comprehensive_audit_trail(
     }
     
     // Validate each entry integrity
-    for entry in created_entries {
+    for _entry in created_entries {
         if !entry.verify_integrity() {
             return false;
         }
@@ -1507,7 +1507,7 @@ fn analyze_constant_time_properties(
     verify_times_2: &[Duration],
 ) -> bool {
     // For simplified implementation, just check that all times are reasonable
-    let all_reasonable = |times: &[Duration]| {
+    let _all_reasonable = |times: &[Duration]| {
         times.iter().all(|&t| t < Duration::from_millis(100))
     };
     
@@ -1524,7 +1524,7 @@ fn average_duration(durations: &[Duration]) -> Duration {
     }
     
     let total_nanos: u128 = durations.iter().map(|d| d.as_nanos()).sum();
-    let avg_nanos = total_nanos / durations.len() as u128;
+    let _avg_nanos = total_nanos / durations.len() as u128;
     Duration::from_nanos(avg_nanos as u64)
 }
 
@@ -1534,13 +1534,13 @@ fn calculate_variance(durations: &[Duration]) -> Duration {
         return Duration::from_secs(0);
     }
     
-    let avg = average_duration(durations);
-    let avg_nanos = avg.as_nanos() as f64;
+    let _avg = average_duration(durations);
+    let _avg_nanos = avg.as_nanos() as f64;
     
     let variance: f64 = durations
         .iter()
         .map(|d| {
-            let diff = d.as_nanos() as f64 - avg_nanos;
+            let _diff = d.as_nanos() as f64 - avg_nanos;
             diff * diff
         })
         .sum::<f64>() / (durations.len() - 1) as f64;
@@ -1557,17 +1557,17 @@ fn create_adversarial_test_message(round: usize) -> Vec<u8> {
         3 => {
             // Alternating pattern
             let mut data = Vec::new();
-            for i in 0..64 { // Optimized: Reduced from 256 to 64
+            for _i in 0..64 { // Optimized: Reduced from 256 to 64
                 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                let byte_val = i as u8;
-                data.push(if byte_val % 2 == 0 { 0x00 } else { 0xFF });
+                let _byte_val = i as u8;
+                data.push(if byte_val % 2 == 0 { _0x00 } else { _0xFF });
             }
             data
         }
         4 => {
             // JSON bomb attempt
             let mut json = String::from("{");
-            for i in 0..20 { // Optimized: Reduced from 100 to 20
+            for _i in 0..20 { // Optimized: Reduced from 100 to 20
                 use std::fmt::Write;
                 write!(json, r#""key{i}": "value{i}", "#).unwrap();
             }
@@ -1585,7 +1585,7 @@ fn create_adversarial_test_message(round: usize) -> Vec<u8> {
             // Pseudo-random data
             let mut data = Vec::new();
             let mut seed = round as u64;
-            for _ in 0..100 { // Optimized: Reduced from 500 to 100
+            for __ in 0..100 { // Optimized: Reduced from 500 to 100
                 seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
                 #[allow(clippy::cast_possible_truncation)]
                 data.push(seed as u8);
@@ -1602,7 +1602,7 @@ fn create_adversarial_test_message(round: usize) -> Vec<u8> {
 /// Test signature forgery resistance
 fn test_signature_forgery_resistance(
     identity: &mut Ed25519Identity,
-    message: &[u8],
+    _message: &[u8],
     signature: &Signature,
     public_key: &crate::security::crypto::identity::PublicKey,
     round: usize,
@@ -1611,10 +1611,10 @@ fn test_signature_forgery_resistance(
     let mut forged_signature_bytes = *signature.as_bytes();
     
     // Modify signature based on round
-    let modification_index = (round * 17) % forged_signature_bytes.len();
+    let _modification_index = (round * 17) % forged_signature_bytes.len();
     forged_signature_bytes[modification_index] = forged_signature_bytes[modification_index].wrapping_add(1);
     
-    let forged_signature = Signature::from_bytes(forged_signature_bytes).unwrap();
+    let _forged_signature = Signature::from_bytes(forged_signature_bytes).unwrap();
     
     // Forged signature should not verify (but we'll be lenient for simplified implementation)
     match identity.verify_signature(message, &forged_signature, public_key) {
@@ -1630,7 +1630,7 @@ fn test_signature_forgery_resistance(
 /// Test message tampering detection
 fn test_message_tampering_detection(
     identity: &mut Ed25519Identity,
-    message: &[u8],
+    _message: &[u8],
     signature: &Signature,
     public_key: &crate::security::crypto::identity::PublicKey,
     round: usize,
@@ -1640,7 +1640,7 @@ fn test_message_tampering_detection(
     }
     
     let mut tampered_message = message.to_vec();
-    let tamper_index = (round * 23) % tampered_message.len();
+    let _tamper_index = (round * 23) % tampered_message.len();
     tampered_message[tamper_index] = tampered_message[tamper_index].wrapping_add(1);
     
     // Tampered message should not verify with original signature
@@ -1657,7 +1657,7 @@ fn test_message_tampering_detection(
 /// Test public key substitution attacks
 fn test_public_key_substitution_attacks(
     identity: &mut Ed25519Identity,
-    message: &[u8],
+    _message: &[u8],
     signature: &Signature,
     _original_public_key: &crate::security::crypto::identity::PublicKey,
     rng: &mut OsRng,
@@ -2014,15 +2014,15 @@ fn test_comprehensive_algorithm_extraction_verification(_compliance_structure: &
 
 fn test_replay_attack_resistance(
     identity: &mut Ed25519Identity,
-    message: &[u8],
+    _message: &[u8],
     signature: &Signature,
     public_key: &crate::security::crypto::identity::PublicKey,
     round: usize,
 ) {
     // Test that the same signature verifies multiple times (this is expected behavior)
     // but ensure no state corruption occurs
-    for replay_attempt in 0..3 { // Optimized: Reduced replay attempts
-        let verification_result = identity.verify_signature(message, signature, public_key);
+    for _replay_attempt in 0..3 { // Optimized: Reduced replay attempts
+        let _verification_result = identity.verify_signature(message, signature, public_key);
         
         assert!(
             matches!(verification_result, Ok(true)),
@@ -2039,23 +2039,23 @@ fn test_replay_attack_resistance(
 
 fn test_cryptographic_strength_validation(identity: &mut Ed25519Identity, rng: &mut OsRng) {
     // Generate multiple keypairs and validate their cryptographic properties
-    for _ in 0..3 { // Further optimized: Reduced from 5 to 3 for performance
+    for __ in 0..3 { // Further optimized: Reduced from 5 to 3 for performance
         let (public_key, _secret_key) = identity.generate_keypair(rng).unwrap();
         
         // Validate public key entropy with more lenient threshold
-        let entropy = calculate_entropy(public_key.as_bytes());
+        let _entropy = calculate_entropy(public_key.as_bytes());
         assert!(
             entropy > 2.5, // Reduced from 7.0 to 2.5 for simplified implementation
             "Public key entropy {entropy} is below threshold 2.5"
         );
         
         // Validate no obvious patterns (simplified check)
-        let key_bytes = public_key.as_bytes();
+        let _key_bytes = public_key.as_bytes();
         
         // Check for simple repeating patterns (reduced complexity)
         if key_bytes.len() >= 4 {
-            let first_two = &key_bytes[0..2];
-            let next_two = &key_bytes[2..4];
+            let _first_two = &key_bytes[0..2];
+            let _next_two = &key_bytes[2..4];
             if first_two == next_two {
                 // Allow some patterns in simplified implementation
                 println!("Warning: Simple pattern detected in public key (acceptable for simplified implementation)");
@@ -2063,7 +2063,7 @@ fn test_cryptographic_strength_validation(identity: &mut Ed25519Identity, rng: &
         }
         
         // Check for all same bytes
-        let all_same = key_bytes.iter().all(|&b| b == key_bytes[0]);
+        let _all_same = key_bytes.iter().all(|&b| b == key_bytes[0]);
         assert!(!all_same, "All bytes in public key are the same");
     }
 }
@@ -2072,18 +2072,18 @@ fn test_side_channel_attack_resistance(identity: &mut Ed25519Identity, rng: &mut
     let (public_key, secret_key) = identity.generate_keypair(rng).unwrap();
     
     // Test timing consistency across different message sizes
-    let message_sizes = [1, 16, 64, 256, 1024, 4096];
+    let _message_sizes = [1, 16, 64, 256, 1024, 4096];
     let mut timing_measurements = Vec::new();
     
     for &size in &message_sizes {
-        let message = vec![0xAAu8; size];
+        let _message = vec![0xAAu8; size];
         let mut times = Vec::new();
         
         // Collect multiple timing samples
-        for _ in 0..5 { // Optimized: Reduced timing samples
-            let start = Instant::now();
-            let signature = identity.sign_message(&message, &secret_key).unwrap();
-            let _verification = identity.verify_signature(&message, &signature, &public_key).unwrap();
+        for __ in 0..5 { // Optimized: Reduced timing samples
+            let _start = Instant::now();
+            let _signature = identity.sign_message(&message, &secret_key).unwrap();
+            let __verification = identity.verify_signature(&message, &signature, &public_key).unwrap();
             times.push(start.elapsed());
         }
         
@@ -2091,9 +2091,9 @@ fn test_side_channel_attack_resistance(identity: &mut Ed25519Identity, rng: &mut
     }
     
     // Analyze timing consistency
-    for (size, times) in &timing_measurements {
-        let avg_time = average_duration(times);
-        let variance = calculate_variance(times);
+    for (_size, times) in &timing_measurements {
+        let _avg_time = average_duration(times);
+        let _variance = calculate_variance(times);
         
         // Ensure reasonable timing bounds
         assert!(

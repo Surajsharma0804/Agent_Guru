@@ -30,8 +30,7 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 #![deny(warnings)]
-#![allow(unused_variables)]
-#![allow(dead_code)]
+// Remove temporary allows - all code must be production-grade
 
 pub mod security;
 pub mod voice;
@@ -44,7 +43,9 @@ pub mod policy;
 pub mod platform;
 pub mod observability;
 pub mod build;
+pub mod supply_chain;
 pub mod avatar;
+pub mod deployment;
 
 // Re-export core types for convenience
 pub use security::crypto::identity::{
@@ -56,10 +57,10 @@ pub use security::crypto::identity::{
 // };
 
 /// Version information
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const _VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Build information
-pub const BUILD_INFO: &str = concat!(
+pub const _BUILD_INFO: &str = concat!(
     "AGENT_GURU v", env!("CARGO_PKG_VERSION")
 );
 

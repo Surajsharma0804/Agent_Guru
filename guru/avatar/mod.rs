@@ -28,18 +28,19 @@
 pub mod emotion_controller;
 pub mod lip_sync_controller;
 pub mod personality_engine;
+#[cfg(test)]
 pub mod property_tests;
 
 // Re-export core avatar types
 pub use emotion_controller::{
-    EmotionController, EmotionState, EmotionTransition, PersonalityProfile as EmotionPersonalityProfile
+    EmotionController, EmotionState, EmotionTransition, PersonalityProfile, PersonalityType
 };
 pub use lip_sync_controller::{
     LipSyncController, Phoneme, Viseme, PhonemeTimingData, BlendshapeWeights
 };
 pub use personality_engine::{
-    PersonalityEngine, PersonalityType, BehaviorType, MicroBehavior, ContextType,
-    PersonalityProfile, BehaviorPattern
+    PersonalityEngine, BehaviorType, MicroBehavior, ContextType,
+    BehaviorPattern
 };
 
 /// Integrated avatar system combining all components
@@ -56,7 +57,7 @@ impl AvatarSystem {
     /// Create new integrated avatar system
     pub fn new(personality: PersonalityProfile) -> Self {
         Self {
-            emotion_controller: EmotionController::new(personality.clone().into()),
+            emotion_controller: EmotionController::new(personality.clone()),
             lip_sync_controller: LipSyncController::new(),
             personality_engine: PersonalityEngine::new(personality),
         }
@@ -67,26 +68,6 @@ impl AvatarSystem {
         self.emotion_controller.update_transitions(delta_time)?;
         self.personality_engine.update_behaviors(delta_time)?;
         Ok(())
-    }
-}
-
-// Conversion between personality profile types
-impl From<PersonalityProfile> for emotion_controller::PersonalityProfile {
-    fn from(profile: PersonalityProfile) -> Self {
-        Self {
-            personality_type: match profile.personality_type {
-                PersonalityType::GURU => emotion_controller::PersonalityType::GURU,
-                PersonalityType::MAYA => emotion_controller::PersonalityType::MAYA,
-            },
-            confidence: profile.confidence,
-            empathy: profile.empathy,
-            playfulness: profile.playfulness,
-            intelligence: profile.intelligence,
-            loyalty: profile.loyalty,
-            wit: profile.wit,
-            stability: profile.stability,
-            expressiveness: profile.expressiveness,
-        }
     }
 }
 
@@ -102,8 +83,8 @@ mod tests {
     
     #[test]
     fn test_avatar_system_creation() {
-        let personality = PersonalityProfile::default();
-        let avatar_system = AvatarSystem::new(personality);
+        let _personality = PersonalityProfile::default();
+        let _avatar_system = AvatarSystem::new(personality);
         
         // Test that all components are initialized
         assert_eq!(avatar_system.emotion_controller.get_current_emotion_blend().0, EmotionState::Neutral);
@@ -113,10 +94,10 @@ mod tests {
     
     #[test]
     fn test_avatar_system_update() {
-        let personality = PersonalityProfile::default();
+        let _personality = PersonalityProfile::default();
         let mut avatar_system = AvatarSystem::new(personality);
         
-        let result = avatar_system.update(std::time::Duration::from_millis(16));
+        let _result = avatar_system.update(std::time::Duration::from_millis(16));
         assert!(result.is_ok());
     }
 }

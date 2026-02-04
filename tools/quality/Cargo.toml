@@ -1,0 +1,116 @@
+[package]
+name = "quality-assurance-system"
+version = "1.0.0"
+edition = "2021"
+authors = ["AGENT_GURU Quality Team"]
+description = "Enterprise-grade automated quality assurance system with machine learning validation"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/agent-guru/agent-guru"
+documentation = "https://docs.rs/quality-assurance-system"
+keywords = ["quality", "monitoring", "compliance", "automation", "testing"]
+categories = ["development-tools", "monitoring", "testing"]
+
+[dependencies]
+# Core dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+
+# Cryptography and security
+sha2 = "0.10"
+ring = "0.17"
+ed25519-dalek = { version = "2.0", features = ["serde"] }
+
+# Regular expressions and pattern matching
+regex = "1.0"
+glob = "0.3"
+walkdir = "2.0"
+
+# Data processing and analysis
+csv = "1.0"
+polars = { version = "0.35", features = ["lazy", "temporal", "strings"] }
+
+# Machine learning (optional, with feature flags)
+candle-core = { version = "0.3", optional = true }
+candle-nn = { version = "0.3", optional = true }
+candle-transformers = { version = "0.3", optional = true }
+
+# Statistics and mathematics
+statrs = "0.16"
+nalgebra = "0.32"
+ndarray = "0.15"
+
+# Logging and monitoring
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+metrics = "0.21"
+metrics-exporter-prometheus = "0.12"
+
+# File system and I/O
+tempfile = "3.0"
+dirs = "5.0"
+
+# Database support
+rusqlite = { version = "0.29", features = ["bundled", "chrono", "serde_json"] }
+
+# Network and HTTP (for reporting)
+reqwest = { version = "0.11", features = ["json", "stream"], optional = true }
+axum = { version = "0.7", optional = true }
+tower = { version = "0.4", optional = true }
+
+# Visualization and reporting
+plotters = { version = "0.3", optional = true }
+plotters-svg = { version = "0.3", optional = true }
+
+# Configuration management
+config = "0.13"
+toml = "0.8"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Async utilities
+async-trait = "0.1"
+pin-project = "1.0"
+
+# Compression and archiving
+flate2 = "1.0"
+tar = "0.4"
+
+# JSON processing
+jq-rs = { version = "0.4", optional = true }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.0"
+quickcheck = "1.0"
+quickcheck_macros = "1.0"
+mockall = "0.11"
+wiremock = "0.5"
+test-log = "0.2"
+
+[features]
+default = ["monitoring", "reporting", "compliance"]
+
+# Core features
+monitoring = []
+reporting = ["reqwest", "axum", "tower", "plotters", "plotters-svg"]
+compliance = []
+machine-learning = ["candle-core", "candle-nn", "candle-transformers"]
+
+# Optional integrations
+web-dashboard = ["axum", "tower", "reqwest"]
+advanced-visualization = ["plotters", "plotters-svg"]
+
+# Performance features
+simd = []
+parallel = []
+
+[lib]
+name = "quality_assurance"
+path = "src/lib.rs"
+

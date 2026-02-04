@@ -1,0 +1,467 @@
+# AGENT_GURU Docker Compose Configuration
+# Enterprise-grade development and testing environment
+# Zero-tolerance quality standards with comprehensive tooling
+
+version: '3.8'
+
+# ============================================================================
+# NETWORKS - Secure network isolation
+# ============================================================================
+networks:
+  agent-guru-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  monitoring-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+  database-network:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+
+# ============================================================================
+# VOLUMES - Persistent data storage
+# ============================================================================
+volumes:
+  agent-guru-data:
+    driver: local
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  cargo-cache:
+    driver: local
+  target-cache:
+    driver: local
+
+# ============================================================================
+# SERVICES - Application and infrastructure components
+# ============================================================================
+services:
+  # ========================================================================
+  # AGENT_GURU APPLICATION - Main application service
+  # ========================================================================
+  agent-guru:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    image: agent-guru:latest
+    container_name: agent-guru-app
+    restart: unless-stopped
+    networks:
+      - agent-guru-network
+      - monitoring-network
+    ports:
+      - "8080:8080"
+      - "8443:8443"  # HTTPS
+    volumes:
+      - agent-guru-data:/var/lib/agent-guru
+      - ./config:/etc/agent-guru:ro
+    environment:
+      - RUST_LOG=info
+      - RUST_BACKTRACE=1
+      - AGENT_GURU_ENV=production
+      - AGENT_GURU_DATABASE_URL=postgresql://agent_guru:${POSTGRES_PASSWORD:-secure_password}@postgres:5432/agent_guru
+      - AGENT_GURU_REDIS_URL=redis://redis:6379
+      - AGENT_GURU_METRICS_ENABLED=true
+      - AGENT_GURU_TRACING_ENABLED=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/agent-guru", "--health-check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  # ========================================================================
+  # DEVELOPMENT ENVIRONMENT - Development container
+  # ========================================================================
+  agent-guru-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    image: agent-guru:dev
+    container_name: agent-guru-dev
+    networks:
+      - agent-guru-network
+      - monitoring-network
+    ports:
+      - "8081:8080"
+      - "9229:9229"  # Debug port
+    volumes:
+      - .:/workspace:cached
+      - cargo-cache:/home/devuser/.cargo
+      - target-cache:/workspace/target
+    environment:
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=full
+      - AGENT_GURU_ENV=development
+      - AGENT_GURU_DATABASE_URL=postgresql://agent_guru:${POSTGRES_PASSWORD:-secure_password}@postgres:5432/agent_guru_dev
+      - AGENT_GURU_REDIS_URL=redis://redis:6379/1
+    depends_on:
+      - postgres
+      - redis
+    stdin_open: true
+    tty: true
+    profiles:
+      - development
+
+  # ========================================================================
+  # TESTING ENVIRONMENT - Comprehensive testing container
+  # ========================================================================
+  agent-guru-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: testing
+    image: agent-guru:test
+    container_name: agent-guru-test
+    networks:
+      - agent-guru-network
+    volumes:
+      - .:/workspace:cached
+      - cargo-cache:/home/devuser/.cargo
+      - target-cache:/workspace/target
+      - ./test-results:/workspace/test-results
+      - ./coverage:/workspace/coverage
+    environment:
+      - RUST_LOG=debug
+      - RUST_TEST_THREADS=4
+      - PROPTEST_CASES=10000
+      - HYPOTHESIS_MAX_EXAMPLES=10000
+      - AGENT_GURU_ENV=test
+      - AGENT_GURU_DATABASE_URL=postgresql://agent_guru:${POSTGRES_PASSWORD:-secure_password}@postgres:5432/agent_guru_test
+    depends_on:
+      - postgres
+      - redis
+    profiles:
+      - testing
+
+  # ========================================================================
+  # DATABASE - PostgreSQL with security hardening
+  # ========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: agent-guru-postgres
+    restart: unless-stopped
+    networks:
+      - database-network
+      - agent-guru-network
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    environment:
+      - POSTGRES_DB=agent_guru
+      - POSTGRES_USER=agent_guru
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secure_password}
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent_guru -d agent_guru"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+      - /var/run/postgresql:noexec,nosuid,size=100m
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
+  # ========================================================================
+  # CACHE - Redis with security configuration
+  # ========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: agent-guru-redis
+    restart: unless-stopped
+    networks:
+      - database-network
+      - agent-guru-network
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+
+  # ========================================================================
+  # MONITORING - Prometheus metrics collection
+  # ========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: agent-guru-prometheus
+    restart: unless-stopped
+    networks:
+      - monitoring-network
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules:/etc/prometheus/rules:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+    profiles:
+      - monitoring
+
+  # ========================================================================
+  # VISUALIZATION - Grafana dashboards
+  # ========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: agent-guru-grafana
+    restart: unless-stopped
+    networks:
+      - monitoring-network
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+    profiles:
+      - monitoring
+
+  # ========================================================================
+  # LOG AGGREGATION - Loki for log collection
+  # ========================================================================
+  loki:
+    image: grafana/loki:latest
+    container_name: agent-guru-loki
+    restart: unless-stopped
+    networks:
+      - monitoring-network
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki/loki.yml:/etc/loki/local-config.yaml:ro
+    command: -config.file=/etc/loki/local-config.yaml
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+    profiles:
+      - monitoring
+
+  # ========================================================================
+  # LOG SHIPPING - Promtail for log forwarding
+  # ========================================================================
+  promtail:
+    image: grafana/promtail:latest
+    container_name: agent-guru-promtail
+    restart: unless-stopped
+    networks:
+      - monitoring-network
+    volumes:
+      - ./monitoring/promtail/promtail.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 512M
+        reservations:
+          cpus: '0.05'
+          memory: 128M
+    profiles:
+      - monitoring
+
+  # ========================================================================
+  # SECURITY SCANNING - Trivy vulnerability scanner
+  # ========================================================================
+  trivy:
+    image: aquasec/trivy:latest
+    container_name: agent-guru-trivy
+    networks:
+      - agent-guru-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./security-reports:/reports
+    command: ["server", "--listen", "0.0.0.0:4954"]
+    ports:
+      - "4954:4954"
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+    profiles:
+      - security
+
+  # ========================================================================
+  # LOAD TESTING - K6 performance testing
+  # ========================================================================
+  k6:
+    image: grafana/k6:latest
+    container_name: agent-guru-k6
+    networks:
+      - agent-guru-network
+    volumes:
+      - ./tests/load:/scripts:ro
+      - ./performance-reports:/reports
+    environment:
+      - K6_OUT=json=/reports/k6-results.json
+    depends_on:
+      - agent-guru
+    profiles:
+      - testing
+      - performance
+
+  # ========================================================================
+  # DOCUMENTATION - Swagger UI for API documentation
+  # ========================================================================
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    container_name: agent-guru-swagger
+    networks:
+      - agent-guru-network
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./docs/api:/usr/share/nginx/html/specs:ro
+    environment:
+      - SWAGGER_JSON=/specs/openapi.yaml
+      - BASE_URL=/docs
+    profiles:
+      - documentation
+
+# ============================================================================
+# DEVELOPMENT PROFILES
+# ============================================================================
+# Usage examples:
+# docker-compose up                          # Start core services
+# docker-compose --profile development up   # Start with development tools
+# docker-compose --profile testing up       # Start with testing environment
+# docker-compose --profile monitoring up    # Start with monitoring stack
+# docker-compose --profile security up      # Start with security tools
+# docker-compose --profile performance up   # Start with performance testing

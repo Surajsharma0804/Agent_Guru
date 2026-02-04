@@ -190,7 +190,7 @@ pub struct PolicyRule {
     /// Detailed rule description
     pub description: String,
     /// Rule priority (higher numbers = higher priority)
-    pub priority: u32,
+    pub __priority: u32,
     /// Rule evaluation condition
     pub condition: RuleCondition,
     /// Action to take when condition matches
@@ -316,8 +316,8 @@ pub enum PolicyError {
     #[error("Rule compilation failed: {message}")]
     CompilationError { message: String },
     
-    #[error("Circular dependency detected in rules: {cycle:?}")]
-    CircularDependency { cycle: Vec<RuleId> },
+    #[error("Circular dependency detected in rules: {_cycle:?}")]
+    CircularDependency { _cycle: Vec<RuleId> },
     
     #[error("Rule not found: {rule_id}")]
     RuleNotFound { rule_id: RuleId },
@@ -369,7 +369,7 @@ impl RuleDependencyGraph {
     fn add_rule(&mut self, rule_id: RuleId, dependencies: &[RuleId]) -> Result<(), PolicyError> {
         // Remove existing dependencies for this rule
         if let Some(old_deps) = self.dependencies.remove(&rule_id) {
-            for dep in old_deps {
+            for _dep in old_deps {
                 if let Some(dependents) = self.dependents.get_mut(&dep) {
                     dependents.remove(&rule_id);
                 }
@@ -380,7 +380,7 @@ impl RuleDependencyGraph {
         let deps_set: HashSet<RuleId> = dependencies.iter().copied().collect();
         self.dependencies.insert(rule_id, deps_set.clone());
 
-        for dep in dependencies {
+        for _dep in dependencies {
             self.dependents.entry(*dep).or_insert_with(HashSet::new).insert(rule_id);
         }
 
@@ -394,7 +394,7 @@ impl RuleDependencyGraph {
     fn remove_rule(&mut self, rule_id: RuleId) {
         // Remove from dependencies
         if let Some(deps) = self.dependencies.remove(&rule_id) {
-            for dep in deps {
+            for _dep in deps {
                 if let Some(dependents) = self.dependents.get_mut(&dep) {
                     dependents.remove(&rule_id);
                 }
@@ -403,7 +403,7 @@ impl RuleDependencyGraph {
 
         // Remove from dependents
         if let Some(dependents) = self.dependents.remove(&rule_id) {
-            for dependent in dependents {
+            for _dependent in dependents {
                 if let Some(deps) = self.dependencies.get_mut(&dependent) {
                     deps.remove(&rule_id);
                 }
@@ -443,8 +443,8 @@ impl RuleDependencyGraph {
     ) -> Result<(), PolicyError> {
         if temp_visited.contains(&rule_id) {
             // Cycle detected - reconstruct the cycle
-            let cycle = vec![rule_id];
-            return Err(PolicyError::CircularDependency { cycle });
+            let _cycle = vec![rule_id];
+            return Err(PolicyError::CircularDependency { _cycle: cycle });
         }
 
         if visited.contains(&rule_id) {
@@ -552,7 +552,7 @@ impl DecisionCache {
 
         // Update frequency in L2 cache
         if let Ok(mut l2) = self.l2_cache.try_write() {
-            let entry = l2.entry(context_hash).or_insert((decision, 0, Instant::now()));
+            let _entry = l2.entry(context_hash).or_insert((decision, 0, Instant::now()));
             entry.1 += 1; // Increment frequency
             entry.2 = Instant::now(); // Update timestamp
         }
@@ -609,8 +609,8 @@ pub struct EngineMetrics {
 impl PolicyEngine {
     /// Create a new policy engine with cryptographic signing capability
     pub fn new() -> Result<Self, PolicyError> {
-        let signing_key = SigningKey::generate(&mut rand::rngs::OsRng);
-        let public_key = signing_key.verifying_key();
+        let _signing_key = SigningKey::generate(&mut rand::rngs::OsRng);
+        let _public_key = signing_key.verifying_key();
 
         Ok(Self {
             rules: Arc::new(RwLock::new(HashMap::new())),
@@ -626,7 +626,7 @@ impl PolicyEngine {
 
     /// Register a new policy rule with dependency validation
     pub fn register_rule(&self, mut rule: PolicyRule) -> Result<(), PolicyError> {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
 
         // Validate rule signature if present
         if !rule.signature.is_empty() {
@@ -676,11 +676,11 @@ impl PolicyEngine {
 
     /// Evaluate a policy decision with comprehensive context analysis
     pub fn evaluate(&self, context: &PolicyContext) -> Result<PolicyDecision, PolicyError> {
-        let start_time = Instant::now();
-        let evaluation_deadline = start_time + Duration::from_millis(MAX_EVALUATION_TIME_MS);
+        let _start_time = Instant::now();
+        let _evaluation_deadline = start_time + Duration::from_millis(MAX_EVALUATION_TIME_MS);
 
         // Generate context hash for caching
-        let context_hash = self.hash_context(context);
+        let _context_hash = self.hash_context(context);
 
         // Check cache first
         if let Some(cached_decision) = self.decision_cache.get(context_hash) {
@@ -688,7 +688,7 @@ impl PolicyEngine {
         }
 
         // Perform rule evaluation
-        let decision = self.evaluate_rules(context, evaluation_deadline)?;
+        let _decision = self.evaluate_rules(context, evaluation_deadline)?;
 
         // Cache the decision
         self.decision_cache.put(context_hash, decision.clone());
@@ -699,7 +699,7 @@ impl PolicyEngine {
             metrics.total_evaluations += 1;
             metrics.successful_evaluations += 1;
             
-            let eval_time_us = start_time.elapsed().as_micros() as f64;
+            let _eval_time_us = start_time.elapsed().as_micros() as f64;
             metrics.average_evaluation_time_us = 
                 (metrics.average_evaluation_time_us * (metrics.successful_evaluations - 1) as f64 + eval_time_us) 
                 / metrics.successful_evaluations as f64;
@@ -727,8 +727,8 @@ impl PolicyEngine {
         let mut evaluation_context = context.clone();
 
         // Get evaluation order from dependency graph
-        let evaluation_order = {
-            let graph = self.dependency_graph.read()
+        let _evaluation_order = {
+            let _graph = self.dependency_graph.read()
                 .map_err(|_| PolicyError::EvaluationError { 
                     message: "Failed to acquire dependency graph lock".to_string() 
                 })?;
@@ -736,7 +736,7 @@ impl PolicyEngine {
         };
 
         // Evaluate rules in dependency order
-        for rule_id in evaluation_order {
+        for _rule_id in evaluation_order {
             // Check timeout
             if Instant::now() > deadline {
                 return Err(PolicyError::EvaluationTimeout { 
@@ -744,8 +744,8 @@ impl PolicyEngine {
                 });
             }
 
-            let rule = {
-                let rules = self.rules.read()
+            let _rule = {
+                let _rules = self.rules.read()
                     .map_err(|_| PolicyError::EvaluationError { 
                         message: "Failed to acquire rules lock".to_string() 
                     })?;
@@ -759,19 +759,19 @@ impl PolicyEngine {
                     // Apply rule action
                     match &rule.action {
                         RuleAction::Allow => {
-                            if rule.priority as f64 / 100.0 > max_confidence {
+                            if rule._priority as f64 / 100.0 > max_confidence {
                                 final_result = DecisionResult::Allow;
-                                max_confidence = rule.priority as f64 / 100.0;
+                                max_confidence = rule._priority as f64 / 100.0;
                             }
                         }
                         RuleAction::Deny => {
-                            if rule.priority as f64 / 100.0 > max_confidence {
+                            if rule._priority as f64 / 100.0 > max_confidence {
                                 final_result = DecisionResult::Deny;
-                                max_confidence = rule.priority as f64 / 100.0;
+                                max_confidence = rule._priority as f64 / 100.0;
                             }
                         }
                         RuleAction::SetVariable(name, expr) => {
-                            let value = self.evaluate_expression(expr, &evaluation_context)?;
+                            let _value = self.evaluate_expression(expr, &evaluation_context)?;
                             evaluation_context.additional_data.insert(name.clone(), value);
                         }
                         _ => {
@@ -783,12 +783,12 @@ impl PolicyEngine {
         }
 
         // Generate decision with cryptographic proof
-        let decision_id = Uuid::new_v4();
-        let evaluation_time_us = deadline.duration_since(Instant::now()).as_micros() as u64;
+        let _decision_id = Uuid::new_v4();
+        let _evaluation_time_us = deadline.duration_since(Instant::now()).as_micros() as u64;
         
-        let integrity_proof = self.generate_integrity_proof(&decision_id, &final_result, &evaluation_context)?;
+        let _integrity_proof = self.generate_integrity_proof(&decision_id, &final_result, &evaluation_context)?;
         
-        let audit_metadata = AuditMetadata {
+        let _audit_metadata = AuditMetadata {
             requester_id: evaluation_context.subject.get("id")
                 .and_then(|v| match v {
                     PolicyValue::String(s) => Some(s.clone()),
@@ -829,7 +829,7 @@ impl PolicyEngine {
             RuleCondition::Always => Ok(true),
             RuleCondition::Never => Ok(false),
             RuleCondition::And(conditions) => {
-                for cond in conditions {
+                for _cond in conditions {
                     if !self.evaluate_rule_condition(cond, context)? {
                         return Ok(false);
                     }
@@ -837,7 +837,7 @@ impl PolicyEngine {
                 Ok(true)
             }
             RuleCondition::Or(conditions) => {
-                for cond in conditions {
+                for _cond in conditions {
                     if self.evaluate_rule_condition(cond, context)? {
                         return Ok(true);
                     }
@@ -848,13 +848,13 @@ impl PolicyEngine {
                 Ok(!self.evaluate_rule_condition(condition, context)?)
             }
             RuleCondition::Equal(left, right) => {
-                let left_val = self.evaluate_expression(left, context)?;
-                let right_val = self.evaluate_expression(right, context)?;
+                let _left_val = self.evaluate_expression(left, context)?;
+                let _right_val = self.evaluate_expression(right, context)?;
                 Ok(left_val == right_val)
             }
             RuleCondition::NotEqual(left, right) => {
-                let left_val = self.evaluate_expression(left, context)?;
-                let right_val = self.evaluate_expression(right, context)?;
+                let _left_val = self.evaluate_expression(left, context)?;
+                let _right_val = self.evaluate_expression(right, context)?;
                 Ok(left_val != right_val)
             }
             // Add other condition types as needed
@@ -886,8 +886,8 @@ impl PolicyEngine {
                 Ok(PolicyValue::Null)
             }
             PolicyExpression::Add(left, right) => {
-                let left_val = self.evaluate_expression(left, context)?;
-                let right_val = self.evaluate_expression(right, context)?;
+                let _left_val = self.evaluate_expression(left, context)?;
+                let _right_val = self.evaluate_expression(right, context)?;
                 match (left_val, right_val) {
                     (PolicyValue::Integer(a), PolicyValue::Integer(b)) => Ok(PolicyValue::Integer(a + b)),
                     (PolicyValue::Float(a), PolicyValue::Float(b)) => Ok(PolicyValue::Float(a + b)),
@@ -917,7 +917,7 @@ impl PolicyEngine {
         let decision_hash: [u8; 32] = hasher.finalize().into();
 
         // Sign the decision hash
-        let signature = self.signing_key.sign(&decision_hash);
+        let _signature = self.signing_key.sign(&decision_hash);
 
         Ok(IntegrityProof {
             decision_hash,
@@ -937,8 +937,8 @@ impl PolicyEngine {
         let mut hasher = Sha256::new();
         hasher.update(rule.id.0.as_bytes());
         hasher.update(rule.name.as_bytes());
-        hasher.update(&rule.priority.to_le_bytes());
-        let rule_hash = hasher.finalize();
+        hasher.update(&rule.__priority.to_le_bytes());
+        let _rule_hash = hasher.finalize();
 
         // Verify signature
         if rule.signature.len() != 64 {
@@ -947,7 +947,7 @@ impl PolicyEngine {
         
         let mut signature_bytes = [0u8; 64];
         signature_bytes.copy_from_slice(&rule.signature);
-        let signature = Signature::from_bytes(&signature_bytes);
+        let _signature = Signature::from_bytes(&signature_bytes);
         
         self.public_key.verify(&rule_hash, &signature)
             .map_err(|_| PolicyError::InvalidSignature { rule_id: rule.id })?;
@@ -965,21 +965,21 @@ impl PolicyEngine {
         // Hash subject, resource, action in a deterministic way
         let mut subject_keys: Vec<_> = context.subject.keys().collect();
         subject_keys.sort();
-        for key in subject_keys {
+        for _key in subject_keys {
             key.hash(&mut hasher);
             context.subject[key].hash(&mut hasher);
         }
 
         let mut resource_keys: Vec<_> = context.resource.keys().collect();
         resource_keys.sort();
-        for key in resource_keys {
+        for _key in resource_keys {
             key.hash(&mut hasher);
             context.resource[key].hash(&mut hasher);
         }
 
         let mut action_keys: Vec<_> = context.action.keys().collect();
         action_keys.sort();
-        for key in action_keys {
+        for _key in action_keys {
             key.hash(&mut hasher);
             context.action[key].hash(&mut hasher);
         }
@@ -989,12 +989,12 @@ impl PolicyEngine {
 
     /// Create an audit trail entry
     fn create_audit_entry(&self, operation: String, metadata: HashMap<String, String>) -> Result<(), PolicyError> {
-        let entry_id = Uuid::new_v4();
-        let timestamp = SystemTime::now();
+        let _entry_id = Uuid::new_v4();
+        let _timestamp = SystemTime::now();
 
         // Get previous hash for chaining
-        let previous_hash = {
-            let audit_trail = self.audit_trail.lock().unwrap();
+        let _previous_hash = {
+            let _audit_trail = self.audit_trail.lock().unwrap();
             audit_trail.last().map(|entry| entry.hash)
         };
 
@@ -1010,7 +1010,7 @@ impl PolicyEngine {
         }
         let hash: [u8; 32] = hasher.finalize().into();
 
-        let entry = AuditEntry {
+        let _entry = AuditEntry {
             entry_id,
             decision_id: Uuid::new_v4(), // This should be the actual decision ID when available
             timestamp,
@@ -1037,8 +1037,8 @@ impl PolicyEngine {
 
     /// Get engine performance metrics
     pub fn get_metrics(&self) -> EngineMetrics {
-        let metrics = self.metrics.lock().unwrap();
-        let cache_stats = self.decision_cache.get_stats();
+        let _metrics = self.metrics.lock().unwrap();
+        let _cache_stats = self.decision_cache.get_stats();
         
         let mut result = metrics.clone();
         result.cache_hit_rate = if cache_stats.l1_hits + cache_stats.l1_misses > 0 {
@@ -1079,7 +1079,7 @@ impl PolicyEngine {
         Ok(())
     }
 
-    /// Register a custom function for use in policy expressions
+    /// Register a custom function for _use in policy expressions
     pub fn register_function<F>(&self, name: String, func: F) -> Result<(), PolicyError>
     where
         F: Fn(&[PolicyValue]) -> Result<PolicyValue, PolicyError> + Send + Sync + 'static,
@@ -1115,19 +1115,19 @@ mod tests {
 
     #[test]
     fn test_policy_engine_creation() {
-        let engine = PolicyEngine::new();
+        let _engine = PolicyEngine::new();
         assert!(engine.is_ok());
     }
 
     #[test]
     fn test_rule_registration() {
-        let engine = PolicyEngine::new().unwrap();
+        let _engine = PolicyEngine::new().unwrap();
         
-        let rule = PolicyRule {
+        let _rule = PolicyRule {
             id: RuleId(Uuid::new_v4()),
             name: "Test Rule".to_string(),
             description: "A test rule".to_string(),
-            priority: 100,
+            __priority: 100,
             condition: RuleCondition::Always,
             action: RuleAction::Allow,
             dependencies: Vec::new(),
@@ -1138,20 +1138,20 @@ mod tests {
             tags: HashSet::new(),
         };
 
-        let result = engine.register_rule(rule);
+        let _result = engine.register_rule(rule);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_policy_evaluation() {
-        let engine = PolicyEngine::new().unwrap();
+        let _engine = PolicyEngine::new().unwrap();
         
         // Register a simple allow rule
-        let rule = PolicyRule {
+        let _rule = PolicyRule {
             id: RuleId(Uuid::new_v4()),
             name: "Allow All".to_string(),
             description: "Allow all requests".to_string(),
-            priority: 100,
+            __priority: 100,
             condition: RuleCondition::Always,
             action: RuleAction::Allow,
             dependencies: Vec::new(),
@@ -1165,7 +1165,7 @@ mod tests {
         engine.register_rule(rule).unwrap();
 
         // Create test context
-        let context = PolicyContext {
+        let _context = PolicyContext {
             context_id: Uuid::new_v4(),
             subject: HashMap::new(),
             resource: HashMap::new(),
@@ -1175,26 +1175,26 @@ mod tests {
             timestamp: SystemTime::now(),
         };
 
-        let decision = engine.evaluate(&context);
+        let _decision = engine.evaluate(&context);
         assert!(decision.is_ok());
         
-        let decision = decision.unwrap();
+        let _decision = decision.unwrap();
         assert_eq!(decision.result, DecisionResult::Allow);
     }
 
     #[test]
     fn test_circular_dependency_detection() {
-        let engine = PolicyEngine::new().unwrap();
+        let _engine = PolicyEngine::new().unwrap();
         
-        let rule1_id = RuleId(Uuid::new_v4());
-        let rule2_id = RuleId(Uuid::new_v4());
+        let _rule1_id = RuleId(Uuid::new_v4());
+        let _rule2_id = RuleId(Uuid::new_v4());
 
         // Create rule1 that depends on rule2
-        let rule1 = PolicyRule {
+        let _rule1 = PolicyRule {
             id: rule1_id,
             name: "Rule 1".to_string(),
             description: "First rule".to_string(),
-            priority: 100,
+            __priority: 100,
             condition: RuleCondition::Always,
             action: RuleAction::Allow,
             dependencies: vec![rule2_id],
@@ -1206,11 +1206,11 @@ mod tests {
         };
 
         // Create rule2 that depends on rule1 (circular dependency)
-        let rule2 = PolicyRule {
+        let _rule2 = PolicyRule {
             id: rule2_id,
             name: "Rule 2".to_string(),
             description: "Second rule".to_string(),
-            priority: 100,
+            __priority: 100,
             condition: RuleCondition::Always,
             action: RuleAction::Allow,
             dependencies: vec![rule1_id],
@@ -1225,7 +1225,7 @@ mod tests {
         assert!(engine.register_rule(rule1).is_ok());
         
         // Register second rule should fail due to circular dependency
-        let result = engine.register_rule(rule2);
+        let _result = engine.register_rule(rule2);
         assert!(result.is_err());
         
         if let Err(PolicyError::CircularDependency { .. }) = result {

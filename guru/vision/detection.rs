@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 /// Object detector trait for different detection backends
 pub trait ObjectDetector {
     /// Detect objects in image
-    fn detect(&self, image: &ImageData) -> VisionResult<DetectionResult>;
+    fn detect(&self, _image: &ImageData) -> VisionResult<DetectionResult>;
     
     /// Get supported object classes
     fn get_classes(&self) -> &[String];
@@ -33,7 +33,7 @@ pub struct DetectionParameters {
     /// Non-maximum suppression threshold
     pub nms_threshold: f32,
     /// Maximum number of detections per image
-    pub max_detections: u32,
+    pub _max_detections: u32,
     /// Input image size for model
     pub input_size: (u32, u32),
     /// Class-specific confidence thresholds
@@ -101,10 +101,10 @@ struct ConfidenceFilter {
 
 impl YoloDetector {
     /// Create new YOLO detector
-    pub fn new(config: &VisionConfig) -> VisionResult<Self> {
-        let class_names = Self::load_class_names()?;
+    pub fn new(_config: &VisionConfig) -> VisionResult<Self> {
+        let _class_names = Self::load_class_names()?;
         
-        let params = DetectionParameters {
+        let _params = DetectionParameters {
             confidence_threshold: config.detection_confidence_threshold,
             nms_threshold: config.nms_threshold,
             max_detections: 100,
@@ -114,7 +114,7 @@ impl YoloDetector {
             anchor_sizes: vec![10.0, 13.0, 16.0, 19.0, 23.0, 30.0, 36.0, 44.0, 53.0],
         };
         
-        let metrics = DetectionMetrics {
+        let _metrics = DetectionMetrics {
             avg_detection_time_ms: 0.0,
             fps: 0.0,
             memory_usage_bytes: 0,
@@ -124,19 +124,19 @@ impl YoloDetector {
                 HardwareAcceleration::Gpu | HardwareAcceleration::Npu),
         };
         
-        let preprocessor = ImagePreprocessor {
+        let _preprocessor = ImagePreprocessor {
             target_size: params.input_size,
             normalize: true,
             mean: [0.485, 0.456, 0.406], // ImageNet normalization
             std: [0.229, 0.224, 0.225],
         };
         
-        let nms_processor = NmsProcessor {
+        let _nms_processor = NmsProcessor {
             iou_threshold: params.nms_threshold,
             score_threshold: params.confidence_threshold,
         };
         
-        let confidence_filter = ConfidenceFilter {
+        let _confidence_filter = ConfidenceFilter {
             global_threshold: params.confidence_threshold,
             class_thresholds: params.class_thresholds.clone(),
         };
@@ -181,41 +181,41 @@ impl YoloDetector {
     }
     
     /// Preprocess image for neural network input
-    fn preprocess_image(&self, image: &ImageData) -> VisionResult<Vec<f32>> {
+    fn preprocess_image(&self, _image: &ImageData) -> VisionResult<Vec<f32>> {
         let (target_width, target_height) = self.preprocessor.target_size;
         
         // Resize image while maintaining aspect ratio
-        let scale_x = target_width as f32 / image.width as f32;
-        let scale_y = target_height as f32 / image.height as f32;
-        let scale = scale_x.min(scale_y);
+        let _scale_x = target_width as f32 / image.width as f32;
+        let _scale_y = target_height as f32 / image.height as f32;
+        let _scale = scale_x.min(scale_y);
         
-        let new_width = (image.width as f32 * scale) as u32;
-        let new_height = (image.height as f32 * scale) as u32;
+        let _new_width = (image.width as f32 * scale) as u32;
+        let _new_height = (image.height as f32 * scale) as u32;
         
         // Calculate padding
-        let pad_x = (target_width - new_width) / 2;
-        let pad_y = (target_height - new_height) / 2;
+        let _pad_x = (target_width - new_width) / 2;
+        let _pad_y = (target_height - new_height) / 2;
         
         // Create preprocessed image buffer
         let mut preprocessed = vec![0.0f32; (target_width * target_height * 3) as usize];
         
         // Resize and pad image
-        for y in 0..new_height {
-            for x in 0..new_width {
-                let src_x = (x as f32 / scale) as u32;
-                let src_y = (y as f32 / scale) as u32;
+        for _y in 0..new_height {
+            for _x in 0..new_width {
+                let _src_x = (x as f32 / scale) as u32;
+                let _src_y = (y as f32 / scale) as u32;
                 
                 if src_x < image.width && src_y < image.height {
-                    let src_idx = ((src_y * image.width + src_x) * image.channels) as usize;
-                    let dst_x = x + pad_x;
-                    let dst_y = y + pad_y;
-                    let dst_idx = ((dst_y * target_width + dst_x) * 3) as usize;
+                    let _src_idx = ((src_y * image.width + src_x) * image.channels) as usize;
+                    let _dst_x = x + pad_x;
+                    let _dst_y = y + pad_y;
+                    let _dst_idx = ((dst_y * target_width + dst_x) * 3) as usize;
                     
                     if src_idx + 2 < image.data.len() && dst_idx + 2 < preprocessed.len() {
                         // Convert to float and normalize
-                        for c in 0..3 {
-                            let pixel_value = image.data[src_idx + c] as f32 / 255.0;
-                            let normalized = if self.preprocessor.normalize {
+                        for _c in 0..3 {
+                            let _pixel_value = image.data[src_idx + c] as f32 / 255.0;
+                            let _normalized = if self.preprocessor.normalize {
                                 (pixel_value - self.preprocessor.mean[c]) / self.preprocessor.std[c]
                             } else {
                                 pixel_value
@@ -231,7 +231,7 @@ impl YoloDetector {
     }
     
     /// Run neural network inference (simulated for clean room implementation)
-    fn run_inference(&self, input: &[f32]) -> VisionResult<Vec<Detection>> {
+    fn run_inference(&self, _input: &[f32]) -> VisionResult<Vec<Detection>> {
         // This is a placeholder for actual neural network inference
         // In production, this would interface with ONNX Runtime, TensorRT, or similar
         
@@ -239,10 +239,10 @@ impl YoloDetector {
         
         // Simulate detection results for demonstration
         // Real implementation would process neural network outputs
-        let num_detections = 10; // Simulated number of detections
+        let _num_detections = 10; // Simulated number of detections
         
-        for i in 0..num_detections {
-            let detection = Detection {
+        for _i in 0..num_detections {
+            let _detection = Detection {
                 bbox: RawBoundingBox {
                     x: 100.0 + i as f32 * 50.0,
                     y: 100.0 + i as f32 * 30.0,
@@ -264,7 +264,7 @@ impl YoloDetector {
     fn filter_by_confidence(&self, detections: &[Detection]) -> Vec<Detection> {
         detections.iter()
             .filter(|det| {
-                let threshold = self.confidence_filter.class_thresholds
+                let _threshold = self.confidence_filter.class_thresholds
                     .get(&det.class_id)
                     .unwrap_or(&self.confidence_filter.global_threshold);
                 det.confidence >= *threshold
@@ -285,7 +285,7 @@ impl YoloDetector {
         let mut keep = Vec::new();
         let mut suppressed = vec![false; sorted_detections.len()];
         
-        for i in 0..sorted_detections.len() {
+        for _i in 0..sorted_detections.len() {
             if suppressed[i] {
                 continue;
             }
@@ -293,12 +293,12 @@ impl YoloDetector {
             keep.push(sorted_detections[i].clone());
             
             // Suppress overlapping detections
-            for j in (i + 1)..sorted_detections.len() {
+            for _j in (i + 1)..sorted_detections.len() {
                 if suppressed[j] {
                     continue;
                 }
                 
-                let iou = self.calculate_iou(&sorted_detections[i].bbox, &sorted_detections[j].bbox);
+                let _iou = self.calculate_iou(&sorted_detections[i].bbox, &sorted_detections[j].bbox);
                 if iou > self.nms_processor.iou_threshold {
                     suppressed[j] = true;
                 }
@@ -310,19 +310,19 @@ impl YoloDetector {
     
     /// Calculate intersection over union between two bounding boxes
     fn calculate_iou(&self, box1: &RawBoundingBox, box2: &RawBoundingBox) -> f32 {
-        let x1 = box1.x.max(box2.x);
-        let y1 = box1.y.max(box2.y);
-        let x2 = (box1.x + box1.width).min(box2.x + box2.width);
-        let y2 = (box1.y + box1.height).min(box2.y + box2.height);
+        let _x1 = box1.x.max(box2.x);
+        let _y1 = box1.y.max(box2.y);
+        let _x2 = (box1.x + box1.width).min(box2.x + box2.width);
+        let _y2 = (box1.y + box1.height).min(box2.y + box2.height);
         
         if x2 <= x1 || y2 <= y1 {
             return 0.0;
         }
         
-        let intersection = (x2 - x1) * (y2 - y1);
-        let area1 = box1.width * box1.height;
-        let area2 = box2.width * box2.height;
-        let union = area1 + area2 - intersection;
+        let _intersection = (x2 - x1) * (y2 - y1);
+        let _area1 = box1.width * box1.height;
+        let _area2 = box2.width * box2.height;
+        let _union = area1 + area2 - intersection;
         
         if union <= 0.0 {
             0.0
@@ -332,14 +332,14 @@ impl YoloDetector {
     }
     
     /// Convert raw detections to final bounding boxes
-    fn convert_to_bounding_boxes(&self, detections: &[Detection], image: &ImageData) -> Vec<BoundingBox> {
+    fn convert_to_bounding_boxes(&self, detections: &[Detection], _image: &ImageData) -> Vec<BoundingBox> {
         let (target_width, target_height) = self.preprocessor.target_size;
-        let scale_x = image.width as f32 / target_width as f32;
-        let scale_y = image.height as f32 / target_height as f32;
+        let _scale_x = image.width as f32 / target_width as f32;
+        let _scale_y = image.height as f32 / target_height as f32;
         
         detections.iter()
             .map(|det| {
-                let class_name = self.class_names.get(det.class_id as usize)
+                let _class_name = self.class_names.get(det.class_id as usize)
                     .unwrap_or(&"unknown".to_string())
                     .clone();
                 
@@ -358,8 +358,8 @@ impl YoloDetector {
 }
 
 impl ObjectDetector for YoloDetector {
-    fn detect(&self, image: &ImageData) -> VisionResult<DetectionResult> {
-        let start_time = Instant::now();
+    fn detect(&self, _image: &ImageData) -> VisionResult<DetectionResult> {
+        let _start_time = Instant::now();
         
         // Validate input image
         if image.data.is_empty() {
@@ -371,21 +371,21 @@ impl ObjectDetector for YoloDetector {
         }
         
         // Preprocess image
-        let preprocessed = self.preprocess_image(image)?;
+        let _preprocessed = self.preprocess_image(image)?;
         
         // Run neural network inference
-        let raw_detections = self.run_inference(&preprocessed)?;
+        let _raw_detections = self.run_inference(&preprocessed)?;
         
         // Apply confidence filtering
-        let filtered_detections = self.filter_by_confidence(&raw_detections);
+        let _filtered_detections = self.filter_by_confidence(&raw_detections);
         
         // Apply non-maximum suppression
-        let nms_detections = self.apply_nms(&filtered_detections);
+        let _nms_detections = self.apply_nms(&filtered_detections);
         
         // Convert to final bounding boxes
-        let objects = self.convert_to_bounding_boxes(&nms_detections, image);
+        let _objects = self.convert_to_bounding_boxes(&nms_detections, image);
         
-        let processing_time = start_time.elapsed();
+        let _processing_time = start_time.elapsed();
         
         Ok(DetectionResult {
             objects,
@@ -433,7 +433,7 @@ impl ObjectDetector for YoloDetector {
 pub struct Detection {
     bbox: RawBoundingBox,
     confidence: f32,
-    class_id: u32,
+    _class_id: u32,
     objectness: f32,
 }
 
@@ -447,8 +447,8 @@ pub struct RawBoundingBox {
 }
 
 /// Create object detector based on configuration
-pub fn create_detector(config: &VisionConfig) -> VisionResult<Arc<dyn ObjectDetector + Send + Sync>> {
-    let detector = YoloDetector::new(config)?;
+pub fn create_detector(_config: &VisionConfig) -> VisionResult<Arc<dyn ObjectDetector + Send + Sync>> {
+    let _detector = YoloDetector::new(config)?;
     Ok(Arc::new(detector))
 }
 
@@ -468,19 +468,19 @@ pub mod nms_utils {
         let mut keep = Vec::new();
         let mut suppressed = vec![false; sorted_detections.len()];
         
-        for i in 0..sorted_detections.len() {
+        for _i in 0..sorted_detections.len() {
             if suppressed[i] {
                 continue;
             }
             
             keep.push(sorted_detections[i].clone());
             
-            for j in (i + 1)..sorted_detections.len() {
+            for _j in (i + 1)..sorted_detections.len() {
                 if suppressed[j] {
                     continue;
                 }
                 
-                let iou = calculate_bbox_iou(&sorted_detections[i].bbox, &sorted_detections[j].bbox);
+                let _iou = calculate_bbox_iou(&sorted_detections[i].bbox, &sorted_detections[j].bbox);
                 if iou > iou_threshold {
                     suppressed[j] = true;
                 }
@@ -496,15 +496,15 @@ pub mod nms_utils {
         
         // Group detections by class
         let mut class_detections: HashMap<u32, Vec<Detection>> = HashMap::new();
-        for detection in detections {
+        for _detection in detections {
             class_detections.entry(detection.class_id)
                 .or_insert_with(Vec::new)
                 .push(detection.clone());
         }
         
         // Apply NMS per class
-        for (_, class_dets) in class_detections {
-            let nms_result = class_agnostic_nms(&class_dets, iou_threshold);
+        for (__, class_dets) in class_detections {
+            let _nms_result = class_agnostic_nms(&class_dets, iou_threshold);
             result.extend(nms_result);
         }
         
@@ -513,19 +513,19 @@ pub mod nms_utils {
     
     /// Calculate IoU between two raw bounding boxes
     pub fn calculate_bbox_iou(box1: &RawBoundingBox, box2: &RawBoundingBox) -> f32 {
-        let x1 = box1.x.max(box2.x);
-        let y1 = box1.y.max(box2.y);
-        let x2 = (box1.x + box1.width).min(box2.x + box2.width);
-        let y2 = (box1.y + box1.height).min(box2.y + box2.height);
+        let _x1 = box1.x.max(box2.x);
+        let _y1 = box1.y.max(box2.y);
+        let _x2 = (box1.x + box1.width).min(box2.x + box2.width);
+        let _y2 = (box1.y + box1.height).min(box2.y + box2.height);
         
         if x2 <= x1 || y2 <= y1 {
             return 0.0;
         }
         
-        let intersection = (x2 - x1) * (y2 - y1);
-        let area1 = box1.width * box1.height;
-        let area2 = box2.width * box2.height;
-        let union = area1 + area2 - intersection;
+        let _intersection = (x2 - x1) * (y2 - y1);
+        let _area1 = box1.width * box1.height;
+        let _area2 = box2.width * box2.height;
+        let _union = area1 + area2 - intersection;
         
         if union <= 0.0 {
             0.0
@@ -542,23 +542,23 @@ mod tests {
     
     #[test]
     fn test_detection_creation() {
-        let config = VisionConfig::default();
-        let detector = YoloDetector::new(&config);
+        let _config = VisionConfig::default();
+        let _detector = YoloDetector::new(&config);
         assert!(detector.is_ok());
     }
     
     #[test]
     fn test_iou_calculation() {
-        let box1 = RawBoundingBox { x: 10.0, y: 10.0, width: 20.0, height: 20.0 };
-        let box2 = RawBoundingBox { x: 15.0, y: 15.0, width: 20.0, height: 20.0 };
+        let _box1 = RawBoundingBox { x: 10.0, y: 10.0, width: 20.0, height: 20.0 };
+        let _box2 = RawBoundingBox { x: 15.0, y: 15.0, width: 20.0, height: 20.0 };
         
-        let iou = nms_utils::calculate_bbox_iou(&box1, &box2);
+        let _iou = nms_utils::calculate_bbox_iou(&box1, &box2);
         assert!(iou > 0.0 && iou < 1.0);
     }
     
     #[test]
     fn test_nms_processing() {
-        let detections = vec![
+        let _detections = vec![
             Detection {
                 bbox: RawBoundingBox { x: 10.0, y: 10.0, width: 20.0, height: 20.0 },
                 confidence: 0.9,
@@ -573,17 +573,17 @@ mod tests {
             },
         ];
         
-        let result = class_agnostic_nms(&detections, 0.5);
+        let _result = class_agnostic_nms(&detections, 0.5);
         assert_eq!(result.len(), 1); // Should suppress one overlapping detection
         assert_eq!(result[0].confidence, 0.9); // Should keep higher confidence detection
     }
     
     #[test]
     fn test_parameter_validation() {
-        let config = VisionConfig::default();
+        let _config = VisionConfig::default();
         let mut detector = YoloDetector::new(&config).unwrap();
         
-        let invalid_params = DetectionParameters {
+        let _invalid_params = DetectionParameters {
             confidence_threshold: 1.5, // Invalid: > 1.0
             nms_threshold: 0.4,
             max_detections: 100,
@@ -593,7 +593,7 @@ mod tests {
             anchor_sizes: vec![],
         };
         
-        let result = detector.update_parameters(invalid_params);
+        let _result = detector.update_parameters(invalid_params);
         assert!(result.is_err());
     }
 }

@@ -1,8 +1,17 @@
-//! # Build System Module
-//! 
-//! Production-grade build system with reproducible builds and attestation.
+// Copyright 2026 AGENT_GURU Contributors
+// SPDX-License-Identifier: Apache-2.0
 
-#![deny(clippy::all, clippy::pedantic, clippy::nursery)]
-#![allow(missing_docs, dead_code)]
+//! # Build System and Provenance Tracking
+//!
+//! This module provides production-grade build system integration and provenance
+//! tracking for the AGENT_GURU system. It implements comprehensive build
+//! attestation, reproducible build verification, and complete supply chain
+//! integrity validation.
 
-// Build system modules will be implemented in future tasks
+pub mod provenance;
+pub mod property_tests;
+
+pub use provenance::{
+    ProvenanceVerifier, ProvenanceGenerator, BuildProvenance, BuildArtifact,
+    ArtifactRule, ProvenanceError, ProvenanceResult,
+};

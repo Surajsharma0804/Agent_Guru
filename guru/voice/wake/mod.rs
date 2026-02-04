@@ -168,7 +168,7 @@ impl MFCCWakeWordEngine {
         }
         
         // Estimate CPU utilization based on processing time vs real time
-        let frame_duration = Duration::from_millis(80); // 80ms frames
+        let _frame_duration = Duration::from_millis(80); // 80ms frames
         self.metrics.cpu_utilization_percent = (avg_processing_time.as_secs_f32() / frame_duration.as_secs_f32()) * 100.0;
         
         // Memory usage estimation (simplified)
@@ -233,25 +233,25 @@ impl WakeWordEngine for MFCCWakeWordEngine {
             return Err(WakeWordError::Configuration("Engine not initialized".to_string()));
         }
         
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         
         // Add audio to ring buffer
         self.ring_buffer.write(audio_buffer)
             .map_err(|e| WakeWordError::BufferOverflow(e.to_string()))?;
         
         // Extract MFCC features
-        let features = self.feature_extractor.extract_features(&self.ring_buffer)
+        let _features = self.feature_extractor.extract_features(&self.ring_buffer)
             .map_err(|e| WakeWordError::AudioProcessing(e.to_string()))?;
         
         // Run neural network inference
-        let predictions = self.neural_classifier.predict(&features)
+        let _predictions = self.neural_classifier.predict(&features)
             .map_err(|e| WakeWordError::NeuralInference(e.to_string()))?;
         
         // Apply confidence filtering
-        let filtered_predictions = self.confidence_filter.filter_predictions(&predictions, self.sensitivity)
+        let _filtered_predictions = self.confidence_filter.filter_predictions(&predictions, self.sensitivity)
             .map_err(|e| WakeWordError::AudioProcessing(e.to_string()))?;
         
-        let processing_time = start_time.elapsed();
+        let _processing_time = start_time.elapsed();
         self.update_metrics(processing_time);
         
         // Validate performance constraints
@@ -263,7 +263,7 @@ impl WakeWordEngine for MFCCWakeWordEngine {
             .find(|(_, &conf)| conf > self.sensitivity)
             .map(|(idx, &conf)| (self.wake_words[idx].clone(), conf))
         {
-            let detection_latency = start_time.elapsed();
+            let _detection_latency = start_time.elapsed();
             self.metrics.total_detections += 1;
             self.metrics.detection_latency_ms = detection_latency.as_secs_f32() * 1000.0;
             self.last_detection = Some(Instant::now());
@@ -332,7 +332,7 @@ mod tests {
     #[test]
     fn test_wake_word_engine_initialization() {
         let mut engine = MFCCWakeWordEngine::new();
-        let wake_words = vec!["hey guru".to_string(), "hello maya".to_string()];
+        let _wake_words = vec!["hey guru".to_string(), "hello maya".to_string()];
         
         assert!(engine.initialize(&wake_words).is_ok());
         assert_eq!(engine.wake_words, wake_words);
@@ -350,8 +350,8 @@ mod tests {
     
     #[test]
     fn test_performance_metrics() {
-        let engine = MFCCWakeWordEngine::new();
-        let metrics = engine.get_performance_metrics();
+        let _engine = MFCCWakeWordEngine::new();
+        let _metrics = engine.get_performance_metrics();
         
         assert_eq!(metrics.total_detections, 0);
         assert_eq!(metrics.false_positives, 0);

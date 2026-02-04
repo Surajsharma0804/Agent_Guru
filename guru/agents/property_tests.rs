@@ -24,13 +24,13 @@ use crate::agents::{
 };
 
 /// Test configuration constants
-const PROPERTY_TEST_ITERATIONS: u32 = 10000;
+const _PROPERTY_TEST_ITERATIONS: u32 = 10000;
 const MAX_TEST_AGENTS: usize = 50;
 const MAX_TEST_TASKS: usize = 100;
 
 /// Helper function to create a properly initialized orchestrator with sufficient resources
 async fn create_initialized_orchestrator() -> MultiAgentOrchestrator {
-    let orchestrator = MultiAgentOrchestrator::new();
+    let _orchestrator = MultiAgentOrchestrator::new();
     
     // Initialize with generous system resources to prevent resource allocation failures
     orchestrator.set_available_resources(ResourceRequirements {
@@ -55,11 +55,11 @@ mod property_22_multi_agent_task_coordination {
     
     #[tokio::test]
     async fn test_task_decomposition_and_coordination() {
-        let orchestrator = create_initialized_orchestrator().await;
+        let _orchestrator = create_initialized_orchestrator().await;
         
         // Register test agents
-        let agent_id = AgentId::new("test_agent", "instance_1", "default");
-        let capabilities = vec![AgentCapability {
+        let _agent_id = AgentId::new("test_agent", "instance_1", "default");
+        let _capabilities = vec![AgentCapability {
             capability_id: "data_processing".to_string(),
             name: "Data Processing".to_string(),
             description: "Process data".to_string(),
@@ -69,7 +69,7 @@ mod property_22_multi_agent_task_coordination {
             performance_metrics: PerformanceMetrics::default(),
         }];
         
-        let result = orchestrator.register_agent(
+        let _result = orchestrator.register_agent(
             agent_id,
             capabilities,
             ResourceRequirements {
@@ -89,24 +89,24 @@ mod property_22_multi_agent_task_coordination {
         task.required_capabilities = vec!["data_processing".to_string()];
         
         // Test task decomposition
-        let decomposition_result = orchestrator.decompose_task(&task).await;
+        let _decomposition_result = orchestrator.decompose_task(&task).await;
         assert!(decomposition_result.is_ok(), "Task decomposition failed: {:?}", decomposition_result);
         
-        let subtasks = decomposition_result.unwrap();
+        let _subtasks = decomposition_result.unwrap();
         assert!(!subtasks.is_empty(), "Task decomposition produced no subtasks");
         
         // Verify subtask properties
-        for subtask in &subtasks {
+        for _subtask in &subtasks {
             assert_eq!(subtask.parent_task_id, task.task_id, "Subtask parent ID mismatch");
             assert_eq!(subtask.status, TaskStatus::Pending, "New subtask must be in pending status");
         }
         
         // Test coordination
-        let coordination_result = orchestrator.coordinate_execution(&subtasks).await;
+        let _coordination_result = orchestrator.coordinate_execution(&subtasks).await;
         match coordination_result {
             Ok(results) => {
                 assert!(results.len() <= subtasks.len(), "More results than subtasks");
-                for result in &results {
+                for _result in &results {
                     assert!(result.success || result.error_message.is_some(),
                         "Failed result must have error message");
                 }
@@ -120,20 +120,20 @@ mod property_22_multi_agent_task_coordination {
         }
         
         // Verify system metrics
-        let metrics = orchestrator.get_system_metrics().await;
+        let _metrics = orchestrator.get_system_metrics().await;
         assert!(metrics.total_agents <= MAX_TEST_AGENTS, "Agent count exceeds maximum");
         assert!(metrics.active_agents <= metrics.total_agents, "Active agents cannot exceed total agents");
     }
     
     #[tokio::test]
     async fn test_inter_agent_communication() {
-        let orchestrator = create_initialized_orchestrator().await;
+        let _orchestrator = create_initialized_orchestrator().await;
         
         // Register test agents
-        let sender_agent = AgentId::new("sender", "instance_1", "default");
-        let recipient_agent = AgentId::new("recipient", "instance_1", "default");
+        let _sender_agent = AgentId::new("sender", "instance_1", "default");
+        let _recipient_agent = AgentId::new("recipient", "instance_1", "default");
         
-        let capabilities = vec![AgentCapability {
+        let _capabilities = vec![AgentCapability {
             capability_id: "communication".to_string(),
             name: "Communication".to_string(),
             description: "Handle communication".to_string(),
@@ -143,7 +143,7 @@ mod property_22_multi_agent_task_coordination {
             performance_metrics: PerformanceMetrics::default(),
         }];
         
-        let agent_resources = ResourceRequirements {
+        let _agent_resources = ResourceRequirements {
             cpu_cores: 0.5,
             memory_mb: 512,
             disk_mb: 1024,
@@ -165,20 +165,20 @@ mod property_22_multi_agent_task_coordination {
         ).await.expect("Recipient agent registration failed");
         
         // Test message publishing
-        let topic = TopicId::new("test.communication", "system");
-        let message = MessageEnvelope::new_publish_message(
+        let _topic = TopicId::new("test.communication", "system");
+        let _message = MessageEnvelope::new_publish_message(
             Some(sender_agent),
             topic,
             "test_message",
             b"test_payload".to_vec(),
         );
         
-        let send_result = orchestrator.publish_message(message).await;
+        let _send_result = orchestrator.publish_message(message).await;
         assert!(send_result.is_ok(), "Message sending failed: {:?}", send_result);
         
         // Verify audit trail
-        let audit_trail = orchestrator.get_audit_trail().await;
-        let message_events = audit_trail.iter()
+        let _audit_trail = orchestrator.get_audit_trail().await;
+        let _message_events = audit_trail.iter()
             .filter(|entry| entry.event_type == "message_published")
             .count();
         
@@ -197,12 +197,12 @@ mod property_23_multi_agent_performance_integration {
     
     #[tokio::test]
     async fn test_performance_monitoring_and_resource_tracking() {
-        let orchestrator = create_initialized_orchestrator().await;
+        let _orchestrator = create_initialized_orchestrator().await;
         
         // Register agents with resource requirements
-        for i in 0..5 {
-            let agent_id = AgentId::new("perf_agent", &format!("instance_{}", i), "default");
-            let capabilities = vec![AgentCapability {
+        for _i in 0..5 {
+            let _agent_id = AgentId::new("perf_agent", &format!("instance_{}", i), "default");
+            let _capabilities = vec![AgentCapability {
                 capability_id: format!("capability_{}", i),
                 name: format!("Capability {}", i),
                 description: "Performance test capability".to_string(),
@@ -212,7 +212,7 @@ mod property_23_multi_agent_performance_integration {
                 performance_metrics: PerformanceMetrics::default(),
             }];
             
-            let resource_requirements = ResourceRequirements {
+            let _resource_requirements = ResourceRequirements {
                 cpu_cores: 1.0,
                 memory_mb: 512,
                 disk_mb: 256,
@@ -221,7 +221,7 @@ mod property_23_multi_agent_performance_integration {
                 specialized_hardware: Vec::new(),
             };
             
-            let result = orchestrator.register_agent(
+            let _result = orchestrator.register_agent(
                 agent_id,
                 capabilities,
                 resource_requirements,
@@ -231,7 +231,7 @@ mod property_23_multi_agent_performance_integration {
         }
         
         // Verify system metrics
-        let metrics = orchestrator.get_system_metrics().await;
+        let _metrics = orchestrator.get_system_metrics().await;
         assert_eq!(metrics.total_agents, 5, "Agent count mismatch");
         assert!(metrics.resource_utilization >= 0.0 && metrics.resource_utilization <= 1.0,
             "Resource utilization out of bounds");
@@ -241,11 +241,11 @@ mod property_23_multi_agent_performance_integration {
     
     #[tokio::test]
     async fn test_audit_trail_maintenance() {
-        let orchestrator = create_initialized_orchestrator().await;
+        let _orchestrator = create_initialized_orchestrator().await;
         
         // Perform operations that should create audit entries
-        let agent_id = AgentId::new("audit_agent", "instance_1", "default");
-        let capabilities = vec![AgentCapability {
+        let _agent_id = AgentId::new("audit_agent", "instance_1", "default");
+        let _capabilities = vec![AgentCapability {
             capability_id: "audit_test".to_string(),
             name: "Audit Test".to_string(),
             description: "Audit test capability".to_string(),
@@ -255,7 +255,7 @@ mod property_23_multi_agent_performance_integration {
             performance_metrics: PerformanceMetrics::default(),
         }];
         
-        let result = orchestrator.register_agent(
+        let _result = orchestrator.register_agent(
             agent_id.clone(),
             capabilities,
             ResourceRequirements {
@@ -271,11 +271,11 @@ mod property_23_multi_agent_performance_integration {
         assert!(result.is_ok(), "Agent registration failed: {:?}", result);
         
         // Verify audit trail
-        let audit_trail = orchestrator.get_audit_trail().await;
+        let _audit_trail = orchestrator.get_audit_trail().await;
         assert!(!audit_trail.is_empty(), "Audit trail is empty");
         
         // Verify audit entry structure
-        for entry in &audit_trail {
+        for _entry in &audit_trail {
             assert!(!entry.entry_id.is_empty(), "Audit entry missing ID");
             assert!(!entry.event_type.is_empty(), "Audit entry missing event type");
             assert!(entry.timestamp <= SystemTime::now(), "Audit entry timestamp in future");
@@ -293,12 +293,12 @@ mod property_24_multi_agent_resource_optimization {
     
     #[tokio::test]
     async fn test_resource_optimization_under_load() {
-        let orchestrator = create_initialized_orchestrator().await;
+        let _orchestrator = create_initialized_orchestrator().await;
         
         // Register agents with limited resources
-        for i in 0..3 {
-            let agent_id = AgentId::new("load_agent", &format!("instance_{}", i), "default");
-            let capabilities = vec![AgentCapability {
+        for _i in 0..3 {
+            let _agent_id = AgentId::new("load_agent", &format!("instance_{}", i), "default");
+            let _capabilities = vec![AgentCapability {
                 capability_id: "load_test".to_string(),
                 name: "Load Test".to_string(),
                 description: "Load test capability".to_string(),
@@ -308,7 +308,7 @@ mod property_24_multi_agent_resource_optimization {
                 performance_metrics: PerformanceMetrics::default(),
             }];
             
-            let limited_resources = ResourceRequirements {
+            let _limited_resources = ResourceRequirements {
                 cpu_cores: 1.0,
                 memory_mb: 512,
                 disk_mb: 256,
@@ -317,7 +317,7 @@ mod property_24_multi_agent_resource_optimization {
                 specialized_hardware: Vec::new(),
             };
             
-            let result = orchestrator.register_agent(
+            let _result = orchestrator.register_agent(
                 agent_id,
                 capabilities,
                 limited_resources,
@@ -326,20 +326,20 @@ mod property_24_multi_agent_resource_optimization {
             assert!(result.is_ok(), "Agent registration failed: {:?}", result);
         }
         
-        let initial_metrics = orchestrator.get_system_metrics().await;
+        let _initial_metrics = orchestrator.get_system_metrics().await;
         
         // Submit multiple tasks to create load
-        for i in 0..5 {
+        for _i in 0..5 {
             let mut task = Task::new(&format!("load_task_{}", i), "load_test", 100);
             task.required_capabilities = vec!["load_test".to_string()];
             
-            let decomposition_result = orchestrator.decompose_task(&task).await;
+            let _decomposition_result = orchestrator.decompose_task(&task).await;
             
             match decomposition_result {
                 Ok(subtasks) => {
                     assert!(!subtasks.is_empty(), "Empty subtasks under load");
                     
-                    for subtask in &subtasks {
+                    for _subtask in &subtasks {
                         assert_eq!(subtask.parent_task_id, task.task_id,
                             "Subtask parent ID corruption under load");
                         assert_eq!(subtask.status, TaskStatus::Pending,
@@ -359,7 +359,7 @@ mod property_24_multi_agent_resource_optimization {
         }
         
         // Verify system stability
-        let final_metrics = orchestrator.get_system_metrics().await;
+        let _final_metrics = orchestrator.get_system_metrics().await;
         assert_eq!(final_metrics.total_agents, initial_metrics.total_agents,
             "Agent count changed under load");
         assert!(final_metrics.resource_utilization >= 0.0 && final_metrics.resource_utilization <= 1.0,
@@ -377,8 +377,8 @@ mod integration_tests {
     #[tokio::test]
     async fn test_property_test_framework_integration() {
         // Verify that the property test framework is properly integrated
-        let orchestrator = create_initialized_orchestrator().await;
-        let metrics = orchestrator.get_system_metrics().await;
+        let _orchestrator = create_initialized_orchestrator().await;
+        let _metrics = orchestrator.get_system_metrics().await;
         
         assert_eq!(metrics.total_agents, 0);
         assert_eq!(metrics.active_agents, 0);
@@ -396,14 +396,14 @@ mod benchmark_tests {
     
     #[tokio::test]
     async fn benchmark_agent_registration_performance() {
-        let orchestrator = create_initialized_orchestrator().await;
+        let _orchestrator = create_initialized_orchestrator().await;
         
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         
         // Register 100 agents and measure performance
-        for i in 0..100 {
-            let agent_id = AgentId::new("benchmark_agent", &format!("instance_{}", i), "default");
-            let capabilities = vec![AgentCapability {
+        for _i in 0..100 {
+            let _agent_id = AgentId::new("benchmark_agent", &format!("instance_{}", i), "default");
+            let _capabilities = vec![AgentCapability {
                 capability_id: format!("capability_{}", i),
                 name: format!("Capability {}", i),
                 description: "Benchmark capability".to_string(),
@@ -413,7 +413,7 @@ mod benchmark_tests {
                 performance_metrics: PerformanceMetrics::default(),
             }];
             
-            let result = orchestrator.register_agent(
+            let _result = orchestrator.register_agent(
                 agent_id,
                 capabilities,
                 ResourceRequirements {
@@ -429,24 +429,24 @@ mod benchmark_tests {
             assert!(result.is_ok(), "Benchmark agent registration failed at iteration {}: {:?}", i, result);
         }
         
-        let registration_time = start_time.elapsed();
+        let _registration_time = start_time.elapsed();
         
         // Performance requirement: 100 agents should register in under 1 second
         assert!(registration_time < Duration::from_secs(1),
             "Agent registration performance too slow: {:?}", registration_time);
         
-        let metrics = orchestrator.get_system_metrics().await;
+        let _metrics = orchestrator.get_system_metrics().await;
         assert_eq!(metrics.total_agents, 100);
     }
     
     #[tokio::test]
     async fn benchmark_task_decomposition_performance() {
-        let orchestrator = create_initialized_orchestrator().await;
+        let _orchestrator = create_initialized_orchestrator().await;
         
         // Register test agents
-        for i in 0..10 {
-            let agent_id = AgentId::new("perf_agent", &format!("instance_{}", i), "default");
-            let capabilities = vec![AgentCapability {
+        for _i in 0..10 {
+            let _agent_id = AgentId::new("perf_agent", &format!("instance_{}", i), "default");
+            let _capabilities = vec![AgentCapability {
                 capability_id: "performance_test".to_string(),
                 name: "Performance Test".to_string(),
                 description: "Performance testing capability".to_string(),
@@ -470,18 +470,18 @@ mod benchmark_tests {
             ).await.expect(&format!("Failed to register agent {}", i));
         }
         
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         
         // Decompose 50 tasks and measure performance
-        for i in 0..50 {
+        for _i in 0..50 {
             let mut task = Task::new(&format!("perf_task_{}", i), "performance", 100);
             task.required_capabilities = vec!["performance_test".to_string()];
             
-            let result = orchestrator.decompose_task(&task).await;
+            let _result = orchestrator.decompose_task(&task).await;
             assert!(result.is_ok(), "Task decomposition failed at iteration {}: {:?}", i, result);
         }
         
-        let decomposition_time = start_time.elapsed();
+        let _decomposition_time = start_time.elapsed();
         
         // Performance requirement: 50 tasks should decompose in under 500ms
         assert!(decomposition_time < Duration::from_millis(500),

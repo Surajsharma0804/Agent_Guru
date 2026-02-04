@@ -145,7 +145,10 @@ intelligence = []
 avatars = []
 
 [workspace]
-# No workspace members for now - single crate project
+members = [
+    ".",
+    "tools/quality"
+]
 
 [workspace.dependencies]
 # Shared dependencies across workspace

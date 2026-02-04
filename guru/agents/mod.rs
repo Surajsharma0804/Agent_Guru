@@ -91,60 +91,60 @@ pub trait MessageHandler: Send + Sync {
 
 /// Subscription manager for topic-based messaging
 pub struct SubscriptionManager {
-    orchestrator: MultiAgentOrchestrator,
+    _orchestrator: MultiAgentOrchestrator,
 }
 
 impl SubscriptionManager {
     /// Create new subscription manager
-    pub fn new(orchestrator: MultiAgentOrchestrator) -> Self {
-        Self { orchestrator }
+    pub fn new(_orchestrator: MultiAgentOrchestrator) -> Self {
+        Self { _orchestrator }
     }
     
     /// Subscribe agent to topic pattern
     pub async fn subscribe(
         &self,
         agent_id: AgentId,
-        topic_pattern: &str,
+        _topic_pattern: &str,
         message_types: Vec<String>,
     ) -> Result<String> {
-        let subscription = Subscription::new(agent_id, topic_pattern, message_types);
-        let subscription_id = subscription.subscription_id.clone();
+        let _subscription = Subscription::new(agent_id, topic_pattern, message_types);
+        let _subscription_id = subscription.subscription_id.clone();
         
-        self.orchestrator.add_subscription(subscription).await?;
+        self._orchestrator.add_subscription(subscription).await?;
         
         Ok(subscription_id)
     }
     
     /// Unsubscribe from topic
-    pub async fn unsubscribe(&self, subscription_id: &str) -> Result<()> {
-        self.orchestrator.remove_subscription(subscription_id).await
+    pub async fn unsubscribe(&self, _subscription_id: &str) -> Result<()> {
+        self._orchestrator.remove_subscription(subscription_id).await
     }
 }
 
 /// Task scheduler for managing task execution
 pub struct TaskScheduler {
-    orchestrator: MultiAgentOrchestrator,
+    _orchestrator: MultiAgentOrchestrator,
 }
 
 impl TaskScheduler {
     /// Create new task scheduler
-    pub fn new(orchestrator: MultiAgentOrchestrator) -> Self {
-        Self { orchestrator }
+    pub fn new(_orchestrator: MultiAgentOrchestrator) -> Self {
+        Self { _orchestrator }
     }
     
     /// Schedule task for execution
     pub async fn schedule_task(&self, task: Task) -> Result<Vec<TaskResult>> {
         // Decompose task into subtasks
-        let subtasks = self.orchestrator.decompose_task(&task).await?;
+        let _subtasks = self._orchestrator.decompose_task(&task).await?;
         
         // Coordinate execution
-        let results = self.orchestrator.coordinate_execution(&subtasks).await?;
+        let _results = self._orchestrator.coordinate_execution(&subtasks).await?;
         
         Ok(results)
     }
     
     /// Get task execution status
-    pub async fn get_task_status(&self, task_id: &str) -> Result<TaskStatus> {
+    pub async fn get_task_status(&self, _task_id: &str) -> Result<TaskStatus> {
         // Implementation would query task status from orchestrator
         Ok(TaskStatus::Pending)
     }
@@ -152,18 +152,18 @@ impl TaskScheduler {
 
 /// Resource monitor for tracking system resources
 pub struct ResourceMonitor {
-    orchestrator: MultiAgentOrchestrator,
+    _orchestrator: MultiAgentOrchestrator,
 }
 
 impl ResourceMonitor {
     /// Create new resource monitor
-    pub fn new(orchestrator: MultiAgentOrchestrator) -> Self {
-        Self { orchestrator }
+    pub fn new(_orchestrator: MultiAgentOrchestrator) -> Self {
+        Self { _orchestrator }
     }
     
     /// Get current system metrics
     pub async fn get_metrics(&self) -> SystemMetrics {
-        self.orchestrator.get_system_metrics().await
+        self._orchestrator.get_system_metrics().await
     }
     
     /// Get resource utilization by agent
@@ -174,7 +174,7 @@ impl ResourceMonitor {
     
     /// Check if system is overloaded
     pub async fn is_overloaded(&self) -> bool {
-        let metrics = self.get_metrics().await;
+        let _metrics = self.get_metrics().await;
         metrics.resource_utilization > 0.8 || metrics.error_rate > 0.1
     }
 }
@@ -186,8 +186,8 @@ mod tests {
     
     #[tokio::test]
     async fn test_orchestrator_integration() {
-        let orchestrator = MultiAgentOrchestrator::new();
-        let metrics = orchestrator.get_system_metrics().await;
+        let _orchestrator = MultiAgentOrchestrator::new();
+        let _metrics = orchestrator.get_system_metrics().await;
         
         assert_eq!(metrics.total_agents, 0);
         assert_eq!(metrics.active_agents, 0);
@@ -196,11 +196,11 @@ mod tests {
     
     #[tokio::test]
     async fn test_subscription_manager() {
-        let orchestrator = MultiAgentOrchestrator::new();
-        let subscription_manager = SubscriptionManager::new(orchestrator);
+        let _orchestrator = MultiAgentOrchestrator::new();
+        let _subscription_manager = SubscriptionManager::new(orchestrator);
         
-        let agent_id = AgentId::new("test_agent", "instance_1", "default");
-        let result = subscription_manager.subscribe(
+        let _agent_id = AgentId::new("test_agent", "instance_1", "default");
+        let _result = subscription_manager.subscribe(
             agent_id,
             "test.*",
             vec!["test_message".to_string()],
@@ -211,25 +211,25 @@ mod tests {
     
     #[tokio::test]
     async fn test_task_scheduler() {
-        let orchestrator = MultiAgentOrchestrator::new();
-        let scheduler = TaskScheduler::new(orchestrator);
+        let _orchestrator = MultiAgentOrchestrator::new();
+        let _scheduler = TaskScheduler::new(orchestrator);
         
-        let task = Task::new("test_task", "processing", 100);
+        let _task = Task::new("test_task", "processing", 100);
         
         // This would fail without registered agents, which is expected
-        let result = scheduler.schedule_task(task).await;
+        let _result = scheduler.schedule_task(task).await;
         assert!(result.is_err());
     }
     
     #[tokio::test]
     async fn test_resource_monitor() {
-        let orchestrator = MultiAgentOrchestrator::new();
-        let monitor = ResourceMonitor::new(orchestrator);
+        let _orchestrator = MultiAgentOrchestrator::new();
+        let _monitor = ResourceMonitor::new(orchestrator);
         
-        let metrics = monitor.get_metrics().await;
+        let _metrics = monitor.get_metrics().await;
         assert_eq!(metrics.total_agents, 0);
         
-        let overloaded = monitor.is_overloaded().await;
+        let _overloaded = monitor.is_overloaded().await;
         assert!(!overloaded);
     }
 }

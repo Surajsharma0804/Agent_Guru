@@ -1,0 +1,1207 @@
+# AGENT_GURU GitLab CI/CD Pipeline
+# Enterprise-grade continuous integration and deployment
+# Zero-tolerance quality standards with comprehensive automation
+
+variables:
+  CARGO_HOME: "${CI_PROJECT_DIR}/.cargo"
+  CARGO_TERM_COLOR: "always"
+  RUST_BACKTRACE: "full"
+  RUSTFLAGS: "-D warnings -D clippy::all -D clippy::pedantic -D clippy::nursery -D clippy::cargo"
+  PYTHONPATH: "${CI_PROJECT_DIR}/guru/intelligence"
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  # Performance and resource optimization
+  GIT_DEPTH: "50"
+  GIT_STRATEGY: fetch
+  GIT_SUBMODULE_STRATEGY: recursive
+  # Security and compliance
+  SECURITY_SCAN_ENABLED: "true"
+  COMPLIANCE_CHECK_ENABLED: "true"
+  VULNERABILITY_THRESHOLD: "0"
+  # Deployment configuration
+  KUBERNETES_NAMESPACE: "agent-guru"
+  HELM_CHART_VERSION: "1.0.0"
+
+# Global cache configuration for maximum efficiency
+cache:
+  key: "${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}"
+  paths:
+    - .cargo/
+    - target/
+    - ~/.cache/pip/
+    - node_modules/
+    - build/
+    - .sonar/cache/
+  policy: pull-push
+
+# Pipeline stages with strict dependency management
+stages:
+  - validate
+  - build
+  - test
+  - security
+  - performance
+  - quality
+  - package
+  - deploy-staging
+  - integration-test
+  - deploy-production
+  - notify
+
+# ============================================================================
+# VALIDATION STAGE - Environment and dependency validation
+# ============================================================================
+validate:environment:
+  stage: validate
+  image: rust:1.75-slim
+  before_script:
+    - apt-get update && apt-get install -y build-essential cmake pkg-config python3 python3-pip curl
+    - rustup component add rustfmt clippy miri
+    - curl -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+  script:
+    - rustc --version
+    - cargo --version
+    - python3 --version
+    - cmake --version
+    - echo "Environment validation successful"
+    - ./scripts/build.sh --validate-environment
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "develop"
+  artifacts:
+    reports:
+      junit: validation-report.xml
+    expire_in: 1 hour
+
+validate:dependencies:
+  stage: validate
+  image: rust:1.75-slim
+  before_script:
+    - cargo install cargo-audit cargo-deny
+  script:
+    - cargo tree --duplicates
+    - cargo audit --json > audit-report.json
+    - cargo deny check --format json > deny-report.json
+    - echo "Dependency validation successful"
+  allow_failure: false
+  artifacts:
+    reports:
+      junit: dependency-validation.xml
+    paths:
+      - audit-report.json
+      - deny-report.json
+    expire_in: 1 week
+
+validate:licenses:
+  stage: validate
+  image: rust:1.75-slim
+  before_script:
+    - cargo install cargo-license
+  script:
+    - cargo license --json > license-report.json
+    - python3 scripts/validate-licenses.py --input license-report.json --policy scripts/license-policy.json
+  artifacts:
+    reports:
+      junit: license-validation.xml
+    paths:
+      - license-report.json
+    expire_in: 1 week
+
+# ============================================================================
+# BUILD STAGE - Multi-platform compilation matrix with enhanced security
+# ============================================================================
+.build_template: &build_template
+  stage: build
+  before_script:
+    - apt-get update && apt-get install -y build-essential cmake pkg-config libssl-dev libsodium-dev
+    - rustup target add $RUST_TARGET
+    - rustup component add rustfmt clippy
+    - python3 -m pip install --upgrade pip
+    - pip3 install -r guru/intelligence/requirements.txt
+  script:
+    - chmod +x scripts/build.sh
+    - ./scripts/build.sh --validate-environment --target $RUST_TARGET
+    - cargo build --release --target $RUST_TARGET --all-features
+    - cargo build --release --target $RUST_TARGET --bin agent-guru
+    - mkdir -p build && cd build
+    - cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wpedantic -Werror"
+    - cmake --build . --config Release --parallel $(nproc)
+    - cd ../guru/intelligence && python3 -m py_compile *.py
+    - python3 setup.py build_ext --inplace || true
+  after_script:
+    - ./scripts/build.sh --package --target $RUST_TARGET
+  artifacts:
+    name: "build-${RUST_TARGET}-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - target/$RUST_TARGET/release/
+      - build/
+      - guru/intelligence/dist/
+      - artifacts/
+    expire_in: 1 week
+    reports:
+      junit: build-report.xml
+
+build:linux-x64:
+  <<: *build_template
+  image: rust:1.75-slim
+  variables:
+    RUST_TARGET: "x86_64-unknown-linux-gnu"
+  parallel:
+    matrix:
+      - OPTIMIZATION_LEVEL: ["release", "release-lto"]
+
+build:linux-arm64:
+  <<: *build_template
+  image: rust:1.75-slim
+  variables:
+    RUST_TARGET: "aarch64-unknown-linux-gnu"
+  before_script:
+    - apt-get update && apt-get install -y gcc-aarch64-linux-gnu
+    - rustup target add $RUST_TARGET
+    - export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
+    - export CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
+
+build:windows-x64:
+  <<: *build_template
+  image: rust:1.75-slim
+  variables:
+    RUST_TARGET: "x86_64-pc-windows-gnu"
+  before_script:
+    - apt-get update && apt-get install -y gcc-mingw-w64-x86-64
+    - rustup target add $RUST_TARGET
+
+build:macos-x64:
+  <<: *build_template
+  tags:
+    - macos
+  variables:
+    RUST_TARGET: "x86_64-apple-darwin"
+
+build:docker-images:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_BUILDKIT: 1
+    BUILDX_PLATFORMS: "linux/amd64,linux/arm64"
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker buildx create --use --name multiarch-builder
+  script:
+    - docker buildx build --platform $BUILDX_PLATFORMS --push -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA -t $CI_REGISTRY_IMAGE:latest .
+    - docker buildx build --platform $BUILDX_PLATFORMS --target security-scanner --push -t $CI_REGISTRY_IMAGE/security:$CI_COMMIT_SHA .
+  after_script:
+    - docker buildx rm multiarch-builder
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# ============================================================================
+# TEST STAGE - Comprehensive testing with parallel execution and formal verification
+# ============================================================================
+.test_template: &test_template
+  stage: test
+  image: rust:1.75-slim
+  needs: ["build:linux-x64"]
+  before_script:
+    - apt-get update && apt-get install -y build-essential python3 python3-pip valgrind
+    - cargo install cargo-tarpaulin cargo-nextest cargo-criterion
+    - pip3 install pytest pytest-cov hypothesis pytest-xdist pytest-benchmark
+  coverage: '/^\d+\.\d+% coverage/'
+
+test:unit:
+  <<: *test_template
+  script:
+    - chmod +x scripts/test.sh
+    - ./scripts/test.sh --unit --parallel --coverage
+  artifacts:
+    reports:
+      junit: test-results.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - target/tarpaulin-report.html
+    expire_in: 1 week
+
+test:integration:
+  <<: *test_template
+  script:
+    - ./scripts/test.sh --integration --parallel
+  artifacts:
+    reports:
+      junit: integration-results.xml
+    expire_in: 1 week
+
+test:property-based:
+  <<: *test_template
+  script:
+    - ./scripts/test.sh --property-based --iterations 10000
+  timeout: 2h
+  artifacts:
+    reports:
+      junit: property-test-results.xml
+    expire_in: 1 week
+
+test:memory-safety:
+  <<: *test_template
+  image: rustlang/rust:nightly-slim
+  script:
+    - rustup component add miri
+    - cargo +nightly miri test
+    - valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all target/release/agent-guru --test-mode || true
+  allow_failure: true
+  artifacts:
+    reports:
+      junit: memory-safety-results.xml
+    expire_in: 1 week
+
+test:python:
+  stage: test
+  image: python:3.11-slim
+  needs: ["build:linux-x64"]
+  script:
+    - cd guru/intelligence
+    - python -m pytest tests/ -v --cov=. --cov-report=xml --cov-report=html -n auto --benchmark-only
+  artifacts:
+    reports:
+      junit: guru/intelligence/test-results.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: guru/intelligence/coverage.xml
+    paths:
+      - guru/intelligence/htmlcov/
+    expire_in: 1 week
+
+test:formal-verification:
+  stage: test
+  image: openjdk:11-slim
+  script:
+    - wget https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+    - java -cp tla2tools.jar tlc2.TLC guru/formal/*.tla
+  artifacts:
+    reports:
+      junit: formal-verification-results.xml
+    expire_in: 1 week
+
+test:end-to-end:
+  stage: test
+  image: cypress/included:12.0.0
+  needs: ["build:docker-images"]
+  services:
+    - name: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+      alias: agent-guru-app
+  variables:
+    CYPRESS_baseUrl: "http://agent-guru-app:8080"
+  script:
+    - npm ci
+    - npm run cy:run
+  artifacts:
+    reports:
+      junit: cypress/results/results.xml
+    paths:
+      - cypress/videos/
+      - cypress/screenshots/
+    expire_in: 1 week
+    when: always
+
+# ============================================================================
+# SECURITY STAGE - Comprehensive security analysis with zero-tolerance policy
+# ============================================================================
+security:audit:
+  stage: security
+  image: rust:1.75-slim
+  needs: ["build:linux-x64"]
+  before_script:
+    - cargo install cargo-audit cargo-deny
+    - pip3 install safety bandit semgrep
+  script:
+    - chmod +x scripts/security-scan.sh
+    - ./scripts/security-scan.sh --comprehensive --sarif-output
+  artifacts:
+    reports:
+      sast: security-results.sarif
+    paths:
+      - security-reports/
+    expire_in: 1 week
+  allow_failure: false
+
+security:container-scan:
+  stage: security
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  needs: ["build:docker-images"]
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker pull $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --format sarif --output container-security.sarif $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  artifacts:
+    reports:
+      container_scanning: container-security.sarif
+    expire_in: 1 week
+
+security:secrets-scan:
+  stage: security
+  image: trufflesecurity/trufflehog:latest
+  script:
+    - trufflehog git file://. --json > secrets-scan.json
+  artifacts:
+    reports:
+      secret_detection: secrets-scan.json
+    expire_in: 1 week
+
+security:license-compliance:
+  stage: security
+  image: licensefinder/license_finder:latest
+  script:
+    - license_finder --format json > license-compliance.json
+  artifacts:
+    reports:
+      license_scanning: license-compliance.json
+    expire_in: 1 week
+
+# ============================================================================
+# PERFORMANCE STAGE - Benchmarking and regression detection with alerting
+# ============================================================================
+performance:benchmarks:
+  stage: performance
+  image: rust:1.75-slim
+  needs: ["build:linux-x64"]
+  before_script:
+    - cargo install cargo-criterion flamegraph
+    - pip3 install pytest-benchmark
+  script:
+    - chmod +x scripts/performance-test.sh
+    - ./scripts/performance-test.sh --comprehensive
+  artifacts:
+    reports:
+      performance: performance-report.json
+    paths:
+      - performance-reports/
+    expire_in: 1 week
+
+performance:load-testing:
+  stage: performance
+  image: grafana/k6:latest
+  needs: ["build:docker-images"]
+  services:
+    - name: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+      alias: agent-guru-app
+  script:
+    - k6 run --out json=load-test-results.json tests/load/load-test.js
+  artifacts:
+    reports:
+      load_performance: load-test-results.json
+    expire_in: 1 week
+
+performance:stress-testing:
+  stage: performance
+  image: rust:1.75-slim
+  needs: ["build:linux-x64"]
+  script:
+    - ./scripts/performance-test.sh --load-testing --stress-mode
+  artifacts:
+    paths:
+      - stress-test-results/
+    expire_in: 1 week
+  allow_failure: true
+
+# ============================================================================
+# QUALITY STAGE - Code coverage, documentation, and compliance validation
+# ============================================================================
+quality:coverage:
+  stage: quality
+  image: rust:1.75-slim
+  needs: ["test:unit", "test:integration", "test:python"]
+  script:
+    - cargo install cargo-tarpaulin
+    - cargo tarpaulin --out Xml --output-dir target/
+    - python3 scripts/validate-coverage.py --threshold 100 --critical-paths "guru/security,guru/crypto"
+  coverage: '/^\d+\.\d+% coverage/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: target/cobertura.xml
+    expire_in: 1 week
+
+quality:documentation:
+  stage: quality
+  image: rust:1.75-slim
+  script:
+    - cargo install cargo-doc cargo-deadlinks
+    - cargo doc --no-deps --document-private-items
+    - cargo deadlinks --dir target/doc
+    - cd docs && python3 -m pip install sphinx sphinx-rtd-theme && make html
+  artifacts:
+    paths:
+      - target/doc/
+      - docs/_build/html/
+    expire_in: 1 week
+
+quality:sonarqube:
+  stage: quality
+  image: sonarsource/sonar-scanner-cli:latest
+  needs: ["test:unit", "security:audit"]
+  script:
+    - sonar-scanner
+      -Dsonar.projectKey=$CI_PROJECT_NAME
+      -Dsonar.sources=.
+      -Dsonar.host.url=$SONAR_HOST_URL
+      -Dsonar.login=$SONAR_TOKEN
+      -Dsonar.rust.coverage.reportPaths=target/tarpaulin-report.xml
+      -Dsonar.security.hotspots.reportPaths=security-results.sarif
+  artifacts:
+    reports:
+      sonarqube: sonarqube-report.json
+    expire_in: 1 week
+
+quality:formal-specs:
+  stage: quality
+  image: openjdk:11-slim
+  script:
+    - wget https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+    - java -cp tla2tools.jar tla2sany.SANY guru/formal/*.tla
+  artifacts:
+    reports:
+      junit: formal-spec-validation.xml
+    expire_in: 1 week
+
+# ============================================================================
+# PACKAGE STAGE - Multi-platform installer generation with cryptographic signing
+# ============================================================================
+.package_template: &package_template
+  stage: package
+  needs: ["security:audit", "performance:benchmarks", "quality:coverage"]
+  before_script:
+    - chmod +x scripts/deploy.sh
+  artifacts:
+    name: "installer-${OS_TYPE}-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - dist/
+      - sbom.json
+      - attestation.json
+      - provenance.json
+    expire_in: 1 month
+
+package:windows:
+  <<: *package_template
+  image: ubuntu:22.04
+  variables:
+    OS_TYPE: "windows"
+  before_script:
+    - apt-get update && apt-get install -y nsis osslsigncode
+    - chmod +x scripts/deploy.sh
+  script:
+    - ./scripts/deploy.sh --setup-environment --os windows
+    - ./scripts/deploy.sh --generate-installer --type nsis
+    - ./scripts/deploy.sh --sign-windows --certificate "$WINDOWS_SIGNING_CERT"
+    - ./scripts/deploy.sh --generate-sbom --generate-attestation --generate-provenance
+
+package:macos:
+  <<: *package_template
+  tags:
+    - macos
+  variables:
+    OS_TYPE: "macos"
+  script:
+    - ./scripts/deploy.sh --setup-environment --os macos
+    - ./scripts/deploy.sh --generate-installer --type pkgbuild
+    - ./scripts/deploy.sh --sign-macos --certificate "$APPLE_SIGNING_CERT"
+    - ./scripts/deploy.sh --notarize-macos
+    - ./scripts/deploy.sh --generate-sbom --generate-attestation --generate-provenance
+
+package:linux:
+  <<: *package_template
+  image: ubuntu:22.04
+  variables:
+    OS_TYPE: "linux"
+  before_script:
+    - apt-get update && apt-get install -y appimage-builder dpkg-dev rpm gnupg
+    - chmod +x scripts/deploy.sh
+  script:
+    - ./scripts/deploy.sh --setup-environment --os linux
+    - ./scripts/deploy.sh --generate-installer --type appimage
+    - ./scripts/deploy.sh --generate-installer --type deb
+    - ./scripts/deploy.sh --generate-installer --type rpm
+    - ./scripts/deploy.sh --sign-linux --gpg-key "$GPG_SIGNING_KEY"
+    - ./scripts/deploy.sh --generate-sbom --generate-attestation --generate-provenance
+
+package:helm-chart:
+  stage: package
+  image: alpine/helm:latest
+  needs: ["build:docker-images"]
+  script:
+    - helm package helm/agent-guru --version $HELM_CHART_VERSION --app-version $CI_COMMIT_SHA
+    - helm push agent-guru-$HELM_CHART_VERSION.tgz oci://$CI_REGISTRY/helm
+  artifacts:
+    paths:
+      - agent-guru-*.tgz
+    expire_in: 1 month
+
+# ============================================================================
+# STAGING DEPLOYMENT - Automated staging environment deployment
+# ============================================================================
+deploy:staging:
+  stage: deploy-staging
+  image: bitnami/kubectl:latest
+  environment:
+    name: staging
+    url: https://staging.agent-guru.com
+    deployment_tier: staging
+  needs: ["package:helm-chart", "package:linux"]
+  before_script:
+    - kubectl config use-context $KUBE_CONTEXT_STAGING
+    - helm repo add agent-guru $CI_REGISTRY/helm
+  script:
+    - helm upgrade --install agent-guru-staging agent-guru/agent-guru
+      --namespace $KUBERNETES_NAMESPACE-staging
+      --create-namespace
+      --set image.tag=$CI_COMMIT_SHA
+      --set environment=staging
+      --set replicaCount=2
+      --wait --timeout=10m
+    - kubectl rollout status deployment/agent-guru -n $KUBERNETES_NAMESPACE-staging
+  after_script:
+    - kubectl get pods -n $KUBERNETES_NAMESPACE-staging
+    - kubectl get services -n $KUBERNETES_NAMESPACE-staging
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+
+deploy:staging-canary:
+  stage: deploy-staging
+  image: bitnami/kubectl:latest
+  environment:
+    name: staging-canary
+    url: https://canary.staging.agent-guru.com
+    deployment_tier: staging
+  needs: ["package:helm-chart"]
+  script:
+    - helm upgrade --install agent-guru-canary agent-guru/agent-guru
+      --namespace $KUBERNETES_NAMESPACE-staging
+      --set image.tag=$CI_COMMIT_SHA
+      --set environment=staging-canary
+      --set replicaCount=1
+      --set canary.enabled=true
+      --set canary.weight=10
+      --wait --timeout=10m
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+
+# ============================================================================
+# INTEGRATION TESTING - Post-deployment validation
+# ============================================================================
+integration-test:api:
+  stage: integration-test
+  image: postman/newman:latest
+  needs: ["deploy:staging"]
+  environment:
+    name: staging
+  script:
+    - newman run tests/postman/agent-guru-api.json
+      --environment tests/postman/staging.json
+      --reporters cli,junit
+      --reporter-junit-export integration-test-results.xml
+  artifacts:
+    reports:
+      junit: integration-test-results.xml
+    expire_in: 1 week
+
+integration-test:performance:
+  stage: integration-test
+  image: grafana/k6:latest
+  needs: ["deploy:staging"]
+  environment:
+    name: staging
+  script:
+    - k6 run --out json=staging-performance.json tests/load/staging-validation.js
+  artifacts:
+    reports:
+      performance: staging-performance.json
+    expire_in: 1 week
+
+integration-test:security:
+  stage: integration-test
+  image: owasp/zap2docker-stable:latest
+  needs: ["deploy:staging"]
+  environment:
+    name: staging
+  script:
+    - zap-baseline.py -t https://staging.agent-guru.com -J zap-report.json
+  artifacts:
+    reports:
+      dast: zap-report.json
+    expire_in: 1 week
+  allow_failure: true
+
+# ============================================================================
+# PRODUCTION DEPLOYMENT - Blue-green deployment with automated rollback
+# ============================================================================
+deploy:production:
+  stage: deploy-production
+  image: bitnami/kubectl:latest
+  environment:
+    name: production
+    url: https://agent-guru.com
+    deployment_tier: production
+  needs: ["integration-test:api", "integration-test:performance", "package:helm-chart"]
+  before_script:
+    - kubectl config use-context $KUBE_CONTEXT_PRODUCTION
+    - helm repo add agent-guru $CI_REGISTRY/helm
+  script:
+    - |
+      # Blue-green deployment strategy
+      CURRENT_COLOR=$(kubectl get deployment agent-guru -n $KUBERNETES_NAMESPACE -o jsonpath='{.metadata.labels.color}' || echo "blue")
+      NEW_COLOR=$([ "$CURRENT_COLOR" = "blue" ] && echo "green" || echo "blue")
+      
+      echo "Deploying to $NEW_COLOR environment"
+      
+      # Deploy new version
+      helm upgrade --install agent-guru-$NEW_COLOR agent-guru/agent-guru
+        --namespace $KUBERNETES_NAMESPACE
+        --set image.tag=$CI_COMMIT_SHA
+        --set environment=production
+        --set color=$NEW_COLOR
+        --set replicaCount=5
+        --wait --timeout=15m
+      
+      # Health check
+      kubectl wait --for=condition=available --timeout=300s deployment/agent-guru-$NEW_COLOR -n $KUBERNETES_NAMESPACE
+      
+      # Switch traffic
+      kubectl patch service agent-guru -n $KUBERNETES_NAMESPACE -p '{"spec":{"selector":{"color":"'$NEW_COLOR'"}}}'
+      
+      # Wait for traffic switch
+      sleep 30
+      
+      # Cleanup old deployment
+      helm uninstall agent-guru-$CURRENT_COLOR -n $KUBERNETES_NAMESPACE || true
+  rules:
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+  allow_failure: false
+
+deploy:production-rollback:
+  stage: deploy-production
+  image: bitnami/kubectl:latest
+  environment:
+    name: production
+    url: https://agent-guru.com
+  script:
+    - helm rollback agent-guru -n $KUBERNETES_NAMESPACE
+    - kubectl rollout status deployment/agent-guru -n $KUBERNETES_NAMESPACE
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+  allow_failure: false
+
+# ============================================================================
+# NOTIFICATION AND REPORTING - Comprehensive pipeline reporting
+# ============================================================================
+notify:success:
+  stage: notify
+  image: alpine:latest
+  needs: ["deploy:production"]
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    - |
+      curl -X POST -H 'Content-type: application/json' \
+        --data "{\"text\":\"✅ AGENT_GURU Pipeline Success\n**Branch:** $CI_COMMIT_BRANCH\n**Commit:** $CI_COMMIT_SHA\n**Pipeline:** $CI_PIPELINE_URL\"}" \
+        $SLACK_WEBHOOK
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: on_success
+
+notify:failure:
+  stage: notify
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    - |
+      curl -X POST -H 'Content-type: application/json' \
+        --data "{\"text\":\"❌ AGENT_GURU Pipeline Failed\n**Branch:** $CI_COMMIT_BRANCH\n**Commit:** $CI_COMMIT_SHA\n**Pipeline:** $CI_PIPELINE_URL\n**Stage:** $CI_JOB_STAGE\"}" \
+        $SLACK_WEBHOOK
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: on_failure
+
+generate:reports:
+  stage: notify
+  image: python:3.11-slim
+  needs: 
+    - job: quality:coverage
+      artifacts: true
+    - job: security:audit
+      artifacts: true
+    - job: performance:benchmarks
+      artifacts: true
+  script:
+    - pip install jinja2 matplotlib seaborn pandas
+    - python3 scripts/generate-pipeline-report.py
+      --coverage target/cobertura.xml
+      --security security-reports/
+      --performance performance-reports/
+      --output pipeline-report.html
+  artifacts:
+    paths:
+      - pipeline-report.html
+    expire_in: 1 month
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+# ============================================================================
+# SCHEDULED JOBS - Maintenance and monitoring
+# ============================================================================
+nightly:full-validation:
+  extends: .test_template
+  script:
+    - ./scripts/test.sh --comprehensive --nightly
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_REF_NAME == "main"
+  timeout: 4h
+
+weekly:dependency-update:
+  stage: validate
+  image: rust:1.75-slim
+  script:
+    - cargo update
+    - cargo audit
+    - pip3 list --outdated
+    - python3 scripts/create-dependency-update-mr.py
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_REF_NAME == "main"
+  allow_failure: true
+
+monthly:security-audit:
+  stage: security
+  image: rust:1.75-slim
+  script:
+    - ./scripts/security-scan.sh --comprehensive --deep-scan
+    - python3 scripts/generate-security-report.py --monthly
+  artifacts:
+    paths:
+      - monthly-security-report.pdf
+    expire_in: 1 year
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_REF_NAME == "main"
+
+# ============================================================================
+# VALIDATION STAGE - Environment and dependency validation
+# ============================================================================
+validate:environment:
+  stage: validate
+  image: rust:1.75-slim
+  before_script:
+    - apt-get update && apt-get install -y build-essential cmake pkg-config python3 python3-pip
+    - rustup component add rustfmt clippy miri
+  script:
+    - rustc --version
+    - cargo --version
+    - python3 --version
+    - cmake --version
+    - echo "Environment validation successful"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+validate:dependencies:
+  stage: validate
+  image: rust:1.75-slim
+  script:
+    - cargo tree --duplicates
+    - cargo audit
+    - echo "Dependency validation successful"
+  allow_failure: false
+
+# ============================================================================
+# BUILD STAGE - Multi-platform compilation matrix
+# ============================================================================
+.build_template: &build_template
+  stage: build
+  before_script:
+    - apt-get update && apt-get install -y build-essential cmake pkg-config libssl-dev libsodium-dev
+    - rustup target add $RUST_TARGET
+    - python3 -m pip install --upgrade pip
+    - pip3 install -r guru/intelligence/requirements.txt
+  script:
+    - chmod +x scripts/build.sh
+    - ./scripts/build.sh --validate-environment --target $RUST_TARGET
+    - cargo build --release --target $RUST_TARGET --all-features
+    - cargo build --release --target $RUST_TARGET --bin agent-guru
+    - mkdir -p build && cd build
+    - cmake .. -DCMAKE_BUILD_TYPE=Release
+    - cmake --build . --config Release --parallel $(nproc)
+    - cd ../guru/intelligence && python3 -m py_compile *.py
+  artifacts:
+    name: "build-${RUST_TARGET}-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - target/$RUST_TARGET/release/
+      - build/
+      - guru/intelligence/dist/
+    expire_in: 1 week
+    reports:
+      junit: build-report.xml
+
+build:linux-x64:
+  <<: *build_template
+  image: rust:1.75-slim
+  variables:
+    RUST_TARGET: "x86_64-unknown-linux-gnu"
+
+build:linux-arm64:
+  <<: *build_template
+  image: rust:1.75-slim
+  variables:
+    RUST_TARGET: "aarch64-unknown-linux-gnu"
+  before_script:
+    - apt-get update && apt-get install -y gcc-aarch64-linux-gnu
+    - rustup target add $RUST_TARGET
+
+build:windows-x64:
+  <<: *build_template
+  image: rust:1.75-slim
+  variables:
+    RUST_TARGET: "x86_64-pc-windows-gnu"
+  before_script:
+    - apt-get update && apt-get install -y gcc-mingw-w64-x86-64
+    - rustup target add $RUST_TARGET
+
+build:macos-x64:
+  <<: *build_template
+  tags:
+    - macos
+  variables:
+    RUST_TARGET: "x86_64-apple-darwin"
+
+# ============================================================================
+# TEST STAGE - Comprehensive testing with parallel execution
+# ============================================================================
+.test_template: &test_template
+  stage: test
+  image: rust:1.75-slim
+  needs: ["build:linux-x64"]
+  before_script:
+    - apt-get update && apt-get install -y build-essential python3 python3-pip
+    - cargo install cargo-tarpaulin cargo-nextest
+    - pip3 install pytest pytest-cov hypothesis pytest-xdist
+  coverage: '/^\d+\.\d+% coverage/'
+
+test:unit:
+  <<: *test_template
+  script:
+    - chmod +x scripts/test.sh
+    - ./scripts/test.sh --unit --parallel --coverage
+  artifacts:
+    reports:
+      junit: test-results.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+test:integration:
+  <<: *test_template
+  script:
+    - ./scripts/test.sh --integration --parallel
+  artifacts:
+    reports:
+      junit: integration-results.xml
+
+test:property-based:
+  <<: *test_template
+  script:
+    - ./scripts/test.sh --property-based --iterations 10000
+  artifacts:
+    reports:
+      junit: property-test-results.xml
+  timeout: 2h
+
+test:memory-safety:
+  <<: *test_template
+  image: rustlang/rust:nightly-slim
+  script:
+    - rustup component add miri
+    - cargo +nightly miri test
+  allow_failure: true
+
+test:python:
+  stage: test
+  image: python:3.11-slim
+  needs: ["build:linux-x64"]
+  script:
+    - cd guru/intelligence
+    - python -m pytest tests/ -v --cov=. --cov-report=xml --cov-report=html -n auto
+  artifacts:
+    reports:
+      junit: guru/intelligence/test-results.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: guru/intelligence/coverage.xml
+
+test:formal-verification:
+  stage: test
+  image: openjdk:11-slim
+  script:
+    - wget https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+    - java -cp tla2tools.jar tlc2.TLC guru/formal/*.tla
+  artifacts:
+    reports:
+      junit: formal-verification-results.xml
+
+# ============================================================================
+# SECURITY STAGE - Comprehensive security analysis
+# ============================================================================
+security:audit:
+  stage: security
+  image: rust:1.75-slim
+  needs: ["build:linux-x64"]
+  before_script:
+    - cargo install cargo-audit cargo-deny
+    - pip3 install safety bandit semgrep
+  script:
+    - chmod +x scripts/security-scan.sh
+    - ./scripts/security-scan.sh --rust-audit
+    - ./scripts/security-scan.sh --dependency-scan
+    - ./scripts/security-scan.sh --python-security
+    - ./scripts/security-scan.sh --static-analysis
+    - ./scripts/security-scan.sh --crypto-validation
+  artifacts:
+    reports:
+      sast: security-results.json
+    paths:
+      - security-report.html
+    expire_in: 1 week
+
+security:container-scan:
+  stage: security
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - docker build -t agent-guru:$CI_COMMIT_SHA .
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image agent-guru:$CI_COMMIT_SHA
+  artifacts:
+    reports:
+      container_scanning: container-security-report.json
+
+# ============================================================================
+# PERFORMANCE STAGE - Benchmarking and regression detection
+# ============================================================================
+performance:benchmarks:
+  stage: performance
+  image: rust:1.75-slim
+  needs: ["build:linux-x64"]
+  before_script:
+    - cargo install cargo-criterion
+    - pip3 install pytest-benchmark
+  script:
+    - chmod +x scripts/performance-test.sh
+    - ./scripts/performance-test.sh --benchmarks --regression-detection
+    - ./scripts/performance-test.sh --latency-validation
+    - ./scripts/performance-test.sh --memory-profiling
+  artifacts:
+    reports:
+      performance: performance-report.json
+    paths:
+      - target/criterion/
+      - performance-report.html
+    expire_in: 1 week
+
+performance:load-testing:
+  stage: performance
+  image: rust:1.75-slim
+  needs: ["build:linux-x64"]
+  script:
+    - ./scripts/performance-test.sh --load-testing
+  artifacts:
+    reports:
+      load_performance: load-test-report.json
+
+# ============================================================================
+# QUALITY STAGE - Code coverage and documentation validation
+# ============================================================================
+quality:coverage:
+  stage: quality
+  image: rust:1.75-slim
+  needs: ["test:unit", "test:integration", "test:python"]
+  script:
+    - cargo install cargo-tarpaulin
+    - cargo tarpaulin --out Xml --output-dir target/
+    - python3 scripts/validate-coverage.py --threshold 100 --critical-paths "guru/security,guru/crypto"
+  coverage: '/^\d+\.\d+% coverage/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: target/cobertura.xml
+
+quality:documentation:
+  stage: quality
+  image: rust:1.75-slim
+  script:
+    - cargo install cargo-doc cargo-deadlinks
+    - cargo doc --no-deps --document-private-items
+    - cargo deadlinks --dir target/doc
+  artifacts:
+    paths:
+      - target/doc/
+    expire_in: 1 week
+
+quality:formal-specs:
+  stage: quality
+  image: openjdk:11-slim
+  script:
+    - wget https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+    - java -cp tla2tools.jar tla2sany.SANY guru/formal/*.tla
+  artifacts:
+    reports:
+      junit: formal-spec-validation.xml
+
+# ============================================================================
+# PACKAGE STAGE - Installer generation and artifact preparation
+# ============================================================================
+.package_template: &package_template
+  stage: package
+  needs: ["security:audit", "performance:benchmarks", "quality:coverage"]
+  before_script:
+    - chmod +x scripts/deploy.sh
+  artifacts:
+    name: "installer-${OS_TYPE}-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - dist/
+      - sbom.json
+      - attestation.json
+    expire_in: 1 month
+
+package:windows:
+  <<: *package_template
+  image: ubuntu:22.04
+  variables:
+    OS_TYPE: "windows"
+  before_script:
+    - apt-get update && apt-get install -y nsis
+    - chmod +x scripts/deploy.sh
+  script:
+    - ./scripts/deploy.sh --setup-environment --os windows
+    - ./scripts/deploy.sh --generate-installer --type nsis
+    - ./scripts/deploy.sh --generate-sbom --generate-attestation
+
+package:macos:
+  <<: *package_template
+  tags:
+    - macos
+  variables:
+    OS_TYPE: "macos"
+  script:
+    - ./scripts/deploy.sh --setup-environment --os macos
+    - ./scripts/deploy.sh --generate-installer --type pkgbuild
+    - ./scripts/deploy.sh --generate-sbom --generate-attestation
+
+package:linux:
+  <<: *package_template
+  image: ubuntu:22.04
+  variables:
+    OS_TYPE: "linux"
+  before_script:
+    - apt-get update && apt-get install -y appimage-builder
+    - chmod +x scripts/deploy.sh
+  script:
+    - ./scripts/deploy.sh --setup-environment --os linux
+    - ./scripts/deploy.sh --generate-installer --type appimage
+    - ./scripts/deploy.sh --generate-sbom --generate-attestation
+
+# ============================================================================
+# DEPLOY STAGE - Environment-specific deployment
+# ============================================================================
+deploy:staging:
+  stage: deploy
+  image: ubuntu:22.04
+  needs: ["package:linux", "package:windows", "package:macos"]
+  environment:
+    name: staging
+    url: https://staging.agent-guru.com
+  script:
+    - chmod +x scripts/deploy.sh
+    - ./scripts/deploy.sh --deploy-staging
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+
+deploy:production:
+  stage: deploy
+  image: ubuntu:22.04
+  needs: ["package:linux", "package:windows", "package:macos"]
+  environment:
+    name: production
+    url: https://agent-guru.com
+  before_script:
+    - echo "Deploying to production environment"
+  script:
+    - chmod +x scripts/deploy.sh
+    - ./scripts/deploy.sh --deploy-production
+  rules:
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+  allow_failure: false
+
+# ============================================================================
+# NOTIFICATION STAGE - Pipeline reporting and alerts
+# ============================================================================
+notify:success:
+  stage: notify
+  image: alpine:latest
+  needs: ["deploy:staging"]
+  script:
+    - echo "Pipeline completed successfully"
+    - echo "Build: $CI_PIPELINE_URL"
+    - echo "Commit: $CI_COMMIT_SHA"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: on_success
+
+notify:failure:
+  stage: notify
+  image: alpine:latest
+  script:
+    - echo "Pipeline failed"
+    - echo "Build: $CI_PIPELINE_URL"
+    - echo "Commit: $CI_COMMIT_SHA"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: on_failure
+
+# ============================================================================
+# SCHEDULED JOBS - Maintenance and monitoring
+# ============================================================================
+nightly:full-validation:
+  extends: .test_template
+  script:
+    - ./scripts/test.sh --comprehensive --nightly
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  timeout: 4h
+
+weekly:dependency-update:
+  stage: validate
+  image: rust:1.75-slim
+  script:
+    - cargo update
+    - cargo audit
+    - pip3 list --outdated
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_REF_NAME == "main"
+  allow_failure: true

@@ -89,7 +89,7 @@ pub struct AgentId {
 
 impl AgentId {
     /// Create a new agent identifier
-    pub fn new(agent_type: &str, instance_key: &str, namespace: &str) -> Self {
+    pub fn new(_agent_type: &str, _instance_key: &str, _namespace: &str) -> Self {
         Self {
             agent_type: agent_type.to_string(),
             instance_key: instance_key.to_string(),
@@ -113,7 +113,7 @@ pub struct TopicId {
 
 impl TopicId {
     /// Create a new topic identifier with validation
-    pub fn new(topic_type: &str, source: &str) -> Self {
+    pub fn new(_topic_type: &str, _source: &str) -> Self {
         // Validate topic type according to CloudEvents specification
         if !Self::is_valid_topic_type(topic_type) {
             panic!("Invalid topic type: {}", topic_type);
@@ -126,7 +126,7 @@ impl TopicId {
     }
     
     /// Validate topic type format
-    fn is_valid_topic_type(topic_type: &str) -> bool {
+    fn is_valid_topic_type(_topic_type: &str) -> bool {
         // CloudEvents type validation: ^[\w\-\.\:\=]+\Z
         topic_type.chars().all(|c| c.is_alphanumeric() || matches!(c, '-' | '.' | ':' | '='))
     }
@@ -167,7 +167,7 @@ impl MessageEnvelope {
     pub fn new_direct_message(
         sender: AgentId,
         recipient: AgentId,
-        message_type: &str,
+        _message_type: &str,
         payload: Vec<u8>,
     ) -> Self {
         Self {
@@ -188,7 +188,7 @@ impl MessageEnvelope {
     pub fn new_publish_message(
         sender: Option<AgentId>,
         topic_id: TopicId,
-        message_type: &str,
+        _message_type: &str,
         payload: Vec<u8>,
     ) -> Self {
         Self {
@@ -296,7 +296,7 @@ pub struct Task {
     /// Type of task for categorization and routing
     pub task_type: String,
     /// Priority level (higher numbers = higher priority)
-    pub priority: u32,
+    pub __priority: u32,
     /// List of task IDs that must complete before this task
     pub dependencies: Vec<String>,
     /// List of capabilities required to execute this task
@@ -308,7 +308,7 @@ pub struct Task {
     /// Maximum execution time in seconds
     pub timeout_seconds: u64,
     /// Number of retry attempts if task fails
-    pub retry_count: u32,
+    pub __retry_count: u32,
     /// Timestamp when task was created
     pub created_at: SystemTime,
     /// Optional deadline for task completion
@@ -317,19 +317,19 @@ pub struct Task {
 
 impl Task {
     /// Create a new task with basic parameters
-    pub fn new(name: &str, task_type: &str, priority: u32) -> Self {
+    pub fn new(_name: &str, _task_type: &str, __priority: u32) -> Self {
         Self {
             task_id: Uuid::new_v4().to_string(),
             name: name.to_string(),
             description: String::new(),
             task_type: task_type.to_string(),
-            priority,
+            __priority: priority,
             dependencies: Vec::new(),
             required_capabilities: Vec::new(),
             input_data: HashMap::new(),
             expected_output_types: Vec::new(),
             timeout_seconds: TASK_TIMEOUT_SECONDS,
-            retry_count: 0,
+            __retry_count: 0,
             created_at: SystemTime::now(),
             deadline: None,
         }
@@ -505,7 +505,7 @@ pub struct Subscription {
     /// Message types this subscription is interested in
     pub message_types: Vec<String>,
     /// Priority for message delivery (higher = first)
-    pub priority: u32,
+    pub __priority: u32,
     /// Timestamp when subscription was created
     pub created_at: SystemTime,
     /// Whether this subscription is currently active
@@ -514,13 +514,13 @@ pub struct Subscription {
 
 impl Subscription {
     /// Create a new subscription
-    pub fn new(agent_id: AgentId, topic_pattern: &str, message_types: Vec<String>) -> Self {
+    pub fn new(agent_id: AgentId, _topic_pattern: &str, message_types: Vec<String>) -> Self {
         Self {
             subscription_id: Uuid::new_v4().to_string(),
             agent_id,
             topic_pattern: topic_pattern.to_string(),
             message_types,
-            priority: 100,
+            _priority: 100,
             created_at: SystemTime::now(),
             is_active: true,
         }
@@ -538,7 +538,7 @@ impl Subscription {
         }
         
         if self.topic_pattern.ends_with("*") {
-            let prefix = &self.topic_pattern[..self.topic_pattern.len() - 1];
+            let _prefix = &self.topic_pattern[..self.topic_pattern.len() - 1];
             return topic_id.topic_type.starts_with(prefix);
         }
         
@@ -598,7 +598,7 @@ pub struct MultiAgentOrchestrator {
     
     // Communication channels
     message_queue: Arc<Mutex<VecDeque<MessageEnvelope>>>,
-    agent_channels: Arc<RwLock<HashMap<AgentId, mpsc::UnboundedSender<MessageEnvelope>>>>,
+    agent__channels: Arc<RwLock<HashMap<AgentId, mpsc::UnboundedSender<MessageEnvelope>>>>,
     
     // Conflict resolution
     active_conflicts: Arc<RwLock<HashMap<String, AgentConflict>>>,
@@ -679,7 +679,7 @@ pub struct AuditEntry {
 
 impl AuditEntry {
     /// Create a new audit entry
-    pub fn new(event_type: &str, agent_id: Option<AgentId>, success: bool) -> Self {
+    pub fn new(_event_type: &str, agent_id: Option<AgentId>, success: bool) -> Self {
         Self {
             entry_id: Uuid::new_v4().to_string(),
             timestamp: SystemTime::now(),
@@ -701,7 +701,7 @@ impl MultiAgentOrchestrator {
             active_tasks: Arc::new(RwLock::new(HashMap::new())),
             subtasks: Arc::new(RwLock::new(HashMap::new())),
             message_queue: Arc::new(Mutex::new(VecDeque::new())),
-            agent_channels: Arc::new(RwLock::new(HashMap::new())),
+            agent__channels: Arc::new(RwLock::new(HashMap::new())),
             active_conflicts: Arc::new(RwLock::new(HashMap::new())),
             resolution_history: Arc::new(RwLock::new(Vec::new())),
             available_resources: Arc::new(RwLock::new(ResourceRequirements::default())),
@@ -728,7 +728,7 @@ impl MultiAgentOrchestrator {
             metadata.last_heartbeat = SystemTime::now();
             
             // Create audit entry
-            let audit_entry = AuditEntry::new(
+            let _audit_entry = AuditEntry::new(
                 "agent_status_updated",
                 Some(agent_id.clone()),
                 true,
@@ -773,7 +773,7 @@ impl MultiAgentOrchestrator {
             });
         }
         
-        let metadata = AgentMetadata {
+        let _metadata = AgentMetadata {
             agent_id: agent_id.clone(),
             capabilities,
             current_status: AgentStatus::Ready, // Set to Ready immediately for testing
@@ -792,7 +792,7 @@ impl MultiAgentOrchestrator {
         allocations.insert(agent_id.clone(), resource_requirements);
         
         // Create audit entry
-        let audit_entry = AuditEntry::new("agent_registered", Some(agent_id), true);
+        let _audit_entry = AuditEntry::new("agent_registered", Some(agent_id), true);
         self.audit_trail.write().unwrap().push(audit_entry);
         
         Ok(())
@@ -803,13 +803,13 @@ impl MultiAgentOrchestrator {
         let mut subtasks = Vec::new();
         
         // Task decomposition algorithm based on capability matching
-        let agents = self.agents.read().unwrap();
+        let _agents = self.agents.read().unwrap();
         let mut available_capabilities: HashMap<String, Vec<AgentId>> = HashMap::new();
         
         // Build capability index
-        for (agent_id, metadata) in agents.iter() {
+        for (_agent_id, metadata) in agents.iter() {
             if metadata.current_status == AgentStatus::Ready {
-                for capability in &metadata.capabilities {
+                for _capability in &metadata.capabilities {
                     available_capabilities
                         .entry(capability.capability_id.clone())
                         .or_insert_with(Vec::new)
@@ -819,7 +819,7 @@ impl MultiAgentOrchestrator {
         }
         
         // Decompose based on required capabilities
-        for (index, required_capability) in task.required_capabilities.iter().enumerate() {
+        for (_index, required_capability) in task.required_capabilities.iter().enumerate() {
             if let Some(capable_agents) = available_capabilities.get(required_capability) {
                 if capable_agents.is_empty() {
                     return Err(OrchestrationError::TaskDecompositionFailed {
@@ -833,7 +833,7 @@ impl MultiAgentOrchestrator {
                 subtask_definition.name = format!("{}_subtask_{}", task.name, index);
                 subtask_definition.required_capabilities = vec![required_capability.clone()];
                 
-                let subtask = SubTask {
+                let _subtask = SubTask {
                     subtask_id: Uuid::new_v4().to_string(),
                     parent_task_id: task.task_id.clone(),
                     assigned_agent: None, // Will be assigned during coordination
@@ -854,7 +854,7 @@ impl MultiAgentOrchestrator {
         
         // If no specific capabilities required, create single subtask
         if subtasks.is_empty() {
-            let subtask = SubTask {
+            let _subtask = SubTask {
                 subtask_id: Uuid::new_v4().to_string(),
                 parent_task_id: task.task_id.clone(),
                 assigned_agent: None,
@@ -878,8 +878,8 @@ impl MultiAgentOrchestrator {
         let mut assigned_subtasks = Vec::new();
         
         // Phase 1: Agent assignment with conflict detection
-        for subtask in subtasks {
-            let assigned_agent = self.assign_optimal_agent(&subtask.task_definition).await?;
+        for _subtask in subtasks {
+            let _assigned_agent = self.assign_optimal_agent(&subtask.task_definition).await?;
             
             let mut assigned_subtask = subtask.clone();
             assigned_subtask.assigned_agent = Some(assigned_agent.clone());
@@ -889,24 +889,24 @@ impl MultiAgentOrchestrator {
         }
         
         // Phase 2: Conflict detection and resolution
-        let conflicts = self.detect_conflicts(&assigned_subtasks).await?;
+        let _conflicts = self.detect_conflicts(&assigned_subtasks).await?;
         if !conflicts.is_empty() {
-            let resolutions = self.resolve_conflicts(&conflicts).await?;
+            let _resolutions = self.resolve_conflicts(&conflicts).await?;
             self.apply_conflict_resolutions(&mut assigned_subtasks, &resolutions).await?;
         }
         
         // Phase 3: Parallel execution with monitoring
         let mut execution_handles = Vec::new();
         
-        for subtask in assigned_subtasks {
+        for _subtask in assigned_subtasks {
             if let Some(agent_id) = &subtask.assigned_agent {
-                let handle = self.execute_subtask_async(subtask.clone(), agent_id.clone()).await?;
+                let _handle = self.execute_subtask_async(subtask.clone(), agent_id.clone()).await?;
                 execution_handles.push(handle);
             }
         }
         
         // Phase 4: Result collection with timeout handling
-        for handle in execution_handles {
+        for _handle in execution_handles {
             match timeout(self.task_timeout, handle).await {
                 Ok(Ok(Ok(result))) => results.push(result),
                 Ok(Ok(Err(e))) => {
@@ -930,21 +930,21 @@ impl MultiAgentOrchestrator {
     
     /// Assign optimal agent for a task based on capabilities and load
     async fn assign_optimal_agent(&self, task: &Task) -> Result<AgentId, OrchestrationError> {
-        let agents = self.agents.read().unwrap();
+        let _agents = self.agents.read().unwrap();
         let mut candidates = Vec::new();
         
         // Find agents with required capabilities
-        for (agent_id, metadata) in agents.iter() {
+        for (_agent_id, metadata) in agents.iter() {
             if metadata.current_status != AgentStatus::Ready {
                 continue;
             }
             
-            let has_all_capabilities = task.required_capabilities.iter().all(|required| {
+            let _has_all_capabilities = task.required_capabilities.iter().all(|required| {
                 metadata.capabilities.iter().any(|cap| cap.capability_id == *required)
             });
             
             if has_all_capabilities {
-                let load_score = self.calculate_agent_load_score(metadata);
+                let _load_score = self.calculate_agent_load_score(metadata);
                 candidates.push((agent_id.clone(), load_score));
             }
         }
@@ -961,11 +961,11 @@ impl MultiAgentOrchestrator {
     }
     
     /// Calculate agent load score for optimal assignment
-    fn calculate_agent_load_score(&self, metadata: &AgentMetadata) -> f64 {
-        let task_load = metadata.active_tasks.len() as f64;
-        let resource_utilization = metadata.performance_metrics.resource_utilization;
-        let response_time_factor = metadata.performance_metrics.average_response_time_ms / 1000.0;
-        let error_rate_penalty = metadata.performance_metrics.error_rate * 10.0;
+    fn calculate_agent_load_score(&self, _metadata: &AgentMetadata) -> f64 {
+        let _task_load = metadata.active_tasks.len() as f64;
+        let _resource_utilization = metadata.performance_metrics.resource_utilization;
+        let _response_time_factor = metadata.performance_metrics.average_response_time_ms / 1000.0;
+        let _error_rate_penalty = metadata.performance_metrics.error_rate * 10.0;
         
         task_load + resource_utilization + response_time_factor + error_rate_penalty
     }
@@ -976,7 +976,7 @@ impl MultiAgentOrchestrator {
         let mut agent_assignments: HashMap<AgentId, Vec<&SubTask>> = HashMap::new();
         
         // Group subtasks by assigned agent
-        for subtask in subtasks {
+        for _subtask in subtasks {
             if let Some(agent_id) = &subtask.assigned_agent {
                 agent_assignments
                     .entry(agent_id.clone())
@@ -986,17 +986,17 @@ impl MultiAgentOrchestrator {
         }
         
         // Detect resource contention conflicts
-        for (agent_id, assigned_tasks) in agent_assignments.iter() {
+        for (_agent_id, assigned_tasks) in agent_assignments.iter() {
             if assigned_tasks.len() > 1 {
                 // Check if agent can handle multiple concurrent tasks
-                let agents = self.agents.read().unwrap();
+                let _agents = self.agents.read().unwrap();
                 if let Some(metadata) = agents.get(agent_id) {
-                    let total_resource_demand = self.calculate_total_resource_demand(assigned_tasks);
-                    let agent_capacity = self.get_agent_resource_capacity(metadata);
+                    let _total_resource_demand = self.calculate_total_resource_demand(assigned_tasks);
+                    let _agent_capacity = self.get_agent_resource_capacity(metadata);
                     
                     if total_resource_demand.cpu_cores > agent_capacity.cpu_cores ||
                        total_resource_demand.memory_mb > agent_capacity.memory_mb {
-                        let conflict = AgentConflict {
+                        let _conflict = AgentConflict {
                             conflict_id: Uuid::new_v4().to_string(),
                             conflict_type: ConflictType::ResourceContention,
                             involved_agents: vec![agent_id.clone()],
@@ -1012,14 +1012,14 @@ impl MultiAgentOrchestrator {
         }
         
         // Detect task dependency conflicts
-        for subtask in subtasks {
-            for dependency in &subtask.task_definition.dependencies {
-                let dependent_subtask = subtasks.iter().find(|s| s.subtask_id == *dependency);
+        for _subtask in subtasks {
+            for _dependency in &subtask.task_definition.dependencies {
+                let _dependent_subtask = subtasks.iter().find(|s| s.subtask_id == *dependency);
                 if let Some(dep_subtask) = dependent_subtask {
                     if let (Some(agent1), Some(agent2)) = (&subtask.assigned_agent, &dep_subtask.assigned_agent) {
                         if agent1 == agent2 {
                             // Same agent handling dependent tasks - potential deadlock
-                            let conflict = AgentConflict {
+                            let _conflict = AgentConflict {
                                 conflict_id: Uuid::new_v4().to_string(),
                                 conflict_type: ConflictType::TaskDependency,
                                 involved_agents: vec![agent1.clone()],
@@ -1044,8 +1044,8 @@ impl MultiAgentOrchestrator {
     ) -> Result<Vec<ConflictResolution>, OrchestrationError> {
         let mut resolutions = Vec::new();
         
-        for conflict in conflicts {
-            let resolution = match conflict.conflict_type {
+        for _conflict in conflicts {
+            let _resolution = match conflict.conflict_type {
                 ConflictType::ResourceContention => {
                     self.resolve_resource_contention(conflict).await?
                 }
@@ -1075,17 +1075,17 @@ impl MultiAgentOrchestrator {
         conflict: &AgentConflict,
     ) -> Result<ConflictResolution, OrchestrationError> {
         let mut task_reassignments = HashMap::new();
-        let agents = self.agents.read().unwrap();
+        let _agents = self.agents.read().unwrap();
         
         // Find alternative agents for conflicting tasks
-        for task_id in &conflict.task_dependencies {
+        for _task_id in &conflict.task_dependencies {
             // Find agents with lower load that can handle the task
             let mut alternative_agents = Vec::new();
             
-            for (agent_id, metadata) in agents.iter() {
+            for (_agent_id, metadata) in agents.iter() {
                 if metadata.current_status == AgentStatus::Ready &&
                    !conflict.involved_agents.contains(agent_id) {
-                    let load_score = self.calculate_agent_load_score(metadata);
+                    let _load_score = self.calculate_agent_load_score(metadata);
                     alternative_agents.push((agent_id.clone(), load_score));
                 }
             }
@@ -1115,11 +1115,11 @@ impl MultiAgentOrchestrator {
     ) -> Result<ConflictResolution, OrchestrationError> {
         // For dependency conflicts, reassign one of the tasks to a different agent
         let mut task_reassignments = HashMap::new();
-        let agents = self.agents.read().unwrap();
+        let _agents = self.agents.read().unwrap();
         
         if let Some(task_id) = conflict.task_dependencies.first() {
             // Find alternative agent
-            for (agent_id, metadata) in agents.iter() {
+            for (_agent_id, metadata) in agents.iter() {
                 if metadata.current_status == AgentStatus::Ready &&
                    !conflict.involved_agents.contains(agent_id) {
                     task_reassignments.insert(task_id.clone(), agent_id.clone());
@@ -1148,8 +1148,8 @@ impl MultiAgentOrchestrator {
         let mut priority_adjustments = HashMap::new();
         
         // Adjust priorities based on conflict severity
-        for (agent_id, current_priority) in &conflict.priority_conflicts {
-            let adjusted_priority = current_priority + 10; // Increase priority
+        for (_agent_id, current_priority) in &conflict.priority_conflicts {
+            let _adjusted_priority = current_priority + 10; // Increase priority
             priority_adjustments.insert(agent_id.clone(), adjusted_priority);
         }
         
@@ -1206,9 +1206,9 @@ impl MultiAgentOrchestrator {
         subtasks: &mut [SubTask],
         resolutions: &[ConflictResolution],
     ) -> Result<(), OrchestrationError> {
-        for resolution in resolutions {
+        for _resolution in resolutions {
             // Apply task reassignments
-            for (task_id, new_agent) in &resolution.task_reassignments {
+            for (_task_id, new_agent) in &resolution.task_reassignments {
                 if let Some(subtask) = subtasks.iter_mut().find(|s| s.subtask_id == *task_id) {
                     subtask.assigned_agent = Some(new_agent.clone());
                 }
@@ -1227,13 +1227,13 @@ impl MultiAgentOrchestrator {
         subtask: SubTask,
         agent_id: AgentId,
     ) -> Result<tokio::task::JoinHandle<Result<TaskResult, OrchestrationError>>, OrchestrationError> {
-        let orchestrator = self.clone_for_async();
+        let _orchestrator = self.clone_for_async();
         
-        let handle = tokio::spawn(async move {
-            let start_time = Instant::now();
+        let _handle = tokio::spawn(async move {
+            let _start_time = Instant::now();
             
             // Create task message
-            let message = MessageEnvelope::new_direct_message(
+            let _message = MessageEnvelope::new_direct_message(
                 AgentId::new("orchestrator", "main", "system"),
                 agent_id.clone(),
                 "execute_task",
@@ -1241,7 +1241,7 @@ impl MultiAgentOrchestrator {
             );
             
             // Send task to agent (simplified - in real implementation would use proper channels)
-            let result = TaskResult {
+            let _result = TaskResult {
                 result_id: Uuid::new_v4().to_string(),
                 task_id: subtask.task_definition.task_id.clone(),
                 success: true,
@@ -1270,10 +1270,10 @@ impl MultiAgentOrchestrator {
         let mut agents = self.agents.write().unwrap();
         
         if let Some(metadata) = agents.get_mut(agent_id) {
-            let metrics = &mut metadata.performance_metrics;
+            let _metrics = &mut metadata.performance_metrics;
             
             // Update response time (exponential moving average)
-            let alpha = 0.1;
+            let _alpha = 0.1;
             metrics.average_response_time_ms = 
                 alpha * result.execution_time_ms as f64 + 
                 (1.0 - alpha) * metrics.average_response_time_ms;
@@ -1298,12 +1298,12 @@ impl MultiAgentOrchestrator {
         &self,
         requirements: &ResourceRequirements,
     ) -> Result<bool, OrchestrationError> {
-        let available = self.available_resources.read().unwrap();
-        let allocations = self.resource_allocations.read().unwrap();
+        let _available = self.available_resources.read().unwrap();
+        let _allocations = self.resource_allocations.read().unwrap();
         
         // Calculate currently allocated resources
         let mut total_allocated = ResourceRequirements::default();
-        for allocation in allocations.values() {
+        for _allocation in allocations.values() {
             total_allocated.cpu_cores += allocation.cpu_cores;
             total_allocated.memory_mb += allocation.memory_mb;
             total_allocated.disk_mb += allocation.disk_mb;
@@ -1323,7 +1323,7 @@ impl MultiAgentOrchestrator {
     fn calculate_total_resource_demand(&self, tasks: &[&SubTask]) -> ResourceRequirements {
         let mut total = ResourceRequirements::default();
         
-        for task in tasks {
+        for _task in tasks {
             // Simplified - in real implementation would look up task resource requirements
             total.cpu_cores += 0.5;
             total.memory_mb += 256;
@@ -1335,7 +1335,7 @@ impl MultiAgentOrchestrator {
     }
     
     /// Get agent resource capacity
-    fn get_agent_resource_capacity(&self, metadata: &AgentMetadata) -> ResourceRequirements {
+    fn get_agent_resource_capacity(&self, _metadata: &AgentMetadata) -> ResourceRequirements {
         // Simplified - in real implementation would be based on agent configuration
         ResourceRequirements {
             cpu_cores: 2.0,
@@ -1355,7 +1355,7 @@ impl MultiAgentOrchestrator {
             active_tasks: Arc::clone(&self.active_tasks),
             subtasks: Arc::clone(&self.subtasks),
             message_queue: Arc::clone(&self.message_queue),
-            agent_channels: Arc::clone(&self.agent_channels),
+            agent__channels: Arc::clone(&self.agent__channels),
             active_conflicts: Arc::clone(&self.active_conflicts),
             resolution_history: Arc::clone(&self.resolution_history),
             available_resources: Arc::clone(&self.available_resources),
@@ -1375,19 +1375,19 @@ impl MultiAgentOrchestrator {
         message: MessageEnvelope,
     ) -> Result<(), OrchestrationError> {
         if let Some(topic_id) = &message.topic_id {
-            let subscriptions = self.subscriptions.read().unwrap();
+            let _subscriptions = self.subscriptions.read().unwrap();
             let mut recipients = Vec::new();
             
             // Find all agents subscribed to this topic
-            for subscription in subscriptions.values() {
+            for _subscription in subscriptions.values() {
                 if subscription.matches_topic(topic_id) {
                     recipients.push(subscription.agent_id.clone());
                 }
             }
             
             // Send message to all recipients
-            let agent_channels = self.agent_channels.read().unwrap();
-            for recipient in recipients {
+            let _agent_channels = self.agent_channels.read().unwrap();
+            for _recipient in recipients {
                 if let Some(sender) = agent_channels.get(&recipient) {
                     let mut recipient_message = message.clone();
                     recipient_message.recipient = Some(recipient.clone());
@@ -1401,7 +1401,7 @@ impl MultiAgentOrchestrator {
             }
             
             // Create audit entry
-            let audit_entry = AuditEntry::new(
+            let _audit_entry = AuditEntry::new(
                 "message_published",
                 message.sender.clone(),
                 true,
@@ -1418,7 +1418,7 @@ impl MultiAgentOrchestrator {
         message: MessageEnvelope,
     ) -> Result<(), OrchestrationError> {
         if let Some(recipient) = &message.recipient {
-            let agent_channels = self.agent_channels.read().unwrap();
+            let _agent_channels = self.agent_channels.read().unwrap();
             
             if let Some(sender) = agent_channels.get(recipient) {
                 if let Err(_) = sender.send(message.clone()) {
@@ -1428,7 +1428,7 @@ impl MultiAgentOrchestrator {
                 }
                 
                 // Create audit entry
-                let audit_entry = AuditEntry::new(
+                let _audit_entry = AuditEntry::new(
                     "message_sent",
                     message.sender.clone(),
                     true,
@@ -1458,7 +1458,7 @@ impl MultiAgentOrchestrator {
     /// Remove subscription
     pub async fn remove_subscription(
         &self,
-        subscription_id: &str,
+        _subscription_id: &str,
     ) -> Result<(), OrchestrationError> {
         let mut subscriptions = self.subscriptions.write().unwrap();
         subscriptions.remove(subscription_id);
@@ -1468,8 +1468,8 @@ impl MultiAgentOrchestrator {
     
     /// Get system performance metrics
     pub async fn get_system_metrics(&self) -> SystemMetrics {
-        let agents = self.agents.read().unwrap();
-        let active_tasks = self.active_tasks.read().unwrap();
+        let _agents = self.agents.read().unwrap();
+        let _active_tasks = self.active_tasks.read().unwrap();
         
         let mut metrics = self.system_metrics.write().unwrap();
         metrics.total_agents = agents.len();
@@ -1498,7 +1498,7 @@ impl MultiAgentOrchestrator {
         agent_channels.clear();
         
         // Create shutdown audit entry
-        let audit_entry = AuditEntry::new("orchestrator_shutdown", None, true);
+        let _audit_entry = AuditEntry::new("orchestrator_shutdown", None, true);
         self.audit_trail.write().unwrap().push(audit_entry);
         
         Ok(())
@@ -1525,17 +1525,17 @@ mod tests {
     
     #[tokio::test]
     async fn test_orchestrator_creation() {
-        let orchestrator = MultiAgentOrchestrator::new();
-        let metrics = orchestrator.get_system_metrics().await;
+        let _orchestrator = MultiAgentOrchestrator::new();
+        let _metrics = orchestrator.get_system_metrics().await;
         assert_eq!(metrics.total_agents, 0);
         assert_eq!(metrics.active_agents, 0);
     }
     
     #[tokio::test]
     async fn test_agent_registration() {
-        let orchestrator = MultiAgentOrchestrator::new();
-        let agent_id = AgentId::new("test_agent", "instance_1", "default");
-        let capabilities = vec![
+        let _orchestrator = MultiAgentOrchestrator::new();
+        let _agent_id = AgentId::new("test_agent", "instance_1", "default");
+        let _capabilities = vec![
             AgentCapability {
                 capability_id: "text_processing".to_string(),
                 name: "Text Processing".to_string(),
@@ -1547,7 +1547,7 @@ mod tests {
             }
         ];
         
-        let result = orchestrator.register_agent(
+        let _result = orchestrator.register_agent(
             agent_id.clone(),
             capabilities,
             ResourceRequirements::default(),
@@ -1555,17 +1555,17 @@ mod tests {
         
         assert!(result.is_ok());
         
-        let metrics = orchestrator.get_system_metrics().await;
+        let _metrics = orchestrator.get_system_metrics().await;
         assert_eq!(metrics.total_agents, 1);
     }
     
     #[tokio::test]
     async fn test_task_decomposition() {
-        let orchestrator = MultiAgentOrchestrator::new();
+        let _orchestrator = MultiAgentOrchestrator::new();
         
         // Register test agent
-        let agent_id = AgentId::new("test_agent", "instance_1", "default");
-        let capabilities = vec![
+        let _agent_id = AgentId::new("test_agent", "instance_1", "default");
+        let _capabilities = vec![
             AgentCapability {
                 capability_id: "data_processing".to_string(),
                 name: "Data Processing".to_string(),
@@ -1587,10 +1587,10 @@ mod tests {
         let mut task = Task::new("test_task", "data_processing", 100);
         task.required_capabilities = vec!["data_processing".to_string()];
         
-        let subtasks = orchestrator.decompose_task(&task).await;
+        let _subtasks = orchestrator.decompose_task(&task).await;
         assert!(subtasks.is_ok());
         
-        let subtasks = subtasks.unwrap();
+        let _subtasks = subtasks.unwrap();
         assert!(!subtasks.is_empty());
     }
 }

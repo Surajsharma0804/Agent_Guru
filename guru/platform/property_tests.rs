@@ -49,35 +49,35 @@ use crate::platform::{
 
 #[cfg(feature = "stress-testing")]
 mod test_config {
-    pub const PROPERTY_TEST_CASES: u32 = 100000; // STRESS: Maximum validation
-    pub const TIMEOUT_MS: u32 = 28800000; // 8 hours
-    pub const MAX_SHRINK_ITERS: u32 = 10000;
-    pub const PROFILE_NAME: &str = "STRESS";
+    pub const _PROPERTY_TEST_CASES: u32 = 100000; // STRESS: Maximum validation
+    pub const _TIMEOUT_MS: u32 = 28800000; // 8 hours
+    pub const _MAX_SHRINK_ITERS: u32 = 10000;
+    pub const _PROFILE_NAME: &str = "STRESS";
 }
 
 #[cfg(all(feature = "production-testing", not(feature = "stress-testing")))]
 mod test_config {
-    pub const PROPERTY_TEST_CASES: u32 = 10000; // PRODUCTION: Full validation
-    pub const TIMEOUT_MS: u32 = 3600000; // 60 minutes
-    pub const MAX_SHRINK_ITERS: u32 = 1000;
-    pub const PROFILE_NAME: &str = "PRODUCTION";
+    pub const _PROPERTY_TEST_CASES: u32 = 10000; // PRODUCTION: Full validation
+    pub const _TIMEOUT_MS: u32 = 3600000; // 60 minutes
+    pub const _MAX_SHRINK_ITERS: u32 = 1000;
+    pub const _PROFILE_NAME: &str = "PRODUCTION";
 }
 
 #[cfg(all(feature = "ci-testing", not(feature = "production-testing"), not(feature = "stress-testing")))]
 mod test_config {
-    pub const PROPERTY_TEST_CASES: u32 = 1000; // CI: Comprehensive validation
-    pub const TIMEOUT_MS: u32 = 60000; // 60 seconds
-    pub const MAX_SHRINK_ITERS: u32 = 100;
-    pub const PROFILE_NAME: &str = "CI/TESTING";
+    pub const _PROPERTY_TEST_CASES: u32 = 1000; // CI: Comprehensive validation
+    pub const _TIMEOUT_MS: u32 = 60000; // 60 seconds
+    pub const _MAX_SHRINK_ITERS: u32 = 100;
+    pub const _PROFILE_NAME: &str = "CI/TESTING";
 }
 
 // Default fallback configuration
 #[cfg(not(any(feature = "ci-testing", feature = "production-testing", feature = "stress-testing")))]
 mod test_config {
-    pub const PROPERTY_TEST_CASES: u32 = 100; // Safe default
-    pub const TIMEOUT_MS: u32 = 10000;
-    pub const MAX_SHRINK_ITERS: u32 = 20;
-    pub const PROFILE_NAME: &str = "DEFAULT";
+    pub const _PROPERTY_TEST_CASES: u32 = 100; // Safe default
+    pub const _TIMEOUT_MS: u32 = 10000;
+    pub const _MAX_SHRINK_ITERS: u32 = 20;
+    pub const _PROFILE_NAME: &str = "DEFAULT";
 }
 
 // Import the selected configuration
@@ -178,12 +178,12 @@ proptest! {
     ) {
         // Property: OS control capabilities must work consistently across all platforms
         
-        let current_platform = detect_platform();
-        let performance_requirements = get_platform_performance_requirements(&current_platform);
+        let _current_platform = detect_platform();
+        let _performance_requirements = get_platform_performance_requirements(&current_platform);
         
         // Test application launch capabilities
-        for app_name in &app_names {
-            let launch_start = Instant::now();
+        for _app_name in &app_names {
+            let _launch_start = Instant::now();
             
             match current_platform {
                 Platform::Windows => {
@@ -196,7 +196,7 @@ proptest! {
                             prop_assert!(process_id.0 > 0, "Process ID must be positive: {}", process_id.0);
                             
                             // Property: Process should be trackable
-                            let processes = bridge.get_running_processes();
+                            let _processes = bridge.get_running_processes();
                             prop_assert!(processes.iter().any(|p| p.process_id == process_id),
                                         "Launched process should be in process list");
                         }
@@ -206,7 +206,7 @@ proptest! {
                     }
                     
                     // Property: Performance requirements must be met
-                    let launch_time = launch_start.elapsed();
+                    let _launch_time = launch_start.elapsed();
                     prop_assert!(launch_time.as_millis() <= performance_requirements.application_launch_time_ms as u128,
                                 "Application launch time {}ms exceeds Windows requirement {}ms",
                                 launch_time.as_millis(), performance_requirements.application_launch_time_ms);
@@ -218,7 +218,7 @@ proptest! {
                         Ok(process_id) => {
                             prop_assert!(process_id.0 > 0, "Process ID must be positive: {}", process_id.0);
                             
-                            let processes = bridge.get_running_processes();
+                            let _processes = bridge.get_running_processes();
                             prop_assert!(processes.iter().any(|p| p.process_id == process_id),
                                         "Launched process should be in process list");
                         }
@@ -227,7 +227,7 @@ proptest! {
                         }
                     }
                     
-                    let launch_time = launch_start.elapsed();
+                    let _launch_time = launch_start.elapsed();
                     prop_assert!(launch_time.as_millis() <= performance_requirements.application_launch_time_ms as u128,
                                 "Application launch time {}ms exceeds macOS requirement {}ms",
                                 launch_time.as_millis(), performance_requirements.application_launch_time_ms);
@@ -239,7 +239,7 @@ proptest! {
                         Ok(process_id) => {
                             prop_assert!(process_id.0 > 0, "Process ID must be positive: {}", process_id.0);
                             
-                            let processes = bridge.get_running_processes();
+                            let _processes = bridge.get_running_processes();
                             prop_assert!(processes.iter().any(|p| p.process_id == process_id),
                                         "Launched process should be in process list");
                         }
@@ -248,7 +248,7 @@ proptest! {
                         }
                     }
                     
-                    let launch_time = launch_start.elapsed();
+                    let _launch_time = launch_start.elapsed();
                     prop_assert!(launch_time.as_millis() <= performance_requirements.application_launch_time_ms as u128,
                                 "Application launch time {}ms exceeds Linux requirement {}ms",
                                 launch_time.as_millis(), performance_requirements.application_launch_time_ms);
@@ -260,15 +260,15 @@ proptest! {
         }
         
         // Test file operation capabilities
-        for (file_path, file_content) in file_paths.iter().zip(file_contents.iter()) {
-            let file_start = Instant::now();
+        for (_file_path, file_content) in file_paths.iter().zip(file_contents.iter()) {
+            let _file_start = Instant::now();
             
             match current_platform {
                 Platform::Windows => {
                     let mut bridge = WindowsControlBridge::new().unwrap();
                     
                     // Test file creation
-                    let create_op = WindowsFileOperation::Create {
+                    let _create_op = WindowsFileOperation::Create {
                         path: file_path.clone(),
                         content: file_content.clone(),
                     };
@@ -285,7 +285,7 @@ proptest! {
                     }
                     
                     // Test file reading
-                    let read_op = WindowsFileOperation::Read {
+                    let _read_op = WindowsFileOperation::Read {
                         path: file_path.clone(),
                     };
                     
@@ -304,7 +304,7 @@ proptest! {
                 Platform::MacOS => {
                     let mut bridge = MacOSControlBridge::new().unwrap();
                     
-                    let create_op = crate::platform::macos::FileOperation::Create {
+                    let _create_op = crate::platform::macos::FileOperation::Create {
                         path: file_path.clone(),
                         content: file_content.clone(),
                     };
@@ -321,7 +321,7 @@ proptest! {
                 Platform::Linux => {
                     let mut bridge = LinuxControlBridge::new().unwrap();
                     
-                    let create_op = crate::platform::linux::FileOperation::Create {
+                    let _create_op = crate::platform::linux::FileOperation::Create {
                         path: file_path.clone(),
                         content: file_content.clone(),
                     };
@@ -341,27 +341,27 @@ proptest! {
             }
             
             // Property: File operation performance requirements
-            let file_time = file_start.elapsed();
+            let _file_time = file_start.elapsed();
             prop_assert!(file_time.as_millis() <= performance_requirements.file_operation_time_ms as u128,
                         "File operation time {}ms exceeds requirement {}ms for platform {:?}",
                         file_time.as_millis(), performance_requirements.file_operation_time_ms, current_platform);
         }
         
         // Test window management capabilities
-        for (x, y, width, height) in &window_coords {
-            let window_start = Instant::now();
+        for (_x, y, width, height) in &window_coords {
+            let _window_start = Instant::now();
             
             match current_platform {
                 Platform::Windows => {
                     let mut bridge = WindowsControlBridge::new().unwrap();
-                    let window_id = crate::platform::windows::WindowId(fastrand::u64(1..u64::MAX));
+                    let _window_id = crate::platform::windows::WindowId(fastrand::u64(1..u64::MAX));
                     
                     // Test window move operation
-                    let move_action = WindowsWindowAction::Move { x: *x, y: *y };
+                    let _move_action = WindowsWindowAction::Move { x: *x, y: *y };
                     match bridge.control_window(window_id, move_action) {
                         Ok(_) => {
                             // Property: Window operations should update window state
-                            let windows = bridge.get_active_windows();
+                            let _windows = bridge.get_active_windows();
                             if let Some(window) = windows.iter().find(|w| w.window_id == window_id) {
                                 prop_assert_eq!(window.bounds.x, *x, "Window X coordinate should be updated");
                                 prop_assert_eq!(window.bounds.y, *y, "Window Y coordinate should be updated");
@@ -373,13 +373,13 @@ proptest! {
                     }
                     
                     // Test window resize operation
-                    let resize_action = WindowsWindowAction::Resize { width: *width, height: *height };
+                    let _resize_action = WindowsWindowAction::Resize { _width: *width, _height: *height };
                     match bridge.control_window(window_id, resize_action) {
                         Ok(_) => {
-                            let windows = bridge.get_active_windows();
+                            let _windows = bridge.get_active_windows();
                             if let Some(window) = windows.iter().find(|w| w.window_id == window_id) {
-                                prop_assert_eq!(window.bounds.width, *width, "Window width should be updated");
-                                prop_assert_eq!(window.bounds.height, *height, "Window height should be updated");
+                                prop_assert_eq!(window.bounds._width, *width, "Window width should be updated");
+                                prop_assert_eq!(window.bounds._height, *height, "Window height should be updated");
                             }
                         }
                         Err(_) => {
@@ -389,12 +389,12 @@ proptest! {
                 }
                 Platform::MacOS => {
                     let mut bridge = MacOSControlBridge::new().unwrap();
-                    let window_id = crate::platform::macos::WindowId(fastrand::u32(1..u32::MAX));
+                    let _window_id = crate::platform::macos::WindowId(fastrand::u32(1..u32::MAX));
                     
-                    let move_action = MacOSWindowAction::Move { x: *x as f64, y: *y as f64 };
+                    let _move_action = MacOSWindowAction::Move { x: *x as f64, y: *y as f64 };
                     match bridge.control_window(window_id, move_action) {
                         Ok(_) => {
-                            let windows = bridge.get_active_windows();
+                            let _windows = bridge.get_active_windows();
                             if let Some(window) = windows.iter().find(|w| w.window_id == window_id) {
                                 prop_assert!((window.bounds.x - *x as f64).abs() < 1.0, 
                                            "Window X coordinate should be approximately correct");
@@ -409,12 +409,12 @@ proptest! {
                 }
                 Platform::Linux => {
                     let mut bridge = LinuxControlBridge::new().unwrap();
-                    let window_id = crate::platform::linux::WindowId(fastrand::u64(1..u64::MAX));
+                    let _window_id = crate::platform::linux::WindowId(fastrand::u64(1..u64::MAX));
                     
-                    let move_action = LinuxWindowAction::Move { x: *x, y: *y };
+                    let _move_action = LinuxWindowAction::Move { x: *x, y: *y };
                     match bridge.control_window(window_id, move_action) {
                         Ok(_) => {
-                            let windows = bridge.get_active_windows();
+                            let _windows = bridge.get_active_windows();
                             if let Some(window) = windows.iter().find(|w| w.window_id == window_id) {
                                 prop_assert_eq!(window.bounds.x, *x, "Window X coordinate should be updated");
                                 prop_assert_eq!(window.bounds.y, *y, "Window Y coordinate should be updated");
@@ -431,23 +431,23 @@ proptest! {
             }
             
             // Property: Window operation performance requirements
-            let window_time = window_start.elapsed();
+            let _window_time = window_start.elapsed();
             prop_assert!(window_time.as_millis() <= performance_requirements.window_operation_time_ms as u128,
                         "Window operation time {}ms exceeds requirement {}ms for platform {:?}",
                         window_time.as_millis(), performance_requirements.window_operation_time_ms, current_platform);
         }
         
         // Test system settings modification
-        for volume in &volumes {
+        for _volume in &volumes {
             match current_platform {
                 Platform::Windows => {
                     let mut bridge = WindowsControlBridge::new().unwrap();
-                    let volume_setting = WindowsSystemSetting::Volume((*volume * 100.0) as u8);
+                    let _volume_setting = WindowsSystemSetting::Volume((*volume * 100.0) as u8);
                     
                     match bridge.modify_system_setting(volume_setting) {
                         Ok(_) => {
                             // Property: System settings should be modifiable
-                            let metrics = bridge.get_performance_metrics();
+                            let _metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.total_operations > 0, "Operations should be tracked");
                         }
                         Err(e) => {
@@ -461,11 +461,11 @@ proptest! {
                 }
                 Platform::MacOS => {
                     let mut bridge = MacOSControlBridge::new().unwrap();
-                    let volume_setting = MacOSSystemSetting::Volume(*volume);
+                    let _volume_setting = MacOSSystemSetting::Volume(*volume);
                     
                     match bridge.modify_system_setting(volume_setting) {
                         Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
+                            let _metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.total_operations > 0, "Operations should be tracked");
                         }
                         Err(e) => {
@@ -478,11 +478,11 @@ proptest! {
                 }
                 Platform::Linux => {
                     let mut bridge = LinuxControlBridge::new().unwrap();
-                    let volume_setting = LinuxSystemSetting::Volume(*volume);
+                    let _volume_setting = LinuxSystemSetting::Volume(*volume);
                     
                     match bridge.modify_system_setting(volume_setting) {
                         Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
+                            let _metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.total_operations > 0, "Operations should be tracked");
                         }
                         Err(e) => {
@@ -519,19 +519,19 @@ proptest! {
     ) {
         // Property: System monitoring and automation must provide comprehensive capabilities
         
-        let current_platform = detect_platform();
-        let performance_requirements = get_platform_performance_requirements(&current_platform);
+        let _current_platform = detect_platform();
+        let _performance_requirements = get_platform_performance_requirements(&current_platform);
         
         // Test input event injection capabilities
-        for (x, y) in &mouse_coords {
-            let event_start = Instant::now();
+        for (_x, y) in &mouse_coords {
+            let _event_start = Instant::now();
             
             match current_platform {
                 Platform::Windows => {
                     let mut bridge = WindowsControlBridge::new().unwrap();
                     
                     // Test mouse click injection
-                    let click_event = WindowsInputEvent::MouseClick {
+                    let _click_event = WindowsInputEvent::MouseClick {
                         x: *x,
                         y: *y,
                         button: WindowsMouseButton::Left,
@@ -540,7 +540,7 @@ proptest! {
                     match bridge.inject_input_event(click_event) {
                         Ok(_) => {
                             // Property: Input events should be processed successfully
-                            let metrics = bridge.get_performance_metrics();
+                            let _metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.total_operations > 0, "Input events should be tracked");
                             prop_assert!(metrics.successful_operations > 0, "Successful events should be counted");
                         }
@@ -554,10 +554,10 @@ proptest! {
                     }
                     
                     // Test mouse move injection
-                    let move_event = WindowsInputEvent::MouseMove { x: *x, y: *y };
+                    let _move_event = WindowsInputEvent::MouseMove { x: *x, y: *y };
                     match bridge.inject_input_event(move_event) {
                         Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
+                            let _metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.event_injection_time_ms <= performance_requirements.event_injection_time_ms,
                                         "Event injection time should meet performance requirements");
                         }
@@ -569,7 +569,7 @@ proptest! {
                 Platform::MacOS => {
                     let mut bridge = MacOSControlBridge::new().unwrap();
                     
-                    let click_event = MacOSInputEvent::MouseClick {
+                    let _click_event = MacOSInputEvent::MouseClick {
                         x: *x as f64,
                         y: *y as f64,
                         button: MacOSMouseButton::Left,
@@ -577,7 +577,7 @@ proptest! {
                     
                     match bridge.inject_input_event(click_event) {
                         Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
+                            let _metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.total_operations > 0, "Input events should be tracked");
                         }
                         Err(e) => {
@@ -591,7 +591,7 @@ proptest! {
                 Platform::Linux => {
                     let mut bridge = LinuxControlBridge::new().unwrap();
                     
-                    let click_event = LinuxInputEvent::MouseClick {
+                    let _click_event = LinuxInputEvent::MouseClick {
                         x: *x,
                         y: *y,
                         button: LinuxMouseButton::Left,
@@ -599,7 +599,7 @@ proptest! {
                     
                     match bridge.inject_input_event(click_event) {
                         Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
+                            let _metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.total_operations > 0, "Input events should be tracked");
                         }
                         Err(e) => {
@@ -616,27 +616,27 @@ proptest! {
             }
             
             // Property: Event injection performance requirements
-            let event_time = event_start.elapsed();
+            let _event_time = event_start.elapsed();
             prop_assert!(event_time.as_millis() <= performance_requirements.event_injection_time_ms as u128,
                         "Event injection time {}ms exceeds requirement {}ms for platform {:?}",
                         event_time.as_millis(), performance_requirements.event_injection_time_ms, current_platform);
         }
         
         // Test keyboard input injection
-        for key_code in &key_codes {
+        for _key_code in &key_codes {
             match current_platform {
                 Platform::Windows => {
                     let mut bridge = WindowsControlBridge::new().unwrap();
                     
-                    let key_event = WindowsInputEvent::KeyPress {
-                        key_code: *key_code,
+                    let _key_event = WindowsInputEvent::KeyPress {
+                        _key_code: *key_code,
                         modifiers: vec![],
                     };
                     
                     match bridge.inject_input_event(key_event) {
                         Ok(_) => {
                             // Property: Valid key codes should be processed
-                            let metrics = bridge.get_performance_metrics();
+                            let _metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.successful_operations > 0, "Key events should be successful");
                         }
                         Err(e) => {
@@ -651,14 +651,14 @@ proptest! {
                 Platform::MacOS => {
                     let mut bridge = MacOSControlBridge::new().unwrap();
                     
-                    let key_event = MacOSInputEvent::KeyPress {
+                    let _key_event = MacOSInputEvent::KeyPress {
                         key_code: *key_code as u16,
                         modifiers: vec![],
                     };
                     
                     match bridge.inject_input_event(key_event) {
                         Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
+                            let _metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.successful_operations > 0, "Key events should be successful");
                         }
                         Err(e) => {
@@ -672,14 +672,14 @@ proptest! {
                 Platform::Linux => {
                     let mut bridge = LinuxControlBridge::new().unwrap();
                     
-                    let key_event = LinuxInputEvent::KeyPress {
-                        key_code: *key_code,
+                    let _key_event = LinuxInputEvent::KeyPress {
+                        _key_code: *key_code,
                         modifiers: vec![],
                     };
                     
                     match bridge.inject_input_event(key_event) {
                         Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
+                            let _metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.successful_operations > 0, "Key events should be successful");
                         }
                         Err(e) => {
@@ -697,19 +697,19 @@ proptest! {
         }
         
         // Test text input injection
-        for text in &text_inputs {
+        for _text in &text_inputs {
             match current_platform {
                 Platform::Windows => {
                     let mut bridge = WindowsControlBridge::new().unwrap();
                     
-                    let text_event = WindowsInputEvent::Text {
+                    let _text_event = WindowsInputEvent::Text {
                         content: text.clone(),
                     };
                     
                     match bridge.inject_input_event(text_event) {
                         Ok(_) => {
                             // Property: Text input should be processed successfully
-                            let metrics = bridge.get_performance_metrics();
+                            let _metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.total_operations > 0, "Text input should be tracked");
                         }
                         Err(_) => {
@@ -720,13 +720,13 @@ proptest! {
                 Platform::MacOS => {
                     let mut bridge = MacOSControlBridge::new().unwrap();
                     
-                    let text_event = MacOSInputEvent::Text {
+                    let _text_event = MacOSInputEvent::Text {
                         content: text.clone(),
                     };
                     
                     match bridge.inject_input_event(text_event) {
                         Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
+                            let _metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.total_operations > 0, "Text input should be tracked");
                         }
                         Err(_) => {
@@ -737,13 +737,13 @@ proptest! {
                 Platform::Linux => {
                     let mut bridge = LinuxControlBridge::new().unwrap();
                     
-                    let text_event = LinuxInputEvent::Text {
+                    let _text_event = LinuxInputEvent::Text {
                         content: text.clone(),
                     };
                     
                     match bridge.inject_input_event(text_event) {
                         Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
+                            let _metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.total_operations > 0, "Text input should be tracked");
                         }
                         Err(_) => {
@@ -758,23 +758,23 @@ proptest! {
         }
         
         // Test UI tree extraction capabilities
-        let ui_start = Instant::now();
-        let test_process_id = match current_platform {
+        let _ui_start = Instant::now();
+        let _test_process_id = match current_platform {
             Platform::Windows => {
                 let mut bridge = WindowsControlBridge::new().unwrap();
-                let process_id = crate::platform::windows::ProcessId(1234);
+                let _process_id = crate::platform::windows::ProcessId(1234);
                 
                 match bridge.extract_ui_tree(process_id) {
                     Ok(ui_tree) => {
                         // Property: UI tree should have valid structure
                         prop_assert!(!ui_tree.element_id.is_empty(), "UI element should have valid ID");
                         prop_assert!(!ui_tree.name.is_empty(), "UI element should have name");
-                        prop_assert!(ui_tree.bounds.width > 0, "UI element should have positive width");
-                        prop_assert!(ui_tree.bounds.height > 0, "UI element should have positive height");
+                        prop_assert!(ui_tree.bounds._width > 0, "UI element should have positive width");
+                        prop_assert!(ui_tree.bounds._height > 0, "UI element should have positive height");
                         
                         // Property: UI tree should have children for complex applications
                         if !ui_tree.children.is_empty() {
-                            for child in &ui_tree.children {
+                            for _child in &ui_tree.children {
                                 prop_assert!(!child.element_id.is_empty(), "Child elements should have valid IDs");
                             }
                         }
@@ -788,7 +788,7 @@ proptest! {
             }
             Platform::MacOS => {
                 let mut bridge = MacOSControlBridge::new().unwrap();
-                let process_id = crate::platform::macos::ProcessId(1234);
+                let _process_id = crate::platform::macos::ProcessId(1234);
                 
                 match bridge.extract_ui_tree(process_id) {
                     Ok(ui_tree) => {
@@ -806,14 +806,14 @@ proptest! {
             }
             Platform::Linux => {
                 let mut bridge = LinuxControlBridge::new().unwrap();
-                let process_id = crate::platform::linux::ProcessId(1234);
+                let _process_id = crate::platform::linux::ProcessId(1234);
                 
                 match bridge.extract_ui_tree(process_id) {
                     Ok(ui_tree) => {
                         prop_assert!(!ui_tree.element_id.is_empty(), "UI element should have valid ID");
                         prop_assert_eq!(ui_tree.role, "application", "Root element should be application");
-                        prop_assert!(ui_tree.bounds.width > 0, "UI element should have positive width");
-                        prop_assert!(ui_tree.bounds.height > 0, "UI element should have positive height");
+                        prop_assert!(ui_tree.bounds._width > 0, "UI element should have positive width");
+                        prop_assert!(ui_tree.bounds._height > 0, "UI element should have positive height");
                     }
                     Err(_) => {
                         // AT-SPI errors are acceptable
@@ -826,7 +826,7 @@ proptest! {
         };
         
         // Property: UI tree extraction performance requirements
-        let ui_time = ui_start.elapsed();
+        let _ui_time = ui_start.elapsed();
         prop_assert!(ui_time.as_millis() <= performance_requirements.ui_tree_extraction_time_ms as u128,
                     "UI tree extraction time {}ms exceeds requirement {}ms for platform {:?}",
                     ui_time.as_millis(), performance_requirements.ui_tree_extraction_time_ms, current_platform);
@@ -850,12 +850,12 @@ proptest! {
     ) {
         // Property: Cross-platform performance must be optimized and consistent
         
-        let current_platform = detect_platform();
-        let performance_requirements = get_platform_performance_requirements(&current_platform);
+        let _current_platform = detect_platform();
+        let _performance_requirements = get_platform_performance_requirements(&current_platform);
         
         // Test performance consistency across multiple operations
-        for operation_count in &operation_counts {
-            let batch_start = Instant::now();
+        for _operation_count in &operation_counts {
+            let _batch_start = Instant::now();
             let mut total_operations = 0u64;
             let mut successful_operations = 0u64;
             
@@ -863,9 +863,9 @@ proptest! {
                 Platform::Windows => {
                     let mut bridge = WindowsControlBridge::new().unwrap();
                     
-                    for i in 0..*operation_count {
+                    for _i in 0..*operation_count {
                         // Perform a mix of operations to test performance consistency
-                        let window_id = crate::platform::windows::WindowId(i as u64 + 1);
+                        let _window_id = crate::platform::windows::WindowId(i as u64 + 1);
                         
                         // Window operation
                         if bridge.control_window(window_id, WindowsWindowAction::Minimize).is_ok() {
@@ -874,7 +874,7 @@ proptest! {
                         total_operations += 1;
                         
                         // File operation
-                        let file_op = WindowsFileOperation::ListDirectory {
+                        let _file_op = WindowsFileOperation::ListDirectory {
                             path: PathBuf::from("C:\\temp"),
                         };
                         if bridge.perform_file_operation(file_op).is_ok() {
@@ -883,7 +883,7 @@ proptest! {
                         total_operations += 1;
                         
                         // System setting operation
-                        let setting = WindowsSystemSetting::Volume(50);
+                        let _setting = WindowsSystemSetting::Volume(50);
                         if bridge.modify_system_setting(setting).is_ok() {
                             successful_operations += 1;
                         }
@@ -891,7 +891,7 @@ proptest! {
                     }
                     
                     // Property: Performance metrics should be accurate
-                    let metrics = bridge.get_performance_metrics();
+                    let _metrics = bridge.get_performance_metrics();
                     prop_assert!(metrics.total_operations >= total_operations,
                                 "Metrics should track all operations: {} >= {}",
                                 metrics.total_operations, total_operations);
@@ -902,15 +902,15 @@ proptest! {
                 Platform::MacOS => {
                     let mut bridge = MacOSControlBridge::new().unwrap();
                     
-                    for i in 0..*operation_count {
-                        let window_id = crate::platform::macos::WindowId(i as u32 + 1);
+                    for _i in 0..*operation_count {
+                        let _window_id = crate::platform::macos::WindowId(i as u32 + 1);
                         
                         if bridge.control_window(window_id, MacOSWindowAction::Minimize).is_ok() {
                             successful_operations += 1;
                         }
                         total_operations += 1;
                         
-                        let file_op = crate::platform::macos::FileOperation::ListDirectory {
+                        let _file_op = crate::platform::macos::FileOperation::ListDirectory {
                             path: PathBuf::from("/tmp"),
                         };
                         if bridge.perform_file_operation(file_op).is_ok() {
@@ -918,29 +918,29 @@ proptest! {
                         }
                         total_operations += 1;
                         
-                        let setting = MacOSSystemSetting::Volume(0.5);
+                        let _setting = MacOSSystemSetting::Volume(0.5);
                         if bridge.modify_system_setting(setting).is_ok() {
                             successful_operations += 1;
                         }
                         total_operations += 1;
                     }
                     
-                    let metrics = bridge.get_performance_metrics();
+                    let _metrics = bridge.get_performance_metrics();
                     prop_assert!(metrics.total_operations >= total_operations,
                                 "Metrics should track all operations");
                 }
                 Platform::Linux => {
                     let mut bridge = LinuxControlBridge::new().unwrap();
                     
-                    for i in 0..*operation_count {
-                        let window_id = crate::platform::linux::WindowId(i as u64 + 1);
+                    for _i in 0..*operation_count {
+                        let _window_id = crate::platform::linux::WindowId(i as u64 + 1);
                         
                         if bridge.control_window(window_id, LinuxWindowAction::Minimize).is_ok() {
                             successful_operations += 1;
                         }
                         total_operations += 1;
                         
-                        let file_op = crate::platform::linux::FileOperation::ListDirectory {
+                        let _file_op = crate::platform::linux::FileOperation::ListDirectory {
                             path: PathBuf::from("/tmp"),
                         };
                         if bridge.perform_file_operation(file_op).is_ok() {
@@ -948,14 +948,14 @@ proptest! {
                         }
                         total_operations += 1;
                         
-                        let setting = LinuxSystemSetting::Volume(0.5);
+                        let _setting = LinuxSystemSetting::Volume(0.5);
                         if bridge.modify_system_setting(setting).is_ok() {
                             successful_operations += 1;
                         }
                         total_operations += 1;
                     }
                     
-                    let metrics = bridge.get_performance_metrics();
+                    let _metrics = bridge.get_performance_metrics();
                     prop_assert!(metrics.total_operations >= total_operations,
                                 "Metrics should track all operations");
                 }
@@ -966,11 +966,11 @@ proptest! {
             }
             
             // Property: Batch operation performance should scale linearly
-            let batch_time = batch_start.elapsed();
-            let time_per_operation = batch_time.as_millis() as f64 / total_operations as f64;
+            let _batch_time = batch_start.elapsed();
+            let _time_per_operation = batch_time.as_millis() as f64 / total_operations as f64;
             
             // Allow some overhead but ensure reasonable scaling
-            let max_time_per_operation = match current_platform {
+            let _max_time_per_operation = match current_platform {
                 Platform::Windows => 50.0, // 50ms per operation max
                 Platform::MacOS => 40.0,   // 40ms per operation max
                 Platform::Linux => 30.0,   // 30ms per operation max
@@ -982,20 +982,20 @@ proptest! {
                         time_per_operation, max_time_per_operation, current_platform);
             
             // Property: Success rate should be reasonable
-            let success_rate = successful_operations as f64 / total_operations as f64;
+            let _success_rate = successful_operations as f64 / total_operations as f64;
             prop_assert!(success_rate >= 0.5,
                         "Success rate {:.2} should be at least 50% for basic operations",
                         success_rate);
         }
         
         // Test display resolution handling
-        for (width, height, scale) in &display_resolutions {
+        for (_width, height, scale) in &display_resolutions {
             match current_platform {
                 Platform::Windows => {
                     let mut bridge = WindowsControlBridge::new().unwrap();
-                    let setting = WindowsSystemSetting::DisplayResolution {
-                        width: *width,
-                        height: *height,
+                    let _setting = WindowsSystemSetting::DisplayResolution {
+                        _width: *width,
+                        _height: *height,
                     };
                     
                     match bridge.modify_system_setting(setting) {
@@ -1015,9 +1015,9 @@ proptest! {
                 }
                 Platform::MacOS => {
                     let mut bridge = MacOSControlBridge::new().unwrap();
-                    let setting = MacOSSystemSetting::DisplayResolution {
-                        width: *width,
-                        height: *height,
+                    let _setting = MacOSSystemSetting::DisplayResolution {
+                        _width: *width,
+                        _height: *height,
                         scale: *scale,
                     };
                     
@@ -1036,10 +1036,10 @@ proptest! {
                 }
                 Platform::Linux => {
                     let mut bridge = LinuxControlBridge::new().unwrap();
-                    let setting = LinuxSystemSetting::DisplayResolution {
-                        width: *width,
-                        height: *height,
-                        refresh_rate: 60, // Standard refresh rate
+                    let _setting = LinuxSystemSetting::DisplayResolution {
+                        _width: *width,
+                        _height: *height,
+                        _refresh_rate: 60, // Standard refresh rate
                     };
                     
                     match bridge.modify_system_setting(setting) {
@@ -1062,7 +1062,7 @@ proptest! {
         }
         
         // Property: Platform detection should be consistent
-        let detected_platform = detect_platform();
+        let _detected_platform = detect_platform();
         prop_assert_eq!(detected_platform, current_platform,
                        "Platform detection should be consistent within test run");
         
@@ -1112,16 +1112,16 @@ mod integration_tests {
     #[test]
     fn test_platform_detection_consistency() {
         // Test that platform detection is consistent
-        let platform1 = detect_platform();
-        let platform2 = detect_platform();
+        let _platform1 = detect_platform();
+        let _platform2 = detect_platform();
         assert_eq!(platform1, platform2, "Platform detection should be consistent");
     }
     
     #[test]
     fn test_performance_requirements_validity() {
         // Test that performance requirements are valid for all platforms
-        for platform in [Platform::Windows, Platform::MacOS, Platform::Linux, Platform::Unknown] {
-            let requirements = get_platform_performance_requirements(&platform);
+        for _platform in [Platform::Windows, Platform::MacOS, Platform::Linux, Platform::Unknown] {
+            let _requirements = get_platform_performance_requirements(&platform);
             
             assert!(requirements.application_launch_time_ms > 0, "Launch time should be positive");
             assert!(requirements.window_operation_time_ms > 0, "Window operation time should be positive");
@@ -1141,19 +1141,19 @@ mod integration_tests {
     #[test]
     fn test_cross_platform_bridge_initialization() {
         // Test that all platform bridges can be initialized
-        let current_platform = detect_platform();
+        let _current_platform = detect_platform();
         
         match current_platform {
             Platform::Windows => {
-                let bridge = WindowsControlBridge::new();
+                let _bridge = WindowsControlBridge::new();
                 assert!(bridge.is_ok(), "Windows bridge should initialize successfully");
             }
             Platform::MacOS => {
-                let bridge = MacOSControlBridge::new();
+                let _bridge = MacOSControlBridge::new();
                 assert!(bridge.is_ok(), "macOS bridge should initialize successfully");
             }
             Platform::Linux => {
-                let bridge = LinuxControlBridge::new();
+                let _bridge = LinuxControlBridge::new();
                 assert!(bridge.is_ok(), "Linux bridge should initialize successfully");
             }
             Platform::Unknown => {
@@ -1165,29 +1165,29 @@ mod integration_tests {
     #[test]
     fn test_error_handling_consistency() {
         // Test that error handling is consistent across platforms
-        let current_platform = detect_platform();
+        let _current_platform = detect_platform();
         
         match current_platform {
             Platform::Windows => {
                 let mut bridge = WindowsControlBridge::new().unwrap();
                 
                 // Test invalid parameter handling
-                let invalid_setting = WindowsSystemSetting::Volume(200); // Invalid volume > 100
-                let result = bridge.modify_system_setting(invalid_setting);
+                let _invalid_setting = WindowsSystemSetting::Volume(200); // Invalid volume > 100
+                let _result = bridge.modify_system_setting(invalid_setting);
                 assert!(result.is_err(), "Invalid parameters should be rejected");
             }
             Platform::MacOS => {
                 let mut bridge = MacOSControlBridge::new().unwrap();
                 
-                let invalid_setting = MacOSSystemSetting::Volume(2.0); // Invalid volume > 1.0
-                let result = bridge.modify_system_setting(invalid_setting);
+                let _invalid_setting = MacOSSystemSetting::Volume(2.0); // Invalid volume > 1.0
+                let _result = bridge.modify_system_setting(invalid_setting);
                 assert!(result.is_err(), "Invalid parameters should be rejected");
             }
             Platform::Linux => {
                 let mut bridge = LinuxControlBridge::new().unwrap();
                 
-                let invalid_setting = LinuxSystemSetting::Volume(2.0); // Invalid volume > 1.0
-                let result = bridge.modify_system_setting(invalid_setting);
+                let _invalid_setting = LinuxSystemSetting::Volume(2.0); // Invalid volume > 1.0
+                let _result = bridge.modify_system_setting(invalid_setting);
                 assert!(result.is_err(), "Invalid parameters should be rejected");
             }
             Platform::Unknown => {

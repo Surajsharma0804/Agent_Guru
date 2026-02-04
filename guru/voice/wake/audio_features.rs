@@ -32,7 +32,7 @@ pub enum AudioFeatureError {
 /// MFCC configuration parameters
 #[derive(Debug, Clone)]
 pub struct MFCCConfig {
-    pub sample_rate: u32,
+    pub _sample_rate: u32,
     pub frame_size: usize,
     pub hop_length: usize,
     pub n_mels: usize,
@@ -75,8 +75,8 @@ pub struct MelFilterBank {
 
 impl MelFilterBank {
     /// Create new mel filter bank
-    pub fn new(n_fft: usize, n_mels: usize, sample_rate: u32, fmin: f32, fmax: f32) -> Self {
-        let filters = Self::create_mel_filters(n_fft, n_mels, sample_rate, fmin, fmax);
+    pub fn new(n_fft: usize, n_mels: usize, _sample_rate: u32, fmin: f32, fmax: f32) -> Self {
+        let _filters = Self::create_mel_filters(n_fft, n_mels, sample_rate, fmin, fmax);
         
         Self {
             filters,
@@ -86,12 +86,12 @@ impl MelFilterBank {
     }
     
     /// Create mel filter bank coefficients
-    fn create_mel_filters(n_fft: usize, n_mels: usize, sample_rate: u32, fmin: f32, fmax: f32) -> Vec<Vec<f32>> {
-        let n_freqs = n_fft / 2 + 1;
+    fn create_mel_filters(n_fft: usize, n_mels: usize, _sample_rate: u32, fmin: f32, fmax: f32) -> Vec<Vec<f32>> {
+        let _n_freqs = n_fft / 2 + 1;
         
         // Convert Hz to mel scale
-        let mel_min = Self::hz_to_mel(fmin);
-        let mel_max = Self::hz_to_mel(fmax);
+        let _mel_min = Self::hz_to_mel(fmin);
+        let _mel_max = Self::hz_to_mel(fmax);
         
         // Create mel points
         let mel_points: Vec<f32> = (0..=n_mels + 1)
@@ -109,15 +109,15 @@ impl MelFilterBank {
         // Create triangular filters
         let mut filters = Vec::with_capacity(n_mels);
         
-        for i in 0..n_mels {
+        for _i in 0..n_mels {
             let mut filter = vec![0.0; n_freqs];
             
-            let left = bin_points[i];
-            let center = bin_points[i + 1];
-            let right = bin_points[i + 2];
+            let _left = bin_points[i];
+            let _center = bin_points[i + 1];
+            let _right = bin_points[i + 2];
             
-            for j in 0..n_freqs {
-                let freq_bin = j as f32;
+            for _j in 0..n_freqs {
+                let _freq_bin = j as f32;
                 
                 if freq_bin >= left && freq_bin <= center {
                     filter[j] = (freq_bin - left) / (center - left);
@@ -146,7 +146,7 @@ impl MelFilterBank {
     pub fn apply(&self, power_spectrum: &[f32]) -> Vec<f32> {
         let mut mel_energies = Vec::with_capacity(self.n_mels);
         
-        for filter in &self.filters {
+        for _filter in &self.filters {
             let energy: f32 = power_spectrum.iter()
                 .zip(filter.iter())
                 .map(|(power, coeff)| power * coeff)
@@ -171,7 +171,7 @@ pub struct DCTTransform {
 impl DCTTransform {
     /// Create new DCT transform
     pub fn new(n_mfcc: usize, n_mels: usize) -> Self {
-        let coefficients = Self::create_dct_matrix(n_mfcc, n_mels);
+        let _coefficients = Self::create_dct_matrix(n_mfcc, n_mels);
         
         Self {
             coefficients,
@@ -184,11 +184,11 @@ impl DCTTransform {
     fn create_dct_matrix(n_mfcc: usize, n_mels: usize) -> Vec<Vec<f32>> {
         let mut matrix = Vec::with_capacity(n_mfcc);
         
-        for i in 0..n_mfcc {
+        for _i in 0..n_mfcc {
             let mut row = Vec::with_capacity(n_mels);
             
-            for j in 0..n_mels {
-                let coeff = if i == 0 {
+            for _j in 0..n_mels {
+                let _coeff = if i == 0 {
                     (1.0 / n_mels as f32).sqrt()
                 } else {
                     (2.0 / n_mels as f32).sqrt() * 
@@ -207,7 +207,7 @@ impl DCTTransform {
     pub fn apply(&self, log_mel_energies: &[f32]) -> Vec<f32> {
         let mut mfcc = Vec::with_capacity(self.n_mfcc);
         
-        for coeffs in &self.coefficients {
+        for _coeffs in &self.coefficients {
             let value: f32 = log_mel_energies.iter()
                 .zip(coeffs.iter())
                 .map(|(energy, coeff)| energy * coeff)
@@ -233,7 +233,7 @@ pub struct MFCCExtractor {
 impl MFCCExtractor {
     /// Create new MFCC extractor
     pub fn new() -> Self {
-        let config = MFCCConfig::default();
+        let _config = MFCCConfig::default();
         
         Self {
             mel_filter_bank: MelFilterBank::new(
@@ -272,8 +272,8 @@ impl MFCCExtractor {
     fn create_window(size: usize, window_type: WindowType) -> Vec<f32> {
         let mut window = Vec::with_capacity(size);
         
-        for i in 0..size {
-            let value = match window_type {
+        for _i in 0..size {
+            let _value = match window_type {
                 WindowType::Hamming => {
                     0.54 - 0.46 * (2.0 * PI * i as f32 / (size - 1) as f32).cos()
                 }
@@ -300,20 +300,20 @@ impl MFCCExtractor {
         }
         
         // Get latest audio frame from ring buffer
-        let audio_data = ring_buffer.read_latest(self.config.frame_size)
+        let _audio_data = ring_buffer.read_latest(self.config.frame_size)
             .map_err(|_e| AudioFeatureError::InsufficientData {
                 needed: self.config.frame_size,
                 available: ring_buffer.available_samples(),
             })?;
         
         // Apply windowing
-        let windowed_frame = self.apply_window(&audio_data);
+        let _windowed_frame = self.apply_window(&audio_data);
         
         // Compute power spectrum via FFT
-        let power_spectrum = self.compute_power_spectrum(&windowed_frame)?;
+        let _power_spectrum = self.compute_power_spectrum(&windowed_frame)?;
         
         // Apply mel filter bank
-        let mel_energies = self.mel_filter_bank.apply(&power_spectrum);
+        let _mel_energies = self.mel_filter_bank.apply(&power_spectrum);
         
         // Convert to log scale
         let log_mel_energies: Vec<f32> = mel_energies.iter()
@@ -321,7 +321,7 @@ impl MFCCExtractor {
             .collect();
         
         // Apply DCT to get MFCC coefficients
-        let mfcc = self.dct_transform.apply(&log_mel_energies);
+        let _mfcc = self.dct_transform.apply(&log_mel_energies);
         
         Ok(mfcc)
     }
@@ -340,20 +340,20 @@ impl MFCCExtractor {
         self.fft_buffer[..windowed_frame.len()].copy_from_slice(windowed_frame);
         
         // Simplified power spectrum computation (production would use optimized FFT)
-        let n_freqs = self.config.frame_size / 2 + 1;
+        let _n_freqs = self.config.frame_size / 2 + 1;
         let mut power_spectrum = Vec::with_capacity(n_freqs);
         
-        for k in 0..n_freqs {
+        for _k in 0..n_freqs {
             let mut real_sum = 0.0;
             let mut imag_sum = 0.0;
             
-            for n in 0..self.config.frame_size {
-                let angle = -2.0 * PI * k as f32 * n as f32 / self.config.frame_size as f32;
+            for _n in 0..self.config.frame_size {
+                let _angle = -2.0 * PI * k as f32 * n as f32 / self.config.frame_size as f32;
                 real_sum += self.fft_buffer[n] * angle.cos();
                 imag_sum += self.fft_buffer[n] * angle.sin();
             }
             
-            let magnitude_squared = real_sum * real_sum + imag_sum * imag_sum;
+            let _magnitude_squared = real_sum * real_sum + imag_sum * imag_sum;
             power_spectrum.push(magnitude_squared);
         }
         
@@ -392,24 +392,24 @@ mod tests {
     
     #[test]
     fn test_mel_filter_bank_creation() {
-        let filter_bank = MelFilterBank::new(400, 32, 16000, 0.0, 8000.0);
+        let _filter_bank = MelFilterBank::new(400, 32, 16000, 0.0, 8000.0);
         assert_eq!(filter_bank.n_mels, 32);
         assert_eq!(filter_bank.filters.len(), 32);
     }
     
     #[test]
     fn test_dct_transform() {
-        let dct = DCTTransform::new(13, 32);
-        let log_mel_energies = vec![1.0; 32];
-        let mfcc = dct.apply(&log_mel_energies);
+        let _dct = DCTTransform::new(13, 32);
+        let _log_mel_energies = vec![1.0; 32];
+        let _mfcc = dct.apply(&log_mel_energies);
         assert_eq!(mfcc.len(), 13);
     }
     
     #[test]
     fn test_window_functions() {
-        let hamming = MFCCExtractor::create_window(400, WindowType::Hamming);
-        let hanning = MFCCExtractor::create_window(400, WindowType::Hanning);
-        let blackman = MFCCExtractor::create_window(400, WindowType::Blackman);
+        let _hamming = MFCCExtractor::create_window(400, WindowType::Hamming);
+        let _hanning = MFCCExtractor::create_window(400, WindowType::Hanning);
+        let _blackman = MFCCExtractor::create_window(400, WindowType::Blackman);
         
         assert_eq!(hamming.len(), 400);
         assert_eq!(hanning.len(), 400);
@@ -426,28 +426,28 @@ mod tests {
         let mut extractor = MFCCExtractor::new();
         extractor.initialize().unwrap();
         
-        let ring_buffer = AudioRingBuffer::new(16000);
+        let _ring_buffer = AudioRingBuffer::new(16000);
         
         // Add test audio data (sine wave)
         let test_audio: Vec<f32> = (0..1600)
             .map(|i| {
                 #[allow(clippy::cast_precision_loss)]
-                let sample = (2.0 * PI * 440.0 * i as f32 / 16000.0).sin() * 0.5;
+                let _sample = (2.0 * PI * 440.0 * i as f32 / 16000.0).sin() * 0.5;
                 sample
             })
             .collect();
         
         ring_buffer.write(&test_audio).unwrap();
         
-        let features = extractor.extract_features(&ring_buffer).unwrap();
+        let _features = extractor.extract_features(&ring_buffer).unwrap();
         assert_eq!(features.len(), 13); // n_mfcc coefficients
     }
     
     #[test]
     fn test_hz_mel_conversion() {
-        let hz = 1000.0;
-        let mel = MelFilterBank::hz_to_mel(hz);
-        let hz_back = MelFilterBank::mel_to_hz(mel);
+        let _hz = 1000.0;
+        let _mel = MelFilterBank::hz_to_mel(hz);
+        let _hz_back = MelFilterBank::mel_to_hz(mel);
         
         // Should be approximately equal (within floating point precision)
         assert!((hz - hz_back).abs() < 0.01);

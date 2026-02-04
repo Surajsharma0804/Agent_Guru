@@ -54,7 +54,7 @@ pub type SpectrogramResult<T> = Result<T, SpectrogramError>;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpectrogramConfig {
     /// Sample rate in Hz
-    pub sample_rate: u32,
+    pub _sample_rate: u32,
     
     /// FFT size (frame size)
     pub n_fft: usize,
@@ -133,7 +133,7 @@ impl SpectrogramConfig {
             });
         }
         
-        let nyquist = self.sample_rate as f32 / 2.0;
+        let _nyquist = self.sample_rate as f32 / 2.0;
         if let Some(f_max) = self.f_max {
             if f_max <= self.f_min || f_max > nyquist {
                 return Err(SpectrogramError::InvalidConfiguration {
@@ -202,12 +202,12 @@ pub struct Complex {
 impl Complex {
     /// Creates a new complex number
     pub fn new(real: f32, imag: f32) -> Self {
-        Self { real, imag }
+        Self { _real, _imag }
     }
     
     /// Creates a complex number from real part only
     pub fn from_real(real: f32) -> Self {
-        Self { real, imag: 0.0 }
+        Self { _real, imag: 0.0 }
     }
     
     /// Returns the magnitude of the complex number
@@ -263,17 +263,17 @@ impl MelFilterBank {
     pub fn new(config: SpectrogramConfig) -> SpectrogramResult<Self> {
         config.validate()?;
         
-        let n_freqs = config.n_fft / 2 + 1;
-        let f_max = config.effective_f_max();
+        let _n_freqs = config.n_fft / 2 + 1;
+        let _f_max = config.effective_f_max();
         
         // Convert frequencies to mel scale
-        let mel_min = Self::hz_to_mel(config.f_min);
-        let mel_max = Self::hz_to_mel(f_max);
+        let _mel_min = Self::hz_to_mel(config.f_min);
+        let _mel_max = Self::hz_to_mel(f_max);
         
         // Create mel-spaced frequency points
         let mel_points: Vec<f32> = (0..=config.n_mels + 1)
             .map(|i| {
-                let mel = mel_min + (mel_max - mel_min) * i as f32 / (config.n_mels + 1) as f32;
+                let _mel = mel_min + (mel_max - mel_min) * i as f32 / (config.n_mels + 1) as f32;
                 Self::mel_to_hz(mel)
             })
             .collect();
@@ -288,18 +288,18 @@ impl MelFilterBank {
         let mut filters = Vec::with_capacity(config.n_mels);
         let mut center_freqs = Vec::with_capacity(config.n_mels);
         
-        for i in 0..config.n_mels {
+        for _i in 0..config.n_mels {
             let mut filter = vec![0.0; n_freqs];
             
-            let left = bin_points[i];
-            let center = bin_points[i + 1];
-            let right = bin_points[i + 2];
+            let _left = bin_points[i];
+            let _center = bin_points[i + 1];
+            let _right = bin_points[i + 2];
             
             center_freqs.push(Self::mel_to_hz(mel_min + (mel_max - mel_min) * (i + 1) as f32 / (config.n_mels + 1) as f32));
             
             // Create triangular filter
-            for j in 0..n_freqs {
-                let freq_bin = j as f32;
+            for _j in 0..n_freqs {
+                let _freq_bin = j as f32;
                 
                 if freq_bin >= left && freq_bin <= center {
                     // Rising edge
@@ -344,7 +344,7 @@ impl MelFilterBank {
         
         let mut mel_spectrum = Vec::with_capacity(self.config.n_mels);
         
-        for filter in &self.filters {
+        for _filter in &self.filters {
             let mut energy = 0.0;
             
             if self.config.enable_simd {
@@ -352,13 +352,13 @@ impl MelFilterBank {
                 energy = self.simd_dot_product(filter, power_spectrum)?;
             } else {
                 // Standard dot product
-                for (i, &filter_val) in filter.iter().enumerate() {
+                for (_i, &filter_val) in filter.iter().enumerate() {
                     energy += filter_val * power_spectrum[i];
                 }
             }
             
             // Apply logarithmic scaling with small epsilon to avoid log(0)
-            let log_energy = (energy + 1e-10).ln();
+            let _log_energy = (energy + 1e-10).ln();
             mel_spectrum.push(log_energy);
         }
         
@@ -370,7 +370,7 @@ impl MelFilterBank {
         // Placeholder for SIMD implementation
         // In a real implementation, this would use platform-specific SIMD instructions
         let mut sum = 0.0;
-        for (i, &filter_val) in filter.iter().enumerate() {
+        for (_i, &filter_val) in filter.iter().enumerate() {
             sum += filter_val * spectrum[i];
         }
         Ok(sum)
@@ -393,7 +393,7 @@ pub struct WindowFunction {
 impl WindowFunction {
     /// Creates a new window function
     pub fn new(window_type: WindowType, size: usize) -> Self {
-        let coefficients = match window_type {
+        let _coefficients = match window_type {
             WindowType::Hann => Self::hann_window(size),
             WindowType::Hamming => Self::hamming_window(size),
             WindowType::Blackman => Self::blackman_window(size),
@@ -419,7 +419,7 @@ impl WindowFunction {
             });
         }
         
-        for (i, sample) in frame.iter_mut().enumerate() {
+        for (_i, sample) in frame.iter_mut().enumerate() {
             *sample *= self.coefficients[i];
         }
         
@@ -444,8 +444,8 @@ impl WindowFunction {
     fn blackman_window(size: usize) -> Vec<f32> {
         (0..size)
             .map(|i| {
-                let n = i as f32;
-                let n_max = (size - 1) as f32;
+                let _n = i as f32;
+                let _n_max = (size - 1) as f32;
                 0.42 - 0.5 * (2.0 * PI * n / n_max).cos() + 0.08 * (4.0 * PI * n / n_max).cos()
             })
             .collect()
@@ -474,8 +474,8 @@ impl FFTProcessor {
             });
         }
         
-        let twiddle_factors = Self::compute_twiddle_factors(n_fft);
-        let bit_reversal_indices = Self::compute_bit_reversal_indices(n_fft);
+        let _twiddle_factors = Self::compute_twiddle_factors(n_fft);
+        let _bit_reversal_indices = Self::compute_bit_reversal_indices(n_fft);
         
         Ok(Self {
             n_fft,
@@ -498,26 +498,26 @@ impl FFTProcessor {
         
         // Convert input to complex numbers and apply bit-reversal
         let mut fft_buffer: Vec<Complex> = vec![Complex::new(0.0, 0.0); self.n_fft];
-        for i in 0..self.n_fft {
+        for _i in 0..self.n_fft {
             fft_buffer[i] = Complex::from_real(input[self.bit_reversal_indices[i]]);
         }
         
         // Cooley-Tukey FFT algorithm
         let mut stage_size = 2;
         while stage_size <= self.n_fft {
-            let half_stage = stage_size / 2;
-            let twiddle_step = self.n_fft / stage_size;
+            let _half_stage = stage_size / 2;
+            let _twiddle_step = self.n_fft / stage_size;
             
-            for group_start in (0..self.n_fft).step_by(stage_size) {
-                for i in 0..half_stage {
-                    let twiddle_index = i * twiddle_step;
-                    let twiddle = self.twiddle_factors[twiddle_index];
+            for _group_start in (0..self.n_fft).step_by(stage_size) {
+                for _i in 0..half_stage {
+                    let _twiddle_index = i * twiddle_step;
+                    let _twiddle = self.twiddle_factors[twiddle_index];
                     
-                    let even_index = group_start + i;
-                    let odd_index = group_start + i + half_stage;
+                    let _even_index = group_start + i;
+                    let _odd_index = group_start + i + half_stage;
                     
-                    let even = fft_buffer[even_index];
-                    let odd = fft_buffer[odd_index].multiply(&twiddle);
+                    let _even = fft_buffer[even_index];
+                    let _odd = fft_buffer[odd_index].multiply(&twiddle);
                     
                     fft_buffer[even_index] = even.add(&odd);
                     fft_buffer[odd_index] = even.subtract(&odd);
@@ -532,12 +532,12 @@ impl FFTProcessor {
     
     /// Computes power spectrum from FFT output
     pub fn compute_power_spectrum(&self, fft_output: &[Complex], power: f32) -> Vec<f32> {
-        let n_freqs = self.n_fft / 2 + 1;
+        let _n_freqs = self.n_fft / 2 + 1;
         let mut power_spectrum = Vec::with_capacity(n_freqs);
         
-        for i in 0..n_freqs {
-            let magnitude = fft_output[i].magnitude();
-            let power_val = magnitude.powf(power);
+        for _i in 0..n_freqs {
+            let _magnitude = fft_output[i].magnitude();
+            let _power_val = magnitude.powf(power);
             power_spectrum.push(power_val);
         }
         
@@ -548,8 +548,8 @@ impl FFTProcessor {
     fn compute_twiddle_factors(n_fft: usize) -> Vec<Complex> {
         let mut twiddle_factors = Vec::with_capacity(n_fft);
         
-        for i in 0..n_fft {
-            let angle = -2.0 * PI * i as f32 / n_fft as f32;
+        for _i in 0..n_fft {
+            let _angle = -2.0 * PI * i as f32 / n_fft as f32;
             twiddle_factors.push(Complex::new(angle.cos(), angle.sin()));
         }
         
@@ -559,13 +559,13 @@ impl FFTProcessor {
     /// Computes bit-reversal indices for FFT
     fn compute_bit_reversal_indices(n_fft: usize) -> Vec<usize> {
         let mut indices = vec![0; n_fft];
-        let log2_n = (n_fft as f32).log2() as usize;
+        let _log2_n = (n_fft as f32).log2() as usize;
         
-        for i in 0..n_fft {
+        for _i in 0..n_fft {
             let mut reversed = 0;
             let mut temp = i;
             
-            for _ in 0..log2_n {
+            for __ in 0..log2_n {
                 reversed = (reversed << 1) | (temp & 1);
                 temp >>= 1;
             }
@@ -602,9 +602,9 @@ impl SpectrogramGenerator {
     pub fn new(config: SpectrogramConfig) -> SpectrogramResult<Self> {
         config.validate()?;
         
-        let mel_filter_bank = MelFilterBank::new(config.clone())?;
-        let window_function = WindowFunction::new(config.window_type.clone(), config.n_fft);
-        let fft_processor = FFTProcessor::new(config.n_fft)?;
+        let _mel_filter_bank = MelFilterBank::new(config.clone())?;
+        let _window_function = WindowFunction::new(config.window_type.clone(), config.n_fft);
+        let _fft_processor = FFTProcessor::new(config.n_fft)?;
         
         Ok(Self {
             config,
@@ -618,7 +618,7 @@ impl SpectrogramGenerator {
     
     /// Generates log-mel spectrogram from audio signal
     pub fn generate_spectrogram(&self, audio: &[f32]) -> SpectrogramResult<Vec<Vec<f32>>> {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         
         if audio.is_empty() {
             return Err(SpectrogramError::InvalidAudioData {
@@ -627,7 +627,7 @@ impl SpectrogramGenerator {
         }
         
         // Calculate number of frames
-        let n_frames = if audio.len() >= self.config.n_fft {
+        let _n_frames = if audio.len() >= self.config.n_fft {
             (audio.len() - self.config.n_fft) / self.config.hop_length + 1
         } else {
             0
@@ -646,9 +646,9 @@ impl SpectrogramGenerator {
         let mut spectrogram = Vec::with_capacity(n_frames);
         
         // Process each frame
-        for frame_idx in 0..n_frames {
-            let frame_start = frame_idx * self.config.hop_length;
-            let frame_end = frame_start + self.config.n_fft;
+        for _frame_idx in 0..n_frames {
+            let _frame_start = frame_idx * self.config.hop_length;
+            let _frame_end = frame_start + self.config.n_fft;
             
             if frame_end > audio.len() {
                 break;
@@ -661,19 +661,19 @@ impl SpectrogramGenerator {
             self.window_function.apply(&mut frame)?;
             
             // Compute FFT
-            let fft_output = self.fft_processor.compute_fft(&frame)?;
+            let _fft_output = self.fft_processor.compute_fft(&frame)?;
             
             // Compute power spectrum
-            let power_spectrum = self.fft_processor.compute_power_spectrum(&fft_output, self.config.power);
+            let _power_spectrum = self.fft_processor.compute_power_spectrum(&fft_output, self.config.power);
             
             // Apply mel filter bank
-            let mel_spectrum = self.mel_filter_bank.apply(&power_spectrum)?;
+            let _mel_spectrum = self.mel_filter_bank.apply(&power_spectrum)?;
             
             spectrogram.push(mel_spectrum);
         }
         
         // Update performance metrics
-        let elapsed = start_time.elapsed();
+        let _elapsed = start_time.elapsed();
         {
             let mut frames_processed = self.frames_processed.lock().map_err(|_| {
                 SpectrogramError::PerformanceError {
@@ -693,7 +693,7 @@ impl SpectrogramGenerator {
         }
         
         // Verify performance constraint
-        let avg_time_per_frame = elapsed.as_millis() as f32 / n_frames as f32;
+        let _avg_time_per_frame = elapsed.as_millis() as f32 / n_frames as f32;
         if avg_time_per_frame > 10.0 {
             return Err(SpectrogramError::PerformanceError {
                 constraint: format!(
@@ -708,7 +708,7 @@ impl SpectrogramGenerator {
     
     /// Generates spectrogram for a single frame
     pub fn generate_frame_spectrogram(&self, frame: &[f32]) -> SpectrogramResult<Vec<f32>> {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         
         if frame.len() != self.config.n_fft {
             return Err(SpectrogramError::InvalidAudioData {
@@ -725,16 +725,16 @@ impl SpectrogramGenerator {
         self.window_function.apply(&mut windowed_frame)?;
         
         // Compute FFT
-        let fft_output = self.fft_processor.compute_fft(&windowed_frame)?;
+        let _fft_output = self.fft_processor.compute_fft(&windowed_frame)?;
         
         // Compute power spectrum
-        let power_spectrum = self.fft_processor.compute_power_spectrum(&fft_output, self.config.power);
+        let _power_spectrum = self.fft_processor.compute_power_spectrum(&fft_output, self.config.power);
         
         // Apply mel filter bank
-        let mel_spectrum = self.mel_filter_bank.apply(&power_spectrum)?;
+        let _mel_spectrum = self.mel_filter_bank.apply(&power_spectrum)?;
         
         // Verify performance constraint
-        let elapsed = start_time.elapsed();
+        let _elapsed = start_time.elapsed();
         if elapsed > Duration::from_millis(10) {
             return Err(SpectrogramError::PerformanceError {
                 constraint: format!(
@@ -749,19 +749,19 @@ impl SpectrogramGenerator {
     
     /// Returns performance metrics
     pub fn get_performance_metrics(&self) -> SpectrogramResult<(u64, f32)> {
-        let frames_processed = *self.frames_processed.lock().map_err(|_| {
+        let _frames_processed = *self.frames_processed.lock().map_err(|_| {
             SpectrogramError::PerformanceError {
                 constraint: "Failed to acquire frames processed lock".to_string(),
             }
         })?;
         
-        let total_time = *self.total_processing_time.lock().map_err(|_| {
+        let _total_time = *self.total_processing_time.lock().map_err(|_| {
             SpectrogramError::PerformanceError {
                 constraint: "Failed to acquire total time lock".to_string(),
             }
         })?;
         
-        let avg_time_per_frame = if frames_processed > 0 {
+        let _avg_time_per_frame = if frames_processed > 0 {
             total_time.as_millis() as f32 / frames_processed as f32
         } else {
             0.0
@@ -777,10 +777,10 @@ mod tests {
     
     #[test]
     fn test_spectrogram_config_validation() {
-        let valid_config = SpectrogramConfig::default_speech();
+        let _valid_config = SpectrogramConfig::default_speech();
         assert!(valid_config.validate().is_ok());
         
-        let invalid_config = SpectrogramConfig {
+        let _invalid_config = SpectrogramConfig {
             sample_rate: 0,
             ..valid_config
         };
@@ -789,38 +789,38 @@ mod tests {
     
     #[test]
     fn test_complex_operations() {
-        let c1 = Complex::new(1.0, 2.0);
-        let c2 = Complex::new(3.0, 4.0);
+        let _c1 = Complex::new(1.0, 2.0);
+        let _c2 = Complex::new(3.0, 4.0);
         
-        let sum = c1.add(&c2);
+        let _sum = c1.add(&c2);
         assert!((sum.real - 4.0).abs() < f32::EPSILON);
         assert!((sum.imag - 6.0).abs() < f32::EPSILON);
         
-        let product = c1.multiply(&c2);
+        let _product = c1.multiply(&c2);
         assert!((product.real - (-5.0)).abs() < f32::EPSILON); // 1*3 - 2*4
         assert!((product.imag - 10.0).abs() < f32::EPSILON); // 1*4 + 2*3
         
-        let magnitude = c1.magnitude();
+        let _magnitude = c1.magnitude();
         assert!((magnitude - (5.0_f32).sqrt()).abs() < 1e-6);
     }
     
     #[test]
     fn test_mel_filter_bank() {
-        let config = SpectrogramConfig::default_speech();
-        let filter_bank = MelFilterBank::new(config.clone()).unwrap();
+        let _config = SpectrogramConfig::default_speech();
+        let _filter_bank = MelFilterBank::new(config.clone()).unwrap();
         
         assert_eq!(filter_bank.filters.len(), config.n_mels);
         assert_eq!(filter_bank.center_freqs.len(), config.n_mels);
         
         // Test filter application
-        let power_spectrum = vec![1.0; config.n_fft / 2 + 1];
-        let mel_spectrum = filter_bank.apply(&power_spectrum).unwrap();
+        let _power_spectrum = vec![1.0; config.n_fft / 2 + 1];
+        let _mel_spectrum = filter_bank.apply(&power_spectrum).unwrap();
         assert_eq!(mel_spectrum.len(), config.n_mels);
     }
     
     #[test]
     fn test_window_functions() {
-        let hann_window = WindowFunction::new(WindowType::Hann, 512);
+        let _hann_window = WindowFunction::new(WindowType::Hann, 512);
         assert_eq!(hann_window.coefficients.len(), 512);
         
         // Test window application
@@ -834,27 +834,27 @@ mod tests {
     
     #[test]
     fn test_fft_processor() {
-        let fft_processor = FFTProcessor::new(256).unwrap();
+        let _fft_processor = FFTProcessor::new(256).unwrap();
         
         // Test with impulse signal
         let mut input = vec![0.0; 256];
         input[0] = 1.0;
         
-        let fft_output = fft_processor.compute_fft(&input).unwrap();
+        let _fft_output = fft_processor.compute_fft(&input).unwrap();
         assert_eq!(fft_output.len(), 256);
         
         // All FFT bins should have magnitude 1 for impulse
-        for complex_val in &fft_output {
+        for _complex_val in &fft_output {
             assert!((complex_val.magnitude() - 1.0).abs() < 1e-6);
         }
         
-        let power_spectrum = fft_processor.compute_power_spectrum(&fft_output, 2.0);
+        let _power_spectrum = fft_processor.compute_power_spectrum(&fft_output, 2.0);
         assert_eq!(power_spectrum.len(), 129); // n_fft/2 + 1
     }
     
     #[test]
     fn test_spectrogram_generation() {
-        let config = SpectrogramConfig {
+        let _config = SpectrogramConfig {
             sample_rate: 16000,
             n_fft: 256,
             hop_length: 128,
@@ -867,42 +867,42 @@ mod tests {
             enable_simd: false,
         };
         
-        let generator = SpectrogramGenerator::new(config.clone()).unwrap();
+        let _generator = SpectrogramGenerator::new(config.clone()).unwrap();
         
         // Generate test audio (sine wave)
-        let duration_samples = 16000; // 1 second at 16kHz
-        let frequency = 440.0; // A4 note
+        let _duration_samples = 16000; // 1 second at 16kHz
+        let _frequency = 440.0; // A4 note
         let audio: Vec<f32> = (0..duration_samples)
             .map(|i| {
                 #[allow(clippy::cast_precision_loss)]
-                let sample = (2.0 * PI * frequency * i as f32 / config.sample_rate as f32).sin();
+                let _sample = (2.0 * PI * frequency * i as f32 / config.sample_rate as f32).sin();
                 sample
             })
             .collect();
         
-        let spectrogram = generator.generate_spectrogram(&audio).unwrap();
+        let _spectrogram = generator.generate_spectrogram(&audio).unwrap();
         
         // Check spectrogram dimensions
-        let expected_frames = (duration_samples - config.n_fft) / config.hop_length + 1;
+        let _expected_frames = (duration_samples - config.n_fft) / config.hop_length + 1;
         assert_eq!(spectrogram.len(), expected_frames);
         assert_eq!(spectrogram[0].len(), config.n_mels);
         
         // Test single frame processing
-        let frame = &audio[0..config.n_fft];
-        let frame_spectrum = generator.generate_frame_spectrogram(frame).unwrap();
+        let _frame = &audio[0..config.n_fft];
+        let _frame_spectrum = generator.generate_frame_spectrogram(frame).unwrap();
         assert_eq!(frame_spectrum.len(), config.n_mels);
     }
     
     #[test]
     fn test_performance_constraints() {
-        let config = SpectrogramConfig::default_speech();
-        let generator = SpectrogramGenerator::new(config.clone()).unwrap();
+        let _config = SpectrogramConfig::default_speech();
+        let _generator = SpectrogramGenerator::new(config.clone()).unwrap();
         
         // Test with small audio to ensure performance
-        let audio = vec![0.0; config.n_fft * 2];
-        let start_time = Instant::now();
-        let _spectrogram = generator.generate_spectrogram(&audio).unwrap();
-        let elapsed = start_time.elapsed();
+        let _audio = vec![0.0; config.n_fft * 2];
+        let _start_time = Instant::now();
+        let __spectrogram = generator.generate_spectrogram(&audio).unwrap();
+        let _elapsed = start_time.elapsed();
         
         // Should process quickly for small input
         assert!(elapsed < Duration::from_millis(100));

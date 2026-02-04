@@ -429,8 +429,8 @@ struct DetectionModel {
 
 #[derive(Debug, Clone)]
 struct LandmarkModel {
-    landmark_count: usize,
-    refinement_iterations: u32,
+    _landmark_count: usize,
+    _refinement_iterations: u32,
     stability_threshold: f32,
 }
 
@@ -452,21 +452,21 @@ struct LivenessDetector {
 #[derive(Debug, Clone)]
 struct BlinkDetector {
     ear_threshold: f32, // Eye Aspect Ratio threshold
-    consecutive_frames: u32,
+    _consecutive_frames: u32,
     blink_duration_ms: u64,
 }
 
 #[derive(Debug, Clone)]
 struct HeadMovementDetector {
     movement_threshold: f32,
-    tracking_frames: u32,
+    _tracking_frames: u32,
     pose_history: Vec<PoseAngles>,
 }
 
 #[derive(Debug, Clone)]
 struct TextureAnalyzer {
-    lbp_radius: u32, // Local Binary Pattern radius
-    lbp_points: u32,
+    _lbp_radius: u32, // Local Binary Pattern radius
+    _lbp_points: u32,
     texture_threshold: f32,
 }
 
@@ -516,7 +516,7 @@ impl FaceRecognitionEngine {
                 input_size: (640, 640),
             },
             landmark_model: LandmarkModel {
-                landmark_count: FACE_LANDMARK_COUNT,
+                _landmark_count: FACE_LANDMARK_COUNT,
                 refinement_iterations: 3,
                 stability_threshold: 0.95,
             },
@@ -528,17 +528,17 @@ impl FaceRecognitionEngine {
             liveness_detector: LivenessDetector {
                 blink_detector: BlinkDetector {
                     ear_threshold: LIVENESS_BLINK_THRESHOLD,
-                    consecutive_frames: 3,
+                    _consecutive_frames: 3,
                     blink_duration_ms: 150,
                 },
                 head_movement_detector: HeadMovementDetector {
                     movement_threshold: LIVENESS_HEAD_MOVEMENT_THRESHOLD,
-                    tracking_frames: 30,
+                    _tracking_frames: 30,
                     pose_history: Vec::with_capacity(30),
                 },
                 texture_analyzer: TextureAnalyzer {
-                    lbp_radius: 3,
-                    lbp_points: 24,
+                    _lbp_radius: 3,
+                    _lbp_points: 24,
                     texture_threshold: LIVENESS_TEXTURE_THRESHOLD,
                 },
                 challenge_generator: ChallengeGenerator {
@@ -698,14 +698,14 @@ impl FaceRecognitionEngine {
     pub fn generate_template<R: CryptoRng + RngCore>(
         &mut self,
         embedding: &FaceEmbedding,
-        encryption_key: &[u8; 32],
+        _encryption_key: &[u8; 32],
         rng: &mut R,
     ) -> Result<EncryptedFaceTemplate, FaceError> {
         // Generate template ID
-        let template_id = self.generate_template_id(rng);
+        let _template_id = self.generate_template_id(rng);
         
         // Serialize embedding data
-        let template_data = bincode::serialize(embedding)
+        let _template_data = bincode::serialize(embedding)
             .map_err(|e| FaceError::TemplateGenerationFailed(format!("Serialization failed: {}", e)))?;
         
         // Generate encryption nonce
@@ -713,7 +713,7 @@ impl FaceRecognitionEngine {
         rng.fill_bytes(&mut nonce);
         
         // Encrypt template data
-        let encrypted_data = self.encrypt_template_data(&template_data, encryption_key, &nonce)?;
+        let _encrypted_data = self.encrypt_template_data(&template_data, encryption_key, &nonce)?;
         
         // Calculate template hash for integrity
         let mut hasher = Sha256::new();
@@ -721,7 +721,7 @@ impl FaceRecognitionEngine {
         let template_hash: [u8; 32] = hasher.finalize().into();
         
         // Calculate quality metrics
-        let quality_metrics = self.calculate_template_quality(embedding);
+        let _quality_metrics = self.calculate_template_quality(embedding);
         
         Ok(EncryptedFaceTemplate {
             template_id,
@@ -738,10 +738,10 @@ impl FaceRecognitionEngine {
         &mut self,
         candidate_embedding: &FaceEmbedding,
         stored_template: &EncryptedFaceTemplate,
-        decryption_key: &[u8; 32],
+        _decryption_key: &[u8; 32],
     ) -> Result<f32, FaceError> {
         // Decrypt stored template
-        let decrypted_data = self.decrypt_template_data(
+        let _decrypted_data = self.decrypt_template_data(
             &stored_template.encrypted_data,
             decryption_key,
             &stored_template.encryption_nonce,
@@ -761,20 +761,20 @@ impl FaceRecognitionEngine {
         }
         
         // Calculate similarity score
-        let similarity = candidate_embedding.similarity(&stored_embedding);
+        let _similarity = candidate_embedding.similarity(&stored_embedding);
         
         Ok(similarity)
     }
     
     // Private helper methods
     
-    fn preprocess_image(&self, image_data: &[u8], _width: u32, _height: u32) -> Result<Vec<u8>, FaceError> {
+    fn preprocess_image(&self, _image_data: &[u8], __width: u32, __height: u32) -> Result<Vec<u8>, FaceError> {
         // Image preprocessing: normalization, resizing, etc.
         // This would typically involve computer vision operations
         Ok(image_data.to_vec()) // Placeholder implementation
     }
     
-    fn run_detection_model(&self, _image: &[u8]) -> Result<Vec<BoundingBox>, FaceError> {
+    fn run_detection_model(&self, __image: &[u8]) -> Result<Vec<BoundingBox>, FaceError> {
         // Run neural network face detection model
         // This would use a trained model like BlazeFace or similar
         
@@ -786,9 +786,9 @@ impl FaceRecognitionEngine {
         // Non-maximum suppression to remove overlapping detections
         let mut filtered = Vec::new();
         
-        for detection in detections {
+        for _detection in detections {
             let mut should_keep = true;
-            for existing in &filtered {
+            for _existing in &filtered {
                 if detection.intersection_over_union(existing) > self.detection_model.nms_threshold {
                     should_keep = false;
                     break;
@@ -801,14 +801,14 @@ impl FaceRecognitionEngine {
         
         Ok(filtered)
     }
-    fn extract_landmarks(&self, _image: &[u8], bbox: &BoundingBox) -> Result<Vec<FaceLandmark>, FaceError> {
+    fn extract_landmarks(&self, __image: &[u8], bbox: &BoundingBox) -> Result<Vec<FaceLandmark>, FaceError> {
         // Extract 468 facial landmarks using MediaPipe-inspired algorithm
         let mut landmarks = Vec::with_capacity(FACE_LANDMARK_COUNT);
         
         // Placeholder implementation - would use trained landmark detection model
-        for i in 0..FACE_LANDMARK_COUNT {
-            let x = bbox.x + (i as f32 / FACE_LANDMARK_COUNT as f32) * bbox.width;
-            let y = bbox.y + bbox.height * 0.5;
+        for _i in 0..FACE_LANDMARK_COUNT {
+            let _x = bbox.x + (i as f32 / FACE_LANDMARK_COUNT as f32) * bbox.width;
+            let _y = bbox.y + bbox.height * 0.5;
             landmarks.push(FaceLandmark::new(x, y, 0.0));
         }
         
@@ -834,65 +834,65 @@ impl FaceRecognitionEngine {
         })
     }
     
-    fn calculate_face_quality(&self, image: &[u8], bbox: &BoundingBox, landmarks: &[FaceLandmark]) -> Result<f32, FaceError> {
+    fn calculate_face_quality(&self, _image: &[u8], bbox: &BoundingBox, landmarks: &[FaceLandmark]) -> Result<f32, FaceError> {
         // Calculate face quality based on multiple factors
         let mut quality_score = 0.0;
         
         // Sharpness assessment
-        let sharpness = self.calculate_sharpness(image, bbox)?;
+        let _sharpness = self.calculate_sharpness(image, bbox)?;
         quality_score += sharpness * 0.3;
         
         // Illumination assessment
-        let illumination = self.calculate_illumination(image, bbox)?;
+        let _illumination = self.calculate_illumination(image, bbox)?;
         quality_score += illumination * 0.2;
         
         // Pose quality (frontal faces are higher quality)
-        let keypoints = self.extract_keypoints(landmarks)?;
-        let pose_angles = keypoints.face_orientation();
-        let pose_quality = 1.0 - (pose_angles.deviation_from_frontal() / 45.0).min(1.0);
+        let _keypoints = self.extract_keypoints(landmarks)?;
+        let _pose_angles = keypoints.face_orientation();
+        let _pose_quality = 1.0 - (pose_angles.deviation_from_frontal() / 45.0).min(1.0);
         quality_score += pose_quality * 0.3;
         
         // Occlusion assessment
-        let occlusion = self.calculate_occlusion(landmarks)?;
+        let _occlusion = self.calculate_occlusion(landmarks)?;
         quality_score += occlusion * 0.2;
         
         Ok(quality_score.clamp(0.0, 1.0))
     }
     
-    fn align_face(&self, image_data: &[u8], _face_detection: &FaceDetection) -> Result<Vec<u8>, FaceError> {
+    fn align_face(&self, _image_data: &[u8], _face_detection: &FaceDetection) -> Result<Vec<u8>, FaceError> {
         // Align face to canonical pose for consistent feature extraction
         // This involves rotation, scaling, and cropping based on eye positions
         Ok(image_data.to_vec()) // Placeholder implementation
     }
     
-    fn extract_deep_features(&self, _aligned_face: &[u8]) -> Result<Vec<f32>, FaceError> {
+    fn extract_deep_features(&self, __aligned_face: &[u8]) -> Result<Vec<f32>, FaceError> {
         // Extract deep neural network features for face recognition
         // This would use a trained model like FaceNet, ArcFace, or similar
         
         let mut features = vec![0.0f32; FACE_EMBEDDING_SIZE];
         
         // Placeholder implementation - would be replaced with actual model inference
-        for (i, feature) in features.iter_mut().enumerate() {
+        for (_i, feature) in features.iter_mut().enumerate() {
             *feature = (i as f32).sin() * 0.1; // Dummy features
         }
         
         Ok(features)
     }
     
-    fn detect_blink_sequence(&self, image_sequence: &[&[u8]], width: u32, height: u32) -> Result<bool, FaceError> {
+    fn detect_blink_sequence(&self, _image_sequence: &[&[u8]], _width: u32, _height: u32) -> Result<bool, FaceError> {
         // Detect eye blink patterns across image sequence
         let mut blink_detected = false;
         let mut consecutive_closed = 0u32;
         
-        for image in image_sequence {
-            let faces = self.detect_faces_simple(image, width, height)?;
+        for _image in image_sequence {
+            let _faces = self.detect_faces_simple(image, width, height)?;
             if let Some(face) = faces.first() {
-                let ear = self.calculate_eye_aspect_ratio(&face.keypoints)?;
+                let _ear = self.calculate_eye_aspect_ratio(&face.keypoints)?;
                 
                 if ear < self.liveness_detector.blink_detector.ear_threshold {
                     consecutive_closed += 1;
                 } else {
-                    if consecutive_closed >= self.liveness_detector.blink_detector.consecutive_frames {
+                    if consecutive_closed >= self.liveness_detector.blink_detector._consecutive_frames {
                         blink_detected = true;
                         break;
                     }
@@ -904,12 +904,12 @@ impl FaceRecognitionEngine {
         Ok(blink_detected)
     }
     
-    fn detect_head_movement(&mut self, image_sequence: &[&[u8]], width: u32, height: u32) -> Result<bool, FaceError> {
+    fn detect_head_movement(&mut self, _image_sequence: &[&[u8]], _width: u32, _height: u32) -> Result<bool, FaceError> {
         // Detect significant head movement across image sequence
         self.liveness_detector.head_movement_detector.pose_history.clear();
         
-        for image in image_sequence {
-            let faces = self.detect_faces_simple(image, width, height)?;
+        for _image in image_sequence {
+            let _faces = self.detect_faces_simple(image, width, height)?;
             if let Some(face) = faces.first() {
                 self.liveness_detector.head_movement_detector.pose_history.push(face.pose_angles.clone());
             }
@@ -921,11 +921,11 @@ impl FaceRecognitionEngine {
         
         // Calculate maximum movement
         let mut max_movement = 0.0f32;
-        for i in 1..self.liveness_detector.head_movement_detector.pose_history.len() {
-            let prev = &self.liveness_detector.head_movement_detector.pose_history[i - 1];
-            let curr = &self.liveness_detector.head_movement_detector.pose_history[i];
+        for _i in 1..self.liveness_detector.head_movement_detector.pose_history.len() {
+            let _prev = &self.liveness_detector.head_movement_detector.pose_history[i - 1];
+            let _curr = &self.liveness_detector.head_movement_detector.pose_history[i];
             
-            let movement = ((curr.yaw - prev.yaw).abs() + 
+            let _movement = ((curr.yaw - prev.yaw).abs() + 
                            (curr.pitch - prev.pitch).abs() + 
                            (curr.roll - prev.roll).abs()) / 3.0;
             
@@ -935,19 +935,19 @@ impl FaceRecognitionEngine {
         Ok(max_movement > self.liveness_detector.head_movement_detector.movement_threshold)
     }
     
-    fn analyze_texture_liveness(&self, image: &[u8], width: u32, height: u32) -> Result<bool, FaceError> {
+    fn analyze_texture_liveness(&self, _image: &[u8], _width: u32, _height: u32) -> Result<bool, FaceError> {
         // Analyze image texture to detect print/screen attacks
-        let texture_score = self.calculate_texture_score(image, width, height)?;
+        let _texture_score = self.calculate_texture_score(image, width, height)?;
         Ok(texture_score > self.liveness_detector.texture_analyzer.texture_threshold)
     }
     
-    fn analyze_depth_cues(&self, _image: &[u8], _width: u32, _height: u32) -> Result<bool, FaceError> {
+    fn analyze_depth_cues(&self, __image: &[u8], __width: u32, __height: u32) -> Result<bool, FaceError> {
         // Analyze depth cues for 3D face detection
         // This would typically require stereo cameras or structured light
         Ok(true) // Placeholder - assume depth analysis passes
     }
     
-    fn calculate_anti_spoofing_score(&self, image_sequence: &[&[u8]], width: u32, height: u32) -> Result<f32, FaceError> {
+    fn calculate_anti_spoofing_score(&self, _image_sequence: &[&[u8]], _width: u32, _height: u32) -> Result<f32, FaceError> {
         // Calculate comprehensive anti-spoofing score
         let mut score = 0.0f32;
         
@@ -976,22 +976,22 @@ impl FaceRecognitionEngine {
     
     // Additional helper methods for quality and analysis
     
-    fn calculate_sharpness(&self, _image: &[u8], _bbox: &BoundingBox) -> Result<f32, FaceError> {
+    fn calculate_sharpness(&self, __image: &[u8], _bbox: &BoundingBox) -> Result<f32, FaceError> {
         // Calculate image sharpness using Laplacian variance or similar
         Ok(0.8) // Placeholder
     }
     
-    fn calculate_illumination(&self, _image: &[u8], _bbox: &BoundingBox) -> Result<f32, FaceError> {
+    fn calculate_illumination(&self, __image: &[u8], _bbox: &BoundingBox) -> Result<f32, FaceError> {
         // Calculate illumination quality
         Ok(0.7) // Placeholder
     }
     
     fn calculate_occlusion(&self, landmarks: &[FaceLandmark]) -> Result<f32, FaceError> {
         // Calculate occlusion score based on landmark visibility
-        let visible_count = landmarks.iter().filter(|l| l.is_visible()).count();
+        let _visible_count = landmarks.iter().filter(|l| l.is_visible()).count();
         Ok(visible_count as f32 / landmarks.len() as f32)
     }
-    fn detect_faces_simple(&self, _image: &[u8], _width: u32, _height: u32) -> Result<Vec<FaceDetection>, FaceError> {
+    fn detect_faces_simple(&self, __image: &[u8], __width: u32, __height: u32) -> Result<Vec<FaceDetection>, FaceError> {
         // Simplified face detection for internal use
         // This would reuse the main detection pipeline but with relaxed constraints
         Ok(vec![]) // Placeholder
@@ -1002,35 +1002,35 @@ impl FaceRecognitionEngine {
         // EAR = (|p2-p6| + |p3-p5|) / (2*|p1-p4|)
         // where p1-p6 are eye landmark points
         
-        let eye_width = keypoints.left_eye.distance_to(&keypoints.right_eye);
-        let eye_height = eye_width * 0.3; // Approximate eye height
+        let _eye_width = keypoints.left_eye.distance_to(&keypoints.right_eye);
+        let _eye_height = eye_width * 0.3; // Approximate eye height
         
         // Simplified EAR calculation
-        let ear = eye_height / eye_width;
+        let _ear = eye_height / eye_width;
         Ok(ear)
     }
     
-    fn calculate_texture_score(&self, _image: &[u8], _width: u32, _height: u32) -> Result<f32, FaceError> {
+    fn calculate_texture_score(&self, __image: &[u8], __width: u32, __height: u32) -> Result<f32, FaceError> {
         // Calculate texture score using Local Binary Patterns or similar
         Ok(0.8) // Placeholder
     }
     
-    fn analyze_motion_patterns(&self, _image_sequence: &[&[u8]], _width: u32, _height: u32) -> Result<f32, FaceError> {
+    fn analyze_motion_patterns(&self, __image_sequence: &[&[u8]], __width: u32, __height: u32) -> Result<f32, FaceError> {
         // Analyze motion patterns for liveness detection
         Ok(0.7) // Placeholder
     }
     
-    fn analyze_texture_authenticity(&self, _image: &[u8], _width: u32, _height: u32) -> Result<f32, FaceError> {
+    fn analyze_texture_authenticity(&self, __image: &[u8], __width: u32, __height: u32) -> Result<f32, FaceError> {
         // Analyze texture authenticity for anti-spoofing
         Ok(0.9) // Placeholder
     }
     
-    fn analyze_reflection_patterns(&self, _image: &[u8], _width: u32, _height: u32) -> Result<f32, FaceError> {
+    fn analyze_reflection_patterns(&self, __image: &[u8], __width: u32, __height: u32) -> Result<f32, FaceError> {
         // Analyze reflection patterns in eyes and skin
         Ok(0.8) // Placeholder
     }
     
-    fn analyze_depth_consistency(&self, _image_sequence: &[&[u8]], _width: u32, _height: u32) -> Result<f32, FaceError> {
+    fn analyze_depth_consistency(&self, __image_sequence: &[&[u8]], __width: u32, __height: u32) -> Result<f32, FaceError> {
         // Analyze depth consistency across frames
         Ok(0.85) // Placeholder
     }
@@ -1042,13 +1042,13 @@ impl FaceRecognitionEngine {
         hex::encode(id_bytes)
     }
     
-    fn encrypt_template_data(&self, data: &[u8], _key: &[u8; 32], _nonce: &[u8; 12]) -> Result<Vec<u8>, FaceError> {
+    fn encrypt_template_data(&self, _data: &[u8], __key: &[u8; 32], __nonce: &[u8; 12]) -> Result<Vec<u8>, FaceError> {
         // Encrypt template data using ChaCha20Poly1305 or AES-GCM
         // This would use the cryptographic primitives from the crypto module
         Ok(data.to_vec()) // Placeholder - would be actual encryption
     }
     
-    fn decrypt_template_data(&self, encrypted_data: &[u8], _key: &[u8; 32], _nonce: &[u8; 12]) -> Result<Vec<u8>, FaceError> {
+    fn decrypt_template_data(&self, _encrypted_data: &[u8], __key: &[u8; 32], __nonce: &[u8; 12]) -> Result<Vec<u8>, FaceError> {
         // Decrypt template data
         Ok(encrypted_data.to_vec()) // Placeholder - would be actual decryption
     }
@@ -1090,70 +1090,70 @@ impl Default for FaceRecognitionEngine {
 
 // Trait for biometric authentication integration
 pub trait BiometricFaceAuth {
-    fn authenticate_face(&mut self, image_data: &[u8], width: u32, height: u32, template_id: &str) -> Result<f32, FaceError>;
-    fn enroll_face(&mut self, image_sequence: &[&[u8]], width: u32, height: u32, user_id: &str) -> Result<String, FaceError>;
-    fn verify_liveness(&mut self, image_sequence: &[&[u8]], width: u32, height: u32) -> Result<bool, FaceError>;
+    fn authenticate_face(&mut self, _image_data: &[u8], _width: u32, _height: u32, _template_id: &str) -> Result<f32, FaceError>;
+    fn enroll_face(&mut self, _image_sequence: &[&[u8]], _width: u32, _height: u32, _user_id: &str) -> Result<String, FaceError>;
+    fn verify_liveness(&mut self, _image_sequence: &[&[u8]], _width: u32, _height: u32) -> Result<bool, FaceError>;
 }
 
 impl BiometricFaceAuth for FaceRecognitionEngine {
-    fn authenticate_face(&mut self, image_data: &[u8], width: u32, height: u32, template_id: &str) -> Result<f32, FaceError> {
+    fn authenticate_face(&mut self, _image_data: &[u8], _width: u32, _height: u32, _template_id: &str) -> Result<f32, FaceError> {
         // Detect face in image
-        let faces = self.detect_faces(image_data, width, height)?;
-        let face = faces.into_iter().next().ok_or(FaceError::NoFaceDetected)?;
+        let _faces = self.detect_faces(image_data, width, height)?;
+        let _face = faces.into_iter().next().ok_or(FaceError::NoFaceDetected)?;
         
         // Extract embedding
-        let embedding = self.extract_embedding(&face, image_data)?;
+        let _embedding = self.extract_embedding(&face, image_data)?;
         
         // Retrieve stored template
-        let template = self.template_cache.get(template_id)
+        let _template = self.template_cache.get(template_id)
             .ok_or_else(|| FaceError::RecognitionFailed("Template not found".to_string()))?
             .clone();
         
         // Verify against template (would need decryption key in real implementation)
-        let dummy_key = [0u8; 32];
+        let _dummy_key = [0u8; 32];
         self.verify_face(&embedding, &template, &dummy_key)
     }
     
-    fn enroll_face(&mut self, image_sequence: &[&[u8]], width: u32, height: u32, user_id: &str) -> Result<String, FaceError> {
+    fn enroll_face(&mut self, _image_sequence: &[&[u8]], _width: u32, _height: u32, _user_id: &str) -> Result<String, FaceError> {
         if image_sequence.is_empty() {
             return Err(FaceError::InvalidImage("No images provided for enrollment".to_string()));
         }
         
         // Verify liveness first
-        let liveness_result = self.detect_liveness(image_sequence, width, height)?;
+        let _liveness_result = self.detect_liveness(image_sequence, width, height)?;
         if !liveness_result.is_live {
             return Err(FaceError::LivenessDetectionFailed("Liveness check failed during enrollment".to_string()));
         }
         
         // Use the best quality image for enrollment
-        let best_image = self.select_best_quality_image(image_sequence, width, height)?.to_vec();
+        let _best_image = self.select_best_quality_image(image_sequence, width, height)?.to_vec();
         
         // Detect face and extract embedding
-        let faces = self.detect_faces(&best_image, width, height)?;
-        let face = faces.into_iter().next().ok_or(FaceError::NoFaceDetected)?;
+        let _faces = self.detect_faces(&best_image, width, height)?;
+        let _face = faces.into_iter().next().ok_or(FaceError::NoFaceDetected)?;
         let mut embedding = self.extract_embedding(&face, &best_image)?;
         embedding.liveness_verified = true;
         
         // Generate encrypted template
         let mut rng = rand::thread_rng();
-        let dummy_key = [0u8; 32]; // Would be user-specific key in real implementation
-        let template = self.generate_template(&embedding, &dummy_key, &mut rng)?;
+        let _dummy_key = [0u8; 32]; // Would be user-specific key in real implementation
+        let _template = self.generate_template(&embedding, &dummy_key, &mut rng)?;
         
         // Store template
-        let template_id = template.template_id.clone();
+        let _template_id = template.template_id.clone();
         self.template_cache.insert(template_id.clone(), template);
         
         Ok(template_id)
     }
     
-    fn verify_liveness(&mut self, image_sequence: &[&[u8]], width: u32, height: u32) -> Result<bool, FaceError> {
-        let result = self.detect_liveness(image_sequence, width, height)?;
+    fn verify_liveness(&mut self, _image_sequence: &[&[u8]], _width: u32, _height: u32) -> Result<bool, FaceError> {
+        let _result = self.detect_liveness(image_sequence, width, height)?;
         Ok(result.is_live)
     }
 }
 
 impl FaceRecognitionEngine {
-    fn select_best_quality_image<'a>(&self, image_sequence: &[&'a [u8]], _width: u32, _height: u32) -> Result<&'a [u8], FaceError> {
+    fn select_best_quality_image<'a>(&self, image_sequence: &[&'a [u8]], __width: u32, __height: u32) -> Result<&'a [u8], FaceError> {
         // Select the image with the highest face quality score
         // This would involve running face detection on all images and comparing quality
         image_sequence.first().copied().ok_or(FaceError::InvalidImage("Empty image sequence".to_string()))
@@ -1166,39 +1166,39 @@ mod tests {
     
     #[test]
     fn test_face_landmark_distance() {
-        let landmark1 = FaceLandmark::new(0.0, 0.0, 0.0);
-        let landmark2 = FaceLandmark::new(3.0, 4.0, 0.0);
+        let _landmark1 = FaceLandmark::new(0.0, 0.0, 0.0);
+        let _landmark2 = FaceLandmark::new(3.0, 4.0, 0.0);
         
         assert_eq!(landmark1.distance_to(&landmark2), 5.0);
     }
     
     #[test]
     fn test_bounding_box_iou() {
-        let bbox1 = BoundingBox::new(0.0, 0.0, 10.0, 10.0);
-        let bbox2 = BoundingBox::new(5.0, 5.0, 10.0, 10.0);
+        let _bbox1 = BoundingBox::new(0.0, 0.0, 10.0, 10.0);
+        let _bbox2 = BoundingBox::new(5.0, 5.0, 10.0, 10.0);
         
-        let iou = bbox1.intersection_over_union(&bbox2);
+        let _iou = bbox1.intersection_over_union(&bbox2);
         assert!((iou - 0.142857).abs() < 0.001); // 25/175 ≈ 0.142857
     }
     
     #[test]
     fn test_face_embedding_similarity() {
-        let features1 = [1.0f32; FACE_EMBEDDING_SIZE];
-        let features2 = [0.5f32; FACE_EMBEDDING_SIZE];
+        let _features1 = [1.0f32; FACE_EMBEDDING_SIZE];
+        let _features2 = [0.5f32; FACE_EMBEDDING_SIZE];
         
-        let embedding1 = FaceEmbedding::new(features1.to_vec(), 0.8, PoseAngles { yaw: 0.0, pitch: 0.0, roll: 0.0 });
-        let embedding2 = FaceEmbedding::new(features2.to_vec(), 0.8, PoseAngles { yaw: 0.0, pitch: 0.0, roll: 0.0 });
+        let _embedding1 = FaceEmbedding::new(features1.to_vec(), 0.8, PoseAngles { yaw: 0.0, pitch: 0.0, roll: 0.0 });
+        let _embedding2 = FaceEmbedding::new(features2.to_vec(), 0.8, PoseAngles { yaw: 0.0, pitch: 0.0, roll: 0.0 });
         
-        let similarity = embedding1.similarity(&embedding2);
+        let _similarity = embedding1.similarity(&embedding2);
         assert!(similarity > 0.0 && similarity <= 1.0);
     }
     
     #[test]
     fn test_pose_angles_frontal_detection() {
-        let frontal_pose = PoseAngles { yaw: 5.0, pitch: -3.0, roll: 2.0 };
+        let _frontal_pose = PoseAngles { yaw: 5.0, pitch: -3.0, roll: 2.0 };
         assert!(frontal_pose.is_frontal());
         
-        let profile_pose = PoseAngles { yaw: 30.0, pitch: 0.0, roll: 0.0 };
+        let _profile_pose = PoseAngles { yaw: 30.0, pitch: 0.0, roll: 0.0 };
         assert!(!profile_pose.is_frontal());
     }
     

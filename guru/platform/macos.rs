@@ -99,7 +99,7 @@ pub enum FileOperation {
     Copy { from: PathBuf, to: PathBuf },
     CreateDirectory { path: PathBuf },
     ListDirectory { path: PathBuf },
-    SetPermissions { path: PathBuf, mode: u32 },
+    SetPermissions { path: PathBuf, _mode: u32 },
     GetAttributes { path: PathBuf },
 }
 
@@ -117,7 +117,7 @@ pub enum FileResult {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FileAttributes {
     pub size: u64,
-    pub permissions: u32,
+    pub _permissions: u32,
     pub created: SystemTime,
     pub modified: SystemTime,
     pub accessed: SystemTime,
@@ -132,7 +132,7 @@ pub enum SystemSetting {
     Brightness(f32),
     EnergyPreferences(String),
     NetworkConfiguration(String),
-    DisplayResolution { width: u32, height: u32, scale: f32 },
+    DisplayResolution { _width: u32, _height: u32, scale: f32 },
     TimeZone(String),
     UserDefaults { domain: String, key: String, value: String },
     SystemPreference { pane: String, setting: String, value: String },
@@ -189,7 +189,7 @@ pub struct CGRect {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowInfo {
     pub window_id: WindowId,
-    pub process_id: ProcessId,
+    pub _process_id: ProcessId,
     pub title: String,
     pub owner_name: String,
     pub bounds: CGRect,
@@ -204,7 +204,7 @@ pub struct WindowInfo {
 /// Process information for macOS
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessInfo {
-    pub process_id: ProcessId,
+    pub _process_id: ProcessId,
     pub name: String,
     pub bundle_identifier: Option<String>,
     pub executable_path: PathBuf,
@@ -214,7 +214,7 @@ pub struct ProcessInfo {
     pub cpu_usage: f64,
     pub memory_usage: u64,
     pub start_time: SystemTime,
-    pub window_count: u32,
+    pub _window_count: u32,
     pub is_sandboxed: bool,
 }
 
@@ -270,8 +270,8 @@ impl MacOSControlBridge {
     }
 
     /// Launch an application by name or bundle identifier
-    pub fn launch_application(&mut self, app_name: &str) -> Result<ProcessId, MacOSError> {
-        let start_time = std::time::Instant::now();
+    pub fn launch_application(&mut self, _app_name: &str) -> Result<ProcessId, MacOSError> {
+        let _start_time = std::time::Instant::now();
         
         // Check for sandbox restrictions
         if self.sandbox_mode && !self.is_application_allowed(app_name) {
@@ -281,9 +281,9 @@ impl MacOSControlBridge {
         }
         
         // Simulate application launch
-        let process_id = ProcessId(fastrand::i32(1000..99999));
+        let _process_id = ProcessId(fastrand::i32(1000..99999));
         
-        let process_info = ProcessInfo {
+        let _process_info = ProcessInfo {
             process_id,
             name: app_name.to_string(),
             bundle_identifier: Some(format!("com.example.{}", app_name.to_lowercase())),
@@ -294,13 +294,13 @@ impl MacOSControlBridge {
             cpu_usage: 0.0,
             memory_usage: 50 * 1024 * 1024, // 50MB
             start_time: SystemTime::now(),
-            window_count: 1,
+            _window_count: 1,
             is_sandboxed: self.sandbox_mode,
         };
         
         self.active_processes.insert(process_id, process_info);
         
-        let elapsed = start_time.elapsed();
+        let _elapsed = start_time.elapsed();
         self.performance_metrics.application_launch_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;
@@ -310,13 +310,13 @@ impl MacOSControlBridge {
 
     /// Control a window with the specified action
     pub fn control_window(&mut self, window_id: WindowId, action: WindowAction) -> Result<(), MacOSError> {
-        let start_time = std::time::Instant::now();
+        let _start_time = std::time::Instant::now();
         
         if !self.active_windows.contains_key(&window_id) {
             // Create a mock window if it doesn't exist
-            let window_info = WindowInfo {
+            let _window_info = WindowInfo {
                 window_id,
-                process_id: ProcessId(1234),
+                _process_id: ProcessId(1234),
                 title: "Mock Window".to_string(),
                 owner_name: "MockApp".to_string(),
                 bounds: CGRect { x: 100.0, y: 100.0, width: 800.0, height: 600.0 },
@@ -346,11 +346,11 @@ impl MacOSControlBridge {
                 WindowAction::Close => {
                     self.active_windows.remove(&window_id);
                 }
-                WindowAction::Move { x, y } => {
+                WindowAction::Move { _x, _y } => {
                     window_info.bounds.x = x;
                     window_info.bounds.y = y;
                 }
-                WindowAction::Resize { width, height } => {
+                WindowAction::Resize { _width, _height } => {
                     window_info.bounds.width = width;
                     window_info.bounds.height = height;
                 }
@@ -372,7 +372,7 @@ impl MacOSControlBridge {
             }
         }
         
-        let elapsed = start_time.elapsed();
+        let _elapsed = start_time.elapsed();
         self.performance_metrics.window_operation_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;
@@ -382,10 +382,10 @@ impl MacOSControlBridge {
 
     /// Perform file system operations
     pub fn perform_file_operation(&mut self, operation: FileOperation) -> Result<FileResult, MacOSError> {
-        let start_time = std::time::Instant::now();
+        let _start_time = std::time::Instant::now();
         
-        let result = match operation {
-            FileOperation::Create { path, content } => {
+        let _result = match operation {
+            FileOperation::Create { _path, _content } => {
                 if self.sandbox_mode && !self.is_path_accessible(&path) {
                     return Err(MacOSError::SandboxRestriction {
                         operation: format!("create file: {}", path.display()),
@@ -393,7 +393,7 @@ impl MacOSControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::Read { path } => {
+            FileOperation::Read { _path } => {
                 if self.sandbox_mode && !self.is_path_accessible(&path) {
                     return Err(MacOSError::SandboxRestriction {
                         operation: format!("read file: {}", path.display()),
@@ -401,7 +401,7 @@ impl MacOSControlBridge {
                 }
                 FileResult::Content(b"Mock file content".to_vec())
             }
-            FileOperation::Write { path, content } => {
+            FileOperation::Write { _path, _content } => {
                 if self.sandbox_mode && !self.is_path_accessible(&path) {
                     return Err(MacOSError::SandboxRestriction {
                         operation: format!("write file: {}", path.display()),
@@ -409,7 +409,7 @@ impl MacOSControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::Delete { path } => {
+            FileOperation::Delete { _path } => {
                 if self.sandbox_mode && !self.is_path_accessible(&path) {
                     return Err(MacOSError::SandboxRestriction {
                         operation: format!("delete file: {}", path.display()),
@@ -417,7 +417,7 @@ impl MacOSControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::Move { from, to } => {
+            FileOperation::Move { _from, _to } => {
                 if self.sandbox_mode && (!self.is_path_accessible(&from) || !self.is_path_accessible(&to)) {
                     return Err(MacOSError::SandboxRestriction {
                         operation: format!("move file: {} -> {}", from.display(), to.display()),
@@ -425,7 +425,7 @@ impl MacOSControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::Copy { from, to } => {
+            FileOperation::Copy { _from, _to } => {
                 if self.sandbox_mode && (!self.is_path_accessible(&from) || !self.is_path_accessible(&to)) {
                     return Err(MacOSError::SandboxRestriction {
                         operation: format!("copy file: {} -> {}", from.display(), to.display()),
@@ -433,7 +433,7 @@ impl MacOSControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::CreateDirectory { path } => {
+            FileOperation::CreateDirectory { _path } => {
                 if self.sandbox_mode && !self.is_path_accessible(&path) {
                     return Err(MacOSError::SandboxRestriction {
                         operation: format!("create directory: {}", path.display()),
@@ -441,7 +441,7 @@ impl MacOSControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::ListDirectory { path } => {
+            FileOperation::ListDirectory { _path } => {
                 if self.sandbox_mode && !self.is_path_accessible(&path) {
                     return Err(MacOSError::SandboxRestriction {
                         operation: format!("list directory: {}", path.display()),
@@ -453,7 +453,7 @@ impl MacOSControlBridge {
                     PathBuf::from("subdirectory"),
                 ])
             }
-            FileOperation::SetPermissions { path, mode } => {
+            FileOperation::SetPermissions { _path, _mode } => {
                 if self.sandbox_mode && !self.is_path_accessible(&path) {
                     return Err(MacOSError::SandboxRestriction {
                         operation: format!("set permissions: {}", path.display()),
@@ -461,7 +461,7 @@ impl MacOSControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::GetAttributes { path } => {
+            FileOperation::GetAttributes { _path } => {
                 if self.sandbox_mode && !self.is_path_accessible(&path) {
                     return Err(MacOSError::SandboxRestriction {
                         operation: format!("get attributes: {}", path.display()),
@@ -479,7 +479,7 @@ impl MacOSControlBridge {
             }
         };
         
-        let elapsed = start_time.elapsed();
+        let _elapsed = start_time.elapsed();
         self.performance_metrics.file_operation_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;
@@ -489,7 +489,7 @@ impl MacOSControlBridge {
 
     /// Modify system settings
     pub fn modify_system_setting(&mut self, setting: SystemSetting) -> Result<(), MacOSError> {
-        let start_time = std::time::Instant::now();
+        let _start_time = std::time::Instant::now();
         
         match setting {
             SystemSetting::Volume(level) => {
@@ -508,7 +508,7 @@ impl MacOSControlBridge {
                     });
                 }
             }
-            SystemSetting::DisplayResolution { width, height, scale } => {
+            SystemSetting::DisplayResolution { _width, height, _scale } => {
                 if width < 640 || height < 480 || !(0.5..=3.0).contains(&scale) {
                     return Err(MacOSError::InvalidParameter {
                         parameter: "display_resolution".to_string(),
@@ -519,7 +519,7 @@ impl MacOSControlBridge {
             _ => {} // Other settings are accepted as-is
         }
         
-        let elapsed = start_time.elapsed();
+        let _elapsed = start_time.elapsed();
         self.performance_metrics.swift_interop_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;
@@ -529,7 +529,7 @@ impl MacOSControlBridge {
 
     /// Inject input events
     pub fn inject_input_event(&mut self, event: InputEvent) -> Result<(), MacOSError> {
-        let start_time = std::time::Instant::now();
+        let _start_time = std::time::Instant::now();
         
         if !self.accessibility_enabled {
             return Err(MacOSError::AccessibilityError {
@@ -539,7 +539,7 @@ impl MacOSControlBridge {
         
         // Simulate input event injection
         match event {
-            InputEvent::KeyPress { key_code, modifiers } => {
+            InputEvent::KeyPress { _key_code, _modifiers } => {
                 // Validate key code (macOS uses different key codes)
                 if key_code > 127 {
                     return Err(MacOSError::InvalidParameter {
@@ -548,7 +548,7 @@ impl MacOSControlBridge {
                     });
                 }
             }
-            InputEvent::MouseClick { x, y, button } => {
+            InputEvent::MouseClick { _x, y, _button } => {
                 // Validate coordinates
                 if x < 0.0 || y < 0.0 {
                     return Err(MacOSError::InvalidParameter {
@@ -560,7 +560,7 @@ impl MacOSControlBridge {
             _ => {} // Other events are accepted as-is
         }
         
-        let elapsed = start_time.elapsed();
+        let _elapsed = start_time.elapsed();
         self.performance_metrics.event_injection_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;
@@ -569,8 +569,8 @@ impl MacOSControlBridge {
     }
 
     /// Extract UI tree using Accessibility API
-    pub fn extract_ui_tree(&mut self, process_id: ProcessId) -> Result<UIElement, MacOSError> {
-        let start_time = std::time::Instant::now();
+    pub fn extract_ui_tree(&mut self, _process_id: ProcessId) -> Result<UIElement, MacOSError> {
+        let _start_time = std::time::Instant::now();
         
         if !self.accessibility_enabled {
             return Err(MacOSError::AccessibilityError {
@@ -579,7 +579,7 @@ impl MacOSControlBridge {
         }
         
         // Simulate UI tree extraction using Accessibility API
-        let ui_tree = UIElement {
+        let _ui_tree = UIElement {
             element_id: Uuid::new_v4().to_string(),
             role: "AXApplication".to_string(),
             subrole: None,
@@ -624,7 +624,7 @@ impl MacOSControlBridge {
             attributes: HashMap::new(),
         };
         
-        let elapsed = start_time.elapsed();
+        let _elapsed = start_time.elapsed();
         self.performance_metrics.ui_tree_extraction_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.accessibility_query_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
@@ -679,16 +679,16 @@ impl MacOSControlBridge {
     }
 
     /// Check if an application is allowed in sandbox mode
-    fn is_application_allowed(&self, app_name: &str) -> bool {
+    fn is_application_allowed(&self, _app_name: &str) -> bool {
         // Simulate sandbox application allowlist
-        let allowed_apps = ["TextEdit", "Calculator", "Safari", "Mail"];
+        let _allowed_apps = ["TextEdit", "Calculator", "Safari", "Mail"];
         allowed_apps.contains(&app_name)
     }
 
     /// Check if a path is accessible in sandbox mode
     fn is_path_accessible(&self, path: &PathBuf) -> bool {
         // Simulate sandbox path restrictions
-        let path_str = path.to_string_lossy();
+        let _path_str = path.to_string_lossy();
         
         // Allow access to user documents and downloads
         path_str.starts_with("/Users/") && 

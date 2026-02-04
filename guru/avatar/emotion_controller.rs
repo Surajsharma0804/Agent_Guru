@@ -105,6 +105,10 @@ pub struct PersonalityProfile {
     pub stability: f32,
     /// Expressiveness [0.0, 1.0]
     pub expressiveness: f32,
+    /// Introversion/Extraversion [0.0, 1.0] (0 = introverted, 1 = extraverted)
+    pub extraversion: f32,
+    /// Openness to experience [0.0, 1.0]
+    pub openness: f32,
 }
 
 /// Real-time performance metrics
@@ -177,7 +181,7 @@ impl EmotionController {
     /// Initialize personality-based transition rules
     fn initialize_transition_rules(&mut self) {
         // Base transition probabilities
-        let base_rules = vec![
+        let _base_rules = vec![
             ((EmotionState::Neutral, EmotionState::Happy), 0.8),
             ((EmotionState::Neutral, EmotionState::Confident), 0.7),
             ((EmotionState::Happy, EmotionState::Playful), 0.9),
@@ -188,9 +192,9 @@ impl EmotionController {
         ];
         
         // Apply personality modifiers
-        for ((from, to), base_prob) in base_rules {
-            let modified_prob = self.apply_personality_modifier(base_prob, &from, &to);
-            self.transition_rules.insert((from, to), modified_prob);
+        for ((from, to), base_prob) in _base_rules {
+            let _modified_prob = self.apply_personality_modifier(base_prob, &from, &to);
+            self.transition_rules.insert((from, to), _modified_prob);
         }
         
         // Add personality-specific transitions
@@ -241,12 +245,12 @@ impl EmotionController {
             return Ok(());
         }
         
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         
         // Create transition with personality-appropriate curve
-        let bezier_control = self.calculate_transition_curve(&self.current_emotion, &target_emotion);
+        let _bezier_control = self.calculate_transition_curve(&self.current_emotion, &target_emotion);
         
-        let transition = EmotionTransition {
+        let _transition = EmotionTransition {
             from_emotion: self.current_emotion.clone(),
             to_emotion: target_emotion.clone(),
             start_time,
@@ -274,18 +278,24 @@ impl EmotionController {
     
     /// Validate emotion transition based on personality and rules
     fn is_valid_transition(&self, from: &EmotionState, to: &EmotionState) -> bool {
-        // Check transition rules
-        if let Some(&probability) = self.transition_rules.get(&(from.clone(), to.clone())) {
-            return probability > 0.1; // Minimum threshold
-        }
-        
-        // Check personality compatibility
-        match (&self.personality.personality_type, to) {
-            (PersonalityType::GURU, EmotionState::GuruWisdom | EmotionState::GuruConfidence) => true,
-            (PersonalityType::MAYA, EmotionState::MayaEmpathy | EmotionState::MayaPlayfulness) => true,
-            (PersonalityType::GURU, EmotionState::MayaEmpathy | EmotionState::MayaPlayfulness) => false,
-            (PersonalityType::MAYA, EmotionState::GuruWisdom | EmotionState::GuruConfidence) => false,
-            _ => true, // Allow base emotions for all personalities
+        // Always allow base emotions regardless of personality traits
+        match to {
+            // Base emotions (Ekman's 6 + common extensions) - always allowed
+            EmotionState::Neutral | EmotionState::Happy | EmotionState::Sad | 
+            EmotionState::Angry | EmotionState::Surprised | EmotionState::Disgusted | 
+            EmotionState::Fearful | EmotionState::Contempt | EmotionState::Confident | 
+            EmotionState::Empathetic | EmotionState::Playful | EmotionState::Witty | 
+            EmotionState::Thoughtful | EmotionState::Focused | EmotionState::Curious | 
+            EmotionState::Determined | EmotionState::Compassionate | EmotionState::Mischievous | 
+            EmotionState::Serene | EmotionState::Intense => true,
+            
+            // Personality-specific emotions - check compatibility
+            EmotionState::GuruWisdom | EmotionState::GuruConfidence => {
+                matches!(self.personality.personality_type, PersonalityType::GURU)
+            }
+            EmotionState::MayaEmpathy | EmotionState::MayaPlayfulness => {
+                matches!(self.personality.personality_type, PersonalityType::MAYA)
+            }
         }
     }
     
@@ -332,20 +342,20 @@ impl EmotionController {
     
     /// Update active transitions and calculate interpolated states
     pub fn update_transitions(&mut self, delta_time: Duration) -> Result<(), String> {
-        let current_time = Instant::now();
+        let _current_time = Instant::now();
         let mut completed_transitions = Vec::new();
         
         // Update all active transitions
-        for (index, transition) in self.active_transitions.iter_mut().enumerate() {
-            let elapsed = current_time.duration_since(transition.start_time);
-            let progress = (elapsed.as_millis() as f32) / (transition.duration.as_millis() as f32);
+        for (_index, transition) in self.active_transitions.iter_mut().enumerate() {
+            let _elapsed = current_time.duration_since(transition.start_time);
+            let _progress = (elapsed.as_millis() as f32) / (transition.duration.as_millis() as f32);
             
             if progress >= 1.0 {
                 transition.progress = 1.0;
                 completed_transitions.push(index);
             } else {
                 // Apply cubic Bézier interpolation
-                let bezier_progress = Self::cubic_bezier_interpolation_static(
+                let _bezier_progress = Self::cubic_bezier_interpolation_static(
                     progress,
                     transition.bezier_control.0,
                     transition.bezier_control.1,
@@ -367,31 +377,31 @@ impl EmotionController {
     
     /// Cubic Bézier interpolation for smooth transitions (static version)
     fn cubic_bezier_interpolation_static(t: f32, p1: f32, p2: f32, p3: f32, p4: f32) -> f32 {
-        let t2 = t * t;
-        let t3 = t2 * t;
-        let mt = 1.0 - t;
-        let mt2 = mt * mt;
-        let mt3 = mt2 * mt;
+        let _t2 = t * t;
+        let _t3 = t2 * t;
+        let _mt = 1.0 - t;
+        let _mt2 = mt * mt;
+        let _mt3 = mt2 * mt;
         
         mt3 * 0.0 + 3.0 * mt2 * t * p1 + 3.0 * mt * t2 * p2 + t3 * 1.0
     }
     
     /// Cubic Bézier interpolation for smooth transitions
     fn cubic_bezier_interpolation(&self, t: f32, p1: f32, p2: f32, p3: f32, p4: f32) -> f32 {
-        let t2 = t * t;
-        let t3 = t2 * t;
-        let mt = 1.0 - t;
-        let mt2 = mt * mt;
-        let mt3 = mt2 * mt;
+        let _t2 = t * t;
+        let _t3 = t2 * t;
+        let _mt = 1.0 - t;
+        let _mt2 = mt * mt;
+        let _mt3 = mt2 * mt;
         
         mt3 * 0.0 + 3.0 * mt2 * t * p1 + 3.0 * mt * t2 * p2 + t3 * 1.0
     }
     
     /// Get current emotion blend (primary + secondary with weights)
     pub fn get_current_emotion_blend(&self) -> (EmotionState, Option<(EmotionState, f32)>) {
-        let secondary = if let Some(ref secondary) = self.secondary_emotion {
+        let _secondary = if let Some(ref secondary) = self.secondary_emotion {
             // Calculate blend weight based on active transitions
-            let blend_weight = self.calculate_secondary_blend_weight();
+            let _blend_weight = self.calculate_secondary_blend_weight();
             Some((secondary.clone(), blend_weight))
         } else {
             None
@@ -407,13 +417,13 @@ impl EmotionController {
         }
         
         // Use highest priority active transition
-        let primary_transition = &self.active_transitions[0];
+        let _primary_transition = &self.active_transitions[0];
         primary_transition.progress * primary_transition.intensity
     }
     
     /// Record state change in history
     fn record_state_change(&mut self, emotion: EmotionState) {
-        let timestamp = Instant::now();
+        let _timestamp = Instant::now();
         self.state_history.push((emotion, timestamp));
         
         // Maintain history size limit
@@ -424,13 +434,13 @@ impl EmotionController {
     
     /// Update performance metrics
     pub fn update_performance_metrics(&mut self) {
-        let now = Instant::now();
-        let elapsed = now.duration_since(self.last_metrics_update);
+        let _now = Instant::now();
+        let _elapsed = now.duration_since(self.last_metrics_update);
         
         // Always update for testing, or if enough time has passed
         if elapsed >= Duration::from_millis(100) || self.metrics.memory_usage_bytes == 0 {
             // Calculate state changes per second
-            let recent_changes = self.state_history.iter()
+            let _recent_changes = self.state_history.iter()
                 .filter(|(_, timestamp)| now.duration_since(*timestamp) <= Duration::from_secs(1))
                 .count();
             
@@ -506,6 +516,8 @@ impl Default for PersonalityProfile {
             wit: 0.6,
             stability: 0.7,
             expressiveness: 0.8,
+            extraversion: 0.6,
+            openness: 0.7,
         }
     }
 }
@@ -516,18 +528,18 @@ mod tests {
     
     #[test]
     fn test_emotion_controller_creation() {
-        let personality = PersonalityProfile::default();
-        let controller = EmotionController::new(personality);
+        let _personality = PersonalityProfile::default();
+        let _controller = EmotionController::new(personality);
         assert_eq!(controller.current_emotion, EmotionState::Neutral);
         assert!(controller.active_transitions.is_empty());
     }
     
     #[test]
     fn test_emotion_transition() {
-        let personality = PersonalityProfile::default();
+        let _personality = PersonalityProfile::default();
         let mut controller = EmotionController::new(personality);
         
-        let result = controller.transition_to_emotion(
+        let _result = controller.transition_to_emotion(
             EmotionState::Happy,
             Duration::from_millis(200),
             1.0
@@ -540,13 +552,15 @@ mod tests {
     
     #[test]
     fn test_personality_specific_transitions() {
-        let mut guru_personality = PersonalityProfile::default();
-        guru_personality.personality_type = PersonalityType::GURU;
-        guru_personality.intelligence = 0.9;
+        let _guru_personality = PersonalityProfile {
+            personality_type: PersonalityType::GURU,
+            intelligence: 0.9,
+            ..Default::default()
+        };
         
         let mut controller = EmotionController::new(guru_personality);
         
-        let result = controller.transition_to_emotion(
+        let _result = controller.transition_to_emotion(
             EmotionState::GuruWisdom,
             Duration::from_millis(300),
             1.0
@@ -563,7 +577,7 @@ mod tests {
         
         let mut controller = EmotionController::new(guru_personality);
         
-        let result = controller.transition_to_emotion(
+        let _result = controller.transition_to_emotion(
             EmotionState::MayaEmpathy,
             Duration::from_millis(200),
             1.0
@@ -574,7 +588,7 @@ mod tests {
     
     #[test]
     fn test_transition_updates() {
-        let personality = PersonalityProfile::default();
+        let _personality = PersonalityProfile::default();
         let mut controller = EmotionController::new(personality);
         
         controller.transition_to_emotion(
@@ -586,7 +600,7 @@ mod tests {
         // Simulate time passage
         std::thread::sleep(Duration::from_millis(50));
         
-        let result = controller.update_transitions(Duration::from_millis(50));
+        let _result = controller.update_transitions(Duration::from_millis(50));
         assert!(result.is_ok());
         
         // Transition should still be active
@@ -597,16 +611,16 @@ mod tests {
     
     #[test]
     fn test_cubic_bezier_interpolation() {
-        let personality = PersonalityProfile::default();
-        let controller = EmotionController::new(personality);
+        let _personality = PersonalityProfile::default();
+        let _controller = EmotionController::new(personality);
         
         // Test smooth curve
-        let result = controller.cubic_bezier_interpolation(0.5, 0.25, 0.25, 0.75, 0.75);
+        let _result = controller.cubic_bezier_interpolation(0.5, 0.25, 0.25, 0.75, 0.75);
         assert!(result >= 0.0 && result <= 1.0);
         
         // Test edge cases
-        let start = controller.cubic_bezier_interpolation(0.0, 0.25, 0.25, 0.75, 0.75);
-        let end = controller.cubic_bezier_interpolation(1.0, 0.25, 0.25, 0.75, 0.75);
+        let _start = controller.cubic_bezier_interpolation(0.0, 0.25, 0.25, 0.75, 0.75);
+        let _end = controller.cubic_bezier_interpolation(1.0, 0.25, 0.25, 0.75, 0.75);
         assert!((start - 0.0).abs() < 0.001);
         assert!((end - 1.0).abs() < 0.001);
     }
@@ -629,7 +643,7 @@ mod tests {
     
     #[test]
     fn test_performance_metrics() {
-        let personality = PersonalityProfile::default();
+        let _personality = PersonalityProfile::default();
         let mut controller = EmotionController::new(personality);
         
         // Perform some transitions
@@ -639,7 +653,7 @@ mod tests {
         // Force update metrics
         controller.update_performance_metrics();
         
-        let metrics = controller.get_metrics();
+        let _metrics = controller.get_metrics();
         assert_eq!(metrics.transitions_processed.load(Ordering::Relaxed), 2);
         
         // Debug: Print actual values
