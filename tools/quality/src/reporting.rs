@@ -27,10 +27,14 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Maximum engineering mandate: Zero tolerance for data loss
+#[allow(dead_code)]
 const ZERO_DATA_LOSS_THRESHOLD: f64 = 0.0;
 const DASHBOARD_UPDATE_INTERVAL_MS: u64 = 1000;
+#[allow(dead_code)]
 const REPORT_GENERATION_TIMEOUT_MS: u64 = 30000;
+#[allow(dead_code)]
 const QUALITY_TREND_ANALYSIS_DEPTH: usize = 1000;
+#[allow(dead_code)]
 const EXECUTIVE_SUMMARY_CONFIDENCE_THRESHOLD: f64 = 0.95;
 
 /// Comprehensive quality report with all metrics and analysis
@@ -613,11 +617,13 @@ pub struct QualityReporter {
     report_cache: Arc<RwLock<HashMap<Uuid, QualityReport>>>,
     dashboard_configs: Arc<RwLock<HashMap<Uuid, DashboardConfig>>>,
     dashboard_data: Arc<RwLock<HashMap<Uuid, DashboardData>>>,
+    #[allow(dead_code)]
     alert_manager: Arc<Mutex<AlertManager>>,
 }
 
 /// Alert management system
 #[derive(Debug)]
+#[allow(dead_code)]
 struct AlertManager {
     active_alerts: Vec<DashboardAlert>,
     alert_history: Vec<DashboardAlert>,
@@ -626,6 +632,7 @@ struct AlertManager {
 
 /// Notification channel configuration
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct NotificationChannel {
     channel_id: Uuid,
     channel_type: NotificationChannelType,
@@ -635,6 +642,7 @@ struct NotificationChannel {
 
 /// Notification channel types
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum NotificationChannelType {
     Email,
     Slack,

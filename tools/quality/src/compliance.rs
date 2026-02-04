@@ -30,11 +30,16 @@ use uuid::Uuid;
 use sha2::{Sha256, Digest};
 
 /// Maximum engineering mandate: Zero tolerance for compliance violations
+#[allow(dead_code)]
 const ZERO_TOLERANCE_THRESHOLD: f64 = 0.0;
 const AUDIT_TRAIL_RETENTION_YEARS: u64 = 10;
+#[allow(dead_code)]
 const COMPLIANCE_CHECK_INTERVAL_MS: u64 = 5000;
+#[allow(dead_code)]
 const VIOLATION_ALERT_LATENCY_MS: u64 = 1000;
+#[allow(dead_code)]
 const CRYPTOGRAPHIC_VERIFICATION_STRENGTH: usize = 256;
+#[allow(dead_code)]
 const CLEAN_ROOM_VALIDATION_DEPTH: usize = 10;
 
 /// Comprehensive compliance report with all verification results
@@ -490,10 +495,13 @@ pub enum RemediationPriority {
 
 /// Compliance verification system
 pub struct ComplianceVerifier {
+    #[allow(dead_code)]
     workspace_path: PathBuf,
+    #[allow(dead_code)]
     verification_rules: Arc<RwLock<Vec<VerificationRule>>>,
     pattern_matchers: Arc<RwLock<Vec<PatternMatcher>>>,
     audit_logger: Arc<Mutex<AuditLogger>>,
+    #[allow(dead_code)]
     evidence_store: Arc<RwLock<HashMap<Uuid, EvidenceArtifact>>>,
 }
 
@@ -534,7 +542,9 @@ pub struct PatternMatcher {
 #[derive(Debug)]
 pub struct AuditLogger {
     log_entries: Vec<AuditEntry>,
+    #[allow(dead_code)]
     encryption_key: [u8; 32],
+    #[allow(dead_code)]
     integrity_chain: Vec<String>,
 }
 

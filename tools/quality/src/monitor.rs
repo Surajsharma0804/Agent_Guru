@@ -29,11 +29,15 @@ use tokio::time::interval;
 use uuid::Uuid;
 
 /// Maximum engineering mandate: Zero tolerance for quality degradation
+#[allow(dead_code)]
 const ZERO_TOLERANCE_THRESHOLD: f64 = 0.0001;
 const REAL_TIME_UPDATE_INTERVAL_MS: u64 = 1000;
+#[allow(dead_code)]
 const CRITICAL_ALERT_RESPONSE_TIME_MS: u64 = 30000;
+#[allow(dead_code)]
 const QUALITY_CHECK_MAX_LATENCY_MS: u64 = 300000; // 5 minutes
 const METRIC_HISTORY_RETENTION_HOURS: u64 = 168; // 7 days
+#[allow(dead_code)]
 const ML_PREDICTION_WINDOW_MINUTES: u64 = 60;
 
 /// Comprehensive quality metrics with mathematical precision
