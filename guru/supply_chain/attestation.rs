@@ -38,6 +38,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use ed25519_dalek::{Keypair, PublicKey, Signature, Signer, Verifier};
 use serde::{Deserialize, Serialize};
+use serde_yaml;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use uuid::Uuid;
@@ -774,7 +775,7 @@ impl SbomGenerator {
             }],
             metadata,
             components: all_components,
-            services: Vec::new(), // TODO: Implement service discovery
+            services: self.discover_services(&workspace_path)?,
             external_references: Vec::new(),
             dependencies,
             compositions: Vec::new(),
@@ -783,6 +784,242 @@ impl SbomGenerator {
         };
         
         Ok(sbom)
+    }
+    
+    /// Discover services in the workspace
+    fn discover_services(&self, workspace_path: &Path) -> Result<Vec<SbomService>, AttestationError> {
+        let mut services = Vec::new();
+        
+        // Discover Docker services
+        if let Ok(docker_services) = self.discover_docker_services(workspace_path) {
+            services.extend(docker_services);
+        }
+        
+        // Discover Kubernetes services
+        if let Ok(k8s_services) = self.discover_kubernetes_services(workspace_path) {
+            services.extend(k8s_services);
+        }
+        
+        // Discover systemd services
+        if let Ok(systemd_services) = self.discover_systemd_services(workspace_path) {
+            services.extend(systemd_services);
+        }
+        
+        // Discover web services from configuration files
+        if let Ok(web_services) = self.discover_web_services(workspace_path) {
+            services.extend(web_services);
+        }
+        
+        Ok(services)
+    }
+    
+    /// Discover Docker services from docker-compose files
+    fn discover_docker_services(&self, workspace_path: &Path) -> Result<Vec<SbomService>, AttestationError> {
+        let mut services = Vec::new();
+        
+        // Look for docker-compose files
+        let compose_patterns = ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"];
+        
+        for pattern in &compose_patterns {
+            let compose_path = workspace_path.join(pattern);
+            if compose_path.exists() {
+                if let Ok(content) = std::fs::read_to_string(&compose_path) {
+                    // Parse docker-compose file (simplified YAML parsing)
+                    if let Ok(compose_data) = serde_yaml::from_str::<serde_yaml::Value>(&content) {
+                        if let Some(services_section) = compose_data.get("services") {
+                            if let Some(services_map) = services_section.as_mapping() {
+                                for (service_name, service_config) in services_map {
+                                    if let Some(name_str) = service_name.as_str() {
+                                        let service = SbomService {
+                                            id: format!("docker-service-{}", name_str),
+                                            name: name_str.to_string(),
+                                            version: service_config.get("image")
+                                                .and_then(|v| v.as_str())
+                                                .map(|s| s.split(':').last().unwrap_or("latest").to_string())
+                                                .unwrap_or_else(|| "unknown".to_string()),
+                                            description: format!("Docker service: {}", name_str),
+                                            endpoints: self.extract_docker_endpoints(service_config),
+                                            authenticated: service_config.get("environment")
+                                                .map(|_| true)
+                                                .unwrap_or(false),
+                                            x_trust_boundary: true, // Docker services cross trust boundaries
+                                            data: Vec::new(),
+                                            external_references: Vec::new(),
+                                        };
+                                        services.push(service);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(services)
+    }
+    
+    /// Extract endpoints from Docker service configuration
+    fn extract_docker_endpoints(&self, service_config: &serde_yaml::Value) -> Vec<String> {
+        let mut endpoints = Vec::new();
+        
+        // Extract from ports configuration
+        if let Some(ports) = service_config.get("ports") {
+            if let Some(ports_array) = ports.as_sequence() {
+                for port in ports_array {
+                    if let Some(port_str) = port.as_str() {
+                        // Parse port mapping (e.g., "8080:80")
+                        let host_port = port_str.split(':').next().unwrap_or(port_str);
+                        endpoints.push(format!("http://localhost:{}", host_port));
+                    }
+                }
+            }
+        }
+        
+        endpoints
+    }
+    
+    /// Discover Kubernetes services
+    fn discover_kubernetes_services(&self, workspace_path: &Path) -> Result<Vec<SbomService>, AttestationError> {
+        let mut services = Vec::new();
+        
+        // Look for Kubernetes manifests
+        let k8s_dirs = ["k8s", "kubernetes", "manifests", "deploy"];
+        
+        for dir_name in &k8s_dirs {
+            let k8s_path = workspace_path.join(dir_name);
+            if k8s_path.exists() && k8s_path.is_dir() {
+                if let Ok(entries) = std::fs::read_dir(&k8s_path) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.extension().map_or(false, |ext| ext == "yaml" || ext == "yml") {
+                            if let Ok(content) = std::fs::read_to_string(&path) {
+                                // Parse Kubernetes manifests
+                                for document in content.split("---") {
+                                    if let Ok(k8s_resource) = serde_yaml::from_str::<serde_yaml::Value>(document) {
+                                        if let Some(kind) = k8s_resource.get("kind").and_then(|v| v.as_str()) {
+                                            if kind == "Service" {
+                                                if let Some(service) = self.parse_k8s_service(&k8s_resource) {
+                                                    services.push(service);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(services)
+    }
+    
+    /// Parse Kubernetes Service resource
+    fn parse_k8s_service(&self, k8s_resource: &serde_yaml::Value) -> Option<SbomService> {
+        let metadata = k8s_resource.get("metadata")?;
+        let name = metadata.get("name")?.as_str()?;
+        
+        let spec = k8s_resource.get("spec")?;
+        let mut endpoints = Vec::new();
+        
+        // Extract ports from service spec
+        if let Some(ports) = spec.get("ports").and_then(|v| v.as_sequence()) {
+            for port in ports {
+                if let Some(port_num) = port.get("port").and_then(|v| v.as_u64()) {
+                    endpoints.push(format!("http://{}:{}", name, port_num));
+                }
+            }
+        }
+        
+        Some(SbomService {
+            id: format!("k8s-service-{}", name),
+            name: name.to_string(),
+            version: metadata.get("labels")
+                .and_then(|l| l.get("version"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            description: format!("Kubernetes service: {}", name),
+            endpoints,
+            authenticated: spec.get("selector").is_some(), // Services with selectors typically require auth
+            x_trust_boundary: true, // K8s services cross trust boundaries
+            data: Vec::new(),
+            external_references: Vec::new(),
+        })
+    }
+    
+    /// Discover systemd services
+    fn discover_systemd_services(&self, workspace_path: &Path) -> Result<Vec<SbomService>, AttestationError> {
+        let mut services = Vec::new();
+        
+        // Look for systemd service files
+        let systemd_dirs = ["systemd", "services", "units"];
+        
+        for dir_name in &systemd_dirs {
+            let systemd_path = workspace_path.join(dir_name);
+            if systemd_path.exists() && systemd_path.is_dir() {
+                if let Ok(entries) = std::fs::read_dir(&systemd_path) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.extension().map_or(false, |ext| ext == "service") {
+                            if let Some(service_name) = path.file_stem().and_then(|s| s.to_str()) {
+                                let service = SbomService {
+                                    id: format!("systemd-service-{}", service_name),
+                                    name: service_name.to_string(),
+                                    version: "1.0.0".to_string(), // Default version for systemd services
+                                    description: format!("Systemd service: {}", service_name),
+                                    endpoints: Vec::new(), // Systemd services typically don't expose HTTP endpoints directly
+                                    authenticated: true, // Systemd services typically require system-level auth
+                                    x_trust_boundary: false, // Local system services
+                                    data: Vec::new(),
+                                    external_references: Vec::new(),
+                                };
+                                services.push(service);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(services)
+    }
+    
+    /// Discover web services from configuration files
+    fn discover_web_services(&self, workspace_path: &Path) -> Result<Vec<SbomService>, AttestationError> {
+        let mut services = Vec::new();
+        
+        // Look for common web service configuration files
+        let config_files = [
+            ("nginx.conf", "nginx"),
+            ("apache2.conf", "apache"),
+            ("httpd.conf", "apache"),
+            ("Caddyfile", "caddy"),
+            ("traefik.yml", "traefik"),
+            ("haproxy.cfg", "haproxy"),
+        ];
+        
+        for (config_file, service_type) in &config_files {
+            let config_path = workspace_path.join(config_file);
+            if config_path.exists() {
+                let service = SbomService {
+                    id: format!("web-service-{}", service_type),
+                    name: service_type.to_string(),
+                    version: "unknown".to_string(),
+                    description: format!("Web service: {}", service_type),
+                    endpoints: vec!["http://localhost:80".to_string(), "https://localhost:443".to_string()],
+                    authenticated: false, // Web services may or may not require auth
+                    x_trust_boundary: true, // Web services typically cross trust boundaries
+                    data: Vec::new(),
+                    external_references: Vec::new(),
+                };
+                services.push(service);
+            }
+        }
+        
+        Ok(services)
     }
     
     /// Deduplicate components by ID

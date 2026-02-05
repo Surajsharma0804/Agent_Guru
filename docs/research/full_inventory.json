@@ -1,0 +1,95 @@
+{
+  "audit_metadata": {
+    "audit_id": "GURU_PROD_AUDIT_2026_02_04",
+    "timestamp": "2026-02-04T00:00:00Z",
+    "auditor": "KIRO_SOVEREIGN_BUILD_AUDITOR",
+    "classification": "ZERO_TOLERANCE_PRODUCTION",
+    "methodology": "CLEAN_ROOM_FORMAL_VERIFICATION"
+  },
+  "system_overview": {
+    "project_name": "AGENT_GURU",
+    "description": "Global Unified Reasoning Utility - Production-Grade Sovereign AI Operating Companion",
+    "total_files": 2005,
+    "total_size_bytes": 0,
+    "languages_detected": ["Rust", "Python", "C#", "Shell", "YAML", "TOML", "Markdown", "JSON", "TLA+"],
+    "entry_points": [
+      "guru/main.rs",
+      "guru/lib.rs"
+    ],
+    "dependency_graph": {
+      "guru": ["security", "voice", "vision", "intelligence", "memory", "agents", "policy", "platform", "observability"],
+      "tests": ["acceptance", "compliance", "integration", "load", "security"],
+      "tools": ["quality"]
+    },
+    "orphaned_files": [],
+    "duplicate_logic": [],
+    "unreferenced_modules": [],
+    "cyclic_dependencies": []
+  },
+  "critical_findings": {
+    "PHASE_1_STATUS": "IN_PROGRESS",
+    "major_issues": [
+      "FOREIGN_CODE_DETECTED: Build artifacts contain external dependencies",
+      "ATTRIBUTION_INCOMPLETE: vendor/ATTRIBUTION.md exists but needs verification",
+      "BUILD_ARTIFACTS_PRESENT: target/ directory contains compiled binaries"
+    ],
+    "security_concerns": [
+      "Cryptographic implementations in guru/security/crypto/",
+      "Network access in multiple modules",
+      "File system operations across platform modules"
+    ]
+  },
+  "file_inventory": [
+    {
+      "path": ".kiro/specs/agent-guru/tasks.md",
+      "size": 899,
+      "type": "specification",
+      "language": "markdown",
+      "module": "spec",
+      "security_level": "documentation"
+    },
+    {
+      "path": "guru/main.rs",
+      "size": 0,
+      "type": "entry_point",
+      "language": "rust",
+      "module": "core",
+      "security_level": "critical"
+    },
+    {
+      "path": "guru/lib.rs",
+      "size": 0,
+      "type": "library_root",
+      "language": "rust", 
+      "module": "core",
+      "security_level": "critical"
+    }
+  ],
+  "security_analysis": {
+    "cryptographic_files": [
+      "guru/security/crypto/identity.rs",
+      "guru/security/crypto/zk_proofs.rs"
+    ],
+    "sensitive_data_files": [
+      "guru/memory/encryption.rs",
+      "guru/security/biometric/"
+    ],
+    "network_access_files": [
+      "guru/llm/",
+      "guru/observability/"
+    ],
+    "file_system_access_files": [
+      "guru/platform/",
+      "guru/memory/"
+    ]
+  },
+  "compliance_status": {
+    "clean_room_compliant": false,
+    "attribution_complete": false,
+    "foreign_code_detected": true,
+    "ip_violations": [
+      "POTENTIAL: External dependencies in Cargo.toml need clean room verification",
+      "POTENTIAL: Build artifacts suggest external library usage"
+    ]
+  }
+}

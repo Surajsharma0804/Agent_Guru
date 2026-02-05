@@ -60,7 +60,7 @@ pub use security::crypto::identity::{
 pub const _VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Build information
-pub const _BUILD_INFO: &str = concat!(
+pub const BUILD_INFO: &str = concat!(
     "AGENT_GURU v", env!("CARGO_PKG_VERSION")
 );
 

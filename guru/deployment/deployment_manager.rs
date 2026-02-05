@@ -229,8 +229,8 @@ impl DeploymentManager {
     pub fn orchestrate_atomic_update(
         &mut self,
         target: &InstallationTarget,
-        _from_version: &str,
-        _to_version: &str,
+        from_version: &str,
+        to_version: &str,
         components: &[PackageComponent],
         update_manager: &mut UpdateManager,
         package_manager: &mut PackageManager,
@@ -276,7 +276,7 @@ impl DeploymentManager {
             verified_signatures += 1;
         }
         
-        let _signature_duration = signature_start.elapsed();
+        let signature_duration = signature_start.elapsed();
         self.metrics.record_signature_verification_time(signature_duration);
         self.metrics.record_verified_signatures(verified_signatures);
         
@@ -284,11 +284,11 @@ impl DeploymentManager {
         self.state = DeploymentState::ResolvingDependencies;
         self.update_progress("Resolving update dependencies".to_string(), None);
         
-        let _dependency_start = Instant::now();
-        let _resolved_dependencies = dependency_resolver.resolve_update_dependencies(from_version, to_version, components)
+        let dependency_start = Instant::now();
+        let resolved_dependencies = dependency_resolver.resolve_update_dependencies(from_version, to_version, components)
             .map_err(|e| DeploymentError::DependencyResolutionFailed(e.to_string()))?;
         
-        let _dependency_duration = dependency_start.elapsed();
+        let dependency_duration = dependency_start.elapsed();
         self.metrics.record_dependency_resolution_time(dependency_duration);
         self.metrics.record_resolved_dependencies(resolved_dependencies.len());
         
@@ -359,18 +359,18 @@ impl DeploymentManager {
     fn perform_emergency_rollback(
         &mut self,
         target: &InstallationTarget,
-        _target_version: &str,
+        target_version: &str,
         rollback_manager: &mut RollbackManager,
         _backup_id: &str,
     ) -> Result<DeploymentResult, DeploymentError> {
         self.state = DeploymentState::RollingBack;
         self.update_progress("Performing emergency rollback".to_string(), None);
         
-        let _rollback_start = Instant::now();
+        let rollback_start = Instant::now();
         rollback_manager.rollback_to_backup(&target.installation_root, backup_id)
             .map_err(|e| DeploymentError::RollbackFailed(e.to_string()))?;
         
-        let _rollback_duration = rollback_start.elapsed();
+        let rollback_duration = rollback_start.elapsed();
         self.metrics.record_rollback_time(rollback_duration);
         
         self.state = DeploymentState::Failed {
@@ -390,32 +390,32 @@ impl DeploymentManager {
         platform_integrator: &PlatformIntegrator,
         dependency_resolver: &DependencyResolver,
     ) -> Result<IntegrityResult, DeploymentError> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         
         // 1. Verify file checksums
-        let _checksum_result = package_manager.verify_checksums(installation_root)
+        let checksum_result = package_manager.verify_checksums(installation_root)
             .map_err(|e| DeploymentError::IntegrityVerificationFailed(e.to_string()))?;
         
         // 2. Verify cryptographic signatures
-        let _signature_result = crypto_verifier.verify_installation_signatures(installation_root)
+        let signature_result = crypto_verifier.verify_installation_signatures(installation_root)
             .map_err(|e| DeploymentError::IntegrityVerificationFailed(e.to_string()))?;
         
         // 3. Verify platform integration
-        let _platform_result = platform_integrator.verify_platform_integration(installation_root)
+        let platform_result = platform_integrator.verify_platform_integration(installation_root)
             .map_err(|e| DeploymentError::IntegrityVerificationFailed(e.to_string()))?;
         
         // 4. Verify dependency satisfaction
-        let _dependency_result = dependency_resolver.verify_dependencies(installation_root)
+        let dependency_result = dependency_resolver.verify_dependencies(installation_root)
             .map_err(|e| DeploymentError::IntegrityVerificationFailed(e.to_string()))?;
         
-        let _total_checks = 4;
-        let _successful_checks = 
-            (if checksum_result { _1 } else { _0 }) +
-            (if signature_result { _1 } else { _0 }) +
-            (if platform_result { _1 } else { _0 }) +
-            (if dependency_result { _1 } else { _0 });
+        let total_checks = 4;
+        let successful_checks = 
+            (if checksum_result { 1 } else { 0 }) +
+            (if signature_result { 1 } else { 0 }) +
+            (if platform_result { 1 } else { 0 }) +
+            (if dependency_result { 1 } else { 0 });
         
-        let _success_rate = successful_checks as f32 / total_checks as f32;
+        let success_rate = successful_checks as f32 / total_checks as f32;
         
         Ok(IntegrityResult {
             success_rate,
@@ -452,14 +452,14 @@ impl DeploymentManager {
     /// Cleanup installation resources
     pub fn cleanup_installation(&self, installation_root: &PathBuf) -> Result<(), DeploymentError> {
         // Remove temporary files
-        let _temp_dir = installation_root.join(".temp");
+        let temp_dir = installation_root.join(".temp");
         if temp_dir.exists() {
             std::fs::remove_dir_all(&temp_dir)
                 .map_err(|e| DeploymentError::CleanupFailed(e.to_string()))?;
         }
         
         // Remove backup files older than 30 days
-        let _backup_dir = installation_root.join(".backups");
+        let backup_dir = installation_root.join(".backups");
         if backup_dir.exists() {
             // Cleanup logic would go here
         }

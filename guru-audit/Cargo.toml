@@ -1,0 +1,104 @@
+[package]
+name = "guru-audit"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+authors = ["GURU Production Audit System"]
+description = "Zero-tolerance production audit system for GURU with formal verification"
+license = "MIT"
+repository = "https://github.com/guru-project/guru-audit"
+keywords = ["audit", "quality", "formal-verification", "production", "zero-tolerance"]
+categories = ["development-tools", "testing"]
+
+[dependencies]
+# Cryptographic libraries for Ed25519 signatures and SHA-256 checksums
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+sha2 = "0.10"
+rand = "0.8"
+
+# Async runtime and utilities
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+
+# Serialization and data structures
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+# Time and duration handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Error handling and logging
+anyhow = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Performance monitoring and metrics
+metrics = "0.22"
+metrics-exporter-prometheus = "0.13"
+
+# File system operations
+walkdir = "2.4"
+tempfile = "3.8"
+
+# Configuration management
+config = "0.14"
+toml = "0.8"
+
+# Parallel processing
+rayon = "1.8"
+
+# System information
+num_cpus = "1.16"
+dirs = "5.0"
+
+[dev-dependencies]
+# Property-based testing with 10,000+ iterations
+proptest = "1.4"
+proptest-derive = "0.4"
+
+# Unit testing utilities
+tokio-test = "0.4"
+criterion = { version = "0.5", features = ["html_reports"] }
+mockall = "0.12"
+
+# Test utilities
+tempfile = "3.8"
+assert_matches = "1.5"
+
+[features]
+default = ["formal-verification", "cryptographic-security"]
+formal-verification = []
+cryptographic-security = []
+performance-monitoring = []
+github-integration = []
+
+[[bin]]
+name = "guru-audit"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true
+overflow-checks = true
+
+# Strict linting configuration for zero-tolerance quality
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+unused_imports = "deny"
+unused_variables = "deny"
+dead_code = "deny"
+
+[lints.clippy]
+all = "deny"
+pedantic = "deny"
+nursery = "deny"
+cargo = "deny"
