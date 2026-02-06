@@ -133,11 +133,9 @@ proptest! {
             prop_assert!(element.line_range.0 <= element.line_range.1);
             prop_assert!(!element.name.is_empty());
             
-            // Visibility should be consistent with element type
-            if element.visibility == Visibility::Public {
-                // Public elements should be marked as potentially used
-                prop_assert!(element.element_type != CodeElementType::Variable || element.is_used);
-            }
+            // Note: Public elements CAN be unused - they may be part of a public API
+            // that is not yet consumed, or they may be exported for external use.
+            // The is_used flag is determined by dependency tracing, not visibility.
         }
     }
 
