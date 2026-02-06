@@ -31,6 +31,8 @@ pub mod types;
 pub mod error;
 pub mod crypto;
 pub mod config;
+pub mod inventory;
+pub mod naming;
 
 // Re-export core types for convenience
 pub use crate::core::{

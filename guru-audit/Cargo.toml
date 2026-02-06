@@ -14,11 +14,14 @@ categories = ["development-tools", "testing"]
 # Cryptographic libraries for Ed25519 signatures and SHA-256 checksums
 ed25519-dalek = { version = "2.1", features = ["rand_core"] }
 sha2 = "0.10"
+sha1 = "0.10"
+md5 = "0.7"
 rand = "0.8"
 
 # Async runtime and utilities
 tokio = { version = "1.35", features = ["full"] }
 async-trait = "0.1"
+futures = "0.3"
 
 # Serialization and data structures
 serde = { version = "1.0", features = ["derive"] }
@@ -52,6 +55,15 @@ rayon = "1.8"
 # System information
 num_cpus = "1.16"
 dirs = "5.0"
+
+# Regular expressions
+regex = "1.10"
+
+# File system operations and globbing
+glob = "0.3"
+
+# Hex encoding/decoding
+hex = "0.4"
 
 [dev-dependencies]
 # Property-based testing with 10,000+ iterations
