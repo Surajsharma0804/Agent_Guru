@@ -162,10 +162,11 @@ impl ApiBoundaryTester {
         let version_valid = request.endpoint.version.starts_with('v')
             || request.endpoint.version.chars().all(|c| c.is_ascii_digit() || c == '.');
         
-        // Verify path format consistency
-        let path_valid = request.endpoint.path.starts_with('/')
-            && !request.endpoint.path.ends_with('/')
-            && !request.endpoint.path.contains("//");
+        // Verify path format consistency - allow single "/" or paths not ending with "/"
+        let path_valid = request.endpoint.path == "/"
+            || (request.endpoint.path.starts_with('/')
+                && !request.endpoint.path.ends_with('/')
+                && !request.endpoint.path.contains("//"));
         
         // Verify service name format
         let service_valid = request

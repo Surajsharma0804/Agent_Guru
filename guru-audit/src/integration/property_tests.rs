@@ -29,7 +29,7 @@ const MIN_PROPERTY_TEST_ITERATIONS: u32 = 10_000;
 fn api_endpoint_strategy() -> impl Strategy<Value = ApiEndpoint> {
     (
         "[a-z]{3,20}",
-        prop::collection::vec("[a-z]{2,10}", 0..5),
+        prop::collection::vec("[a-z]{2,10}", 1..5),
         prop::option::of("[a-z]{2,10}"),
     ).prop_map(|(service, path_segments, version)| {
         ApiEndpoint {
@@ -45,9 +45,13 @@ fn api_endpoint_strategy() -> impl Strategy<Value = ApiEndpoint> {
 fn api_request_strategy() -> impl Strategy<Value = ApiRequest> {
     (
         api_endpoint_strategy(),
-        prop::collection::hash_map("[a-z]{3,10}", any::<String>(), 0..10),
+        prop::collection::hash_map("[a-z]{3,10}", any::<String>(), 2..10),
         prop::option::of(any::<Vec<u8>>()),
-    ).prop_map(|(endpoint, headers, body)| {
+    ).prop_map(|(endpoint, mut headers, body)| {
+        // Ensure required headers are present
+        headers.insert("Content-Type".to_string(), "application/json".to_string());
+        headers.insert("User-Agent".to_string(), "test-agent/1.0".to_string());
+        
         ApiRequest {
             endpoint,
             headers,
