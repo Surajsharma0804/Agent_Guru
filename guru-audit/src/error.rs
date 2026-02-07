@@ -151,6 +151,14 @@ pub enum AuditError {
         /// Requested amount
         requested: u64,
     },
+
+    /// Not implemented functionality
+    #[error("Not implemented: {0}")]
+    NotImplemented(String),
+
+    /// I/O operation errors
+    #[error("I/O error: {0}")]
+    IoError(String),
 }
 
 /// System error codes for classification
@@ -547,6 +555,8 @@ impl AuditError {
             AuditError::SerializationError { .. } => true,
             AuditError::TimeoutError { .. } => true,
             AuditError::ResourceExhaustionError { .. } => true,
+            AuditError::NotImplemented(_) => false,
+            AuditError::IoError(_) => true,
         }
     }
 
@@ -571,6 +581,8 @@ impl AuditError {
             AuditError::SerializationError { .. } => ErrorSeverity::Warning,
             AuditError::TimeoutError { .. } => ErrorSeverity::Warning,
             AuditError::ResourceExhaustionError { .. } => ErrorSeverity::Error,
+            AuditError::NotImplemented(_) => ErrorSeverity::Warning,
+            AuditError::IoError(_) => ErrorSeverity::Warning,
         }
     }
 }

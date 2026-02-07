@@ -35,6 +35,8 @@ pub mod inventory;
 pub mod naming;
 pub mod purge;
 pub mod integration;
+pub mod testing;
+pub mod performance;
 
 // Re-export core types for convenience
 pub use crate::core::{
