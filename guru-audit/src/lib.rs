@@ -32,11 +32,14 @@ pub mod error;
 pub mod crypto;
 pub mod config;
 pub mod inventory;
+/// Humanized naming system for semantic file naming with comprehensive reference updating
 pub mod naming;
 pub mod purge;
 pub mod integration;
 pub mod testing;
 pub mod performance;
+/// Formal verification system with TLA+ integration and mathematical correctness guarantees
+pub mod formal;
 
 // Re-export core types for convenience
 pub use crate::core::{
