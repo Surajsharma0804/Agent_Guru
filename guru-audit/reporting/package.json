@@ -1,0 +1,38 @@
+{
+  "name": "@guru-audit/reporting",
+  "version": "1.0.0",
+  "description": "GURU Production Audit System - Comprehensive Reporting and Analytics",
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --reporter=verbose",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint . --ext .ts",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "audit",
+    "reporting",
+    "analytics",
+    "dashboard",
+    "compliance"
+  ],
+  "author": "GURU Audit System",
+  "license": "PROPRIETARY",
+  "dependencies": {
+    "@types/node": "^20.10.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "@vitest/coverage-v8": "^1.0.4",
+    "eslint": "^8.56.0",
+    "fast-check": "^3.15.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
