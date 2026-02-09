@@ -40,6 +40,13 @@ pub mod testing;
 pub mod performance;
 /// Formal verification system with TLA+ integration and mathematical correctness guarantees
 pub mod formal;
+/// Reproducible build proof system with determinism enforcement and supply chain security
+pub mod build;
+/// Runtime self-attestation system with continuous integrity monitoring and threat detection
+pub mod runtime;
+
+/// Final certification system with quality validation, compliance checking, and executive reporting
+pub mod certification;
 
 // Re-export core types for convenience
 pub use crate::core::{
