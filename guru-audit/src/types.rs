@@ -617,3 +617,50 @@ pub struct ExecutionEnvironment {
     /// Available memory (bytes)
     pub available_memory: u64,
 }
+
+
+/// System health status for monitoring and alerting
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SystemHealthStatus {
+    /// System is operating normally with all components functional
+    Healthy,
+    /// System is operational but with degraded performance or warnings
+    Degraded,
+    /// System has critical failures and requires immediate attention
+    Unhealthy,
+    /// System health status cannot be determined
+    Unknown,
+}
+
+impl Default for SystemHealthStatus {
+    fn default() -> Self {
+        Self::Unknown
+    }
+}
+
+/// Validation result for quality gates and system checks
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ValidationResult {
+    /// Validation passed with no issues
+    Passed,
+    /// Validation passed with warnings
+    PassedWithWarnings { warnings: Vec<String> },
+    /// Validation failed with errors
+    Failed { errors: Vec<String> },
+    /// Validation was skipped
+    Skipped { reason: String },
+}
+
+impl ValidationResult {
+    /// Check if validation passed (with or without warnings)
+    #[must_use]
+    pub const fn is_passed(&self) -> bool {
+        matches!(self, Self::Passed | Self::PassedWithWarnings { .. })
+    }
+
+    /// Check if validation failed
+    #[must_use]
+    pub const fn is_failed(&self) -> bool {
+        matches!(self, Self::Failed { .. })
+    }
+}

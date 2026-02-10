@@ -48,6 +48,15 @@ pub mod runtime;
 /// Final certification system with quality validation, compliance checking, and executive reporting
 pub mod certification;
 
+/// Comprehensive monitoring and observability system with privacy-preserving monitoring
+pub mod observability;
+
+/// Automated remediation and recovery system with comprehensive issue detection and fixing
+pub mod remediation;
+
+/// Comprehensive system validation for verifying all audit components are integrated correctly
+pub mod validation;
+
 // Re-export core types for convenience
 pub use crate::core::{
     controller::AuditController,

@@ -435,6 +435,133 @@ pub struct IntegrationVerificationResult {
     pub timestamp: SystemTime,
 }
 
+/// GURU directory structure configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GuruDirectoryConfig {
+    /// Root GURU directory path
+    pub guru_root: String,
+    /// Formal verification directory
+    pub formal_dir: String,
+    /// Observability directory
+    pub observability_dir: String,
+    /// Security directory
+    pub security_dir: String,
+    /// Tests directory
+    pub tests_dir: String,
+    /// Build directory
+    pub build_dir: String,
+    /// Policy directory
+    pub policy_dir: String,
+    /// Supply chain directory
+    pub supply_chain_dir: String,
+    /// Platform directory
+    pub platform_dir: String,
+}
+
+/// GURU integration test configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GuruIntegrationConfig {
+    /// Directory structure configuration
+    pub directory_config: GuruDirectoryConfig,
+    /// Infrastructure components to leverage
+    pub infrastructure_components: Vec<String>,
+    /// Workflow compatibility requirements
+    pub workflow_requirements: Vec<String>,
+    /// Legacy systems to bridge
+    pub legacy_systems: Vec<String>,
+    /// Performance optimization targets
+    pub optimization_targets: Vec<String>,
+}
+
+/// GURU integration result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GuruIntegrationResult {
+    /// Directory structure preserved
+    pub directory_structure_preserved: bool,
+    /// Infrastructure utilized
+    pub infrastructure_utilized: bool,
+    /// Workflow compatible
+    pub workflow_compatible: bool,
+    /// Backward compatible
+    pub backward_compatible: bool,
+    /// Legacy systems supported
+    pub legacy_systems_supported: bool,
+    /// Migration assistance provided
+    pub migration_assistance_provided: bool,
+    /// Integration overhead percentage
+    pub integration_overhead_percent: f64,
+    /// Resource utilization optimized
+    pub resource_utilization_optimized: bool,
+    /// Optimization effectiveness percentage
+    pub optimization_effectiveness_percent: f64,
+    /// Execution time
+    pub execution_time: Duration,
+    /// Test timestamp
+    pub timestamp: SystemTime,
+}
+
+impl GuruIntegrationResult {
+    /// Check if directory structure was preserved
+    #[must_use]
+    pub const fn directory_structure_preserved(&self) -> bool {
+        self.directory_structure_preserved
+    }
+
+    /// Check if infrastructure was utilized
+    #[must_use]
+    pub const fn infrastructure_utilized(&self) -> bool {
+        self.infrastructure_utilized
+    }
+
+    /// Check if workflow is compatible
+    #[must_use]
+    pub const fn workflow_compatible(&self) -> bool {
+        self.workflow_compatible
+    }
+
+    /// Check if backward compatible
+    #[must_use]
+    pub const fn backward_compatible(&self) -> bool {
+        self.backward_compatible
+    }
+
+    /// Check if legacy systems are supported
+    #[must_use]
+    pub const fn legacy_systems_supported(&self) -> bool {
+        self.legacy_systems_supported
+    }
+
+    /// Check if migration assistance was provided
+    #[must_use]
+    pub const fn migration_assistance_provided(&self) -> bool {
+        self.migration_assistance_provided
+    }
+
+    /// Get integration overhead percentage
+    #[must_use]
+    pub const fn integration_overhead_percent(&self) -> f64 {
+        self.integration_overhead_percent
+    }
+
+    /// Check if resource utilization was optimized
+    #[must_use]
+    pub const fn resource_utilization_optimized(&self) -> bool {
+        self.resource_utilization_optimized
+    }
+
+    /// Get optimization effectiveness percentage
+    #[must_use]
+    pub const fn optimization_effectiveness_percent(&self) -> f64 {
+        self.optimization_effectiveness_percent
+    }
+
+    /// Get execution time
+    #[must_use]
+    pub const fn execution_time(&self) -> Duration {
+        self.execution_time
+    }
+}
+
 impl IntegrationVerificationResult {
     /// Check if race conditions are prevented
     #[must_use]
