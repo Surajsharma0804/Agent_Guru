@@ -1,9 +1,9 @@
 @echo off
-REM AGENT_GURU Windows Installer Creator
+REM Agent Guru Windows Installer Creator
 REM Creates a Windows installer with post-installation setup
 
 echo ╔════════════════════════════════════════════════════════════╗
-echo ║     AGENT_GURU Windows Installer Creator                  ║
+echo ║     Agent Guru Windows Installer Creator                  ║
 echo ╚════════════════════════════════════════════════════════════╝
 echo.
 
@@ -28,6 +28,15 @@ REM Copy binary
 echo 📋 Copying binary...
 copy target\release\agent_guru_voice.exe installers\windows\bin\
 
+REM Copy logo
+echo 🎨 Copying app logo...
+if exist "assets\logo.png" (
+    copy assets\logo.png installers\windows\bin\
+    echo ✅ Logo copied
+) else (
+    echo ⚠️  Logo not found at assets\logo.png
+)
+
 REM Copy configuration
 echo 📋 Copying configuration files...
 copy .kiro\llm_config.yaml installers\windows\config\ 2>nul
@@ -37,12 +46,12 @@ echo 📝 Creating post-installation setup script...
 (
 echo @echo off
 echo echo ╔════════════════════════════════════════════════════════════╗
-echo echo ║     AGENT_GURU Post-Installation Setup                    ║
+echo echo ║     Agent Guru Post-Installation Setup                    ║
 echo echo ╚════════════════════════════════════════════════════════════╝
 echo echo.
-echo echo Welcome to AGENT_GURU! Let's get you set up.
+echo echo Welcome to Agent Guru! Let's get you set up.
 echo echo.
-echo echo AGENT_GURU can work in two modes:
+echo echo Agent Guru can work in two modes:
 echo echo   1. LOCAL MODE  - Uses Ollama ^(private, offline^)
 echo echo   2. CLOUD MODE  - Uses OpenAI or Gemini APIs
 echo echo.
@@ -149,9 +158,9 @@ echo echo ╔══════════════════════�
 echo echo ║     Setup Complete!                                        ║
 echo echo ╚════════════════════════════════════════════════════════════╝
 echo echo.
-echo echo AGENT_GURU is ready to use!
+echo echo Agent Guru is ready to use!
 echo echo.
-echo echo To start AGENT_GURU:
+echo echo To start Agent Guru:
 echo echo   1. Open Command Prompt or PowerShell
 echo echo   2. Run: agent_guru_voice
 echo echo   3. Say "Hey Guru" or "Hey Maya" to start talking!
@@ -164,14 +173,14 @@ echo pause
 REM Create README
 echo 📝 Creating README...
 (
-echo AGENT_GURU - Voice-Driven AI Companion
+echo Agent Guru - Voice-Driven AI Companion
 echo ========================================
 echo.
 echo Installation Instructions:
 echo.
-echo 1. Run setup.bat to configure AGENT_GURU
+echo 1. Run setup.bat to configure Agent Guru
 echo 2. Follow the on-screen instructions
-echo 3. Start AGENT_GURU by running: bin\agent_guru_voice.exe
+echo 3. Start Agent Guru by running: bin\agent_guru_voice.exe
 echo.
 echo Voice Commands:
 echo - Say "Hey Guru" or "Hey Maya" to wake up
@@ -193,10 +202,11 @@ REM Create launcher script
 echo 📝 Creating launcher...
 (
 echo @echo off
+echo title Agent Guru - Voice AI Companion
 echo cd /d "%%~dp0"
 echo bin\agent_guru_voice.exe
 echo pause
-) > installers\windows\AGENT_GURU.bat
+) > installers\windows\Agent_Guru.bat
 
 echo.
 echo ✅ Windows installer package created!
@@ -204,7 +214,7 @@ echo 📦 Location: installers\windows\
 echo.
 echo To distribute:
 echo   1. Zip the installers\windows\ folder
-echo   2. Name it: AGENT_GURU-Windows-Installer.zip
+echo   2. Name it: Agent_Guru-Windows-Installer.zip
 echo   3. Users extract and run setup.bat
 echo.
 pause

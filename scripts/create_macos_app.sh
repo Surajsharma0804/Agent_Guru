@@ -4,7 +4,7 @@
 set -e
 
 echo "╔════════════════════════════════════════════════════════════╗"
-echo "║     AGENT_GURU macOS App Bundle Creator                   ║"
+echo "║     Agent Guru macOS App Bundle Creator                   ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -19,7 +19,7 @@ echo "✅ Release binary found"
 echo ""
 
 # Create app bundle structure
-APP_NAME="AGENT_GURU"
+APP_NAME="Agent Guru"
 APP_DIR="installers/macos/${APP_NAME}.app"
 CONTENTS_DIR="${APP_DIR}/Contents"
 MACOS_DIR="${CONTENTS_DIR}/MacOS"
@@ -33,8 +33,32 @@ mkdir -p "${RESOURCES_DIR}/scripts"
 
 # Copy binary
 echo "📋 Copying binary..."
-cp target/release/agent_guru_voice "${MACOS_DIR}/${APP_NAME}"
-chmod +x "${MACOS_DIR}/${APP_NAME}"
+cp target/release/agent_guru_voice "${MACOS_DIR}/Agent Guru"
+chmod +x "${MACOS_DIR}/Agent Guru"
+
+# Copy logo
+echo "🎨 Adding app icon..."
+if [ -f "assets/logo.png" ]; then
+    mkdir -p "${RESOURCES_DIR}/icon.iconset"
+    # Create different icon sizes for macOS
+    sips -z 16 16     assets/logo.png --out "${RESOURCES_DIR}/icon.iconset/icon_16x16.png"
+    sips -z 32 32     assets/logo.png --out "${RESOURCES_DIR}/icon.iconset/icon_16x16@2x.png"
+    sips -z 32 32     assets/logo.png --out "${RESOURCES_DIR}/icon.iconset/icon_32x32.png"
+    sips -z 64 64     assets/logo.png --out "${RESOURCES_DIR}/icon.iconset/icon_32x32@2x.png"
+    sips -z 128 128   assets/logo.png --out "${RESOURCES_DIR}/icon.iconset/icon_128x128.png"
+    sips -z 256 256   assets/logo.png --out "${RESOURCES_DIR}/icon.iconset/icon_128x128@2x.png"
+    sips -z 256 256   assets/logo.png --out "${RESOURCES_DIR}/icon.iconset/icon_256x256.png"
+    sips -z 512 512   assets/logo.png --out "${RESOURCES_DIR}/icon.iconset/icon_256x256@2x.png"
+    sips -z 512 512   assets/logo.png --out "${RESOURCES_DIR}/icon.iconset/icon_512x512.png"
+    sips -z 1024 1024 assets/logo.png --out "${RESOURCES_DIR}/icon.iconset/icon_512x512@2x.png"
+    
+    # Convert to icns
+    iconutil -c icns "${RESOURCES_DIR}/icon.iconset" -o "${RESOURCES_DIR}/icon.icns"
+    rm -rf "${RESOURCES_DIR}/icon.iconset"
+    echo "✅ App icon created"
+else
+    echo "⚠️  Logo not found at assets/logo.png"
+fi
 
 # Copy configuration
 echo "📋 Copying configuration..."
@@ -52,19 +76,23 @@ cat > "${CONTENTS_DIR}/Info.plist" << 'EOF'
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleExecutable</key>
-    <string>AGENT_GURU</string>
+    <string>Agent Guru</string>
     <key>CFBundleIdentifier</key>
     <string>com.agentguru.voice</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>AGENT_GURU</string>
+    <string>Agent Guru</string>
+    <key>CFBundleDisplayName</key>
+    <string>Agent Guru</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <key>CFBundleIconFile</key>
+    <string>icon.icns</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.15</string>
     <key>NSMicrophoneUsageDescription</key>
@@ -81,15 +109,15 @@ EOF
 echo "📝 Creating post-installation setup script..."
 cat > "${RESOURCES_DIR}/scripts/setup.sh" << 'EOF'
 #!/bin/bash
-# AGENT_GURU Post-Installation Setup for macOS
+# Agent Guru Post-Installation Setup for macOS
 
 echo "╔════════════════════════════════════════════════════════════╗"
-echo "║     AGENT_GURU Post-Installation Setup                    ║"
+echo "║     Agent Guru Post-Installation Setup                    ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
-echo "Welcome to AGENT_GURU! Let's get you set up."
+echo "Welcome to Agent Guru! Let's get you set up."
 echo ""
-echo "AGENT_GURU can work in two modes:"
+echo "Agent Guru can work in two modes:"
 echo "  1. LOCAL MODE  - Uses Ollama (private, offline)"
 echo "  2. CLOUD MODE  - Uses OpenAI or Gemini APIs"
 echo ""
@@ -192,11 +220,11 @@ echo "╔═══════════════════════�
 echo "║     Setup Complete!                                        ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
-echo "AGENT_GURU is ready to use!"
+echo "Agent Guru is ready to use!"
 echo ""
-echo "To start AGENT_GURU:"
-echo "  1. Open the AGENT_GURU app from Applications"
-echo "  2. Or run from Terminal: /Applications/AGENT_GURU.app/Contents/MacOS/AGENT_GURU"
+echo "To start Agent Guru:"
+echo "  1. Open the Agent Guru app from Applications"
+echo "  2. Or run from Terminal: /Applications/Agent\ Guru.app/Contents/MacOS/Agent\ Guru"
 echo "  3. Say 'Hey Guru' or 'Hey Maya' to start talking!"
 echo ""
 echo "For help: AGENT_GURU --help"
@@ -210,7 +238,7 @@ chmod +x "${RESOURCES_DIR}/scripts/setup.sh"
 echo "📝 Creating launcher wrapper..."
 cat > "${MACOS_DIR}/${APP_NAME}_launcher" << 'EOF'
 #!/bin/bash
-# AGENT_GURU Launcher with first-run setup
+# Agent Guru Launcher with first-run setup
 
 SETUP_FLAG="$HOME/.kiro/.setup_complete"
 
@@ -224,27 +252,27 @@ if [ ! -f "$SETUP_FLAG" ]; then
     done
 fi
 
-# Run AGENT_GURU
-"$(dirname "$0")/AGENT_GURU"
+# Run Agent Guru
+"$(dirname "$0")/Agent Guru"
 EOF
 
 chmod +x "${MACOS_DIR}/${APP_NAME}_launcher"
 
 # Update Info.plist to use launcher
-sed -i '' 's/<string>AGENT_GURU<\/string>/<string>AGENT_GURU_launcher<\/string>/' "${CONTENTS_DIR}/Info.plist"
+sed -i '' 's/<string>Agent Guru<\/string>/<string>Agent Guru_launcher<\/string>/' "${CONTENTS_DIR}/Info.plist"
 
 # Create README
 echo "📝 Creating README..."
 cat > "${RESOURCES_DIR}/README.txt" << 'EOF'
-AGENT_GURU - Voice-Driven AI Companion
+Agent Guru - Voice-Driven AI Companion
 ========================================
 
 Installation Instructions:
 
-1. Copy AGENT_GURU.app to your Applications folder
+1. Copy Agent Guru.app to your Applications folder
 2. Double-click to launch (setup will run on first launch)
 3. Follow the on-screen setup instructions
-4. Start talking to AGENT_GURU!
+4. Start talking to Agent Guru!
 
 Voice Commands:
 - Say "Hey Guru" or "Hey Maya" to wake up
@@ -267,17 +295,17 @@ echo ""
 echo "📦 Creating DMG installer..."
 if command -v create-dmg &> /dev/null; then
     create-dmg \
-        --volname "AGENT_GURU Installer" \
+        --volname "Agent Guru Installer" \
         --window-pos 200 120 \
         --window-size 800 400 \
         --icon-size 100 \
-        --icon "AGENT_GURU.app" 200 190 \
-        --hide-extension "AGENT_GURU.app" \
+        --icon "Agent Guru.app" 200 190 \
+        --hide-extension "Agent Guru.app" \
         --app-drop-link 600 185 \
-        "installers/macos/AGENT_GURU-Installer.dmg" \
+        "installers/macos/Agent_Guru-Installer.dmg" \
         "${APP_DIR}"
     
-    echo "✅ DMG installer created: installers/macos/AGENT_GURU-Installer.dmg"
+    echo "✅ DMG installer created: installers/macos/Agent_Guru-Installer.dmg"
 else
     echo "⚠️  create-dmg not found. Skipping DMG creation."
     echo "   Install with: brew install create-dmg"
@@ -289,6 +317,6 @@ echo "📦 Location: ${APP_DIR}"
 echo ""
 echo "To distribute:"
 echo "  1. Copy ${APP_DIR} to a USB drive or cloud storage"
-echo "  2. Or create a DMG: hdiutil create -volname AGENT_GURU -srcfolder ${APP_DIR} -ov -format UDZO installers/macos/AGENT_GURU.dmg"
+echo "  2. Or create a DMG: hdiutil create -volname Agent_Guru -srcfolder ${APP_DIR} -ov -format UDZO installers/macos/Agent_Guru.dmg"
 echo "  3. Users drag to Applications folder and launch"
 echo ""
