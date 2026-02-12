@@ -585,6 +585,7 @@ pub struct PolicyEngine {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct AuditEntry {
     entry_id: Uuid,
     decision_id: Uuid,

@@ -37,6 +37,13 @@ pub mod security;
 pub mod voice;
 pub mod llm;
 pub mod runtime;
+pub mod platform;
+pub mod policy;
+pub mod memory;
+pub mod vision;
+pub mod agents;
+pub mod avatar;
+pub mod deployment;
 
 // Re-export core types for convenience
 pub use runtime::{GuruRuntime, RuntimeConfig, RuntimeError};

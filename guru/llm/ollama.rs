@@ -31,7 +31,12 @@ struct ChatRequest {
 #[derive(Debug, Deserialize)]
 struct ChatResponse {
     message: ChatMessage,
-    _done: bool,
+    #[serde(default)]
+    #[allow(dead_code)]
+    done: bool,
+    #[serde(default)]
+    #[allow(dead_code)]
+    done_reason: Option<String>,
 }
 
 impl OllamaClient {

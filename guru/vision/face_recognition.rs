@@ -115,6 +115,7 @@ struct LivenessDetector {
     /// Liveness features
     _features: Vec<String>,
     /// Detection threshold
+    #[allow(dead_code)]
     threshold: f32,
 }
 

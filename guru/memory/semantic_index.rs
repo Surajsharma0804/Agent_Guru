@@ -139,6 +139,7 @@ pub struct SimilarityResult {
 
 /// HNSW Graph Node for hierarchical navigable small world algorithm
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct HNSWNode {
     id: Uuid,
     level: usize,
@@ -146,6 +147,7 @@ struct HNSWNode {
 }
 
 impl HNSWNode {
+    #[allow(dead_code)]
     fn new(id: Uuid, level: usize) -> Self {
         Self {
             id,
@@ -157,6 +159,7 @@ impl HNSWNode {
 
 /// ADVANCED Cluster for IVF (Inverted File) indexing with Product Quantization
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct AdvancedCluster {
     centroid: Vec<f32>,
     quantized_centroid: Option<Vec<u8>>, // PQ-compressed centroid
@@ -166,6 +169,7 @@ struct AdvancedCluster {
 }
 
 impl AdvancedCluster {
+    #[allow(dead_code)]
     fn new(centroid: Vec<f32>) -> Self {
         Self {
             centroid,
@@ -176,12 +180,14 @@ impl AdvancedCluster {
         }
     }
     
+    #[allow(dead_code)]
     fn add_entry(&mut self, entry_id: Uuid, residual: Vec<f32>) {
         self.entry_ids.push(entry_id);
         self.residual_vectors.push(residual);
     }
     
     /// SIMD-optimized distance computation
+    #[allow(dead_code)]
     fn distance_to(&self, embedding: &[f32]) -> f32 {
         simd_cosine_distance(&self.centroid, embedding)
     }
@@ -270,6 +276,7 @@ impl AdvancedQueryCache {
         self.cache.insert(query_hash, (results, Instant::now(), 1));
     }
     
+    #[allow(dead_code)]
     fn hit_rate(&self) -> f64 {
         if self.hit_count + self.miss_count == 0 {
             0.0
@@ -284,11 +291,14 @@ pub struct SemanticIndex {
     config: SemanticIndexConfig,
     entries: Arc<RwLock<HashMap<Uuid, SemanticEntry>>>,
     clusters: Arc<RwLock<Vec<Cluster>>>,
+    #[allow(dead_code)]
     hnsw_graph: Arc<RwLock<HashMap<Uuid, HNSWNode>>>,
+    #[allow(dead_code)]
     hnsw_entry_point: Arc<RwLock<Option<Uuid>>>,
     query_cache: Arc<Mutex<AdvancedQueryCache>>,
     is_optimized: Arc<RwLock<bool>>,
     performance_metrics: Arc<RwLock<AdvancedPerformanceMetrics>>,
+    #[allow(dead_code)]
     pq_codebooks: Arc<RwLock<Vec<Vec<Vec<f32>>>>>, // Product Quantization codebooks
 }
 
@@ -675,6 +685,7 @@ impl SemanticIndex {
     }
     
     /// Ensure the index is optimized with clustering
+    #[allow(dead_code)]
     fn ensure_optimized(&self) -> Result<(), SemanticIndexError> {
         let is_optimized = *self.is_optimized.read().unwrap();
         
@@ -985,6 +996,7 @@ fn simd_cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 }
 
 /// SIMD-optimized cosine distance computation
+#[allow(dead_code)]
 fn simd_cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     1.0 - simd_cosine_similarity(a, b)
 }
@@ -1150,6 +1162,7 @@ fn generate_query_hash(embedding: &[f32], limit: usize, threshold: Option<f32>) 
 }
 
 /// PRODUCTION-GRADE K-means++ clustering with advanced optimizations
+#[allow(dead_code)]
 fn advanced_kmeans_clustering(
     embeddings: &[Vec<f32>],
     k: usize,

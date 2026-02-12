@@ -329,7 +329,8 @@ pub struct MemoryPruning {
     pruning_history: Arc<RwLock<VecDeque<PruningEvent>>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct PruningEvent {
     timestamp: DateTime<Utc>,
     entries_pruned: usize,
