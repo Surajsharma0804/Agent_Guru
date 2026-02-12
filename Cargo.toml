@@ -108,6 +108,10 @@ path = "guru/lib.rs"
 name = "agent_guru"
 path = "guru/main.rs"
 
+[[bin]]
+name = "agent_guru_voice"
+path = "guru/voice_main.rs"
+
 [profile.release]
 opt-level = 3
 lto = true
