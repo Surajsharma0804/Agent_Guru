@@ -113,7 +113,7 @@ impl TemporalNode {
         importance_score: f32,
         metadata: HashMap<String, String>,
     ) -> Self {
-        let _now = Utc::now();
+        let now = Utc::now();
         Self {
             id,
             content_hash,
@@ -154,7 +154,7 @@ impl TemporalEdge {
         strength: Option<f32>,
         metadata: HashMap<String, String>,
     ) -> Self {
-        let _now = Utc::now();
+        let now = Utc::now();
         Self {
             id: Uuid::new_v4(),
             source_id,
@@ -179,8 +179,8 @@ impl TemporalEdge {
             return;
         }
         
-        let _days_since_reinforcement = now.signed_duration_since(self.last_reinforced).num_days() as f32;
-        let _decay_factor = (-decay_rate * days_since_reinforcement).exp();
+        let days_since_reinforcement = now.signed_duration_since(self.last_reinforced).num_days() as f32;
+        let decay_factor = (-decay_rate * days_since_reinforcement).exp();
         self.strength *= decay_factor;
     }
     
@@ -298,7 +298,7 @@ impl TemporalGraph {
     
     /// Add node to the graph
     pub fn add_node(&self, mut node: TemporalNode) -> Result<Uuid, TemporalGraphError> {
-        let _node_id = node.id;
+        let node_id = node.id;
         
         // Update access
         node.update_access();
@@ -338,13 +338,13 @@ impl TemporalGraph {
     
     /// Add edge to the graph
     pub fn add_edge(&self, edge: TemporalEdge) -> Result<Uuid, TemporalGraphError> {
-        let _edge_id = edge.id;
-        let _source_id = edge.source_id;
-        let _target_id = edge.target_id;
+        let edge_id = edge.id;
+        let source_id = edge.source_id;
+        let target_id = edge.target_id;
         
         // Validate nodes exist
         {
-            let _nodes = self.nodes.read().unwrap();
+            let nodes = self.nodes.read().unwrap();
             if !nodes.contains_key(&source_id) || !nodes.contains_key(&target_id) {
                 return Err(TemporalGraphError::NodeNotFound);
             }
@@ -352,14 +352,14 @@ impl TemporalGraph {
         
         // Check for existing edge and reinforce if found
         {
-            let _edges = self.edges.read().unwrap();
-            for _existing_edge in edges.values() {
+            let edges = self.edges.read().unwrap();
+            for existing_edge in edges.values() {
                 if existing_edge.source_id == source_id 
                     && existing_edge.target_id == target_id 
                     && existing_edge.relationship_type == edge.relationship_type {
                     // Reinforce existing edge instead of creating new one
-                    let _edge_id = existing_edge.id;
-                    let _edge_strength = edge.strength;
+                    let edge_id = existing_edge.id;
+                    let edge_strength = edge.strength;
                     drop(edges);
                     return self.reinforce_edge(edge_id, edge_strength);
                 }
@@ -368,7 +368,7 @@ impl TemporalGraph {
         
         // Check edge limits per node
         {
-            let _adjacency = self.adjacency_list.read().unwrap();
+            let adjacency = self.adjacency_list.read().unwrap();
             if let Some(edges) = adjacency.get(&source_id) {
                 if edges.len() >= self.config.max_edges_per_node {
                     return Err(TemporalGraphError::TooManyEdges { 
@@ -426,11 +426,11 @@ impl TemporalGraph {
         max_depth: Option<usize>,
     ) -> Result<Vec<TemporalPath>, TemporalGraphError> {
         let _start_time = Instant::now();
-        let _max_depth = max_depth.unwrap_or(self.config.max_traversal_depth);
+        let max_depth = max_depth.unwrap_or(self.config.max_traversal_depth);
         
-        let _nodes = self.nodes.read().unwrap();
-        let _edges = self.edges.read().unwrap();
-        let _adjacency = self.adjacency_list.read().unwrap();
+        let nodes = self.nodes.read().unwrap();
+        let edges = self.edges.read().unwrap();
+        let adjacency = self.adjacency_list.read().unwrap();
         
         // Validate nodes exist
         if !nodes.contains_key(&source_id) || !nodes.contains_key(&target_id) {
@@ -485,7 +485,7 @@ impl TemporalGraph {
         if let Some(edge_ids) = adjacency.get(&current) {
             for &edge_id in edge_ids {
                 if let Some(edge) = edges.get(&edge_id) {
-                    let _next_node = edge.target_id;
+                    let next_node = edge.target_id;
                     
                     if !visited.contains(&next_node) && edge.strength >= self.config.min_relationship_strength {
                         current_path.add_hop(next_node, edge_id, edge.strength, edge.relationship_type);
@@ -522,12 +522,12 @@ impl TemporalGraph {
         relationship_types: Option<Vec<RelationshipType>>,
         max_results: Option<usize>,
     ) -> Result<TemporalQueryResult, TemporalGraphError> {
-        let _start_time = Instant::now();
-        let _max_results = max_results.unwrap_or(50);
+        let start_time = Instant::now();
+        let max_results = max_results.unwrap_or(50);
         
-        let _nodes = self.nodes.read().unwrap();
-        let _edges = self.edges.read().unwrap();
-        let _adjacency = self.adjacency_list.read().unwrap();
+        let nodes = self.nodes.read().unwrap();
+        let edges = self.edges.read().unwrap();
+        let adjacency = self.adjacency_list.read().unwrap();
         
         // Validate node exists
         if !nodes.contains_key(&node_id) {
@@ -552,7 +552,7 @@ impl TemporalGraph {
                     if edge.strength >= self.config.min_relationship_strength {
                         related_edges.push(edge.clone());
                         
-                        let _target_score = node_scores.entry(edge.target_id).or_insert(0.0);
+                        let target_score = node_scores.entry(edge.target_id).or_insert(0.0);
                         *target_score += edge.strength;
                     }
                 }
@@ -564,13 +564,13 @@ impl TemporalGraph {
         scored_nodes.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
         scored_nodes.truncate(max_results);
         
-        for (_related_node_id, _score) in scored_nodes {
+        for (related_node_id, _score) in scored_nodes {
             if let Some(node) = nodes.get(&related_node_id) {
                 related_nodes.push(node.clone());
             }
         }
         
-        let _total_results = related_nodes.len();
+        let total_results = related_nodes.len();
         
         Ok(TemporalQueryResult {
             nodes: related_nodes,
@@ -587,13 +587,13 @@ impl TemporalGraph {
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
     ) -> Result<Vec<TemporalNode>, TemporalGraphError> {
-        let _nodes = self.nodes.read().unwrap();
-        let _temporal_index = self.temporal_index.read().unwrap();
+        let nodes = self.nodes.read().unwrap();
+        let temporal_index = self.temporal_index.read().unwrap();
         
         let mut result_nodes = Vec::new();
         
         // Use temporal index for efficient lookup
-        for (&timestamp, node_ids) in temporal_index.range(start_time..=end_time) {
+        for (&_timestamp, node_ids) in temporal_index.range(start_time..=end_time) {
             for &node_id in node_ids {
                 if let Some(node) = nodes.get(&node_id) {
                     result_nodes.push(node.clone());
@@ -610,21 +610,21 @@ impl TemporalGraph {
     /// Infer relationships for a specific node
     pub fn infer_relationships_for_node(&self, node_id: Uuid) -> Result<Vec<InferredRelationship>, TemporalGraphError> {
         let (node_created_at, node_type, inference_window_seconds) = {
-            let _nodes = self.nodes.read().unwrap();
-            let _node = nodes.get(&node_id).ok_or(TemporalGraphError::NodeNotFound)?;
+            let nodes = self.nodes.read().unwrap();
+            let node = nodes.get(&node_id).ok_or(TemporalGraphError::NodeNotFound)?;
             (node.created_at, node.node_type.clone(), self.config.inference_window_seconds)
         };
         
-        let _inference_window = Duration::seconds(inference_window_seconds);
-        let _start_time = node_created_at - inference_window;
-        let _end_time = node_created_at + inference_window;
+        let inference_window = Duration::seconds(inference_window_seconds);
+        let start_time = node_created_at - inference_window;
+        let end_time = node_created_at + inference_window;
         
         // Find nodes in temporal window
-        let _nearby_nodes = self.find_nodes_in_time_window(start_time, end_time)?;
+        let nearby_nodes = self.find_nodes_in_time_window(start_time, end_time)?;
         
         let mut inferred_relationships = Vec::new();
         
-        for _other_node in nearby_nodes {
+        for other_node in nearby_nodes {
             if other_node.id == node_id {
                 continue;
             }
@@ -633,8 +633,8 @@ impl TemporalGraph {
             
             // Sequential relationship (temporal ordering)
             if other_node.created_at < node_created_at {
-                let _time_diff = node_created_at.signed_duration_since(other_node.created_at);
-                let _confidence = (1.0f32 - (time_diff.num_seconds() as f32 / inference_window.num_seconds() as f32)).max(0.1f32);
+                let time_diff = node_created_at.signed_duration_since(other_node.created_at);
+                let confidence = (1.0f32 - (time_diff.num_seconds() as f32 / inference_window.num_seconds() as f32)).max(0.1f32);
                 
                 inferred_relationships.push(InferredRelationship {
                     source_id: other_node.id,
@@ -647,7 +647,7 @@ impl TemporalGraph {
             
             // Contextual relationship (same type or metadata similarity)
             if other_node.node_type == node_type {
-                let _confidence = 0.6;
+                let confidence = 0.6;
                 inferred_relationships.push(InferredRelationship {
                     source_id: node_id,
                     target_id: other_node.id,
@@ -658,9 +658,9 @@ impl TemporalGraph {
             }
             
             // Co-occurrence relationship (created very close in time)
-            let _time_diff = (node_created_at - other_node.created_at).num_seconds().abs();
+            let time_diff = (node_created_at - other_node.created_at).num_seconds().abs();
             if time_diff < 60 { // Within 1 minute
-                let _confidence = 0.8;
+                let confidence = 0.8;
                 inferred_relationships.push(InferredRelationship {
                     source_id: node_id,
                     target_id: other_node.id,
@@ -676,8 +676,8 @@ impl TemporalGraph {
             .filter(|rel| rel.confidence > 0.7)
             .collect();
         
-        for _relationship in &high_confidence_relationships {
-            let _edge = TemporalEdge::new(
+        for relationship in &high_confidence_relationships {
+            let edge = TemporalEdge::new(
                 relationship.source_id,
                 relationship.target_id,
                 relationship.relationship_type,
@@ -686,7 +686,7 @@ impl TemporalGraph {
             );
             
             // Add edge if it doesn't already exist
-            let __ = self.add_edge(edge);
+            let _ = self.add_edge(edge);
         }
         
         Ok(inferred_relationships)
@@ -698,14 +698,14 @@ impl TemporalGraph {
             return Ok(0);
         }
         
-        let _now = Utc::now();
+        let now = Utc::now();
         let mut edges_removed = 0;
         let mut edges_to_remove = Vec::new();
         
         {
             let mut edges = self.edges.write().unwrap();
             
-            for (_edge_id, edge) in edges.iter_mut() {
+            for (edge_id, edge) in edges.iter_mut() {
                 edge.apply_temporal_decay(self.config.decay_rate, now);
                 
                 if edge.is_expired(self.config.min_relationship_strength) {
@@ -714,7 +714,7 @@ impl TemporalGraph {
             }
             
             // Remove expired edges
-            for _edge_id in &edges_to_remove {
+            for edge_id in &edges_to_remove {
                 edges.remove(edge_id);
                 edges_removed += 1;
             }
@@ -725,12 +725,12 @@ impl TemporalGraph {
             let mut adjacency = self.adjacency_list.write().unwrap();
             let mut reverse_adjacency = self.reverse_adjacency.write().unwrap();
             
-            for _edge_id in edges_to_remove {
+            for edge_id in edges_to_remove {
                 // Remove from adjacency lists
-                for _edge_set in adjacency.values_mut() {
+                for edge_set in adjacency.values_mut() {
                     edge_set.remove(&edge_id);
                 }
-                for _edge_set in reverse_adjacency.values_mut() {
+                for edge_set in reverse_adjacency.values_mut() {
                     edge_set.remove(&edge_id);
                 }
             }
@@ -744,9 +744,9 @@ impl TemporalGraph {
     
     /// Update graph statistics
     fn update_statistics(&self) {
-        let _nodes = self.nodes.read().unwrap();
-        let _edges = self.edges.read().unwrap();
-        let _adjacency = self.adjacency_list.read().unwrap();
+        let nodes = self.nodes.read().unwrap();
+        let edges = self.edges.read().unwrap();
+        let adjacency = self.adjacency_list.read().unwrap();
         
         let mut stats = self.statistics.write().unwrap();
         
@@ -764,7 +764,7 @@ impl TemporalGraph {
         
         // Relationship type distribution
         stats.relationship_type_distribution.clear();
-        for _edge in edges.values() {
+        for edge in edges.values() {
             *stats.relationship_type_distribution.entry(edge.relationship_type).or_insert(0) += 1;
         }
         
@@ -784,13 +784,13 @@ impl TemporalGraph {
     
     /// Get graph statistics
     pub fn get_statistics(&self) -> GraphStatistics {
-        let _stats = self.statistics.read().unwrap();
+        let stats = self.statistics.read().unwrap();
         stats.clone()
     }
     
     /// Remove node and all associated edges
     pub fn remove_node(&self, node_id: Uuid) -> Result<bool, TemporalGraphError> {
-        let _removed = {
+        let removed = {
             let mut nodes = self.nodes.write().unwrap();
             nodes.remove(&node_id).is_some()
         };
@@ -799,14 +799,14 @@ impl TemporalGraph {
             // Remove from temporal index
             {
                 let mut temporal_index = self.temporal_index.write().unwrap();
-                for _node_set in temporal_index.values_mut() {
+                for node_set in temporal_index.values_mut() {
                     node_set.remove(&node_id);
                 }
             }
             
             // Remove all edges connected to this node
-            let _edges_to_remove = {
-                let _edges = self.edges.read().unwrap();
+            let edges_to_remove = {
+                let edges = self.edges.read().unwrap();
                 edges.iter()
                     .filter(|(_, edge)| edge.source_id == node_id || edge.target_id == node_id)
                     .map(|(id, _)| *id)
@@ -815,7 +815,7 @@ impl TemporalGraph {
             
             {
                 let mut edges = self.edges.write().unwrap();
-                for _edge_id in edges_to_remove {
+                for edge_id in edges_to_remove {
                     edges.remove(&edge_id);
                 }
             }
@@ -893,7 +893,7 @@ pub enum TemporalGraphError {
 mod tests {
     use super::*;
     
-    fn create_test_node(id: Uuid, _node_type: &str, importance: f32) -> TemporalNode {
+    fn create_test_node(id: Uuid, node_type: &str, importance: f32) -> TemporalNode {
         TemporalNode::new(
             id,
             format!("hash_{}", id),
@@ -905,21 +905,21 @@ mod tests {
     
     #[test]
     fn test_add_node_and_edge() {
-        let _config = TemporalGraphConfig::default();
-        let _graph = TemporalGraph::new(config);
+        let config = TemporalGraphConfig::default();
+        let graph = TemporalGraph::new(config);
         
-        let _node1_id = Uuid::new_v4();
-        let _node2_id = Uuid::new_v4();
+        let node1_id = Uuid::new_v4();
+        let node2_id = Uuid::new_v4();
         
-        let _node1 = create_test_node(node1_id, "memory", 0.8);
-        let _node2 = create_test_node(node2_id, "memory", 0.7);
+        let node1 = create_test_node(node1_id, "memory", 0.8);
+        let node2 = create_test_node(node2_id, "memory", 0.7);
         
         // Add nodes
         assert!(graph.add_node(node1).is_ok());
         assert!(graph.add_node(node2).is_ok());
         
         // Add edge
-        let _edge = TemporalEdge::new(
+        let edge = TemporalEdge::new(
             node1_id,
             node2_id,
             RelationshipType::Sequential,
@@ -930,19 +930,19 @@ mod tests {
         assert!(graph.add_edge(edge).is_ok());
         
         // Verify statistics
-        let _stats = graph.get_statistics();
+        let stats = graph.get_statistics();
         assert_eq!(stats.total_nodes, 2);
         assert_eq!(stats.total_edges, 1);
     }
     
     #[test]
     fn test_find_related_nodes() {
-        let _config = TemporalGraphConfig::default();
-        let _graph = TemporalGraph::new(config);
+        let config = TemporalGraphConfig::default();
+        let graph = TemporalGraph::new(config);
         
-        let _node1_id = Uuid::new_v4();
-        let _node2_id = Uuid::new_v4();
-        let _node3_id = Uuid::new_v4();
+        let node1_id = Uuid::new_v4();
+        let node2_id = Uuid::new_v4();
+        let node3_id = Uuid::new_v4();
         
         // Add nodes
         graph.add_node(create_test_node(node1_id, "memory", 0.8)).unwrap();
@@ -950,14 +950,14 @@ mod tests {
         graph.add_node(create_test_node(node3_id, "memory", 0.6)).unwrap();
         
         // Add edges
-        let _edge1 = TemporalEdge::new(node1_id, node2_id, RelationshipType::Sequential, Some(0.9), HashMap::new());
-        let _edge2 = TemporalEdge::new(node1_id, node3_id, RelationshipType::Contextual, Some(0.7), HashMap::new());
+        let edge1 = TemporalEdge::new(node1_id, node2_id, RelationshipType::Sequential, Some(0.9), HashMap::new());
+        let edge2 = TemporalEdge::new(node1_id, node3_id, RelationshipType::Contextual, Some(0.7), HashMap::new());
         
         graph.add_edge(edge1).unwrap();
         graph.add_edge(edge2).unwrap();
         
         // Find related nodes
-        let _result = graph.find_related_nodes(node1_id, None, None).unwrap();
+        let result = graph.find_related_nodes(node1_id, None, None).unwrap();
         
         assert_eq!(result.nodes.len(), 2);
         assert_eq!(result.edges.len(), 2);
@@ -965,12 +965,12 @@ mod tests {
     
     #[test]
     fn test_find_paths() {
-        let _config = TemporalGraphConfig::default();
-        let _graph = TemporalGraph::new(config);
+        let config = TemporalGraphConfig::default();
+        let graph = TemporalGraph::new(config);
         
-        let _node1_id = Uuid::new_v4();
-        let _node2_id = Uuid::new_v4();
-        let _node3_id = Uuid::new_v4();
+        let node1_id = Uuid::new_v4();
+        let node2_id = Uuid::new_v4();
+        let node3_id = Uuid::new_v4();
         
         // Add nodes
         graph.add_node(create_test_node(node1_id, "memory", 0.8)).unwrap();
@@ -978,14 +978,14 @@ mod tests {
         graph.add_node(create_test_node(node3_id, "memory", 0.6)).unwrap();
         
         // Add edges to create a path: node1 -> node2 -> node3
-        let _edge1 = TemporalEdge::new(node1_id, node2_id, RelationshipType::Sequential, Some(0.9), HashMap::new());
-        let _edge2 = TemporalEdge::new(node2_id, node3_id, RelationshipType::Sequential, Some(0.8), HashMap::new());
+        let edge1 = TemporalEdge::new(node1_id, node2_id, RelationshipType::Sequential, Some(0.9), HashMap::new());
+        let edge2 = TemporalEdge::new(node2_id, node3_id, RelationshipType::Sequential, Some(0.8), HashMap::new());
         
         graph.add_edge(edge1).unwrap();
         graph.add_edge(edge2).unwrap();
         
         // Find paths
-        let _paths = graph.find_paths(node1_id, node3_id, None).unwrap();
+        let paths = graph.find_paths(node1_id, node3_id, None).unwrap();
         
         assert_eq!(paths.len(), 1);
         assert_eq!(paths[0].nodes.len(), 3);
@@ -999,24 +999,24 @@ mod tests {
         config.decay_rate = 1.0; // High decay rate for testing
         config.min_relationship_strength = 0.5;
         
-        let _graph = TemporalGraph::new(config);
+        let graph = TemporalGraph::new(config);
         
-        let _node1_id = Uuid::new_v4();
-        let _node2_id = Uuid::new_v4();
+        let node1_id = Uuid::new_v4();
+        let node2_id = Uuid::new_v4();
         
         // Add nodes
         graph.add_node(create_test_node(node1_id, "memory", 0.8)).unwrap();
         graph.add_node(create_test_node(node2_id, "memory", 0.7)).unwrap();
         
         // Add edge with low strength
-        let _edge = TemporalEdge::new(node1_id, node2_id, RelationshipType::Sequential, Some(0.3), HashMap::new());
+        let edge = TemporalEdge::new(node1_id, node2_id, RelationshipType::Sequential, Some(0.3), HashMap::new());
         graph.add_edge(edge).unwrap();
         
         // Apply decay (should remove the weak edge)
-        let _removed_count = graph.apply_temporal_decay().unwrap();
+        let removed_count = graph.apply_temporal_decay().unwrap();
         
         // Verify edge was removed due to decay
-        let _stats = graph.get_statistics();
+        let stats = graph.get_statistics();
         assert_eq!(stats.total_edges, 0);
         assert_eq!(removed_count, 1);
     }
@@ -1026,17 +1026,17 @@ mod tests {
         let mut config = TemporalGraphConfig::default();
         config.auto_inference = false; // Manual inference for testing
         
-        let _graph = TemporalGraph::new(config);
+        let graph = TemporalGraph::new(config);
         
-        let _node1_id = Uuid::new_v4();
-        let _node2_id = Uuid::new_v4();
+        let node1_id = Uuid::new_v4();
+        let node2_id = Uuid::new_v4();
         
         // Create nodes with same type (should infer contextual relationship)
         let mut node1 = create_test_node(node1_id, "conversation", 0.8);
         let mut node2 = create_test_node(node2_id, "conversation", 0.7);
         
         // Make them close in time
-        let _now = Utc::now();
+        let now = Utc::now();
         node1.created_at = now;
         node2.created_at = now + Duration::seconds(30);
         
@@ -1044,13 +1044,13 @@ mod tests {
         graph.add_node(node2).unwrap();
         
         // Infer relationships
-        let _inferred = graph.infer_relationships_for_node(node2_id).unwrap();
+        let inferred = graph.infer_relationships_for_node(node2_id).unwrap();
         
         assert!(!inferred.is_empty());
         
         // Should have inferred contextual and co-occurrence relationships
-        let _has_contextual = inferred.iter().any(|r| r.relationship_type == RelationshipType::Contextual);
-        let _has_cooccurrence = inferred.iter().any(|r| r.relationship_type == RelationshipType::CoOccurrence);
+        let has_contextual = inferred.iter().any(|r| r.relationship_type == RelationshipType::Contextual);
+        let has_cooccurrence = inferred.iter().any(|r| r.relationship_type == RelationshipType::CoOccurrence);
         
         assert!(has_contextual || has_cooccurrence);
     }

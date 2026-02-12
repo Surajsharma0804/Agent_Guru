@@ -41,7 +41,7 @@ pub struct AudioRingBuffer {
 impl AudioRingBuffer {
     /// Create new audio ring buffer with specified capacity
     pub fn new(capacity: usize) -> Self {
-        let _actual_capacity = if capacity == 0 || !capacity.is_power_of_two() {
+        let actual_capacity = if capacity == 0 || !capacity.is_power_of_two() {
             // Round up to next power of two for efficient modulo operations
             capacity.next_power_of_two()
         } else {
@@ -67,7 +67,7 @@ impl AudioRingBuffer {
             return Ok(0);
         }
         
-        let _available_space = self.available_write_space();
+        let available_space = self.available_write_space();
         if samples.len() > available_space {
             return Err(RingBufferError::BufferOverflow {
                 attempted: samples.len(),
@@ -75,32 +75,32 @@ impl AudioRingBuffer {
             });
         }
         
-        let _write_pos = self.write_pos.load(Ordering::Acquire);
+        let write_pos = self.write_pos.load(Ordering::Acquire);
         let written;
         
         // Handle wrap-around case
-        let _end_pos = write_pos + samples.len();
+        let end_pos = write_pos + samples.len();
         
         let mut buffer = self.buffer.lock().unwrap();
         
         if end_pos <= self.capacity {
             // No wrap-around needed - use safe slice operations
-            let _buffer_slice = &mut buffer[write_pos..write_pos + samples.len()];
+            let buffer_slice = &mut buffer[write_pos..write_pos + samples.len()];
             buffer_slice.copy_from_slice(samples);
             written = samples.len();
         } else {
             // Handle wrap-around using safe slice operations
-            let _first_chunk_size = self.capacity - write_pos;
-            let _second_chunk_size = samples.len() - first_chunk_size;
+            let first_chunk_size = self.capacity - write_pos;
+            let second_chunk_size = samples.len() - first_chunk_size;
             
             // Write first chunk to end of buffer
-            let _first_buffer_slice = &mut buffer[write_pos..];
-            let _first_sample_slice = &samples[..first_chunk_size];
+            let first_buffer_slice = &mut buffer[write_pos..];
+            let first_sample_slice = &samples[..first_chunk_size];
             first_buffer_slice.copy_from_slice(first_sample_slice);
             
             // Write second chunk to beginning of buffer
-            let _second_buffer_slice = &mut buffer[..second_chunk_size];
-            let _second_sample_slice = &samples[first_chunk_size..];
+            let second_buffer_slice = &mut buffer[..second_chunk_size];
+            let second_sample_slice = &samples[first_chunk_size..];
             second_buffer_slice.copy_from_slice(second_sample_slice);
             
             written = samples.len();
@@ -108,7 +108,7 @@ impl AudioRingBuffer {
         drop(buffer);
         
         // Update write position with memory barrier
-        let _new_write_pos = (write_pos + written) % self.capacity;
+        let new_write_pos = (write_pos + written) % self.capacity;
         self.write_pos.store(new_write_pos, Ordering::Release);
         
         Ok(written)
@@ -124,7 +124,7 @@ impl AudioRingBuffer {
             return Ok(0);
         }
         
-        let _available_samples = self.available_samples();
+        let available_samples = self.available_samples();
         if samples.len() > available_samples {
             return Err(RingBufferError::BufferUnderflow {
                 requested: samples.len(),
@@ -132,39 +132,39 @@ impl AudioRingBuffer {
             });
         }
         
-        let _read_pos = self.read_pos.load(Ordering::Acquire);
+        let read_pos = self.read_pos.load(Ordering::Acquire);
         let read_count;
         
         // Handle wrap-around case
-        let _end_pos = read_pos + samples.len();
+        let end_pos = read_pos + samples.len();
         
-        let _buffer = self.buffer.lock().unwrap();
+        let buffer = self.buffer.lock().unwrap();
         
         if end_pos <= self.capacity {
             // No wrap-around needed - use safe slice operations
-            let _buffer_slice = &buffer[read_pos..read_pos + samples.len()];
+            let buffer_slice = &buffer[read_pos..read_pos + samples.len()];
             samples.copy_from_slice(buffer_slice);
             read_count = samples.len();
         } else {
             // Handle wrap-around using safe slice operations
-            let _first_chunk_size = self.capacity - read_pos;
-            let _second_chunk_size = samples.len() - first_chunk_size;
+            let first_chunk_size = self.capacity - read_pos;
+            let second_chunk_size = samples.len() - first_chunk_size;
             
             // Read first chunk from end of buffer
-            let _first_buffer_slice = &buffer[read_pos..];
-            let _first_sample_slice = &mut samples[..first_chunk_size];
+            let first_buffer_slice = &buffer[read_pos..];
+            let first_sample_slice = &mut samples[..first_chunk_size];
             first_sample_slice.copy_from_slice(first_buffer_slice);
             
             // Read second chunk from beginning of buffer
-            let _second_buffer_slice = &buffer[..second_chunk_size];
-            let _second_sample_slice = &mut samples[first_chunk_size..];
+            let second_buffer_slice = &buffer[..second_chunk_size];
+            let second_sample_slice = &mut samples[first_chunk_size..];
             second_sample_slice.copy_from_slice(second_buffer_slice);
             
             read_count = samples.len();
         }
         
         // Update read position with memory barrier
-        let _new_read_pos = (read_pos + read_count) % self.capacity;
+        let new_read_pos = (read_pos + read_count) % self.capacity;
         self.read_pos.store(new_read_pos, Ordering::Release);
         
         Ok(read_count)
@@ -176,7 +176,7 @@ impl AudioRingBuffer {
             return Err(RingBufferError::NotInitialized);
         }
         
-        let _available = self.available_samples();
+        let available = self.available_samples();
         if count > available {
             return Err(RingBufferError::BufferUnderflow {
                 requested: count,
@@ -184,8 +184,8 @@ impl AudioRingBuffer {
             });
         }
         
-        let _write_pos = self.write_pos.load(Ordering::Acquire);
-        let _start_pos = if write_pos >= count {
+        let write_pos = self.write_pos.load(Ordering::Acquire);
+        let start_pos = if write_pos >= count {
             write_pos - count
         } else {
             self.capacity - (count - write_pos)
@@ -193,28 +193,28 @@ impl AudioRingBuffer {
         
         let mut samples = vec![0.0; count];
         
-        let _buffer = self.buffer.lock().unwrap();
+        let buffer = self.buffer.lock().unwrap();
         
         // Handle wrap-around case
-        let _end_pos = start_pos + count;
+        let end_pos = start_pos + count;
         
         if end_pos <= self.capacity {
             // No wrap-around needed - use safe slice operations
-            let _buffer_slice = &buffer[start_pos..start_pos + count];
+            let buffer_slice = &buffer[start_pos..start_pos + count];
             samples.copy_from_slice(buffer_slice);
         } else {
             // Handle wrap-around using safe slice operations
-            let _first_chunk_size = self.capacity - start_pos;
-            let _second_chunk_size = count - first_chunk_size;
+            let first_chunk_size = self.capacity - start_pos;
+            let second_chunk_size = count - first_chunk_size;
             
             // Read first chunk from end of buffer
-            let _first_buffer_slice = &buffer[start_pos..];
-            let _first_sample_slice = &mut samples[..first_chunk_size];
+            let first_buffer_slice = &buffer[start_pos..];
+            let first_sample_slice = &mut samples[..first_chunk_size];
             first_sample_slice.copy_from_slice(first_buffer_slice);
             
             // Read second chunk from beginning of buffer
-            let _second_buffer_slice = &buffer[..second_chunk_size];
-            let _second_sample_slice = &mut samples[first_chunk_size..];
+            let second_buffer_slice = &buffer[..second_chunk_size];
+            let second_sample_slice = &mut samples[first_chunk_size..];
             second_sample_slice.copy_from_slice(second_buffer_slice);
         }
         
@@ -223,8 +223,8 @@ impl AudioRingBuffer {
     
     /// Get number of samples available for reading
     pub fn available_samples(&self) -> usize {
-        let _write_pos = self.write_pos.load(Ordering::Acquire);
-        let _read_pos = self.read_pos.load(Ordering::Acquire);
+        let write_pos = self.write_pos.load(Ordering::Acquire);
+        let read_pos = self.read_pos.load(Ordering::Acquire);
         
         if write_pos >= read_pos {
             write_pos - read_pos
@@ -282,18 +282,18 @@ impl AudioRingBuffer {
         }
         
         // If samples exceed capacity, only write the latest samples
-        let _samples_to_write = if samples.len() > self.capacity - 1 {
+        let samples_to_write = if samples.len() > self.capacity - 1 {
             &samples[samples.len() - (self.capacity - 1)..]
         } else {
             samples
         };
         
         // If not enough space, advance read pointer to make room
-        let _available_space = self.available_write_space();
+        let available_space = self.available_write_space();
         if samples_to_write.len() > available_space {
-            let _samples_to_skip = samples_to_write.len() - available_space;
-            let _current_read_pos = self.read_pos.load(Ordering::Acquire);
-            let _new_read_pos = (current_read_pos + samples_to_skip) % self.capacity;
+            let samples_to_skip = samples_to_write.len() - available_space;
+            let current_read_pos = self.read_pos.load(Ordering::Acquire);
+            let new_read_pos = (current_read_pos + samples_to_skip) % self.capacity;
             self.read_pos.store(new_read_pos, Ordering::Release);
         }
         
@@ -358,7 +358,7 @@ mod tests {
     
     #[test]
     fn test_ring_buffer_creation() {
-        let _buffer = AudioRingBuffer::new(1024);
+        let buffer = AudioRingBuffer::new(1024);
         assert_eq!(buffer.capacity(), 1024);
         assert!(buffer.is_empty());
         assert!(!buffer.is_full());
@@ -366,17 +366,17 @@ mod tests {
     
     #[test]
     fn test_basic_write_read() {
-        let _buffer = AudioRingBuffer::new(1024);
-        let _samples = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let buffer = AudioRingBuffer::new(1024);
+        let samples = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         
         // Write samples
-        let _written = buffer.write(&samples).unwrap();
+        let written = buffer.write(&samples).unwrap();
         assert_eq!(written, 5);
         assert_eq!(buffer.available_samples(), 5);
         
         // Read samples
         let mut read_samples = vec![0.0; 5];
-        let _read_count = buffer.read(&mut read_samples).unwrap();
+        let read_count = buffer.read(&mut read_samples).unwrap();
         assert_eq!(read_count, 5);
         assert_eq!(read_samples, samples);
         assert!(buffer.is_empty());
@@ -384,10 +384,10 @@ mod tests {
     
     #[test]
     fn test_wrap_around() {
-        let _buffer = AudioRingBuffer::new(8);
+        let buffer = AudioRingBuffer::new(8);
         
         // Fill buffer almost to capacity
-        let _samples1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let samples1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
         buffer.write(&samples1).unwrap();
         
         // Read some samples to create space at the beginning
@@ -395,7 +395,7 @@ mod tests {
         buffer.read(&mut read_buffer).unwrap();
         
         // Write more samples that will wrap around
-        let _samples2 = vec![7.0, 8.0, 9.0, 10.0];
+        let samples2 = vec![7.0, 8.0, 9.0, 10.0];
         buffer.write(&samples2).unwrap();
         
         // Read all remaining samples
@@ -407,13 +407,13 @@ mod tests {
     
     #[test]
     fn test_read_latest() {
-        let _buffer = AudioRingBuffer::new(1024);
-        let _samples = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let buffer = AudioRingBuffer::new(1024);
+        let samples = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         
         buffer.write(&samples).unwrap();
         
         // Read latest 3 samples
-        let _latest = buffer.read_latest(3).unwrap();
+        let latest = buffer.read_latest(3).unwrap();
         assert_eq!(latest, vec![3.0, 4.0, 5.0]);
         
         // Buffer should still have all samples (read_latest doesn't advance read position)
@@ -422,14 +422,14 @@ mod tests {
     
     #[test]
     fn test_buffer_overflow() {
-        let _buffer = AudioRingBuffer::new(8);
-        let _large_samples = vec![1.0; 10]; // More than capacity
+        let buffer = AudioRingBuffer::new(8);
+        let large_samples = vec![1.0; 10]; // More than capacity
         
-        let _result = buffer.write(&large_samples);
+        let result = buffer.write(&large_samples);
         assert!(result.is_err());
         
         match result.unwrap_err() {
-            RingBufferError::BufferOverflow { _attempted, _available } => {
+            RingBufferError::BufferOverflow { attempted, available } => {
                 assert_eq!(attempted, 10);
                 assert_eq!(available, 7); // capacity - 1
             }
@@ -439,14 +439,14 @@ mod tests {
     
     #[test]
     fn test_buffer_underflow() {
-        let _buffer = AudioRingBuffer::new(1024);
+        let buffer = AudioRingBuffer::new(1024);
         let mut read_buffer = vec![0.0; 10];
         
-        let _result = buffer.read(&mut read_buffer);
+        let result = buffer.read(&mut read_buffer);
         assert!(result.is_err());
         
         match result.unwrap_err() {
-            RingBufferError::BufferUnderflow { _requested, _available } => {
+            RingBufferError::BufferUnderflow { requested, available } => {
                 assert_eq!(requested, 10);
                 assert_eq!(available, 0);
             }
@@ -456,19 +456,19 @@ mod tests {
     
     #[test]
     fn test_force_write() {
-        let _buffer = AudioRingBuffer::new(8);
+        let buffer = AudioRingBuffer::new(8);
         
         // Fill buffer to capacity
-        let _samples1 = vec![1.0; 7];
+        let samples1 = vec![1.0; 7];
         buffer.write(&samples1).unwrap();
         
         // Force write more samples (should overwrite old data)
-        let _samples2 = vec![2.0, 3.0, 4.0];
-        let _written = buffer.force_write(&samples2).unwrap();
+        let samples2 = vec![2.0, 3.0, 4.0];
+        let written = buffer.force_write(&samples2).unwrap();
         assert_eq!(written, 3);
         
         // Read all available samples
-        let _available = buffer.available_samples();
+        let available = buffer.available_samples();
         let mut read_samples = vec![0.0; available];
         buffer.read(&mut read_samples).unwrap();
         
@@ -480,8 +480,8 @@ mod tests {
     
     #[test]
     fn test_clear() {
-        let _buffer = AudioRingBuffer::new(1024);
-        let _samples = vec![1.0, 2.0, 3.0];
+        let buffer = AudioRingBuffer::new(1024);
+        let samples = vec![1.0, 2.0, 3.0];
         
         buffer.write(&samples).unwrap();
         assert!(!buffer.is_empty());
@@ -493,21 +493,21 @@ mod tests {
     
     #[test]
     fn test_utilization() {
-        let _buffer = AudioRingBuffer::new(128); // Use power of 2 to avoid rounding
-        let _samples = vec![1.0; 50];
+        let buffer = AudioRingBuffer::new(128); // Use power of 2 to avoid rounding
+        let samples = vec![1.0; 50];
         
         buffer.write(&samples).unwrap();
-        let _expected_utilization = (50.0 / 128.0) * 100.0;
+        let expected_utilization = (50.0 / 128.0) * 100.0;
         assert!((buffer.utilization() - expected_utilization).abs() < 0.1);
     }
     
     #[test]
     fn test_shared_buffer() {
-        let _shared_buffer = SharedAudioRingBuffer::new(1024);
-        let _buffer_clone = shared_buffer.clone();
+        let shared_buffer = SharedAudioRingBuffer::new(1024);
+        let buffer_clone = shared_buffer.clone();
         
         // Write from one reference
-        let _samples = vec![1.0, 2.0, 3.0];
+        let samples = vec![1.0, 2.0, 3.0];
         shared_buffer.write(&samples).unwrap();
         
         // Read from another reference
@@ -519,14 +519,14 @@ mod tests {
     
     #[test]
     fn test_concurrent_access() {
-        let _shared_buffer = SharedAudioRingBuffer::new(1024);
-        let _buffer_clone = shared_buffer.clone();
+        let shared_buffer = SharedAudioRingBuffer::new(1024);
+        let buffer_clone = shared_buffer.clone();
         
         // Spawn writer thread
-        let _writer_handle = thread::spawn(move || {
-            for _i in 0..100 {
+        let writer_handle = thread::spawn(move || {
+            for i in 0..100 {
                 #[allow(clippy::cast_precision_loss)]
-                let _samples = vec![i as f32; 10];
+                let samples = vec![i as f32; 10];
                 while shared_buffer.write(&samples).is_err() {
                     thread::sleep(Duration::from_millis(1));
                 }
@@ -535,7 +535,7 @@ mod tests {
         });
         
         // Spawn reader thread
-        let _reader_handle = thread::spawn(move || {
+        let reader_handle = thread::spawn(move || {
             let mut total_read = 0;
             while total_read < 1000 {
                 let mut samples = vec![0.0; 10];
@@ -553,10 +553,10 @@ mod tests {
     #[test]
     fn test_power_of_two_capacity() {
         // Test that non-power-of-two capacities are rounded up
-        let _buffer = AudioRingBuffer::new(1000);
+        let buffer = AudioRingBuffer::new(1000);
         assert_eq!(buffer.capacity(), 1024); // Next power of two
         
-        let _buffer2 = AudioRingBuffer::new(512);
+        let buffer2 = AudioRingBuffer::new(512);
         assert_eq!(buffer2.capacity(), 512); // Already power of two
     }
 }

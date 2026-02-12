@@ -27,7 +27,7 @@ use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
-use zeroize::{Zeroize, ZeroizeOnDrop};
+// use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Cryptographic errors that can occur during identity operations
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -59,21 +59,13 @@ pub enum CryptoError {
     /// Cryptographic operation failed
     #[error("Cryptographic operation failed: {reason}")]
     CryptographicFailure { reason: String },
-    
-    /// Invalid key provided
-    #[error("Invalid key: {reason}")]
-    InvalidKey { reason: String },
-    
-    /// Signature error
-    #[error("Signature error: {reason}")]
-    SignatureError { reason: String },
 }
 
 /// Ed25519 public key wrapper with additional metadata
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PublicKey {
-    /// The Ed25519 public key bytes
-    pub key_bytes: [u8; 32],
+    /// The actual Ed25519 public key
+    pub key: VerifyingKey,
     /// Unique identifier for this key
     pub key_id: Uuid,
     /// Creation timestamp
@@ -84,9 +76,9 @@ pub struct PublicKey {
 
 impl PublicKey {
     /// Create a new public key with metadata
-    pub fn new(key_bytes: [u8; 32]) -> Self {
+    pub fn new(key: VerifyingKey) -> Self {
         Self {
-            key_bytes,
+            key,
             key_id: Uuid::new_v4(),
             created_at: SystemTime::now(),
             metadata: HashMap::new(),
@@ -95,7 +87,7 @@ impl PublicKey {
     
     /// Get the key as bytes
     pub fn as_bytes(&self) -> &[u8; 32] {
-        &self.key_bytes
+        self.key.as_bytes()
     }
     
     /// Add metadata to the key
@@ -108,8 +100,8 @@ impl PublicKey {
 /// Ed25519 secret key wrapper with secure memory handling
 #[derive(Debug, Clone)]
 pub struct SecretKey {
-    /// The Ed25519 secret key bytes
-    key_bytes: [u8; 32],
+    /// The actual Ed25519 secret key
+    pub key: SigningKey,
     /// Unique identifier for this key
     pub key_id: Uuid,
     /// Creation timestamp
@@ -118,9 +110,9 @@ pub struct SecretKey {
 
 impl SecretKey {
     /// Create a new secret key with metadata
-    pub fn new(key_bytes: [u8; 32]) -> Self {
+    pub fn new(key: SigningKey) -> Self {
         Self {
-            key_bytes,
+            key,
             key_id: Uuid::new_v4(),
             created_at: SystemTime::now(),
         }
@@ -128,24 +120,15 @@ impl SecretKey {
     
     /// Get the key as bytes
     pub fn as_bytes(&self) -> &[u8; 32] {
-        &self.key_bytes
+        self.key.as_bytes()
     }
 }
-
-impl Zeroize for SecretKey {
-    fn zeroize(&mut self) {
-        self.key_bytes.zeroize();
-    }
-}
-
-impl ZeroizeOnDrop for SecretKey {}
 
 /// Ed25519 signature wrapper with additional metadata
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Signature {
-    /// The Ed25519 signature bytes (serialized as Vec<u8> for serde compatibility)
-    #[serde(with = "signature_bytes")]
-    pub signature: [u8; 64],
+    /// The actual Ed25519 signature
+    pub signature: DalekSignature,
     /// Signature timestamp
     pub created_at: SystemTime,
     /// Signer key ID
@@ -154,33 +137,9 @@ pub struct Signature {
     pub metadata: HashMap<String, String>,
 }
 
-mod signature_bytes {
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    
-    pub fn serialize<S>(bytes: &[u8; 64], serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        bytes.as_slice().serialize(serializer)
-    }
-    
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<[u8; 64], D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let vec: Vec<u8> = Vec::deserialize(deserializer)?;
-        if vec.len() != 64 {
-            return Err(serde::de::Error::custom("Invalid signature length"));
-        }
-        let mut array = [0u8; 64];
-        array.copy_from_slice(&vec);
-        Ok(array)
-    }
-}
-
 impl Signature {
     /// Create a new signature with metadata
-    pub fn new(signature: [u8; 64], signer_key_id: Uuid) -> Self {
+    pub fn new(signature: DalekSignature, signer_key_id: Uuid) -> Self {
         Self {
             signature,
             created_at: SystemTime::now(),
@@ -190,8 +149,8 @@ impl Signature {
     }
     
     /// Get the signature as bytes
-    pub fn as_bytes(&self) -> &[u8; 64] {
-        &self.signature
+    pub fn to_bytes(&self) -> [u8; 64] {
+        self.signature.to_bytes()
     }
     
     /// Add metadata to the signature
@@ -213,7 +172,7 @@ impl TrustDomainId {
 }
 
 /// Trust domain for capability-based access control
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct TrustDomain {
     /// Unique identifier for this trust domain
     pub id: TrustDomainId,
@@ -302,23 +261,23 @@ pub trait CryptoIdentity {
     fn generate_keypair() -> Result<(PublicKey, SecretKey), CryptoError>;
     
     /// Sign a message with the secret key
-    fn sign_message(&self, _message: &[u8]) -> Result<Signature, CryptoError>;
+    fn signmessage(&self, message: &[u8]) -> Result<Signature, CryptoError>;
     
     /// Verify a signature against a message and public key
     fn verify_signature(
         &self,
-        _message: &[u8],
+        message: &[u8],
         signature: &Signature,
         public_key: &PublicKey,
     ) -> Result<bool, CryptoError>;
     
     /// Establish a new trust domain
-    fn establish_trust_domain(&self, _domain_id: &str) -> Result<TrustDomain, CryptoError>;
+    fn establish_trust_domain(&self, domain_id: &str) -> Result<TrustDomain, CryptoError>;
     
     /// Create an audit entry for an operation
     fn create_audit_entry(
         &self,
-        _operation: &str,
+        operation: &str,
         metadata: &HashMap<String, String>,
     ) -> Result<AuditEntry, CryptoError>;
 }
@@ -328,12 +287,10 @@ pub trait CryptoIdentity {
 pub struct Ed25519Identity {
     /// The signing key for this identity
     signing_key: SigningKey,
-    /// The verifying key for this identity  
-    verifying_key: VerifyingKey,
     /// Public key metadata
     public_key: PublicKey,
     /// Secret key metadata
-    secret_key: SecretKey,
+    _secret_key: SecretKey,
     /// Trust domains managed by this identity
     trust_domains: HashMap<TrustDomainId, TrustDomain>,
     /// Audit log for this identity
@@ -345,16 +302,14 @@ impl Ed25519Identity {
     pub fn new() -> Result<Self, CryptoError> {
         let mut csprng = OsRng;
         let signing_key = SigningKey::generate(&mut csprng);
-        let verifying_key = signing_key.verifying_key();
         
-        let public_key = PublicKey::new(verifying_key.to_bytes());
-        let secret_key = SecretKey::new(signing_key.to_bytes());
+        let public_key = PublicKey::new(signing_key.verifying_key());
+        let secret_key = SecretKey::new(signing_key.clone());
         
         let mut identity = Self {
             signing_key,
-            verifying_key,
             public_key,
-            secret_key,
+            _secret_key: secret_key,
             trust_domains: HashMap::new(),
             audit_log: Vec::new(),
         };
@@ -373,11 +328,6 @@ impl Ed25519Identity {
     /// Get the public key for this identity
     pub fn public_key(&self) -> &PublicKey {
         &self.public_key
-    }
-    
-    /// Get the secret key for this identity (for internal use only)
-    pub fn secret_key(&self) -> &SecretKey {
-        &self.secret_key
     }
     
     /// Get the trust domains managed by this identity
@@ -408,18 +358,17 @@ impl Ed25519Identity {
 impl CryptoIdentity for Ed25519Identity {
     fn generate_keypair() -> Result<(PublicKey, SecretKey), CryptoError> {
         let mut csprng = OsRng;
-        let signing_key = SigningKey::generate(&mut csprng);
-        let verifying_key = signing_key.verifying_key();
+        let keypair = SigningKey::generate(&mut csprng);
         
-        let public_key = PublicKey::new(verifying_key.to_bytes());
-        let secret_key = SecretKey::new(signing_key.to_bytes());
+        let public_key = PublicKey::new(keypair.verifying_key());
+        let secret_key = SecretKey::new(keypair.clone());
         
         Ok((public_key, secret_key))
     }
     
-    fn sign_message(&self, message: &[u8]) -> Result<Signature, CryptoError> {
+    fn signmessage(&self, message: &[u8]) -> Result<Signature, CryptoError> {
         let signature = self.signing_key.sign(message);
-        let sig = Signature::new(signature.to_bytes(), self.public_key.key_id);
+        let sig = Signature::new(signature, self.public_key.key_id);
         
         Ok(sig)
     }
@@ -430,11 +379,7 @@ impl CryptoIdentity for Ed25519Identity {
         signature: &Signature,
         public_key: &PublicKey,
     ) -> Result<bool, CryptoError> {
-        let verifying_key = VerifyingKey::from_bytes(&public_key.key_bytes)
-            .map_err(|e| CryptoError::InvalidKey { reason: e.to_string() })?;
-        let dalek_signature = DalekSignature::from_bytes(&signature.signature);
-        
-        match verifying_key.verify(message, &dalek_signature) {
+        match public_key.key.verify(message, &signature.signature) {
             Ok(()) => Ok(true),
             Err(_) => Ok(false),
         }

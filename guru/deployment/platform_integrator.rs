@@ -7,14 +7,14 @@ use crate::deployment::{PlatformTarget, DeploymentError, InstallationMetrics};
 use std::path::PathBuf;
 
 pub struct PlatformIntegrator {
-    platform_target: PlatformTarget,
+    _platform_target: PlatformTarget,
     metrics: InstallationMetrics,
 }
 
 impl PlatformIntegrator {
     pub fn new(platform_target: PlatformTarget) -> Self {
         Self {
-            platform_target,
+            _platform_target: platform_target,
             metrics: InstallationMetrics::new(),
         }
     }
@@ -94,9 +94,9 @@ impl PlatformIntegrator {
 impl Default for PlatformIntegrator {
     fn default() -> Self {
         Self::new(PlatformTarget::Linux {
-            architecture: crate::deployment::LinuxArchitecture::_X64,
-            distribution: crate::deployment::LinuxDistribution::_Ubuntu,
-            package_type: crate::deployment::LinuxPackageType::_AppImage,
+            architecture: crate::deployment::LinuxArchitecture::X64,
+            distribution: crate::deployment::LinuxDistribution::Ubuntu,
+            package_type: crate::deployment::LinuxPackageType::AppImage,
         })
     }
 }

@@ -30,11 +30,11 @@ pub struct EncryptionConfig {
     /// Encryption algorithm to use
     pub algorithm: EncryptionAlgorithm,
     /// Key derivation iterations (higher = more secure but slower)
-    pub __kdf_iterations: u32,
+    pub kdf_iterations: u32,
     /// Memory cost for key derivation (in KB)
-    pub __kdf_memory_cost: u32,
+    pub kdf_memory_cost: u32,
     /// Parallelism for key derivation
-    pub __kdf_parallelism: u32,
+    pub kdf_parallelism: u32,
     /// Enable hardware acceleration if available
     pub use_hardware_acceleration: bool,
     /// Key rotation interval in seconds
@@ -47,9 +47,9 @@ impl Default for EncryptionConfig {
     fn default() -> Self {
         Self {
             algorithm: EncryptionAlgorithm::Aes256Gcm,
-            __kdf_iterations: 3,
-            __kdf_memory_cost: 65536, // 64 MB
-            __kdf_parallelism: 4,
+            kdf_iterations: 3,
+            kdf_memory_cost: 65536, // 64 MB
+            kdf_parallelism: 4,
             use_hardware_acceleration: true,
             key_rotation_interval: 86400, // 24 hours
             secure_memory_wiping: true,
@@ -94,11 +94,11 @@ impl Drop for UserEncryptionKey {
 
 impl UserEncryptionKey {
     /// Create new user encryption key
-    pub fn new(user_id: Uuid, _password: &str, algorithm: EncryptionAlgorithm, config: &EncryptionConfig) -> Result<Self, EncryptionError> {
+    pub fn new(user_id: Uuid, password: &str, algorithm: EncryptionAlgorithm, config: &EncryptionConfig) -> Result<Self, EncryptionError> {
         let mut salt = vec![0u8; 32];
         OsRng.fill_bytes(&mut salt);
         
-        let _key_data = derive_key_from_password(password, &salt, config)?;
+        let key_data = derive_key_from_password(password, &salt, config)?;
         
         Ok(Self {
             user_id,
@@ -119,7 +119,7 @@ impl UserEncryptionKey {
     
     /// Check if key needs rotation based on age and usage
     pub fn needs_rotation(&self, config: &EncryptionConfig) -> bool {
-        let _age = chrono::Utc::now().signed_duration_since(self.created_at);
+        let age = chrono::Utc::now().signed_duration_since(self.created_at);
         age.num_seconds() > config.key_rotation_interval as i64
     }
 }
@@ -138,7 +138,7 @@ pub struct EncryptedData {
 impl EncryptedData {
     /// Verify data integrity using checksum
     pub fn verify_integrity(&self) -> bool {
-        let _computed_checksum = compute_checksum(&self.data);
+        let computed_checksum = compute_checksum(&self.data);
         constant_time_compare(&self.checksum, &computed_checksum)
     }
 }
@@ -160,13 +160,13 @@ pub struct MemoryEncryption {
     config: EncryptionConfig,
     user_keys: Arc<RwLock<HashMap<Uuid, UserEncryptionKey>>>,
     metrics: Arc<RwLock<EncryptionMetrics>>,
-    hardware_acceleration: bool,
+    _hardware_acceleration: bool,
 }
 
 impl MemoryEncryption {
     /// Create new memory encryption manager
     pub fn new(config: EncryptionConfig) -> Self {
-        let _hardware_acceleration = config.use_hardware_acceleration && Self::check_hardware_acceleration();
+        let hardware_acceleration = config.use_hardware_acceleration && Self::check_hardware_acceleration();
         
         Self {
             config,
@@ -175,7 +175,7 @@ impl MemoryEncryption {
                 hardware_acceleration_used: hardware_acceleration,
                 ..Default::default()
             })),
-            hardware_acceleration,
+            _hardware_acceleration: hardware_acceleration,
         }
     }
     
@@ -201,33 +201,34 @@ impl MemoryEncryption {
     }
     
     /// Advanced key derivation with multiple algorithms
+    #[allow(dead_code)]
     fn derive_key_advanced(
         &self,
-        _password: &str,
-        _salt: &[u8],
-        _algorithm: &str,
+        password: &str,
+        salt: &[u8],
+        algorithm: &str,
     ) -> Result<Vec<u8>, EncryptionError> {
         match algorithm {
             "argon2id" => {
                 // Use Argon2id (recommended)
-                let _argon2 = Argon2::new(
+                let argon2 = Argon2::new(
                     argon2::Algorithm::Argon2id,
                     argon2::Version::V0x13,
                     argon2::Params::new(
-                        self.config.__kdf_memory_cost,
-                        self.config.__kdf_iterations,
-                        self.config.__kdf_parallelism,
+                        self.config.kdf_memory_cost,
+                        self.config.kdf_iterations,
+                        self.config.kdf_parallelism,
                         Some(32), // 256-bit key
                     ).map_err(|e| EncryptionError::KeyDerivationFailed(e.to_string()))?,
                 );
                 
-                let _salt = SaltString::from_b64(&base64::engine::general_purpose::STANDARD.encode(salt))
+                let salt = SaltString::from_b64(&base64::engine::general_purpose::STANDARD.encode(salt))
                     .map_err(|e| EncryptionError::KeyDerivationFailed(e.to_string()))?;
                 
-                let _password_hash = argon2.hash_password(password.as_bytes(), &salt)
+                let password_hash = argon2.hash_password(password.as_bytes(), &salt)
                     .map_err(|e| EncryptionError::KeyDerivationFailed(e.to_string()))?;
                 
-                let _hash_bytes = password_hash.hash
+                let hash_bytes = password_hash.hash
                     .ok_or_else(|| EncryptionError::KeyDerivationFailed("No hash generated".to_string()))?;
                 
                 Ok(hash_bytes.as_bytes().to_vec())
@@ -237,17 +238,17 @@ impl MemoryEncryption {
                 use scrypt::{Scrypt, Params};
                 use password_hash::{PasswordHasher, SaltString};
                 
-                let _params = Params::new(
-                    (self.config.__kdf_memory_cost as f64).log2() as u8, // log_n
-                    self.config.__kdf_iterations,
-                    self.config.__kdf_parallelism,
+                let params = Params::new(
+                    (self.config.kdf_memory_cost as f64).log2() as u8, // log_n
+                    self.config.kdf_iterations,
+                    self.config.kdf_parallelism,
                     32, // output length
                 ).map_err(|e| EncryptionError::KeyDerivationFailed(e.to_string()))?;
                 
-                let _salt_string = SaltString::encode_b64(salt)
+                let salt_string = SaltString::encode_b64(salt)
                     .map_err(|e| EncryptionError::KeyDerivationFailed(e.to_string()))?;
                 
-                let _password_hash = Scrypt.hash_password_customized(
+                let password_hash = Scrypt.hash_password_customized(
                     password.as_bytes(),
                     None,
                     None,
@@ -255,7 +256,7 @@ impl MemoryEncryption {
                     &salt_string,
                 ).map_err(|e| EncryptionError::KeyDerivationFailed(e.to_string()))?;
                 
-                let _hash_bytes = password_hash.hash
+                let hash_bytes = password_hash.hash
                     .ok_or_else(|| EncryptionError::KeyDerivationFailed("No hash generated".to_string()))?;
                 
                 Ok(hash_bytes.as_bytes().to_vec())
@@ -269,7 +270,7 @@ impl MemoryEncryption {
                 pbkdf2_hmac::<Sha256>(
                     password.as_bytes(),
                     salt,
-                    self.config.__kdf_iterations,
+                    self.config.kdf_iterations,
                     &mut key,
                 );
                 Ok(key)
@@ -281,8 +282,8 @@ impl MemoryEncryption {
     }
     
     /// Register user with password-derived encryption key
-    pub fn register_user(&self, user_id: Uuid, _password: &str) -> Result<(), EncryptionError> {
-        let _key = UserEncryptionKey::new(user_id, password, self.config.algorithm, &self.config)?;
+    pub fn register_user(&self, user_id: Uuid, password: &str) -> Result<(), EncryptionError> {
+        let key = UserEncryptionKey::new(user_id, password, self.config.algorithm, &self.config)?;
         
         let mut user_keys = self.user_keys.write().unwrap();
         user_keys.insert(user_id, key);
@@ -307,12 +308,12 @@ impl MemoryEncryption {
     }
     
     /// Encrypt data for specific user
-    pub fn encrypt_for_user(&self, user_id: &Uuid, _plaintext: &[u8]) -> Result<EncryptedData, EncryptionError> {
-        let _start_time = Instant::now();
+    pub fn encrypt_for_user(&self, user_id: &Uuid, plaintext: &[u8]) -> Result<EncryptedData, EncryptionError> {
+        let start_time = Instant::now();
         
-        let _encrypted_data = {
+        let encrypted_data = {
             let mut user_keys = self.user_keys.write().unwrap();
-            let _key = user_keys.get_mut(user_id)
+            let key = user_keys.get_mut(user_id)
                 .ok_or(EncryptionError::UserNotFound(*user_id))?;
             
             // Check if key needs rotation
@@ -322,7 +323,7 @@ impl MemoryEncryption {
             
             key.update_usage();
             
-            let _encrypted = match key.algorithm {
+            let encrypted = match key.algorithm {
                 EncryptionAlgorithm::Aes256Gcm => {
                     self.encrypt_aes_gcm(&key.key_data, plaintext)?
                 }
@@ -331,7 +332,7 @@ impl MemoryEncryption {
                 }
             };
             
-            let _checksum = compute_checksum(&encrypted.0);
+            let checksum = compute_checksum(&encrypted.0);
             
             EncryptedData {
                 data: encrypted.0,
@@ -347,7 +348,7 @@ impl MemoryEncryption {
         {
             let mut metrics = self.metrics.write().unwrap();
             metrics.total_encryptions += 1;
-            let _encryption_time = start_time.elapsed().as_millis() as f64;
+            let encryption_time = start_time.elapsed().as_millis() as f64;
             metrics.avg_encryption_time_ms = 
                 (metrics.avg_encryption_time_ms * (metrics.total_encryptions - 1) as f64 + encryption_time) 
                 / metrics.total_encryptions as f64;
@@ -358,7 +359,7 @@ impl MemoryEncryption {
     
     /// Decrypt data for specific user
     pub fn decrypt_for_user(&self, user_id: &Uuid, encrypted_data: &EncryptedData) -> Result<Vec<u8>, EncryptionError> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         
         // Verify data integrity
         if !encrypted_data.verify_integrity() {
@@ -370,9 +371,9 @@ impl MemoryEncryption {
             return Err(EncryptionError::UnauthorizedAccess);
         }
         
-        let _plaintext = {
+        let plaintext = {
             let mut user_keys = self.user_keys.write().unwrap();
-            let _key = user_keys.get_mut(user_id)
+            let key = user_keys.get_mut(user_id)
                 .ok_or(EncryptionError::UserNotFound(*user_id))?;
             
             key.update_usage();
@@ -391,7 +392,7 @@ impl MemoryEncryption {
         {
             let mut metrics = self.metrics.write().unwrap();
             metrics.total_decryptions += 1;
-            let _decryption_time = start_time.elapsed().as_millis() as f64;
+            let decryption_time = start_time.elapsed().as_millis() as f64;
             metrics.avg_decryption_time_ms = 
                 (metrics.avg_decryption_time_ms * (metrics.total_decryptions - 1) as f64 + decryption_time) 
                 / metrics.total_decryptions as f64;
@@ -401,8 +402,8 @@ impl MemoryEncryption {
     }
     
     /// Rotate encryption key for user
-    pub fn rotate_user_key(&self, user_id: &Uuid, _new_password: &str) -> Result<(), EncryptionError> {
-        let _new_key = UserEncryptionKey::new(*user_id, new_password, self.config.algorithm, &self.config)?;
+    pub fn rotate_user_key(&self, user_id: &Uuid, new_password: &str) -> Result<(), EncryptionError> {
+        let new_key = UserEncryptionKey::new(*user_id, new_password, self.config.algorithm, &self.config)?;
         
         let mut user_keys = self.user_keys.write().unwrap();
         
@@ -424,48 +425,48 @@ impl MemoryEncryption {
     }
     
     /// Encrypt using AES-256-GCM
-    fn encrypt_aes_gcm(&self, _key: &[u8], _plaintext: &[u8]) -> Result<(Vec<u8>, Vec<u8>), EncryptionError> {
-        let _key = Key::<Aes256Gcm>::from_slice(key);
-        let _cipher = Aes256Gcm::new(key);
-        let _nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+    fn encrypt_aes_gcm(&self, key: &[u8], plaintext: &[u8]) -> Result<(Vec<u8>, Vec<u8>), EncryptionError> {
+        let key = Key::<Aes256Gcm>::from_slice(key);
+        let cipher = Aes256Gcm::new(key);
+        let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
         
-        let _ciphertext = cipher.encrypt(&nonce, plaintext)
+        let ciphertext = cipher.encrypt(&nonce, plaintext)
             .map_err(|_| EncryptionError::EncryptionFailed)?;
         
         Ok((ciphertext, nonce.to_vec()))
     }
     
     /// Decrypt using AES-256-GCM
-    fn decrypt_aes_gcm(&self, _key: &[u8], _ciphertext: &[u8], _nonce: &[u8]) -> Result<Vec<u8>, EncryptionError> {
-        let _key = Key::<Aes256Gcm>::from_slice(key);
-        let _cipher = Aes256Gcm::new(key);
-        let _nonce = Nonce::from_slice(nonce);
+    fn decrypt_aes_gcm(&self, key: &[u8], ciphertext: &[u8], nonce: &[u8]) -> Result<Vec<u8>, EncryptionError> {
+        let key = Key::<Aes256Gcm>::from_slice(key);
+        let cipher = Aes256Gcm::new(key);
+        let nonce = Nonce::from_slice(nonce);
         
-        let _plaintext = cipher.decrypt(nonce, ciphertext)
+        let plaintext = cipher.decrypt(nonce, ciphertext)
             .map_err(|_| EncryptionError::DecryptionFailed)?;
         
         Ok(plaintext)
     }
     
     /// Encrypt using ChaCha20-Poly1305
-    fn encrypt_chacha20_poly1305(&self, _key: &[u8], _plaintext: &[u8]) -> Result<(Vec<u8>, Vec<u8>), EncryptionError> {
-        let _key = chacha20poly1305::Key::from_slice(key);
-        let _cipher = ChaCha20Poly1305::new(key);
-        let _nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+    fn encrypt_chacha20_poly1305(&self, key: &[u8], plaintext: &[u8]) -> Result<(Vec<u8>, Vec<u8>), EncryptionError> {
+        let key = chacha20poly1305::Key::from_slice(key);
+        let cipher = ChaCha20Poly1305::new(key);
+        let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
         
-        let _ciphertext = cipher.encrypt(&nonce, plaintext)
+        let ciphertext = cipher.encrypt(&nonce, plaintext)
             .map_err(|_| EncryptionError::EncryptionFailed)?;
         
         Ok((ciphertext, nonce.to_vec()))
     }
     
     /// Decrypt using ChaCha20-Poly1305
-    fn decrypt_chacha20_poly1305(&self, _key: &[u8], _ciphertext: &[u8], _nonce: &[u8]) -> Result<Vec<u8>, EncryptionError> {
-        let _key = chacha20poly1305::Key::from_slice(key);
-        let _cipher = ChaCha20Poly1305::new(key);
-        let _nonce = chacha20poly1305::Nonce::from_slice(nonce);
+    fn decrypt_chacha20_poly1305(&self, key: &[u8], ciphertext: &[u8], nonce: &[u8]) -> Result<Vec<u8>, EncryptionError> {
+        let key = chacha20poly1305::Key::from_slice(key);
+        let cipher = ChaCha20Poly1305::new(key);
+        let nonce = chacha20poly1305::Nonce::from_slice(nonce);
         
-        let _plaintext = cipher.decrypt(nonce, ciphertext)
+        let plaintext = cipher.decrypt(nonce, ciphertext)
             .map_err(|_| EncryptionError::DecryptionFailed)?;
         
         Ok(plaintext)
@@ -473,13 +474,13 @@ impl MemoryEncryption {
     
     /// Get encryption metrics
     pub fn get_metrics(&self) -> EncryptionMetrics {
-        let _metrics = self.metrics.read().unwrap();
+        let metrics = self.metrics.read().unwrap();
         metrics.clone()
     }
     
     /// Get user key information (without sensitive data)
     pub fn get_user_key_info(&self, user_id: &Uuid) -> Option<UserKeyInfo> {
-        let _user_keys = self.user_keys.read().unwrap();
+        let user_keys = self.user_keys.read().unwrap();
         user_keys.get(user_id).map(|key| UserKeyInfo {
             user_id: key.user_id,
             algorithm: key.algorithm,
@@ -492,7 +493,7 @@ impl MemoryEncryption {
     
     /// List all registered users (without sensitive data)
     pub fn list_users(&self) -> Vec<UserKeyInfo> {
-        let _user_keys = self.user_keys.read().unwrap();
+        let user_keys = self.user_keys.read().unwrap();
         user_keys.values().map(|key| UserKeyInfo {
             user_id: key.user_id,
             algorithm: key.algorithm,
@@ -507,7 +508,7 @@ impl MemoryEncryption {
     pub fn secure_cleanup(&self) -> Result<(), EncryptionError> {
         if self.config.secure_memory_wiping {
             let mut user_keys = self.user_keys.write().unwrap();
-            for (__, mut key) in user_keys.drain() {
+            for (_, mut key) in user_keys.drain() {
                 key.key_data.zeroize();
                 key.salt.zeroize();
             }
@@ -558,32 +559,32 @@ pub enum EncryptionError {
 // Utility functions
 
 /// Derive encryption key from password using Argon2
-fn derive_key_from_password(_password: &str, _salt: &[u8], config: &EncryptionConfig) -> Result<Vec<u8>, EncryptionError> {
-    let _argon2 = Argon2::new(
+fn derive_key_from_password(password: &str, salt: &[u8], config: &EncryptionConfig) -> Result<Vec<u8>, EncryptionError> {
+    let argon2 = Argon2::new(
         argon2::Algorithm::Argon2id,
         argon2::Version::V0x13,
         argon2::Params::new(
-            config.__kdf_memory_cost,
-            config.__kdf_iterations,
-            config.__kdf_parallelism,
+            config.kdf_memory_cost,
+            config.kdf_iterations,
+            config.kdf_parallelism,
             Some(32), // 256-bit key
         ).map_err(|e| EncryptionError::KeyDerivationFailed(e.to_string()))?,
     );
     
-    let _salt = SaltString::from_b64(&base64::engine::general_purpose::STANDARD.encode(salt))
+    let salt = SaltString::from_b64(&base64::engine::general_purpose::STANDARD.encode(salt))
         .map_err(|e| EncryptionError::KeyDerivationFailed(e.to_string()))?;
     
-    let _password_hash = argon2.hash_password(password.as_bytes(), &salt)
+    let password_hash = argon2.hash_password(password.as_bytes(), &salt)
         .map_err(|e| EncryptionError::KeyDerivationFailed(e.to_string()))?;
     
-    let _hash_bytes = password_hash.hash
+    let hash_bytes = password_hash.hash
         .ok_or_else(|| EncryptionError::KeyDerivationFailed("No hash generated".to_string()))?;
     
     Ok(hash_bytes.as_bytes().to_vec())
 }
 
 /// Compute SHA-256 checksum for data integrity
-fn compute_checksum(_data: &[u8]) -> Vec<u8> {
+fn compute_checksum(data: &[u8]) -> Vec<u8> {
     use sha2::{Sha256, Digest};
     let mut hasher = Sha256::new();
     hasher.update(data);
@@ -591,13 +592,13 @@ fn compute_checksum(_data: &[u8]) -> Vec<u8> {
 }
 
 /// Constant-time comparison to prevent timing attacks
-fn constant_time_compare(_a: &[u8], _b: &[u8]) -> bool {
+fn constant_time_compare(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }
     
     let mut result = 0u8;
-    for (_x, y) in a.iter().zip(b.iter()) {
+    for (x, y) in a.iter().zip(b.iter()) {
         result |= x ^ y;
     }
     
@@ -645,11 +646,11 @@ mod tests {
     
     #[test]
     fn test_user_encryption_key_creation() {
-        let _config = EncryptionConfig::default();
-        let _user_id = Uuid::new_v4();
-        let _password = "test_password_123";
+        let config = EncryptionConfig::default();
+        let user_id = Uuid::new_v4();
+        let password = "test_password_123";
         
-        let _key = UserEncryptionKey::new(user_id, password, EncryptionAlgorithm::Aes256Gcm, &config).unwrap();
+        let key = UserEncryptionKey::new(user_id, password, EncryptionAlgorithm::Aes256Gcm, &config).unwrap();
         
         assert_eq!(key.user_id, user_id);
         assert_eq!(key.algorithm, EncryptionAlgorithm::Aes256Gcm);
@@ -660,23 +661,23 @@ mod tests {
     
     #[test]
     fn test_memory_encryption_basic_operations() {
-        let _config = EncryptionConfig::default();
-        let _encryption = MemoryEncryption::new(config);
+        let config = EncryptionConfig::default();
+        let encryption = MemoryEncryption::new(config);
         
-        let _user_id = Uuid::new_v4();
-        let _password = "test_password_123";
-        let _plaintext = b"This is a test message for encryption";
+        let user_id = Uuid::new_v4();
+        let password = "test_password_123";
+        let plaintext = b"This is a test message for encryption";
         
         // Register user
         encryption.register_user(user_id, password).unwrap();
         
         // Encrypt data
-        let _encrypted = encryption.encrypt_for_user(&user_id, plaintext).unwrap();
+        let encrypted = encryption.encrypt_for_user(&user_id, plaintext).unwrap();
         assert_eq!(encrypted.user_id, user_id);
         assert!(encrypted.verify_integrity());
         
         // Decrypt data
-        let _decrypted = encryption.decrypt_for_user(&user_id, &encrypted).unwrap();
+        let decrypted = encryption.decrypt_for_user(&user_id, &encrypted).unwrap();
         assert_eq!(decrypted, plaintext);
         
         // Remove user
@@ -688,17 +689,17 @@ mod tests {
     
     #[test]
     fn test_encryption_algorithms() {
-        let _config = EncryptionConfig::default();
-        let _encryption = MemoryEncryption::new(config);
+        let config = EncryptionConfig::default();
+        let encryption = MemoryEncryption::new(config);
         
-        let _user_id = Uuid::new_v4();
-        let _password = "test_password_123";
-        let _plaintext = b"Test message for algorithm comparison";
+        let user_id = Uuid::new_v4();
+        let password = "test_password_123";
+        let plaintext = b"Test message for algorithm comparison";
         
         // Test AES-256-GCM
         encryption.register_user(user_id, password).unwrap();
-        let _encrypted_aes = encryption.encrypt_for_user(&user_id, plaintext).unwrap();
-        let _decrypted_aes = encryption.decrypt_for_user(&user_id, &encrypted_aes).unwrap();
+        let encrypted_aes = encryption.encrypt_for_user(&user_id, plaintext).unwrap();
+        let decrypted_aes = encryption.decrypt_for_user(&user_id, &encrypted_aes).unwrap();
         assert_eq!(decrypted_aes, plaintext);
         
         encryption.remove_user(&user_id).unwrap();
@@ -706,22 +707,22 @@ mod tests {
         // Test ChaCha20-Poly1305
         let mut config_chacha = EncryptionConfig::default();
         config_chacha.algorithm = EncryptionAlgorithm::ChaCha20Poly1305;
-        let _encryption_chacha = MemoryEncryption::new(config_chacha);
+        let encryption_chacha = MemoryEncryption::new(config_chacha);
         
         encryption_chacha.register_user(user_id, password).unwrap();
-        let _encrypted_chacha = encryption_chacha.encrypt_for_user(&user_id, plaintext).unwrap();
-        let _decrypted_chacha = encryption_chacha.decrypt_for_user(&user_id, &encrypted_chacha).unwrap();
+        let encrypted_chacha = encryption_chacha.encrypt_for_user(&user_id, plaintext).unwrap();
+        let decrypted_chacha = encryption_chacha.decrypt_for_user(&user_id, &encrypted_chacha).unwrap();
         assert_eq!(decrypted_chacha, plaintext);
     }
     
     #[test]
     fn test_data_integrity_verification() {
-        let _config = EncryptionConfig::default();
-        let _encryption = MemoryEncryption::new(config);
+        let config = EncryptionConfig::default();
+        let encryption = MemoryEncryption::new(config);
         
-        let _user_id = Uuid::new_v4();
-        let _password = "test_password_123";
-        let _plaintext = b"Test message for integrity check";
+        let user_id = Uuid::new_v4();
+        let password = "test_password_123";
+        let plaintext = b"Test message for integrity check";
         
         encryption.register_user(user_id, password).unwrap();
         let mut encrypted = encryption.encrypt_for_user(&user_id, plaintext).unwrap();
@@ -739,10 +740,10 @@ mod tests {
     
     #[test]
     fn test_constant_time_compare() {
-        let _a = vec![1, 2, 3, 4, 5];
-        let _b = vec![1, 2, 3, 4, 5];
-        let _c = vec![1, 2, 3, 4, 6];
-        let _d = vec![1, 2, 3, 4];
+        let a = vec![1, 2, 3, 4, 5];
+        let b = vec![1, 2, 3, 4, 5];
+        let c = vec![1, 2, 3, 4, 6];
+        let d = vec![1, 2, 3, 4];
         
         assert!(constant_time_compare(&a, &b));
         assert!(!constant_time_compare(&a, &c));
@@ -753,15 +754,15 @@ mod tests {
     fn test_secure_rng() {
         let mut rng = SecureRng::new();
         
-        let _bytes1 = rng.generate_bytes(32);
-        let _bytes2 = rng.generate_bytes(32);
+        let bytes1 = rng.generate_bytes(32);
+        let bytes2 = rng.generate_bytes(32);
         
         assert_eq!(bytes1.len(), 32);
         assert_eq!(bytes2.len(), 32);
         assert_ne!(bytes1, bytes2); // Should be different
         
-        let _key_aes = rng.generate_key(EncryptionAlgorithm::Aes256Gcm);
-        let _key_chacha = rng.generate_key(EncryptionAlgorithm::ChaCha20Poly1305);
+        let key_aes = rng.generate_key(EncryptionAlgorithm::Aes256Gcm);
+        let key_chacha = rng.generate_key(EncryptionAlgorithm::ChaCha20Poly1305);
         
         assert_eq!(key_aes.len(), 32);
         assert_eq!(key_chacha.len(), 32);

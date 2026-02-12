@@ -261,7 +261,7 @@ impl LipSyncController {
     
     /// Initialize comprehensive phoneme-to-viseme mapping
     fn initialize_phoneme_viseme_mapping(&mut self) {
-        let _mappings = vec![
+        let mappings = vec![
             // Vowels
             (Phoneme::AA, Viseme::Aa),
             (Phoneme::AE, Viseme::AeAxAh),
@@ -311,7 +311,7 @@ impl LipSyncController {
             (Phoneme::GlottalStop, Viseme::Q),
         ];
         
-        for (_phoneme, viseme) in mappings {
+        for (phoneme, viseme) in mappings {
             self.phoneme_viseme_map.insert(phoneme, viseme);
         }
     }
@@ -457,13 +457,13 @@ impl LipSyncController {
     
     /// Process phoneme data and update blendshape weights
     pub fn process_phoneme(&mut self, phoneme_data: PhonemeTimingData) -> Result<(), String> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         
         // Add to processing queue
         self.phoneme_queue.push_back(phoneme_data.clone());
         
         // Convert phoneme to viseme
-        let _viseme = self.phoneme_to_viseme(&phoneme_data.phoneme)?;
+        let viseme = self.phoneme_to_viseme(&phoneme_data.phoneme)?;
         
         // Apply viseme to blendshape weights
         self.apply_viseme_weights(&viseme, &phoneme_data)?;
@@ -472,7 +472,7 @@ impl LipSyncController {
         self.update_synchronization(&phoneme_data);
         
         // Update metrics
-        let _processing_time = start_time.elapsed();
+        let processing_time = start_time.elapsed();
         self.metrics.phonemes_processed.fetch_add(1, Ordering::Relaxed);
         self.update_processing_metrics(processing_time);
         
@@ -492,16 +492,16 @@ impl LipSyncController {
         self.reset_mouth_blendshapes();
         
         // Get viseme-to-blendshape mapping and collect the mappings to avoid borrowing issues
-        let _mappings = if let Some(mappings) = self.viseme_blendshape_map.get(viseme) {
+        let mappings = if let Some(mappings) = self.viseme_blendshape_map.get(viseme) {
             mappings.clone()
         } else {
             Vec::new()
         };
         
         // Apply mappings
-        for (_blendshape_index, base_weight) in mappings {
+        for (blendshape_index, base_weight) in mappings {
             // Apply intensity and confidence modulation
-            let _final_weight = base_weight * phoneme_data.intensity * phoneme_data.confidence;
+            let final_weight = base_weight * phoneme_data.intensity * phoneme_data.confidence;
             self.set_blendshape_weight(blendshape_index, final_weight)?;
         }
         
@@ -545,7 +545,7 @@ impl LipSyncController {
     
     /// Set individual blendshape weight with validation
     fn set_blendshape_weight(&mut self, index: usize, weight: f32) -> Result<(), String> {
-        let _clamped_weight = weight.clamp(0.0, 1.0);
+        let clamped_weight = weight.clamp(0.0, 1.0);
         
         match index {
             // Eye blendshapes (0-15)
@@ -617,7 +617,7 @@ impl LipSyncController {
     /// Apply pitch modulation to facial features
     fn apply_pitch_modulation(&mut self, pitch: f32) -> Result<(), String> {
         // Normalize pitch (typical speech range: 80-300 Hz)
-        let _normalized_pitch = ((pitch - 80.0) / 220.0).clamp(0.0, 1.0);
+        let normalized_pitch = ((pitch - 80.0) / 220.0).clamp(0.0, 1.0);
         
         // Higher pitch -> slightly more jaw opening and eyebrow raise
         if normalized_pitch > 0.6 {
@@ -639,16 +639,16 @@ impl LipSyncController {
         // In a real system, this would be based on actual audio stream timing
         // For testing, we'll simulate realistic lip sync accuracy
         
-        let _expected_time = self.audio_timestamp;
-        let _actual_time = phoneme_data.start_time;
+        let expected_time = self.audio_timestamp;
+        let actual_time = phoneme_data.start_time;
         
         // Calculate the absolute difference in milliseconds
-        let _sync_error_seconds = (actual_time - expected_time).abs();
-        let _sync_error_ms = sync_error_seconds * 1000.0;
+        let sync_error_seconds = (actual_time - expected_time).abs();
+        let sync_error_ms = sync_error_seconds * 1000.0;
         
         // For realistic lip sync, simulate very tight synchronization
         // In production, this would be achieved through proper audio buffering and timing
-        let _realistic_sync_error = if sync_error_ms > 100.0 {
+        let realistic_sync_error = if sync_error_ms > 100.0 {
             // Large differences indicate different audio segments, simulate good sync
             (self.rng.f32() * 3.0).min(2.0) // 0-2ms realistic sync error
         } else {
@@ -667,7 +667,7 @@ impl LipSyncController {
         
         // Adaptive sync offset adjustment for larger errors
         if sync_error_ms > 10.0 { // More than 10ms error
-            let _adjustment = if actual_time > expected_time { 1.0 } else { -1.0 };
+            let adjustment = if actual_time > expected_time { 1.0 } else { -1.0 };
             self.sync_offset_ms += adjustment * 0.5; // Small adjustment
         }
         
@@ -677,11 +677,11 @@ impl LipSyncController {
     
     /// Update processing performance metrics
     fn update_processing_metrics(&mut self, processing_time: Duration) {
-        let _processing_us = processing_time.as_micros() as u64;
+        let processing_us = processing_time.as_micros() as u64;
         
         // Update average processing time (exponential moving average)
-        let _current_avg = self.metrics.avg_processing_time_us.load(Ordering::Relaxed);
-        let _new_avg = if current_avg == 0 {
+        let current_avg = self.metrics.avg_processing_time_us.load(Ordering::Relaxed);
+        let new_avg = if current_avg == 0 {
             processing_us
         } else {
             (current_avg * 9 + processing_us) / 10
@@ -697,8 +697,8 @@ impl LipSyncController {
             self.weight_history.capacity() * std::mem::size_of::<BlendshapeWeights>();
         
         // Calculate FPS
-        let _now = Instant::now();
-        let _frame_time = now.duration_since(self.last_processing_time);
+        let now = Instant::now();
+        let frame_time = now.duration_since(self.last_processing_time);
         if frame_time.as_millis() > 0 {
             self.metrics.fps = 1000.0 / frame_time.as_millis() as f32;
         }
@@ -719,9 +719,9 @@ impl LipSyncController {
         }
         
         let mut smoothed = BlendshapeWeights::default();
-        let _count = self.weight_history.len() as f32;
+        let count = self.weight_history.len() as f32;
         
-        for _weights in &self.weight_history {
+        for weights in &self.weight_history {
             smoothed.eye_blink_left += weights.eye_blink_left / count;
             smoothed.jaw_open += weights.jaw_open / count;
             smoothed.mouth_funnel += weights.mouth_funnel / count;
@@ -757,7 +757,7 @@ impl LipSyncController {
             if let Some(phoneme_data) = self.phoneme_queue.pop_front() {
                 // Process the phoneme data directly without calling process_phoneme again
                 // to avoid double processing
-                let _viseme = self.phoneme_to_viseme(&phoneme_data.phoneme)?;
+                let viseme = self.phoneme_to_viseme(&phoneme_data.phoneme)?;
                 self.apply_viseme_weights(&viseme, &phoneme_data)?;
                 self.update_synchronization(&phoneme_data);
                 
@@ -841,14 +841,14 @@ mod tests {
     
     #[test]
     fn test_lip_sync_controller_creation() {
-        let _controller = LipSyncController::new();
+        let controller = LipSyncController::new();
         assert_eq!(controller.blendshape_weights.jaw_open, 0.0);
         assert!(controller.phoneme_queue.is_empty());
     }
     
     #[test]
     fn test_phoneme_to_viseme_mapping() {
-        let _controller = LipSyncController::new();
+        let controller = LipSyncController::new();
         
         // Test vowel mapping
         assert_eq!(controller.phoneme_to_viseme(&Phoneme::AA).unwrap(), Viseme::Aa);
@@ -866,7 +866,7 @@ mod tests {
     fn test_phoneme_processing() {
         let mut controller = LipSyncController::new();
         
-        let _phoneme_data = PhonemeTimingData {
+        let phoneme_data = PhonemeTimingData {
             phoneme: Phoneme::AA,
             start_time: 0.0,
             duration: 0.1,
@@ -876,7 +876,7 @@ mod tests {
             formants: None,
         };
         
-        let _result = controller.process_phoneme(phoneme_data);
+        let result = controller.process_phoneme(phoneme_data);
         assert!(result.is_ok());
         
         // Check that jaw_open was set for AA phoneme
@@ -889,7 +889,7 @@ mod tests {
         let mut controller = LipSyncController::new();
         
         // Test valid index
-        let _result = controller.set_blendshape_weight(19, 0.5); // jaw_open
+        let result = controller.set_blendshape_weight(19, 0.5); // jaw_open
         assert!(result.is_ok());
         assert_eq!(controller.blendshape_weights.jaw_open, 0.5);
         
@@ -901,7 +901,7 @@ mod tests {
         assert_eq!(controller.blendshape_weights.jaw_open, 0.0);
         
         // Test invalid index
-        let _result = controller.set_blendshape_weight(100, 0.5);
+        let result = controller.set_blendshape_weight(100, 0.5);
         assert!(result.is_err());
     }
     
@@ -925,7 +925,7 @@ mod tests {
         let mut controller = LipSyncController::new();
         controller.set_audio_timestamp(1.0);
         
-        let _phoneme_data = PhonemeTimingData {
+        let phoneme_data = PhonemeTimingData {
             phoneme: Phoneme::AA,
             start_time: 1.05, // 50ms ahead
             duration: 0.1,
@@ -944,8 +944,8 @@ mod tests {
         let mut controller = LipSyncController::new();
         
         // Add multiple phonemes to queue
-        for _i in 0..5 {
-            let _phoneme_data = PhonemeTimingData {
+        for i in 0..5 {
+            let phoneme_data = PhonemeTimingData {
                 phoneme: Phoneme::AA,
                 start_time: i as f32 * 0.1,
                 duration: 0.1,
@@ -958,7 +958,7 @@ mod tests {
         }
         
         // Process batch
-        let _processed = controller.process_queue(3).unwrap();
+        let processed = controller.process_queue(3).unwrap();
         assert_eq!(processed, 3);
         assert_eq!(controller.phoneme_queue.len(), 2);
     }
@@ -968,13 +968,13 @@ mod tests {
         let mut controller = LipSyncController::new();
         
         // Add some weight history
-        for _i in 0..5 {
+        for i in 0..5 {
             let mut weights = BlendshapeWeights::default();
             weights.jaw_open = i as f32 * 0.2;
             controller.weight_history.push_back(weights);
         }
         
-        let _smoothed = controller.get_smoothed_blendshape_weights();
+        let smoothed = controller.get_smoothed_blendshape_weights();
         assert!(smoothed.jaw_open > 0.0);
         assert!(smoothed.jaw_open < 0.8); // Should be averaged
     }

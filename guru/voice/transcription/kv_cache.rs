@@ -40,7 +40,7 @@ pub enum KVCacheError {
     InvalidDimensions { details: String },
     
     #[error("Sequence not found: {seq_id}")]
-    SequenceNotFound { _seq_id: u32 },
+    SequenceNotFound { seq_id: u32 },
     
     #[error("Cache corruption detected: {details}")]
     CacheCorruption { details: String },
@@ -126,13 +126,13 @@ impl KVCacheConfig {
     
     /// Estimates memory usage for the given configuration
     pub fn estimate_memory_usage(&self) -> usize {
-        let _tensor_size = self.d_model * std::mem::size_of::<f32>();
-        let _cache_entry_size = 2 * tensor_size; // key + value
-        let _sequence_size = cache_entry_size * self.max_seq_length;
-        let _total_size = sequence_size * self.max_sequences;
+        let tensor_size = self.d_model * std::mem::size_of::<f32>();
+        let cache_entry_size = 2 * tensor_size; // key + value
+        let sequence_size = cache_entry_size * self.max_seq_length;
+        let total_size = sequence_size * self.max_sequences;
         
         // Add overhead for metadata and indices
-        let _overhead = total_size / 10; // 10% overhead estimate
+        let overhead = total_size / 10; // 10% overhead estimate
         total_size + overhead
     }
 }
@@ -187,7 +187,7 @@ pub struct CacheEntryMetadata {
 impl CacheEntryMetadata {
     /// Creates new metadata for a cache entry
     pub fn new(position: Position, sequence_id: SequenceId) -> Self {
-        let _now = Instant::now();
+        let now = Instant::now();
         Self {
             position,
             sequence_id,
@@ -245,8 +245,8 @@ impl KVTensorPair {
     
     /// Returns the memory usage of this tensor pair
     pub fn memory_usage(&self) -> usize {
-        let _tensor_size = (self.key.len() + self.value.len()) * std::mem::size_of::<f32>();
-        let _metadata_size = std::mem::size_of::<CacheEntryMetadata>();
+        let tensor_size = (self.key.len() + self.value.len()) * std::mem::size_of::<f32>();
+        let metadata_size = std::mem::size_of::<CacheEntryMetadata>();
         tensor_size + metadata_size
     }
     
@@ -288,7 +288,7 @@ pub struct CacheKey {
 impl CacheKey {
     /// Creates a new cache key
     pub fn new(sequence_id: SequenceId, position: Position) -> Self {
-        Self { _sequence_id, _position }
+        Self { sequence_id, position }
     }
 }
 
@@ -387,7 +387,7 @@ impl KVCacheMetrics {
     
     /// Updates hit rate based on current statistics
     pub fn update_hit_rate(&mut self) {
-        let _total_accesses = self.cache_hits + self.cache_misses;
+        let total_accesses = self.cache_hits + self.cache_misses;
         self.hit_rate = if total_accesses > 0 {
             self.cache_hits as f32 / total_accesses as f32
         } else {
@@ -426,7 +426,7 @@ impl StreamingKVCache {
     pub fn new(config: KVCacheConfig) -> KVCacheResult<Self> {
         config.validate()?;
         
-        let _estimated_memory = config.estimate_memory_usage();
+        let estimated_memory = config.estimate_memory_usage();
         if config.max_memory_bytes > 0 && estimated_memory > config.max_memory_bytes {
             return Err(KVCacheError::MemoryAllocationError {
                 size: estimated_memory,
@@ -452,7 +452,7 @@ impl StreamingKVCache {
         key: Vec<f32>,
         value: Vec<f32>,
     ) -> KVCacheResult<()> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         
         // Validate tensor dimensions
         if key.len() != self.config.d_model || value.len() != self.config.d_model {
@@ -465,7 +465,7 @@ impl StreamingKVCache {
         }
         
         // Create cache key and tensor pair
-        let _cache_key = CacheKey::new(sequence_id, position);
+        let cache_key = CacheKey::new(sequence_id, position);
         let mut tensor_pair = KVTensorPair::new(key, value, position, sequence_id)?;
         
         // Apply compression if enabled
@@ -474,9 +474,9 @@ impl StreamingKVCache {
         }
         
         // Check memory constraints
-        let _entry_size = tensor_pair.memory_usage();
+        let entry_size = tensor_pair.memory_usage();
         if self.config.max_memory_bytes > 0 {
-            let _projected_usage = self.current_memory_bytes + entry_size;
+            let projected_usage = self.current_memory_bytes + entry_size;
             if projected_usage > self.config.max_memory_bytes {
                 self.evict_entries(entry_size)?;
             }
@@ -510,7 +510,7 @@ impl StreamingKVCache {
         }
         
         // Track access time
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         self.access_times.push(elapsed);
         
         // Verify performance constraint
@@ -529,11 +529,11 @@ impl StreamingKVCache {
         sequence_id: SequenceId,
         position: Position,
     ) -> KVCacheResult<Option<(Vec<f32>, Vec<f32>)>> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         
-        let _cache_key = CacheKey::new(sequence_id, position);
+        let cache_key = CacheKey::new(sequence_id, position);
         
-        let _result = if let Some(tensor_pair) = self.cache.get_mut(&cache_key) {
+        let result = if let Some(tensor_pair) = self.cache.get_mut(&cache_key) {
             // Update access statistics
             tensor_pair.metadata.update_access();
             
@@ -576,7 +576,7 @@ impl StreamingKVCache {
         }
         
         // Track access time
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         self.access_times.push(elapsed);
         
         // Verify performance constraint
@@ -598,9 +598,9 @@ impl StreamingKVCache {
     ) -> KVCacheResult<Vec<Option<(Vec<f32>, Vec<f32>)>>> {
         let mut results = Vec::with_capacity(length);
         
-        for _i in 0..length {
-            let _position = start_position + i as Position;
-            let _result = self.retrieve(sequence_id, position)?;
+        for i in 0..length {
+            let position = start_position + i as Position;
+            let result = self.retrieve(sequence_id, position)?;
             results.push(result);
         }
         
@@ -616,7 +616,7 @@ impl StreamingKVCache {
             .cloned()
             .collect();
         
-        for _key in keys_to_remove {
+        for key in keys_to_remove {
             if let Some(entry) = self.cache.remove(&key) {
                 self.current_memory_bytes -= entry.memory_usage();
             }
@@ -648,10 +648,10 @@ impl StreamingKVCache {
         // In a real implementation, this would predict and preload
         // likely-to-be-accessed cache entries based on access patterns
         
-        let _prefetch_size = self.config.prefetch_size;
-        for _i in 0..prefetch_size {
-            let _position = start_position + i as Position;
-            let __cache_key = CacheKey::new(sequence_id, position);
+        let prefetch_size = self.config.prefetch_size;
+        for i in 0..prefetch_size {
+            let position = start_position + i as Position;
+            let _cache_key = CacheKey::new(sequence_id, position);
             
             // Prefetching logic would go here
             // For now, this is a no-op placeholder
@@ -662,7 +662,7 @@ impl StreamingKVCache {
     
     /// Returns current performance metrics
     pub fn get_metrics(&self) -> KVCacheResult<KVCacheMetrics> {
-        let _metrics = self.metrics.read().map_err(|_| KVCacheError::CacheCorruption {
+        let metrics = self.metrics.read().map_err(|_| KVCacheError::CacheCorruption {
             details: "Failed to acquire metrics lock".to_string(),
         })?;
         
@@ -680,8 +680,8 @@ impl StreamingKVCache {
     /// Compacts the cache to reduce memory fragmentation
     pub fn compact(&mut self) -> KVCacheResult<()> {
         // Remove expired or inactive sequences
-        let _now = Instant::now();
-        let _inactive_threshold = Duration::from_secs(300); // 5 minutes
+        let now = Instant::now();
+        let inactive_threshold = Duration::from_secs(300); // 5 minutes
         
         let inactive_sequences: Vec<SequenceId> = self.sequences
             .iter()
@@ -691,13 +691,13 @@ impl StreamingKVCache {
             .map(|(id, _)| *id)
             .collect();
         
-        for _seq_id in inactive_sequences {
+        for seq_id in inactive_sequences {
             self.clear_sequence(seq_id)?;
         }
         
         // Compress entries if compression is enabled
         if self.config.enable_compression {
-            for (__, tensor_pair) in self.cache.iter_mut() {
+            for (_, tensor_pair) in self.cache.iter_mut() {
                 if !tensor_pair.is_compressed {
                     tensor_pair.compress()?;
                 }
@@ -709,14 +709,14 @@ impl StreamingKVCache {
     
     /// Updates sequence information
     fn update_sequence_info(&mut self, sequence_id: SequenceId, position: Position) -> KVCacheResult<()> {
-        let _seq_info = self.sequences
+        let seq_info = self.sequences
             .entry(sequence_id)
             .or_insert_with(|| SequenceInfo::new(sequence_id, self.config.max_seq_length));
         
         seq_info.update_access();
         
         // Update sequence length
-        let _new_length = (position + 1) as usize;
+        let new_length = (position + 1) as usize;
         if new_length > seq_info.length {
             seq_info.length = new_length;
         }
@@ -747,10 +747,10 @@ impl StreamingKVCache {
         let mut evicted_count = 0;
         
         while freed_bytes < required_bytes && !self.lru_order.is_empty() {
-            let _evict_key = match self.config.eviction_policy {
+            let evict_key = match self.config.eviction_policy {
                 EvictionPolicy::LRU | EvictionPolicy::FIFO => self.lru_order.remove(0),
                 EvictionPolicy::Random => {
-                    let _index = fastrand::usize(..self.lru_order.len());
+                    let index = fastrand::usize(..self.lru_order.len());
                     self.lru_order.remove(index)
                 }
                 EvictionPolicy::LFU => {
@@ -758,7 +758,7 @@ impl StreamingKVCache {
                     let mut min_access_count = u64::MAX;
                     let mut min_index = 0;
                     
-                    for (_i, key) in self.lru_order.iter().enumerate() {
+                    for (i, key) in self.lru_order.iter().enumerate() {
                         if let Some(entry) = self.cache.get(key) {
                             if entry.metadata.access_count < min_access_count {
                                 min_access_count = entry.metadata.access_count;
@@ -774,7 +774,7 @@ impl StreamingKVCache {
                     let mut min_priority = f32::MAX;
                     let mut min_index = 0;
                     
-                    for (_i, key) in self.lru_order.iter().enumerate() {
+                    for (i, key) in self.lru_order.iter().enumerate() {
                         if let Some(entry) = self.cache.get(key) {
                             if entry.metadata.priority < min_priority {
                                 min_priority = entry.metadata.priority;
@@ -906,7 +906,7 @@ mod tests {
     
     #[test]
     fn test_kv_cache_config_validation() {
-        let _valid_config = KVCacheConfigBuilder::new()
+        let valid_config = KVCacheConfigBuilder::new()
             .max_sequences(8)
             .max_seq_length(512)
             .d_model(256)
@@ -916,7 +916,7 @@ mod tests {
         
         assert_eq!(valid_config.head_dim(), 32);
         
-        let _invalid_config = KVCacheConfigBuilder::new()
+        let invalid_config = KVCacheConfigBuilder::new()
             .d_model(0)
             .build();
         
@@ -925,7 +925,7 @@ mod tests {
     
     #[test]
     fn test_streaming_kv_cache_operations() {
-        let _config = KVCacheConfigBuilder::new()
+        let config = KVCacheConfigBuilder::new()
             .max_sequences(4)
             .max_seq_length(128)
             .d_model(64)
@@ -935,14 +935,14 @@ mod tests {
         
         let mut cache = StreamingKVCache::new(config).unwrap();
         
-        let _key = vec![1.0; 64];
-        let _value = vec![2.0; 64];
+        let key = vec![1.0; 64];
+        let value = vec![2.0; 64];
         
         // Store key-value pair
         assert!(cache.store(1, 0, key.clone(), value.clone()).is_ok());
         
         // Retrieve key-value pair
-        let _retrieved = cache.retrieve(1, 0).unwrap();
+        let retrieved = cache.retrieve(1, 0).unwrap();
         assert!(retrieved.is_some());
         
         let (ret_key, ret_value) = retrieved.unwrap();
@@ -950,18 +950,18 @@ mod tests {
         assert_eq!(ret_value, value);
         
         // Test cache miss
-        let _miss = cache.retrieve(1, 10).unwrap();
+        let miss = cache.retrieve(1, 10).unwrap();
         assert!(miss.is_none());
         
         // Clear sequence
         assert!(cache.clear_sequence(1).is_ok());
-        let _cleared = cache.retrieve(1, 0).unwrap();
+        let cleared = cache.retrieve(1, 0).unwrap();
         assert!(cleared.is_none());
     }
     
     #[test]
     fn test_cache_metrics() {
-        let _config = KVCacheConfigBuilder::new()
+        let config = KVCacheConfigBuilder::new()
             .max_sequences(2)
             .max_seq_length(64)
             .d_model(32)
@@ -971,15 +971,15 @@ mod tests {
         
         let mut cache = StreamingKVCache::new(config).unwrap();
         
-        let _key = vec![1.0; 32];
-        let _value = vec![2.0; 32];
+        let key = vec![1.0; 32];
+        let value = vec![2.0; 32];
         
         // Store and retrieve to generate metrics
         cache.store(1, 0, key, value).unwrap();
         cache.retrieve(1, 0).unwrap(); // Hit
         cache.retrieve(1, 1).unwrap(); // Miss
         
-        let _metrics = cache.get_metrics().unwrap();
+        let metrics = cache.get_metrics().unwrap();
         assert_eq!(metrics.cache_hits, 1);
         assert_eq!(metrics.cache_misses, 1);
         assert!((metrics.hit_rate - 0.5).abs() < f32::EPSILON);
@@ -989,7 +989,7 @@ mod tests {
     
     #[test]
     fn test_memory_management() {
-        let _config = KVCacheConfigBuilder::new()
+        let config = KVCacheConfigBuilder::new()
             .max_sequences(2)
             .max_seq_length(4)
             .d_model(16)
@@ -1000,13 +1000,13 @@ mod tests {
         
         let mut cache = StreamingKVCache::new(config).unwrap();
         
-        let _key = vec![1.0; 16];
-        let _value = vec![2.0; 16];
+        let key = vec![1.0; 16];
+        let value = vec![2.0; 16];
         
         // Fill cache beyond memory limit
         let mut successful_stores = 0;
-        for _i in 0..10 {
-            let _result = cache.store(1, i, key.clone(), value.clone());
+        for i in 0..10 {
+            let result = cache.store(1, i, key.clone(), value.clone());
             if result.is_ok() {
                 successful_stores += 1;
             } else {
@@ -1018,13 +1018,13 @@ mod tests {
         // Should have stored at least some entries
         assert!(successful_stores > 0);
         
-        let _metrics = cache.get_metrics().unwrap();
+        let metrics = cache.get_metrics().unwrap();
         assert!(metrics.memory_usage_bytes <= 2048);
     }
     
     #[test]
     fn test_range_retrieval() {
-        let _config = KVCacheConfigBuilder::new()
+        let config = KVCacheConfigBuilder::new()
             .max_sequences(1)
             .max_seq_length(16)
             .d_model(8)
@@ -1035,25 +1035,25 @@ mod tests {
         let mut cache = StreamingKVCache::new(config).unwrap();
         
         // Store multiple positions
-        for _i in 0..4 {
+        for i in 0..4 {
             #[allow(clippy::cast_precision_loss)]
-            let _key = vec![i as f32; 8];
+            let key = vec![i as f32; 8];
             #[allow(clippy::cast_precision_loss)]
-            let _value = vec![(i + 10) as f32; 8];
+            let value = vec![(i + 10) as f32; 8];
             cache.store(1, i, key, value).unwrap();
         }
         
         // Retrieve range
-        let _range = cache.retrieve_range(1, 0, 4).unwrap();
+        let range = cache.retrieve_range(1, 0, 4).unwrap();
         assert_eq!(range.len(), 4);
         
-        for (_i, result) in range.iter().enumerate() {
+        for (i, result) in range.iter().enumerate() {
             assert!(result.is_some());
             let (key, value) = result.as_ref().unwrap();
             #[allow(clippy::cast_precision_loss)]
-            let _expected_key = i as f32;
+            let expected_key = i as f32;
             #[allow(clippy::cast_precision_loss)]
-            let _expected_value = (i + 10) as f32;
+            let expected_value = (i + 10) as f32;
             assert!((key[0] - expected_key).abs() < f32::EPSILON);
             assert!((value[0] - expected_value).abs() < f32::EPSILON);
         }
@@ -1061,7 +1061,7 @@ mod tests {
     
     #[test]
     fn test_eviction_policies() {
-        let _config = KVCacheConfigBuilder::new()
+        let config = KVCacheConfigBuilder::new()
             .max_sequences(1)
             .max_seq_length(8)
             .d_model(4)
@@ -1072,11 +1072,11 @@ mod tests {
         
         let mut cache = StreamingKVCache::new(config).unwrap();
         
-        let _key = vec![1.0; 4];
-        let _value = vec![2.0; 4];
+        let key = vec![1.0; 4];
+        let value = vec![2.0; 4];
         
         // Store multiple entries
-        for _i in 0..4 {
+        for i in 0..4 {
             cache.store(1, i, key.clone(), value.clone()).unwrap();
         }
         

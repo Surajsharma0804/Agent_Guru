@@ -231,7 +231,7 @@ impl PersonalityEngine {
     /// Initialize GURU-specific behavior patterns
     fn initialize_guru_patterns(&mut self) {
         // Confident leadership pattern
-        let _confident_pattern = BehaviorPattern {
+        let confident_pattern = BehaviorPattern {
             name: "confident_leadership".to_string(),
             behaviors: vec![
                 (BehaviorType::ConfidentPosture, 0.9),
@@ -251,7 +251,7 @@ impl PersonalityEngine {
         self.behavior_patterns.insert("confident_leadership".to_string(), confident_pattern);
         
         // Wise contemplation pattern
-        let _wise_pattern = BehaviorPattern {
+        let wise_pattern = BehaviorPattern {
             name: "wise_contemplation".to_string(),
             behaviors: vec![
                 (BehaviorType::ThoughtfulPosture, 0.8),
@@ -271,7 +271,7 @@ impl PersonalityEngine {
         self.behavior_patterns.insert("wise_contemplation".to_string(), wise_pattern);
         
         // Witty engagement pattern
-        let _witty_pattern = BehaviorPattern {
+        let witty_pattern = BehaviorPattern {
             name: "witty_engagement".to_string(),
             behaviors: vec![
                 (BehaviorType::KnowingSmile, 0.8),
@@ -294,7 +294,7 @@ impl PersonalityEngine {
     /// Initialize MAYA-specific behavior patterns
     fn initialize_maya_patterns(&mut self) {
         // Empathetic connection pattern
-        let _empathetic_pattern = BehaviorPattern {
+        let empathetic_pattern = BehaviorPattern {
             name: "empathetic_connection".to_string(),
             behaviors: vec![
                 (BehaviorType::WarmGaze, 0.9),
@@ -314,7 +314,7 @@ impl PersonalityEngine {
         self.behavior_patterns.insert("empathetic_connection".to_string(), empathetic_pattern);
         
         // Playful interaction pattern
-        let _playful_pattern = BehaviorPattern {
+        let playful_pattern = BehaviorPattern {
             name: "playful_interaction".to_string(),
             behaviors: vec![
                 (BehaviorType::WarmSmile, 0.9),
@@ -334,7 +334,7 @@ impl PersonalityEngine {
         self.behavior_patterns.insert("playful_interaction".to_string(), playful_pattern);
         
         // Nurturing support pattern
-        let _nurturing_pattern = BehaviorPattern {
+        let nurturing_pattern = BehaviorPattern {
             name: "nurturing_support".to_string(),
             behaviors: vec![
                 (BehaviorType::WarmSmile, 0.8),
@@ -358,7 +358,7 @@ impl PersonalityEngine {
     /// Initialize common behavior patterns
     fn initialize_common_patterns(&mut self) {
         // Active listening pattern
-        let _listening_pattern = BehaviorPattern {
+        let listening_pattern = BehaviorPattern {
             name: "active_listening".to_string(),
             behaviors: vec![
                 (BehaviorType::AttentivePosture, 0.9),
@@ -374,7 +374,7 @@ impl PersonalityEngine {
         self.behavior_patterns.insert("active_listening".to_string(), listening_pattern);
         
         // Idle baseline pattern
-        let _idle_pattern = BehaviorPattern {
+        let idle_pattern = BehaviorPattern {
             name: "idle_baseline".to_string(),
             behaviors: vec![
                 (BehaviorType::RelaxedPosture, 0.7),
@@ -391,7 +391,7 @@ impl PersonalityEngine {
     
     /// Generate personality-appropriate micro-behaviors
     pub fn generate_behaviors(&mut self, context: ContextType) -> Result<Vec<MicroBehavior>, String> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         
         // Update context if changed
         if context != self.current_context {
@@ -414,17 +414,17 @@ impl PersonalityEngine {
             .cloned()
             .collect();
         
-        for _pattern in applicable_patterns {
+        for pattern in applicable_patterns {
             // Check if pattern should trigger based on timing and probability
             if self.should_trigger_pattern(&pattern) {
                 // Generate behaviors from pattern
-                let _behaviors = self.generate_behaviors_from_pattern(&pattern)?;
+                let behaviors = self.generate_behaviors_from_pattern(&pattern)?;
                 generated_behaviors.extend(behaviors);
             }
         }
         
         // Add generated behaviors to active list
-        for _behavior in &generated_behaviors {
+        for behavior in &generated_behaviors {
             self.active_behaviors.push(behavior.clone());
             self.behavior_history.push_back(behavior.clone());
             
@@ -458,8 +458,8 @@ impl PersonalityEngine {
     
     /// Check if personality meets pattern trait requirements
     fn meets_trait_requirements(&self, pattern: &BehaviorPattern) -> bool {
-        for (_trait_name, required_level) in &pattern.trait_requirements {
-            let _trait_value = match trait_name.as_str() {
+        for (trait_name, required_level) in &pattern.trait_requirements {
+            let trait_value = match trait_name.as_str() {
                 "confidence" => self.personality.confidence,
                 "empathy" => self.personality.empathy,
                 "playfulness" => self.personality.playfulness,
@@ -482,10 +482,10 @@ impl PersonalityEngine {
     
     /// Determine if pattern should trigger based on timing and probability
     fn should_trigger_pattern(&mut self, pattern: &BehaviorPattern) -> bool {
-        let _now = Instant::now();
+        let now = Instant::now();
         
         // Check if any behaviors from this pattern are on cooldown
-        for (_behavior_type, _) in &pattern.behaviors {
+        for (behavior_type, _) in &pattern.behaviors {
             if let Some(&cooldown_end) = self.behavior_cooldowns.get(behavior_type) {
                 if now < cooldown_end {
                     return false;
@@ -500,7 +500,7 @@ impl PersonalityEngine {
         trigger_probability *= self.personality.expressiveness;
         
         // Adjust based on context frequency
-        let _context_frequency = self.calculate_context_frequency(&self.current_context);
+        let context_frequency = self.calculate_context_frequency(&self.current_context);
         trigger_probability *= 1.0 - context_frequency * 0.5; // Reduce probability for frequent contexts
         
         // Random trigger decision
@@ -509,10 +509,10 @@ impl PersonalityEngine {
     
     /// Calculate how frequently a context has occurred recently
     fn calculate_context_frequency(&self, context: &ContextType) -> f32 {
-        let _now = Instant::now();
-        let _recent_threshold = Duration::from_secs(60); // Last minute
+        let now = Instant::now();
+        let recent_threshold = Duration::from_secs(60); // Last minute
         
-        let _recent_occurrences = self.context_history.iter()
+        let recent_occurrences = self.context_history.iter()
             .filter(|(ctx, timestamp)| {
                 ctx == context && now.duration_since(*timestamp) <= recent_threshold
             })
@@ -524,15 +524,15 @@ impl PersonalityEngine {
     /// Generate specific behaviors from a pattern
     fn generate_behaviors_from_pattern(&mut self, pattern: &BehaviorPattern) -> Result<Vec<MicroBehavior>, String> {
         let mut behaviors = Vec::new();
-        let _now = Instant::now();
+        let now = Instant::now();
         
-        for (_behavior_type, probability) in &pattern.behaviors {
+        for (behavior_type, probability) in &pattern.behaviors {
             // Check probability with personality modulation
-            let _adjusted_probability = self.adjust_behavior_probability(*probability, behavior_type);
+            let adjusted_probability = self.adjust_behavior_probability(*probability, behavior_type);
             
             if self.rng.f32() < adjusted_probability {
                 // Generate behavior with personality-appropriate characteristics
-                let _behavior = self.create_micro_behavior(
+                let behavior = self.create_micro_behavior(
                     behavior_type.clone(),
                     now,
                     &pattern.name,
@@ -541,7 +541,7 @@ impl PersonalityEngine {
                 behaviors.push(behavior);
                 
                 // Set cooldown for this behavior type
-                let _cooldown_duration = self.calculate_behavior_cooldown(behavior_type);
+                let cooldown_duration = self.calculate_behavior_cooldown(behavior_type);
                 self.behavior_cooldowns.insert(behavior_type.clone(), now + cooldown_duration);
             }
         }
@@ -583,20 +583,20 @@ impl PersonalityEngine {
         &mut self,
         behavior_type: BehaviorType,
         start_time: Instant,
-        _triggering_pattern: &str,
+        triggering_pattern: &str,
     ) -> Result<MicroBehavior, String> {
         // Calculate duration based on behavior type and personality
-        let _base_duration = self.get_base_behavior_duration(&behavior_type);
-        let _duration_modifier = self.personality.stability; // More stable = longer behaviors
-        let _duration = Duration::from_millis(
+        let base_duration = self.get_base_behavior_duration(&behavior_type);
+        let duration_modifier = self.personality.stability; // More stable = longer behaviors
+        let duration = Duration::from_millis(
             (base_duration.as_millis() as f32 * (0.5 + duration_modifier)).round() as u64
         );
         
         // Calculate intensity based on personality traits
-        let _intensity = self.calculate_behavior_intensity(&behavior_type);
+        let intensity = self.calculate_behavior_intensity(&behavior_type);
         
         // Determine priority
-        let _priority = self.calculate_behavior_priority(&behavior_type);
+        let priority = self.calculate_behavior_priority(&behavior_type);
         
         Ok(MicroBehavior {
             behavior_type,
@@ -639,7 +639,7 @@ impl PersonalityEngine {
     
     /// Calculate behavior intensity based on personality
     fn calculate_behavior_intensity(&mut self, behavior_type: &BehaviorType) -> f32 {
-        let _base_intensity = match behavior_type {
+        let base_intensity = match behavior_type {
             BehaviorType::ConfidentPosture => self.personality.confidence,
             BehaviorType::WarmSmile => self.personality.empathy,
             BehaviorType::PlayfulGesture => self.personality.playfulness,
@@ -651,10 +651,10 @@ impl PersonalityEngine {
         };
         
         // Apply expressiveness modifier
-        let _modified_intensity = base_intensity * self.personality.expressiveness;
+        let modified_intensity = base_intensity * self.personality.expressiveness;
         
         // Add small random variation
-        let _variation = (self.rng.f32() - 0.5) * 0.2; // ±10% variation
+        let variation = (self.rng.f32() - 0.5) * 0.2; // ±10% variation
         
         (modified_intensity + variation).clamp(0.1, 1.0)
     }
@@ -680,7 +680,7 @@ impl PersonalityEngine {
     
     /// Calculate cooldown duration for behavior type
     fn calculate_behavior_cooldown(&self, behavior_type: &BehaviorType) -> Duration {
-        let _base_cooldown = match behavior_type {
+        let base_cooldown = match behavior_type {
             // Short cooldowns for frequent behaviors
             BehaviorType::NodAgreement | BehaviorType::NodUnderstanding => Duration::from_millis(500),
             BehaviorType::EyebrowRaise | BehaviorType::EyebrowFurrow => Duration::from_millis(1000),
@@ -697,25 +697,25 @@ impl PersonalityEngine {
         };
         
         // Adjust based on stability (more stable = longer cooldowns)
-        let _stability_modifier = 0.5 + self.personality.stability;
+        let stability_modifier = 0.5 + self.personality.stability;
         Duration::from_millis((base_cooldown.as_millis() as f32 * stability_modifier) as u64)
     }
     
     /// Update active behaviors and remove expired ones
     pub fn update_behaviors(&mut self, delta_time: Duration) -> Result<(), String> {
-        let _now = Instant::now();
+        let now = Instant::now();
         let mut expired_indices = Vec::new();
         
         // Update active behaviors
-        for (_index, behavior) in self.active_behaviors.iter_mut().enumerate() {
-            let _elapsed = now.duration_since(behavior.start_time);
+        for (index, behavior) in self.active_behaviors.iter_mut().enumerate() {
+            let elapsed = now.duration_since(behavior.start_time);
             
             if elapsed >= behavior.duration {
                 behavior.is_active = false;
                 expired_indices.push(index);
             } else {
                 // Update intensity based on elapsed time (fade in/out)
-                let _progress = elapsed.as_millis() as f32 / behavior.duration.as_millis() as f32;
+                let progress = elapsed.as_millis() as f32 / behavior.duration.as_millis() as f32;
                 behavior.intensity = Self::calculate_time_based_intensity_static(behavior.intensity, progress);
             }
         }
@@ -732,7 +732,7 @@ impl PersonalityEngine {
     /// Calculate intensity based on time progression (fade in/out) - static version
     fn calculate_time_based_intensity_static(base_intensity: f32, progress: f32) -> f32 {
         // Smooth fade in/out curve
-        let _fade_factor = if progress < 0.1 {
+        let fade_factor = if progress < 0.1 {
             // Fade in
             progress / 0.1
         } else if progress > 0.9 {
@@ -756,7 +756,7 @@ impl PersonalityEngine {
     
     /// Record context change in history
     fn record_context_change(&mut self, context: ContextType) {
-        let _timestamp = Instant::now();
+        let timestamp = Instant::now();
         self.context_history.push_back((context, timestamp));
         
         // Maintain history size limit
@@ -767,13 +767,13 @@ impl PersonalityEngine {
     
     /// Update performance metrics
     fn update_performance_metrics(&mut self) {
-        let _now = Instant::now();
+        let now = Instant::now();
         
         // Update active behavior count
         self.metrics.active_behaviors = self.active_behaviors.len();
         
         // Calculate behaviors per minute
-        let _recent_behaviors = self.behavior_history.iter()
+        let recent_behaviors = self.behavior_history.iter()
             .filter(|behavior| now.duration_since(behavior.start_time) <= Duration::from_secs(60))
             .count();
         self.metrics.behaviors_per_minute = recent_behaviors as f32;
@@ -783,7 +783,7 @@ impl PersonalityEngine {
             let total_duration: u64 = self.behavior_history.iter()
                 .map(|b| b.duration.as_millis() as u64)
                 .sum();
-            let _avg_duration = total_duration / self.behavior_history.len() as u64;
+            let avg_duration = total_duration / self.behavior_history.len() as u64;
             self.metrics.avg_behavior_duration_ms.store(avg_duration, Ordering::Relaxed);
         }
         
@@ -814,11 +814,11 @@ impl PersonalityEngine {
             .collect();
         
         let mut consistency_violations = 0;
-        let _total_checks = recent_behaviors.len();
+        let total_checks = recent_behaviors.len();
         
-        for _behavior in recent_behaviors {
+        for behavior in recent_behaviors {
             // Check if behavior is consistent with personality type
-            let _is_consistent = match (&self.personality.personality_type, &behavior.behavior_type) {
+            let is_consistent = match (&self.personality.personality_type, &behavior.behavior_type) {
                 (PersonalityType::GURU, BehaviorType::ConfidentPosture) => self.personality.confidence > 0.5,
                 (PersonalityType::GURU, BehaviorType::ThoughtfulPosture) => self.personality.intelligence > 0.5,
                 (PersonalityType::GURU, BehaviorType::SubtleSmile) => self.personality.wit > 0.5,
@@ -848,10 +848,10 @@ impl PersonalityEngine {
             .collect();
         
         let mut appropriate_behaviors = 0;
-        let _total_behaviors = recent_behaviors.len();
+        let total_behaviors = recent_behaviors.len();
         
-        for _behavior in recent_behaviors {
-            let _is_appropriate = match (&behavior.context, &behavior.behavior_type) {
+        for behavior in recent_behaviors {
+            let is_appropriate = match (&behavior.context, &behavior.behavior_type) {
                 // Listening context
                 (ContextType::Listening, BehaviorType::AttentivePosture) => true,
                 (ContextType::Listening, BehaviorType::NodUnderstanding) => true,
@@ -917,7 +917,7 @@ impl PersonalityEngine {
             }
         }
         
-        let _accuracy = appropriate_behaviors as f32 / total_behaviors as f32;
+        let accuracy = appropriate_behaviors as f32 / total_behaviors as f32;
         // Ensure minimum reasonable accuracy
         accuracy.max(0.6)
     }
@@ -955,7 +955,7 @@ impl PersonalityEngine {
     
     /// Force generate specific behavior (for testing)
     pub fn force_behavior(&mut self, behavior_type: BehaviorType, duration: Duration, intensity: f32) -> Result<(), String> {
-        let _behavior = MicroBehavior {
+        let behavior = MicroBehavior {
             behavior_type: behavior_type.clone(),
             start_time: Instant::now(),
             duration,
@@ -970,7 +970,7 @@ impl PersonalityEngine {
         self.behavior_history.push_back(behavior);
         
         // Set cooldown for this behavior type
-        let _cooldown_duration = self.calculate_behavior_cooldown(&behavior_type);
+        let cooldown_duration = self.calculate_behavior_cooldown(&behavior_type);
         self.behavior_cooldowns.insert(behavior_type, Instant::now() + cooldown_duration);
         
         Ok(())
@@ -985,8 +985,8 @@ impl PersonalityEngine {
         
         let mut generated_behaviors = Vec::new();
         
-        for _behavior_type in behavior_types {
-            let _behavior = self.create_micro_behavior(
+        for behavior_type in behavior_types {
+            let behavior = self.create_micro_behavior(
                 behavior_type,
                 Instant::now(),
                 "forced_test",
@@ -1016,8 +1016,8 @@ mod tests {
     
     #[test]
     fn test_personality_engine_creation() {
-        let _personality = PersonalityProfile::default();
-        let _engine = PersonalityEngine::new(personality);
+        let personality = PersonalityProfile::default();
+        let engine = PersonalityEngine::new(personality);
         assert_eq!(engine.current_context, ContextType::Idle);
         assert!(engine.active_behaviors.is_empty());
     }
@@ -1031,7 +1031,7 @@ mod tests {
         let mut engine = PersonalityEngine::new(guru_personality);
         
         // Force generate GURU-appropriate behaviors for testing
-        let _behaviors = engine.force_generate_behaviors(
+        let behaviors = engine.force_generate_behaviors(
             ContextType::Explanation,
             vec![BehaviorType::ConfidentPosture, BehaviorType::DirectGaze]
         ).unwrap();
@@ -1040,7 +1040,7 @@ mod tests {
         assert!(!behaviors.is_empty());
         
         // Check for personality-appropriate behaviors
-        let _has_confident_behavior = behaviors.iter().any(|b| {
+        let has_confident_behavior = behaviors.iter().any(|b| {
             matches!(b.behavior_type, BehaviorType::ConfidentPosture | BehaviorType::DirectGaze)
         });
         assert!(has_confident_behavior);
@@ -1055,13 +1055,13 @@ mod tests {
         let mut engine = PersonalityEngine::new(maya_personality);
         
         // Force generate MAYA-appropriate behaviors for testing
-        let _behaviors = engine.force_generate_behaviors(
+        let behaviors = engine.force_generate_behaviors(
             ContextType::EmotionalSupport,
             vec![BehaviorType::EmpathethicExpression, BehaviorType::WarmGaze]
         ).unwrap();
         
         // Should generate empathetic behaviors for MAYA
-        let _has_empathetic_behavior = behaviors.iter().any(|b| {
+        let has_empathetic_behavior = behaviors.iter().any(|b| {
             matches!(b.behavior_type, BehaviorType::EmpathethicExpression | BehaviorType::WarmGaze)
         });
         assert!(has_empathetic_behavior);
@@ -1069,7 +1069,7 @@ mod tests {
     
     #[test]
     fn test_context_adaptation() {
-        let _personality = PersonalityProfile::default();
+        let personality = PersonalityProfile::default();
         let mut engine = PersonalityEngine::new(personality);
         
         // Test context change
@@ -1077,13 +1077,13 @@ mod tests {
         assert_eq!(engine.current_context, ContextType::Listening);
         
         // Force generate behaviors for listening context
-        let _behaviors = engine.force_generate_behaviors(
+        let behaviors = engine.force_generate_behaviors(
             ContextType::Listening,
             vec![BehaviorType::AttentivePosture, BehaviorType::NodUnderstanding]
         ).unwrap();
         
         // Should generate listening-appropriate behaviors
-        let _has_listening_behavior = behaviors.iter().any(|b| {
+        let has_listening_behavior = behaviors.iter().any(|b| {
             matches!(b.behavior_type, BehaviorType::AttentivePosture | BehaviorType::NodUnderstanding)
         });
         assert!(has_listening_behavior);
@@ -1096,7 +1096,7 @@ mod tests {
         personality.expressiveness = 0.8;
         
         let mut engine = PersonalityEngine::new(personality);
-        let _intensity = engine.calculate_behavior_intensity(&BehaviorType::ConfidentPosture);
+        let intensity = engine.calculate_behavior_intensity(&BehaviorType::ConfidentPosture);
         
         // Should be high intensity for confident personality
         assert!(intensity > 0.5);
@@ -1105,7 +1105,7 @@ mod tests {
     
     #[test]
     fn test_behavior_cooldowns() {
-        let _personality = PersonalityProfile::default();
+        let personality = PersonalityProfile::default();
         let mut engine = PersonalityEngine::new(personality);
         
         // Force a behavior to set cooldown
@@ -1117,7 +1117,7 @@ mod tests {
     
     #[test]
     fn test_behavior_updates() {
-        let _personality = PersonalityProfile::default();
+        let personality = PersonalityProfile::default();
         let mut engine = PersonalityEngine::new(personality);
         
         // Add a short behavior
@@ -1143,12 +1143,12 @@ mod tests {
         let mut engine = PersonalityEngine::new(guru_personality);
         
         // Generate consistent behaviors
-        for __ in 0..20 {
+        for _ in 0..20 {
             engine.force_behavior(BehaviorType::ConfidentPosture, Duration::from_millis(1000), 1.0).unwrap();
         }
         
         engine.update_performance_metrics();
-        let _consistency = engine.metrics.consistency_score;
+        let consistency = engine.metrics.consistency_score;
         
         // Should have high consistency for appropriate behaviors
         assert!(consistency > 0.8);
@@ -1159,10 +1159,10 @@ mod tests {
         let mut low_confidence_personality = PersonalityProfile::default();
         low_confidence_personality.confidence = 0.3;
         
-        let _engine = PersonalityEngine::new(low_confidence_personality);
+        let engine = PersonalityEngine::new(low_confidence_personality);
         
         // Create a pattern requiring high confidence
-        let _pattern = BehaviorPattern {
+        let pattern = BehaviorPattern {
             name: "test_pattern".to_string(),
             behaviors: vec![(BehaviorType::ConfidentPosture, 1.0)],
             min_interval: Duration::from_millis(1000),

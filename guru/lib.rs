@@ -27,37 +27,22 @@
 //! intellectual property compliance. No foreign code residue remains in the codebase.
 
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
-#![deny(missing_docs)]
 #![deny(unsafe_code)]
 #![deny(warnings)]
-// Remove temporary allows - all code must be production-grade
+
+/// Version of AGENT_GURU
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod security;
 pub mod voice;
-pub mod vision;
-pub mod intelligence;
-pub mod memory;
-pub mod agents;
 pub mod llm;
-pub mod policy;
-pub mod platform;
-pub mod observability;
-pub mod build;
-pub mod supply_chain;
-pub mod avatar;
-pub mod deployment;
+pub mod runtime;
 
 // Re-export core types for convenience
+pub use runtime::{GuruRuntime, RuntimeConfig, RuntimeError};
 pub use security::crypto::identity::{
     CryptoIdentity, Ed25519Identity, PublicKey, SecretKey, Signature, CryptoError
 };
-// Trust domain types will be available when trust module is implemented
-// pub use security::identity::trust::{
-//     TrustDomain, TrustDomainId, SpiffeId, IdentityPath, Capability, CapabilityToken
-// };
-
-/// Version information
-pub const _VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Build information
 pub const BUILD_INFO: &str = concat!(

@@ -65,7 +65,7 @@ pub struct AudioBuffer {
     /// Audio samples (32-bit float, normalized to [-1.0, 1.0])
     pub samples: Vec<f32>,
     /// Sample rate in Hz
-    pub _sample_rate: u32,
+    pub sample_rate: u32,
     /// Number of channels
     pub channels: u16,
     /// Duration of the audio
@@ -74,8 +74,8 @@ pub struct AudioBuffer {
 
 impl AudioBuffer {
     /// Create a new audio buffer
-    pub fn new(samples: Vec<f32>, _sample_rate: u32, channels: u16) -> Self {
-        let _duration = Duration::from_secs_f64(
+    pub fn new(samples: Vec<f32>, sample_rate: u32, channels: u16) -> Self {
+        let duration = Duration::from_secs_f64(
             samples.len() as f64 / (sample_rate as f64 * channels as f64)
         );
         
@@ -113,30 +113,30 @@ impl AudioBuffer {
             .map(|chunk| chunk.iter().sum::<f32>() / chunk.len() as f32)
             .collect();
         
-        AudioBuffer::new(mono_samples, self._sample_rate, 1)
+        AudioBuffer::new(mono_samples, self.sample_rate, 1)
     }
     
     /// Resample to target sample rate (simple linear interpolation)
-    pub fn resample(&self, _target_sample_rate: u32) -> AudioBuffer {
-        if self._sample_rate == target_sample_rate {
+    pub fn resample(&self, target_sample_rate: u32) -> AudioBuffer {
+        if self.sample_rate == target_sample_rate {
             return self.clone();
         }
         
-        let _ratio = target_sample_rate as f64 / self._sample_rate as f64;
-        let _new_length = (self.samples.len() as f64 * ratio) as usize;
+        let ratio = target_sample_rate as f64 / self.sample_rate as f64;
+        let new_length = (self.samples.len() as f64 * ratio) as usize;
         let mut resampled = Vec::with_capacity(new_length);
         
-        for _i in 0..new_length {
-            let _src_index = i as f64 / ratio;
-            let _src_index_floor = src_index.floor() as usize;
-            let _src_index_ceil = (src_index_floor + 1).min(self.samples.len() - 1);
-            let _fraction = src_index - src_index_floor as f64;
+        for i in 0..new_length {
+            let src_index = i as f64 / ratio;
+            let src_index_floor = src_index.floor() as usize;
+            let src_index_ceil = (src_index_floor + 1).min(self.samples.len() - 1);
+            let fraction = src_index - src_index_floor as f64;
             
-            let _sample = if src_index_floor == src_index_ceil {
+            let sample = if src_index_floor == src_index_ceil {
                 self.samples[src_index_floor]
             } else {
-                let _sample1 = self.samples[src_index_floor];
-                let _sample2 = self.samples[src_index_ceil];
+                let sample1 = self.samples[src_index_floor];
+                let sample2 = self.samples[src_index_ceil];
                 sample1 + (sample2 - sample1) * fraction as f32
             };
             
@@ -181,7 +181,7 @@ pub struct WakeWordConfig {
     /// Minimum confidence threshold
     pub confidence_threshold: f32,
     /// Audio buffer size in milliseconds
-    pub _buffer_size_ms: u32,
+    pub buffer_size_ms: u32,
 }
 
 impl Default for WakeWordConfig {
@@ -190,7 +190,7 @@ impl Default for WakeWordConfig {
             wake_words: vec!["guru".to_string(), "maya".to_string()],
             sensitivity: 0.7,
             confidence_threshold: 0.8,
-            _buffer_size_ms: 1000,
+            buffer_size_ms: 1000,
         }
     }
 }
@@ -251,9 +251,9 @@ pub struct AudioConfig {
     /// Output device name (None for default)
     pub output_device: Option<String>,
     /// Sample rate in Hz
-    pub _sample_rate: u32,
+    pub sample_rate: u32,
     /// Buffer size in frames
-    pub _buffer_size: u32,
+    pub buffer_size: u32,
     /// Number of input channels
     pub input_channels: u16,
     /// Number of output channels
@@ -265,8 +265,8 @@ impl Default for AudioConfig {
         Self {
             input_device: None,
             output_device: None,
-            _sample_rate: 16000,
-            _buffer_size: 1024,
+            sample_rate: 16000,
+            buffer_size: 1024,
             input_channels: 1,
             output_channels: 2,
         }
@@ -374,9 +374,9 @@ pub fn init_voice(config: VoiceConfig) -> Result<(), VoiceError> {
     tracing::info!("Initializing AGENT_GURU voice processing subsystem");
     
     // Validate audio configuration
-    if config.audio_config._sample_rate < 8000 || config.audio_config._sample_rate > 48000 {
+    if config.audio_config.sample_rate < 8000 || config.audio_config.sample_rate > 48000 {
         return Err(VoiceError::InvalidAudioFormat {
-            reason: format!("Invalid sample rate: {}", config.audio_config._sample_rate),
+            reason: format!("Invalid sample rate: {}", config.audio_config.sample_rate),
         });
     }
     
@@ -388,7 +388,7 @@ pub fn init_voice(config: VoiceConfig) -> Result<(), VoiceError> {
     
     tracing::info!("Voice processing subsystem initialized successfully");
     tracing::info!("Wake words: {:?}", config.wake_word_config.wake_words);
-    tracing::info!("Sample rate: {} Hz", config.audio_config._sample_rate);
+    tracing::info!("Sample rate: {} Hz", config.audio_config.sample_rate);
     
     Ok(())
 }
@@ -399,11 +399,11 @@ mod tests {
     
     #[test]
     fn test_audio_buffer_creation() {
-        let _samples = vec![0.1, 0.2, 0.3, 0.4];
-        let _buffer = AudioBuffer::new(samples.clone(), 16000, 1);
+        let samples = vec![0.1, 0.2, 0.3, 0.4];
+        let buffer = AudioBuffer::new(samples.clone(), 16000, 1);
         
         assert_eq!(buffer.samples, samples);
-        assert_eq!(buffer._sample_rate, 16000);
+        assert_eq!(buffer.sample_rate, 16000);
         assert_eq!(buffer.channels, 1);
         assert_eq!(buffer.len(), 4);
         assert!(!buffer.is_empty());
@@ -411,10 +411,10 @@ mod tests {
     
     #[test]
     fn test_audio_buffer_mono_conversion() {
-        let _stereo_samples = vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6];
-        let _stereo_buffer = AudioBuffer::new(stereo_samples, 16000, 2);
+        let stereo_samples = vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6];
+        let stereo_buffer = AudioBuffer::new(stereo_samples, 16000, 2);
         
-        let _mono_buffer = stereo_buffer.to_mono();
+        let mono_buffer = stereo_buffer.to_mono();
         assert_eq!(mono_buffer.channels, 1);
         assert_eq!(mono_buffer.len(), 3);
         assert_eq!(mono_buffer.samples[0], 0.15); // (0.1 + 0.2) / 2
@@ -424,26 +424,26 @@ mod tests {
     
     #[test]
     fn test_voice_config_default() {
-        let _config = VoiceConfig::default();
+        let config = VoiceConfig::default();
         assert!(!config.wake_word_config.wake_words.is_empty());
-        assert_eq!(config.audio_config._sample_rate, 16000);
+        assert_eq!(config.audio_config.sample_rate, 16000);
         assert_eq!(config.speech_recognition_config.language, "en-US");
         assert!(config.tts_config.emotion_synthesis);
     }
     
     #[test]
     fn test_voice_init() {
-        let _config = VoiceConfig::default();
-        let _result = init_voice(config);
+        let config = VoiceConfig::default();
+        let result = init_voice(config);
         assert!(result.is_ok());
     }
     
     #[test]
     fn test_voice_init_invalid_sample_rate() {
         let mut config = VoiceConfig::default();
-        config.audio_config._sample_rate = 1000; // Too low
+        config.audio_config.sample_rate = 1000; // Too low
         
-        let _result = init_voice(config);
+        let result = init_voice(config);
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), VoiceError::InvalidAudioFormat { .. }));
     }
@@ -453,7 +453,7 @@ mod tests {
         let mut config = VoiceConfig::default();
         config.wake_word_config.wake_words.clear();
         
-        let _result = init_voice(config);
+        let result = init_voice(config);
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), VoiceError::WakeWordFailed { .. }));
     }

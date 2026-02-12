@@ -117,7 +117,7 @@ pub enum DeploymentState {
 
 impl DeploymentSystem {
     pub fn new(target_platform: PlatformTarget, installation_root: PathBuf) -> Self {
-        let _now = Instant::now();
+        let now = Instant::now();
         Self {
             deployment_manager: DeploymentManager::new(target_platform.clone()),
             update_manager: UpdateManager::new(),
@@ -153,30 +153,30 @@ impl DeploymentSystem {
     
     /// Perform fresh installation with comprehensive validation
     pub fn perform_fresh_install(&mut self, components: &[PackageComponent]) -> Result<(), DeploymentError> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         self.deployment_state = DeploymentState::Installing;
         
         // 1. Verify all cryptographic signatures
-        let _verify_start = Instant::now();
-        for _component in components {
+        let verify_start = Instant::now();
+        for component in components {
             self.crypto_verifier.verify_signature(&component.signature)?;
             self.performance_metrics.verified_signatures_count += 1;
         }
         self.performance_metrics.signature_verification_time_ms = verify_start.elapsed().as_millis() as u64;
         
         // 2. Resolve dependencies
-        let _dep_start = Instant::now();
-        let _resolved_deps = self.dependency_resolver.resolve_dependencies(components)?;
+        let dep_start = Instant::now();
+        let resolved_deps = self.dependency_resolver.resolve_dependencies(components)?;
         self.performance_metrics.resolved_dependencies_count += resolved_deps.len(); // Accumulate instead of overwrite
         self.performance_metrics.dependency_resolution_time_ms = dep_start.elapsed().as_millis() as u64;
         
         // 3. Create backup point for rollback
-        let _backup_result = self.rollback_manager.create_backup_point(&self.installation_root)?;
+        let backup_result = self.rollback_manager.create_backup_point(&self.installation_root)?;
         self.performance_metrics.backup_size_bytes = backup_result.backup_size_bytes;
         
         // 4. Extract and install packages
-        let _extract_start = Instant::now();
-        for _component in components {
+        let extract_start = Instant::now();
+        for component in components {
             self.package_manager.extract_package(component, &self.installation_root)?;
             self.performance_metrics.installed_components_count += 1;
             self.performance_metrics.total_download_size_bytes += component.size_bytes;
@@ -184,12 +184,12 @@ impl DeploymentSystem {
         self.performance_metrics.package_extraction_time_ms = extract_start.elapsed().as_millis() as u64;
         
         // 5. Platform-specific integration
-        let _integration_start = Instant::now();
+        let integration_start = Instant::now();
         self.platform_integrator.integrate_with_platform(&self.installation_root)?;
         self.performance_metrics.platform_integration_time_ms = integration_start.elapsed().as_millis() as u64;
         
         // 6. Verify installation integrity
-        let _integrity_result = self.verify_installation_integrity()?;
+        let integrity_result = self.verify_installation_integrity()?;
         self.performance_metrics.integrity_check_success_rate = integrity_result.success_rate;
         
         self.performance_metrics.installation_time_ms = start_time.elapsed().as_millis() as u64;
@@ -200,35 +200,35 @@ impl DeploymentSystem {
     }
     
     /// Perform atomic update with rollback capability
-    pub fn perform_atomic_update(&mut self, _from_version: &str, _to_version: &str, components: &[PackageComponent]) -> Result<(), DeploymentError> {
-        let _start_time = Instant::now();
+    pub fn perform_atomic_update(&mut self, from_version: &str, to_version: &str, components: &[PackageComponent]) -> Result<(), DeploymentError> {
+        let start_time = Instant::now();
         self.deployment_state = DeploymentState::Updating;
         
         // 1. Create comprehensive backup
-        let _backup_result = self.rollback_manager.create_versioned_backup(&self.installation_root, from_version)?;
+        let backup_result = self.rollback_manager.create_versioned_backup(&self.installation_root, from_version)?;
         self.performance_metrics.backup_size_bytes = backup_result.backup_size_bytes;
         
         // 2. Verify update package signatures
-        let _verify_start = Instant::now();
-        for _component in components {
+        let verify_start = Instant::now();
+        for component in components {
             self.crypto_verifier.verify_signature(&component.signature)?;
             self.performance_metrics.verified_signatures_count += 1;
         }
         self.performance_metrics.signature_verification_time_ms = verify_start.elapsed().as_millis() as u64;
         
         // 3. Resolve update dependencies
-        let _dep_start = Instant::now();
-        let _resolved_deps = self.dependency_resolver.resolve_update_dependencies(from_version, to_version, components)?;
+        let dep_start = Instant::now();
+        let resolved_deps = self.dependency_resolver.resolve_update_dependencies(from_version, to_version, components)?;
         self.performance_metrics.resolved_dependencies_count += resolved_deps.len(); // Accumulate instead of overwrite
         self.performance_metrics.dependency_resolution_time_ms = dep_start.elapsed().as_millis() as u64;
         
         // 4. Apply atomic update
-        let _update_result = self.update_manager.apply_atomic_update(&self.installation_root, components);
+        let update_result = self.update_manager.apply_atomic_update(&self.installation_root, components);
         
         match update_result {
             Ok(_) => {
                 // 5. Verify update integrity
-                let _integrity_result = self.verify_installation_integrity()?;
+                let integrity_result = self.verify_installation_integrity()?;
                 self.performance_metrics.integrity_check_success_rate = integrity_result.success_rate;
                 
                 if integrity_result.success_rate < 1.0 {
@@ -251,8 +251,8 @@ impl DeploymentSystem {
     }
     
     /// Perform rollback to previous version
-    pub fn perform_rollback(&mut self, _target_version: &str) -> Result<(), DeploymentError> {
-        let _start_time = Instant::now();
+    pub fn perform_rollback(&mut self, target_version: &str) -> Result<(), DeploymentError> {
+        let start_time = Instant::now();
         self.deployment_state = DeploymentState::RollingBack;
         
         // 1. Verify rollback target exists
@@ -261,10 +261,10 @@ impl DeploymentSystem {
         }
         
         // 2. Perform atomic rollback
-        let _rollback_result = self.rollback_manager.rollback_to_version(&self.installation_root, target_version)?;
+        let rollback_result = self.rollback_manager.rollback_to_version(&self.installation_root, target_version)?;
         
         // 3. Verify rollback integrity
-        let _integrity_result = self.verify_installation_integrity()?;
+        let integrity_result = self.verify_installation_integrity()?;
         self.performance_metrics.integrity_check_success_rate = integrity_result.success_rate;
         
         if integrity_result.success_rate < 1.0 {
@@ -282,28 +282,28 @@ impl DeploymentSystem {
     
     /// Verify installation integrity with comprehensive checks
     pub fn verify_installation_integrity(&self) -> Result<IntegrityResult, DeploymentError> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         
         // 1. Verify file checksums
-        let _checksum_result = self.package_manager.verify_checksums(&self.installation_root)?;
+        let checksum_result = self.package_manager.verify_checksums(&self.installation_root)?;
         
         // 2. Verify cryptographic signatures
-        let _signature_result = self.crypto_verifier.verify_installation_signatures(&self.installation_root)?;
+        let signature_result = self.crypto_verifier.verify_installation_signatures(&self.installation_root)?;
         
         // 3. Verify platform integration
-        let _platform_result = self.platform_integrator.verify_platform_integration(&self.installation_root)?;
+        let platform_result = self.platform_integrator.verify_platform_integration(&self.installation_root)?;
         
         // 4. Verify dependency satisfaction
-        let _dependency_result = self.dependency_resolver.verify_dependencies(&self.installation_root)?;
+        let dependency_result = self.dependency_resolver.verify_dependencies(&self.installation_root)?;
         
-        let _total_checks = 4;
-        let _successful_checks = 
-            (if checksum_result { _1 } else { _0 }) +
-            (if signature_result { _1 } else { _0 }) +
-            (if platform_result { _1 } else { _0 }) +
-            (if dependency_result { _1 } else { _0 });
+        let total_checks = 4;
+        let successful_checks = 
+            (if checksum_result { 1 } else { 0 }) +
+            (if signature_result { 1 } else { 0 }) +
+            (if platform_result { 1 } else { 0 }) +
+            (if dependency_result { 1 } else { 0 });
         
-        let _success_rate = successful_checks as f32 / total_checks as f32;
+        let success_rate = successful_checks as f32 / total_checks as f32;
         
         Ok(IntegrityResult {
             success_rate,
@@ -317,11 +317,11 @@ impl DeploymentSystem {
     
     /// Perform complete uninstallation with cleanup
     pub fn perform_uninstall(&mut self) -> Result<(), DeploymentError> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         self.deployment_state = DeploymentState::Uninstalling;
         
         // 1. Create final backup before uninstall
-        let _backup_result = self.rollback_manager.create_backup_point(&self.installation_root)?;
+        let backup_result = self.rollback_manager.create_backup_point(&self.installation_root)?;
         self.performance_metrics.backup_size_bytes = backup_result.backup_size_bytes;
         
         // 2. Remove platform integration
@@ -342,11 +342,11 @@ impl DeploymentSystem {
     
     /// Test concurrent deployment operations
     pub fn test_concurrent_operations(&mut self, operation_count: usize) -> Result<(), DeploymentError> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         
         // Simulate concurrent verification operations
-        for _i in 0..operation_count {
-            let _test_signature = CryptographicSignature {
+        for i in 0..operation_count {
+            let testsignature = CryptographicSignature {
                 algorithm: SignatureAlgorithm::Ed25519,
                 signature_data: vec![0u8; 64],
                 public_key: vec![0u8; 32],
@@ -355,13 +355,13 @@ impl DeploymentSystem {
             };
             
             // Test signature verification under concurrent load
-            let _verify_result = self.crypto_verifier.verify_signature(&test_signature);
+            let verify_result = self.crypto_verifier.verify_signature(&test_signature);
             if verify_result.is_ok() {
                 self.performance_metrics.verified_signatures_count += 1;
             }
             
             // Test dependency resolution under concurrent load
-            let _test_component = PackageComponent {
+            let test_component = PackageComponent {
                 name: format!("test-component-{}", i),
                 version: "1.0.0".to_string(),
                 size_bytes: 1024,
@@ -376,13 +376,13 @@ impl DeploymentSystem {
                 data_files: Vec::new(),
             };
             
-            let __ = self.dependency_resolver.resolve_dependencies(&[test_component]);
+            let _ = self.dependency_resolver.resolve_dependencies(&[test_component]);
         }
         
-        let _total_time = start_time.elapsed();
+        let total_time = start_time.elapsed();
         
         // Validate concurrent operation performance
-        let _max_expected_time = Duration::from_millis(operation_count as u64 * 100); // 100ms per operation
+        let max_expected_time = Duration::from_millis(operation_count as u64 * 100); // 100ms per operation
         if total_time > max_expected_time {
             return Err(DeploymentError::ConcurrentOperationTimeout);
         }
@@ -393,7 +393,7 @@ impl DeploymentSystem {
     /// Simulate high system load for stress testing
     pub fn simulate_high_load(&mut self, load_factor: f32) -> Result<(), DeploymentError> {
         // Simulate processing delay based on load factor
-        let _delay_ms = (load_factor * 100.0) as u64; // Up to 100ms delay
+        let delay_ms = (load_factor * 100.0) as u64; // Up to 100ms delay
         std::thread::sleep(Duration::from_millis(delay_ms));
         
         // Update performance metrics to reflect load impact
@@ -406,13 +406,13 @@ impl DeploymentSystem {
     /// Update comprehensive performance metrics from all subsystems
     fn update_comprehensive_performance_metrics(&mut self) {
         // Collect metrics from all components
-        let _deployment_metrics = self.deployment_manager.get_metrics();
-        let _update_metrics = self.update_manager.get_metrics();
-        let _package_metrics = self.package_manager.get_metrics();
-        let _crypto_metrics = self.crypto_verifier.get_metrics();
-        let _dependency_metrics = self.dependency_resolver.get_metrics();
-        let _rollback_metrics = self.rollback_manager.get_metrics();
-        let _platform_metrics = self.platform_integrator.get_metrics();
+        let deployment_metrics = self.deployment_manager.get_metrics();
+        let update_metrics = self.update_manager.get_metrics();
+        let package_metrics = self.package_manager.get_metrics();
+        let crypto_metrics = self.crypto_verifier.get_metrics();
+        let dependency_metrics = self.dependency_resolver.get_metrics();
+        let rollback_metrics = self.rollback_manager.get_metrics();
+        let platform_metrics = self.platform_integrator.get_metrics();
         
         // Calculate total memory usage
         self.performance_metrics.memory_usage_bytes = 
@@ -496,7 +496,7 @@ pub mod generators {
         prop_oneof![
             // Windows platforms
             (
-                prop_oneof![Just(WindowsArchitecture::_X64), Just(WindowsArchitecture::ARM64)],
+                prop_oneof![Just(WindowsArchitecture::X64), Just(WindowsArchitecture::ARM64)],
                 prop_oneof![
                     Just(WindowsVersion::Windows10),
                     Just(WindowsVersion::Windows11),
@@ -504,9 +504,9 @@ pub mod generators {
                     Just(WindowsVersion::WindowsServer2022)
                 ],
                 prop_oneof![
-                    Just(WindowsInstallerType::_NSIS),
+                    Just(WindowsInstallerType::NSIS),
                     Just(WindowsInstallerType::MSI),
-                    Just(WindowsInstallerType::_MSIX)
+                    Just(WindowsInstallerType::MSIX)
                 ]
             ).prop_map(|(arch, version, installer)| PlatformTarget::Windows {
                 architecture: arch,
@@ -515,7 +515,7 @@ pub mod generators {
             }),
             // macOS platforms
             (
-                prop_oneof![Just(MacOSArchitecture::_X64), Just(MacOSArchitecture::ARM64)],
+                prop_oneof![Just(MacOSArchitecture::X64), Just(MacOSArchitecture::ARM64)],
                 prop_oneof![
                     Just(MacOSVersion::Monterey),
                     Just(MacOSVersion::Ventura),
@@ -523,9 +523,9 @@ pub mod generators {
                     Just(MacOSVersion::Sequoia)
                 ],
                 prop_oneof![
-                    Just(MacOSBundleType::_PKG),
+                    Just(MacOSBundleType::PKG),
                     Just(MacOSBundleType::DMG),
-                    Just(MacOSBundleType::_AppBundle)
+                    Just(MacOSBundleType::AppBundle)
                 ]
             ).prop_map(|(arch, version, bundle)| PlatformTarget::MacOS {
                 architecture: arch,
@@ -535,25 +535,25 @@ pub mod generators {
             // Linux platforms
             (
                 prop_oneof![
-                    Just(LinuxArchitecture::_X64),
+                    Just(LinuxArchitecture::X64),
                     Just(LinuxArchitecture::ARM64),
-                    Just(LinuxArchitecture::_ARMHF)
+                    Just(LinuxArchitecture::ARMHF)
                 ],
                 prop_oneof![
-                    Just(LinuxDistribution::_Ubuntu),
+                    Just(LinuxDistribution::Ubuntu),
                     Just(LinuxDistribution::Debian),
                     Just(LinuxDistribution::CentOS),
                     Just(LinuxDistribution::RHEL),
                     Just(LinuxDistribution::Fedora),
                     Just(LinuxDistribution::SUSE),
-                    Just(LinuxDistribution::_Arch)
+                    Just(LinuxDistribution::Arch)
                 ],
                 prop_oneof![
-                    Just(LinuxPackageType::_AppImage),
+                    Just(LinuxPackageType::AppImage),
                     Just(LinuxPackageType::DEB),
                     Just(LinuxPackageType::RPM),
                     Just(LinuxPackageType::Flatpak),
-                    Just(LinuxPackageType::_Snap)
+                    Just(LinuxPackageType::Snap)
                 ]
             ).prop_map(|(arch, dist, package)| PlatformTarget::Linux {
                 architecture: arch,
@@ -700,52 +700,52 @@ mod tests {
             match operation {
                 DeploymentOperation::FreshInstall => {
                     // 1. Perform fresh installation with cryptographic verification
-                    let _install_result = deployment_system.perform_fresh_install(&package_components);
+                    let install_result = deployment_system.perform_fresh_install(&package_components);
                     prop_assert!(install_result.is_ok(), "Fresh installation failed: {:?}", install_result);
                     
                     // 2. Verify installation integrity
-                    let _integrity_result = deployment_system.verify_installation_integrity();
+                    let integrity_result = deployment_system.verify_installation_integrity();
                     prop_assert!(integrity_result.is_ok(), "Installation integrity verification failed: {:?}", integrity_result);
                     
-                    let _integrity = integrity_result.unwrap();
+                    let integrity = integrity_result.unwrap();
                     prop_assert!(
                         integrity.success_rate >= 0.99,
                         "Installation integrity must be ≥99%, got: {}",
                         integrity.success_rate
                     );
                 }
-                DeploymentOperation::Update { from_version: _from_version, to_version: _to_version } => {
+                DeploymentOperation::Update { from_version, to_version } => {
                     // 1. Perform initial installation
-                    let _initial_install = deployment_system.perform_fresh_install(&package_components[..package_components.len()/2]);
+                    let initial_install = deployment_system.perform_fresh_install(&package_components[..package_components.len()/2]);
                     prop_assert!(initial_install.is_ok(), "Initial installation for update failed");
                     
                     // 2. Perform atomic update
-                    let _update_result = deployment_system.perform_atomic_update(&from_version, &to_version, &package_components[package_components.len()/2..]);
+                    let update_result = deployment_system.perform_atomic_update(&from_version, &to_version, &package_components[package_components.len()/2..]);
                     prop_assert!(update_result.is_ok(), "Atomic update failed: {:?}", update_result);
                 }
-                DeploymentOperation::Rollback { to_version: _to_version } => {
+                DeploymentOperation::Rollback { _to_version } => {
                     // 1. Perform installation to create rollback point
-                    let __ = deployment_system.perform_fresh_install(&package_components);
+                    let _ = deployment_system.perform_fresh_install(&package_components);
                     
                     // 2. Create a backup point for rollback testing
-                    let _backup_result = deployment_system.rollback_manager.create_versioned_backup(&installation_root, &to_version);
+                    let backup_result = deployment_system.rollback_manager.create_versioned_backup(&installation_root, &to_version);
                     if backup_result.is_ok() {
                         // 3. Perform rollback
-                        let _rollback_result = deployment_system.perform_rollback(&to_version);
+                        let rollback_result = deployment_system.perform_rollback(&to_version);
                         prop_assert!(rollback_result.is_ok(), "Rollback failed: {:?}", rollback_result);
                     }
                 }
                 DeploymentOperation::Uninstall => {
                     // 1. Perform installation first
-                    let __ = deployment_system.perform_fresh_install(&package_components);
+                    let _ = deployment_system.perform_fresh_install(&package_components);
                     
                     // 2. Perform complete uninstallation
-                    let _uninstall_result = deployment_system.perform_uninstall();
+                    let uninstall_result = deployment_system.perform_uninstall();
                     prop_assert!(uninstall_result.is_ok(), "Uninstallation failed: {:?}", uninstall_result);
                 }
                 _ => {
                     // For other operations, perform basic installation test
-                    let _install_result = deployment_system.perform_fresh_install(&package_components);
+                    let install_result = deployment_system.perform_fresh_install(&package_components);
                     prop_assert!(install_result.is_ok(), "Basic installation failed: {:?}", install_result);
                 }
             }
@@ -797,7 +797,7 @@ mod tests {
                 PlatformTarget::Windows { installer_type, .. } => {
                     // Windows-specific requirements
                     match installer_type {
-                        WindowsInstallerType::_NSIS => {
+                        WindowsInstallerType::NSIS => {
                             // NSIS installer must create proper registry entries
                             prop_assert!(
                                 deployment_system.platform_integrator.validate_windows_registry(&installation_root).unwrap_or(false),
@@ -811,7 +811,7 @@ mod tests {
                                 "MSI installer must support Windows Installer features"
                             );
                         }
-                        WindowsInstallerType::_MSIX => {
+                        WindowsInstallerType::MSIX => {
                             // MSIX installer must support modern Windows features
                             prop_assert!(
                                 deployment_system.platform_integrator.validate_msix_features(&installation_root).unwrap_or(false),
@@ -823,7 +823,7 @@ mod tests {
                 PlatformTarget::MacOS { bundle_type, .. } => {
                     // macOS-specific requirements
                     match bundle_type {
-                        MacOSBundleType::_PKG => {
+                        MacOSBundleType::PKG => {
                             // PKG installer must create proper receipts
                             prop_assert!(
                                 deployment_system.platform_integrator.validate_pkg_receipts(&installation_root).unwrap_or(false),
@@ -837,7 +837,7 @@ mod tests {
                                 "DMG must be properly signed and notarized"
                             );
                         }
-                        MacOSBundleType::_AppBundle => {
+                        MacOSBundleType::AppBundle => {
                             // App bundle must have proper structure
                             prop_assert!(
                                 deployment_system.platform_integrator.validate_app_bundle_structure(&installation_root).unwrap_or(false),
@@ -849,7 +849,7 @@ mod tests {
                 PlatformTarget::Linux { package_type, .. } => {
                     // Linux-specific requirements
                     match package_type {
-                        LinuxPackageType::_AppImage => {
+                        LinuxPackageType::AppImage => {
                             // AppImage must be self-contained
                             prop_assert!(
                                 deployment_system.platform_integrator.validate_appimage_self_contained(&installation_root).unwrap_or(false),
@@ -901,18 +901,18 @@ mod tests {
             // **Comprehensive Update and Migration Testing**
             
             // 1. Perform initial installation
-            let _initial_install = deployment_system.perform_fresh_install(&initial_components);
+            let initial_install = deployment_system.perform_fresh_install(&initial_components);
             prop_assert!(initial_install.is_ok(), "Initial installation failed: {:?}", initial_install);
             
             // 2. Perform atomic update
-            let _update_result = deployment_system.perform_atomic_update(&from_version, &to_version, &update_components);
+            let update_result = deployment_system.perform_atomic_update(&from_version, &to_version, &update_components);
             prop_assert!(update_result.is_ok(), "Atomic update failed: {:?}", update_result);
             
             // 3. Verify update integrity
-            let _integrity_result = deployment_system.verify_installation_integrity();
+            let integrity_result = deployment_system.verify_installation_integrity();
             prop_assert!(integrity_result.is_ok(), "Update integrity verification failed: {:?}", integrity_result);
             
-            let _integrity = integrity_result.unwrap();
+            let integrity = integrity_result.unwrap();
             prop_assert!(
                 integrity.success_rate >= 0.99,
                 "Update integrity must be ≥99%, got: {}",
@@ -920,11 +920,11 @@ mod tests {
             );
             
             // 4. Test rollback capability
-            let _rollback_result = deployment_system.perform_rollback(&from_version);
+            let rollback_result = deployment_system.perform_rollback(&from_version);
             prop_assert!(rollback_result.is_ok(), "Rollback failed: {:?}", rollback_result);
             
             // 5. Verify rollback integrity
-            let _rollback_integrity = deployment_system.verify_installation_integrity();
+            let rollback_integrity = deployment_system.verify_installation_integrity();
             prop_assert!(rollback_integrity.is_ok(), "Rollback integrity verification failed: {:?}", rollback_integrity);
             
             // **Update and Migration Requirements**
@@ -981,7 +981,7 @@ mod tests {
             );
             
             // 8. Signature verification must be efficient
-            let _avg_signature_time = deployment_system.performance_metrics.signature_verification_time_ms / deployment_system.performance_metrics.verified_signatures_count as u64;
+            let avg_signature_time = deployment_system.performance_metrics.signature_verification_time_ms / deployment_system.performance_metrics.verified_signatures_count as u64;
             prop_assert!(
                 avg_signature_time <= 10, // 10ms per signature
                 "Signature verification must be ≤10ms per signature, got: {}ms",
@@ -1016,28 +1016,28 @@ mod tests {
             concurrent_operations in generators::concurrent_operations_strategy(),
         ) {
             let mut deployment_system = DeploymentSystem::new(platform_target.clone(), installation_root.clone());
-            let _start_time = Instant::now();
+            let start_time = Instant::now();
             
             // **Complete Installation Lifecycle Testing**
             
             // 1. Test system under load
-            let _load_result = deployment_system.simulate_high_load(load_factor);
+            let load_result = deployment_system.simulate_high_load(load_factor);
             prop_assert!(load_result.is_ok(), "Load simulation failed: {:?}", load_result);
             
             // 2. Test concurrent operations
-            let _concurrent_result = deployment_system.test_concurrent_operations(concurrent_operations);
+            let concurrent_result = deployment_system.test_concurrent_operations(concurrent_operations);
             prop_assert!(concurrent_result.is_ok(), "Concurrent operations failed: {:?}", concurrent_result);
             
             // 3. Perform fresh installation
-            let _install_result = deployment_system.perform_fresh_install(&package_components);
+            let install_result = deployment_system.perform_fresh_install(&package_components);
             prop_assert!(install_result.is_ok(), "Fresh installation failed: {:?}", install_result);
             
             // 4. Verify installation integrity multiple times
-            for __ in 0..3 {
-                let _integrity_result = deployment_system.verify_installation_integrity();
+            for _ in 0..3 {
+                let integrity_result = deployment_system.verify_installation_integrity();
                 prop_assert!(integrity_result.is_ok(), "Installation integrity verification failed: {:?}", integrity_result);
                 
-                let _integrity = integrity_result.unwrap();
+                let integrity = integrity_result.unwrap();
                 prop_assert!(
                     integrity.success_rate >= 0.99,
                     "Installation integrity must be consistently ≥99%, got: {}",
@@ -1046,20 +1046,20 @@ mod tests {
             }
             
             // 5. Test repair functionality (if supported)
-            let _repair_components = package_components.iter().take(package_components.len() / 2).cloned().collect::<Vec<_>>();
-            let _repair_result = deployment_system.perform_fresh_install(&repair_components);
+            let repair_components = package_components.iter().take(package_components.len() / 2).cloned().collect::<Vec<_>>();
+            let repair_result = deployment_system.perform_fresh_install(&repair_components);
             prop_assert!(repair_result.is_ok(), "Repair installation failed: {:?}", repair_result);
             
             // 6. Perform complete uninstallation
-            let _uninstall_result = deployment_system.perform_uninstall();
+            let uninstall_result = deployment_system.perform_uninstall();
             prop_assert!(uninstall_result.is_ok(), "Uninstallation failed: {:?}", uninstall_result);
             
-            let _total_lifecycle_time = start_time.elapsed();
+            let total_lifecycle_time = start_time.elapsed();
             
             // **Installation Lifecycle Requirements**
             
             // 1. Complete lifecycle must complete within reasonable time
-            let _max_lifecycle_time = Duration::from_secs(1800); // 30 minutes maximum
+            let max_lifecycle_time = Duration::from_secs(1800); // 30 minutes maximum
             prop_assert!(
                 total_lifecycle_time <= max_lifecycle_time,
                 "Complete installation lifecycle must complete within 30 minutes, took: {:?}",
@@ -1084,7 +1084,7 @@ mod tests {
             }
             
             // 3. Concurrent operations must scale reasonably
-            let _expected_max_concurrent_time = concurrent_operations as u64 * 100; // 100ms per operation
+            let expected_max_concurrent_time = concurrent_operations as u64 * 100; // 100ms per operation
             prop_assert!(
                 deployment_system.performance_metrics.verification_time_ms <= expected_max_concurrent_time,
                 "Concurrent operations must scale linearly, got: {}ms for {} operations (max expected: {}ms)",
@@ -1092,7 +1092,7 @@ mod tests {
             );
             
             // 4. Memory usage must scale reasonably with package count
-            let _expected_max_memory = 100_000_000 + (package_components.len() * 10_000_000); // Base + per package
+            let expected_max_memory = 100_000_000 + (package_components.len() * 10_000_000); // Base + per package
             prop_assert!(
                 deployment_system.performance_metrics.memory_usage_bytes <= expected_max_memory,
                 "Memory usage must scale reasonably, got: {} bytes for {} packages (max expected: {})",

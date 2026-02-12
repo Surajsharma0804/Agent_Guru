@@ -21,8 +21,6 @@
 //! - UI tree extraction: ≤ 100ms for complete application UI analysis
 
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
-#![allow(missing_docs, dead_code)]
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::SystemTime;
@@ -106,7 +104,7 @@ pub enum WindowAction {
     Restore,
     Close,
     Move { x: i32, y: i32 },
-    Resize { _width: u32, _height: u32 },
+    Resize { width: u32, height: u32 },
     BringToFront,
     SendToBack,
     SetFullscreen(bool),
@@ -126,8 +124,8 @@ pub enum FileOperation {
     Copy { from: PathBuf, to: PathBuf },
     CreateDirectory { path: PathBuf },
     ListDirectory { path: PathBuf },
-    SetPermissions { path: PathBuf, _mode: u32 },
-    SetOwnership { path: PathBuf, _uid: u32, _gid: u32 },
+    SetPermissions { path: PathBuf, mode: u32 },
+    SetOwnership { path: PathBuf, uid: u32, gid: u32 },
     CreateSymlink { target: PathBuf, link: PathBuf },
     GetAttributes { path: PathBuf },
 }
@@ -146,9 +144,9 @@ pub enum FileResult {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FileAttributes {
     pub size: u64,
-    pub _permissions: u32,
-    pub _uid: u32,
-    pub _gid: u32,
+    pub permissions: u32,
+    pub uid: u32,
+    pub gid: u32,
     pub created: SystemTime,
     pub modified: SystemTime,
     pub accessed: SystemTime,
@@ -164,7 +162,7 @@ pub enum SystemSetting {
     Brightness(f32),
     PowerProfile(String),
     NetworkConfiguration(String),
-    DisplayResolution { _width: u32, _height: u32, _refresh_rate: u32 },
+    DisplayResolution { width: u32, height: u32, refresh_rate: u32 },
     TimeZone(String),
     GSettings { schema: String, key: String, value: String },
     SystemdService { service: String, action: String },
@@ -174,13 +172,13 @@ pub enum SystemSetting {
 /// Input event types for Linux
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum InputEvent {
-    KeyPress { _key_code: u32, modifiers: Vec<String> },
-    KeyRelease { _key_code: u32 },
+    KeyPress { key_code: u32, modifiers: Vec<String> },
+    KeyRelease { key_code: u32 },
     MouseClick { x: i32, y: i32, button: MouseButton },
     MouseMove { x: i32, y: i32 },
     MouseScroll { x: i32, y: i32, delta_x: f64, delta_y: f64 },
     Text { content: String },
-    Touch { x: f64, y: f64, pressure: f32, _touch_id: u32 },
+    Touch { x: f64, y: f64, pressure: f32, touch_id: u32 },
 }
 
 /// Mouse button types for Linux
@@ -220,15 +218,15 @@ pub struct UIElement {
 pub struct Rectangle {
     pub x: i32,
     pub y: i32,
-    pub _width: u32,
-    pub _height: u32,
+    pub width: u32,
+    pub height: u32,
 }
 
 /// Window information for Linux
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowInfo {
     pub window_id: WindowId,
-    pub _process_id: ProcessId,
+    pub process_id: ProcessId,
     pub title: String,
     pub class_name: String,
     pub instance_name: String,
@@ -238,7 +236,7 @@ pub struct WindowInfo {
     pub is_maximized: bool,
     pub is_fullscreen: bool,
     pub is_sticky: bool,
-    pub _workspace: u32,
+    pub workspace: u32,
     pub window_type: String,
     pub has_decorations: bool,
 }
@@ -246,7 +244,7 @@ pub struct WindowInfo {
 /// Process information for Linux
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessInfo {
-    pub _process_id: ProcessId,
+    pub process_id: ProcessId,
     pub name: String,
     pub executable_path: PathBuf,
     pub command_line: Vec<String>,
@@ -255,9 +253,9 @@ pub struct ProcessInfo {
     pub cpu_usage: f64,
     pub memory_usage: u64,
     pub start_time: SystemTime,
-    pub _window_count: u32,
-    pub _uid: u32,
-    pub _gid: u32,
+    pub window_count: u32,
+    pub uid: u32,
+    pub gid: u32,
     pub is_sandboxed: bool,
     pub sandbox_type: Option<String>, // flatpak, snap, etc.
 }
@@ -295,8 +293,8 @@ pub struct LinuxControlBridge {
 impl LinuxControlBridge {
     /// Create a new Linux control bridge
     pub fn new() -> Result<Self, LinuxError> {
-        let _display_protocol = Self::detect_display_protocol();
-        let _desktop_environment = Self::detect_desktop_environment();
+        let display_protocol = Self::detect_display_protocol();
+        let desktop_environment = Self::detect_desktop_environment();
         
         Ok(Self {
             performance_metrics: LinuxPerformanceMetrics {
@@ -325,13 +323,13 @@ impl LinuxControlBridge {
     }
 
     /// Launch an application by name or desktop file
-    pub fn launch_application(&mut self, _app_name: &str) -> Result<ProcessId, LinuxError> {
-        let _start_time = std::time::Instant::now();
+    pub fn launch_application(&mut self, app_name: &str) -> Result<ProcessId, LinuxError> {
+        let start_time = std::time::Instant::now();
         
         // Simulate application launch
-        let _process_id = ProcessId(fastrand::i32(1000..99999));
+        let process_id = ProcessId(fastrand::i32(1000..99999));
         
-        let _process_info = ProcessInfo {
+        let process_info = ProcessInfo {
             process_id,
             name: app_name.to_string(),
             executable_path: PathBuf::from(format!("/usr/bin/{}", app_name)),
@@ -341,7 +339,7 @@ impl LinuxControlBridge {
             cpu_usage: 0.0,
             memory_usage: 50 * 1024 * 1024, // 50MB
             start_time: SystemTime::now(),
-            _window_count: 1,
+            window_count: 1,
             uid: 1000,
             gid: 1000,
             is_sandboxed: app_name.contains("flatpak") || app_name.contains("snap"),
@@ -356,7 +354,7 @@ impl LinuxControlBridge {
         
         self.active_processes.insert(process_id, process_info);
         
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         self.performance_metrics.application_launch_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;
@@ -366,13 +364,13 @@ impl LinuxControlBridge {
 
     /// Control a window with the specified action
     pub fn control_window(&mut self, window_id: WindowId, action: WindowAction) -> Result<(), LinuxError> {
-        let _start_time = std::time::Instant::now();
+        let start_time = std::time::Instant::now();
         
         if !self.active_windows.contains_key(&window_id) {
             // Create a mock window if it doesn't exist
-            let _window_info = WindowInfo {
+            let window_info = WindowInfo {
                 window_id,
-                _process_id: ProcessId(1234),
+                process_id: ProcessId(1234),
                 title: "Mock Window".to_string(),
                 class_name: "MockApp".to_string(),
                 instance_name: "mockapp".to_string(),
@@ -402,11 +400,11 @@ impl LinuxControlBridge {
                 WindowAction::Close => {
                     self.active_windows.remove(&window_id);
                 }
-                WindowAction::Move { _x, _y } => {
+                WindowAction::Move { x, y } => {
                     window_info.bounds.x = x;
                     window_info.bounds.y = y;
                 }
-                WindowAction::Resize { _width, _height } => {
+                WindowAction::Resize { width, height } => {
                     window_info.bounds.width = width;
                     window_info.bounds.height = height;
                 }
@@ -431,7 +429,7 @@ impl LinuxControlBridge {
             }
         }
         
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         match self.display_protocol {
             DisplayProtocol::X11 => {
                 self.performance_metrics.x11_operation_time_ms = elapsed.as_millis() as u64;
@@ -450,10 +448,10 @@ impl LinuxControlBridge {
 
     /// Perform file system operations
     pub fn perform_file_operation(&mut self, operation: FileOperation) -> Result<FileResult, LinuxError> {
-        let _start_time = std::time::Instant::now();
+        let start_time = std::time::Instant::now();
         
-        let _result = match operation {
-            FileOperation::Create { _path, _content } => {
+        let result = match operation {
+            FileOperation::Create { path, content: _ } => {
                 // Check permissions
                 if !self.check_file_permissions(&path, "write") {
                     return Err(LinuxError::PermissionDenied {
@@ -462,7 +460,7 @@ impl LinuxControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::Read { _path } => {
+            FileOperation::Read { path } => {
                 if !self.check_file_permissions(&path, "read") {
                     return Err(LinuxError::PermissionDenied {
                         operation: format!("read file: {}", path.display()),
@@ -470,7 +468,7 @@ impl LinuxControlBridge {
                 }
                 FileResult::Content(b"Mock file content".to_vec())
             }
-            FileOperation::Write { _path, _content } => {
+            FileOperation::Write { path, content: _ } => {
                 if !self.check_file_permissions(&path, "write") {
                     return Err(LinuxError::PermissionDenied {
                         operation: format!("write file: {}", path.display()),
@@ -478,7 +476,7 @@ impl LinuxControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::Delete { _path } => {
+            FileOperation::Delete { path } => {
                 if !self.check_file_permissions(&path, "write") {
                     return Err(LinuxError::PermissionDenied {
                         operation: format!("delete file: {}", path.display()),
@@ -486,7 +484,7 @@ impl LinuxControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::Move { _from, _to } => {
+            FileOperation::Move { from, to } => {
                 if !self.check_file_permissions(&from, "write") || !self.check_file_permissions(&to, "write") {
                     return Err(LinuxError::PermissionDenied {
                         operation: format!("move file: {} -> {}", from.display(), to.display()),
@@ -494,7 +492,7 @@ impl LinuxControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::Copy { _from, _to } => {
+            FileOperation::Copy { from, to } => {
                 if !self.check_file_permissions(&from, "read") || !self.check_file_permissions(&to, "write") {
                     return Err(LinuxError::PermissionDenied {
                         operation: format!("copy file: {} -> {}", from.display(), to.display()),
@@ -502,7 +500,7 @@ impl LinuxControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::CreateDirectory { _path } => {
+            FileOperation::CreateDirectory { path } => {
                 if !self.check_file_permissions(&path, "write") {
                     return Err(LinuxError::PermissionDenied {
                         operation: format!("create directory: {}", path.display()),
@@ -510,7 +508,7 @@ impl LinuxControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::ListDirectory { _path } => {
+            FileOperation::ListDirectory { path } => {
                 if !self.check_file_permissions(&path, "read") {
                     return Err(LinuxError::PermissionDenied {
                         operation: format!("list directory: {}", path.display()),
@@ -522,7 +520,7 @@ impl LinuxControlBridge {
                     PathBuf::from("subdirectory"),
                 ])
             }
-            FileOperation::SetPermissions { _path, _mode } => {
+            FileOperation::SetPermissions { path, mode: _ } => {
                 if !self.check_file_permissions(&path, "write") {
                     return Err(LinuxError::PermissionDenied {
                         operation: format!("set permissions: {}", path.display()),
@@ -530,7 +528,7 @@ impl LinuxControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::SetOwnership { _path, uid, _gid } => {
+            FileOperation::SetOwnership { path, uid: _, gid: _ } => {
                 if !self.check_file_permissions(&path, "write") {
                     return Err(LinuxError::PermissionDenied {
                         operation: format!("set ownership: {}", path.display()),
@@ -538,7 +536,7 @@ impl LinuxControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::CreateSymlink { _target, _link } => {
+            FileOperation::CreateSymlink { target, link } => {
                 if !self.check_file_permissions(&link, "write") {
                     return Err(LinuxError::PermissionDenied {
                         operation: format!("create symlink: {} -> {}", link.display(), target.display()),
@@ -546,7 +544,7 @@ impl LinuxControlBridge {
                 }
                 FileResult::Success
             }
-            FileOperation::GetAttributes { _path } => {
+            FileOperation::GetAttributes { path } => {
                 if !self.check_file_permissions(&path, "read") {
                     return Err(LinuxError::PermissionDenied {
                         operation: format!("get attributes: {}", path.display()),
@@ -567,7 +565,7 @@ impl LinuxControlBridge {
             }
         };
         
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         self.performance_metrics.file_operation_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;
@@ -577,7 +575,7 @@ impl LinuxControlBridge {
 
     /// Modify system settings
     pub fn modify_system_setting(&mut self, setting: SystemSetting) -> Result<(), LinuxError> {
-        let _start_time = std::time::Instant::now();
+        let start_time = std::time::Instant::now();
         
         match setting {
             SystemSetting::Volume(level) => {
@@ -596,7 +594,7 @@ impl LinuxControlBridge {
                     });
                 }
             }
-            SystemSetting::DisplayResolution { _width, height, _refresh_rate } => {
+            SystemSetting::DisplayResolution { width, height, refresh_rate } => {
                 if width < 640 || height < 480 || refresh_rate < 30 || refresh_rate > 240 {
                     return Err(LinuxError::InvalidParameter {
                         parameter: "display_resolution".to_string(),
@@ -607,7 +605,7 @@ impl LinuxControlBridge {
             _ => {} // Other settings are accepted as-is
         }
         
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         self.performance_metrics.dbus_operation_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;
@@ -617,11 +615,11 @@ impl LinuxControlBridge {
 
     /// Inject input events
     pub fn inject_input_event(&mut self, event: InputEvent) -> Result<(), LinuxError> {
-        let _start_time = std::time::Instant::now();
+        let start_time = std::time::Instant::now();
         
         // Simulate input event injection
         match event {
-            InputEvent::KeyPress { _key_code, _modifiers } => {
+            InputEvent::KeyPress { key_code, modifiers: _ } => {
                 // Validate key code (Linux uses different key codes)
                 if key_code > 255 {
                     return Err(LinuxError::InvalidParameter {
@@ -630,7 +628,7 @@ impl LinuxControlBridge {
                     });
                 }
             }
-            InputEvent::MouseClick { _x, y, _button } => {
+            InputEvent::MouseClick { x, y, button: _ } => {
                 // Validate coordinates
                 if x < 0 || y < 0 {
                     return Err(LinuxError::InvalidParameter {
@@ -639,7 +637,7 @@ impl LinuxControlBridge {
                     });
                 }
             }
-            InputEvent::Touch { _x, y, pressure, _touch_id } => {
+            InputEvent::Touch { x, y, pressure, touch_id } => {
                 // Validate touch parameters
                 if x < 0.0 || y < 0.0 || !(0.0..=1.0).contains(&pressure) {
                     return Err(LinuxError::InvalidParameter {
@@ -651,7 +649,7 @@ impl LinuxControlBridge {
             _ => {} // Other events are accepted as-is
         }
         
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         self.performance_metrics.event_injection_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;
@@ -661,7 +659,7 @@ impl LinuxControlBridge {
 
     /// Extract UI tree using AT-SPI
     pub fn extract_ui_tree(&mut self, _process_id: ProcessId) -> Result<UIElement, LinuxError> {
-        let _start_time = std::time::Instant::now();
+        let start_time = std::time::Instant::now();
         
         if !self.at_spi_enabled {
             return Err(LinuxError::DBusError {
@@ -670,7 +668,7 @@ impl LinuxControlBridge {
         }
         
         // Simulate UI tree extraction using AT-SPI
-        let _ui_tree = UIElement {
+        let ui_tree = UIElement {
             element_id: Uuid::new_v4().to_string(),
             role: "application".to_string(),
             name: Some("Application".to_string()),
@@ -718,7 +716,7 @@ impl LinuxControlBridge {
             interfaces: vec!["Accessible".to_string(), "Application".to_string()],
         };
         
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         self.performance_metrics.ui_tree_extraction_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;
@@ -810,9 +808,9 @@ impl LinuxControlBridge {
     }
 
     /// Check file permissions (simplified simulation)
-    fn check_file_permissions(&self, path: &PathBuf, _operation: &str) -> bool {
+    fn check_file_permissions(&self, path: &PathBuf, operation: &str) -> bool {
         // Simulate permission checking
-        let _path_str = path.to_string_lossy();
+        let path_str = path.to_string_lossy();
         
         // Deny access to system directories for non-root operations
         if path_str.starts_with("/etc/") || path_str.starts_with("/sys/") || path_str.starts_with("/proc/") {

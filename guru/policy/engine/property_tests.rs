@@ -1,6 +1,6 @@
 //! # AGENT_GURU Policy Engine Property-Based Tests
 //! 
-//! Comprehensive property-based testing for the policy evaluation _engine with
+//! Comprehensive property-based testing for the policy evaluation engine with
 //! cryptographic governance, real-time decision making, and audit capabilities.
 //! 
 //! ## Test Coverage
@@ -41,7 +41,7 @@ const PROPERTY_TEST_ITERATIONS: usize = 1000;
 const MAX_EVALUATION_TIME_MS: u64 = 10;
 
 /// Generate a test policy rule
-fn generate_test_rule(_name: &str, __priority: u32, always_allow: bool) -> PolicyRule {
+fn generate_test_rule(name: &str, priority: u32, always_allow: bool) -> PolicyRule {
     PolicyRule {
         id: RuleId(Uuid::new_v4()),
         name: name.to_string(),
@@ -85,49 +85,49 @@ fn generate_test_context() -> PolicyContext {
 
 /// **Property 2: Policy Enforcement Consistency**
 /// 
-/// For any system operation, the policy _engine SHALL enforce capability-based access controls,
+/// For any system operation, the policy engine SHALL enforce capability-based access controls,
 /// require cryptographic signatures for policy updates, and maintain cryptographic proof chains
 /// for all configuration changes.
 /// 
 /// **Validates: Requirements 1.2, 1.5, 17.1-17.10**
 fn test_policy_enforcement_consistency() -> Result<(), String> {
-    let _engine = PolicyEngine::new()
-        .map_err(|_| "Failed to create policy _engine".to_string())?;
+    let engine = PolicyEngine::new()
+        .map_err(|_| "Failed to create policy engine".to_string())?;
 
     // Register test rules
-    let _allow_rule = generate_test_rule("allow_rule", 100, true);
-    let _deny_rule = generate_test_rule("deny_rule", 50, false);
+    let allow_rule = generate_test_rule("allow_rule", 100, true);
+    let deny_rule = generate_test_rule("deny_rule", 50, false);
 
-    _engine.register_rule(allow_rule)
+    engine.register_rule(allow_rule)
         .map_err(|_| "Failed to register allow rule".to_string())?;
-    _engine.register_rule(deny_rule)
+    engine.register_rule(deny_rule)
         .map_err(|_| "Failed to register deny rule".to_string())?;
 
     // Test consistency - Same context should produce same decision
-    for __ in 0..100 {
-        let _context = generate_test_context();
+    for _ in 0..100 {
+        let context = generate_test_context();
         
-        let _decision1 = _engine.evaluate(&context)
+        let decision1 = engine.evaluate(&context)
             .map_err(|_| "Policy evaluation failed".to_string())?;
 
-        let _decision2 = _engine.evaluate(&context)
+        let decision2 = engine.evaluate(&context)
             .map_err(|_| "Policy evaluation failed on retry".to_string())?;
 
         // Decisions should be identical for the same context
-        if _decision1.result != decision2.result {
+        if decision1.result != decision2.result {
             return Err("Policy decisions are inconsistent for same context".to_string());
         }
 
         // Confidence should be the same
-        if (_decision1.confidence - decision2.confidence).abs() > f64::EPSILON {
+        if (decision1.confidence - decision2.confidence).abs() > f64::EPSILON {
             return Err("Policy confidence is inconsistent for same context".to_string());
         }
 
         // Test performance - Evaluation should complete within time limit
-        let _start_time = Instant::now();
-        let __decision = _engine.evaluate(&context)
+        let start_time = Instant::now();
+        let _decision = engine.evaluate(&context)
             .map_err(|_| "Policy evaluation failed".to_string())?;
-        let _evaluation_time = start_time.elapsed();
+        let evaluation_time = start_time.elapsed();
         
         if evaluation_time > Duration::from_millis(MAX_EVALUATION_TIME_MS) {
             return Err(format!(
@@ -137,39 +137,39 @@ fn test_policy_enforcement_consistency() -> Result<(), String> {
         }
 
         // Test cryptographic integrity - All decisions should have valid integrity proofs
-        if _decision1.integrity_proof.decision_hash.is_empty() {
+        if decision1.integrity_proof.decision_hash.is_empty() {
             return Err("Decision missing integrity proof hash".to_string());
         }
 
-        if _decision1.integrity_proof.signature.is_empty() {
+        if decision1.integrity_proof.signature.is_empty() {
             return Err("Decision missing cryptographic signature".to_string());
         }
 
-        if _decision1.integrity_proof.signing_key.is_empty() {
+        if decision1.integrity_proof.signing_key.is_empty() {
             return Err("Decision missing signing key".to_string());
         }
 
         // Test audit metadata completeness
-        if _decision1.audit_metadata.requester_id.is_empty() {
+        if decision1.audit_metadata.requester_id.is_empty() {
             return Err("Decision missing requester ID in audit metadata".to_string());
         }
 
-        if _decision1.audit_metadata.resource_path.is_empty() {
+        if decision1.audit_metadata.resource_path.is_empty() {
             return Err("Decision missing resource path in audit metadata".to_string());
         }
 
-        if _decision1.audit_metadata.action_type.is_empty() {
+        if decision1.audit_metadata.action_type.is_empty() {
             return Err("Decision missing action type in audit metadata".to_string());
         }
     }
 
     // Test capability-based access control - Rules should enforce proper access patterns
-    let _metrics = _engine.get_metrics();
-    if _metrics.total_evaluations == 0 {
-        return Err("No policy evaluations recorded in _metrics".to_string());
+    let metrics = engine.get_metrics();
+    if metrics.total_evaluations == 0 {
+        return Err("No policy evaluations recorded in metrics".to_string());
     }
 
-    if _metrics.successful_evaluations != _metrics.total_evaluations {
+    if metrics.successful_evaluations != metrics.total_evaluations {
         return Err("Some policy evaluations failed unexpectedly".to_string());
     }
 
@@ -178,19 +178,19 @@ fn test_policy_enforcement_consistency() -> Result<(), String> {
 
 /// **Rule Evaluation Graph Processing Property**
 /// 
-/// For any set of policy rules with dependencies, the _engine SHALL process them in correct
+/// For any set of policy rules with dependencies, the engine SHALL process them in correct
 /// topological order, detect circular dependencies, and maintain evaluation consistency.
 fn test_rule_evaluation_graph() -> Result<(), String> {
-    let _engine = PolicyEngine::new()
-        .map_err(|_| "Failed to create policy _engine".to_string())?;
+    let engine = PolicyEngine::new()
+        .map_err(|_| "Failed to create policy engine".to_string())?;
 
     let mut registered_rules = 0;
 
     // Create rules without dependencies first
-    for _i in 0..10 {
-        let _rule = generate_test_rule(&format!("rule_{}", i), (i + 1) * 10, i % 2 == 0);
+    for i in 0..10 {
+        let rule = generate_test_rule(&format!("rule_{}", i), (i + 1) * 10, i % 2 == 0);
         
-        match _engine.register_rule(rule) {
+        match engine.register_rule(rule) {
             Ok(_) => registered_rules += 1,
             Err(PolicyError::CircularDependency { .. }) => {
                 // This is expected behavior - circular dependencies should be detected
@@ -201,10 +201,10 @@ fn test_rule_evaluation_graph() -> Result<(), String> {
     }
 
     // Test evaluation with various contexts
-    for __ in 0..50 {
-        let _context = generate_test_context();
+    for _ in 0..50 {
+        let context = generate_test_context();
         
-        match _engine.evaluate(&context) {
+        match engine.evaluate(&context) {
             Ok(decision) => {
                 // Verify decision structure
                 if decision.applied_rules.len() > registered_rules {
@@ -234,36 +234,36 @@ fn test_rule_evaluation_graph() -> Result<(), String> {
 
 /// **Audit Trail Verification Property**
 /// 
-/// For any policy operation, the _engine SHALL create immutable audit entries with
+/// For any policy operation, the engine SHALL create immutable audit entries with
 /// cryptographic linking and comprehensive metadata for compliance tracking.
 fn test_audit_trail_verification() -> Result<(), String> {
-    let _engine = PolicyEngine::new()
-        .map_err(|_| "Failed to create policy _engine".to_string())?;
+    let engine = PolicyEngine::new()
+        .map_err(|_| "Failed to create policy engine".to_string())?;
 
-    let _initial_metrics = _engine.get_metrics();
+    let initial_metrics = engine.get_metrics();
 
     // Perform various operations that should generate audit entries
-    for _i in 0..20 {
-        let _rule = generate_test_rule(&format!("audit_rule_{}", i), (i + 1) * 5, true);
+    for i in 0..20 {
+        let rule = generate_test_rule(&format!("audit_rule_{}", i), (i + 1) * 5, true);
         
-        _engine.register_rule(rule)
+        engine.register_rule(rule)
             .map_err(|_| "Failed to register rule for audit test".to_string())?;
 
         // Perform policy evaluation
         for _j in 0..5 {
-            let _context = generate_test_context();
-            _engine.evaluate(&context)
+            let context = generate_test_context();
+            engine.evaluate(&context)
                 .map_err(|_| "Failed to evaluate policy for audit test".to_string())?;
         }
     }
 
     // Verify audit trail growth
-    let _final_metrics = _engine.get_metrics();
+    let final_metrics = engine.get_metrics();
     if final_metrics.audit_entries <= initial_metrics.audit_entries {
         return Err("Audit trail did not grow with operations".to_string());
     }
 
-    // Verify _metrics consistency
+    // Verify metrics consistency
     if final_metrics.total_evaluations < initial_metrics.total_evaluations {
         return Err("Evaluation count inconsistent with operations performed".to_string());
     }
@@ -277,47 +277,47 @@ fn test_audit_trail_verification() -> Result<(), String> {
 
 /// **Performance Stress Test Property**
 /// 
-/// For any high-load scenario, the _engine SHALL maintain sub-10ms evaluation times
+/// For any high-load scenario, the engine SHALL maintain sub-10ms evaluation times
 /// and handle concurrent access without degradation.
 fn test_performance_stress() -> Result<(), String> {
-    let _engine = Arc::new(PolicyEngine::new()
-        .map_err(|_| "Failed to create policy _engine".to_string())?);
+    let engine = Arc::new(PolicyEngine::new()
+        .map_err(|_| "Failed to create policy engine".to_string())?);
 
     // Register rules
-    for _i in 0..50 {
-        let _rule = generate_test_rule(&format!("perf_rule_{}", i), (i + 1) * 2, i % 3 == 0);
-        _engine.register_rule(rule)
+    for i in 0..50 {
+        let rule = generate_test_rule(&format!("perf_rule_{}", i), (i + 1) * 2, i % 3 == 0);
+        engine.register_rule(rule)
             .map_err(|_| "Failed to register rule for stress test".to_string())?;
     }
 
     // Prepare test contexts
     let mut contexts = Vec::new();
-    for __ in 0..20 {
+    for _ in 0..20 {
         contexts.push(generate_test_context());
     }
-    let _contexts = Arc::new(contexts);
+    let contexts = Arc::new(contexts);
 
     // Performance tracking
-    let _total_evaluations = Arc::new(Mutex::new(0u64));
-    let _total_time = Arc::new(Mutex::new(Duration::new(0, 0)));
-    let _max_time = Arc::new(Mutex::new(Duration::new(0, 0)));
+    let total_evaluations = Arc::new(Mutex::new(0u64));
+    let total_time = Arc::new(Mutex::new(Duration::new(0, 0)));
+    let max_time = Arc::new(Mutex::new(Duration::new(0, 0)));
 
     // Spawn concurrent threads
     let mut handles = Vec::new();
-    for __ in 0..5 {
-        let _engine_clone = Arc::clone(&_engine);
-        let _contexts_clone = Arc::clone(&contexts);
-        let _total_evaluations_clone = Arc::clone(&total_evaluations);
-        let _total_time_clone = Arc::clone(&total_time);
-        let _max_time_clone = Arc::clone(&max_time);
+    for _ in 0..5 {
+        let engine_clone = Arc::clone(&engine);
+        let contexts_clone = Arc::clone(&contexts);
+        let total_evaluations_clone = Arc::clone(&total_evaluations);
+        let total_time_clone = Arc::clone(&total_time);
+        let max_time_clone = Arc::clone(&max_time);
 
-        let _handle = thread::spawn(move || {
-            for _context in contexts_clone.iter() {
-                let _start_time = Instant::now();
+        let handle = thread::spawn(move || {
+            for context in contexts_clone.iter() {
+                let start_time = Instant::now();
                 
                 match engine_clone.evaluate(context) {
                     Ok(_) => {
-                        let _evaluation_time = start_time.elapsed();
+                        let evaluation_time = start_time.elapsed();
                         
                         // Update statistics
                         {
@@ -351,7 +351,7 @@ fn test_performance_stress() -> Result<(), String> {
     }
 
     // Wait for all threads and check results
-    for _handle in handles {
+    for handle in handles {
         match handle.join() {
             Ok(success) => {
                 if !success {
@@ -362,16 +362,16 @@ fn test_performance_stress() -> Result<(), String> {
         }
     }
 
-    // Verify performance _metrics
-    let _total_evals = *total_evaluations.lock().unwrap();
-    let _total_t = *total_time.lock().unwrap();
-    let _max_t = *max_time.lock().unwrap();
+    // Verify performance metrics
+    let total_evals = *total_evaluations.lock().unwrap();
+    let total_t = *total_time.lock().unwrap();
+    let max_t = *max_time.lock().unwrap();
 
     if total_evals == 0 {
         return Err("No evaluations completed".to_string());
     }
 
-    let _average_time = total_t / total_evals as u32;
+    let average_time = total_t / total_evals as u32;
     
     if max_t > Duration::from_millis(MAX_EVALUATION_TIME_MS) {
         return Err(format!(
@@ -392,7 +392,7 @@ fn test_performance_stress() -> Result<(), String> {
     Ok(())
 }
 
-/// Run all policy _engine property tests with comprehensive validation
+/// Run all policy engine property tests with comprehensive validation
 pub fn run_policy_engine_property_tests() {
     println!("🛡️ Starting Policy Engine Property-Based Tests");
     println!("Testing with {} iterations per property", PROPERTY_TEST_ITERATIONS);

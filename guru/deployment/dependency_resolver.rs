@@ -20,7 +20,7 @@ impl DependencyResolver {
     pub fn resolve_dependencies(&mut self, components: &[PackageComponent]) -> Result<Vec<String>, DeploymentError> {
         // For property testing: ensure we always return at least as many dependencies as components
         let mut resolved = Vec::new();
-        for _component in components {
+        for component in components {
             // Add the component itself as a resolved dependency
             resolved.push(component.name.clone());
             // Add all explicit dependencies
@@ -35,7 +35,7 @@ impl DependencyResolver {
         Ok(resolved)
     }
     
-    pub fn resolve_update_dependencies(&mut self, __from_version: &str, __to_version: &str, components: &[PackageComponent]) -> Result<Vec<String>, DeploymentError> {
+    pub fn resolve_update_dependencies(&mut self, _from_version: &str, _to_version: &str, components: &[PackageComponent]) -> Result<Vec<String>, DeploymentError> {
         // Enhanced implementation for property testing - delegate to main resolver
         self.resolve_dependencies(components)
     }

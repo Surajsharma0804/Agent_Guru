@@ -67,8 +67,8 @@ pub struct ConfidenceMetrics {
 /// Prediction history entry
 #[derive(Debug, Clone)]
 struct PredictionEntry {
-    confidence: f32,
-    timestamp: Instant,
+    _confidence: f32,
+    _timestamp: Instant,
     above_threshold: bool,
 }
 
@@ -78,8 +78,8 @@ struct AdaptiveThreshold {
     base_threshold: f32,
     noise_level: f32,
     recent_confidences: VecDeque<f32>,
-    _false_positive_count: u32,
-    _total_predictions: u32,
+    false_positive_count: u32,
+    total_predictions: u32,
     smoothing_factor: f32,
 }
 
@@ -117,8 +117,8 @@ impl AdaptiveThreshold {
         
         if !sorted_confidences.is_empty() {
             sorted_confidences.sort_by(|a, b| a.partial_cmp(b).unwrap());
-            let _median_idx = sorted_confidences.len() / 2;
-            let _new_noise_level = sorted_confidences[median_idx];
+            let median_idx = sorted_confidences.len() / 2;
+            let new_noise_level = sorted_confidences[median_idx];
             
             // Smooth noise level update
             self.noise_level = self.smoothing_factor * new_noise_level + 
@@ -127,17 +127,17 @@ impl AdaptiveThreshold {
     }
     
     fn get_adaptive_threshold(&self, penalty_factor: f32) -> f32 {
-        let _false_positive_rate = if self.total_predictions > 0 {
+        let false_positive_rate = if self.total_predictions > 0 {
             self.false_positive_count as f32 / self.total_predictions as f32
         } else {
             0.0
         };
         
         // Increase threshold if false positive rate is high
-        let _fp_adjustment = false_positive_rate * penalty_factor;
+        let fp_adjustment = false_positive_rate * penalty_factor;
         
         // Adjust for noise level
-        let _noise_adjustment = self.noise_level * 2.0;
+        let noise_adjustment = self.noise_level * 2.0;
         
         (self.base_threshold + fp_adjustment + noise_adjustment).min(0.95)
     }
@@ -161,9 +161,9 @@ impl PatienceValidator {
     }
     
     fn add_prediction(&mut self, confidence: f32, threshold: f32) {
-        let _entry = PredictionEntry {
-            confidence,
-            timestamp: Instant::now(),
+        let entry = PredictionEntry {
+            _confidence: confidence,
+            _timestamp: Instant::now(),
             above_threshold: confidence >= threshold,
         };
         
@@ -268,7 +268,7 @@ impl ConfidenceFilter {
         self.num_classes = num_classes;
         
         // Initialize components for each class
-        for _class_idx in 0..num_classes {
+        for class_idx in 0..num_classes {
             self.adaptive_thresholds.insert(
                 class_idx,
                 AdaptiveThreshold::new(0.5, self.config.confidence_smoothing)
@@ -308,7 +308,7 @@ impl ConfidenceFilter {
         self.total_predictions += 1;
         let mut filtered_predictions = vec![0.0; self.num_classes];
         
-        for (_class_idx, &confidence) in predictions.iter().enumerate() {
+        for (class_idx, &confidence) in predictions.iter().enumerate() {
             // Apply noise gate
             if confidence < self.config.noise_gate_threshold {
                 filtered_predictions[class_idx] = 0.0;
@@ -316,23 +316,23 @@ impl ConfidenceFilter {
             }
             
             // Get adaptive threshold
-            let _adaptive_threshold = if self.config.adaptive_threshold {
-                let _threshold_calculator = self.adaptive_thresholds.get(&class_idx).unwrap();
+            let adaptive_threshold = if self.config.adaptive_threshold {
+                let threshold_calculator = self.adaptive_thresholds.get(&class_idx).unwrap();
                 threshold_calculator.get_adaptive_threshold(self.config.false_positive_penalty)
             } else {
                 base_sensitivity
             };
             
             // Update patience validator
-            let _patience_validator = self.patience_validators.get_mut(&class_idx).unwrap();
+            let patience_validator = self.patience_validators.get_mut(&class_idx).unwrap();
             patience_validator.add_prediction(confidence, adaptive_threshold);
             
             // Check patience validation
-            let _patience_passed = patience_validator.validate(adaptive_threshold);
+            let patience_passed = patience_validator.validate(adaptive_threshold);
             
             // Check debounce timer
-            let _debounce_timer = self.debounce_timers.get(&class_idx).unwrap();
-            let _debounce_passed = debounce_timer.can_detect();
+            let debounce_timer = self.debounce_timers.get(&class_idx).unwrap();
+            let debounce_passed = debounce_timer.can_detect();
             
             // Apply all filters
             if confidence >= adaptive_threshold && patience_passed && debounce_passed {
@@ -346,7 +346,7 @@ impl ConfidenceFilter {
             }
             
             // Update adaptive threshold (assume false positive if confidence was high but filtered out)
-            let _is_false_positive = confidence >= base_sensitivity && filtered_predictions[class_idx] == 0.0;
+            let is_false_positive = confidence >= base_sensitivity && filtered_predictions[class_idx] == 0.0;
             if is_false_positive {
                 self.false_positives += 1;
             }
@@ -379,11 +379,11 @@ impl ConfidenceFilter {
         
         // Update existing components if configured
         if self.configured {
-            for _validator in self.patience_validators.values_mut() {
+            for validator in self.patience_validators.values_mut() {
                 *validator = PatienceValidator::new(self.config.patience_frames);
             }
             
-            for _timer in self.debounce_timers.values_mut() {
+            for timer in self.debounce_timers.values_mut() {
                 *timer = DebounceTimer::new(self.config.debounce_time_ms);
             }
         }
@@ -393,22 +393,22 @@ impl ConfidenceFilter {
     
     /// Get confidence metrics
     pub fn get_metrics(&self) -> ConfidenceMetrics {
-        let _uptime_hours = self.start_time.elapsed().as_secs_f32() / 3600.0;
+        let uptime_hours = self.start_time.elapsed().as_secs_f32() / 3600.0;
         
-        let _detection_rate = if uptime_hours > 0.0 {
+        let detection_rate = if uptime_hours > 0.0 {
             self.total_detections as f32 / uptime_hours
         } else {
             0.0
         };
         
-        let _false_positive_rate = if self.total_detections > 0 {
+        let false_positive_rate = if self.total_detections > 0 {
             self.false_positives as f32 / self.total_detections as f32
         } else {
             0.0
         };
         
         // Calculate mean adaptive threshold
-        let _adaptive_threshold = if !self.adaptive_thresholds.is_empty() {
+        let adaptive_threshold = if !self.adaptive_thresholds.is_empty() {
             self.adaptive_thresholds.values()
                 .map(|t| t.get_adaptive_threshold(self.config.false_positive_penalty))
                 .sum::<f32>() / self.adaptive_thresholds.len() as f32
@@ -417,7 +417,7 @@ impl ConfidenceFilter {
         };
         
         // Calculate mean noise level
-        let _noise_level = if !self.adaptive_thresholds.is_empty() {
+        let noise_level = if !self.adaptive_thresholds.is_empty() {
             self.adaptive_thresholds.values()
                 .map(|t| t.noise_level)
                 .sum::<f32>() / self.adaptive_thresholds.len() as f32
@@ -437,11 +437,11 @@ impl ConfidenceFilter {
     
     /// Reset filter state
     pub fn reset(&mut self) -> Result<(), ConfidenceError> {
-        for _validator in self.patience_validators.values_mut() {
+        for validator in self.patience_validators.values_mut() {
             validator.reset();
         }
         
-        for _timer in self.debounce_timers.values_mut() {
+        for timer in self.debounce_timers.values_mut() {
             timer.reset();
         }
         
@@ -491,7 +491,7 @@ mod tests {
     
     #[test]
     fn test_confidence_filter_creation() {
-        let _filter = ConfidenceFilter::new();
+        let filter = ConfidenceFilter::new();
         assert!(!filter.configured);
         assert_eq!(filter.num_classes, 0);
     }
@@ -509,8 +509,8 @@ mod tests {
         let mut filter = ConfidenceFilter::new();
         filter.configure(2).unwrap();
         
-        let _predictions = vec![0.8, 0.2];
-        let _filtered = filter.filter_predictions(&predictions, 0.5).unwrap();
+        let predictions = vec![0.8, 0.2];
+        let filtered = filter.filter_predictions(&predictions, 0.5).unwrap();
         
         // First prediction should pass (above threshold)
         // Second prediction should be filtered out (below threshold)
@@ -521,7 +521,7 @@ mod tests {
     #[test]
     fn test_patience_validation() {
         let mut filter = ConfidenceFilter::new();
-        let _config = ConfidenceConfig {
+        let config = ConfidenceConfig {
             patience_frames: 3,
             debounce_time_ms: 0, // Disable debounce for this test
             adaptive_threshold: false, // Disable adaptive threshold for predictable behavior
@@ -530,17 +530,17 @@ mod tests {
         filter.update_config(config).unwrap();
         filter.configure(1).unwrap();
         
-        let _high_confidence = vec![0.9];
+        let high_confidence = vec![0.9];
         
         // First two predictions should be filtered out (patience not met)
-        let _filtered1 = filter.filter_predictions(&high_confidence, 0.5).unwrap();
+        let filtered1 = filter.filter_predictions(&high_confidence, 0.5).unwrap();
         assert!((filtered1[0] - 0.0).abs() < f32::EPSILON);
         
-        let _filtered2 = filter.filter_predictions(&high_confidence, 0.5).unwrap();
+        let filtered2 = filter.filter_predictions(&high_confidence, 0.5).unwrap();
         assert!((filtered2[0] - 0.0).abs() < f32::EPSILON);
         
         // Third prediction should pass (patience met)
-        let _filtered3 = filter.filter_predictions(&high_confidence, 0.5).unwrap();
+        let filtered3 = filter.filter_predictions(&high_confidence, 0.5).unwrap();
         assert!(filtered3[0] > 0.0);
     }
     
@@ -566,14 +566,14 @@ mod tests {
         threshold.update(0.6, true);
         threshold.update(0.7, true);
         
-        let _adaptive = threshold.get_adaptive_threshold(0.1);
+        let adaptive = threshold.get_adaptive_threshold(0.1);
         assert!(adaptive > 0.5); // Should increase due to false positives
     }
     
     #[test]
     fn test_noise_gate() {
         let mut filter = ConfidenceFilter::new();
-        let _config = ConfidenceConfig {
+        let config = ConfidenceConfig {
             noise_gate_threshold: 0.1,
             patience_frames: 1, // Minimal patience for this test
             adaptive_threshold: false, // Disable adaptive threshold for predictable behavior
@@ -583,13 +583,13 @@ mod tests {
         filter.configure(1).unwrap();
         
         // Low confidence below noise gate
-        let _low_predictions = vec![0.05];
-        let _filtered = filter.filter_predictions(&low_predictions, 0.01).unwrap();
+        let low_predictions = vec![0.05];
+        let filtered = filter.filter_predictions(&low_predictions, 0.01).unwrap();
         assert!((filtered[0] - 0.0).abs() < f32::EPSILON);
         
         // Higher confidence above noise gate
-        let _high_predictions = vec![0.15];
-        let _filtered = filter.filter_predictions(&high_predictions, 0.01).unwrap();
+        let high_predictions = vec![0.15];
+        let filtered = filter.filter_predictions(&high_predictions, 0.01).unwrap();
         assert!(filtered[0] > 0.0);
     }
     
@@ -599,12 +599,12 @@ mod tests {
         filter.configure(1).unwrap();
         
         // Generate some predictions
-        for __ in 0..10 {
-            let _predictions = vec![0.8];
+        for _ in 0..10 {
+            let predictions = vec![0.8];
             filter.filter_predictions(&predictions, 0.5).unwrap();
         }
         
-        let _metrics = filter.get_metrics();
+        let metrics = filter.get_metrics();
         assert!(metrics.detection_rate >= 0.0);
         assert!(metrics.false_positive_rate >= 0.0);
         assert!(metrics.adaptive_threshold > 0.0);
@@ -625,7 +625,7 @@ mod tests {
         filter.configure(1).unwrap();
         
         // Generate some activity
-        let _predictions = vec![0.8];
+        let predictions = vec![0.8];
         filter.filter_predictions(&predictions, 0.5).unwrap();
         
         assert!(filter.reset().is_ok());
@@ -642,11 +642,11 @@ mod tests {
         
         // Invalid threshold
         filter.configure(1).unwrap();
-        let _predictions = vec![0.5];
+        let predictions = vec![0.5];
         assert!(filter.filter_predictions(&predictions, 1.5).is_err());
         
         // Wrong number of predictions
-        let _wrong_predictions = vec![0.5, 0.6]; // Expected 1, got 2
+        let wrong_predictions = vec![0.5, 0.6]; // Expected 1, got 2
         assert!(filter.filter_predictions(&wrong_predictions, 0.5).is_err());
     }
     

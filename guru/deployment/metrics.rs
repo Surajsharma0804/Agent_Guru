@@ -103,6 +103,14 @@ impl InstallationMetrics {
         self.last_updated = SystemTime::now();
     }
     
+    /// Record operation timing for detailed analysis
+    fn record_operation_timing(&mut self, operation: &str, duration: Duration) {
+        self.operation_timings
+            .entry(operation.to_string())
+            .or_insert_with(Vec::new)
+            .push(duration);
+    }
+    
     /// Record signature verification time
     pub fn record_signature_verification_time(&mut self, duration: Duration) {
         self.signature_verification_time = duration;
@@ -206,19 +214,20 @@ impl InstallationMetrics {
     }
     
     /// Increment a performance counter
-    pub fn increment_performance_counter(&mut self, _name: &str, value: u64) {
+    pub fn increment_performance_counter(&mut self, name: &str, value: u64) {
         *self.performance_counters.entry(name.to_string()).or_insert(0) += value;
         self.last_updated = SystemTime::now();
     }
     
     /// Increment an error counter
-    pub fn increment_error_counter(&mut self, _category: &str) {
+    pub fn increment_error_counter(&mut self, category: &str) {
         *self.error_counters.entry(category.to_string()).or_insert(0) += 1;
         self.last_updated = SystemTime::now();
     }
     
     /// Record operation timing for statistical analysis
-    fn record_operation_timing(&mut self, _operation: &str, duration: Duration) {
+    #[allow(dead_code)]
+    fn recordoperation_timing(&mut self, operation: &str, duration: Duration) {
         self.operation_timings
             .entry(operation.to_string())
             .or_insert_with(Vec::new)
@@ -226,7 +235,7 @@ impl InstallationMetrics {
     }
     
     /// Get average time for an operation
-    pub fn get_average_operation_time(&self, _operation: &str) -> Option<Duration> {
+    pub fn get_averageoperation_time(&self, operation: &str) -> Option<Duration> {
         if let Some(timings) = self.operation_timings.get(operation) {
             if !timings.is_empty() {
                 let total: Duration = timings.iter().sum();
@@ -240,7 +249,7 @@ impl InstallationMetrics {
     }
     
     /// Get percentile time for an operation
-    pub fn get_operation_time_percentile(&self, _operation: &str, percentile: f32) -> Option<Duration> {
+    pub fn getoperation_time_percentile(&self, operation: &str, percentile: f32) -> Option<Duration> {
         if let Some(timings) = self.operation_timings.get(operation) {
             if timings.is_empty() {
                 return None;
@@ -249,7 +258,7 @@ impl InstallationMetrics {
             let mut sorted_timings = timings.clone();
             sorted_timings.sort();
             
-            let _index = ((percentile / 100.0) * (sorted_timings.len() - 1) as f32) as usize;
+            let index = ((percentile / 100.0) * (sorted_timings.len() - 1) as f32) as usize;
             Some(sorted_timings[index])
         } else {
             None
@@ -317,17 +326,17 @@ impl InstallationMetrics {
         self.rollback_success_rate = self.rollback_success_rate.min(other.rollback_success_rate);
         
         // Merge performance counters
-        for (_key, value) in &other.performance_counters {
+        for (key, value) in &other.performance_counters {
             *self.performance_counters.entry(key.clone()).or_insert(0) += value;
         }
         
         // Merge error counters
-        for (_key, value) in &other.error_counters {
+        for (key, value) in &other.error_counters {
             *self.error_counters.entry(key.clone()).or_insert(0) += value;
         }
         
         // Merge operation timings
-        for (_operation, timings) in &other.operation_timings {
+        for (operation, timings) in &other.operation_timings {
             self.operation_timings
                 .entry(operation.clone())
                 .or_insert_with(Vec::new)

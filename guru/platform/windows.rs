@@ -21,8 +21,6 @@
 //! - UI tree extraction: ≤ 200ms for complete application UI analysis
 
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
-#![allow(missing_docs, dead_code)]
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::SystemTime;
@@ -33,14 +31,14 @@ use thiserror::Error;
 /// Windows-specific error types
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum WindowsError {
-    #[error("Win32 API error: {message} (_code: {_code})")]
-    Win32Error { message: String, _code: u32 },
+    #[error("Win32 API error: {message} (code: {code})")]
+    Win32Error { message: String, code: u32 },
     
     #[error("UI Automation error: {message}")]
     UIAutomationError { message: String },
     
-    #[error("Application not found: {_app_name}")]
-    ApplicationNotFound { _app_name: String },
+    #[error("Application not found: {app_name}")]
+    ApplicationNotFound { app_name: String },
     
     #[error("Window not found: {window_id}")]
     WindowNotFound { window_id: WindowId },
@@ -77,7 +75,7 @@ pub enum WindowAction {
     Restore,
     Close,
     Move { x: i32, y: i32 },
-    Resize { _width: u32, _height: u32 },
+    Resize { width: u32, height: u32 },
     BringToFront,
     SendToBack,
     SetAlwaysOnTop(bool),
@@ -112,7 +110,7 @@ pub enum SystemSetting {
     Brightness(u8),
     PowerPlan(String),
     NetworkProfile(String),
-    DisplayResolution { _width: u32, _height: u32 },
+    DisplayResolution { width: u32, height: u32 },
     TimeZone(String),
     RegistryValue { key: String, name: String, value: String },
 }
@@ -120,8 +118,8 @@ pub enum SystemSetting {
 /// Input event types for injection
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum InputEvent {
-    KeyPress { _key_code: u32, modifiers: Vec<String> },
-    KeyRelease { _key_code: u32 },
+    KeyPress { key_code: u32, modifiers: Vec<String> },
+    KeyRelease { key_code: u32 },
     MouseClick { x: i32, y: i32, button: MouseButton },
     MouseMove { x: i32, y: i32 },
     MouseScroll { x: i32, y: i32, delta: i32 },
@@ -157,15 +155,15 @@ pub struct UIElement {
 pub struct Rectangle {
     pub x: i32,
     pub y: i32,
-    pub _width: u32,
-    pub _height: u32,
+    pub width: u32,
+    pub height: u32,
 }
 
 /// Window information
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowInfo {
     pub window_id: WindowId,
-    pub _process_id: ProcessId,
+    pub process_id: ProcessId,
     pub title: String,
     pub class_name: String,
     pub bounds: Rectangle,
@@ -179,7 +177,7 @@ pub struct WindowInfo {
 /// Process information
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessInfo {
-    pub _process_id: ProcessId,
+    pub process_id: ProcessId,
     pub name: String,
     pub executable_path: PathBuf,
     pub command_line: String,
@@ -187,7 +185,7 @@ pub struct ProcessInfo {
     pub cpu_usage: f32,
     pub memory_usage: u64,
     pub start_time: SystemTime,
-    pub _window_count: u32,
+    pub window_count: u32,
 }
 
 /// Performance metrics for Windows operations
@@ -236,43 +234,43 @@ impl WindowsControlBridge {
     }
 
     /// Launch an application by name or path
-    pub fn launch_application(&mut self, _app_name: &str) -> Result<ProcessId, WindowsError> {
-        let _start_time = std::time::Instant::now();
+    pub fn launch_application(&mut self, app_name: &str) -> Result<ProcessId, WindowsError> {
+        let start_time = std::time::Instant::now();
         
         // Simulate application launch
-        let _process_id = ProcessId(fastrand::u32(1000..99999));
+        let process_id = ProcessId(fastrand::u32(1000..99999));
         
-        let _process_info = ProcessInfo {
-            _process_id,
-            name: _app_name.to_string(),
-            executable_path: PathBuf::from(format!("C:\\Program Files\\{}\\{}.exe", _app_name, _app_name)),
-            command_line: format!("\"{}\"", _app_name),
+        let process_info = ProcessInfo {
+            process_id,
+            name: app_name.to_string(),
+            executable_path: PathBuf::from(format!("C:\\Program Files\\{}\\{}.exe", app_name, app_name)),
+            command_line: format!("\"{}\"", app_name),
             working_directory: PathBuf::from("C:\\"),
             cpu_usage: 0.0,
             memory_usage: 50 * 1024 * 1024, // 50MB
             start_time: SystemTime::now(),
-            _window_count: 1,
+            window_count: 1,
         };
         
-        self.active_processes.insert(_process_id, process_info);
+        self.active_processes.insert(process_id, process_info);
         
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         self.performance_metrics.application_launch_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;
         
-        Ok(_process_id)
+        Ok(process_id)
     }
 
     /// Control a window with the specified action
     pub fn control_window(&mut self, window_id: WindowId, action: WindowAction) -> Result<(), WindowsError> {
-        let _start_time = std::time::Instant::now();
+        let start_time = std::time::Instant::now();
         
         if !self.active_windows.contains_key(&window_id) {
             // Create a mock window if it doesn't exist
-            let _window_info = WindowInfo {
+            let window_info = WindowInfo {
                 window_id,
-                _process_id: ProcessId(1234),
+                process_id: ProcessId(1234),
                 title: "Mock Window".to_string(),
                 class_name: "MockWindowClass".to_string(),
                 bounds: Rectangle { x: 100, y: 100, width: 800, height: 600 },
@@ -297,11 +295,11 @@ impl WindowsControlBridge {
                 WindowAction::Close => {
                     self.active_windows.remove(&window_id);
                 }
-                WindowAction::Move { _x, _y } => {
+                WindowAction::Move { x, y } => {
                     window_info.bounds.x = x;
                     window_info.bounds.y = y;
                 }
-                WindowAction::Resize { _width, _height } => {
+                WindowAction::Resize { width, height } => {
                     window_info.bounds.width = width;
                     window_info.bounds.height = height;
                 }
@@ -317,7 +315,7 @@ impl WindowsControlBridge {
             }
         }
         
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         self.performance_metrics.window_operation_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;
@@ -327,10 +325,10 @@ impl WindowsControlBridge {
 
     /// Perform file system operations
     pub fn perform_file_operation(&mut self, operation: FileOperation) -> Result<FileResult, WindowsError> {
-        let _start_time = std::time::Instant::now();
+        let start_time = std::time::Instant::now();
         
-        let _result = match operation {
-            FileOperation::Create { _path, _content } => {
+        let result = match operation {
+            FileOperation::Create { path, content: _ } => {
                 // Simulate file creation
                 if path.exists() {
                     FileResult::Error("File already exists".to_string())
@@ -338,7 +336,7 @@ impl WindowsControlBridge {
                     FileResult::Success
                 }
             }
-            FileOperation::Read { _path } => {
+            FileOperation::Read { path } => {
                 // Simulate file reading
                 if path.exists() {
                     FileResult::Content(b"Mock file content".to_vec())
@@ -346,27 +344,27 @@ impl WindowsControlBridge {
                     FileResult::Error("File not found".to_string())
                 }
             }
-            FileOperation::Write { _path, _content } => {
+            FileOperation::Write { path: _, content: _ } => {
                 // Simulate file writing
                 FileResult::Success
             }
-            FileOperation::Delete { _path } => {
+            FileOperation::Delete { path: _ } => {
                 // Simulate file deletion
                 FileResult::Success
             }
-            FileOperation::Move { _from, _to } => {
+            FileOperation::Move { from: _, to: _ } => {
                 // Simulate file move
                 FileResult::Success
             }
-            FileOperation::Copy { _from, _to } => {
+            FileOperation::Copy { from: _, to: _ } => {
                 // Simulate file copy
                 FileResult::Success
             }
-            FileOperation::CreateDirectory { _path } => {
+            FileOperation::CreateDirectory { path: _ } => {
                 // Simulate directory creation
                 FileResult::Success
             }
-            FileOperation::ListDirectory { _path } => {
+            FileOperation::ListDirectory { path: _ } => {
                 // Simulate directory listing
                 FileResult::DirectoryListing(vec![
                     PathBuf::from("file1.txt"),
@@ -376,7 +374,7 @@ impl WindowsControlBridge {
             }
         };
         
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         self.performance_metrics.file_operation_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;
@@ -404,7 +402,7 @@ impl WindowsControlBridge {
                     });
                 }
             }
-            SystemSetting::DisplayResolution { _width, _height } => {
+            SystemSetting::DisplayResolution { width, height } => {
                 if width < 640 || height < 480 {
                     return Err(WindowsError::InvalidParameter {
                         parameter: "resolution".to_string(),
@@ -423,12 +421,12 @@ impl WindowsControlBridge {
 
     /// Inject input events
     pub fn inject_input_event(&mut self, event: InputEvent) -> Result<(), WindowsError> {
-        let _start_time = std::time::Instant::now();
+        let start_time = std::time::Instant::now();
         
         // Simulate input event injection
         match event {
-            InputEvent::KeyPress { _key_code, _modifiers } => {
-                // Validate key _code
+            InputEvent::KeyPress { key_code, modifiers: _ } => {
+                // Validate key code
                 if key_code > 255 {
                     return Err(WindowsError::InvalidParameter {
                         parameter: "key_code".to_string(),
@@ -436,7 +434,7 @@ impl WindowsControlBridge {
                     });
                 }
             }
-            InputEvent::MouseClick { _x, y, _button } => {
+            InputEvent::MouseClick { x, y, button: _ } => {
                 // Validate coordinates
                 if x < 0 || y < 0 {
                     return Err(WindowsError::InvalidParameter {
@@ -448,7 +446,7 @@ impl WindowsControlBridge {
             _ => {} // Other events are accepted as-is
         }
         
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         self.performance_metrics.event_injection_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;
@@ -458,7 +456,7 @@ impl WindowsControlBridge {
 
     /// Extract UI tree for an application
     pub fn extract_ui_tree(&mut self, _process_id: ProcessId) -> Result<UIElement, WindowsError> {
-        let _start_time = std::time::Instant::now();
+        let start_time = std::time::Instant::now();
         
         if !self.ui_automation_enabled {
             return Err(WindowsError::UIAutomationError {
@@ -467,7 +465,7 @@ impl WindowsControlBridge {
         }
         
         // Simulate UI tree extraction
-        let _ui_tree = UIElement {
+        let ui_tree = UIElement {
             element_id: Uuid::new_v4().to_string(),
             name: "Application Window".to_string(),
             class_name: "ApplicationFrameWindow".to_string(),
@@ -502,7 +500,7 @@ impl WindowsControlBridge {
             ],
         };
         
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         self.performance_metrics.ui_tree_extraction_time_ms = elapsed.as_millis() as u64;
         self.performance_metrics.total_operations += 1;
         self.performance_metrics.successful_operations += 1;

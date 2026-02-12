@@ -252,7 +252,7 @@ pub trait BiometricAuthenticator {
     /// Enroll a user with biometric data
     fn enroll_user(
         &mut self,
-        _user_id: &str,
+        user_id: &str,
         biometric_data: &BiometricData,
     ) -> Result<EnrollmentResult, BiometricError>;
     
@@ -272,7 +272,7 @@ pub trait BiometricAuthenticator {
     fn get_enrolled_users(&self) -> Vec<String>;
     
     /// Remove a user's biometric templates
-    fn remove_user(&mut self, _user_id: &str) -> Result<(), BiometricError>;
+    fn remove_user(&mut self, user_id: &str) -> Result<(), BiometricError>;
     
     /// Get authentication metrics
     fn get_metrics(&self) -> BiometricMetrics;
@@ -332,7 +332,7 @@ mod tests {
     
     #[test]
     fn test_biometric_template_creation() {
-        let _template = BiometricTemplate::new(
+        let template = BiometricTemplate::new(
             BiometricType::Face,
             vec![1, 2, 3, 4],
             Uuid::new_v4(),
@@ -347,15 +347,15 @@ mod tests {
     
     #[test]
     fn test_authentication_result() {
-        let _user_id = Uuid::new_v4();
-        let _modalities = vec![BiometricType::Face, BiometricType::Voice];
+        let user_id = Uuid::new_v4();
+        let modalities = vec![BiometricType::Face, BiometricType::Voice];
         
-        let _success_result = AuthenticationResult::success(user_id, 0.95, modalities.clone());
+        let success_result = AuthenticationResult::success(user_id, 0.95, modalities.clone());
         assert!(success_result.success);
         assert_eq!(success_result.user_id, Some(user_id));
         assert_eq!(success_result.confidence, 0.95);
         
-        let _failure_result = AuthenticationResult::failure(modalities);
+        let failure_result = AuthenticationResult::failure(modalities);
         assert!(!failure_result.success);
         assert_eq!(failure_result.user_id, None);
         assert_eq!(failure_result.confidence, 0.0);
@@ -363,7 +363,7 @@ mod tests {
     
     #[test]
     fn test_biometric_data_builder() {
-        let _data = BiometricData::new()
+        let data = BiometricData::new()
             .with_face_image(vec![1, 2, 3], 0.9)
             .with_voice_sample(vec![0.1, 0.2, 0.3], 0.8)
             .with_fingerprint_image(vec![4, 5, 6], 0.95);

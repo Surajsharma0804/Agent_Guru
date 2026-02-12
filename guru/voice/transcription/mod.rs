@@ -5,8 +5,6 @@
 //! performance with formal verification guarantees.
 
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
-#![allow(missing_docs, dead_code)]
-
 pub mod decoder;
 pub mod kv_cache;
 pub mod spectrogram;

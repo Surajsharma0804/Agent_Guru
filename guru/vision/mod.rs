@@ -104,15 +104,15 @@ pub struct ImageData {
     /// Raw image data in RGB format
     pub data: Vec<u8>,
     /// Image width in pixels
-    pub __width: u32,
+    pub width: u32,
     /// Image height in pixels  
-    pub __height: u32,
+    pub height: u32,
     /// Number of channels (typically 3 for RGB)
-    pub __channels: u32,
+    pub channels: u32,
     /// Timestamp when image was captured
     pub timestamp: Instant,
     /// Camera ID for multi-camera setups
-    pub __camera_id: u32,
+    pub camera_id: u32,
     /// Image format metadata
     pub format: ImageFormat,
 }
@@ -142,13 +142,13 @@ pub struct BoundingBox {
     /// Y coordinate of top-left corner
     pub y: f32,
     /// Width of bounding box
-    pub _width: f32,
+    pub width: f32,
     /// Height of bounding box
-    pub _height: f32,
+    pub height: f32,
     /// Confidence score (0.0 to 1.0)
     pub confidence: f32,
     /// Object class ID
-    pub __class_id: u32,
+    pub class_id: u32,
     /// Object class name
     pub class_name: String,
 }
@@ -159,7 +159,7 @@ pub struct DetectionResult {
     /// List of detected objects
     pub objects: Vec<BoundingBox>,
     /// Processing time in milliseconds
-    pub _processing_time_ms: u32,
+    pub processing_time_ms: u32,
     /// Frame timestamp
     pub timestamp: Instant,
     /// Detection confidence threshold used
@@ -180,9 +180,9 @@ pub struct TrackedObject {
     /// Tracking confidence
     pub tracking_confidence: f32,
     /// Number of frames tracked
-    pub _age: u32,
+    pub age: u32,
     /// Number of consecutive missed detections
-    pub _time_since_update: u32,
+    pub time_since_update: u32,
     /// Object velocity (pixels per frame)
     pub velocity: (f32, f32),
     /// Kalman filter state
@@ -197,15 +197,15 @@ pub struct TrackingResult {
     /// List of tracked objects
     pub tracked_objects: Vec<TrackedObject>,
     /// Processing time in milliseconds
-    pub _processing_time_ms: u32,
+    pub processing_time_ms: u32,
     /// Frame timestamp
     pub timestamp: Instant,
     /// Number of active tracks
-    pub _active_tracks: u32,
+    pub active_tracks: u32,
     /// Number of new tracks initiated
-    pub _new_tracks: u32,
+    pub new_tracks: u32,
     /// Number of tracks terminated
-    pub _terminated_tracks: u32,
+    pub terminated_tracks: u32,
 }
 
 /// OCR text detection result
@@ -231,7 +231,7 @@ pub struct OcrResult {
     /// List of detected text regions
     pub text_detections: Vec<TextDetection>,
     /// Processing time in milliseconds
-    pub _processing_time_ms: u32,
+    pub processing_time_ms: u32,
     /// Frame timestamp
     pub timestamp: Instant,
     /// Overall OCR confidence
@@ -273,7 +273,7 @@ pub struct GestureDetection {
     /// Hand landmarks (21 points)
     pub hand_landmarks: Vec<(f32, f32)>,
     /// Gesture duration
-    pub _duration_ms: u32,
+    pub duration_ms: u32,
     /// Gesture velocity
     pub velocity: (f32, f32),
 }
@@ -353,7 +353,7 @@ pub struct VisionConfig {
     /// Privacy mode enabled
     pub privacy_mode: bool,
     /// Maximum processing latency (ms)
-    pub __max_latency_ms: u32,
+    pub max_latency_ms: u32,
     /// Target frame rate
     pub target_fps: f32,
     /// Maximum memory usage (bytes)
@@ -365,7 +365,7 @@ pub struct VisionConfig {
     /// Tracking confidence threshold
     pub tracking_confidence_threshold: f32,
     /// Maximum number of tracked objects
-    pub __max_tracked_objects: u32,
+    pub max_tracked_objects: u32,
     /// Hardware acceleration preferences
     pub hardware_acceleration: HardwareAcceleration,
 }
@@ -405,22 +405,22 @@ pub struct PerformanceMonitor {
     detection_times: Vec<Duration>,
     tracking_times: Vec<Duration>,
     ocr_times: Vec<Duration>,
-    memory_samples: Vec<u64>,
-    start_time: Instant,
+    _memory_samples: Vec<u64>,
+    _start_time: Instant,
 }
 
 impl VisionProcessor {
     /// Create new vision processor with configuration
     pub fn new(config: VisionConfig) -> VisionResult<Self> {
-        let _detector = detection::create_detector(&config)?;
-        let _tracker = Arc::new(Mutex::new(tracking::create_tracker(&config)?));
-        let _ocr_engine = ocr::create_ocr_engine(&config)?;
-        let _face_recognizer = face_recognition::create_face_recognizer(&config)?;
-        let _gesture_detector = gesture_detection::create_gesture_detector(&config)?;
-        let _scene_analyzer = scene_understanding::create_scene_analyzer(&config)?;
-        let _privacy_manager = Arc::new(Mutex::new(privacy::PrivacyManager::new(&config)?));
+        let detector = detection::create_detector(&config)?;
+        let tracker = Arc::new(Mutex::new(tracking::create_tracker(&config)?));
+        let ocr_engine = ocr::create_ocr_engine(&config)?;
+        let face_recognizer = face_recognition::create_face_recognizer(&config)?;
+        let gesture_detector = gesture_detection::create_gesture_detector(&config)?;
+        let scene_analyzer = scene_understanding::create_scene_analyzer(&config)?;
+        let privacy_manager = Arc::new(Mutex::new(privacy::PrivacyManager::new(&config)?));
         
-        let _metrics = VisionMetrics {
+        let metrics = VisionMetrics {
             fps: 0.0,
             avg_detection_latency_ms: 0.0,
             avg_tracking_latency_ms: 0.0,
@@ -434,13 +434,13 @@ impl VisionProcessor {
             privacy_mode_active: config.privacy_mode,
         };
         
-        let _performance_monitor = PerformanceMonitor {
+        let performance_monitor = PerformanceMonitor {
             frame_times: Vec::with_capacity(1000),
             detection_times: Vec::with_capacity(1000),
             tracking_times: Vec::with_capacity(1000),
             ocr_times: Vec::with_capacity(1000),
-            memory_samples: Vec::with_capacity(1000),
-            start_time: Instant::now(),
+            _memory_samples: Vec::with_capacity(1000),
+            _start_time: Instant::now(),
         };
         
         Ok(Self {
@@ -458,8 +458,8 @@ impl VisionProcessor {
     }
     
     /// Process single frame with all enabled vision capabilities
-    pub fn process_frame(&mut self, _image: &ImageData) -> VisionResult<VisionFrameResult> {
-        let _frame_start = Instant::now();
+    pub fn process_frame(&mut self, image: &ImageData) -> VisionResult<VisionFrameResult> {
+        let frame_start = Instant::now();
         
         // Privacy check
         if self.config.privacy_mode {
@@ -479,7 +479,7 @@ impl VisionProcessor {
         
         // Object detection
         if self.config.enable_detection {
-            let _detection_start = Instant::now();
+            let detection_start = Instant::now();
             match self.detector.detect(image) {
                 Ok(detection_result) => {
                     result.detection_result = Some(detection_result);
@@ -494,7 +494,7 @@ impl VisionProcessor {
         
         // Multi-object tracking
         if self.config.enable_tracking && result.detection_result.is_some() {
-            let _tracking_start = Instant::now();
+            let tracking_start = Instant::now();
             match self.tracker.lock().unwrap().update(result.detection_result.as_ref().unwrap()) {
                 Ok(tracking_result) => {
                     result.tracking_result = Some(tracking_result);
@@ -509,7 +509,7 @@ impl VisionProcessor {
         
         // OCR processing
         if self.config.enable_ocr {
-            let _ocr_start = Instant::now();
+            let ocr_start = Instant::now();
             match self.ocr_engine.process(image) {
                 Ok(ocr_result) => {
                     result.ocr_result = Some(ocr_result);
@@ -545,7 +545,7 @@ impl VisionProcessor {
             }
         }
         
-        let _frame_time = frame_start.elapsed();
+        let frame_time = frame_start.elapsed();
         result.processing_time_ms = frame_time.as_millis() as u32;
         
         // Update performance metrics
@@ -557,10 +557,10 @@ impl VisionProcessor {
         }
         
         // Performance validation
-        if result.processing_time_ms > self.config.__max_latency_ms {
+        if result.processing_time_ms > self.config.max_latency_ms {
             return Err(VisionError::PerformanceViolation(
                 format!("Frame processing took {}ms, exceeds limit of {}ms", 
-                       result.processing_time_ms, self.config.__max_latency_ms)
+                       result.processing_time_ms, self.config.max_latency_ms)
             ));
         }
         
@@ -577,7 +577,7 @@ impl VisionProcessor {
             self.performance_monitor.frame_times.remove(0);
         }
         
-        let _avg_frame_time = self.performance_monitor.frame_times.iter()
+        let avg_frame_time = self.performance_monitor.frame_times.iter()
             .map(|d| d.as_secs_f32())
             .sum::<f32>() / self.performance_monitor.frame_times.len() as f32;
         
@@ -613,7 +613,7 @@ impl VisionProcessor {
     /// Update configuration
     pub fn update_config(&mut self, config: VisionConfig) -> VisionResult<()> {
         // Validate configuration
-        if config.__max_latency_ms == 0 {
+        if config.max_latency_ms == 0 {
             return Err(VisionError::ConfigurationError(
                 "Maximum latency must be greater than 0".to_string()
             ));
@@ -664,7 +664,7 @@ pub struct VisionFrameResult {
     /// Scene understanding results
     pub scene_understanding: Option<SceneUnderstanding>,
     /// Total processing time in milliseconds
-    pub _processing_time_ms: u32,
+    pub processing_time_ms: u32,
     /// Frame timestamp
     pub timestamp: Instant,
 }
@@ -679,13 +679,13 @@ impl Default for VisionConfig {
             enable_gesture_detection: true,
             enable_scene_understanding: true,
             privacy_mode: false,
-            __max_latency_ms: 40, // 40ms for 24+ FPS
+            max_latency_ms: 40, // 40ms for 24+ FPS
             target_fps: 30.0,
             max_memory_bytes: 1024 * 1024 * 1024, // 1GB
             detection_confidence_threshold: 0.5,
             nms_threshold: 0.4,
             tracking_confidence_threshold: 0.7,
-            __max_tracked_objects: 100,
+            max_tracked_objects: 100,
             hardware_acceleration: HardwareAcceleration::Auto,
         }
     }
@@ -697,19 +697,19 @@ pub mod bbox_utils {
     
     /// Calculate intersection over union (IoU) between two bounding boxes
     pub fn calculate_iou(box1: &BoundingBox, box2: &BoundingBox) -> f32 {
-        let _x1 = box1.x.max(box2.x);
-        let _y1 = box1.y.max(box2.y);
-        let _x2 = (box1.x + box1._width).min(box2.x + box2._width);
-        let _y2 = (box1.y + box1._height).min(box2.y + box2._height);
+        let x1 = box1.x.max(box2.x);
+        let y1 = box1.y.max(box2.y);
+        let x2 = (box1.x + box1.width).min(box2.x + box2.width);
+        let y2 = (box1.y + box1.height).min(box2.y + box2.height);
         
         if x2 <= x1 || y2 <= y1 {
             return 0.0;
         }
         
-        let _intersection = (x2 - x1) * (y2 - y1);
-        let _area1 = box1._width * box1._height;
-        let _area2 = box2._width * box2._height;
-        let _union = area1 + area2 - intersection;
+        let intersection = (x2 - x1) * (y2 - y1);
+        let area1 = box1.width * box1.height;
+        let area2 = box2.width * box2.height;
+        let union = area1 + area2 - intersection;
         
         if union <= 0.0 {
             0.0
@@ -720,36 +720,36 @@ pub mod bbox_utils {
     
     /// Convert bounding box from center format (x, y, w, h) to corner format (x1, y1, x2, y2)
     pub fn center_to_corner(x: f32, y: f32, w: f32, h: f32) -> (f32, f32, f32, f32) {
-        let _x1 = x - w / 2.0;
-        let _y1 = y - h / 2.0;
-        let _x2 = x + w / 2.0;
-        let _y2 = y + h / 2.0;
+        let x1 = x - w / 2.0;
+        let y1 = y - h / 2.0;
+        let x2 = x + w / 2.0;
+        let y2 = y + h / 2.0;
         (x1, y1, x2, y2)
     }
     
     /// Convert bounding box from corner format (x1, y1, x2, y2) to center format (x, y, w, h)
     pub fn corner_to_center(x1: f32, y1: f32, x2: f32, y2: f32) -> (f32, f32, f32, f32) {
-        let _x = (x1 + x2) / 2.0;
-        let _y = (y1 + y2) / 2.0;
-        let _w = x2 - x1;
-        let _h = y2 - y1;
+        let x = (x1 + x2) / 2.0;
+        let y = (y1 + y2) / 2.0;
+        let w = x2 - x1;
+        let h = y2 - y1;
         (x, y, w, h)
     }
     
     /// Clip bounding box to image boundaries
-    pub fn clip_bbox(bbox: &mut BoundingBox, _img__width: u32, _img__height: u32) {
+    pub fn clip_bbox(bbox: &mut BoundingBox, img_width: u32, img_height: u32) {
         bbox.x = bbox.x.max(0.0).min(img_width as f32);
         bbox.y = bbox.y.max(0.0).min(img_height as f32);
-        bbox._width = bbox._width.min(img_width as f32 - bbox.x);
-        bbox._height = bbox._height.min(img_height as f32 - bbox.y);
+        bbox.width = bbox.width.min(img_width as f32 - bbox.x);
+        bbox.height = bbox.height.min(img_height as f32 - bbox.y);
     }
     
     /// Scale bounding box coordinates
     pub fn scale_bbox(bbox: &mut BoundingBox, scale_x: f32, scale_y: f32) {
         bbox.x *= scale_x;
         bbox.y *= scale_y;
-        bbox._width *= scale_x;
-        bbox._height *= scale_y;
+        bbox.width *= scale_x;
+        bbox.height *= scale_y;
     }
 }
 
@@ -757,21 +757,20 @@ pub mod bbox_utils {
 mod tests {
     use super::*;
     use super::bbox_utils::*;
-use std::time::Instant;
     
     #[test]
     fn test_iou_calculation() {
-        let _box1 = BoundingBox {
-            x: 10.0, y: 10.0, _width: 20.0, _height: 20.0,
-            confidence: 0.9, __class_id: 0, class_name: "test".to_string(),
+        let box1 = BoundingBox {
+            x: 10.0, y: 10.0, width: 20.0, height: 20.0,
+            confidence: 0.9, class_id: 0, class_name: "test".to_string(),
         };
         
-        let _box2 = BoundingBox {
-            x: 15.0, y: 15.0, _width: 20.0, _height: 20.0,
-            confidence: 0.8, __class_id: 0, class_name: "test".to_string(),
+        let box2 = BoundingBox {
+            x: 15.0, y: 15.0, width: 20.0, height: 20.0,
+            confidence: 0.8, class_id: 0, class_name: "test".to_string(),
         };
         
-        let _iou = calculate_iou(&box1, &box2);
+        let iou = calculate_iou(&box1, &box2);
         assert!(iou > 0.0 && iou < 1.0);
     }
     
@@ -787,13 +786,13 @@ use std::time::Instant;
     #[test]
     fn test_bbox_clipping() {
         let mut bbox = BoundingBox {
-            x: -5.0, y: -5.0, _width: 50.0, _height: 50.0,
-            confidence: 0.9, __class_id: 0, class_name: "test".to_string(),
+            x: -5.0, y: -5.0, width: 50.0, height: 50.0,
+            confidence: 0.9, class_id: 0, class_name: "test".to_string(),
         };
         
         clip_bbox(&mut bbox, 100, 100);
         assert!(bbox.x >= 0.0 && bbox.y >= 0.0);
-        assert!(bbox.x + bbox._width <= 100.0);
-        assert!(bbox.y + bbox._height <= 100.0);
+        assert!(bbox.x + bbox.width <= 100.0);
+        assert!(bbox.y + bbox.height <= 100.0);
     }
 }

@@ -32,7 +32,7 @@ pub struct TrackingMetrics {
     /// Average tracking time (ms)
     pub avg_tracking_time_ms: f32,
     /// Number of active tracks
-    pub _active_tracks: u32,
+    pub active_tracks: u32,
     /// Total tracks created
     pub total_tracks_created: u64,
     /// Total tracks terminated
@@ -82,13 +82,13 @@ pub struct Track {
     /// Track state
     pub state: TrackState,
     /// Number of frames since last update
-    pub _time_since_update: u32,
+    pub time_since_update: u32,
     /// Track age in frames
-    pub _age: u32,
+    pub age: u32,
     /// Number of consecutive hits
-    pub _hits: u32,
+    pub hits: u32,
     /// Hit streak counter
-    pub _hit_streak: u32,
+    pub hit_streak: u32,
     /// Tracking confidence
     pub confidence: f32,
     /// Feature history for appearance matching
@@ -104,15 +104,15 @@ pub struct DeepSortTracker {
     /// Next track ID
     next_track_id: u64,
     /// Maximum age before track deletion
-    _max_age: u32,
+    max_age: u32,
     /// Minimum hits for track confirmation
-    _n_init: u32,
+    n_init: u32,
     /// Maximum IoU distance for association
     max_iou_distance: f32,
     /// Performance metrics
     metrics: TrackingMetrics,
     /// Association matrix
-    association_matrix: Vec<Vec<f32>>,
+    _association_matrix: Vec<Vec<f32>>,
     /// Chi-square distribution thresholds
     chi2_thresholds: HashMap<u32, f32>,
 }
@@ -120,23 +120,23 @@ pub struct DeepSortTracker {
 impl KalmanFilter {
     /// Create new Kalman filter
     pub fn new() -> Self {
-        let _state_dim = 8;
-        let _obs_dim = 4;
-        let _dt = 1.0; // Time step
+        let state_dim = 8;
+        let obs_dim = 4;
+        let dt = 1.0; // Time step
         
         // Create motion model matrix (constant velocity model)
         let mut motion_matrix = vec![vec![0.0; state_dim]; state_dim];
-        for _i in 0..obs_dim {
+        for i in 0..obs_dim {
             motion_matrix[i][i] = 1.0;
             motion_matrix[i][obs_dim + i] = dt;
         }
-        for _i in obs_dim..state_dim {
+        for i in obs_dim..state_dim {
             motion_matrix[i][i] = 1.0;
         }
         
         // Create observation matrix
         let mut observation_matrix = vec![vec![0.0; state_dim]; obs_dim];
-        for _i in 0..obs_dim {
+        for i in 0..obs_dim {
             observation_matrix[i][i] = 1.0;
         }
         
@@ -156,34 +156,34 @@ impl KalmanFilter {
         let mut covariance = vec![vec![0.0; self.state_dim]; self.state_dim];
         
         // Initialize position from measurement
-        for _i in 0..self.obs_dim {
+        for i in 0..self.obs_dim {
             mean[i] = measurement[i];
         }
         
         // Initialize velocity to zero
-        for _i in self.obs_dim..self.state_dim {
+        for i in self.obs_dim..self.state_dim {
             mean[i] = 0.0;
         }
         
         // Initialize covariance matrix
-        let _std_pos = [
+        let std_pos = [
             2.0 * self.std_weight_position * measurement[3], // x
             2.0 * self.std_weight_position * measurement[3], // y
             1e-2,                                            // aspect ratio
             2.0 * self.std_weight_position * measurement[3], // height
         ];
         
-        let _std_vel = [
+        let std_vel = [
             10.0 * self.std_weight_velocity * measurement[3], // vx
             10.0 * self.std_weight_velocity * measurement[3], // vy
             1e-5,                                             // va
             10.0 * self.std_weight_velocity * measurement[3], // vh
         ];
         
-        for _i in 0..self.obs_dim {
+        for i in 0..self.obs_dim {
             covariance[i][i] = std_pos[i] * std_pos[i];
         }
-        for _i in self.obs_dim..self.state_dim {
+        for i in self.obs_dim..self.state_dim {
             covariance[i][i] = std_vel[i - self.obs_dim] * std_vel[i - self.obs_dim];
         }
         
@@ -194,8 +194,8 @@ impl KalmanFilter {
     pub fn predict(&self, mean: &[f32], covariance: &[Vec<f32>]) -> (Vec<f32>, Vec<Vec<f32>>) {
         // Predict mean
         let mut predicted_mean = vec![0.0; self.state_dim];
-        for _i in 0..self.state_dim {
-            for _j in 0..self.state_dim {
+        for i in 0..self.state_dim {
+            for j in 0..self.state_dim {
                 predicted_mean[i] += self.motion_matrix[i][j] * mean[j];
             }
         }
@@ -204,10 +204,10 @@ impl KalmanFilter {
         let mut predicted_covariance = vec![vec![0.0; self.state_dim]; self.state_dim];
         
         // P = F * P * F^T + Q
-        for _i in 0..self.state_dim {
-            for _j in 0..self.state_dim {
-                for _k in 0..self.state_dim {
-                    for _l in 0..self.state_dim {
+        for i in 0..self.state_dim {
+            for j in 0..self.state_dim {
+                for k in 0..self.state_dim {
+                    for l in 0..self.state_dim {
                         predicted_covariance[i][j] += 
                             self.motion_matrix[i][k] * covariance[k][l] * self.motion_matrix[j][l];
                     }
@@ -216,24 +216,24 @@ impl KalmanFilter {
         }
         
         // Add process noise
-        let _std_pos = [
+        let std_pos = [
             self.std_weight_position * mean[3],
             self.std_weight_position * mean[3],
             1e-2,
             self.std_weight_position * mean[3],
         ];
         
-        let _std_vel = [
+        let std_vel = [
             self.std_weight_velocity * mean[3],
             self.std_weight_velocity * mean[3],
             1e-5,
             self.std_weight_velocity * mean[3],
         ];
         
-        for _i in 0..self.obs_dim {
+        for i in 0..self.obs_dim {
             predicted_covariance[i][i] += std_pos[i] * std_pos[i];
         }
-        for _i in self.obs_dim..self.state_dim {
+        for i in self.obs_dim..self.state_dim {
             predicted_covariance[i][i] += std_vel[i - self.obs_dim] * std_vel[i - self.obs_dim];
         }
         
@@ -248,27 +248,27 @@ impl KalmanFilter {
         let (projected_mean, projected_cov) = self.project(mean, covariance);
         
         // Calculate Kalman gain
-        let _kalman_gain = self.calculate_kalman_gain(covariance, &projected_cov);
+        let kalman_gain = self.calculate_kalman_gain(covariance, &projected_cov);
         
         // Calculate innovation
         let mut innovation = vec![0.0; self.obs_dim];
-        for _i in 0..self.obs_dim {
+        for i in 0..self.obs_dim {
             innovation[i] = measurement[i] - projected_mean[i];
         }
         
         // Update mean
         let mut updated_mean = mean.to_vec();
-        for _i in 0..self.state_dim {
-            for _j in 0..self.obs_dim {
+        for i in 0..self.state_dim {
+            for j in 0..self.obs_dim {
                 updated_mean[i] += kalman_gain[i][j] * innovation[j];
             }
         }
         
         // Update covariance
         let mut updated_covariance = covariance.to_vec();
-        for _i in 0..self.state_dim {
-            for _j in 0..self.state_dim {
-                for _k in 0..self.obs_dim {
+        for i in 0..self.state_dim {
+            for j in 0..self.state_dim {
+                for k in 0..self.obs_dim {
                     updated_covariance[i][j] -= kalman_gain[i][k] * projected_cov[k][j];
                 }
             }
@@ -283,17 +283,17 @@ impl KalmanFilter {
         let mut projected_cov = vec![vec![0.0; self.obs_dim]; self.obs_dim];
         
         // Project mean
-        for _i in 0..self.obs_dim {
-            for _j in 0..self.state_dim {
+        for i in 0..self.obs_dim {
+            for j in 0..self.state_dim {
                 projected_mean[i] += self.observation_matrix[i][j] * mean[j];
             }
         }
         
         // Project covariance
-        for _i in 0..self.obs_dim {
-            for _j in 0..self.obs_dim {
-                for _k in 0..self.state_dim {
-                    for _l in 0..self.state_dim {
+        for i in 0..self.obs_dim {
+            for j in 0..self.obs_dim {
+                for k in 0..self.state_dim {
+                    for l in 0..self.state_dim {
                         projected_cov[i][j] += 
                             self.observation_matrix[i][k] * covariance[k][l] * self.observation_matrix[j][l];
                     }
@@ -302,14 +302,14 @@ impl KalmanFilter {
         }
         
         // Add measurement noise
-        let _std = [
+        let std = [
             self.std_weight_position * mean[3],
             self.std_weight_position * mean[3],
             1e-1,
             self.std_weight_position * mean[3],
         ];
         
-        for _i in 0..self.obs_dim {
+        for i in 0..self.obs_dim {
             projected_cov[i][i] += std[i] * std[i];
         }
         
@@ -324,14 +324,14 @@ impl KalmanFilter {
         // In production, this would use proper matrix inversion
         let mut kalman_gain = vec![vec![0.0; self.obs_dim]; self.state_dim];
         
-        for _i in 0..self.state_dim {
-            for _j in 0..self.obs_dim {
+        for i in 0..self.state_dim {
+            for j in 0..self.obs_dim {
                 let mut numerator = 0.0;
-                for _k in 0..self.state_dim {
+                for k in 0..self.state_dim {
                     numerator += covariance[i][k] * self.observation_matrix[j][k];
                 }
                 
-                let _denominator = projected_cov[j][j].max(1e-6); // Avoid division by zero
+                let denominator = projected_cov[j][j].max(1e-6); // Avoid division by zero
                 kalman_gain[i][j] = numerator / denominator;
             }
         }
@@ -347,9 +347,9 @@ impl KalmanFilter {
         measurements.iter()
             .map(|measurement| {
                 let mut distance = 0.0;
-                for _i in 0..self.obs_dim {
-                    let _diff = measurement[i] - projected_mean[i];
-                    let _inv_cov = 1.0 / projected_cov[i][i].max(1e-6);
+                for i in 0..self.obs_dim {
+                    let diff = measurement[i] - projected_mean[i];
+                    let inv_cov = 1.0 / projected_cov[i][i].max(1e-6);
                     distance += diff * diff * inv_cov;
                 }
                 distance
@@ -360,8 +360,8 @@ impl KalmanFilter {
 
 impl DeepSortTracker {
     /// Create new Deep SORT tracker
-    pub fn new(__config: &VisionConfig) -> VisionResult<Self> {
-        let _kalman_filter = KalmanFilter::new();
+    pub fn new(_config: &VisionConfig) -> VisionResult<Self> {
+        let kalman_filter = KalmanFilter::new();
         
         // Chi-square distribution thresholds for gating
         let mut chi2_thresholds = HashMap::new();
@@ -370,7 +370,7 @@ impl DeepSortTracker {
         chi2_thresholds.insert(3, 7.8147);
         chi2_thresholds.insert(4, 9.4877);
         
-        let _metrics = TrackingMetrics {
+        let metrics = TrackingMetrics {
             avg_tracking_time_ms: 0.0,
             active_tracks: 0,
             total_tracks_created: 0,
@@ -387,17 +387,17 @@ impl DeepSortTracker {
             n_init: 3,
             max_iou_distance: 0.7,
             metrics,
-            association_matrix: Vec::new(),
+            _association_matrix: Vec::new(),
             chi2_thresholds,
         })
     }
     
     /// Convert detection to measurement format
     fn detection_to_measurement(&self, bbox: &super::BoundingBox) -> Vec<f32> {
-        let _center_x = bbox.x + bbox.width / 2.0;
-        let _center_y = bbox.y + bbox.height / 2.0;
-        let _aspect_ratio = bbox.width / bbox.height;
-        let _height = bbox.height;
+        let center_x = bbox.x + bbox.width / 2.0;
+        let center_y = bbox.y + bbox.height / 2.0;
+        let aspect_ratio = bbox.width / bbox.height;
+        let height = bbox.height;
         
         vec![center_x, center_y, aspect_ratio, height]
     }
@@ -417,7 +417,7 @@ impl DeepSortTracker {
         // Build cost matrix
         let mut cost_matrix = vec![vec![f32::INFINITY; detections.len()]; self.tracks.len()];
         
-        for (_track_idx, track) in self.tracks.iter().enumerate() {
+        for (track_idx, track) in self.tracks.iter().enumerate() {
             if track.state != TrackState::Confirmed {
                 continue;
             }
@@ -426,16 +426,16 @@ impl DeepSortTracker {
                 .map(|det| self.detection_to_measurement(det))
                 .collect();
             
-            let _gating_distances = self.kalman_filter.gating_distance(
+            let gating_distances = self.kalman_filter.gating_distance(
                 &track.mean, &track.covariance, &measurements
             );
             
-            for (_det_idx, &distance) in gating_distances.iter().enumerate() {
-                let _threshold = self.chi2_thresholds.get(&4).unwrap_or(&9.4877);
+            for (det_idx, &distance) in gating_distances.iter().enumerate() {
+                let threshold = self.chi2_thresholds.get(&4).unwrap_or(&9.4877);
                 if distance < *threshold {
                     // Use IoU as cost metric
-                    let _track_bbox = self.track_to_bbox(track);
-                    let _iou = self.calculate_iou(&track_bbox, &detections[det_idx]);
+                    let track_bbox = self.track_to_bbox(track);
+                    let iou = self.calculate_iou(&track_bbox, &detections[det_idx]);
                     cost_matrix[track_idx][det_idx] = 1.0 - iou;
                 }
             }
@@ -454,14 +454,14 @@ impl DeepSortTracker {
         
         let mut matches = Vec::new();
         let mut used_tracks = vec![false; cost_matrix.len()];
-        let mut used_detections = vec![false; if cost_matrix.is_empty() { _0 } else { cost_matrix[0].len() }];
+        let mut used_detections = vec![false; if cost_matrix.is_empty() { 0 } else { cost_matrix[0].len() }];
         
         // Greedy assignment (simplified)
-        for _track_idx in 0..cost_matrix.len() {
+        for track_idx in 0..cost_matrix.len() {
             let mut best_det_idx = None;
             let mut best_cost = self.max_iou_distance;
             
-            for _det_idx in 0..cost_matrix[track_idx].len() {
+            for det_idx in 0..cost_matrix[track_idx].len() {
                 if !used_detections[det_idx] && cost_matrix[track_idx][det_idx] < best_cost {
                     best_cost = cost_matrix[track_idx][det_idx];
                     best_det_idx = Some(det_idx);
@@ -488,11 +488,11 @@ impl DeepSortTracker {
     
     /// Convert track state to bounding box
     fn track_to_bbox(&self, track: &Track) -> super::BoundingBox {
-        let _center_x = track.mean[0];
-        let _center_y = track.mean[1];
-        let _aspect_ratio = track.mean[2];
-        let _height = track.mean[3];
-        let _width = aspect_ratio * height;
+        let center_x = track.mean[0];
+        let center_y = track.mean[1];
+        let aspect_ratio = track.mean[2];
+        let height = track.mean[3];
+        let width = aspect_ratio * height;
         
         super::BoundingBox {
             x: center_x - width / 2.0,
@@ -507,19 +507,19 @@ impl DeepSortTracker {
     
     /// Calculate IoU between two bounding boxes
     fn calculate_iou(&self, box1: &super::BoundingBox, box2: &super::BoundingBox) -> f32 {
-        let _x1 = box1.x.max(box2.x);
-        let _y1 = box1.y.max(box2.y);
-        let _x2 = (box1.x + box1.width).min(box2.x + box2.width);
-        let _y2 = (box1.y + box1.height).min(box2.y + box2.height);
+        let x1 = box1.x.max(box2.x);
+        let y1 = box1.y.max(box2.y);
+        let x2 = (box1.x + box1.width).min(box2.x + box2.width);
+        let y2 = (box1.y + box1.height).min(box2.y + box2.height);
         
         if x2 <= x1 || y2 <= y1 {
             return 0.0;
         }
         
-        let _intersection = (x2 - x1) * (y2 - y1);
-        let _area1 = box1.width * box1.height;
-        let _area2 = box2.width * box2.height;
-        let _union = area1 + area2 - intersection;
+        let intersection = (x2 - x1) * (y2 - y1);
+        let area1 = box1.width * box1.height;
+        let area2 = box2.width * box2.height;
+        let union = area1 + area2 - intersection;
         
         if union <= 0.0 {
             0.0
@@ -530,10 +530,10 @@ impl DeepSortTracker {
     
     /// Create new track from detection
     fn initiate_track(&mut self, detection: &super::BoundingBox) {
-        let _measurement = self.detection_to_measurement(detection);
+        let measurement = self.detection_to_measurement(detection);
         let (mean, covariance) = self.kalman_filter.initiate(&measurement);
         
-        let _track = Track {
+        let track = Track {
             track_id: self.next_track_id,
             mean,
             covariance,
@@ -554,7 +554,7 @@ impl DeepSortTracker {
 
 impl MultiObjectTracker for DeepSortTracker {
     fn update(&mut self, detections: &DetectionResult) -> VisionResult<TrackingResult> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         
         // Predict all tracks
         self.predict()?;
@@ -564,9 +564,9 @@ impl MultiObjectTracker for DeepSortTracker {
             self.associate_detections(&detections.objects);
         
         // Update matched tracks
-        for (_track_idx, det_idx) in matches {
-            let _measurement = self.detection_to_measurement(&detections.objects[det_idx]);
-            let _track = &mut self.tracks[track_idx];
+        for (track_idx, det_idx) in matches {
+            let measurement = self.detection_to_measurement(&detections.objects[det_idx]);
+            let track = &mut self.tracks[track_idx];
             
             let (updated_mean, updated_covariance) = self.kalman_filter.update(
                 &track.mean, &track.covariance, &measurement
@@ -586,13 +586,13 @@ impl MultiObjectTracker for DeepSortTracker {
         }
         
         // Mark unmatched tracks as missed
-        for _track_idx in unmatched_tracks {
+        for track_idx in unmatched_tracks {
             self.tracks[track_idx].time_since_update += 1;
             self.tracks[track_idx].hit_streak = 0;
         }
         
         // Create new tracks for unmatched detections
-        for _det_idx in unmatched_detections {
+        for det_idx in unmatched_detections {
             self.initiate_track(&detections.objects[det_idx]);
         }
         
@@ -618,7 +618,7 @@ impl MultiObjectTracker for DeepSortTracker {
         let tracked_objects: Vec<TrackedObject> = self.tracks.iter()
             .filter(|track| track.state == TrackState::Confirmed)
             .map(|track| {
-                let _bbox = self.track_to_bbox(track);
+                let bbox = self.track_to_bbox(track);
                 
                 TrackedObject {
                     track_id: track.track_id,
@@ -637,7 +637,7 @@ impl MultiObjectTracker for DeepSortTracker {
             })
             .collect();
         
-        let _processing_time = start_time.elapsed();
+        let processing_time = start_time.elapsed();
         self.metrics.active_tracks = tracked_objects.len() as u32;
         
         Ok(TrackingResult {
@@ -651,7 +651,7 @@ impl MultiObjectTracker for DeepSortTracker {
     }
     
     fn predict(&mut self) -> VisionResult<()> {
-        for _track in &mut self.tracks {
+        for track in &mut self.tracks {
             let (predicted_mean, predicted_covariance) = 
                 self.kalman_filter.predict(&track.mean, &track.covariance);
             
@@ -688,8 +688,8 @@ impl MultiObjectTracker for DeepSortTracker {
 }
 
 /// Create multi-object tracker based on configuration
-pub fn create_tracker(_config: &VisionConfig) -> VisionResult<Box<dyn MultiObjectTracker + Send + Sync>> {
-    let _tracker = DeepSortTracker::new(config)?;
+pub fn create_tracker(config: &VisionConfig) -> VisionResult<Box<dyn MultiObjectTracker + Send + Sync>> {
+    let tracker = DeepSortTracker::new(config)?;
     Ok(Box::new(tracker))
 }
 
@@ -707,13 +707,13 @@ pub mod tracking_utils {
         let mut norm1 = 0.0;
         let mut norm2 = 0.0;
         
-        for _i in 0..features1.len() {
+        for i in 0..features1.len() {
             dot_product += features1[i] * features2[i];
             norm1 += features1[i] * features1[i];
             norm2 += features2[i] * features2[i];
         }
         
-        let _norm_product = (norm1 * norm2).sqrt();
+        let norm_product = (norm1 * norm2).sqrt();
         if norm_product > 0.0 {
             dot_product / norm_product
         } else {
@@ -722,8 +722,8 @@ pub mod tracking_utils {
     }
     
     /// Predict future position based on velocity
-    pub fn predict_position(current_pos: (f32, f32), velocity: (f32, f32), _time_steps: u32) -> (f32, f32) {
-        let _dt = time_steps as f32;
+    pub fn predict_position(current_pos: (f32, f32), velocity: (f32, f32), time_steps: u32) -> (f32, f32) {
+        let dt = time_steps as f32;
         (
             current_pos.0 + velocity.0 * dt,
             current_pos.1 + velocity.1 * dt
@@ -732,9 +732,9 @@ pub mod tracking_utils {
     
     /// Calculate track quality score
     pub fn calculate_track_quality(track: &Track) -> f32 {
-        let _age_factor = (track.age as f32).min(10.0) / 10.0;
-        let _hit_ratio = track.hits as f32 / track.age as f32;
-        let _recency_factor = 1.0 / (1.0 + track.time_since_update as f32);
+        let age_factor = (track.age as f32).min(10.0) / 10.0;
+        let hit_ratio = track.hits as f32 / track.age as f32;
+        let recency_factor = 1.0 / (1.0 + track.time_since_update as f32);
         
         age_factor * hit_ratio * recency_factor * track.confidence
     }
@@ -746,15 +746,15 @@ mod tests {
     
     #[test]
     fn test_kalman_filter_creation() {
-        let _kf = KalmanFilter::new();
+        let kf = KalmanFilter::new();
         assert_eq!(kf.state_dim, 8);
         assert_eq!(kf.obs_dim, 4);
     }
     
     #[test]
     fn test_kalman_filter_initiate() {
-        let _kf = KalmanFilter::new();
-        let _measurement = vec![100.0, 200.0, 1.5, 50.0];
+        let kf = KalmanFilter::new();
+        let measurement = vec![100.0, 200.0, 1.5, 50.0];
         let (mean, covariance) = kf.initiate(&measurement);
         
         assert_eq!(mean.len(), 8);
@@ -767,22 +767,22 @@ mod tests {
     
     #[test]
     fn test_tracker_creation() {
-        let _config = VisionConfig::default();
-        let _tracker = DeepSortTracker::new(&config);
+        let config = VisionConfig::default();
+        let tracker = DeepSortTracker::new(&config);
         assert!(tracker.is_ok());
     }
     
     #[test]
     fn test_detection_to_measurement() {
-        let _config = VisionConfig::default();
-        let _tracker = DeepSortTracker::new(&config).unwrap();
+        let config = VisionConfig::default();
+        let tracker = DeepSortTracker::new(&config).unwrap();
         
-        let _bbox = super::super::BoundingBox {
+        let bbox = super::super::BoundingBox {
             x: 10.0, y: 20.0, width: 30.0, height: 40.0,
             confidence: 0.9, class_id: 0, class_name: "test".to_string(),
         };
         
-        let _measurement = tracker.detection_to_measurement(&bbox);
+        let measurement = tracker.detection_to_measurement(&bbox);
         assert_eq!(measurement.len(), 4);
         assert_eq!(measurement[0], 25.0); // center_x = 10 + 30/2
         assert_eq!(measurement[1], 40.0); // center_y = 20 + 40/2

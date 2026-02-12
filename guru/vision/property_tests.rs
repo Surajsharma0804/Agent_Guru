@@ -61,7 +61,7 @@ mod vision_property_tests {
                 ])
             ).prop_map(|(mut data, width, height, channels, camera_id, format)| {
                 // Ensure data size matches dimensions
-                let _expected_size = (width * height * channels) as usize;
+                let expected_size = (width * height * channels) as usize;
                 data.resize(expected_size, 0);
                 
                 ImageData {
@@ -87,13 +87,13 @@ mod vision_property_tests {
                 config.enable_gesture_detection = true;
                 config.enable_scene_understanding = true;
                 config.privacy_mode = false;
-                config._max_latency_ms = 40;
+                config.max_latency_ms = 40;
                 config.target_fps = 30.0;
                 config.max_memory_bytes = 1024 * 1024 * 1024; // 1GB
                 config.detection_confidence_threshold = 0.5;
                 config.nms_threshold = 0.4;
                 config.tracking_confidence_threshold = 0.7;
-                config._max_tracked_objects = 100;
+                config.max_tracked_objects = 100;
                 config.hardware_acceleration = HardwareAcceleration::Auto;
                 config
             })
@@ -122,8 +122,8 @@ mod vision_property_tests {
     /// Performance testing scenario
     #[derive(Debug, Clone)]
     pub struct PerformanceScenario {
-        _concurrent_cameras: u32,
-        _objects_in_scene: u32,
+        concurrent_cameras: u32,
+        objects_in_scene: u32,
         system_load_factor: f32,
         thermal_throttling: bool,
         memory_pressure: bool,
@@ -134,7 +134,7 @@ mod vision_property_tests {
         use super::*;
         
         /// Verify no image data is stored in privacy mode
-        pub fn verify_no_image_storage(processor: &VisionProcessor, _image: &ImageData) -> bool {
+        pub fn verify_no_image_storage(processor: &VisionProcessor, image: &ImageData) -> bool {
             // Check that no image data persists after processing in privacy mode
             if processor.get_metrics().privacy_mode_active {
                 // Simulate checking for image data persistence
@@ -146,16 +146,16 @@ mod vision_property_tests {
         }
         
         /// Verify secure deletion occurred
-        pub fn verify_secure_deletion(_image_data_ptr: *const u8, _size: usize) -> bool {
+        pub fn verify_secure_deletion(image_data_ptr: *const u8, size: usize) -> bool {
             // In production, this would verify memory has been securely overwritten
             // For testing, we assume secure deletion occurred
             true
         }
         
         /// Check for data anonymization
-        pub fn verify_data_anonymization(_original: &ImageData, _processed: &ImageData) -> bool {
+        pub fn verify_data_anonymization(original: &ImageData, processed: &ImageData) -> bool {
             // Verify that sensitive metadata has been removed/anonymized
-            processed._camera_id == 0 || original._camera_id == processed._camera_id
+            processed.camera_id == 0 || original.camera_id == processed.camera_id
         }
     }
     
@@ -191,29 +191,29 @@ mod vision_property_tests {
             if scenario.thermal_throttling {
                 // Simulate thermal throttling conditions
                 processor.update_config(VisionConfig {
-                    _max_latency_ms: config._max_latency_ms * 2, // Relaxed timing under thermal stress
+                    max_latency_ms: config.max_latency_ms * 2, // Relaxed timing under thermal stress
                     ..config.clone()
                 }).unwrap();
             }
             
-            let _start_time = Instant::now();
+            let start_time = Instant::now();
             
             // Process frame and measure performance
-            let _result = processor.process_frame(&image);
+            let result = processor.process_frame(&image);
             
-            let _processing_time = start_time.elapsed();
+            let processing_time = start_time.elapsed();
             
             // **Performance Property 1: Processing must complete within latency bounds**
             if result.is_ok() {
-                let _frame_result = result.unwrap();
+                let frame_result = result.unwrap();
                 prop_assert!(
-                    frame_result.processing_time_ms <= config._max_latency_ms,
+                    frame_result.processing_time_ms <= config.max_latency_ms,
                     "Processing time {}ms exceeds maximum latency {}ms",
-                    frame_result.processing_time_ms, config._max_latency_ms
+                    frame_result.processing_time_ms, config.max_latency_ms
                 );
                 
                 // **Performance Property 2: Frame rate must meet minimum requirements**
-                let _fps = 1000.0 / frame_result.processing_time_ms as f32;
+                let fps = 1000.0 / frame_result.processing_time_ms as f32;
                 if !scenario.thermal_throttling && !scenario.memory_pressure {
                     prop_assert!(
                         fps >= 24.0,
@@ -232,9 +232,9 @@ mod vision_property_tests {
                         );
                         
                         // All detected objects must have valid bounding boxes
-                        for _obj in &detection_result.objects {
+                        for obj in &detection_result.objects {
                             prop_assert!(obj.x >= 0.0 && obj.y >= 0.0);
-                            prop_assert!(obj._width > 0.0 && obj._height > 0.0);
+                            prop_assert!(obj.width > 0.0 && obj.height > 0.0);
                             prop_assert!(obj.confidence >= 0.0 && obj.confidence <= 1.0);
                         }
                     }
@@ -243,7 +243,7 @@ mod vision_property_tests {
                 // **Performance Property 4: Face recognition must meet timing constraints**
                 if config.enable_face_recognition && !frame_result.face_detections.is_empty() {
                     // Each face should be processed within 500ms
-                    for _face in &frame_result.face_detections {
+                    for face in &frame_result.face_detections {
                         prop_assert!(
                             face.recognition_confidence >= 0.0 && face.recognition_confidence <= 1.0,
                             "Invalid face recognition confidence: {}", face.recognition_confidence
@@ -265,7 +265,7 @@ mod vision_property_tests {
                         );
                         
                         // All text detections must have valid confidence scores
-                        for _text in &ocr_result.text_detections {
+                        for text in &ocr_result.text_detections {
                             prop_assert!(
                                 text.confidence >= 0.0 && text.confidence <= 1.0,
                                 "Invalid OCR confidence: {}", text.confidence
@@ -276,7 +276,7 @@ mod vision_property_tests {
             }
             
             // **Performance Property 6: Memory usage must stay within bounds**
-            let _metrics = processor.get_metrics();
+            let metrics = processor.get_metrics();
             prop_assert!(
                 metrics.memory_usage_bytes <= config.max_memory_bytes,
                 "Memory usage {} bytes exceeds limit {} bytes",
@@ -286,15 +286,15 @@ mod vision_property_tests {
             // **Performance Property 7: System must handle concurrent processing**
             if scenario.concurrent_cameras > 1 {
                 // Simulate multiple camera inputs
-                for _camera_id in 1..scenario._concurrent_cameras.min(4) {
+                for camera_id in 1..scenario.concurrent_cameras.min(4) {
                     let mut multi_camera_image = image.clone();
-                    multi_camera_image.__camera_id = camera_id;
+                    multi_camera_image.camera_id = camera_id;
                     
-                    let _multi_result = processor.process_frame(&multi_camera_image);
+                    let multi_result = processor.process_frame(&multi_camera_image);
                     if multi_result.is_ok() {
-                        let _multi_frame_result = multi_result.unwrap();
+                        let multi_frame_result = multi_result.unwrap();
                         prop_assert!(
-                            multi_frame_result.processing_time_ms <= config.__max_latency_ms * 2,
+                            multi_frame_result.processing_time_ms <= config.max_latency_ms * 2,
                             "Multi-camera processing time {}ms exceeds relaxed limit",
                             multi_frame_result.processing_time_ms
                         );
@@ -336,14 +336,14 @@ mod vision_property_tests {
             }
             
             // Store original image data for privacy verification
-            let _original_image_ptr = image.data.as_ptr();
-            let _original_image_size = image.data.len();
+            let original_image_ptr = image.data.as_ptr();
+            let original_image_size = image.data.len();
             
             // Process frame
-            let _result = processor.process_frame(&image);
+            let result = processor.process_frame(&image);
             
             if result.is_ok() {
-                let _frame_result = result.unwrap();
+                let frame_result = result.unwrap();
                 
                 // **Scene Understanding Property 1: Spatial relationships must be valid**
                 if let Some(scene) = &frame_result.scene_understanding {
@@ -354,7 +354,7 @@ mod vision_property_tests {
                     );
                     
                     // Validate spatial relationships
-                    for _relationship in &scene.spatial_relationships {
+                    for relationship in &scene.spatial_relationships {
                         prop_assert!(
                             relationship.confidence >= 0.0 && relationship.confidence <= 1.0,
                             "Invalid spatial relationship confidence: {}", relationship.confidence
@@ -387,7 +387,7 @@ mod vision_property_tests {
                 // **Privacy Property 4: Data anonymization in privacy mode**
                 if privacy_enabled && frame_result.face_detections.len() > 0 {
                     // Face detection results should not contain identifying information
-                    for _face in &frame_result.face_detections {
+                    for face in &frame_result.face_detections {
                         prop_assert!(
                             face.person_id.is_none(),
                             "Person ID should be None in privacy mode"
@@ -396,13 +396,13 @@ mod vision_property_tests {
                 }
                 
                 // **Multi-Camera Property: Support multiple simultaneous inputs**
-                if image.__camera_id > 0 {
+                if image.camera_id > 0 {
                     // Test with different camera IDs
-                    for _test_camera_id in 1..=4u32 {
+                    for test_camera_id in 1..=4u32 {
                         let mut multi_camera_image = image.clone();
-                        multi_camera_image.__camera_id = test_camera_id;
+                        multi_camera_image.camera_id = test_camera_id;
                         
-                        let _multi_result = processor.process_frame(&multi_camera_image);
+                        let multi_result = processor.process_frame(&multi_camera_image);
                         prop_assert!(
                             multi_result.is_ok() || privacy_enabled,
                             "Multi-camera processing failed for camera {}", test_camera_id
@@ -413,30 +413,30 @@ mod vision_property_tests {
                 // **Lighting Adaptation Property: System must handle various lighting conditions**
                 // Simulate different lighting by modifying image brightness
                 let mut dark_image = image.clone();
-                for _pixel in dark_image.data.iter_mut() {
+                for pixel in dark_image.data.iter_mut() {
                     *pixel = (*pixel as f32 * 0.3) as u8; // Simulate low light
                 }
                 
-                let _dark_result = processor.process_frame(&dark_image);
+                let dark_result = processor.process_frame(&dark_image);
                 if dark_result.is_ok() {
-                    let _dark_frame_result = dark_result.unwrap();
+                    let dark_frame_result = dark_result.unwrap();
                     // System should still produce valid results under different lighting
                     prop_assert!(
-                        dark_frame_result.processing_time_ms <= config.__max_latency_ms * 2,
+                        dark_frame_result.processing_time_ms <= config.max_latency_ms * 2,
                         "Processing under low light conditions exceeded time limits"
                     );
                 }
                 
                 let mut bright_image = image.clone();
-                for _pixel in bright_image.data.iter_mut() {
+                for pixel in bright_image.data.iter_mut() {
                     *pixel = (*pixel as f32 * 1.7).min(255.0) as u8; // Simulate bright light
                 }
                 
-                let _bright_result = processor.process_frame(&bright_image);
+                let bright_result = processor.process_frame(&bright_image);
                 if bright_result.is_ok() {
-                    let _bright_frame_result = bright_result.unwrap();
+                    let bright_frame_result = bright_result.unwrap();
                     prop_assert!(
-                        bright_frame_result.processing_time_ms <= config.__max_latency_ms * 2,
+                        bright_frame_result.processing_time_ms <= config.max_latency_ms * 2,
                         "Processing under bright light conditions exceeded time limits"
                     );
                 }
@@ -444,7 +444,7 @@ mod vision_property_tests {
             
             // **Privacy Property 5: Memory must be clean after privacy processing**
             if privacy_enabled {
-                let _final_metrics = processor.get_metrics();
+                let final_metrics = processor.get_metrics();
                 prop_assert!(
                     final_metrics.privacy_mode_active,
                     "Privacy mode should remain active after processing"
@@ -475,13 +475,13 @@ mod vision_property_tests {
             let mut processor = VisionProcessor::new(config.clone()).unwrap();
             
             // Process frame for gesture and anomaly detection
-            let _result = processor.process_frame(&image);
+            let result = processor.process_frame(&image);
             
             if result.is_ok() {
-                let _frame_result = result.unwrap();
+                let frame_result = result.unwrap();
                 
                 // **Gesture Detection Property 1: Valid gesture classifications**
-                for _gesture in &frame_result.gesture_detections {
+                for gesture in &frame_result.gesture_detections {
                     prop_assert!(
                         !gesture.gesture_type.is_empty(),
                         "Gesture type cannot be empty"
@@ -502,7 +502,7 @@ mod vision_property_tests {
                             "Too many hand landmarks: {}", gesture.hand_landmarks.len()
                         );
                         
-                        for (_x, y) in &gesture.hand_landmarks {
+                        for (x, y) in &gesture.hand_landmarks {
                             prop_assert!(
                                 *x >= 0.0 && *y >= 0.0,
                                 "Invalid hand landmark coordinates: ({}, {})", x, y
@@ -511,7 +511,7 @@ mod vision_property_tests {
                     }
                     
                     // Bounding box must be valid
-                    prop_assert!(gesture.hand_bbox._width > 0.0 && gesture.hand_bbox._height > 0.0);
+                    prop_assert!(gesture.hand_bbox.width > 0.0 && gesture.hand_bbox.height > 0.0);
                     prop_assert!(gesture.hand_bbox.x >= 0.0 && gesture.hand_bbox.y >= 0.0);
                 }
                 
@@ -526,7 +526,7 @@ mod vision_property_tests {
                     }
                     
                     // Check for objects with unusual confidence patterns
-                    let _low_confidence_objects = detection_result.objects.iter()
+                    let low_confidence_objects = detection_result.objects.iter()
                         .filter(|obj| obj.confidence < anomaly_threshold)
                         .count();
                     
@@ -544,13 +544,13 @@ mod vision_property_tests {
                 if anomaly_detected {
                     // System should handle anomalies gracefully
                     prop_assert!(
-                        frame_result.processing_time_ms <= config.__max_latency_ms * 3,
+                        frame_result.processing_time_ms <= config.max_latency_ms * 3,
                         "Anomaly processing took too long: {}ms", frame_result.processing_time_ms
                     );
                 }
                 
                 // **Interaction Property 1: Face expressions must be valid**
-                for _face in &frame_result.face_detections {
+                for face in &frame_result.face_detections {
                     if let Some(emotion) = &face.emotion {
                         prop_assert!(
                             !emotion.is_empty(),
@@ -572,7 +572,7 @@ mod vision_property_tests {
                             "Too many facial landmarks: {}", face.landmarks.len()
                         );
                         
-                        for (_x, y) in &face.landmarks {
+                        for (x, y) in &face.landmarks {
                             prop_assert!(
                                 *x >= 0.0 && *y >= 0.0,
                                 "Invalid facial landmark coordinates: ({}, {})", x, y
@@ -584,7 +584,7 @@ mod vision_property_tests {
                 // **Performance Property: Interaction processing must be timely**
                 if !frame_result.gesture_detections.is_empty() || !frame_result.face_detections.is_empty() {
                     prop_assert!(
-                        frame_result.processing_time_ms <= config.__max_latency_ms,
+                        frame_result.processing_time_ms <= config.max_latency_ms,
                         "Interaction processing exceeded time limit: {}ms", frame_result.processing_time_ms
                     );
                 }
@@ -594,26 +594,26 @@ mod vision_property_tests {
                 let mut noisy_image = image.clone();
                 
                 // Add noise to simulate challenging conditions
-                for (_i, pixel) in noisy_image.data.iter_mut().enumerate() {
+                for (i, pixel) in noisy_image.data.iter_mut().enumerate() {
                     if i % 10 == 0 {
                         *pixel = (*pixel as u16 + (i % 50) as u16).min(255) as u8;
                     }
                 }
                 
-                let _noisy_result = processor.process_frame(&noisy_image);
+                let noisy_result = processor.process_frame(&noisy_image);
                 if noisy_result.is_ok() {
-                    let _noisy_frame_result = noisy_result.unwrap();
+                    let noisy_frame_result = noisy_result.unwrap();
                     
                     // System should still function under noisy conditions
                     prop_assert!(
-                        noisy_frame_result.processing_time_ms <= config.__max_latency_ms * 2,
+                        noisy_frame_result.processing_time_ms <= config.max_latency_ms * 2,
                         "Noisy image processing exceeded relaxed time limit"
                     );
                 }
             }
             
             // **System State Property: Metrics must remain consistent**
-            let _final_metrics = processor.get_metrics();
+            let final_metrics = processor.get_metrics();
             prop_assert!(
                 final_metrics.frames_processed > 0,
                 "Frame counter should increment after processing"
@@ -656,19 +656,19 @@ mod vision_property_tests {
                 w2 in 1.0f32..=500.0f32,
                 h2 in 1.0f32..=500.0f32
             ) {
-                let _box1 = BoundingBox {
-                    x: x1, y: y1, _width: w1, _height: h1,
-                    confidence: 0.9, __class_id: 0, class_name: "test".to_string(),
+                let box1 = BoundingBox {
+                    x: x1, y: y1, width: w1, height: h1,
+                    confidence: 0.9, class_id: 0, class_name: "test".to_string(),
                 };
                 
-                let _box2 = BoundingBox {
-                    x: x2, y: y2, _width: w2, _height: h2,
-                    confidence: 0.8, __class_id: 0, class_name: "test".to_string(),
+                let box2 = BoundingBox {
+                    x: x2, y: y2, width: w2, height: h2,
+                    confidence: 0.8, class_id: 0, class_name: "test".to_string(),
                 };
                 
-                let _iou_ab = calculate_iou(&box1, &box2);
-                let _iou_ba = calculate_iou(&box2, &box1);
-                let _iou_aa = calculate_iou(&box1, &box1);
+                let iou_ab = calculate_iou(&box1, &box2);
+                let iou_ba = calculate_iou(&box2, &box1);
+                let iou_aa = calculate_iou(&box1, &box1);
                 
                 // **Property 1: IoU is bounded between 0 and 1**
                 prop_assert!(iou_ab >= 0.0 && iou_ab <= 1.0, "IoU out of bounds: {}", iou_ab);
@@ -694,17 +694,17 @@ mod vision_property_tests {
                 }
                 
                 // **Property 5: Monotonicity - larger overlap means higher IoU**
-                let _box3 = BoundingBox {
+                let box3 = BoundingBox {
                     x: x1 + w1 * 0.1, y: y1 + h1 * 0.1, 
-                    _width: w1 * 0.8, _height: h1 * 0.8,
-                    confidence: 0.7, __class_id: 0, class_name: "test".to_string(),
+                    width: w1 * 0.8, height: h1 * 0.8,
+                    confidence: 0.7, class_id: 0, class_name: "test".to_string(),
                 };
-                let _iou_a3 = calculate_iou(&box1, &box3);
+                let iou_a3 = calculate_iou(&box1, &box3);
                 
                 // box3 is contained in box1, so IoU should be high
                 if box3.x >= box1.x && box3.y >= box1.y && 
-                   box3.x + box3._width <= box1.x + box1._width &&
-                   box3.y + box3._height <= box1.y + box1._height {
+                   box3.x + box3.width <= box1.x + box1.width &&
+                   box3.y + box3.height <= box1.y + box1.height {
                     prop_assert!(
                         iou_a3 > 0.5,
                         "Contained box should have high IoU: {}", iou_a3
@@ -750,15 +750,15 @@ mod vision_property_tests {
                 
                 // **Property 2: Scaling preserves aspect ratios when uniform**
                 let mut bbox = BoundingBox {
-                    x: x1, y: y1, _width: x2 - x1, _height: y2 - y1,
-                    confidence: 0.9, __class_id: 0, class_name: "test".to_string(),
+                    x: x1, y: y1, width: x2 - x1, height: y2 - y1,
+                    confidence: 0.9, class_id: 0, class_name: "test".to_string(),
                 };
                 
-                let _original_aspect = bbox._width / bbox._height;
+                let original_aspect = bbox.width / bbox.height;
                 scale_bbox(&mut bbox, scale_x, scale_y);
                 
                 if (scale_x - scale_y).abs() < 1e-5 {
-                    let _new_aspect = bbox._width / bbox._height;
+                    let new_aspect = bbox.width / bbox.height;
                     prop_assert!(
                         (original_aspect - new_aspect).abs() < 1e-4,
                         "Uniform scaling should preserve aspect ratio: {} vs {}", original_aspect, new_aspect
@@ -766,16 +766,16 @@ mod vision_property_tests {
                 }
                 
                 // **Property 3: Clipping maintains valid bounds**
-                let _img_width = 800u32;
-                let _img_height = 600u32;
+                let img_width = 800u32;
+                let img_height = 600u32;
                 clip_bbox(&mut bbox, img_width, img_height);
                 
                 prop_assert!(bbox.x >= 0.0, "Clipped X coordinate is negative: {}", bbox.x);
                 prop_assert!(bbox.y >= 0.0, "Clipped Y coordinate is negative: {}", bbox.y);
-                prop_assert!(bbox.x <= img_width as f32, "Clipped X exceeds image _width: {}", bbox.x);
-                prop_assert!(bbox.y <= img_height as f32, "Clipped Y exceeds image _height: {}", bbox.y);
-                prop_assert!(bbox.x + bbox._width <= img_width as f32, "Clipped bbox exceeds image width");
-                prop_assert!(bbox.y + bbox._height <= img_height as f32, "Clipped bbox exceeds image height");
+                prop_assert!(bbox.x <= img_width as f32, "Clipped X exceeds image width: {}", bbox.x);
+                prop_assert!(bbox.y <= img_height as f32, "Clipped Y exceeds image height: {}", bbox.y);
+                prop_assert!(bbox.x + bbox.width <= img_width as f32, "Clipped bbox exceeds image width");
+                prop_assert!(bbox.y + bbox.height <= img_height as f32, "Clipped bbox exceeds image height");
             }
             
             /// **Mathematical Property: Kalman Filter State Prediction**
@@ -794,8 +794,8 @@ mod vision_property_tests {
             ) {
                 use crate::vision::tracking::KalmanFilter;
                 
-                let _kf = KalmanFilter::new();
-                let _measurement = vec![center_x, center_y, aspect_ratio, height];
+                let kf = KalmanFilter::new();
+                let measurement = vec![center_x, center_y, aspect_ratio, height];
                 
                 let (mut mean, mut covariance) = kf.initiate(&measurement);
                 
@@ -810,12 +810,12 @@ mod vision_property_tests {
                 prop_assert_eq!(mean[3], height, "Initial height should match measurement");
                 
                 // Velocity components should be initialized to zero
-                for _i in 4..8 {
+                for i in 4..8 {
                     prop_assert_eq!(mean[i], 0.0, "Initial velocity component {} should be zero", i);
                 }
                 
                 // Perform multiple prediction steps
-                for _step in 0..prediction_steps {
+                for step in 0..prediction_steps {
                     let (new_mean, new_covariance) = kf.predict(&mean, &covariance);
                     
                     // **Property 3: State dimensions remain consistent**
@@ -829,16 +829,16 @@ mod vision_property_tests {
                     );
                     
                     // **Property 4: Numerical stability (no NaN or infinite values)**
-                    for (_i, &value) in new_mean.iter().enumerate() {
+                    for (i, &value) in new_mean.iter().enumerate() {
                         prop_assert!(
                             value.is_finite(),
                             "State value at index {} became non-finite: {}", i, value
                         );
                     }
                     
-                    for (_i, row) in new_covariance.iter().enumerate() {
+                    for (i, row) in new_covariance.iter().enumerate() {
                         prop_assert_eq!(row.len(), 8, "Covariance row {} has wrong dimension", i);
-                        for (_j, &value) in row.iter().enumerate() {
+                        for (j, &value) in row.iter().enumerate() {
                             prop_assert!(
                                 value.is_finite(),
                                 "Covariance value at ({}, {}) became non-finite: {}", i, j, value
@@ -847,7 +847,7 @@ mod vision_property_tests {
                     }
                     
                     // **Property 5: Covariance diagonal elements should be non-negative**
-                    for _i in 0..8 {
+                    for i in 0..8 {
                         prop_assert!(
                             new_covariance[i][i] >= 0.0,
                             "Covariance diagonal element {} is negative: {}", i, new_covariance[i][i]
@@ -855,8 +855,8 @@ mod vision_property_tests {
                     }
                     
                     // **Property 6: Covariance matrix should be symmetric**
-                    for _i in 0..8 {
-                        for _j in 0..8 {
+                    for i in 0..8 {
+                        for j in 0..8 {
                             prop_assert!(
                                 (new_covariance[i][j] - new_covariance[j][i]).abs() < 1e-6,
                                 "Covariance matrix not symmetric at ({}, {}): {} vs {}", 
@@ -867,8 +867,8 @@ mod vision_property_tests {
                     
                     // **Property 7: Position should evolve according to velocity**
                     if step > 0 {
-                        let _expected_x = mean[0] + mean[4]; // x + vx
-                        let _expected_y = mean[1] + mean[5]; // y + vy
+                        let expected_x = mean[0] + mean[4]; // x + vx
+                        let expected_y = mean[1] + mean[5]; // y + vy
                         
                         prop_assert!(
                             (new_mean[0] - expected_x).abs() < 1e-4,
@@ -900,39 +900,39 @@ mod vision_property_tests {
             ) {
                 use crate::vision::ocr::{ProductionOcrEngine, OcrEngine};
                 
-                let _config = VisionConfig::default();
-                let _ocr_engine = ProductionOcrEngine::new(&config).unwrap();
+                let config = VisionConfig::default();
+                let ocr_engine = ProductionOcrEngine::new(&config).unwrap();
                 
                 // Create synthetic text image with varying quality
-                let _image_width = 200u32;
-                let _image_height = 50u32;
+                let image_width = 200u32;
+                let image_height = 50u32;
                 let mut image_data = vec![255u8; (image_width * image_height * 3) as usize];
                 
                 // Simulate text rendering with quality factors
-                let _base_confidence = 1.0 - noise_level - blur_factor + (contrast_factor - 1.0).abs();
+                let base_confidence = 1.0 - noise_level - blur_factor + (contrast_factor - 1.0).abs();
                 
                 // Add noise based on noise_level
-                for (_i, pixel) in image_data.iter_mut().enumerate() {
+                for (i, pixel) in image_data.iter_mut().enumerate() {
                     if (i as f32 * noise_level) % 1.0 < noise_level {
                         *pixel = (*pixel as f32 * (1.0 - noise_level)) as u8;
                     }
                 }
                 
-                let _test_image = ImageData {
+                let test_image = ImageData {
                     data: image_data,
-                    __width: image_width,
-                    __height: image_height,
-                    __channels: 3,
+                    width: image_width,
+                    height: image_height,
+                    channels: 3,
                     timestamp: Instant::now(),
-                    __camera_id: 0,
+                    camera_id: 0,
                     format: ImageFormat::Rgb8,
                 };
                 
-                let _ocr_result = ocr_engine.process(&test_image);
+                let ocr_result = ocr_engine.process(&test_image);
                 
                 if let Ok(result) = ocr_result {
                     // **Property 1: All confidence values are bounded**
-                    for _text_detection in &result.text_detections {
+                    for text_detection in &result.text_detections {
                         prop_assert!(
                             text_detection.confidence >= 0.0 && text_detection.confidence <= 1.0,
                             "OCR confidence out of bounds: {}", text_detection.confidence
@@ -955,7 +955,7 @@ mod vision_property_tests {
                     if noise_level < 0.1 && blur_factor < 0.1 && (contrast_factor - 1.0).abs() < 0.2 {
                         // High quality conditions should produce reasonable confidence
                         if !result.text_detections.is_empty() {
-                            let _avg_confidence = result.text_detections.iter()
+                            let avg_confidence = result.text_detections.iter()
                                 .map(|t| t.confidence)
                                 .sum::<f32>() / result.text_detections.len() as f32;
                             
@@ -984,19 +984,19 @@ mod vision_property_tests {
             ) {
                 use crate::vision::face_recognition::{MediaPipeFaceRecognizer, FaceRecognizer};
                 
-                let _config = VisionConfig::default();
-                let _face_recognizer = MediaPipeFaceRecognizer::new(&config).unwrap();
+                let config = VisionConfig::default();
+                let face_recognizer = MediaPipeFaceRecognizer::new(&config).unwrap();
                 
                 // Create synthetic face image
-                let _image_width = 640u32;
-                let _image_height = 480u32;
+                let image_width = 640u32;
+                let image_height = 480u32;
                 let mut image_data = vec![128u8; (image_width * image_height * 3) as usize];
                 
                 // Add face-like region with skin color
-                for _y in face_y as u32..(face_y + face_height) as u32 {
-                    for _x in face_x as u32..(face_x + face_width) as u32 {
+                for y in face_y as u32..(face_y + face_height) as u32 {
+                    for x in face_x as u32..(face_x + face_width) as u32 {
                         if x < image_width && y < image_height {
-                            let _idx = ((y * image_width + x) * 3) as usize;
+                            let idx = ((y * image_width + x) * 3) as usize;
                             if idx + 2 < image_data.len() {
                                 image_data[idx] = 200;     // R - skin tone
                                 image_data[idx + 1] = 150; // G
@@ -1006,22 +1006,22 @@ mod vision_property_tests {
                     }
                 }
                 
-                let _test_image = ImageData {
+                let test_image = ImageData {
                     data: image_data,
-                    __width: image_width,
-                    __height: image_height,
-                    __channels: 3,
+                    width: image_width,
+                    height: image_height,
+                    channels: 3,
                     timestamp: Instant::now(),
-                    __camera_id: 0,
+                    camera_id: 0,
                     format: ImageFormat::Rgb8,
                 };
                 
-                let _face_bbox = BoundingBox {
-                    x: face_x, y: face_y, _width: face_width, _height: face_height,
-                    confidence, __class_id: 0, class_name: "face".to_string(),
+                let face_bbox = BoundingBox {
+                    x: face_x, y: face_y, width: face_width, height: face_height,
+                    confidence, class_id: 0, class_name: "face".to_string(),
                 };
                 
-                let _landmarks_result = face_recognizer.extract_landmarks(&test_image, &face_bbox);
+                let landmarks_result = face_recognizer.extract_landmarks(&test_image, &face_bbox);
                 
                 if let Ok(landmarks) = landmarks_result {
                     // **Property 1: Should have 68 landmarks for complete face model**
@@ -1031,7 +1031,7 @@ mod vision_property_tests {
                     );
                     
                     // **Property 2: All landmarks should be within reasonable bounds**
-                    for (_i, (x, y)) in landmarks.iter().enumerate() {
+                    for (i, (x, y)) in landmarks.iter().enumerate() {
                         prop_assert!(
                             x.is_finite() && y.is_finite(),
                             "Landmark {} has non-finite coordinates: ({}, {})", i, x, y
@@ -1050,7 +1050,7 @@ mod vision_property_tests {
                     
                     // **Property 3: Landmarks should generally be within face bounding box**
                     let mut landmarks_in_bbox = 0;
-                    for (_x, y) in &landmarks {
+                    for (x, y) in &landmarks {
                         if *x >= face_x && *x <= face_x + face_width &&
                            *y >= face_y && *y <= face_y + face_height {
                             landmarks_in_bbox += 1;
@@ -1065,10 +1065,10 @@ mod vision_property_tests {
                     
                     // **Property 4: Facial geometry constraints**
                     // Eyes should be above nose, nose above mouth
-                    let _right_eye_y = landmarks[36].1; // Right eye landmark
-                    let _left_eye_y = landmarks[42].1;  // Left eye landmark
-                    let _nose_tip_y = landmarks[33].1;  // Nose tip
-                    let _mouth_center_y = landmarks[51].1; // Mouth center
+                    let right_eye_y = landmarks[36].1; // Right eye landmark
+                    let left_eye_y = landmarks[42].1;  // Left eye landmark
+                    let nose_tip_y = landmarks[33].1;  // Nose tip
+                    let mouth_center_y = landmarks[51].1; // Mouth center
                     
                     prop_assert!(
                         right_eye_y < nose_tip_y && left_eye_y < nose_tip_y,
@@ -1098,19 +1098,19 @@ mod vision_property_tests {
             ) {
                 use crate::vision::gesture_detection::{MediaPipeGestureDetector, GestureDetector};
                 
-                let _config = VisionConfig::default();
-                let _gesture_detector = MediaPipeGestureDetector::new(&config).unwrap();
+                let config = VisionConfig::default();
+                let gesture_detector = MediaPipeGestureDetector::new(&config).unwrap();
                 
                 // Create synthetic hand image
-                let _image_width = 640u32;
-                let _image_height = 480u32;
+                let image_width = 640u32;
+                let image_height = 480u32;
                 let mut image_data = vec![100u8; (image_width * image_height * 3) as usize];
                 
                 // Add hand-like region
-                for _y in hand_y as u32..(hand_y + hand_size) as u32 {
-                    for _x in hand_x as u32..(hand_x + hand_size) as u32 {
+                for y in hand_y as u32..(hand_y + hand_size) as u32 {
+                    for x in hand_x as u32..(hand_x + hand_size) as u32 {
                         if x < image_width && y < image_height {
-                            let _idx = ((y * image_width + x) * 3) as usize;
+                            let idx = ((y * image_width + x) * 3) as usize;
                             if idx + 2 < image_data.len() {
                                 image_data[idx] = 210;     // R - skin tone
                                 image_data[idx + 1] = 160; // G
@@ -1120,20 +1120,20 @@ mod vision_property_tests {
                     }
                 }
                 
-                let _test_image = ImageData {
+                let test_image = ImageData {
                     data: image_data,
-                    __width: image_width,
-                    __height: image_height,
-                    __channels: 3,
+                    width: image_width,
+                    height: image_height,
+                    channels: 3,
                     timestamp: Instant::now(),
-                    __camera_id: 0,
+                    camera_id: 0,
                     format: ImageFormat::Rgb8,
                 };
                 
-                let _gestures_result = gesture_detector.detect_gestures(&test_image);
+                let gestures_result = gesture_detector.detect_gestures(&test_image);
                 
                 if let Ok(gestures) = gestures_result {
-                    for _gesture in &gestures {
+                    for gesture in &gestures {
                         // **Property 1: Gesture confidence is bounded**
                         prop_assert!(
                             gesture.confidence >= 0.0 && gesture.confidence <= 1.0,
@@ -1148,9 +1148,9 @@ mod vision_property_tests {
                         
                         // **Property 3: Hand bounding box is valid**
                         prop_assert!(
-                            gesture.hand_bbox._width > 0.0 && gesture.hand_bbox._height > 0.0,
+                            gesture.hand_bbox.width > 0.0 && gesture.hand_bbox.height > 0.0,
                             "Hand bbox dimensions must be positive: {}x{}", 
-                            gesture.hand_bbox._width, gesture.hand_bbox._height
+                            gesture.hand_bbox.width, gesture.hand_bbox.height
                         );
                         
                         prop_assert!(
@@ -1166,7 +1166,7 @@ mod vision_property_tests {
                                 "Too many hand landmarks: {}", gesture.hand_landmarks.len()
                             );
                             
-                            for (_i, (x, y)) in gesture.hand_landmarks.iter().enumerate() {
+                            for (i, (x, y)) in gesture.hand_landmarks.iter().enumerate() {
                                 prop_assert!(
                                     x.is_finite() && y.is_finite(),
                                     "Hand landmark {} has non-finite coordinates: ({}, {})", i, x, y
@@ -1186,7 +1186,7 @@ mod vision_property_tests {
                         );
                         
                         // **Property 6: Velocity values are reasonable**
-                        let _velocity_magnitude = (gesture.velocity.0.powi(2) + gesture.velocity.1.powi(2)).sqrt();
+                        let velocity_magnitude = (gesture.velocity.0.powi(2) + gesture.velocity.1.powi(2)).sqrt();
                         prop_assert!(
                             velocity_magnitude <= 1000.0, // pixels per frame
                             "Gesture velocity too high: {}", velocity_magnitude
@@ -1231,27 +1231,27 @@ mod vision_property_tests {
                 let mut processor = VisionProcessor::new(config.clone()).unwrap();
                 
                 // Process original image
-                let _original_result = processor.process_frame(&image);
+                let original_result = processor.process_frame(&image);
                 
                 if original_result.is_ok() {
-                    let _original_frame = original_result.unwrap();
+                    let original_frame = original_result.unwrap();
                     
                     // Create scaled version of image
-                    let _new_width = (image.__width as f32 * scale_factor) as u32;
-                    let _new_height = (image.__height as f32 * scale_factor) as u32;
+                    let new_width = (image.width as f32 * scale_factor) as u32;
+                    let new_height = (image.height as f32 * scale_factor) as u32;
                     
                     if new_width > 0 && new_height > 0 && new_width <= 4096 && new_height <= 4096 {
                         let mut scaled_data = Vec::new();
                         
                         // Simple nearest-neighbor scaling
-                        for _y in 0..new_height {
-                            for _x in 0..new_width {
-                                let _src_x = (x as f32 / scale_factor) as u32;
-                                let _src_y = (y as f32 / scale_factor) as u32;
+                        for y in 0..new_height {
+                            for x in 0..new_width {
+                                let src_x = (x as f32 / scale_factor) as u32;
+                                let src_y = (y as f32 / scale_factor) as u32;
                                 
-                                if src_x < image.__width && src_y < image.__height {
-                                    let _src_idx = ((src_y * image.__width + src_x) * image.__channels) as usize;
-                                    for _c in 0..image.__channels as usize {
+                                if src_x < image.width && src_y < image.height {
+                                    let src_idx = ((src_y * image.width + src_x) * image.channels) as usize;
+                                    for c in 0..image.channels as usize {
                                         if src_idx + c < image.data.len() {
                                             scaled_data.push(image.data[src_idx + c]);
                                         }
@@ -1260,24 +1260,24 @@ mod vision_property_tests {
                             }
                         }
                         
-                        let _scaled_image = ImageData {
+                        let scaled_image = ImageData {
                             data: scaled_data,
-                            __width: new_width,
-                            __height: new_height,
-                            __channels: image.__channels,
+                            width: new_width,
+                            height: new_height,
+                            channels: image.channels,
                             timestamp: image.timestamp,
-                            __camera_id: image.__camera_id,
+                            camera_id: image.camera_id,
                             format: image.format.clone(),
                         };
                         
-                        let _scaled_result = processor.process_frame(&scaled_image);
+                        let scaled_result = processor.process_frame(&scaled_image);
                         
                         if scaled_result.is_ok() {
-                            let _scaled_frame = scaled_result.unwrap();
+                            let scaled_frame = scaled_result.unwrap();
                             
                             // **Property 1: Processing should complete within reasonable time**
                             prop_assert!(
-                                scaled_frame.processing_time_ms <= config.__max_latency_ms * 2,
+                                scaled_frame.processing_time_ms <= config.max_latency_ms * 2,
                                 "Scaled image processing took too long: {}ms", scaled_frame.processing_time_ms
                             );
                             
@@ -1287,16 +1287,16 @@ mod vision_property_tests {
                                 
                                 // If we have similar number of objects, check scaling consistency
                                 if orig_detection.objects.len() > 0 && scaled_detection.objects.len() > 0 {
-                                    let _orig_avg_size = orig_detection.objects.iter()
-                                        .map(|obj| obj._width * obj._height)
+                                    let orig_avg_size = orig_detection.objects.iter()
+                                        .map(|obj| obj.width * obj.height)
                                         .sum::<f32>() / orig_detection.objects.len() as f32;
                                     
-                                    let _scaled_avg_size = scaled_detection.objects.iter()
-                                        .map(|obj| obj._width * obj._height)
+                                    let scaled_avg_size = scaled_detection.objects.iter()
+                                        .map(|obj| obj.width * obj.height)
                                         .sum::<f32>() / scaled_detection.objects.len() as f32;
                                     
-                                    let _expected_scaled_size = orig_avg_size * scale_factor * scale_factor;
-                                    let _size_ratio = scaled_avg_size / expected_scaled_size;
+                                    let expected_scaled_size = orig_avg_size * scale_factor * scale_factor;
+                                    let size_ratio = scaled_avg_size / expected_scaled_size;
                                     
                                     // Allow for some variation due to detection differences
                                     prop_assert!(
@@ -1327,27 +1327,27 @@ mod vision_property_tests {
                 config in generators::vision_config_strategy()
             ) {
                 // Create edge case image
-                let _data_size = (width * height * channels) as usize;
+                let data_size = (width * height * channels) as usize;
                 let mut image_data = vec![128u8; data_size];
                 
                 // Apply data corruption
                 if data_corruption_rate > 0.0 {
-                    let _corruption_count = (data_size as f32 * data_corruption_rate) as usize;
-                    for _i in 0..corruption_count {
-                        let _idx = (i * 7) % data_size; // Deterministic corruption pattern
+                    let corruption_count = (data_size as f32 * data_corruption_rate) as usize;
+                    for i in 0..corruption_count {
+                        let idx = (i * 7) % data_size; // Deterministic corruption pattern
                         if idx < image_data.len() {
                             image_data[idx] = 255; // Corrupt pixel
                         }
                     }
                 }
                 
-                let _edge_case_image = ImageData {
+                let edge_case_image = ImageData {
                     data: image_data,
-                    __width: width,
-                    __height: height,
-                    __channels: channels,
+                    width,
+                    height,
+                    channels,
                     timestamp: Instant::now(),
-                    __camera_id: 0,
+                    camera_id: 0,
                     format: match channels {
                         1 => ImageFormat::Grayscale8,
                         3 => ImageFormat::Rgb8,
@@ -1357,9 +1357,9 @@ mod vision_property_tests {
                 };
                 
                 let mut processor = VisionProcessor::new(config.clone()).unwrap();
-                let _result = processor.process_frame(&edge_case_image);
+                let result = processor.process_frame(&edge_case_image);
                 
-                let _processing_succeeded = result.is_ok();
+                let processing_succeeded = result.is_ok();
                 
                 // **Property 1: System should handle edge cases gracefully**
                 match result {
@@ -1375,7 +1375,7 @@ mod vision_property_tests {
                             // Results should be reasonable for normal-sized images
                             if let Some(detection_result) = &frame_result.detection_result {
                                 prop_assert!(
-                                    detection_result.processing_time_ms <= config.__max_latency_ms * 5,
+                                    detection_result.processing_time_ms <= config.max_latency_ms * 5,
                                     "Edge case processing took too long: {}ms", detection_result.processing_time_ms
                                 );
                             }
@@ -1383,7 +1383,7 @@ mod vision_property_tests {
                         
                         // **Property 2: All confidence values should be valid**
                         if let Some(detection_result) = &frame_result.detection_result {
-                            for _obj in &detection_result.objects {
+                            for obj in &detection_result.objects {
                                 prop_assert!(
                                     obj.confidence >= 0.0 && obj.confidence <= 1.0,
                                     "Invalid object confidence in edge case: {}", obj.confidence
@@ -1391,7 +1391,7 @@ mod vision_property_tests {
                             }
                         }
                         
-                        for _face in &frame_result.face_detections {
+                        for face in &frame_result.face_detections {
                             prop_assert!(
                                 face.recognition_confidence >= 0.0 && face.recognition_confidence <= 1.0,
                                 "Invalid face confidence in edge case: {}", face.recognition_confidence
@@ -1400,7 +1400,7 @@ mod vision_property_tests {
                     }
                     Err(ref error) => {
                         // If processing fails, error should be appropriate
-                        let _error_msg = format!("{:?}", error);
+                        let error_msg = format!("{:?}", error);
                         
                         // Should be a reasonable error for edge cases
                         prop_assert!(
@@ -1414,7 +1414,7 @@ mod vision_property_tests {
                 }
                 
                 // **Property 3: System should remain stable after edge case processing**
-                let _metrics = processor.get_metrics();
+                let metrics = processor.get_metrics();
                 prop_assert!(
                     metrics.frames_processed > 0 || !processing_succeeded,
                     "Frame counter should be incremented or processing should fail for edge case"

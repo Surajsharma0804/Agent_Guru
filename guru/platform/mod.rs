@@ -4,14 +4,16 @@
 //! Provides cross-platform system control, application automation, and native API integration.
 
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
-#![allow(missing_docs, dead_code)]
-
 pub mod windows;
 pub mod macos;
 pub mod linux;
+pub mod shared_types;
 
 #[cfg(test)]
 pub mod property_tests;
+
+// Re-export shared types
+pub use shared_types::*;
 
 // Re-export platform-specific types for convenience
 pub use windows::{WindowsControlBridge, WindowsError, WindowsPerformanceMetrics};

@@ -24,7 +24,7 @@ pub struct PruningConfig {
     pub target_entries: usize,
     /// Minimum importance score to avoid pruning
     pub min_importance_threshold: f32,
-    /// Weight for _recency in importance calculation
+    /// Weight for recency in importance calculation
     pub recency_weight: f32,
     /// Weight for access frequency in importance calculation
     pub frequency_weight: f32,
@@ -93,8 +93,8 @@ pub struct PrunableEntry {
 impl PrunableEntry {
     /// Calculate recency score (0.0 to 1.0, higher = more recent)
     pub fn recency_score(&self, now: DateTime<Utc>) -> f32 {
-        let _age = now.signed_duration_since(self.last_accessed);
-        let _age_hours = age.num_hours() as f32;
+        let age = now.signed_duration_since(self.last_accessed);
+        let age_hours = age.num_hours() as f32;
         
         // Exponential decay: score = e^(-age_hours / 24)
         (-age_hours / 24.0).exp().min(1.0).max(0.0)
@@ -111,13 +111,13 @@ impl PrunableEntry {
     
     /// Calculate age in hours
     pub fn age_hours(&self, now: DateTime<Utc>) -> f32 {
-        let _age = now.signed_duration_since(self.created_at);
+        let age = now.signed_duration_since(self.created_at);
         age.num_hours() as f32
     }
     
     /// Check if entry is old enough to be pruned
     pub fn is_prunable(&self, config: &PruningConfig, now: DateTime<Utc>) -> bool {
-        let _age = now.signed_duration_since(self.created_at);
+        let age = now.signed_duration_since(self.created_at);
         age.num_seconds() >= config.min_age_for_pruning as i64
     }
 }
@@ -142,7 +142,7 @@ impl ImportanceScore {
         similarity: f32,
         config: &PruningConfig,
     ) -> Self {
-        let _total = recency * config.recency_weight
+        let total = recency * config.recency_weight
             + frequency * config.frequency_weight
             + user_importance * config.user_importance_weight
             + similarity * config.similarity_weight;
@@ -261,7 +261,7 @@ impl ImportancePredictor {
     
     /// Predict importance score using linear model
     fn predict(&self, entry: &PrunableEntry, now: DateTime<Utc>) -> f32 {
-        let _features = self.extract_features(entry, now);
+        let features = self.extract_features(entry, now);
         
         // Normalize features
         let normalized: Vec<f32> = features.iter()
@@ -281,13 +281,14 @@ impl ImportancePredictor {
     }
     
     /// Update model with feedback (simplified online learning)
+    #[allow(dead_code)]
     fn update(&mut self, entry: &PrunableEntry, now: DateTime<Utc>, target: f32, learning_rate: f32) {
-        let _features = self.extract_features(entry, now);
-        let _prediction = self.predict(entry, now);
-        let _error = target - prediction;
+        let features = self.extract_features(entry, now);
+        let prediction = self.predict(entry, now);
+        let error = target - prediction;
         
         // Update weights using gradient descent
-        for (_i, &feature) in features.iter().enumerate() {
+        for (i, &feature) in features.iter().enumerate() {
             if i < self.weights.len() {
                 self.weights[i] += learning_rate * error * feature;
             }
@@ -295,11 +296,11 @@ impl ImportancePredictor {
         self.bias += learning_rate * error;
         
         // Update feature statistics (exponential moving average)
-        let _alpha = 0.01;
-        for (_i, &feature) in features.iter().enumerate() {
+        let alpha = 0.01;
+        for (i, &feature) in features.iter().enumerate() {
             if i < self.feature_means.len() {
                 self.feature_means[i] = (1.0 - alpha) * self.feature_means[i] + alpha * feature;
-                let _diff = feature - self.feature_means[i];
+                let diff = feature - self.feature_means[i];
                 self.feature_stds[i] = ((1.0 - alpha) * self.feature_stds[i].powi(2) + alpha * diff.powi(2)).sqrt();
             }
         }
@@ -340,7 +341,7 @@ pub struct PruningEvent {
 impl MemoryPruning {
     /// Create new memory pruning system
     pub fn new(config: PruningConfig) -> Self {
-        let _ml_predictor = if config.use_ml_prediction {
+        let ml_predictor = if config.use_ml_prediction {
             Some(ImportancePredictor::new(7)) // 7 features
         } else {
             None
@@ -365,16 +366,16 @@ impl MemoryPruning {
         &self,
         entries: &[PrunableEntry],
     ) -> Result<Vec<Uuid>, PruningError> {
-        let _start_time = Instant::now();
-        let _now = Utc::now();
+        let start_time = Instant::now();
+        let now = Utc::now();
         
         if entries.len() <= self.config.target_entries {
             return Ok(Vec::new());
         }
         
-        let _entries_to_remove = entries.len() - self.config.target_entries;
+        let entries_to_remove = entries.len() - self.config.target_entries;
         
-        let _selected = match self.config.strategy {
+        let selected = match self.config.strategy {
             PruningStrategy::Lru => self.select_lru(entries, entries_to_remove, now),
             PruningStrategy::Lfu => self.select_lfu(entries, entries_to_remove, now),
             PruningStrategy::ImportanceBased => self.select_importance_based(entries, entries_to_remove, now),
@@ -420,16 +421,16 @@ impl MemoryPruning {
     
     /// Importance-based selection
     fn select_importance_based(&self, entries: &[PrunableEntry], count: usize, now: DateTime<Utc>) -> Result<Vec<Uuid>, PruningError> {
-        let _max_access_count = entries.iter().map(|e| e.access_count).max().unwrap_or(1);
+        let max_access_count = entries.iter().map(|e| e.access_count).max().unwrap_or(1);
         
         let mut scored_entries: Vec<ScoredEntry> = entries.iter()
             .filter(|entry| entry.is_prunable(&self.config, now))
             .map(|entry| {
-                let _recency = entry.recency_score(now);
-                let _frequency = entry.frequency_score(max_access_count);
-                let _similarity = self.calculate_similarity_score(entry);
+                let recency = entry.recency_score(now);
+                let frequency = entry.frequency_score(max_access_count);
+                let similarity = self.calculate_similarity_score(entry);
                 
-                let _importance = ImportanceScore::new(
+                let importance = ImportanceScore::new(
                     recency,
                     frequency,
                     entry.user_importance,
@@ -456,14 +457,14 @@ impl MemoryPruning {
     
     /// Hybrid selection combining multiple strategies
     fn select_hybrid(&self, entries: &[PrunableEntry], count: usize, now: DateTime<Utc>) -> Result<Vec<Uuid>, PruningError> {
-        let _max_access_count = entries.iter().map(|e| e.access_count).max().unwrap_or(1);
+        let max_access_count = entries.iter().map(|e| e.access_count).max().unwrap_or(1);
         
         let mut scored_entries: Vec<ScoredEntry> = entries.iter()
             .filter(|entry| entry.is_prunable(&self.config, now))
             .map(|entry| {
-                let _recency = entry.recency_score(now);
-                let _frequency = entry.frequency_score(max_access_count);
-                let _similarity = self.calculate_similarity_score(entry);
+                let recency = entry.recency_score(now);
+                let frequency = entry.frequency_score(max_access_count);
+                let similarity = self.calculate_similarity_score(entry);
                 
                 let mut importance = ImportanceScore::new(
                     recency,
@@ -476,7 +477,7 @@ impl MemoryPruning {
                 // Add ML prediction if available
                 if let Ok(predictor_guard) = self.ml_predictor.read() {
                     if let Some(ref predictor) = *predictor_guard {
-                        let _ml_score = predictor.predict(entry, now);
+                        let ml_score = predictor.predict(entry, now);
                         importance = importance.with_ml_prediction(ml_score);
                     }
                 }
@@ -509,8 +510,8 @@ impl MemoryPruning {
     
     /// Machine learning-based selection
     fn select_ml_based(&self, entries: &[PrunableEntry], count: usize, now: DateTime<Utc>) -> Result<Vec<Uuid>, PruningError> {
-        let _predictor_guard = self.ml_predictor.read().unwrap();
-        let _predictor = predictor_guard.as_ref()
+        let predictor_guard = self.ml_predictor.read().unwrap();
+        let predictor = predictor_guard.as_ref()
             .ok_or(PruningError::MlPredictorNotAvailable)?;
         
         let mut predictions: Vec<(Uuid, f32)> = entries.iter()
@@ -531,14 +532,14 @@ impl MemoryPruning {
     /// Calculate similarity score for entry based on clustering
     fn calculate_similarity_score(&self, entry: &PrunableEntry) -> f32 {
         if let Some(ref embedding) = entry.embedding {
-            let _clusters = self.similarity_clusters.read().unwrap();
+            let clusters = self.similarity_clusters.read().unwrap();
             
             if clusters.is_empty() {
                 return 0.5; // Neutral score if no clusters
             }
             
             // Find best matching cluster
-            let _best_similarity = clusters.iter()
+            let best_similarity = clusters.iter()
                 .map(|cluster| cluster.similarity_to(embedding))
                 .fold(0.0f32, f32::max);
             
@@ -561,8 +562,8 @@ impl MemoryPruning {
         }
         
         // Simple k-means clustering (k=10)
-        let _k = std::cmp::min(10, embeddings.len() / 5);
-        let _clusters = self.kmeans_clustering(&embeddings, k)?;
+        let k = std::cmp::min(10, embeddings.len() / 5);
+        let clusters = self.kmeans_clustering(&embeddings, k)?;
         
         let mut similarity_clusters = self.similarity_clusters.write().unwrap();
         *similarity_clusters = clusters;
@@ -576,7 +577,7 @@ impl MemoryPruning {
             return Ok(Vec::new());
         }
         
-        let _dim = embeddings[0].1.len();
+        let dim = embeddings[0].1.len();
         let mut clusters = Vec::new();
         
         // Initialize centroids randomly
@@ -584,25 +585,25 @@ impl MemoryPruning {
         let mut rng = rand::thread_rng();
         let selected_embeddings: Vec<_> = embeddings.choose_multiple(&mut rng, k).collect();
         
-        for _embedding in selected_embeddings {
+        for embedding in selected_embeddings {
             clusters.push(SimilarityCluster::new(embedding.1.clone()));
         }
         
         // K-means iterations
-        for __ in 0..10 {
+        for _ in 0..10 {
             // Clear cluster assignments
-            for _cluster in &mut clusters {
+            for cluster in &mut clusters {
                 cluster.entries.clear();
                 cluster.avg_importance = 0.0;
             }
             
             // Assign embeddings to clusters
-            for (_id, embedding) in embeddings {
+            for (id, embedding) in embeddings {
                 let mut best_cluster = 0;
                 let mut best_similarity = -1.0;
                 
-                for (_i, cluster) in clusters.iter().enumerate() {
-                    let _similarity = cosine_similarity(embedding, &cluster.centroid);
+                for (i, cluster) in clusters.iter().enumerate() {
+                    let similarity = cosine_similarity(embedding, &cluster.centroid);
                     if similarity > best_similarity {
                         best_similarity = similarity;
                         best_cluster = i;
@@ -613,19 +614,19 @@ impl MemoryPruning {
             }
             
             // Update centroids
-            for _cluster in &mut clusters {
+            for cluster in &mut clusters {
                 if !cluster.entries.is_empty() {
                     let mut new_centroid = vec![0.0; dim];
                     
-                    for _entry_id in &cluster.entries {
+                    for entry_id in &cluster.entries {
                         if let Some((_, embedding)) = embeddings.iter().find(|(id, _)| id == entry_id) {
-                            for (_i, &val) in embedding.iter().enumerate() {
+                            for (i, &val) in embedding.iter().enumerate() {
                                 new_centroid[i] += val;
                             }
                         }
                     }
                     
-                    for _val in &mut new_centroid {
+                    for val in &mut new_centroid {
                         *val /= cluster.entries.len() as f32;
                     }
                     
@@ -638,7 +639,7 @@ impl MemoryPruning {
     }
     
     /// Provide feedback to ML model for continuous learning
-    pub fn provide_feedback(&self, entry_id: Uuid, was_correctly_pruned: bool) -> Result<(), PruningError> {
+    pub fn provide_feedback(&self, _entry_id: Uuid, was_correctly_pruned: bool) -> Result<(), PruningError> {
         // This would be called after user feedback on pruning decisions
         // For now, just update metrics
         let mut metrics = self.metrics.write().unwrap();
@@ -660,7 +661,7 @@ impl MemoryPruning {
         metrics.total_pruning_operations += 1;
         metrics.total_entries_pruned += selected.len() as u64;
         
-        let _pruning_time = duration.as_millis() as f64;
+        let pruning_time = duration.as_millis() as f64;
         metrics.avg_pruning_time_ms = 
             (metrics.avg_pruning_time_ms * (metrics.total_pruning_operations - 1) as f64 + pruning_time) 
             / metrics.total_pruning_operations as f64;
@@ -668,7 +669,7 @@ impl MemoryPruning {
         metrics.last_pruning_time = Some(Utc::now());
         
         // Update strategy statistics
-        let _strategy_count = metrics.entries_by_strategy.entry(self.config.strategy).or_insert(0);
+        let strategy_count = metrics.entries_by_strategy.entry(self.config.strategy).or_insert(0);
         *strategy_count += selected.len() as u64;
         
         // Calculate importance distribution of pruned entries
@@ -690,7 +691,7 @@ impl MemoryPruning {
         }
         
         // Record pruning event
-        let _event = PruningEvent {
+        let event = PruningEvent {
             timestamp: Utc::now(),
             entries_pruned: selected.len(),
             strategy_used: self.config.strategy,
@@ -711,13 +712,13 @@ impl MemoryPruning {
     
     /// Get pruning metrics
     pub fn get_metrics(&self) -> PruningMetrics {
-        let _metrics = self.metrics.read().unwrap();
+        let metrics = self.metrics.read().unwrap();
         metrics.clone()
     }
     
     /// Get pruning history
     pub fn get_pruning_history(&self) -> Vec<PruningEvent> {
-        let _history = self.pruning_history.read().unwrap();
+        let history = self.pruning_history.read().unwrap();
         history.iter().cloned().collect()
     }
     
@@ -775,7 +776,7 @@ mod tests {
     use super::*;
     
     fn create_test_entry(id: Uuid, importance: f32, access_count: u64, age_hours: i64) -> PrunableEntry {
-        let _now = Utc::now();
+        let now = Utc::now();
         PrunableEntry {
             id,
             content_hash: format!("hash_{}", id),
@@ -792,15 +793,15 @@ mod tests {
     
     #[test]
     fn test_importance_score_calculation() {
-        let _config = PruningConfig::default();
-        let _now = Utc::now();
+        let config = PruningConfig::default();
+        let now = Utc::now();
         
-        let _entry = create_test_entry(Uuid::new_v4(), 0.8, 100, 2);
+        let entry = create_test_entry(Uuid::new_v4(), 0.8, 100, 2);
         
-        let _recency = entry.recency_score(now);
-        let _frequency = entry.frequency_score(200);
+        let recency = entry.recency_score(now);
+        let frequency = entry.frequency_score(200);
         
-        let _score = ImportanceScore::new(recency, frequency, entry.user_importance, 0.5, &config);
+        let score = ImportanceScore::new(recency, frequency, entry.user_importance, 0.5, &config);
         
         assert!(score.total > 0.0);
         assert!(score.total <= 1.0);
@@ -810,16 +811,16 @@ mod tests {
     
     #[test]
     fn test_lru_selection() {
-        let _config = PruningConfig::default();
-        let _pruning = MemoryPruning::new(config);
+        let config = PruningConfig::default();
+        let pruning = MemoryPruning::new(config);
         
-        let _entries = vec![
+        let entries = vec![
             create_test_entry(Uuid::new_v4(), 0.5, 10, 10), // Oldest
             create_test_entry(Uuid::new_v4(), 0.5, 20, 5),  // Newer
             create_test_entry(Uuid::new_v4(), 0.5, 30, 2),  // Newest
         ];
         
-        let _selected = pruning.select_lru(&entries, 1, Utc::now()).unwrap();
+        let selected = pruning.select_lru(&entries, 1, Utc::now()).unwrap();
         
         assert_eq!(selected.len(), 1);
         assert_eq!(selected[0], entries[0].id); // Should select oldest
@@ -827,16 +828,16 @@ mod tests {
     
     #[test]
     fn test_lfu_selection() {
-        let _config = PruningConfig::default();
-        let _pruning = MemoryPruning::new(config);
+        let config = PruningConfig::default();
+        let pruning = MemoryPruning::new(config);
         
-        let _entries = vec![
+        let entries = vec![
             create_test_entry(Uuid::new_v4(), 0.5, 5, 5),   // Least accessed
             create_test_entry(Uuid::new_v4(), 0.5, 20, 5),  // More accessed
             create_test_entry(Uuid::new_v4(), 0.5, 100, 5), // Most accessed
         ];
         
-        let _selected = pruning.select_lfu(&entries, 1, Utc::now()).unwrap();
+        let selected = pruning.select_lfu(&entries, 1, Utc::now()).unwrap();
         
         assert_eq!(selected.len(), 1);
         assert_eq!(selected[0], entries[0].id); // Should select least accessed
@@ -844,16 +845,16 @@ mod tests {
     
     #[test]
     fn test_importance_based_selection() {
-        let _config = PruningConfig::default();
-        let _pruning = MemoryPruning::new(config);
+        let config = PruningConfig::default();
+        let pruning = MemoryPruning::new(config);
         
-        let _entries = vec![
+        let entries = vec![
             create_test_entry(Uuid::new_v4(), 0.1, 5, 10),   // Low importance
             create_test_entry(Uuid::new_v4(), 0.9, 100, 2),  // High importance
             create_test_entry(Uuid::new_v4(), 0.3, 20, 5),   // Medium importance
         ];
         
-        let _selected = pruning.select_importance_based(&entries, 1, Utc::now()).unwrap();
+        let selected = pruning.select_importance_based(&entries, 1, Utc::now()).unwrap();
         
         assert_eq!(selected.len(), 1);
         assert_eq!(selected[0], entries[0].id); // Should select lowest importance
@@ -861,17 +862,17 @@ mod tests {
     
     #[test]
     fn test_pruning_metrics_update() {
-        let _config = PruningConfig::default();
-        let _pruning = MemoryPruning::new(config);
+        let config = PruningConfig::default();
+        let pruning = MemoryPruning::new(config);
         
-        let _entries = vec![
+        let entries = vec![
             create_test_entry(Uuid::new_v4(), 0.5, 10, 5),
         ];
         
-        let _selected = vec![entries[0].id];
+        let selected = vec![entries[0].id];
         pruning.update_pruning_metrics(&selected, &entries, Duration::from_millis(100));
         
-        let _metrics = pruning.get_metrics();
+        let metrics = pruning.get_metrics();
         assert_eq!(metrics.total_pruning_operations, 1);
         assert_eq!(metrics.total_entries_pruned, 1);
         assert!(metrics.avg_pruning_time_ms > 0.0);
@@ -879,9 +880,9 @@ mod tests {
     
     #[test]
     fn test_cosine_similarity() {
-        let _a = vec![1.0, 0.0, 0.0];
-        let _b = vec![0.0, 1.0, 0.0];
-        let _c = vec![1.0, 0.0, 0.0];
+        let a = vec![1.0, 0.0, 0.0];
+        let b = vec![0.0, 1.0, 0.0];
+        let c = vec![1.0, 0.0, 0.0];
         
         assert!((cosine_similarity(&a, &b) - 0.0).abs() < 1e-6);
         assert!((cosine_similarity(&a, &c) - 1.0).abs() < 1e-6);
@@ -890,16 +891,16 @@ mod tests {
     #[test]
     fn test_ml_predictor() {
         let mut predictor = ImportancePredictor::new(7);
-        let _entry = create_test_entry(Uuid::new_v4(), 0.8, 50, 3);
-        let _now = Utc::now();
+        let entry = create_test_entry(Uuid::new_v4(), 0.8, 50, 3);
+        let now = Utc::now();
         
-        let _prediction1 = predictor.predict(&entry, now);
+        let prediction1 = predictor.predict(&entry, now);
         assert!(prediction1 >= 0.0 && prediction1 <= 1.0);
         
         // Update with feedback
         predictor.update(&entry, now, 0.9, 0.01);
         
-        let _prediction2 = predictor.predict(&entry, now);
+        let prediction2 = predictor.predict(&entry, now);
         assert!(prediction2 >= 0.0 && prediction2 <= 1.0);
     }
 }

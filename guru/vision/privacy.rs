@@ -12,7 +12,7 @@ pub struct PrivacyManager {
     /// Privacy mode enabled
     privacy_mode: bool,
     /// Secure deletion enabled
-    secure_deletion: bool,
+    _secure_deletion: bool,
     /// Data anonymization level
     anonymization_level: AnonymizationLevel,
     /// Privacy metrics
@@ -62,10 +62,10 @@ pub enum PrivacyViolation {
 
 impl PrivacyManager {
     /// Create new privacy manager
-    pub fn new(_config: &VisionConfig) -> VisionResult<Self> {
+    pub fn new(config: &VisionConfig) -> VisionResult<Self> {
         Ok(Self {
             privacy_mode: config.privacy_mode,
-            secure_deletion: true,
+            _secure_deletion: true,
             anonymization_level: AnonymizationLevel::Enhanced,
             metrics: PrivacyMetrics {
                 privacy_processed_count: 0,
@@ -77,7 +77,7 @@ impl PrivacyManager {
     }
     
     /// Validate privacy compliance for image processing
-    pub fn validate_privacy_compliance(&self, _image: &ImageData) -> VisionResult<()> {
+    pub fn validate_privacy_compliance(&self, image: &ImageData) -> VisionResult<()> {
         if !self.privacy_mode {
             return Ok(());
         }
@@ -100,7 +100,7 @@ impl PrivacyManager {
     }
     
     /// Perform secure cleanup of image data
-    pub fn secure_cleanup(&mut self, _image: &ImageData) -> VisionResult<()> {
+    pub fn secure_cleanup(&mut self, image: &ImageData) -> VisionResult<()> {
         if !self.privacy_mode {
             return Ok(());
         }
@@ -117,7 +117,7 @@ impl PrivacyManager {
     
     /// Anonymize image data for privacy protection
     pub fn anonymize_image(&mut self, image: &mut ImageData) -> VisionResult<()> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         
         match self.anonymization_level {
             AnonymizationLevel::None => {
@@ -134,7 +134,7 @@ impl PrivacyManager {
             }
         }
         
-        let _processing_time = start_time.elapsed();
+        let processing_time = start_time.elapsed();
         self.update_anonymization_metrics(processing_time);
         
         Ok(())
@@ -144,10 +144,10 @@ impl PrivacyManager {
     fn apply_basic_anonymization(&self, image: &mut ImageData) -> VisionResult<()> {
         // Simulate face blurring
         // In production, this would detect faces and apply Gaussian blur
-        for _chunk in image.data.chunks_mut(image.channels as usize) {
+        for chunk in image.data.chunks_mut(image.channels as usize) {
             if chunk.len() >= 3 {
                 // Apply slight blur effect by averaging with neighbors
-                let _avg = (chunk[0] as u16 + chunk[1] as u16 + chunk[2] as u16) / 3;
+                let avg = (chunk[0] as u16 + chunk[1] as u16 + chunk[2] as u16) / 3;
                 chunk[0] = avg as u8;
                 chunk[1] = avg as u8;
                 chunk[2] = avg as u8;
@@ -185,29 +185,29 @@ impl PrivacyManager {
     }
     
     /// Downscale image for privacy protection
-    fn downscale_image(&self, image: &mut ImageData, _target_width: u32, _target_height: u32) -> VisionResult<()> {
+    fn downscale_image(&self, image: &mut ImageData, target_width: u32, target_height: u32) -> VisionResult<()> {
         if image.width <= target_width && image.height <= target_height {
             return Ok(());
         }
         
-        let _scale_x = target_width as f32 / image.width as f32;
-        let _scale_y = target_height as f32 / image.height as f32;
-        let _scale = scale_x.min(scale_y);
+        let scale_x = target_width as f32 / image.width as f32;
+        let scale_y = target_height as f32 / image.height as f32;
+        let scale = scale_x.min(scale_y);
         
-        let _new_width = (image.width as f32 * scale) as u32;
-        let _new_height = (image.height as f32 * scale) as u32;
+        let new_width = (image.width as f32 * scale) as u32;
+        let new_height = (image.height as f32 * scale) as u32;
         
         // Simple nearest-neighbor downscaling
         let mut new_data = Vec::with_capacity((new_width * new_height * image.channels) as usize);
         
-        for _y in 0..new_height {
-            for _x in 0..new_width {
-                let _src_x = (x as f32 / scale) as u32;
-                let _src_y = (y as f32 / scale) as u32;
+        for y in 0..new_height {
+            for x in 0..new_width {
+                let src_x = (x as f32 / scale) as u32;
+                let src_y = (y as f32 / scale) as u32;
                 
                 if src_x < image.width && src_y < image.height {
-                    let _src_idx = ((src_y * image.width + src_x) * image.channels) as usize;
-                    for _c in 0..image.channels as usize {
+                    let src_idx = ((src_y * image.width + src_x) * image.channels) as usize;
+                    for c in 0..image.channels as usize {
                         if src_idx + c < image.data.len() {
                             new_data.push(image.data[src_idx + c]);
                         }
@@ -226,8 +226,8 @@ impl PrivacyManager {
     /// Add privacy-preserving noise to image
     fn add_privacy_noise(&self, image: &mut ImageData) -> VisionResult<()> {
         // Add minimal noise to prevent fingerprinting while preserving functionality
-        for _pixel in image.data.iter_mut() {
-            let _noise = ((*pixel as u16 * 997) % 7) as u8; // Deterministic noise
+        for pixel in image.data.iter_mut() {
+            let noise = ((*pixel as u16 * 997) % 7) as u8; // Deterministic noise
             *pixel = pixel.saturating_add(noise).saturating_sub(3);
         }
         
@@ -235,10 +235,10 @@ impl PrivacyManager {
     }
     
     /// Securely overwrite memory
-    fn secure_overwrite_memory(&self, __data: &[u8]) -> VisionResult<()> {
+    fn secure_overwrite_memory(&self, _data: &[u8]) -> VisionResult<()> {
         // In production, this would use platform-specific secure memory clearing
         // For now, simulate the operation
-        let __overwrite_passes = 3;
+        let _overwrite_passes = 3;
         
         // Multiple overwrite passes would be performed here
         // Pass 1: All zeros
@@ -250,12 +250,12 @@ impl PrivacyManager {
     
     /// Update anonymization performance metrics
     fn update_anonymization_metrics(&mut self, processing_time: std::time::Duration) {
-        let _time_ms = processing_time.as_millis() as f32;
+        let time_ms = processing_time.as_millis() as f32;
         
         if self.metrics.privacy_processed_count == 0 {
             self.metrics.avg_anonymization_time_ms = time_ms;
         } else {
-            let _count = self.metrics.privacy_processed_count as f32;
+            let count = self.metrics.privacy_processed_count as f32;
             self.metrics.avg_anonymization_time_ms = 
                 (self.metrics.avg_anonymization_time_ms * count + time_ms) / (count + 1.0);
         }
@@ -304,7 +304,7 @@ pub mod privacy_utils {
     use super::*;
     
     /// Check if image contains potentially sensitive content
-    pub fn contains_sensitive_content(_image: &ImageData) -> bool {
+    pub fn contains_sensitive_content(image: &ImageData) -> bool {
         // Heuristic checks for sensitive content
         // In production, this would use ML models for content detection
         
@@ -314,7 +314,7 @@ pub mod privacy_utils {
         }
         
         // Check for unusual aspect ratios that might indicate screenshots
-        let _aspect_ratio = image.width as f32 / image.height as f32;
+        let aspect_ratio = image.width as f32 / image.height as f32;
         if aspect_ratio > 3.0 || aspect_ratio < 0.3 {
             return true;
         }
@@ -323,15 +323,15 @@ pub mod privacy_utils {
     }
     
     /// Calculate privacy risk score for image
-    pub fn calculate_privacy_risk(_image: &ImageData) -> f32 {
+    pub fn calculate_privacy_risk(image: &ImageData) -> f32 {
         let mut risk_score = 0.0;
         
         // Size-based risk
-        let _size_mb = image.data.len() as f32 / (1024.0 * 1024.0);
+        let size_mb = image.data.len() as f32 / (1024.0 * 1024.0);
         risk_score += (size_mb / 10.0).min(1.0) * 0.3;
         
         // Resolution-based risk
-        let _total_pixels = image.width * image.height;
+        let total_pixels = image.width * image.height;
         if total_pixels > 1920 * 1080 {
             risk_score += 0.2;
         }
@@ -345,7 +345,7 @@ pub mod privacy_utils {
     }
     
     /// Generate privacy-safe image hash
-    pub fn generate_privacy_hash(_image: &ImageData) -> String {
+    pub fn generate_privacy_hash(image: &ImageData) -> String {
         // Generate hash that doesn't reveal image content
         let mut hash_input = Vec::new();
         hash_input.extend_from_slice(&image.width.to_le_bytes());
@@ -365,20 +365,20 @@ mod tests {
     
     #[test]
     fn test_privacy_manager_creation() {
-        let _config = VisionConfig::default();
-        let _privacy_manager = PrivacyManager::new(&config);
+        let config = VisionConfig::default();
+        let privacy_manager = PrivacyManager::new(&config);
         assert!(privacy_manager.is_ok());
     }
     
     #[test]
     fn test_privacy_compliance_validation() {
-        let _config = VisionConfig {
+        let config = VisionConfig {
             privacy_mode: true,
             ..Default::default()
         };
-        let _privacy_manager = PrivacyManager::new(&config).unwrap();
+        let privacy_manager = PrivacyManager::new(&config).unwrap();
         
-        let _image = ImageData {
+        let image = ImageData {
             data: vec![0u8; 1024],
             width: 32,
             height: 32,
@@ -388,13 +388,13 @@ mod tests {
             format: super::super::ImageFormat::Rgb8,
         };
         
-        let _result = privacy_manager.validate_privacy_compliance(&image);
+        let result = privacy_manager.validate_privacy_compliance(&image);
         assert!(result.is_ok());
     }
     
     #[test]
     fn test_anonymization_levels() {
-        let _config = VisionConfig::default();
+        let config = VisionConfig::default();
         let mut privacy_manager = PrivacyManager::new(&config).unwrap();
         
         let mut image = ImageData {
@@ -408,14 +408,14 @@ mod tests {
         };
         
         privacy_manager.set_anonymization_level(AnonymizationLevel::Enhanced);
-        let _result = privacy_manager.anonymize_image(&mut image);
+        let result = privacy_manager.anonymize_image(&mut image);
         assert!(result.is_ok());
         assert_eq!(image.camera_id, 0); // Should be anonymized
     }
     
     #[test]
     fn test_sensitive_content_detection() {
-        let _large_image = ImageData {
+        let large_image = ImageData {
             data: vec![0u8; 100 * 1024 * 1024], // 100MB
             width: 1920,
             height: 1080,
@@ -427,7 +427,7 @@ mod tests {
         
         assert!(contains_sensitive_content(&large_image));
         
-        let _normal_image = ImageData {
+        let normal_image = ImageData {
             data: vec![0u8; 1024],
             width: 32,
             height: 32,
@@ -442,7 +442,7 @@ mod tests {
     
     #[test]
     fn test_privacy_risk_calculation() {
-        let _high_risk_image = ImageData {
+        let high_risk_image = ImageData {
             data: vec![0u8; 10 * 1024 * 1024],
             width: 3840,
             height: 2160,
@@ -452,10 +452,10 @@ mod tests {
             format: super::super::ImageFormat::Rgb8,
         };
         
-        let _risk = calculate_privacy_risk(&high_risk_image);
+        let risk = calculate_privacy_risk(&high_risk_image);
         assert!(risk > 0.5);
         
-        let _low_risk_image = ImageData {
+        let low_risk_image = ImageData {
             data: vec![0u8; 1024],
             width: 32,
             height: 32,
@@ -465,7 +465,7 @@ mod tests {
             format: super::super::ImageFormat::Rgb8,
         };
         
-        let _risk = calculate_privacy_risk(&low_risk_image);
+        let risk = calculate_privacy_risk(&low_risk_image);
         assert!(risk < 0.5);
     }
 }

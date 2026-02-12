@@ -4,8 +4,6 @@
 //! and capability-based access controls.
 
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
-#![allow(missing_docs, dead_code)]
-
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
@@ -41,16 +39,16 @@ pub struct Capability {
 /// Trust domain management
 #[derive(Debug)]
 pub struct TrustDomain {
-    id: TrustDomainId,
-    members: HashMap<SpiffeId, CapabilityToken>,
+    _id: TrustDomainId,
+    _members: HashMap<SpiffeId, CapabilityToken>,
 }
 
 impl TrustDomain {
     /// Create a new trust domain
     pub fn new(id: TrustDomainId) -> Self {
         Self {
-            id,
-            members: HashMap::new(),
+            _id: id,
+            _members: HashMap::new(),
         }
     }
 }

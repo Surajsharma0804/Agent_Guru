@@ -25,15 +25,29 @@
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
+use serde::{Deserialize, Serialize, Serializer, Deserializer};
 use crate::security::crypto::identity::CryptoError;
 
-/// Audit log levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AuditLevel {
-    Info,
-    Warning,
-    Error,
-    Critical,
+// Helper module for SystemTime serialization
+mod systemtime_serde {
+    use super::*;
+    
+    pub fn serialize<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let duration = time.duration_since(UNIX_EPOCH)
+            .map_err(|_| serde::ser::Error::custom("SystemTime before UNIX_EPOCH"))?;
+        serializer.serialize_u64(duration.as_secs())
+    }
+    
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<SystemTime, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let secs = u64::deserialize(deserializer)?;
+        Ok(UNIX_EPOCH + std::time::Duration::from_secs(secs))
+    }
 }
 
 /// Immutable audit log errors
@@ -56,9 +70,10 @@ pub enum AuditLogError {
 }
 
 /// Immutable log entry with cryptographic linking
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImmutableLogEntry {
     pub id: u64,
+    #[serde(with = "systemtime_serde")]
     pub timestamp: SystemTime,
     pub operation: String,
     pub metadata: HashMap<String, String>,
@@ -176,6 +191,7 @@ impl ImmutableLogEntry {
 }
 
 /// Immutable audit log with cryptographic hash chain
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImmutableAuditLog {
     entries: Vec<ImmutableLogEntry>,
     next_id: u64,
@@ -291,7 +307,7 @@ impl ImmutableAuditLog {
     }
     
     /// Search entries by operation type
-    pub fn find_entries_by_operation(&self, operation: &str) -> Vec<&ImmutableLogEntry> {
+    pub fn find_entries_byoperation(&self, operation: &str) -> Vec<&ImmutableLogEntry> {
         self.entries
             .iter()
             .filter(|entry| entry.operation == operation)
@@ -470,8 +486,18 @@ mod tests {
         let imported_log = ImmutableAuditLog::import_from_json(&json_data).unwrap();
         
         // Verify imported log
-        assert_eq!(imported_log.len(), 0); // Placeholder implementation returns empty log
+        assert_eq!(imported_log.len(), original_log.len());
         assert!(imported_log.verify_log_integrity().is_ok());
+        
+        // Verify entries match
+        let original_entries = original_log.get_entries();
+        let imported_entries = imported_log.get_entries();
+        
+        for (orig, imported) in original_entries.iter().zip(imported_entries.iter()) {
+            assert_eq!(orig.id, imported.id);
+            assert_eq!(orig.operation, imported.operation);
+            assert_eq!(orig.entry_hash, imported.entry_hash);
+        }
     }
     
     #[test]

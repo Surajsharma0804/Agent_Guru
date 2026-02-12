@@ -3,8 +3,6 @@
 //! Production-grade semantic memory with encryption, indexing, pruning, and temporal relationships.
 
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
-#![allow(missing_docs, dead_code)]
-
 pub mod semantic_index;
 pub mod encryption;
 pub mod pruning;

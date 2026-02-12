@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex};
 /// Core deployment manager for orchestrating installation operations
 pub struct DeploymentManager {
     /// Target platform configuration
-    platform_target: PlatformTarget,
+    _platform_target: PlatformTarget,
     /// Installation progress tracking
     progress: Arc<Mutex<InstallationProgress>>,
     /// Performance metrics collection
@@ -49,7 +49,7 @@ impl DeploymentManager {
     /// Create a new deployment manager for the specified platform
     pub fn new(platform_target: PlatformTarget) -> Self {
         Self {
-            platform_target,
+            _platform_target: platform_target,
             progress: Arc::new(Mutex::new(InstallationProgress::new(0, 0))),
             metrics: InstallationMetrics::new(),
             state: DeploymentState::Idle,
@@ -62,14 +62,14 @@ impl DeploymentManager {
         &mut self,
         target: &InstallationTarget,
         components: &[PackageComponent],
-        update_manager: &mut UpdateManager,
+        _update_manager: &mut UpdateManager,
         package_manager: &mut PackageManager,
         crypto_verifier: &mut CryptographicVerifier,
         dependency_resolver: &mut DependencyResolver,
         rollback_manager: &mut RollbackManager,
         platform_integrator: &mut PlatformIntegrator,
     ) -> Result<DeploymentResult, DeploymentError> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         self.operation_start_time = Some(start_time);
         self.state = DeploymentState::Initializing;
         
@@ -85,16 +85,16 @@ impl DeploymentManager {
         self.state = DeploymentState::VerifyingSignatures;
         self.update_progress("Verifying cryptographic signatures".to_string(), None);
         
-        let _signature_start = Instant::now();
+        let signature_start = Instant::now();
         let mut verified_signatures = 0;
         
-        for _component in components {
+        for component in components {
             crypto_verifier.verify_signature(&component.signature)
                 .map_err(|e| DeploymentError::SignatureVerificationFailed(component.name.clone(), e.to_string()))?;
             verified_signatures += 1;
         }
         
-        let _signature_duration = signature_start.elapsed();
+        let signature_duration = signature_start.elapsed();
         self.metrics.record_signature_verification_time(signature_duration);
         self.metrics.record_verified_signatures(verified_signatures);
         
@@ -102,11 +102,11 @@ impl DeploymentManager {
         self.state = DeploymentState::ResolvingDependencies;
         self.update_progress("Resolving package dependencies".to_string(), None);
         
-        let _dependency_start = Instant::now();
-        let _resolved_dependencies = dependency_resolver.resolve_dependencies(components)
+        let dependency_start = Instant::now();
+        let resolved_dependencies = dependency_resolver.resolve_dependencies(components)
             .map_err(|e| DeploymentError::DependencyResolutionFailed(e.to_string()))?;
         
-        let _dependency_duration = dependency_start.elapsed();
+        let dependency_duration = dependency_start.elapsed();
         self.metrics.record_dependency_resolution_time(dependency_duration);
         self.metrics.record_resolved_dependencies(resolved_dependencies.len());
         
@@ -114,22 +114,22 @@ impl DeploymentManager {
         self.state = DeploymentState::CreatingBackup;
         self.update_progress("Creating backup point".to_string(), None);
         
-        let _backup_start = Instant::now();
-        let _backup_info = rollback_manager.create_backup_point(&target.installation_root)
+        let backup_start = Instant::now();
+        let backup_info = rollback_manager.create_backup_point(&target.installation_root)
             .map_err(|e| DeploymentError::BackupCreationFailed(e.to_string()))?;
         
-        let _backup_duration = backup_start.elapsed();
+        let backup_duration = backup_start.elapsed();
         self.metrics.record_backup_time(backup_duration);
         self.metrics.record_backup_size(backup_info.backup_size_bytes);
         
         // Phase 4: Package Extraction
         self.state = DeploymentState::ExtractingPackages;
         
-        let _extraction_start = Instant::now();
+        let extraction_start = Instant::now();
         let mut installed_components = 0;
         let mut total_bytes_processed = 0u64;
         
-        for _component in components {
+        for component in components {
             self.update_progress(
                 "Extracting package".to_string(),
                 Some(component.name.clone())
@@ -149,7 +149,7 @@ impl DeploymentManager {
             }
         }
         
-        let _extraction_duration = extraction_start.elapsed();
+        let extraction_duration = extraction_start.elapsed();
         self.metrics.record_extraction_time(extraction_duration);
         self.metrics.record_installed_components(installed_components);
         self.metrics.record_bytes_processed(total_bytes_processed);
@@ -158,19 +158,19 @@ impl DeploymentManager {
         self.state = DeploymentState::IntegratingPlatform;
         self.update_progress("Integrating with platform".to_string(), None);
         
-        let _integration_start = Instant::now();
+        let integration_start = Instant::now();
         platform_integrator.integrate_with_platform(&target.installation_root)
             .map_err(|e| DeploymentError::PlatformIntegrationFailed(e.to_string()))?;
         
-        let _integration_duration = integration_start.elapsed();
+        let integration_duration = integration_start.elapsed();
         self.metrics.record_platform_integration_time(integration_duration);
         
         // Phase 6: Integrity Verification
         self.state = DeploymentState::VerifyingIntegrity;
         self.update_progress("Verifying installation integrity".to_string(), None);
         
-        let _integrity_start = Instant::now();
-        let _integrity_result = self.verify_installation_integrity(
+        let integrity_start = Instant::now();
+        let integrity_result = self.verify_installation_integrity(
             &target.installation_root,
             components,
             package_manager,
@@ -179,7 +179,7 @@ impl DeploymentManager {
             dependency_resolver,
         )?;
         
-        let _integrity_duration = integrity_start.elapsed();
+        let integrity_duration = integrity_start.elapsed();
         self.metrics.record_integrity_verification_time(integrity_duration);
         self.metrics.record_integrity_success_rate(integrity_result.success_rate);
         
@@ -188,7 +188,7 @@ impl DeploymentManager {
             self.state = DeploymentState::RollingBack;
             self.update_progress("Rolling back due to integrity failure".to_string(), None);
             
-            let _rollback_result = rollback_manager.rollback_to_backup(&target.installation_root, &backup_info.backup_id);
+            let rollback_result = rollback_manager.rollback_to_backup(&target.installation_root, &backup_info.backup_id);
             if rollback_result.is_err() {
                 self.state = DeploymentState::Failed {
                     error: "Integrity check failed and rollback failed".to_string()
@@ -206,7 +206,7 @@ impl DeploymentManager {
         self.state = DeploymentState::Completing;
         self.update_progress("Finalizing installation".to_string(), None);
         
-        let _total_duration = start_time.elapsed();
+        let total_duration = start_time.elapsed();
         self.metrics.record_total_installation_time(total_duration);
         
         self.state = DeploymentState::Completed;
@@ -220,7 +220,7 @@ impl DeploymentManager {
             bytes_processed: total_bytes_processed,
             signatures_verified: verified_signatures,
             dependencies_resolved: resolved_dependencies.len(),
-            error_message: None,
+            errormessage: None,
             rollback_available: true,
         })
     }
@@ -239,7 +239,7 @@ impl DeploymentManager {
         rollback_manager: &mut RollbackManager,
         platform_integrator: &mut PlatformIntegrator,
     ) -> Result<DeploymentResult, DeploymentError> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         self.operation_start_time = Some(start_time);
         self.state = DeploymentState::Initializing;
         
@@ -255,11 +255,11 @@ impl DeploymentManager {
         self.state = DeploymentState::CreatingBackup;
         self.update_progress("Creating versioned backup".to_string(), None);
         
-        let _backup_start = Instant::now();
-        let _backup_info = rollback_manager.create_versioned_backup(&target.installation_root, from_version)
+        let backup_start = Instant::now();
+        let backup_info = rollback_manager.create_versioned_backup(&target.installation_root, from_version)
             .map_err(|e| DeploymentError::BackupCreationFailed(e.to_string()))?;
         
-        let _backup_duration = backup_start.elapsed();
+        let backup_duration = backup_start.elapsed();
         self.metrics.record_backup_time(backup_duration);
         self.metrics.record_backup_size(backup_info.backup_size_bytes);
         
@@ -267,10 +267,10 @@ impl DeploymentManager {
         self.state = DeploymentState::VerifyingSignatures;
         self.update_progress("Verifying update signatures".to_string(), None);
         
-        let _signature_start = Instant::now();
+        let signature_start = Instant::now();
         let mut verified_signatures = 0;
         
-        for _component in components {
+        for component in components {
             crypto_verifier.verify_signature(&component.signature)
                 .map_err(|e| DeploymentError::SignatureVerificationFailed(component.name.clone(), e.to_string()))?;
             verified_signatures += 1;
@@ -296,19 +296,19 @@ impl DeploymentManager {
         self.state = DeploymentState::ExtractingPackages;
         self.update_progress("Applying atomic update".to_string(), None);
         
-        let _update_start = Instant::now();
-        let _update_result = update_manager.apply_atomic_update(&target.installation_root, components);
+        let update_start = Instant::now();
+        let update_result = update_manager.apply_atomic_update(&target.installation_root, components);
         
         match update_result {
             Ok(_) => {
-                let _update_duration = update_start.elapsed();
+                let update_duration = update_start.elapsed();
                 self.metrics.record_extraction_time(update_duration);
                 
                 // Phase 5: Verify update integrity
                 self.state = DeploymentState::VerifyingIntegrity;
                 self.update_progress("Verifying update integrity".to_string(), None);
                 
-                let _integrity_result = self.verify_installation_integrity(
+                let integrity_result = self.verify_installation_integrity(
                     &target.installation_root,
                     components,
                     package_manager,
@@ -327,7 +327,7 @@ impl DeploymentManager {
                     );
                 }
                 
-                let _total_duration = start_time.elapsed();
+                let total_duration = start_time.elapsed();
                 self.metrics.record_total_installation_time(total_duration);
                 self.state = DeploymentState::Completed;
                 
@@ -339,11 +339,11 @@ impl DeploymentManager {
                     bytes_processed: total_bytes,
                     signatures_verified: verified_signatures,
                     dependencies_resolved: resolved_dependencies.len(),
-                    error_message: None,
+                    errormessage: None,
                     rollback_available: true,
                 })
             }
-            Err(error) => {
+            Err(_error) => {
                 // Update failed, perform automatic rollback
                 self.perform_emergency_rollback(
                     target,
@@ -361,7 +361,7 @@ impl DeploymentManager {
         target: &InstallationTarget,
         target_version: &str,
         rollback_manager: &mut RollbackManager,
-        _backup_id: &str,
+        backup_id: &str,
     ) -> Result<DeploymentResult, DeploymentError> {
         self.state = DeploymentState::RollingBack;
         self.update_progress("Performing emergency rollback".to_string(), None);
@@ -384,7 +384,7 @@ impl DeploymentManager {
     fn verify_installation_integrity(
         &self,
         installation_root: &PathBuf,
-        components: &[PackageComponent],
+        _components: &[PackageComponent],
         package_manager: &PackageManager,
         crypto_verifier: &CryptographicVerifier,
         platform_integrator: &PlatformIntegrator,
@@ -497,9 +497,9 @@ pub struct IntegrityResult {
 impl Default for DeploymentManager {
     fn default() -> Self {
         Self::new(PlatformTarget::Linux {
-            architecture: crate::deployment::LinuxArchitecture::_X64,
-            distribution: crate::deployment::LinuxDistribution::_Ubuntu,
-            package_type: crate::deployment::LinuxPackageType::_AppImage,
+            architecture: crate::deployment::LinuxArchitecture::X64,
+            distribution: crate::deployment::LinuxDistribution::Ubuntu,
+            package_type: crate::deployment::LinuxPackageType::AppImage,
         })
     }
 }

@@ -31,7 +31,7 @@ impl RollbackManager {
         })
     }
     
-    pub fn create_versioned_backup(&mut self, _installation_root: &PathBuf, _version: &str) -> Result<BackupInfo, DeploymentError> {
+    pub fn create_versioned_backup(&mut self, _installation_root: &PathBuf, version: &str) -> Result<BackupInfo, DeploymentError> {
         // Stub implementation for property testing
         Ok(BackupInfo {
             backup_id: format!("backup-{}", version),
@@ -44,17 +44,17 @@ impl RollbackManager {
         })
     }
     
-    pub fn has_backup_for_version(&self, __version: &str) -> bool {
+    pub fn has_backup_for_version(&self, _version: &str) -> bool {
         // Stub implementation for property testing
         true
     }
     
-    pub fn rollback_to_version(&mut self, _installation_root: &PathBuf, __version: &str) -> Result<(), DeploymentError> {
+    pub fn rollback_to_version(&mut self, _installation_root: &PathBuf, _version: &str) -> Result<(), DeploymentError> {
         // Stub implementation for property testing
         Ok(())
     }
     
-    pub fn rollback_to_backup(&mut self, _installation_root: &PathBuf, __backup_id: &str) -> Result<(), DeploymentError> {
+    pub fn rollback_to_backup(&mut self, _installation_root: &PathBuf, _backup_id: &str) -> Result<(), DeploymentError> {
         // Stub implementation for property testing
         Ok(())
     }

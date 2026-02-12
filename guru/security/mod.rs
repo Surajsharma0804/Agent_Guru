@@ -35,11 +35,7 @@ pub use biometric::{
 };
 
 pub use audit::{
-    ImmutableAuditLog as AuditLogger, 
-    ImmutableLogEntry as AuditEvent, 
-    AuditLevel,
-    AuditLogError as AuditError,
-    ImmutableAuditLog as ImmutableLog
+    AuditLogger, AuditEvent, AuditLevel, ImmutableLog, AuditError
 };
 
 /// Security configuration for the AGENT_GURU system
@@ -78,7 +74,7 @@ pub struct BiometricConfig {
     /// Require multiple modalities for high-security operations
     pub multi_modal_required: bool,
     /// Maximum authentication attempts before lockdown
-    pub _max_attempts: u32,
+    pub max_attempts: u32,
 }
 
 impl Default for BiometricConfig {
@@ -101,7 +97,7 @@ pub struct CryptoConfig {
     /// Enable constant-time operations
     pub constant_time: bool,
     /// Key derivation iterations
-    pub _key_derivation_iterations: u32,
+    pub key_derivation_iterations: u32,
     /// Memory zeroization enabled
     pub memory_zeroization: bool,
 }
@@ -139,7 +135,7 @@ mod tests {
     
     #[test]
     fn test_security_config_default() {
-        let _config = SecurityConfig::default();
+        let config = SecurityConfig::default();
         assert!(config.formal_verification);
         assert!(config.audit_logging);
         assert!(config.biometric_config.multi_modal_required);
@@ -148,8 +144,8 @@ mod tests {
     
     #[test]
     fn test_security_init() {
-        let _config = SecurityConfig::default();
-        let _result = init_security(config);
+        let config = SecurityConfig::default();
+        let result = init_security(config);
         assert!(result.is_ok());
     }
 }

@@ -83,8 +83,8 @@ mod tests {
     
     #[test]
     fn test_avatar_system_creation() {
-        let _personality = PersonalityProfile::default();
-        let _avatar_system = AvatarSystem::new(personality);
+        let personality = PersonalityProfile::default();
+        let avatar_system = AvatarSystem::new(personality);
         
         // Test that all components are initialized
         assert_eq!(avatar_system.emotion_controller.get_current_emotion_blend().0, EmotionState::Neutral);
@@ -94,10 +94,10 @@ mod tests {
     
     #[test]
     fn test_avatar_system_update() {
-        let _personality = PersonalityProfile::default();
+        let personality = PersonalityProfile::default();
         let mut avatar_system = AvatarSystem::new(personality);
         
-        let _result = avatar_system.update(std::time::Duration::from_millis(16));
+        let result = avatar_system.update(std::time::Duration::from_millis(16));
         assert!(result.is_ok());
     }
 }

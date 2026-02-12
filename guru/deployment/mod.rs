@@ -125,13 +125,13 @@ pub enum MacOSVersion { _Monterey, Ventura, Sonoma, _Sequoia }
 pub enum MacOSBundleType { _PKG, DMG, _AppBundle }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum LinuxArchitecture { _X64, ARM64, _ARMHF }
+pub enum LinuxArchitecture { X64, ARM64, ARMHF }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum LinuxDistribution { _Ubuntu, Debian, CentOS, RHEL, Fedora, SUSE, _Arch }
+pub enum LinuxDistribution { Ubuntu, Debian, CentOS, RHEL, Fedora, SUSE, Arch }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum LinuxPackageType { _AppImage, DEB, RPM, Flatpak, _Snap }
+pub enum LinuxPackageType { AppImage, DEB, RPM, Flatpak, Snap }
 
 /// Package component for installation
 #[derive(Debug, Clone)]
@@ -179,7 +179,7 @@ pub struct DeploymentResult {
     pub bytes_processed: u64,
     pub signatures_verified: usize,
     pub dependencies_resolved: usize,
-    pub error_message: Option<String>,
+    pub errormessage: Option<String>,
     pub rollback_available: bool,
 }
 
@@ -253,9 +253,9 @@ impl Default for InstallationTarget {
     fn default() -> Self {
         Self {
             platform: PlatformTarget::Linux {
-                architecture: LinuxArchitecture::_X64,
-                distribution: LinuxDistribution::_Ubuntu,
-                package_type: LinuxPackageType::_AppImage,
+                architecture: LinuxArchitecture::X64,
+                distribution: LinuxDistribution::Ubuntu,
+                package_type: LinuxPackageType::AppImage,
             },
             installation_root: PathBuf::from("/opt/agent-guru"),
             user_level: false,
@@ -332,7 +332,7 @@ impl PackageComponent {
     pub fn get_total_size_with_dependencies(&self, all_components: &[PackageComponent]) -> u64 {
         let mut total_size = self.size_bytes;
         
-        for _dep_name in &self.dependencies {
+        for dep_name in &self.dependencies {
             if let Some(dep_component) = all_components.iter().find(|c| c.name == *dep_name) {
                 total_size += dep_component.size_bytes;
             }
@@ -439,8 +439,8 @@ impl InstallationProgress {
     /// Estimate remaining time based on current progress
     pub fn estimate_remaining_time(&mut self, elapsed_time: Duration) {
         if self.progress_percentage > 0.0 {
-            let _total_estimated_time = elapsed_time.as_secs_f32() / (self.progress_percentage / 100.0);
-            let _remaining_time = total_estimated_time - elapsed_time.as_secs_f32();
+            let total_estimated_time = elapsed_time.as_secs_f32() / (self.progress_percentage / 100.0);
+            let remaining_time = total_estimated_time - elapsed_time.as_secs_f32();
             if remaining_time > 0.0 {
                 self.estimated_time_remaining = Some(Duration::from_secs_f32(remaining_time));
             }

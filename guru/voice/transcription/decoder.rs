@@ -126,7 +126,7 @@ impl DecoderConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenData {
     /// Token ID in vocabulary
-    pub _id: u32,
+    pub id: u32,
     
     /// Probability of the token
     pub probability: f32,
@@ -194,17 +194,17 @@ impl KVCacheCell {
     }
     
     /// Checks if cell contains the given sequence ID
-    fn has_sequence_id(&self, _seq_id: u32) -> bool {
+    fn has_sequence_id(&self, seq_id: u32) -> bool {
         self.sequence_ids.contains(&seq_id)
     }
     
     /// Adds a sequence ID to this cell
-    fn add_sequence_id(&mut self, _seq_id: u32) {
+    fn add_sequence_id(&mut self, seq_id: u32) {
         self.sequence_ids.insert(seq_id);
     }
     
     /// Removes a sequence ID from this cell
-    fn remove_sequence_id(&mut self, _seq_id: u32) {
+    fn remove_sequence_id(&mut self, seq_id: u32) {
         self.sequence_ids.remove(&seq_id);
     }
     
@@ -230,7 +230,7 @@ pub struct KVCache {
     head: usize,
     
     /// Current size of used cache
-    size: usize,
+    _size: usize,
     
     /// Performance metrics
     cache_hits: u64,
@@ -242,12 +242,12 @@ impl KVCache {
     pub fn new(config: DecoderConfig) -> DecoderResult<Self> {
         config.validate()?;
         
-        let _key_size = config.d_model;
-        let _value_size = config.d_model;
-        let _cache_size = config.max_seq_len;
+        let key_size = config.d_model;
+        let value_size = config.d_model;
+        let cache_size = config.max_seq_len;
         
         let mut cells = Vec::with_capacity(cache_size);
-        for __ in 0..cache_size {
+        for _ in 0..cache_size {
             cells.push(KVCacheCell::new(key_size, value_size));
         }
         
@@ -255,14 +255,14 @@ impl KVCache {
             config,
             cells,
             head: 0,
-            size: 0,
+            _size: 0,
             cache_hits: 0,
             cache_misses: 0,
         })
     }
     
     /// Stores key-value pair at the given position
-    pub fn store(&mut self, position: i32, _seq_id: u32, key: &[f32], value: &[f32]) -> DecoderResult<()> {
+    pub fn store(&mut self, position: i32, seq_id: u32, key: &[f32], value: &[f32]) -> DecoderResult<()> {
         if key.len() != self.config.d_model || value.len() != self.config.d_model {
             return Err(DecoderError::KVCacheError {
                 operation: format!(
@@ -273,8 +273,8 @@ impl KVCache {
         }
         
         // Find or allocate cache cell
-        let _cell_index = self.find_or_allocate_cell(position, seq_id)?;
-        let _cell = &mut self.cells[cell_index];
+        let cell_index = self.find_or_allocate_cell(position, seq_id)?;
+        let cell = &mut self.cells[cell_index];
         
         // Store key-value data
         cell.key_data.copy_from_slice(key);
@@ -286,8 +286,8 @@ impl KVCache {
     }
     
     /// Retrieves key-value pair for the given position and sequence
-    pub fn retrieve(&mut self, position: i32, _seq_id: u32) -> Option<(&[f32], &[f32])> {
-        for _cell in &self.cells {
+    pub fn retrieve(&mut self, position: i32, seq_id: u32) -> Option<(&[f32], &[f32])> {
+        for cell in &self.cells {
             if cell.position == position && cell.has_sequence_id(seq_id) {
                 self.cache_hits += 1;
                 return Some((&cell.key_data, &cell.value_data));
@@ -299,8 +299,8 @@ impl KVCache {
     }
     
     /// Clears cache for the given sequence ID
-    pub fn clear_sequence(&mut self, _seq_id: u32) {
-        for _cell in &mut self.cells {
+    pub fn clear_sequence(&mut self, seq_id: u32) {
+        for cell in &mut self.cells {
             cell.remove_sequence_id(seq_id);
             if cell.sequence_ids.is_empty() {
                 cell.clear();
@@ -310,8 +310,8 @@ impl KVCache {
     
     /// Returns cache performance metrics
     pub fn get_metrics(&self) -> (u64, u64, f32) {
-        let _total_accesses = self.cache_hits + self.cache_misses;
-        let _hit_rate = if total_accesses > 0 {
+        let total_accesses = self.cache_hits + self.cache_misses;
+        let hit_rate = if total_accesses > 0 {
             self.cache_hits as f32 / total_accesses as f32
         } else {
             0.0
@@ -320,23 +320,23 @@ impl KVCache {
     }
     
     /// Finds or allocates a cache cell for the given position and sequence
-    fn find_or_allocate_cell(&mut self, position: i32, _seq_id: u32) -> DecoderResult<usize> {
+    fn find_or_allocate_cell(&mut self, position: i32, seq_id: u32) -> DecoderResult<usize> {
         // First, try to find existing cell
-        for (_i, cell) in self.cells.iter().enumerate() {
+        for (i, cell) in self.cells.iter().enumerate() {
             if cell.position == position && cell.has_sequence_id(seq_id) {
                 return Ok(i);
             }
         }
         
         // Find empty cell
-        for (_i, cell) in self.cells.iter().enumerate() {
+        for (i, cell) in self.cells.iter().enumerate() {
             if cell.position == -1 {
                 return Ok(i);
             }
         }
         
         // Use circular buffer allocation
-        let _index = self.head;
+        let index = self.head;
         self.head = (self.head + 1) % self.cells.len();
         self.cells[index].clear();
         
@@ -377,11 +377,11 @@ impl AttentionLayer {
     pub fn new(config: DecoderConfig) -> DecoderResult<Self> {
         config.validate()?;
         
-        let _d_model = config.d_model;
-        let _weight_size = d_model * d_model;
+        let d_model = config.d_model;
+        let weight_size = d_model * d_model;
         
         // Initialize weights with Xavier/Glorot initialization
-        let _scale = (2.0 / d_model as f32).sqrt();
+        let scale = (2.0 / d_model as f32).sqrt();
         
         Ok(Self {
             config,
@@ -403,30 +403,30 @@ impl AttentionLayer {
         value_input: Option<&[f32]>,
         kv_cache: &mut KVCache,
         position: i32,
-        _seq_id: u32,
+        seq_id: u32,
     ) -> DecoderResult<Vec<f32>> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         
         // Use self-attention if no key/value inputs provided
-        let _key_input = key_input.unwrap_or(query_input);
-        let _value_input = value_input.unwrap_or(query_input);
+        let key_input = key_input.unwrap_or(query_input);
+        let value_input = value_input.unwrap_or(query_input);
         
         // Compute query, key, value projections
-        let _query = self.linear_transform(&self.query_weights, &self.query_bias, query_input)?;
-        let _key = self.linear_transform(&self.key_weights, &[], key_input)?;
-        let _value = self.linear_transform(&self.value_weights, &self.value_bias, value_input)?;
+        let query = self.linear_transform(&self.query_weights, &self.query_bias, query_input)?;
+        let key = self.linear_transform(&self.key_weights, &[], key_input)?;
+        let value = self.linear_transform(&self.value_weights, &self.value_bias, value_input)?;
         
         // Store key-value in cache
         kv_cache.store(position, seq_id, &key, &value)?;
         
         // Compute multi-head attention
-        let _attention_output = self.compute_multi_head_attention(&query, &key, &value)?;
+        let attention_output = self.compute_multi_head_attention(&query, &key, &value)?;
         
         // Output projection
-        let _output = self.linear_transform(&self.output_weights, &self.output_bias, &attention_output)?;
+        let output = self.linear_transform(&self.output_weights, &self.output_bias, &attention_output)?;
         
         // Verify performance constraint
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         if elapsed > Duration::from_millis(50) {
             return Err(DecoderError::PerformanceError {
                 constraint: format!("Attention computation took {}ms, exceeds 50ms limit", elapsed.as_millis()),
@@ -448,8 +448,8 @@ impl AttentionLayer {
     
     /// Performs linear transformation: output = input * weights^T + bias
     fn linear_transform(&self, weights: &[f32], bias: &[f32], input: &[f32]) -> DecoderResult<Vec<f32>> {
-        let _input_dim = input.len();
-        let _output_dim = if bias.is_empty() { weights.len() / input_dim } else { bias.len() };
+        let input_dim = input.len();
+        let output_dim = if bias.is_empty() { weights.len() / input_dim } else { bias.len() };
         
         if weights.len() != input_dim * output_dim {
             return Err(DecoderError::AttentionError {
@@ -463,9 +463,9 @@ impl AttentionLayer {
         let mut output = vec![0.0; output_dim];
         
         // Matrix multiplication: output = input * weights^T
-        for _i in 0..output_dim {
+        for i in 0..output_dim {
             let mut sum = 0.0;
-            for _j in 0..input_dim {
+            for j in 0..input_dim {
                 sum += input[j] * weights[i * input_dim + j];
             }
             output[i] = sum;
@@ -473,7 +473,7 @@ impl AttentionLayer {
         
         // Add bias if provided
         if !bias.is_empty() {
-            for _i in 0..output_dim {
+            for i in 0..output_dim {
                 output[i] += bias[i];
             }
         }
@@ -483,9 +483,9 @@ impl AttentionLayer {
     
     /// Computes multi-head attention mechanism
     fn compute_multi_head_attention(&self, query: &[f32], key: &[f32], value: &[f32]) -> DecoderResult<Vec<f32>> {
-        let _d_model = self.config.d_model;
-        let _n_heads = self.config.n_heads;
-        let _head_dim = self.config.head_dim();
+        let d_model = self.config.d_model;
+        let n_heads = self.config.n_heads;
+        let head_dim = self.config.head_dim();
         
         if query.len() != d_model || key.len() != d_model || value.len() != d_model {
             return Err(DecoderError::AttentionError {
@@ -497,30 +497,30 @@ impl AttentionLayer {
         }
         
         let mut output = vec![0.0; d_model];
-        let _scale = 1.0 / (head_dim as f32).sqrt();
+        let scale = 1.0 / (head_dim as f32).sqrt();
         
         // Process each attention head
-        for _head in 0..n_heads {
-            let _head_start = head * head_dim;
-            let _head_end = head_start + head_dim;
+        for head in 0..n_heads {
+            let head_start = head * head_dim;
+            let head_end = head_start + head_dim;
             
             // Extract head-specific query, key, value
-            let _q_head = &query[head_start..head_end];
-            let _k_head = &key[head_start..head_end];
-            let _v_head = &value[head_start..head_end];
+            let q_head = &query[head_start..head_end];
+            let k_head = &key[head_start..head_end];
+            let v_head = &value[head_start..head_end];
             
             // Compute attention scores (simplified for single token)
             let mut attention_score = 0.0;
-            for _i in 0..head_dim {
+            for i in 0..head_dim {
                 attention_score += q_head[i] * k_head[i];
             }
             attention_score *= scale;
             
             // Apply softmax (simplified for single token)
-            let _attention_weight = attention_score.exp();
+            let attention_weight = attention_score.exp();
             
             // Compute weighted value
-            for _i in 0..head_dim {
+            for i in 0..head_dim {
                 output[head_start + i] = attention_weight * v_head[i];
             }
         }
@@ -564,19 +564,19 @@ impl LayerNorm {
         }
         
         // Compute mean
-        let _mean = input.iter().sum::<f32>() / input.len() as f32;
+        let mean = input.iter().sum::<f32>() / input.len() as f32;
         
         // Compute variance
-        let _variance = input.iter()
+        let variance = input.iter()
             .map(|x| (x - mean).powi(2))
             .sum::<f32>() / input.len() as f32;
         
         // Normalize and scale
-        let _std_dev = (variance + self.eps).sqrt();
+        let std_dev = (variance + self.eps).sqrt();
         let mut output = Vec::with_capacity(input.len());
         
-        for _i in 0..input.len() {
-            let _normalized = (input[i] - mean) / std_dev;
+        for i in 0..input.len() {
+            let normalized = (input[i] - mean) / std_dev;
             output.push(self.weights[i] * normalized + self.bias[i]);
         }
         
@@ -609,8 +609,8 @@ pub struct MLPLayer {
 impl MLPLayer {
     /// Creates a new MLP layer
     pub fn new(d_model: usize, d_ff: usize) -> Self {
-        let _scale1 = (2.0 / d_model as f32).sqrt();
-        let _scale2 = (2.0 / d_ff as f32).sqrt();
+        let scale1 = (2.0 / d_model as f32).sqrt();
+        let scale2 = (2.0 / d_ff as f32).sqrt();
         
         Self {
             linear1_weights: Self::initialize_weights(d_model * d_ff, scale1),
@@ -635,9 +635,9 @@ impl MLPLayer {
         
         // First linear layer
         let mut hidden = vec![0.0; self.d_ff];
-        for _i in 0..self.d_ff {
+        for i in 0..self.d_ff {
             let mut sum = self.linear1_bias[i];
-            for _j in 0..self.d_model {
+            for j in 0..self.d_model {
                 sum += input[j] * self.linear1_weights[i * self.d_model + j];
             }
             // Apply GELU activation
@@ -646,9 +646,9 @@ impl MLPLayer {
         
         // Second linear layer
         let mut output = vec![0.0; self.d_model];
-        for _i in 0..self.d_model {
+        for i in 0..self.d_model {
             let mut sum = self.linear2_bias[i];
-            for _j in 0..self.d_ff {
+            for j in 0..self.d_ff {
                 sum += hidden[j] * self.linear2_weights[i * self.d_ff + j];
             }
             output[i] = sum;
@@ -717,28 +717,28 @@ impl DecoderLayer {
         encoder_output: Option<&[f32]>,
         kv_cache: &mut KVCache,
         position: i32,
-        _seq_id: u32,
+        seq_id: u32,
     ) -> DecoderResult<Vec<f32>> {
         // Self-attention with residual connection
-        let _ln1_output = self.ln1.forward(input)?;
-        let _self_attn_output = self.self_attention.forward(
+        let ln1_output = self.ln1.forward(input)?;
+        let self_attn_output = self.self_attention.forward(
             &ln1_output, None, None, kv_cache, position, seq_id
         )?;
         
         let mut residual1 = Vec::with_capacity(input.len());
-        for _i in 0..input.len() {
+        for i in 0..input.len() {
             residual1.push(input[i] + self_attn_output[i]);
         }
         
         // Cross-attention with residual connection (if encoder output provided)
-        let _residual2 = if let Some(encoder_out) = encoder_output {
-            let _ln2_output = self.ln2.forward(&residual1)?;
-            let _cross_attn_output = self.cross_attention.forward(
+        let residual2 = if let Some(encoder_out) = encoder_output {
+            let ln2_output = self.ln2.forward(&residual1)?;
+            let cross_attn_output = self.cross_attention.forward(
                 &ln2_output, Some(encoder_out), Some(encoder_out), kv_cache, position, seq_id
             )?;
             
             let mut result = Vec::with_capacity(residual1.len());
-            for _i in 0..residual1.len() {
+            for i in 0..residual1.len() {
                 result.push(residual1[i] + cross_attn_output[i]);
             }
             result
@@ -747,11 +747,11 @@ impl DecoderLayer {
         };
         
         // MLP with residual connection
-        let _ln3_output = self.ln3.forward(&residual2)?;
-        let _mlp_output = self.mlp.forward(&ln3_output)?;
+        let ln3_output = self.ln3.forward(&residual2)?;
+        let mlp_output = self.mlp.forward(&ln3_output)?;
         
         let mut final_output = Vec::with_capacity(residual2.len());
-        for _i in 0..residual2.len() {
+        for i in 0..residual2.len() {
             final_output.push(residual2[i] + mlp_output[i]);
         }
         
@@ -795,23 +795,23 @@ impl TransformerDecoder {
         
         // Initialize layers
         let mut layers = Vec::with_capacity(config.n_layers);
-        for __ in 0..config.n_layers {
+        for _ in 0..config.n_layers {
             layers.push(DecoderLayer::new(config.clone())?);
         }
         
         // Initialize embeddings
-        let _embedding_size = config.vocab_size * config.d_model;
-        let __pos_embedding_size = config.max_seq_len * config.d_model;
-        let _output_proj_size = config.d_model * config.vocab_size;
+        let embedding_size = config.vocab_size * config.d_model;
+        let _pos_embedding_size = config.max_seq_len * config.d_model;
+        let output_proj_size = config.d_model * config.vocab_size;
         
-        let _token_embeddings = Self::initialize_embeddings(embedding_size);
-        let _positional_embeddings = Self::initialize_positional_embeddings(
+        let token_embeddings = Self::initialize_embeddings(embedding_size);
+        let positional_embeddings = Self::initialize_positional_embeddings(
             config.max_seq_len, config.d_model
         );
-        let _output_projection = Self::initialize_embeddings(output_proj_size);
+        let output_projection = Self::initialize_embeddings(output_proj_size);
         
         // Create KV cache
-        let _kv_cache = Arc::new(Mutex::new(KVCache::new(config.clone())?));
+        let kv_cache = Arc::new(Mutex::new(KVCache::new(config.clone())?));
         
         Ok(Self {
             config: config.clone(),
@@ -831,9 +831,9 @@ impl TransformerDecoder {
         &mut self,
         input_tokens: &[u32],
         encoder_output: Option<&[f32]>,
-        _seq_id: u32,
+        seq_id: u32,
     ) -> DecoderResult<TokenData> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         
         if input_tokens.is_empty() {
             return Err(DecoderError::SequenceError {
@@ -841,17 +841,17 @@ impl TransformerDecoder {
             });
         }
         
-        let _last_token = *input_tokens.last().unwrap();
-        let _position = input_tokens.len() as i32 - 1;
+        let last_token = *input_tokens.last().unwrap();
+        let position = input_tokens.len() as i32 - 1;
         
         // Get token embedding
-        let _token_embedding = self.get_token_embedding(last_token)?;
+        let token_embedding = self.get_token_embedding(last_token)?;
         
         // Add positional embedding
         #[allow(clippy::cast_sign_loss)]
-        let _pos_embedding = self.get_positional_embedding(position as usize)?;
+        let pos_embedding = self.get_positional_embedding(position as usize)?;
         let mut input_embedding = Vec::with_capacity(self.config.d_model);
-        for _i in 0..self.config.d_model {
+        for i in 0..self.config.d_model {
             input_embedding.push(token_embedding[i] + pos_embedding[i]);
         }
         
@@ -862,7 +862,7 @@ impl TransformerDecoder {
                 operation: "Failed to acquire KV cache lock".to_string(),
             })?;
             
-            for _layer in &self.layers {
+            for layer in &self.layers {
                 layer_output = layer.forward(
                     &layer_output,
                     encoder_output,
@@ -877,13 +877,13 @@ impl TransformerDecoder {
         layer_output = self.final_ln.forward(&layer_output)?;
         
         // Output projection to vocabulary
-        let _logits = self.compute_output_logits(&layer_output)?;
+        let logits = self.compute_output_logits(&layer_output)?;
         
         // Convert logits to probabilities and select token
-        let _token_data = self.sample_token(&logits, start_time)?;
+        let token_data = self.sample_token(&logits, start_time)?;
         
         // Update performance metrics
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         self.total_tokens_processed += 1;
         self.total_processing_time_ms += elapsed.as_millis() as u64;
         
@@ -901,7 +901,7 @@ impl TransformerDecoder {
     }
     
     /// Clears KV cache for the given sequence
-    pub fn clear_sequence(&mut self, _seq_id: u32) -> DecoderResult<()> {
+    pub fn clear_sequence(&mut self, seq_id: u32) -> DecoderResult<()> {
         let mut kv_cache = self.kv_cache.lock().map_err(|_| DecoderError::KVCacheError {
             operation: "Failed to acquire KV cache lock for clearing".to_string(),
         })?;
@@ -912,7 +912,7 @@ impl TransformerDecoder {
     
     /// Returns performance metrics
     pub fn get_performance_metrics(&self) -> (u64, u64, f32) {
-        let _avg_time_per_token = if self.total_tokens_processed > 0 {
+        let avg_time_per_token = if self.total_tokens_processed > 0 {
             self.total_processing_time_ms as f32 / self.total_tokens_processed as f32
         } else {
             0.0
@@ -922,15 +922,15 @@ impl TransformerDecoder {
     }
     
     /// Gets token embedding for the given token ID
-    fn get_token_embedding(&self, _token_id: u32) -> DecoderResult<Vec<f32>> {
+    fn get_token_embedding(&self, token_id: u32) -> DecoderResult<Vec<f32>> {
         if token_id >= self.config.vocab_size as u32 {
             return Err(DecoderError::SequenceError {
                 reason: format!("Token ID {} exceeds vocabulary size {}", token_id, self.config.vocab_size),
             });
         }
         
-        let _start_idx = (token_id as usize) * self.config.d_model;
-        let _end_idx = start_idx + self.config.d_model;
+        let start_idx = (token_id as usize) * self.config.d_model;
+        let end_idx = start_idx + self.config.d_model;
         
         Ok(self.token_embeddings[start_idx..end_idx].to_vec())
     }
@@ -943,8 +943,8 @@ impl TransformerDecoder {
             });
         }
         
-        let _start_idx = position * self.config.d_model;
-        let _end_idx = start_idx + self.config.d_model;
+        let start_idx = position * self.config.d_model;
+        let end_idx = start_idx + self.config.d_model;
         
         Ok(self.positional_embeddings[start_idx..end_idx].to_vec())
     }
@@ -962,9 +962,9 @@ impl TransformerDecoder {
         
         let mut logits = vec![0.0; self.config.vocab_size];
         
-        for _i in 0..self.config.vocab_size {
+        for i in 0..self.config.vocab_size {
             let mut sum = 0.0;
-            for _j in 0..self.config.d_model {
+            for j in 0..self.config.d_model {
                 sum += layer_output[j] * self.output_projection[i * self.config.d_model + j];
             }
             logits[i] = sum;
@@ -976,20 +976,20 @@ impl TransformerDecoder {
     /// Samples token from logits using softmax
     fn sample_token(&self, logits: &[f32], start_time: Instant) -> DecoderResult<TokenData> {
         // Find maximum logit for numerical stability
-        let _max_logit = logits.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+        let max_logit = logits.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
         
         // Compute softmax probabilities
         let mut probabilities = Vec::with_capacity(logits.len());
         let mut sum_exp = 0.0;
         
         for &logit in logits {
-            let _exp_val = (logit - max_logit).exp();
+            let exp_val = (logit - max_logit).exp();
             probabilities.push(exp_val);
             sum_exp += exp_val;
         }
         
         // Normalize probabilities
-        for _prob in &mut probabilities {
+        for prob in &mut probabilities {
             *prob /= sum_exp;
         }
         
@@ -997,15 +997,15 @@ impl TransformerDecoder {
         let mut best_token_id = 0;
         let mut best_probability = 0.0;
         
-        for (_i, &prob) in probabilities.iter().enumerate() {
+        for (i, &prob) in probabilities.iter().enumerate() {
             if prob > best_probability {
                 best_probability = prob;
                 best_token_id = i;
             }
         }
         
-        let _log_probability = best_probability.ln();
-        let _elapsed = start_time.elapsed();
+        let log_probability = best_probability.ln();
+        let elapsed = start_time.elapsed();
         
         Ok(TokenData {
             id: best_token_id as u32,
@@ -1021,7 +1021,7 @@ impl TransformerDecoder {
     fn initialize_embeddings(size: usize) -> Vec<f32> {
         use std::f32::consts::PI;
         
-        let _scale = 0.02; // Standard embedding initialization scale
+        let scale = 0.02; // Standard embedding initialization scale
         (0..size)
             .map(|i| scale * (2.0 * PI * i as f32 / size as f32).sin())
             .collect()
@@ -1031,9 +1031,9 @@ impl TransformerDecoder {
     fn initialize_positional_embeddings(max_seq_len: usize, d_model: usize) -> Vec<f32> {
         let mut embeddings = vec![0.0; max_seq_len * d_model];
         
-        for _pos in 0..max_seq_len {
-            for _i in 0..(d_model / 2) {
-                let _angle = pos as f32 / 10000.0_f32.powf(2.0 * i as f32 / d_model as f32);
+        for pos in 0..max_seq_len {
+            for i in 0..(d_model / 2) {
+                let angle = pos as f32 / 10000.0_f32.powf(2.0 * i as f32 / d_model as f32);
                 embeddings[pos * d_model + 2 * i] = angle.sin();
                 embeddings[pos * d_model + 2 * i + 1] = angle.cos();
             }
@@ -1068,7 +1068,7 @@ mod tests {
     
     #[test]
     fn test_decoder_config_validation() {
-        let _valid_config = DecoderConfig {
+        let valid_config = DecoderConfig {
             n_layers: 6,
             d_model: 512,
             n_heads: 8,
@@ -1082,7 +1082,7 @@ mod tests {
         assert!(valid_config.validate().is_ok());
         assert_eq!(valid_config.head_dim(), 64);
         
-        let _invalid_config = DecoderConfig {
+        let invalid_config = DecoderConfig {
             n_layers: 0,
             ..valid_config
         };
@@ -1092,7 +1092,7 @@ mod tests {
     
     #[test]
     fn test_kv_cache_operations() {
-        let _config = DecoderConfig {
+        let config = DecoderConfig {
             n_layers: 1,
             d_model: 64,
             n_heads: 4,
@@ -1105,14 +1105,14 @@ mod tests {
         
         let mut cache = KVCache::new(config).unwrap();
         
-        let _key = vec![1.0; 64];
-        let _value = vec![2.0; 64];
+        let key = vec![1.0; 64];
+        let value = vec![2.0; 64];
         
         // Store key-value pair
         assert!(cache.store(0, 1, &key, &value).is_ok());
         
         // Retrieve key-value pair
-        let _retrieved = cache.retrieve(0, 1);
+        let retrieved = cache.retrieve(0, 1);
         assert!(retrieved.is_some());
         
         let (ret_key, ret_value) = retrieved.unwrap();
@@ -1126,10 +1126,10 @@ mod tests {
     
     #[test]
     fn test_layer_norm() {
-        let _layer_norm = LayerNorm::new(4, 1e-5);
-        let _input = vec![1.0, 2.0, 3.0, 4.0];
+        let layer_norm = LayerNorm::new(4, 1e-5);
+        let input = vec![1.0, 2.0, 3.0, 4.0];
         
-        let _output = layer_norm.forward(&input).unwrap();
+        let output = layer_norm.forward(&input).unwrap();
         
         // Check that output has zero mean (approximately)
         #[allow(clippy::cast_precision_loss)]
@@ -1146,7 +1146,7 @@ mod tests {
     
     #[test]
     fn test_attention_layer() {
-        let _config = DecoderConfig {
+        let config = DecoderConfig {
             n_layers: 1,
             d_model: 64,
             n_heads: 4,
@@ -1157,18 +1157,18 @@ mod tests {
             dropout: 0.0,
         };
         
-        let _attention = AttentionLayer::new(config.clone()).unwrap();
+        let attention = AttentionLayer::new(config.clone()).unwrap();
         let mut kv_cache = KVCache::new(config).unwrap();
         
-        let _input = vec![1.0; 64];
-        let _output = attention.forward(&input, None, None, &mut kv_cache, 0, 1).unwrap();
+        let input = vec![1.0; 64];
+        let output = attention.forward(&input, None, None, &mut kv_cache, 0, 1).unwrap();
         
         assert_eq!(output.len(), 64);
     }
     
     #[test]
     fn test_transformer_decoder() {
-        let _config = DecoderConfig {
+        let config = DecoderConfig {
             n_layers: 2,
             d_model: 64,
             n_heads: 4,
@@ -1181,8 +1181,8 @@ mod tests {
         
         let mut decoder = TransformerDecoder::new(config).unwrap();
         
-        let _input_tokens = vec![1, 2, 3];
-        let _token_data = decoder.generate_next_token(&input_tokens, None, 1).unwrap();
+        let input_tokens = vec![1, 2, 3];
+        let token_data = decoder.generate_next_token(&input_tokens, None, 1).unwrap();
         
         assert!(token_data.id < 1000);
         assert!(token_data.probability > 0.0);

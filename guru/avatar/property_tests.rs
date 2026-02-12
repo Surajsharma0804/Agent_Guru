@@ -71,7 +71,7 @@ pub struct AvatarSystem {
 
 impl AvatarSystem {
     pub fn new(personality: PersonalityProfile) -> Self {
-        let _now = Instant::now();
+        let now = Instant::now();
         Self {
             emotion_controller: EmotionController::new(personality.clone()),
             lip_sync_controller: LipSyncController::new(),
@@ -96,26 +96,26 @@ impl AvatarSystem {
     
     /// Transition to a new emotion state with comprehensive timing validation
     pub fn transition_to_emotion(&mut self, target_emotion: EmotionState, duration: Duration) -> Result<(), String> {
-        let _start_time = Instant::now();
-        let _result = self.emotion_controller.transition_to_emotion(target_emotion, duration, 1.0);
-        let _elapsed = start_time.elapsed();
+        let start_time = Instant::now();
+        let result = self.emotion_controller.transition_to_emotion(target_emotion, duration, 1.0);
+        let elapsed = start_time.elapsed();
         self.performance_metrics.emotion_transition_time_ms = elapsed.as_millis() as f32;
         result
     }
     
     /// Process phoneme sequence with timing accuracy validation
     pub fn process_phoneme_sequence(&mut self, phonemes: &[PhonemeTimingData]) -> Result<(), String> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         
-        for _phoneme_data in phonemes {
+        for phoneme_data in phonemes {
             self.lip_sync_controller.process_phoneme(phoneme_data.clone())?;
         }
         
-        let _elapsed = start_time.elapsed();
+        let elapsed = start_time.elapsed();
         self.performance_metrics.phoneme_processing_time_us = elapsed.as_micros() as u64;
         
         // Update lip sync accuracy from controller metrics
-        let _lip_sync_metrics = self.lip_sync_controller.get_metrics();
+        let lip_sync_metrics = self.lip_sync_controller.get_metrics();
         self.performance_metrics.lip_sync_accuracy_ms = lip_sync_metrics.sync_accuracy_ms;
         
         Ok(())
@@ -123,11 +123,11 @@ impl AvatarSystem {
     
     /// Generate personality-appropriate micro-behaviors with validation
     pub fn generate_micro_behaviors(&mut self, context: ContextType) -> Result<Vec<MicroBehavior>, String> {
-        let _behaviors = self.personality_engine.generate_behaviors(context)?;
+        let behaviors = self.personality_engine.generate_behaviors(context)?;
         self.performance_metrics.active_behaviors_count = behaviors.len();
         
         // Update personality metrics
-        let _personality_metrics = self.personality_engine.get_metrics();
+        let personality_metrics = self.personality_engine.get_metrics();
         self.performance_metrics.personality_consistency_score = personality_metrics.consistency_score;
         self.performance_metrics.context_adaptation_accuracy = personality_metrics.adaptation_accuracy;
         
@@ -136,20 +136,20 @@ impl AvatarSystem {
     
     /// Update avatar system with comprehensive performance monitoring
     pub fn update_system(&mut self, delta_time: Duration) -> Result<(), String> {
-        let _frame_start = Instant::now();
+        let frame_start = Instant::now();
         
         // Update all subsystems
         self.emotion_controller.update_transitions(delta_time)?;
         self.personality_engine.update_behaviors(delta_time)?;
         
         // Update blendshape weights (simulate rendering)
-        let _blendshape_start = Instant::now();
-        let __weights = self.lip_sync_controller.get_blendshape_weights();
-        let _blendshape_time = blendshape_start.elapsed();
+        let blendshape_start = Instant::now();
+        let _weights = self.lip_sync_controller.get_blendshape_weights();
+        let blendshape_time = blendshape_start.elapsed();
         self.performance_metrics.blendshape_update_time_us = blendshape_time.as_micros() as u64;
         
         // Update frame timing
-        let _frame_time = frame_start.elapsed();
+        let frame_time = frame_start.elapsed();
         self.performance_metrics.frame_time_ms = frame_time.as_millis() as f32;
         self.performance_metrics.frame_rate = if self.performance_metrics.frame_time_ms > 0.0 {
             1000.0 / self.performance_metrics.frame_time_ms
@@ -167,9 +167,9 @@ impl AvatarSystem {
     /// Update comprehensive performance metrics from all subsystems
     fn update_comprehensive_performance_metrics(&mut self) {
         // Collect metrics from all components
-        let _emotion_metrics = self.emotion_controller.get_metrics();
-        let _lip_sync_metrics = self.lip_sync_controller.get_metrics();
-        let _personality_metrics = self.personality_engine.get_metrics();
+        let emotion_metrics = self.emotion_controller.get_metrics();
+        let lip_sync_metrics = self.lip_sync_controller.get_metrics();
+        let personality_metrics = self.personality_engine.get_metrics();
         
         // Calculate total memory usage
         self.performance_metrics.memory_usage_bytes = 
@@ -211,7 +211,7 @@ impl AvatarSystem {
     /// Simulate high system load for resource management testing
     pub fn simulate_high_load(&mut self, load_factor: f32) -> Result<(), String> {
         // Simulate processing delay based on load factor
-        let _delay_ms = (load_factor * 50.0) as u64; // Up to 50ms delay
+        let delay_ms = (load_factor * 50.0) as u64; // Up to 50ms delay
         std::thread::sleep(Duration::from_millis(delay_ms));
         
         // Update performance metrics to reflect load impact
@@ -227,25 +227,25 @@ impl AvatarSystem {
     
     /// Test concurrent avatar operations
     pub fn test_concurrent_operations(&mut self, operation_count: usize) -> Result<(), String> {
-        let _start_time = Instant::now();
+        let start_time = Instant::now();
         
         // Get personality-compatible emotions
-        let _compatible_emotions = match self.personality_engine.get_personality().personality_type {
+        let compatible_emotions = match self.personality_engine.get_personality().personality_type {
             PersonalityType::GURU => vec![EmotionState::Happy, EmotionState::Confident, EmotionState::Thoughtful],
             PersonalityType::MAYA => vec![EmotionState::Happy, EmotionState::Empathetic, EmotionState::Playful],
         };
         
-        for _i in 0..operation_count {
+        for i in 0..operation_count {
             // Simulate concurrent emotion transitions with compatible emotions
-            let _emotion = compatible_emotions[i % compatible_emotions.len()].clone();
+            let emotion = compatible_emotions[i % compatible_emotions.len()].clone();
             self.transition_to_emotion(emotion, Duration::from_millis(100))?;
             
             // Simulate concurrent behavior generation
-            let _context = if i % 3 == 0 { ContextType::Conversation } else { ContextType::Thinking };
+            let context = if i % 3 == 0 { ContextType::Conversation } else { ContextType::Thinking };
             self.generate_micro_behaviors(context)?;
             
             // Simulate concurrent phoneme processing
-            let _phoneme_data = PhonemeTimingData {
+            let phoneme_data = PhonemeTimingData {
                 phoneme: Phoneme::AA,
                 start_time: i as f32 * 0.1,
                 duration: 0.1,
@@ -257,10 +257,10 @@ impl AvatarSystem {
             self.lip_sync_controller.process_phoneme(phoneme_data)?;
         }
         
-        let _total_time = start_time.elapsed();
+        let total_time = start_time.elapsed();
         
         // Validate that concurrent operations complete within reasonable time
-        let _max_expected_time = Duration::from_millis(operation_count as u64 * 50); // 50ms per operation
+        let max_expected_time = Duration::from_millis(operation_count as u64 * 50); // 50ms per operation
         if total_time > max_expected_time {
             return Err(format!("Concurrent operations took too long: {:?} > {:?}", total_time, max_expected_time));
         }
@@ -488,12 +488,12 @@ mod tests {
             behavior_contexts in prop::collection::vec(generators::context_type_strategy(), 0..5),
         ) {
             let mut avatar = AvatarSystem::new(personality.clone());
-            let _start_time = Instant::now();
+            let start_time = Instant::now();
             
             // **Comprehensive Avatar Rendering Simulation**
             
             // 1. Process emotion transitions with personality-compatible emotions
-            let _compatible_emotions = match personality.personality_type {
+            let compatible_emotions = match personality.personality_type {
                 PersonalityType::GURU => vec![
                     EmotionState::Neutral, EmotionState::Happy, EmotionState::Confident,
                     EmotionState::Thoughtful, EmotionState::Focused, EmotionState::GuruWisdom,
@@ -504,8 +504,8 @@ mod tests {
                 ],
             };
             
-            for _emotion in compatible_emotions.into_iter().take(5) {
-                let _transition_result = avatar.transition_to_emotion(
+            for emotion in compatible_emotions.into_iter().take(5) {
+                let transition_result = avatar.transition_to_emotion(
                     emotion,
                     Duration::from_millis(200)
                 );
@@ -514,19 +514,19 @@ mod tests {
             
             // 2. Process phoneme sequences for lip sync validation
             if !phoneme_sequences.is_empty() {
-                let _phoneme_result = avatar.process_phoneme_sequence(&phoneme_sequences);
+                let phoneme_result = avatar.process_phoneme_sequence(&phoneme_sequences);
                 prop_assert!(phoneme_result.is_ok(), "Phoneme processing failed: {:?}", phoneme_result);
             }
             
             // 3. Generate personality-appropriate behaviors
-            for _context in behavior_contexts {
-                let _behavior_result = avatar.generate_micro_behaviors(context);
+            for context in behavior_contexts {
+                let behavior_result = avatar.generate_micro_behaviors(context);
                 prop_assert!(behavior_result.is_ok(), "Behavior generation failed: {:?}", behavior_result);
             }
             
             // 4. Update system with comprehensive performance monitoring
-            let _frame_time = Duration::from_millis(16); // Target 60 FPS
-            let _update_result = avatar.update_system(frame_time);
+            let frame_time = Duration::from_millis(16); // Target 60 FPS
+            let update_result = avatar.update_system(frame_time);
             prop_assert!(update_result.is_ok(), "System update failed: {:?}", update_result);
             
             // **Performance Requirements Validation**
@@ -571,7 +571,7 @@ mod tests {
             
             // Phoneme processing must be efficient (≤100μs per phoneme)
             if !phoneme_sequences.is_empty() {
-                let _avg_phoneme_time = avatar.performance_metrics.phoneme_processing_time_us / phoneme_sequences.len() as u64;
+                let avg_phoneme_time = avatar.performance_metrics.phoneme_processing_time_us / phoneme_sequences.len() as u64;
                 prop_assert!(
                     avg_phoneme_time <= 100,
                     "Phoneme processing must be ≤100μs per phoneme, got: {}μs",
@@ -603,8 +603,8 @@ mod tests {
             // **Personality Consistency Testing**
             
             // 1. Apply emotion sequence and validate personality appropriateness
-            for _emotion in emotion_sequence {
-                let _transition_result = avatar.transition_to_emotion(emotion.clone(), Duration::from_millis(200));
+            for emotion in emotion_sequence {
+                let transition_result = avatar.transition_to_emotion(emotion.clone(), Duration::from_millis(200));
                 
                 // Validate personality-specific emotion constraints
                 match (&personality.personality_type, &emotion) {
@@ -624,14 +624,14 @@ mod tests {
             }
             
             // 2. Generate behaviors across different contexts
-            for _context in behavior_contexts {
-                let _behavior_result = avatar.generate_micro_behaviors(context.clone());
+            for context in behavior_contexts {
+                let behavior_result = avatar.generate_micro_behaviors(context.clone());
                 prop_assert!(behavior_result.is_ok(), "Behavior generation failed for context: {:?}", context);
             }
             
             // 3. Force specific behaviors to test personality modulation
-            for _behavior_type in behavior_types {
-                let _force_result = avatar.personality_engine.force_behavior(
+            for behavior_type in behavior_types {
+                let force_result = avatar.personality_engine.force_behavior(
                     behavior_type.clone(),
                     Duration::from_millis(1000),
                     1.0
@@ -674,7 +674,7 @@ mod tests {
                 PersonalityType::GURU => {
                     // GURU should exhibit confidence and intelligence-based behaviors
                     if personality.confidence > 0.7 {
-                        let _confident_behaviors = avatar.personality_engine.get_active_behaviors()
+                        let confident_behaviors = avatar.personality_engine.get_active_behaviors()
                             .iter()
                             .filter(|b| matches!(b.behavior_type, BehaviorType::ConfidentPosture | BehaviorType::DirectGaze))
                             .count();
@@ -685,7 +685,7 @@ mod tests {
                 PersonalityType::MAYA => {
                     // MAYA should exhibit empathy and playfulness-based behaviors
                     if personality.empathy > 0.7 {
-                        let _empathetic_behaviors = avatar.personality_engine.get_active_behaviors()
+                        let empathetic_behaviors = avatar.personality_engine.get_active_behaviors()
                             .iter()
                             .filter(|b| matches!(b.behavior_type, BehaviorType::EmpathethicExpression | BehaviorType::WarmGaze))
                             .count();
@@ -710,16 +710,16 @@ mod tests {
             emotion_count in 0usize..20usize,
         ) {
             let mut avatar = AvatarSystem::new(personality.clone());
-            let _start_time = Instant::now();
+            let start_time = Instant::now();
             
             // **Resource Management Testing Under Various Loads**
             
             // 1. Simulate system load
-            let _load_result = avatar.simulate_high_load(load_factor);
+            let load_result = avatar.simulate_high_load(load_factor);
             prop_assert!(load_result.is_ok(), "Load simulation failed: {:?}", load_result);
             
             // 2. Test concurrent operations
-            let _concurrent_result = avatar.test_concurrent_operations(concurrent_operations);
+            let concurrent_result = avatar.test_concurrent_operations(concurrent_operations);
             prop_assert!(concurrent_result.is_ok(), "Concurrent operations failed: {:?}", concurrent_result);
             
             // 3. Process large phoneme sequences
@@ -736,26 +736,26 @@ mod tests {
             }).collect();
             
             if !phonemes.is_empty() {
-                let _phoneme_result = avatar.process_phoneme_sequence(&phonemes);
+                let phoneme_result = avatar.process_phoneme_sequence(&phonemes);
                 prop_assert!(phoneme_result.is_ok(), "Large phoneme sequence processing failed");
             }
             
             // 4. Process multiple emotion transitions with personality-compatible emotions
-            let _compatible_emotions = match personality.personality_type {
+            let compatible_emotions = match personality.personality_type {
                 PersonalityType::GURU => vec![EmotionState::Happy, EmotionState::Confident, EmotionState::Thoughtful],
                 PersonalityType::MAYA => vec![EmotionState::Happy, EmotionState::Empathetic, EmotionState::Playful],
             };
             
-            for _i in 0..emotion_count {
-                let _emotion = compatible_emotions[i % compatible_emotions.len()].clone();
-                let __ = avatar.transition_to_emotion(emotion, Duration::from_millis(100));
+            for i in 0..emotion_count {
+                let emotion = compatible_emotions[i % compatible_emotions.len()].clone();
+                let _ = avatar.transition_to_emotion(emotion, Duration::from_millis(100));
             }
             
             // 5. Update system under load
-            let _update_result = avatar.update_system(Duration::from_millis(16));
+            let update_result = avatar.update_system(Duration::from_millis(16));
             prop_assert!(update_result.is_ok(), "System update under load failed");
             
-            let _total_time = start_time.elapsed();
+            let total_time = start_time.elapsed();
             
             // **Resource Management Requirements**
             
@@ -777,7 +777,7 @@ mod tests {
             }
             
             // 2. Memory usage must scale reasonably with operations
-            let _expected_max_memory = 50_000_000 + (concurrent_operations * 1_000_000); // Base + per operation
+            let expected_max_memory = 50_000_000 + (concurrent_operations * 1_000_000); // Base + per operation
             prop_assert!(
                 avatar.performance_metrics.memory_usage_bytes <= expected_max_memory,
                 "Memory usage must scale reasonably, got: {} bytes for {} operations (max expected: {})",
@@ -785,13 +785,13 @@ mod tests {
             );
             
             // 3. Processing time must scale reasonably with load factor
-            let _base_time_ms = 200u64; // Base processing time
-            let _load_multiplier = (load_factor * 100.0) as u64; // Load factor impact
-            let _operation_time = concurrent_operations as u64 * 50; // 50ms per concurrent operation
-            let _phoneme_time = phoneme_count as u64 * 2; // 2ms per phoneme
-            let _emotion_time = emotion_count as u64 * 20; // 20ms per emotion
+            let base_time_ms = 200u64; // Base processing time
+            let load_multiplier = (load_factor * 100.0) as u64; // Load factor impact
+            let operation_time = concurrent_operations as u64 * 50; // 50ms per concurrent operation
+            let phoneme_time = phoneme_count as u64 * 2; // 2ms per phoneme
+            let emotion_time = emotion_count as u64 * 20; // 20ms per emotion
             
-            let _max_expected_time = Duration::from_millis(
+            let max_expected_time = Duration::from_millis(
                 base_time_ms + load_multiplier + operation_time + phoneme_time + emotion_time
             );
             
@@ -849,7 +849,7 @@ mod tests {
             avatar.lip_sync_controller.set_audio_timestamp(audio_timestamp);
             
             // Process phoneme sequence
-            let _process_result = avatar.process_phoneme_sequence(&phoneme_sequence);
+            let process_result = avatar.process_phoneme_sequence(&phoneme_sequence);
             prop_assert!(process_result.is_ok(), "Phoneme sequence processing failed: {:?}", process_result);
             
             // **Lip Sync Accuracy Requirements**
@@ -862,7 +862,7 @@ mod tests {
             );
             
             // 2. Phoneme processing must be efficient
-            let _avg_processing_time = avatar.performance_metrics.phoneme_processing_time_us / phoneme_sequence.len() as u64;
+            let avg_processing_time = avatar.performance_metrics.phoneme_processing_time_us / phoneme_sequence.len() as u64;
             prop_assert!(
                 avg_processing_time <= 100, // 100μs per phoneme
                 "Phoneme processing must be ≤100μs per phoneme, got: {}μs",
@@ -870,7 +870,7 @@ mod tests {
             );
             
             // 3. Blendshape weights must be valid (0.0 to 1.0)
-            let _weights = avatar.lip_sync_controller.get_blendshape_weights();
+            let weights = avatar.lip_sync_controller.get_blendshape_weights();
             prop_assert!(
                 weights.jaw_open >= 0.0 && weights.jaw_open <= 1.0,
                 "Blendshape weights must be in [0,1] range, jaw_open: {}",
@@ -883,14 +883,14 @@ mod tests {
             );
             
             // 4. Phoneme-to-viseme mapping must be consistent
-            for _phoneme_data in &phoneme_sequence {
+            for phoneme_data in &phoneme_sequence {
                 // Test that each phoneme can be processed successfully
-                let _process_result = avatar.lip_sync_controller.process_phoneme(phoneme_data.clone());
+                let process_result = avatar.lip_sync_controller.process_phoneme(phoneme_data.clone());
                 prop_assert!(process_result.is_ok(), "Phoneme {:?} must be processable", phoneme_data.phoneme);
             }
             
             // 5. Timing accuracy must be maintained across sequence
-            let _lip_sync_metrics = avatar.lip_sync_controller.get_metrics();
+            let lip_sync_metrics = avatar.lip_sync_controller.get_metrics();
             prop_assert!(
                 lip_sync_metrics.sync_accuracy_ms <= 5.0,
                 "Timing accuracy must be maintained across sequence, got: {}ms",
@@ -913,9 +913,9 @@ mod tests {
             let mut previous_emotion = EmotionState::Neutral;
             
             // Process emotion chain with varying durations
-            for (_emotion, &duration_ms) in emotion_chain.iter().zip(transition_durations.iter()) {
-                let _duration = Duration::from_millis(duration_ms);
-                let _transition_result = avatar.transition_to_emotion(emotion.clone(), duration);
+            for (emotion, &duration_ms) in emotion_chain.iter().zip(transition_durations.iter()) {
+                let duration = Duration::from_millis(duration_ms);
+                let transition_result = avatar.transition_to_emotion(emotion.clone(), duration);
                 
                 // Validate transition based on personality constraints
                 match (&personality.personality_type, emotion) {
@@ -932,7 +932,7 @@ mod tests {
                             "Valid emotion transition should succeed: {:?} -> {:?}", previous_emotion, emotion);
                         
                         // Update system to process transition
-                        let _update_result = avatar.update_system(Duration::from_millis(16));
+                        let update_result = avatar.update_system(Duration::from_millis(16));
                         prop_assert!(update_result.is_ok(), "System update during transition failed");
                         
                         // Validate transition timing

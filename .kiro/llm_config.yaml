@@ -1,0 +1,103 @@
+# AGENT_GURU LLM Runtime Configuration
+# Production-grade multi-provider configuration with strict security boundaries
+
+llm:
+  # Runtime mode: local | api | hybrid
+  mode: local
+  
+  # Default provider when task not specified
+  default_provider: ollama
+  
+  # Require manual user confirmation before using API providers
+  require_user_confirmation_for_api: true
+  
+  # Log metadata only (never log content)
+  log_metadata_only: true
+  
+  # Task-specific provider configuration
+  tasks:
+    # Intent extraction: Fast local model for privacy and latency
+    intent_extraction:
+      provider: ollama
+      model: qwen2.5:7b-instruct
+      fallback_provider: null
+      fallback_model: null
+    
+    # Intent structuring: Fast local model for JSON generation
+    intent_structuring:
+      provider: ollama
+      model: mistral:7b-instruct
+      fallback_provider: null
+      fallback_model: null
+    
+    # Deep reasoning: Disabled by default (can enable with larger model)
+    deep_reasoning:
+      provider: disabled
+      model: ""
+      fallback_provider: null
+      fallback_model: null
+    
+    # Language help: Balanced local model for general assistance
+    language_help:
+      provider: ollama
+      model: qwen2.5:14b-instruct
+      fallback_provider: null
+      fallback_model: null
+
+# Example: Hybrid configuration with API fallback
+# Uncomment and set API keys in environment variables:
+# - OPENAI_API_KEY
+# - GEMINI_API_KEY
+#
+# llm:
+#   mode: hybrid
+#   default_provider: ollama
+#   require_user_confirmation_for_api: true
+#   log_metadata_only: true
+#   
+#   tasks:
+#     intent_extraction:
+#       provider: ollama
+#       model: qwen2.5:7b-instruct
+#       fallback_provider: openai
+#       fallback_model: gpt-3.5-turbo
+#     
+#     deep_reasoning:
+#       provider: openai
+#       model: gpt-4
+#       fallback_provider: ollama
+#       fallback_model: qwen2.5:14b-instruct
+
+# Example: API-only configuration
+# Requires API keys in environment variables
+#
+# llm:
+#   mode: api
+#   default_provider: openai
+#   require_user_confirmation_for_api: true
+#   log_metadata_only: true
+#   
+#   tasks:
+#     intent_extraction:
+#       provider: openai
+#       model: gpt-3.5-turbo
+#       fallback_provider: null
+#       fallback_model: null
+#     
+#     intent_structuring:
+#       provider: openai
+#       model: gpt-3.5-turbo
+#       fallback_provider: null
+#       fallback_model: null
+#     
+#     deep_reasoning:
+#       provider: openai
+#       model: gpt-4
+#       fallback_provider: null
+#       fallback_model: null
+#     
+#     language_help:
+#       provider: gemini
+#       model: gemini-pro
+#       fallback_provider: openai
+#       fallback_model: gpt-3.5-turbo
