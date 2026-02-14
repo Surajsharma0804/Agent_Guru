@@ -15,6 +15,7 @@ pub struct GuruRuntime {
 
 /// Runtime configuration
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct RuntimeConfig {
     /// Enable voice interface
     pub voice_enabled: bool,
@@ -28,17 +29,6 @@ pub struct RuntimeConfig {
     pub os_control_enabled: bool,
 }
 
-impl Default for RuntimeConfig {
-    fn default() -> Self {
-        Self {
-            voice_enabled: false,
-            biometric_enabled: false,
-            llm_enabled: false,
-            memory_enabled: false,
-            os_control_enabled: false,
-        }
-    }
-}
 
 /// Runtime state
 #[derive(Debug, Clone)]
@@ -102,9 +92,9 @@ impl GuruRuntime {
     }
 
     /// Process a natural language command
-    pub async fn process_command(&self, input: &str) -> Result<String, RuntimeError> {
+    pub fn process_command(&self, input: &str) -> Result<String, RuntimeError> {
         // Placeholder for LLM integration
-        Ok(format!("Processed: {}", input))
+        Ok(format!("Processed: {input}"))
     }
 
     /// Get current configuration

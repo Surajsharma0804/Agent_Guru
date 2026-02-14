@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Errors that can occur during spectrogram generation
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum SpectrogramError {
     #[error("Invalid configuration: {message}")]
     InvalidConfiguration { message: String },
@@ -86,7 +86,8 @@ pub struct SpectrogramConfig {
 
 impl SpectrogramConfig {
     /// Creates a default configuration for 16kHz speech
-    pub fn default_speech() -> Self {
+    #[must_use] 
+    pub const fn default_speech() -> Self {
         Self {
             sample_rate: 16000,
             n_fft: 512, // Changed to power of 2
@@ -161,23 +162,26 @@ impl SpectrogramConfig {
     }
     
     /// Returns the Nyquist frequency
+    #[must_use] 
     pub fn nyquist_freq(&self) -> f32 {
         self.sample_rate as f32 / 2.0
     }
     
     /// Returns the effective maximum frequency
+    #[must_use] 
     pub fn effective_f_max(&self) -> f32 {
         self.f_max.unwrap_or_else(|| self.nyquist_freq())
     }
     
     /// Returns the frequency resolution
+    #[must_use] 
     pub fn freq_resolution(&self) -> f32 {
         self.sample_rate as f32 / self.n_fft as f32
     }
 }
 
 /// Window function types for spectral analysis
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum WindowType {
     /// Hann window (raised cosine)
     Hann,
@@ -201,44 +205,51 @@ pub struct Complex {
 
 impl Complex {
     /// Creates a new complex number
-    pub fn new(real: f32, imag: f32) -> Self {
+    #[must_use] 
+    pub const fn new(real: f32, imag: f32) -> Self {
         Self { real, imag }
     }
     
     /// Creates a complex number from real part only
-    pub fn from_real(real: f32) -> Self {
+    #[must_use] 
+    pub const fn from_real(real: f32) -> Self {
         Self { real, imag: 0.0 }
     }
     
     /// Returns the magnitude of the complex number
+    #[must_use] 
     pub fn magnitude(&self) -> f32 {
-        (self.real * self.real + self.imag * self.imag).sqrt()
+        self.real.hypot(self.imag)
     }
     
     /// Returns the magnitude squared (power)
+    #[must_use] 
     pub fn magnitude_squared(&self) -> f32 {
-        self.real * self.real + self.imag * self.imag
+        self.real.mul_add(self.real, self.imag * self.imag)
     }
     
     /// Multiplies two complex numbers
-    pub fn multiply(&self, other: &Complex) -> Complex {
-        Complex {
-            real: self.real * other.real - self.imag * other.imag,
-            imag: self.real * other.imag + self.imag * other.real,
+    #[must_use] 
+    pub fn multiply(&self, other: &Self) -> Self {
+        Self {
+            real: self.real.mul_add(other.real, -(self.imag * other.imag)),
+            imag: self.real.mul_add(other.imag, self.imag * other.real),
         }
     }
     
     /// Adds two complex numbers
-    pub fn add(&self, other: &Complex) -> Complex {
-        Complex {
+    #[must_use] 
+    pub fn add(&self, other: &Self) -> Self {
+        Self {
             real: self.real + other.real,
             imag: self.imag + other.imag,
         }
     }
     
     /// Subtracts two complex numbers
-    pub fn subtract(&self, other: &Complex) -> Complex {
-        Complex {
+    #[must_use] 
+    pub fn subtract(&self, other: &Self) -> Self {
+        Self {
             real: self.real - other.real,
             imag: self.imag - other.imag,
         }
@@ -345,17 +356,17 @@ impl MelFilterBank {
         let mut mel_spectrum = Vec::with_capacity(self.config.n_mels);
         
         for filter in &self.filters {
-            let mut energy = 0.0;
-            
-            if self.config.enable_simd {
+            let energy = if self.config.enable_simd {
                 // SIMD-optimized dot product
-                energy = self.simd_dot_product(filter, power_spectrum)?;
+                self.simd_dot_product(filter, power_spectrum)?
             } else {
                 // Standard dot product
+                let mut e = 0.0;
                 for (i, &filter_val) in filter.iter().enumerate() {
-                    energy += filter_val * power_spectrum[i];
+                    e += filter_val * power_spectrum[i];
                 }
-            }
+                e
+            };
             
             // Apply logarithmic scaling with small epsilon to avoid log(0)
             let log_energy = (energy + 1e-10).ln();
@@ -392,6 +403,7 @@ pub struct WindowFunction {
 
 impl WindowFunction {
     /// Creates a new window function
+    #[must_use] 
     pub fn new(window_type: WindowType, size: usize) -> Self {
         let coefficients = match window_type {
             WindowType::Hann => Self::hann_window(size),
@@ -436,7 +448,7 @@ impl WindowFunction {
     /// Generates Hamming window coefficients
     fn hamming_window(size: usize) -> Vec<f32> {
         (0..size)
-            .map(|i| 0.54 - 0.46 * (2.0 * PI * i as f32 / (size - 1) as f32).cos())
+            .map(|i| 0.46f32.mul_add(-(2.0 * PI * i as f32 / (size - 1) as f32).cos(), 0.54))
             .collect()
     }
     
@@ -446,7 +458,7 @@ impl WindowFunction {
             .map(|i| {
                 let n = i as f32;
                 let n_max = (size - 1) as f32;
-                0.42 - 0.5 * (2.0 * PI * n / n_max).cos() + 0.08 * (4.0 * PI * n / n_max).cos()
+                0.5f32.mul_add(-(2.0 * PI * n / n_max).cos(), 0.42) + 0.08 * (4.0 * PI * n / n_max).cos()
             })
             .collect()
     }
@@ -531,6 +543,7 @@ impl FFTProcessor {
     }
     
     /// Computes power spectrum from FFT output
+    #[must_use] 
     pub fn compute_power_spectrum(&self, fft_output: &[Complex], power: f32) -> Vec<f32> {
         let n_freqs = self.n_fft / 2 + 1;
         let mut power_spectrum = Vec::with_capacity(n_freqs);
@@ -697,8 +710,7 @@ impl SpectrogramGenerator {
         if avg_time_per_frame > 10.0 {
             return Err(SpectrogramError::PerformanceError {
                 constraint: format!(
-                    "Average processing time per frame {}ms exceeds 10ms limit",
-                    avg_time_per_frame
+                    "Average processing time per frame {avg_time_per_frame}ms exceeds 10ms limit"
                 ),
             });
         }

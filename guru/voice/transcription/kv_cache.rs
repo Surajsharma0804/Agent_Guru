@@ -24,8 +24,11 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// Type alias for optional KV tensor pair results
+type KVPairOption = Option<(Vec<f32>, Vec<f32>)>;
+
 /// Errors that can occur during KV-cache operations
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum KVCacheError {
     #[error("Invalid cache configuration: {message}")]
     InvalidConfiguration { message: String },
@@ -120,12 +123,14 @@ impl KVCacheConfig {
     }
     
     /// Returns the dimension per attention head
-    pub fn head_dim(&self) -> usize {
+    #[must_use] 
+    pub const fn head_dim(&self) -> usize {
         self.d_model / self.n_heads
     }
     
     /// Estimates memory usage for the given configuration
-    pub fn estimate_memory_usage(&self) -> usize {
+    #[must_use] 
+    pub const fn estimate_memory_usage(&self) -> usize {
         let tensor_size = self.d_model * std::mem::size_of::<f32>();
         let cache_entry_size = 2 * tensor_size; // key + value
         let sequence_size = cache_entry_size * self.max_seq_length;
@@ -138,7 +143,7 @@ impl KVCacheConfig {
 }
 
 /// Cache eviction policies for memory management
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EvictionPolicy {
     /// Least Recently Used eviction
     LRU,
@@ -186,6 +191,7 @@ pub struct CacheEntryMetadata {
 
 impl CacheEntryMetadata {
     /// Creates new metadata for a cache entry
+    #[must_use] 
     pub fn new(position: Position, sequence_id: SequenceId) -> Self {
         let now = Instant::now();
         Self {
@@ -244,6 +250,7 @@ impl KVTensorPair {
     }
     
     /// Returns the memory usage of this tensor pair
+    #[must_use] 
     pub fn memory_usage(&self) -> usize {
         let tensor_size = (self.key.len() + self.value.len()) * std::mem::size_of::<f32>();
         let metadata_size = std::mem::size_of::<CacheEntryMetadata>();
@@ -287,7 +294,8 @@ pub struct CacheKey {
 
 impl CacheKey {
     /// Creates a new cache key
-    pub fn new(sequence_id: SequenceId, position: Position) -> Self {
+    #[must_use] 
+    pub const fn new(sequence_id: SequenceId, position: Position) -> Self {
         Self { sequence_id, position }
     }
 }
@@ -319,6 +327,7 @@ pub struct SequenceInfo {
 
 impl SequenceInfo {
     /// Creates new sequence information
+    #[must_use] 
     pub fn new(id: SequenceId, max_length: usize) -> Self {
         Self {
             id,
@@ -369,9 +378,16 @@ pub struct KVCacheMetrics {
     pub total_entries: usize,
 }
 
+impl Default for KVCacheMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KVCacheMetrics {
     /// Creates new metrics with zero values
-    pub fn new() -> Self {
+    #[must_use] 
+    pub const fn new() -> Self {
         Self {
             cache_hits: 0,
             cache_misses: 0,
@@ -595,10 +611,11 @@ impl StreamingKVCache {
         sequence_id: SequenceId,
         start_position: Position,
         length: usize,
-    ) -> KVCacheResult<Vec<Option<(Vec<f32>, Vec<f32>)>>> {
+    ) -> KVCacheResult<Vec<KVPairOption>> {
         let mut results = Vec::with_capacity(length);
         
         for i in 0..length {
+            #[allow(clippy::cast_possible_wrap)]
             let position = start_position + i as Position;
             let result = self.retrieve(sequence_id, position)?;
             results.push(result);
@@ -650,6 +667,7 @@ impl StreamingKVCache {
         
         let prefetch_size = self.config.prefetch_size;
         for i in 0..prefetch_size {
+            #[allow(clippy::cast_possible_wrap)]
             let position = start_position + i as Position;
             let _cache_key = CacheKey::new(sequence_id, position);
             
@@ -662,11 +680,9 @@ impl StreamingKVCache {
     
     /// Returns current performance metrics
     pub fn get_metrics(&self) -> KVCacheResult<KVCacheMetrics> {
-        let metrics = self.metrics.read().map_err(|_| KVCacheError::CacheCorruption {
+        let mut result = self.metrics.read().map_err(|_| KVCacheError::CacheCorruption {
             details: "Failed to acquire metrics lock".to_string(),
-        })?;
-        
-        let mut result = metrics.clone();
+        })?.clone();
         
         // Calculate average access time
         if !self.access_times.is_empty() {
@@ -697,7 +713,7 @@ impl StreamingKVCache {
         
         // Compress entries if compression is enabled
         if self.config.enable_compression {
-            for (_, tensor_pair) in self.cache.iter_mut() {
+            for tensor_pair in self.cache.values_mut() {
                 if !tensor_pair.is_compressed {
                     tensor_pair.compress()?;
                 }
@@ -824,7 +840,8 @@ pub struct KVCacheConfigBuilder {
 
 impl KVCacheConfigBuilder {
     /// Creates a new configuration builder
-    pub fn new() -> Self {
+    #[must_use] 
+    pub const fn new() -> Self {
         Self {
             config: KVCacheConfig {
                 max_sequences: 16,
@@ -840,49 +857,57 @@ impl KVCacheConfigBuilder {
     }
     
     /// Sets maximum number of sequences
-    pub fn max_sequences(mut self, max_sequences: usize) -> Self {
+    #[must_use] 
+    pub const fn max_sequences(mut self, max_sequences: usize) -> Self {
         self.config.max_sequences = max_sequences;
         self
     }
     
     /// Sets maximum sequence length
-    pub fn max_seq_length(mut self, max_seq_length: usize) -> Self {
+    #[must_use] 
+    pub const fn max_seq_length(mut self, max_seq_length: usize) -> Self {
         self.config.max_seq_length = max_seq_length;
         self
     }
     
     /// Sets model dimension
-    pub fn d_model(mut self, d_model: usize) -> Self {
+    #[must_use] 
+    pub const fn d_model(mut self, d_model: usize) -> Self {
         self.config.d_model = d_model;
         self
     }
     
     /// Sets number of attention heads
-    pub fn n_heads(mut self, n_heads: usize) -> Self {
+    #[must_use] 
+    pub const fn n_heads(mut self, n_heads: usize) -> Self {
         self.config.n_heads = n_heads;
         self
     }
     
     /// Sets maximum memory usage
-    pub fn max_memory_bytes(mut self, max_memory_bytes: usize) -> Self {
+    #[must_use] 
+    pub const fn max_memory_bytes(mut self, max_memory_bytes: usize) -> Self {
         self.config.max_memory_bytes = max_memory_bytes;
         self
     }
     
     /// Sets eviction policy
-    pub fn eviction_policy(mut self, policy: EvictionPolicy) -> Self {
+    #[must_use] 
+    pub const fn eviction_policy(mut self, policy: EvictionPolicy) -> Self {
         self.config.eviction_policy = policy;
         self
     }
     
     /// Enables or disables compression
-    pub fn enable_compression(mut self, enable: bool) -> Self {
+    #[must_use] 
+    pub const fn enable_compression(mut self, enable: bool) -> Self {
         self.config.enable_compression = enable;
         self
     }
     
     /// Sets prefetch size
-    pub fn prefetch_size(mut self, size: usize) -> Self {
+    #[must_use] 
+    pub const fn prefetch_size(mut self, size: usize) -> Self {
         self.config.prefetch_size = size;
         self
     }

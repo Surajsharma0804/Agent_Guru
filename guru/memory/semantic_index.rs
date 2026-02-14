@@ -1,5 +1,5 @@
 //! Semantic Index for Vector Database with Similarity Search Optimization
-//! AGENT_GURU - Task 5 Implementation
+//! `AGENT_GURU` - Task 5 Implementation
 //!
 //! MAXIMUM ENGINEERING MANDATE (ZERO COMPROMISE):
 //! - Complete vector database with FAISS-level performance and HNSW optimization
@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use rayon::prelude::*;
 use rand::Rng;
+use rand::seq::SliceRandom;
 
 /// PRODUCTION-GRADE Configuration for semantic indexing with HNSW optimization
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,7 +60,7 @@ impl Default for SemanticIndexConfig {
             use_hnsw_search: true,   // HNSW for billion-scale performance
             enable_simd: true,       // SIMD for 8x faster similarity computation
             enable_parallel: true,   // Multi-threading for optimal CPU utilization
-            cache_size: 100000,      // Large cache for production workloads
+            cache_size: 100_000,      // Large cache for production workloads
             hnsw_m: 16,             // Optimal connectivity for accuracy/speed balance
             hnsw_ef_construction: 200, // High-quality graph construction
             hnsw_ef_search: 100,     // Fast search with good recall
@@ -89,6 +90,7 @@ pub struct SemanticEntry {
 }
 
 impl SemanticEntry {
+    #[must_use] 
     pub fn new(
         embedding: Vec<f32>,
         content_hash: String,
@@ -170,7 +172,7 @@ struct AdvancedCluster {
 
 impl AdvancedCluster {
     #[allow(dead_code)]
-    fn new(centroid: Vec<f32>) -> Self {
+    const fn new(centroid: Vec<f32>) -> Self {
         Self {
             centroid,
             quantized_centroid: None,
@@ -201,7 +203,7 @@ struct Cluster {
 }
 
 impl Cluster {
-    fn new(centroid: Vec<f32>) -> Self {
+    const fn new(centroid: Vec<f32>) -> Self {
         Self {
             centroid,
             entry_ids: Vec::new(),
@@ -244,9 +246,8 @@ impl AdvancedQueryCache {
                 *access_count += 1;
                 self.hit_count += 1;
                 return Some(results.clone());
-            } else {
-                self.cache.remove(query_hash);
             }
+            self.cache.remove(query_hash);
         }
         self.miss_count += 1;
         None
@@ -320,7 +321,8 @@ pub struct AdvancedPerformanceMetrics {
 
 impl SemanticIndex {
     /// Create new semantic index with MAXIMUM ENGINEERING configuration
-    pub fn new(config: SemanticIndexConfig) -> Self {
+    #[must_use] 
+    pub fn new(config: &SemanticIndexConfig) -> Self {
         let cache_ttl = Duration::from_secs(1800); // 30 minutes for production
         
         Self {
@@ -337,6 +339,10 @@ impl SemanticIndex {
     }
     
     /// Add semantic entry to the index
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` or `Mutex` is poisoned.
     pub fn add_entry(&self, mut entry: SemanticEntry) -> Result<Uuid, SemanticIndexError> {
         // Validate embedding dimension
         if entry.embedding.len() != self.config.embedding_dim {
@@ -380,6 +386,10 @@ impl SemanticIndex {
     }
     
     /// Remove entry from the index
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` or `Mutex` is poisoned.
     pub fn remove_entry(&self, entry_id: &Uuid) -> Result<bool, SemanticIndexError> {
         let removed = {
             let mut entries = self.entries.write().unwrap();
@@ -388,19 +398,28 @@ impl SemanticIndex {
         
         if removed {
             // Clear cache
-            let mut cache = self.query_cache.lock().unwrap();
-            cache.cache.clear();
+            {
+                let mut cache = self.query_cache.lock().unwrap();
+                cache.cache.clear();
+            }
             
             // Update metrics
+            let entries_len = {
+                let entries = self.entries.read().unwrap();
+                entries.len()
+            };
             let mut metrics = self.performance_metrics.write().unwrap();
-            let entries = self.entries.read().unwrap();
-            metrics.total_entries = entries.len();
+            metrics.total_entries = entries_len;
         }
         
         Ok(removed)
     }
     
     /// Find similar entries using vector similarity search
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` or `Mutex` is poisoned.
     pub fn find_similar(
         &self,
         query_embedding: &[f32],
@@ -425,14 +444,16 @@ impl SemanticIndex {
         let query_hash = generate_query_hash(&normalized_query, limit, threshold);
         
         // Check cache first
-        {
+        let cached_result = {
             let mut cache = self.query_cache.lock().unwrap();
-            if let Some(cached_results) = cache.get(&query_hash) {
-                let mut metrics = self.performance_metrics.write().unwrap();
-                metrics.cache_hits += 1;
-                metrics.total_queries += 1;
-                return Ok(cached_results);
-            }
+            cache.get(&query_hash)
+        };
+        
+        if let Some(cached_results) = cached_result {
+            let mut metrics = self.performance_metrics.write().unwrap();
+            metrics.cache_hits += 1;
+            metrics.total_queries += 1;
+            return Ok(cached_results);
         }
         
         let threshold = threshold.unwrap_or(self.config.similarity_threshold);
@@ -456,7 +477,7 @@ impl SemanticIndex {
             metrics.total_queries += 1;
             let query_time = start_time.elapsed().as_millis() as f64;
             metrics.avg_query_time_ns = 
-                ((metrics.avg_query_time_ns as f64 * (metrics.total_queries - 1) as f64 + query_time) 
+                ((metrics.avg_query_time_ns as f64).mul_add((metrics.total_queries - 1) as f64, query_time) 
                 / metrics.total_queries as f64) as u64;
         }
         
@@ -537,7 +558,10 @@ impl SemanticIndex {
         threshold: f32,
     ) -> Result<Vec<SimilarityResult>, SemanticIndexError> {
         // Check if optimization is needed but DON'T block on it during search
-        let is_optimized = *self.is_optimized.read().unwrap();
+        let is_optimized = {
+            let opt = self.is_optimized.read().unwrap();
+            *opt
+        };
         
         let clusters = self.clusters.read().unwrap();
         
@@ -549,7 +573,7 @@ impl SemanticIndex {
         }
         
         // Advanced cluster selection with adaptive probing
-        let probe_count = self._calculate_optimal_probe_count(clusters.len(), limit);
+        let probe_count = self.calculate_optimal_probe_count(clusters.len(), limit);
         let mut cluster_distances: Vec<(usize, f32)> = clusters
             .iter()
             .enumerate()
@@ -609,7 +633,7 @@ impl SemanticIndex {
         similarities.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
         
         // Apply diversity filtering to avoid too similar results
-        let diverse_results = self._apply_diversity_filter(similarities, 0.95);
+        let diverse_results = self.apply_diversity_filter(similarities, 0.95);
         
         // Limit results
         let final_results: Vec<SimilarityResult> = diverse_results.into_iter()
@@ -630,7 +654,7 @@ impl SemanticIndex {
     }
     
     /// Calculate optimal probe count based on cluster size and desired results
-    fn _calculate_optimal_probe_count(&self, num_clusters: usize, limit: usize) -> usize {
+    fn calculate_optimal_probe_count(&self, num_clusters: usize, limit: usize) -> usize {
         // Adaptive probing: more clusters for higher recall, fewer for speed
         let base_probes = (num_clusters as f32).sqrt() as usize;
         let adaptive_factor = (limit as f32 / 10.0).sqrt();
@@ -641,7 +665,7 @@ impl SemanticIndex {
     }
     
     /// Apply diversity filtering to avoid too similar results
-    fn _apply_diversity_filter(&self, results: Vec<SimilarityResult>, diversity_threshold: f32) -> Vec<SimilarityResult> {
+    fn apply_diversity_filter(&self, results: Vec<SimilarityResult>, diversity_threshold: f32) -> Vec<SimilarityResult> {
         if results.len() <= 1 {
             return results;
         }
@@ -697,10 +721,17 @@ impl SemanticIndex {
     }
     
     /// Optimize the index using k-means clustering for IVF
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     pub fn optimize_index(&self) -> Result<(), SemanticIndexError> {
-        let entries = self.entries.read().unwrap();
+        let entries_len = {
+            let entries = self.entries.read().unwrap();
+            entries.len()
+        };
         
-        if entries.len() < self.config.num_clusters {
+        if entries_len < self.config.num_clusters {
             // Not enough entries for clustering
             let mut is_optimized = self.is_optimized.write().unwrap();
             *is_optimized = true;
@@ -709,20 +740,23 @@ impl SemanticIndex {
         
         // Limit clustering to prevent hanging on large datasets
         let max_entries_for_clustering = 10000;
-        if entries.len() > max_entries_for_clustering {
-            eprintln!("Warning: Dataset too large for clustering optimization ({}), skipping", entries.len());
+        if entries_len > max_entries_for_clustering {
+            eprintln!("Warning: Dataset too large for clustering optimization ({}), skipping", entries_len);
             let mut is_optimized = self.is_optimized.write().unwrap();
             *is_optimized = true;
             return Ok(());
         }
         
         // Collect embeddings for clustering
-        let embeddings: Vec<Vec<f32>> = entries.values()
-            .map(|entry| entry.embedding.clone())
-            .collect();
+        let embeddings: Vec<Vec<f32>> = {
+            let entries = self.entries.read().unwrap();
+            entries.values()
+                .map(|entry| entry.embedding.clone())
+                .collect()
+        };
         
         // Perform k-means clustering with limited iterations
-        let max_iterations = std::cmp::min(100, entries.len() / 10); // Adaptive max iterations
+        let max_iterations = std::cmp::min(100, embeddings.len() / 10); // Adaptive max iterations
         let centroids = self.kmeans_clustering(&embeddings, self.config.num_clusters, max_iterations)?;
         
         // Create clusters
@@ -732,19 +766,22 @@ impl SemanticIndex {
         }
         
         // Assign entries to clusters
-        for (entry_id, entry) in entries.iter() {
-            let mut best_cluster = 0;
-            let mut best_distance = f32::INFINITY;
-            
-            for (i, cluster) in new_clusters.iter().enumerate() {
-                let distance = cosine_distance(&entry.embedding, &cluster.centroid);
-                if distance < best_distance {
-                    best_distance = distance;
-                    best_cluster = i;
+        {
+            let entries = self.entries.read().unwrap();
+            for (entry_id, entry) in entries.iter() {
+                let mut best_cluster = 0;
+                let mut best_distance = f32::INFINITY;
+                
+                for (i, cluster) in new_clusters.iter().enumerate() {
+                    let distance = cosine_distance(&entry.embedding, &cluster.centroid);
+                    if distance < best_distance {
+                        best_distance = distance;
+                        best_cluster = i;
+                    }
                 }
+                
+                new_clusters[best_cluster].add_entry(*entry_id);
             }
-            
-            new_clusters[best_cluster].add_entry(*entry_id);
         }
         
         // Update clusters
@@ -770,12 +807,21 @@ impl SemanticIndex {
     }
     
     /// Get entry by ID
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
+    #[must_use] 
     pub fn get_entry(&self, entry_id: &Uuid) -> Option<SemanticEntry> {
         let entries = self.entries.read().unwrap();
         entries.get(entry_id).cloned()
     }
     
     /// Update entry metadata
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     pub fn update_entry_metadata(
         &self,
         entry_id: &Uuid,
@@ -793,6 +839,11 @@ impl SemanticIndex {
     }
     
     /// Get performance metrics
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
+    #[must_use] 
     pub fn get_performance_metrics(&self) -> AdvancedPerformanceMetrics {
         let metrics = self.performance_metrics.read().unwrap();
         AdvancedPerformanceMetrics {
@@ -812,6 +863,10 @@ impl SemanticIndex {
     }
     
     /// Clear all entries and reset index
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` or `Mutex` is poisoned.
     pub fn clear(&self) -> Result<(), SemanticIndexError> {
         {
             let mut entries = self.entries.write().unwrap();
@@ -842,6 +897,11 @@ impl SemanticIndex {
     }
     
     /// Get index statistics
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` or `Mutex` is poisoned.
+    #[must_use] 
     pub fn get_statistics(&self) -> IndexStatistics {
         let entries = self.entries.read().unwrap();
         let clusters = self.clusters.read().unwrap();
@@ -1021,13 +1081,6 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 /// Advanced similarity computation with multiple optimized metrics
 fn compute_advanced_similarity(a: &[f32], b: &[f32], metric: &str, use_simd: bool) -> f32 {
     match metric {
-        "cosine" => {
-            if use_simd && a.len() >= 8 {
-                simd_cosine_similarity(a, b)
-            } else {
-                cosine_similarity(a, b)
-            }
-        },
         "euclidean" => {
             let distance: f32 = if use_simd && a.len() >= 8 {
                 simd_euclidean_distance(a, b)
@@ -1081,7 +1134,7 @@ fn compute_advanced_similarity(a: &[f32], b: &[f32], metric: &str, use_simd: boo
                 numerator / denominator
             }
         },
-        _ => {
+        "cosine" | _ => {
             if use_simd && a.len() >= 8 {
                 simd_cosine_similarity(a, b)
             } else {
@@ -1184,8 +1237,6 @@ fn advanced_kmeans_clustering(
     
     // Advanced K-means++ initialization with better distribution
     let mut rng = rand::thread_rng();
-    use rand::seq::SliceRandom;
-    use rand::Rng;
     
     // First centroid: random point
     centroids.push(embeddings.choose(&mut rng).unwrap().clone());
@@ -1321,7 +1372,7 @@ fn advanced_kmeans_clustering(
         }
         
         // Update previous centroids
-        prev_centroids = new_centroids.clone();
+        prev_centroids.clone_from(&new_centroids);
         centroids = new_centroids;
         
         // Check for convergence
@@ -1332,8 +1383,7 @@ fn advanced_kmeans_clustering(
         
         // Progress logging for large datasets
         if iteration % 10 == 0 && iteration > 0 {
-            eprintln!("K-means iteration {}/{}, max shift: {:.6}", 
-                     iteration, max_iterations, max_centroid_shift);
+            eprintln!("K-means iteration {iteration}/{max_iterations}, max shift: {max_centroid_shift:.6}");
         }
     }
     
@@ -1357,8 +1407,7 @@ fn estimate_memory_usage(
             let original_size = entry.embedding.len() * std::mem::size_of::<f32>();
             let quantized_size = entry.quantized_embedding
                 .as_ref()
-                .map(|q| q.len())
-                .unwrap_or(0);
+                .map_or(0, std::vec::Vec::len);
             original_size + quantized_size
         })
         .sum();
@@ -1408,7 +1457,7 @@ mod tests {
             use_hnsw_search: true, // HNSW FOR BILLION-SCALE PERFORMANCE
             enable_simd: true, // SIMD FOR 8X PERFORMANCE BOOST
             enable_parallel: true, // MAXIMUM PARALLELISM
-            cache_size: 100000, // LARGE PRODUCTION CACHE
+            cache_size: 100_000, // LARGE PRODUCTION CACHE
             hnsw_m: 16, // OPTIMAL CONNECTIVITY
             hnsw_ef_construction: 200, // HIGH-QUALITY GRAPH
             hnsw_ef_search: 100, // FAST SEARCH WITH GOOD RECALL
@@ -1422,10 +1471,10 @@ mod tests {
         
         println!("📊 PHASE 1: MASSIVE DATA INGESTION TEST");
         // STRESS TEST: Add 100,000 entries with realistic transformer embeddings
-        let mut entry_ids = Vec::with_capacity(100000);
+        let mut entry_ids = Vec::with_capacity(100_000);
         let start_ingestion = std::time::Instant::now();
         
-        for i in 0..100000 {
+        for i in 0..100_000 {
             let mut embedding = vec![0.0; 768];
             
             // Generate REALISTIC transformer-like embeddings with proper distribution
@@ -1452,7 +1501,7 @@ mod tests {
             let entry = SemanticEntry::new(
                 embedding,
                 format!("content_hash_{:08x}", i),
-                (i as f32 / 100000.0).min(1.0),
+                (i as f32 / 100_000.0).min(1.0),
                 {
                     let mut metadata = HashMap::new();
                     metadata.insert("category".to_string(), format!("cat_{}", i % 100));
@@ -1621,7 +1670,7 @@ mod tests {
         
         // INDEX OPTIMIZATION REQUIREMENTS
         assert!(stats.is_optimized, "Index should be optimized");
-        assert!(stats.total_entries == 100000, "Incorrect entry count: {}", stats.total_entries);
+        assert!(stats.total_entries == 100_000, "Incorrect entry count: {}", stats.total_entries);
         
         println!("🧪 PHASE 6: ADVANCED ALGORITHM VALIDATION");
         
@@ -1670,12 +1719,12 @@ mod tests {
         
         // Verify removal worked
         let final_stats = index_arc.get_statistics();
-        assert!(final_stats.total_entries < 100000, "Entries not properly removed");
+        assert!(final_stats.total_entries < 100_000, "Entries not properly removed");
         assert!(final_stats.total_entries >= 40000, "Too many entries removed");
         
         println!("📊 FINAL PERFORMANCE REPORT:");
         println!("   📈 Data Ingestion: {:.0} entries/sec", 
-                100000.0 / ingestion_time.as_secs_f64());
+                100_000.0 / ingestion_time.as_secs_f64());
         println!("   ⚡ Index Optimization: {:.2}s", optimization_time.as_secs_f64());
         println!("   🔍 Average Search Time: {:.2}ms", avg_search_time.as_millis());
         println!("   ⚡ Min Search Time: {:.2}ms", min_search_time.as_millis());

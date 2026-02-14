@@ -83,7 +83,7 @@ impl ModelRouter {
                 name: complex_model,
                 tier: ModelTier::Complex,
                 max_latency_ms: 2000,
-                context_window: 131072,
+                context_window: 131_072,
             },
             performance_metrics: PerformanceMetrics {
                 fast_avg_latency_ms: 0.0,

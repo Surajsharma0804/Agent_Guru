@@ -117,6 +117,12 @@ pub struct DeepSortTracker {
     chi2_thresholds: HashMap<u32, f32>,
 }
 
+impl Default for KalmanFilter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KalmanFilter {
     /// Create new Kalman filter
     pub fn new() -> Self {

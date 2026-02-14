@@ -35,8 +35,8 @@ async fn create_initialized_orchestrator() -> MultiAgentOrchestrator {
     // Initialize with generous system resources to prevent resource allocation failures
     orchestrator.set_available_resources(ResourceRequirements {
         cpu_cores: 64.0,        // Generous CPU allocation
-        memory_mb: 131072,      // 128GB memory
-        disk_mb: 1048576,       // 1TB disk space
+        memory_mb: 131_072,      // 128GB memory
+        disk_mb: 1_048_576,       // 1TB disk space
         network_bandwidth_mbps: 10000.0, // 10Gbps network
         gpu_memory_mb: Some(32768), // 32GB GPU memory
         specialized_hardware: Vec::new(),

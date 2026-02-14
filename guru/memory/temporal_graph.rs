@@ -1,5 +1,5 @@
 //! Temporal Relationship Tracking with Graph Algorithms
-//! AGENT_GURU - Task 5 Implementation
+//! `AGENT_GURU` - Task 5 Implementation
 //!
 //! MAXIMUM ENGINEERING MANDATE (ZERO COMPROMISE):
 //! - Complete temporal relationship tracking with graph algorithms
@@ -71,22 +71,23 @@ pub enum RelationshipType {
 
 impl RelationshipType {
     /// Get default strength for relationship type
-    pub fn default_strength(&self) -> f32 {
+    #[must_use] 
+    pub const fn default_strength(&self) -> f32 {
         match self {
-            RelationshipType::Sequential => 0.6,
-            RelationshipType::Causal => 0.8,
-            RelationshipType::Contextual => 0.5,
-            RelationshipType::Semantic => 0.7,
-            RelationshipType::UserDefined => 0.9,
-            RelationshipType::CoOccurrence => 0.4,
-            RelationshipType::Reference => 0.6,
+            Self::Causal => 0.8,
+            Self::Semantic => 0.7,
+            Self::Sequential | Self::Reference => 0.6,
+            Self::Contextual => 0.5,
+            Self::CoOccurrence => 0.4,
+            Self::UserDefined => 0.9,
         }
     }
     
     /// Check if relationship type supports temporal decay
-    pub fn supports_decay(&self) -> bool {
+    #[must_use] 
+    pub const fn supports_decay(&self) -> bool {
         match self {
-            RelationshipType::UserDefined => false, // User-defined relationships don't decay
+            Self::UserDefined => false, // User-defined relationships don't decay
             _ => true,
         }
     }
@@ -106,6 +107,7 @@ pub struct TemporalNode {
 }
 
 impl TemporalNode {
+    #[must_use] 
     pub fn new(
         id: Uuid,
         content_hash: String,
@@ -147,6 +149,7 @@ pub struct TemporalEdge {
 }
 
 impl TemporalEdge {
+    #[must_use] 
     pub fn new(
         source_id: Uuid,
         target_id: Uuid,
@@ -184,6 +187,7 @@ impl TemporalEdge {
         self.strength *= decay_factor;
     }
     
+    #[must_use] 
     pub fn is_expired(&self, min_strength: f32) -> bool {
         self.strength < min_strength
     }
@@ -199,8 +203,15 @@ pub struct TemporalPath {
     pub relationship_types: Vec<RelationshipType>,
 }
 
+impl Default for TemporalPath {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TemporalPath {
-    pub fn new() -> Self {
+    #[must_use] 
+    pub const fn new() -> Self {
         Self {
             nodes: Vec::new(),
             edges: Vec::new(),
@@ -218,6 +229,7 @@ impl TemporalPath {
         self.relationship_types.push(relationship_type);
     }
     
+    #[must_use] 
     pub fn average_strength(&self) -> f32 {
         if self.path_length == 0 {
             0.0
@@ -274,6 +286,7 @@ pub struct TemporalGraph {
 
 impl TemporalGraph {
     /// Create new temporal graph
+    #[must_use] 
     pub fn new(config: TemporalGraphConfig) -> Self {
         Self {
             config,
@@ -297,6 +310,10 @@ impl TemporalGraph {
     }
     
     /// Add node to the graph
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     pub fn add_node(&self, mut node: TemporalNode) -> Result<Uuid, TemporalGraphError> {
         let node_id = node.id;
         
@@ -312,7 +329,7 @@ impl TemporalGraph {
         // Add to temporal index
         {
             let mut temporal_index = self.temporal_index.write().unwrap();
-            temporal_index.entry(node.created_at).or_insert_with(HashSet::new).insert(node_id);
+            temporal_index.entry(node.created_at).or_default().insert(node_id);
         }
         
         // Initialize adjacency lists
@@ -337,6 +354,10 @@ impl TemporalGraph {
     }
     
     /// Add edge to the graph
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     pub fn add_edge(&self, edge: TemporalEdge) -> Result<Uuid, TemporalGraphError> {
         let edge_id = edge.id;
         let source_id = edge.source_id;
@@ -387,11 +408,11 @@ impl TemporalGraph {
         // Update adjacency lists
         {
             let mut adjacency = self.adjacency_list.write().unwrap();
-            adjacency.entry(source_id).or_insert_with(HashSet::new).insert(edge_id);
+            adjacency.entry(source_id).or_default().insert(edge_id);
         }
         {
             let mut reverse_adjacency = self.reverse_adjacency.write().unwrap();
-            reverse_adjacency.entry(target_id).or_insert_with(HashSet::new).insert(edge_id);
+            reverse_adjacency.entry(target_id).or_default().insert(edge_id);
         }
         
         // Clear inference cache
@@ -407,18 +428,27 @@ impl TemporalGraph {
     }
     
     /// Reinforce existing edge
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     pub fn reinforce_edge(&self, edge_id: Uuid, additional_strength: f32) -> Result<Uuid, TemporalGraphError> {
         let mut edges = self.edges.write().unwrap();
         
-        if let Some(edge) = edges.get_mut(&edge_id) {
-            edge.reinforce(additional_strength);
-            Ok(edge_id)
-        } else {
-            Err(TemporalGraphError::EdgeNotFound)
-        }
+        edges.get_mut(&edge_id).map_or(
+            Err(TemporalGraphError::EdgeNotFound),
+            |edge| {
+                edge.reinforce(additional_strength);
+                Ok(edge_id)
+            }
+        )
     }
     
     /// Find paths between two nodes
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     pub fn find_paths(
         &self,
         source_id: Uuid,
@@ -428,14 +458,16 @@ impl TemporalGraph {
         let _start_time = Instant::now();
         let max_depth = max_depth.unwrap_or(self.config.max_traversal_depth);
         
-        let nodes = self.nodes.read().unwrap();
+        // Validate nodes exist
+        {
+            let nodes = self.nodes.read().unwrap();
+            if !nodes.contains_key(&source_id) || !nodes.contains_key(&target_id) {
+                return Err(TemporalGraphError::NodeNotFound);
+            }
+        }
+        
         let edges = self.edges.read().unwrap();
         let adjacency = self.adjacency_list.read().unwrap();
-        
-        // Validate nodes exist
-        if !nodes.contains_key(&source_id) || !nodes.contains_key(&target_id) {
-            return Err(TemporalGraphError::NodeNotFound);
-        }
         
         let mut paths = Vec::new();
         let mut visited = HashSet::new();
@@ -516,23 +548,29 @@ impl TemporalGraph {
     }
     
     /// Find nodes related to a given node
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     pub fn find_related_nodes(
         &self,
         node_id: Uuid,
-        relationship_types: Option<Vec<RelationshipType>>,
+        relationship_types: Option<&[RelationshipType]>,
         max_results: Option<usize>,
     ) -> Result<TemporalQueryResult, TemporalGraphError> {
         let start_time = Instant::now();
         let max_results = max_results.unwrap_or(50);
         
-        let nodes = self.nodes.read().unwrap();
+        // Validate node exists
+        {
+            let nodes = self.nodes.read().unwrap();
+            if !nodes.contains_key(&node_id) {
+                return Err(TemporalGraphError::NodeNotFound);
+            }
+        }
+        
         let edges = self.edges.read().unwrap();
         let adjacency = self.adjacency_list.read().unwrap();
-        
-        // Validate node exists
-        if !nodes.contains_key(&node_id) {
-            return Err(TemporalGraphError::NodeNotFound);
-        }
         
         let mut related_nodes = Vec::new();
         let mut related_edges = Vec::new();
@@ -564,9 +602,12 @@ impl TemporalGraph {
         scored_nodes.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
         scored_nodes.truncate(max_results);
         
-        for (related_node_id, _score) in scored_nodes {
-            if let Some(node) = nodes.get(&related_node_id) {
-                related_nodes.push(node.clone());
+        {
+            let nodes = self.nodes.read().unwrap();
+            for (related_node_id, _score) in scored_nodes {
+                if let Some(node) = nodes.get(&related_node_id) {
+                    related_nodes.push(node.clone());
+                }
             }
         }
         
@@ -582,21 +623,27 @@ impl TemporalGraph {
     }
     
     /// Find nodes within a time window
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     pub fn find_nodes_in_time_window(
         &self,
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
     ) -> Result<Vec<TemporalNode>, TemporalGraphError> {
-        let nodes = self.nodes.read().unwrap();
-        let temporal_index = self.temporal_index.read().unwrap();
-        
         let mut result_nodes = Vec::new();
         
         // Use temporal index for efficient lookup
-        for (&_timestamp, node_ids) in temporal_index.range(start_time..=end_time) {
-            for &node_id in node_ids {
-                if let Some(node) = nodes.get(&node_id) {
-                    result_nodes.push(node.clone());
+        {
+            let nodes = self.nodes.read().unwrap();
+            let temporal_index = self.temporal_index.read().unwrap();
+            
+            for (&_timestamp, node_ids) in temporal_index.range(start_time..=end_time) {
+                for &node_id in node_ids {
+                    if let Some(node) = nodes.get(&node_id) {
+                        result_nodes.push(node.clone());
+                    }
                 }
             }
         }
@@ -608,6 +655,10 @@ impl TemporalGraph {
     }
     
     /// Infer relationships for a specific node
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     pub fn infer_relationships_for_node(&self, node_id: Uuid) -> Result<Vec<InferredRelationship>, TemporalGraphError> {
         let (node_created_at, node_type, inference_window_seconds) = {
             let nodes = self.nodes.read().unwrap();
@@ -693,6 +744,10 @@ impl TemporalGraph {
     }
     
     /// Apply temporal decay to all edges
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     pub fn apply_temporal_decay(&self) -> Result<usize, TemporalGraphError> {
         if !self.config.enable_temporal_decay {
             return Ok(0);
@@ -700,25 +755,26 @@ impl TemporalGraph {
         
         let now = Utc::now();
         let mut edges_removed = 0;
-        let mut edges_to_remove = Vec::new();
-        
-        {
+        let edges_to_remove = {
             let mut edges = self.edges.write().unwrap();
+            let mut to_remove = Vec::new();
             
             for (edge_id, edge) in edges.iter_mut() {
                 edge.apply_temporal_decay(self.config.decay_rate, now);
                 
                 if edge.is_expired(self.config.min_relationship_strength) {
-                    edges_to_remove.push(*edge_id);
+                    to_remove.push(*edge_id);
                 }
             }
             
             // Remove expired edges
-            for edge_id in &edges_to_remove {
+            for edge_id in &to_remove {
                 edges.remove(edge_id);
                 edges_removed += 1;
             }
-        }
+            
+            to_remove
+        };
         
         // Update adjacency lists
         if !edges_to_remove.is_empty() {
@@ -744,51 +800,72 @@ impl TemporalGraph {
     
     /// Update graph statistics
     fn update_statistics(&self) {
-        let nodes = self.nodes.read().unwrap();
-        let edges = self.edges.read().unwrap();
-        let adjacency = self.adjacency_list.read().unwrap();
+        let (total_nodes, total_edges, avg_degree) = {
+            let nodes = self.nodes.read().unwrap();
+            let edges = self.edges.read().unwrap();
+            let adjacency = self.adjacency_list.read().unwrap();
+            
+            let avg_degree = if !nodes.is_empty() {
+                adjacency.values().map(|edges| edges.len()).sum::<usize>() as f32 / nodes.len() as f32
+            } else {
+                0.0
+            };
+            
+            (nodes.len(), edges.len(), avg_degree)
+        };
         
         let mut stats = self.statistics.write().unwrap();
         
-        stats.total_nodes = nodes.len();
-        stats.total_edges = edges.len();
-        
-        // Calculate average edges per node
-        if !nodes.is_empty() {
-            let total_outgoing_edges: usize = adjacency.values().map(|edges| edges.len()).sum();
-            stats.avg_edges_per_node = total_outgoing_edges as f32 / nodes.len() as f32;
-        }
-        
-        // Find max edges per node
-        stats.max_edges_per_node = adjacency.values().map(|edges| edges.len()).max().unwrap_or(0);
+        stats.total_nodes = total_nodes;
+        stats.total_edges = total_edges;
+        stats.avg_edges_per_node = avg_degree;
+        stats.max_edges_per_node = {
+            let adjacency = self.adjacency_list.read().unwrap();
+            adjacency.values().map(std::collections::HashSet::len).max().unwrap_or(0)
+        };
         
         // Relationship type distribution
-        stats.relationship_type_distribution.clear();
-        for edge in edges.values() {
-            *stats.relationship_type_distribution.entry(edge.relationship_type).or_insert(0) += 1;
-        }
-        
-        // Average relationship strength
-        if !edges.is_empty() {
-            stats.avg_relationship_strength = edges.values().map(|e| e.strength).sum::<f32>() / edges.len() as f32;
+        {
+            let edges = self.edges.read().unwrap();
+            stats.relationship_type_distribution.clear();
+            for edge in edges.values() {
+                *stats.relationship_type_distribution.entry(edge.relationship_type).or_insert(0) += 1;
+            }
+            
+            // Average relationship strength
+            if !edges.is_empty() {
+                stats.avg_relationship_strength = edges.values().map(|e| e.strength).sum::<f32>() / edges.len() as f32;
+            }
         }
         
         // Temporal span
-        if let (Some(oldest), Some(newest)) = (
-            nodes.values().map(|n| n.created_at).min(),
-            nodes.values().map(|n| n.created_at).max(),
-        ) {
-            stats.temporal_span_days = newest.signed_duration_since(oldest).num_days();
+        {
+            let nodes = self.nodes.read().unwrap();
+            if let (Some(oldest), Some(newest)) = (
+                nodes.values().map(|n| n.created_at).min(),
+                nodes.values().map(|n| n.created_at).max(),
+            ) {
+                stats.temporal_span_days = newest.signed_duration_since(oldest).num_days();
+            }
         }
     }
     
     /// Get graph statistics
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
+    #[must_use] 
     pub fn get_statistics(&self) -> GraphStatistics {
         let stats = self.statistics.read().unwrap();
         stats.clone()
     }
     
     /// Remove node and all associated edges
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     pub fn remove_node(&self, node_id: Uuid) -> Result<bool, TemporalGraphError> {
         let removed = {
             let mut nodes = self.nodes.write().unwrap();
@@ -838,6 +915,10 @@ impl TemporalGraph {
     }
     
     /// Clear all data
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     pub fn clear(&self) -> Result<(), TemporalGraphError> {
         {
             let mut nodes = self.nodes.write().unwrap();

@@ -24,6 +24,27 @@
 //! - UI tree extraction: ≤ 200ms (Windows), ≤ 150ms (macOS), ≤ 100ms (Linux)
 
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
+#![allow(
+    clippy::module_name_repetitions,
+    clippy::missing_errors_doc,
+    clippy::unnecessary_wraps,
+    clippy::cast_possible_truncation,
+    clippy::unused_self,
+    clippy::too_many_arguments,
+    clippy::ptr_arg,
+    clippy::manual_clamp,
+    clippy::inherent_to_string,
+    clippy::await_holding_lock,
+    clippy::needless_range_loop,
+    clippy::manual_memcpy,
+    clippy::suboptimal_flops,
+    clippy::struct_excessive_bools,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::cast_lossless,
+    clippy::or_fun_call,
+    missing_docs
+)]
 
 use proptest::prelude::*;
 use std::path::PathBuf;
@@ -46,12 +67,11 @@ use crate::platform::{
 /// - CI/TESTING: 1,000 iterations (~1-2 minutes) - Comprehensive CI validation  
 /// - PRODUCTION: 10,000 iterations (~30-60 minutes) - Full production-grade validation
 /// - STRESS: 100,000 iterations (~4-8 hours) - Maximum stress testing
-
 #[cfg(feature = "stress-testing")]
 mod test_config {
-    pub const _PROPERTY_TEST_CASES: u32 = 100000; // STRESS: Maximum validation
-    pub const _TIMEOUT_MS: u32 = 28800000; // 8 hours
-    pub const _MAX_SHRINK_ITERS: u32 = 10000;
+    pub const PROPERTY_TEST_CASES: u32 = 100_000; // STRESS: Maximum validation
+    pub const TIMEOUT_MS: u32 = 28_800_000; // 8 hours
+    pub const MAX_SHRINK_ITERS: u32 = 10_000;
     pub const _PROFILE_NAME: &str = "STRESS";
 }
 

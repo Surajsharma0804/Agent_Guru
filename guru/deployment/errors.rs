@@ -102,6 +102,7 @@ pub enum DeploymentError {
 }
 
 impl fmt::Display for DeploymentError {
+    #[allow(clippy::too_many_lines)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             // Package validation errors
@@ -412,19 +413,18 @@ impl DeploymentError {
     }
     
     /// Check if error is recoverable through retry
+    #[must_use]
     pub fn is_recoverable(&self) -> bool {
         match self {
             // Network errors are often recoverable
-            DeploymentError::DownloadFailed(_, _) |
-            DeploymentError::NetworkTimeout(_) |
-            DeploymentError::ServerUnavailable(_) => true,
-            
             // Resource errors might be recoverable after cleanup
-            DeploymentError::MemoryAllocationFailed(_) |
-            DeploymentError::ResourceExhausted(_) => true,
-            
             // Some system errors might be recoverable
-            DeploymentError::ServiceNotRunning(_) => true,
+            Self::DownloadFailed(_, _) |
+            Self::NetworkTimeout(_) |
+            Self::ServerUnavailable(_) |
+            Self::MemoryAllocationFailed(_) |
+            Self::ResourceExhausted(_) |
+            Self::ServiceNotRunning(_) => true,
             
             // Most other errors are not recoverable through simple retry
             _ => false,
@@ -432,29 +432,30 @@ impl DeploymentError {
     }
     
     /// Get suggested recovery action
+    #[must_use]
     pub fn recovery_suggestion(&self) -> Option<String> {
         match self {
-            DeploymentError::InsufficientDiskSpace(required, available) => {
-                Some(format!("Free up {} bytes of disk space (currently {} bytes available, {} bytes required)", 
-                           required - available, available, required))
+            Self::InsufficientDiskSpace(required, available) => {
+                Some(format!("Free up {} bytes of disk space (currently {available} bytes available, {required} bytes required)", 
+                           required - available))
             }
-            DeploymentError::InsufficientPermissions(operation) => {
-                Some(format!("Run the installer as administrator or ensure proper permissions for: {}", operation))
+            Self::InsufficientPermissions(operation) => {
+                Some(format!("Run the installer as administrator or ensure proper permissions for: {operation}"))
             }
-            DeploymentError::MissingDependency(component, dependency) => {
-                Some(format!("Install the required dependency '{}' before installing '{}'", dependency, component))
+            Self::MissingDependency(component, dependency) => {
+                Some(format!("Install the required dependency '{dependency}' before installing '{component}'"))
             }
-            DeploymentError::ServiceNotRunning(service) => {
-                Some(format!("Start the required service: {}", service))
+            Self::ServiceNotRunning(service) => {
+                Some(format!("Start the required service: {service}"))
             }
-            DeploymentError::NetworkTimeout(_) => {
+            Self::NetworkTimeout(_) => {
                 Some("Check your internet connection and try again".to_string())
             }
-            DeploymentError::BackupCreationFailed(_) => {
+            Self::BackupCreationFailed(_) => {
                 Some("Ensure sufficient disk space and permissions for backup creation".to_string())
             }
-            DeploymentError::UnsupportedPlatform(platform) => {
-                Some(format!("This software is not supported on platform: {}", platform))
+            Self::UnsupportedPlatform(platform) => {
+                Some(format!("This software is not supported on platform: {platform}"))
             }
             _ => None,
         }
@@ -462,7 +463,7 @@ impl DeploymentError {
 }
 
 /// Error category for classification and metrics
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ErrorCategory {
     Validation,
     Security,
@@ -484,21 +485,21 @@ pub enum ErrorCategory {
 impl fmt::Display for ErrorCategory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ErrorCategory::Validation => write!(f, "Validation"),
-            ErrorCategory::Security => write!(f, "Security"),
-            ErrorCategory::Dependency => write!(f, "Dependency"),
-            ErrorCategory::Installation => write!(f, "Installation"),
-            ErrorCategory::Platform => write!(f, "Platform"),
-            ErrorCategory::Backup => write!(f, "Backup"),
-            ErrorCategory::Update => write!(f, "Update"),
-            ErrorCategory::Integrity => write!(f, "Integrity"),
-            ErrorCategory::Network => write!(f, "Network"),
-            ErrorCategory::Configuration => write!(f, "Configuration"),
-            ErrorCategory::Resource => write!(f, "Resource"),
-            ErrorCategory::System => write!(f, "System"),
-            ErrorCategory::User => write!(f, "User"),
-            ErrorCategory::Maintenance => write!(f, "Maintenance"),
-            ErrorCategory::Internal => write!(f, "Internal"),
+            Self::Validation => write!(f, "Validation"),
+            Self::Security => write!(f, "Security"),
+            Self::Dependency => write!(f, "Dependency"),
+            Self::Installation => write!(f, "Installation"),
+            Self::Platform => write!(f, "Platform"),
+            Self::Backup => write!(f, "Backup"),
+            Self::Update => write!(f, "Update"),
+            Self::Integrity => write!(f, "Integrity"),
+            Self::Network => write!(f, "Network"),
+            Self::Configuration => write!(f, "Configuration"),
+            Self::Resource => write!(f, "Resource"),
+            Self::System => write!(f, "System"),
+            Self::User => write!(f, "User"),
+            Self::Maintenance => write!(f, "Maintenance"),
+            Self::Internal => write!(f, "Internal"),
         }
     }
 }

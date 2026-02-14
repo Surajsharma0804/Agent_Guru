@@ -12,7 +12,7 @@ use crate::deployment::{
     RollbackManager, PlatformIntegrator, InstallationMetrics,
 };
 use std::time::Instant;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 /// Core deployment manager for orchestrating installation operations
@@ -58,6 +58,11 @@ impl DeploymentManager {
     }
     
     /// Orchestrate a complete fresh installation
+    ///
+    /// # Panics
+    /// Panics if the `Mutex` for progress is poisoned.
+    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_lines)]
     pub fn orchestrate_fresh_install(
         &mut self,
         target: &InstallationTarget,
@@ -226,6 +231,10 @@ impl DeploymentManager {
     }
     
     /// Orchestrate an atomic update operation
+    ///
+    /// # Panics
+    /// Panics if the `Mutex` for progress is poisoned.
+    #[allow(clippy::too_many_arguments)]
     pub fn orchestrate_atomic_update(
         &mut self,
         target: &InstallationTarget,
@@ -300,7 +309,7 @@ impl DeploymentManager {
         let update_result = update_manager.apply_atomic_update(&target.installation_root, components);
         
         match update_result {
-            Ok(_) => {
+            Ok(()) => {
                 let update_duration = update_start.elapsed();
                 self.metrics.record_extraction_time(update_duration);
                 
@@ -381,9 +390,10 @@ impl DeploymentManager {
     }
     
     /// Verify installation integrity with comprehensive checks
+    #[allow(clippy::unused_self)]
     fn verify_installation_integrity(
         &self,
-        installation_root: &PathBuf,
+        installation_root: &Path,
         _components: &[PackageComponent],
         package_manager: &PackageManager,
         crypto_verifier: &CryptographicVerifier,
@@ -393,27 +403,27 @@ impl DeploymentManager {
         let start_time = Instant::now();
         
         // 1. Verify file checksums
-        let checksum_result = package_manager.verify_checksums(installation_root)
+        let checksum_result = package_manager.verify_checksums(&installation_root.to_path_buf())
             .map_err(|e| DeploymentError::IntegrityVerificationFailed(e.to_string()))?;
         
         // 2. Verify cryptographic signatures
-        let signature_result = crypto_verifier.verify_installation_signatures(installation_root)
+        let signature_result = crypto_verifier.verify_installation_signatures(&installation_root.to_path_buf())
             .map_err(|e| DeploymentError::IntegrityVerificationFailed(e.to_string()))?;
         
         // 3. Verify platform integration
-        let platform_result = platform_integrator.verify_platform_integration(installation_root)
+        let platform_result = platform_integrator.verify_platform_integration(&installation_root.to_path_buf())
             .map_err(|e| DeploymentError::IntegrityVerificationFailed(e.to_string()))?;
         
         // 4. Verify dependency satisfaction
-        let dependency_result = dependency_resolver.verify_dependencies(installation_root)
+        let dependency_result = dependency_resolver.verify_dependencies(&installation_root.to_path_buf())
             .map_err(|e| DeploymentError::IntegrityVerificationFailed(e.to_string()))?;
         
         let total_checks = 4;
         let successful_checks = 
-            (if checksum_result { 1 } else { 0 }) +
-            (if signature_result { 1 } else { 0 }) +
-            (if platform_result { 1 } else { 0 }) +
-            (if dependency_result { 1 } else { 0 });
+            i32::from(checksum_result) +
+            i32::from(signature_result) +
+            i32::from(platform_result) +
+            i32::from(dependency_result);
         
         let success_rate = successful_checks as f32 / total_checks as f32;
         
@@ -423,7 +433,7 @@ impl DeploymentManager {
             signatures_valid: signature_result,
             platform_integrated: platform_result,
             dependencies_satisfied: dependency_result,
-            verification_time_ms: start_time.elapsed().as_millis() as u64,
+            verification_time_ms: u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX),
         })
     }
     
@@ -435,6 +445,9 @@ impl DeploymentManager {
     }
     
     /// Get current installation progress
+    ///
+    /// # Panics
+    /// Panics if the `Mutex` for progress is poisoned.
     pub fn get_progress(&self) -> InstallationProgress {
         self.progress.lock().unwrap().clone()
     }
@@ -450,7 +463,7 @@ impl DeploymentManager {
     }
     
     /// Cleanup installation resources
-    pub fn cleanup_installation(&self, installation_root: &PathBuf) -> Result<(), DeploymentError> {
+    pub fn cleanup_installation(&self, installation_root: &Path) -> Result<(), DeploymentError> {
         // Remove temporary files
         let temp_dir = installation_root.join(".temp");
         if temp_dir.exists() {

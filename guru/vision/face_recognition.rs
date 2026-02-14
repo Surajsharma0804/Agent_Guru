@@ -228,12 +228,12 @@ impl MediaPipeFaceRecognizer {
                 if px < image.width && py < image.height {
                     let idx = ((py * image.width + px) * image.channels) as usize;
                     if idx + 2 < image.data.len() {
-                        let r = image.data[idx] as f32;
-                        let g = image.data[idx + 1] as f32;
-                        let b = image.data[idx + 2] as f32;
+                        let red = image.data[idx] as f32;
+                        let green = image.data[idx + 1] as f32;
+                        let blue = image.data[idx + 2] as f32;
                         
                         // Simple skin color detection
-                        if self.is_skin_color(r, g, b) {
+                        if self.is_skin_color(red, green, blue) {
                             skin_pixels += 1;
                         }
                         total_pixels += 1;
@@ -562,7 +562,7 @@ impl MediaPipeFaceRecognizer {
         let eyebrow_height = self.calculate_eyebrow_height(landmarks);
         
         // Simple rule-based emotion classification
-        let mut emotion_scores = vec![
+        let mut emotion_scores = [
             ("neutral", 0.3),
             ("happy", 0.0),
             ("sad", 0.0),

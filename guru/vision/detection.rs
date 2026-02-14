@@ -498,7 +498,7 @@ pub mod nms_utils {
         let mut class_detections: HashMap<u32, Vec<Detection>> = HashMap::new();
         for detection in detections {
             class_detections.entry(detection.class_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(detection.clone());
         }
         

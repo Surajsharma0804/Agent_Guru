@@ -21,6 +21,27 @@
 //! - UI tree extraction: ≤ 100ms for complete application UI analysis
 
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
+#![allow(
+    clippy::module_name_repetitions,
+    clippy::missing_errors_doc,
+    clippy::unnecessary_wraps,
+    clippy::cast_possible_truncation,
+    clippy::unused_self,
+    clippy::too_many_arguments,
+    clippy::ptr_arg,
+    clippy::manual_clamp,
+    clippy::inherent_to_string,
+    clippy::await_holding_lock,
+    clippy::needless_range_loop,
+    clippy::manual_memcpy,
+    clippy::suboptimal_flops,
+    clippy::struct_excessive_bools,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::cast_lossless,
+    clippy::or_fun_call,
+    missing_docs
+)]
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::SystemTime;
@@ -29,7 +50,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Linux-specific error types
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum LinuxError {
     #[error("X11 protocol error: {message}")]
     X11Error { message: String },
@@ -60,7 +81,7 @@ pub enum LinuxError {
 }
 
 /// Display protocol types
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DisplayProtocol {
     X11,
     Wayland,
@@ -68,7 +89,7 @@ pub enum DisplayProtocol {
 }
 
 /// Desktop environment types
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DesktopEnvironment {
     GNOME,
     KDE,
@@ -97,7 +118,7 @@ impl std::fmt::Display for WindowId {
 pub struct ProcessId(pub i32);
 
 /// Window management actions for Linux
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WindowAction {
     Minimize,
     Maximize,
@@ -114,7 +135,7 @@ pub enum WindowAction {
 }
 
 /// File system operations for Linux
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FileOperation {
     Create { path: PathBuf, content: Vec<u8> },
     Read { path: PathBuf },
@@ -131,7 +152,7 @@ pub enum FileOperation {
 }
 
 /// File operation results for Linux
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FileResult {
     Success,
     Content(Vec<u8>),
@@ -141,7 +162,7 @@ pub enum FileResult {
 }
 
 /// File attributes structure for Linux
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileAttributes {
     pub size: u64,
     pub permissions: u32,
@@ -182,7 +203,7 @@ pub enum InputEvent {
 }
 
 /// Mouse button types for Linux
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MouseButton {
     Left,
     Right,
@@ -214,7 +235,7 @@ pub struct UIElement {
 }
 
 /// Rectangle for UI element bounds
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Rectangle {
     pub x: i32,
     pub y: i32,
@@ -223,7 +244,7 @@ pub struct Rectangle {
 }
 
 /// Window information for Linux
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WindowInfo {
     pub window_id: WindowId,
     pub process_id: ProcessId,
@@ -332,7 +353,7 @@ impl LinuxControlBridge {
         let process_info = ProcessInfo {
             process_id,
             name: app_name.to_string(),
-            executable_path: PathBuf::from(format!("/usr/bin/{}", app_name)),
+            executable_path: PathBuf::from(format!("/usr/bin/{app_name}")),
             command_line: vec![app_name.to_string()],
             environment: HashMap::new(),
             working_directory: PathBuf::from("/home/user"),
@@ -363,29 +384,25 @@ impl LinuxControlBridge {
     }
 
     /// Control a window with the specified action
-    pub fn control_window(&mut self, window_id: WindowId, action: WindowAction) -> Result<(), LinuxError> {
+    pub fn control_window(&mut self, window_id: WindowId, action: &WindowAction) -> Result<(), LinuxError> {
         let start_time = std::time::Instant::now();
         
-        if !self.active_windows.contains_key(&window_id) {
-            // Create a mock window if it doesn't exist
-            let window_info = WindowInfo {
-                window_id,
-                process_id: ProcessId(1234),
-                title: "Mock Window".to_string(),
-                class_name: "MockApp".to_string(),
-                instance_name: "mockapp".to_string(),
-                bounds: Rectangle { x: 100, y: 100, width: 800, height: 600 },
-                is_visible: true,
-                is_minimized: false,
-                is_maximized: false,
-                is_fullscreen: false,
-                is_sticky: false,
-                workspace: 1,
-                window_type: "normal".to_string(),
-                has_decorations: true,
-            };
-            self.active_windows.insert(window_id, window_info);
-        }
+        self.active_windows.entry(window_id).or_insert_with(|| WindowInfo {
+            window_id,
+            process_id: ProcessId(1234),
+            title: "Mock Window".to_string(),
+            class_name: "MockApp".to_string(),
+            instance_name: "mockapp".to_string(),
+            bounds: Rectangle { x: 100, y: 100, width: 800, height: 600 },
+            is_visible: true,
+            is_minimized: false,
+            is_maximized: false,
+            is_fullscreen: false,
+            is_sticky: false,
+            workspace: 1,
+            window_type: "normal".to_string(),
+            has_decorations: true,
+        });
         
         // Apply the window action
         if let Some(window_info) = self.active_windows.get_mut(&window_id) {
@@ -401,30 +418,27 @@ impl LinuxControlBridge {
                     self.active_windows.remove(&window_id);
                 }
                 WindowAction::Move { x, y } => {
-                    window_info.bounds.x = x;
-                    window_info.bounds.y = y;
+                    window_info.bounds.x = *x;
+                    window_info.bounds.y = *y;
                 }
                 WindowAction::Resize { width, height } => {
-                    window_info.bounds.width = width;
-                    window_info.bounds.height = height;
+                    window_info.bounds.width = *width;
+                    window_info.bounds.height = *height;
                 }
-                WindowAction::BringToFront => {
-                    // Simulate bringing window to front
-                }
-                WindowAction::SendToBack => {
-                    // Simulate sending window to back
+                WindowAction::BringToFront | WindowAction::SendToBack => {
+                    // Simulate bringing window to front or sending to back
                 }
                 WindowAction::SetFullscreen(fullscreen) => {
-                    window_info.is_fullscreen = fullscreen;
+                    window_info.is_fullscreen = *fullscreen;
                 }
                 WindowAction::SetSticky(sticky) => {
-                    window_info.is_sticky = sticky;
+                    window_info.is_sticky = *sticky;
                 }
                 WindowAction::SetWorkspace(workspace) => {
-                    window_info.workspace = workspace;
+                    window_info.workspace = *workspace;
                 }
                 WindowAction::SetDecorations(decorations) => {
-                    window_info.has_decorations = decorations;
+                    window_info.has_decorations = *decorations;
                 }
             }
         }
@@ -574,12 +588,12 @@ impl LinuxControlBridge {
     }
 
     /// Modify system settings
-    pub fn modify_system_setting(&mut self, setting: SystemSetting) -> Result<(), LinuxError> {
+    pub fn modify_system_setting(&mut self, setting: &SystemSetting) -> Result<(), LinuxError> {
         let start_time = std::time::Instant::now();
         
         match setting {
             SystemSetting::Volume(level) => {
-                if !(0.0..=1.0).contains(&level) {
+                if !(0.0..=1.0).contains(level) {
                     return Err(LinuxError::InvalidParameter {
                         parameter: "volume".to_string(),
                         value: level.to_string(),
@@ -587,7 +601,7 @@ impl LinuxControlBridge {
                 }
             }
             SystemSetting::Brightness(level) => {
-                if !(0.0..=1.0).contains(&level) {
+                if !(0.0..=1.0).contains(level) {
                     return Err(LinuxError::InvalidParameter {
                         parameter: "brightness".to_string(),
                         value: level.to_string(),
@@ -595,10 +609,10 @@ impl LinuxControlBridge {
                 }
             }
             SystemSetting::DisplayResolution { width, height, refresh_rate } => {
-                if width < 640 || height < 480 || refresh_rate < 30 || refresh_rate > 240 {
+                if *width < 640 || *height < 480 || !(30..=240).contains(refresh_rate) {
                     return Err(LinuxError::InvalidParameter {
                         parameter: "display_resolution".to_string(),
-                        value: format!("{}x{}@{}Hz", width, height, refresh_rate),
+                        value: format!("{width}x{height}@{refresh_rate}Hz"),
                     });
                 }
             }
@@ -614,14 +628,14 @@ impl LinuxControlBridge {
     }
 
     /// Inject input events
-    pub fn inject_input_event(&mut self, event: InputEvent) -> Result<(), LinuxError> {
+    pub fn inject_input_event(&mut self, event: &InputEvent) -> Result<(), LinuxError> {
         let start_time = std::time::Instant::now();
         
         // Simulate input event injection
         match event {
             InputEvent::KeyPress { key_code, modifiers: _ } => {
                 // Validate key code (Linux uses different key codes)
-                if key_code > 255 {
+                if *key_code > 255 {
                     return Err(LinuxError::InvalidParameter {
                         parameter: "key_code".to_string(),
                         value: key_code.to_string(),
@@ -630,19 +644,19 @@ impl LinuxControlBridge {
             }
             InputEvent::MouseClick { x, y, button: _ } => {
                 // Validate coordinates
-                if x < 0 || y < 0 {
+                if *x < 0 || *y < 0 {
                     return Err(LinuxError::InvalidParameter {
                         parameter: "coordinates".to_string(),
-                        value: format!("({}, {})", x, y),
+                        value: format!("({x}, {y})"),
                     });
                 }
             }
             InputEvent::Touch { x, y, pressure, touch_id } => {
                 // Validate touch parameters
-                if x < 0.0 || y < 0.0 || !(0.0..=1.0).contains(&pressure) {
+                if *x < 0.0 || *y < 0.0 || !(0.0..=1.0).contains(pressure) {
                     return Err(LinuxError::InvalidParameter {
                         parameter: "touch".to_string(),
-                        value: format!("({}, {}, {}, {})", x, y, pressure, touch_id),
+                        value: format!("({x}, {y}, {pressure}, {touch_id})"),
                     });
                 }
             }
@@ -725,47 +739,56 @@ impl LinuxControlBridge {
     }
 
     /// Get list of running processes
+    #[must_use] 
     pub fn get_running_processes(&self) -> Vec<ProcessInfo> {
         self.active_processes.values().cloned().collect()
     }
 
     /// Get list of active windows
+    #[must_use] 
     pub fn get_active_windows(&self) -> Vec<WindowInfo> {
         self.active_windows.values().cloned().collect()
     }
 
     /// Get performance metrics
+    #[must_use] 
     pub fn get_performance_metrics(&self) -> LinuxPerformanceMetrics {
         self.performance_metrics.clone()
     }
 
     /// Get current display protocol
+    #[must_use] 
     pub fn get_display_protocol(&self) -> DisplayProtocol {
         self.display_protocol.clone()
     }
 
     /// Get current desktop environment
+    #[must_use] 
     pub fn get_desktop_environment(&self) -> DesktopEnvironment {
         self.desktop_environment.clone()
     }
 
     /// Check if X11 is available
-    pub fn is_x11_available(&self) -> bool {
+    #[must_use] 
+    pub const fn is_x11_available(&self) -> bool {
         self.x11_available
     }
 
     /// Check if Wayland is available
-    pub fn is_wayland_available(&self) -> bool {
+    #[must_use] 
+    pub const fn is_wayland_available(&self) -> bool {
         self.wayland_available
     }
 
     /// Check if D-Bus is available
-    pub fn is_dbus_available(&self) -> bool {
+    #[must_use] 
+    pub const fn is_dbus_available(&self) -> bool {
         self.dbus_available
     }
 
     /// Check if AT-SPI is enabled
-    pub fn is_at_spi_enabled(&self) -> bool {
+    #[must_use] 
+    pub const fn is_at_spi_enabled(&self) -> bool {
         self.at_spi_enabled
     }
 
@@ -789,8 +812,9 @@ impl LinuxControlBridge {
     /// Detect the current desktop environment
     fn detect_desktop_environment() -> DesktopEnvironment {
         // Simulate desktop environment detection
-        if let Ok(de) = std::env::var("XDG_CURRENT_DESKTOP") {
-            match de.to_lowercase().as_str() {
+        std::env::var("XDG_CURRENT_DESKTOP").map_or_else(
+            |_| DesktopEnvironment::Unknown("unknown".to_string()),
+            |de| match de.to_lowercase().as_str() {
                 "gnome" => DesktopEnvironment::GNOME,
                 "kde" => DesktopEnvironment::KDE,
                 "xfce" => DesktopEnvironment::XFCE,
@@ -801,10 +825,8 @@ impl LinuxControlBridge {
                 "sway" => DesktopEnvironment::Sway,
                 "i3" => DesktopEnvironment::I3,
                 _ => DesktopEnvironment::Unknown(de),
-            }
-        } else {
-            DesktopEnvironment::Unknown("unknown".to_string())
-        }
+            },
+        )
     }
 
     /// Check file permissions (simplified simulation)

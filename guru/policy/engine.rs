@@ -1,4 +1,4 @@
-//! # AGENT_GURU Policy Engine
+//! # `AGENT_GURU` Policy Engine
 //! 
 //! Production-grade policy evaluation engine with cryptographic governance,
 //! real-time decision making, and comprehensive audit capabilities.
@@ -80,7 +80,7 @@ pub enum DecisionResult {
 }
 
 /// Cryptographic proof of decision integrity
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IntegrityProof {
     /// Hash of the decision context and result
     pub decision_hash: [u8; 32],
@@ -93,7 +93,7 @@ pub struct IntegrityProof {
 }
 
 /// Audit metadata for compliance and forensics
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AuditMetadata {
     /// User or system requesting the policy decision
     pub requester_id: String,
@@ -131,37 +131,37 @@ pub enum PolicyValue {
 impl Hash for PolicyValue {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            PolicyValue::Null => 0u8.hash(state),
-            PolicyValue::Boolean(b) => {
+            Self::Null => 0u8.hash(state),
+            Self::Boolean(b) => {
                 1u8.hash(state);
                 b.hash(state);
             }
-            PolicyValue::Integer(i) => {
+            Self::Integer(i) => {
                 2u8.hash(state);
                 i.hash(state);
             }
-            PolicyValue::Float(f) => {
+            Self::Float(f) => {
                 3u8.hash(state);
                 f.to_bits().hash(state);
             }
-            PolicyValue::String(s) => {
+            Self::String(s) => {
                 4u8.hash(state);
                 s.hash(state);
             }
-            PolicyValue::Array(arr) => {
+            Self::Array(arr) => {
                 5u8.hash(state);
                 arr.hash(state);
             }
-            PolicyValue::Object(obj) => {
+            Self::Object(obj) => {
                 6u8.hash(state);
                 let mut pairs: Vec<_> = obj.iter().collect();
                 pairs.sort_by_key(|(k, _)| *k);
                 pairs.hash(state);
             }
-            PolicyValue::Set(set) => {
+            Self::Set(set) => {
                 7u8.hash(state);
                 let mut items: Vec<_> = set.iter().collect();
-                items.sort_by(|a, b| format!("{:?}", a).cmp(&format!("{:?}", b)));
+                items.sort_by(|a, b| format!("{a:?}").cmp(&format!("{b:?}")));
                 items.hash(state);
             }
         }
@@ -378,10 +378,10 @@ impl RuleDependencyGraph {
 
         // Add new dependencies
         let deps_set: HashSet<RuleId> = dependencies.iter().copied().collect();
-        self.dependencies.insert(rule_id, deps_set.clone());
+        self.dependencies.insert(rule_id, deps_set);
 
         for dep in dependencies {
-            self.dependents.entry(*dep).or_insert_with(HashSet::new).insert(rule_id);
+            self.dependents.entry(*dep).or_default().insert(rule_id);
         }
 
         // Recompute evaluation order and check for cycles
@@ -667,7 +667,7 @@ impl PolicyEngine {
             "rule_registered".to_string(),
             [
                 ("rule_id".to_string(), rule.id.to_string()),
-                ("rule_name".to_string(), rule.name.clone()),
+                ("rule_name".to_string(), rule.name),
                 ("compilation_time_us".to_string(), start_time.elapsed().as_micros().to_string()),
             ].iter().cloned().collect(),
         )?;
@@ -702,7 +702,7 @@ impl PolicyEngine {
             
             let eval_time_us = start_time.elapsed().as_micros() as f64;
             metrics.average_evaluation_time_us = 
-                (metrics.average_evaluation_time_us * (metrics.successful_evaluations - 1) as f64 + eval_time_us) 
+                metrics.average_evaluation_time_us.mul_add((metrics.successful_evaluations - 1) as f64, eval_time_us) 
                 / metrics.successful_evaluations as f64;
         }
 
@@ -760,15 +760,15 @@ impl PolicyEngine {
                     // Apply rule action
                     match &rule.action {
                         RuleAction::Allow => {
-                            if rule.priority as f64 / 100.0 > max_confidence {
+                            if f64::from(rule.priority) / 100.0 > max_confidence {
                                 final_result = DecisionResult::Allow;
-                                max_confidence = rule.priority as f64 / 100.0;
+                                max_confidence = f64::from(rule.priority) / 100.0;
                             }
                         }
                         RuleAction::Deny => {
-                            if rule.priority as f64 / 100.0 > max_confidence {
+                            if f64::from(rule.priority) / 100.0 > max_confidence {
                                 final_result = DecisionResult::Deny;
-                                max_confidence = rule.priority as f64 / 100.0;
+                                max_confidence = f64::from(rule.priority) / 100.0;
                             }
                         }
                         RuleAction::SetVariable(name, expr) => {
@@ -909,7 +909,7 @@ impl PolicyEngine {
         // Create decision hash
         let mut hasher = Sha256::new();
         hasher.update(decision_id.as_bytes());
-        hasher.update(&[match result {
+        hasher.update([match result {
             DecisionResult::Allow => 1,
             DecisionResult::Deny => 2,
             DecisionResult::Abstain => 3,
@@ -938,7 +938,7 @@ impl PolicyEngine {
         let mut hasher = Sha256::new();
         hasher.update(rule.id.0.as_bytes());
         hasher.update(rule.name.as_bytes());
-        hasher.update(&rule.priority.to_le_bytes());
+        hasher.update(rule.priority.to_le_bytes());
         let rule_hash = hasher.finalize();
 
         // Verify signature
@@ -1004,10 +1004,10 @@ impl PolicyEngine {
         hasher.update(entry_id.as_bytes());
         hasher.update(operation.as_bytes());
         if let Ok(duration) = timestamp.duration_since(SystemTime::UNIX_EPOCH) {
-            hasher.update(&duration.as_secs().to_le_bytes());
+            hasher.update(duration.as_secs().to_le_bytes());
         }
         if let Some(prev_hash) = previous_hash {
-            hasher.update(&prev_hash);
+            hasher.update(prev_hash);
         }
         let hash: [u8; 32] = hasher.finalize().into();
 
@@ -1037,6 +1037,7 @@ impl PolicyEngine {
     }
 
     /// Get engine performance metrics
+    #[must_use] 
     pub fn get_metrics(&self) -> EngineMetrics {
         let metrics = self.metrics.lock().unwrap();
         let cache_stats = self.decision_cache.get_stats();

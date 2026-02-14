@@ -407,7 +407,7 @@ impl ProductionOcrEngine {
                 cdf[i] = cdf[i - 1] + histogram[i];
             }
             
-            let total_pixels = (image.width * image.height) as u32;
+            let total_pixels = image.width * image.height;
             
             // Apply equalization
             for y in 0..image.height as usize {
@@ -482,28 +482,28 @@ impl ProductionOcrEngine {
         let mut max_variance = 0.0f32;
         
         for threshold in 0..256 {
-            let mut weight_bg = 0.0f32;
-            let mut weight_fg = 0.0f32;
-            let mut sum_bg = 0.0f32;
-            let mut sum_fg = 0.0f32;
+            let mut bg_weight = 0.0f32;
+            let mut fg_weight = 0.0f32;
+            let mut bg_sum = 0.0f32;
+            let mut fg_sum = 0.0f32;
             
             // Calculate background statistics
             for i in 0..threshold {
-                weight_bg += histogram[i] as f32;
-                sum_bg += i as f32 * histogram[i] as f32;
+                bg_weight += histogram[i] as f32;
+                bg_sum += i as f32 * histogram[i] as f32;
             }
             
             // Calculate foreground statistics
             for i in threshold..256 {
-                weight_fg += histogram[i] as f32;
-                sum_fg += i as f32 * histogram[i] as f32;
+                fg_weight += histogram[i] as f32;
+                fg_sum += i as f32 * histogram[i] as f32;
             }
             
-            if weight_bg > 0.0 && weight_fg > 0.0 {
-                let mean_bg = sum_bg / weight_bg;
-                let mean_fg = sum_fg / weight_fg;
-                let variance = (weight_bg / total_pixels) * (weight_fg / total_pixels) * 
-                              (mean_bg - mean_fg).powi(2);
+            if bg_weight > 0.0 && fg_weight > 0.0 {
+                let bg_mean = bg_sum / bg_weight;
+                let fg_mean = fg_sum / fg_weight;
+                let variance = (bg_weight / total_pixels) * (fg_weight / total_pixels) * 
+                              (bg_mean - fg_mean).powi(2);
                 
                 if variance > max_variance {
                     max_variance = variance;
@@ -875,11 +875,10 @@ impl ProductionOcrEngine {
         let mut prev_idx = None;
         
         for &idx in &decoded_indices {
-            if idx != self.text_recognizer.ctc_decoder.blank_token && Some(idx) != prev_idx {
-                if idx < self.text_recognizer.vocabulary.len() {
+            if idx != self.text_recognizer.ctc_decoder.blank_token && Some(idx) != prev_idx
+                && idx < self.text_recognizer.vocabulary.len() {
                     text.push_str(&self.text_recognizer.vocabulary[idx]);
                 }
-            }
             prev_idx = Some(idx);
         }
         
@@ -930,7 +929,7 @@ impl ProductionOcrEngine {
         let word_lower = word.to_lowercase();
         
         // Check if word exists in any dictionary
-        for (_lang, dictionary) in &self.spell_checker.dictionaries {
+        for dictionary in self.spell_checker.dictionaries.values() {
             if dictionary.contains(&word_lower) {
                 return word.to_string();
             }
@@ -940,7 +939,7 @@ impl ProductionOcrEngine {
         let mut best_match = word.to_string();
         let mut min_distance = self.spell_checker.edit_distance_threshold + 1;
         
-        for (_lang, dictionary) in &self.spell_checker.dictionaries {
+        for dictionary in self.spell_checker.dictionaries.values() {
             for dict_word in dictionary {
                 let distance = self.calculate_edit_distance(&word_lower, dict_word);
                 if distance < min_distance {
@@ -1013,7 +1012,7 @@ impl ProductionOcrEngine {
         let mut best_language = "en".to_string();
         let mut best_score = 0.0f32;
         
-        for (lang, _model) in &self.language_detector.language_models {
+        for lang in self.language_detector.language_models.keys() {
             let score = self.calculate_language_score(text, lang);
             if score > best_score {
                 best_score = score;
@@ -1105,7 +1104,6 @@ impl OcrEngine for ProductionOcrEngine {
                 }
                 Err(_) => {
                     // Skip failed recognitions
-                    continue;
                 }
             }
         }

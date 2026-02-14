@@ -156,6 +156,7 @@ impl MFCCWakeWordEngine {
         }
         
         // Calculate average processing time
+        #[allow(clippy::cast_possible_truncation)]
         let avg_processing_time: Duration = self.processing_times.iter().sum::<Duration>() / self.processing_times.len() as u32;
         self.metrics.audio_processing_latency_ms = avg_processing_time.as_secs_f32() * 1000.0;
         

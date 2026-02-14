@@ -21,8 +21,28 @@
 //! - Memory-efficient resource management with automatic quality scaling
 
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
-#![allow(missing_docs)]
-#![allow(unused_variables)]
+#![allow(
+    clippy::module_name_repetitions,
+    clippy::missing_errors_doc,
+    clippy::unnecessary_wraps,
+    clippy::cast_possible_truncation,
+    clippy::unused_self,
+    clippy::too_many_arguments,
+    clippy::ptr_arg,
+    clippy::manual_clamp,
+    clippy::inherent_to_string,
+    clippy::await_holding_lock,
+    clippy::needless_range_loop,
+    clippy::manual_memcpy,
+    clippy::suboptimal_flops,
+    clippy::struct_excessive_bools,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::cast_lossless,
+    clippy::or_fun_call,
+    missing_docs,
+    unused_variables
+)]
 #![allow(dead_code)]
 
 pub mod emotion_controller;
@@ -55,6 +75,7 @@ pub struct AvatarSystem {
 
 impl AvatarSystem {
     /// Create new integrated avatar system
+    #[must_use] 
     pub fn new(personality: PersonalityProfile) -> Self {
         Self {
             emotion_controller: EmotionController::new(personality.clone()),

@@ -25,8 +25,6 @@
 //! - **Performance Gates**: Installation time must be bounded and predictable
 //! - **Reliability Gates**: Zero data loss during updates with comprehensive backup/restore
 
-#![allow(missing_docs)]
-
 #[cfg(test)]
 use proptest::prelude::*;
 use std::time::{Duration, Instant, SystemTime};
@@ -346,7 +344,7 @@ impl DeploymentSystem {
         
         // Simulate concurrent verification operations
         for i in 0..operation_count {
-            let testsignature = CryptographicSignature {
+            let test_signature = CryptographicSignature {
                 algorithm: SignatureAlgorithm::Ed25519,
                 signature_data: vec![0u8; 64],
                 public_key: vec![0u8; 32],
@@ -496,17 +494,17 @@ pub mod generators {
         prop_oneof![
             // Windows platforms
             (
-                prop_oneof![Just(WindowsArchitecture::X64), Just(WindowsArchitecture::ARM64)],
+                prop_oneof![Just(WindowsArchitecture::_X64), Just(WindowsArchitecture::_ARM64)],
                 prop_oneof![
-                    Just(WindowsVersion::Windows10),
+                    Just(WindowsVersion::_Windows10),
                     Just(WindowsVersion::Windows11),
                     Just(WindowsVersion::WindowsServer2019),
-                    Just(WindowsVersion::WindowsServer2022)
+                    Just(WindowsVersion::_WindowsServer2022)
                 ],
                 prop_oneof![
-                    Just(WindowsInstallerType::NSIS),
+                    Just(WindowsInstallerType::_NSIS),
                     Just(WindowsInstallerType::MSI),
-                    Just(WindowsInstallerType::MSIX)
+                    Just(WindowsInstallerType::_MSIX)
                 ]
             ).prop_map(|(arch, version, installer)| PlatformTarget::Windows {
                 architecture: arch,
@@ -515,17 +513,17 @@ pub mod generators {
             }),
             // macOS platforms
             (
-                prop_oneof![Just(MacOSArchitecture::X64), Just(MacOSArchitecture::ARM64)],
+                prop_oneof![Just(MacOSArchitecture::_X64), Just(MacOSArchitecture::_ARM64)],
                 prop_oneof![
-                    Just(MacOSVersion::Monterey),
+                    Just(MacOSVersion::_Monterey),
                     Just(MacOSVersion::Ventura),
                     Just(MacOSVersion::Sonoma),
-                    Just(MacOSVersion::Sequoia)
+                    Just(MacOSVersion::_Sequoia)
                 ],
                 prop_oneof![
-                    Just(MacOSBundleType::PKG),
+                    Just(MacOSBundleType::_PKG),
                     Just(MacOSBundleType::DMG),
-                    Just(MacOSBundleType::AppBundle)
+                    Just(MacOSBundleType::_AppBundle)
                 ]
             ).prop_map(|(arch, version, bundle)| PlatformTarget::MacOS {
                 architecture: arch,
@@ -723,7 +721,7 @@ mod tests {
                     let update_result = deployment_system.perform_atomic_update(&from_version, &to_version, &package_components[package_components.len()/2..]);
                     prop_assert!(update_result.is_ok(), "Atomic update failed: {:?}", update_result);
                 }
-                DeploymentOperation::Rollback { _to_version } => {
+                DeploymentOperation::Rollback { to_version } => {
                     // 1. Perform installation to create rollback point
                     let _ = deployment_system.perform_fresh_install(&package_components);
                     

@@ -79,7 +79,7 @@ impl OpenAiClient {
             .choices
             .first()
             .map(|choice| choice.message.content.clone())
-            .ok_or_else(|| ProviderError::EmptyResponse)
+            .ok_or(ProviderError::EmptyResponse)
     }
     
     /// Check if API is available

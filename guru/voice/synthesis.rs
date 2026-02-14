@@ -43,6 +43,7 @@ impl SynthesisEngine {
         let sample_rate = self.config.sample_rate as f32;
         let duration_per_char = 0.08; // 80ms per character
         let total_duration = (text.len() as f32 * duration_per_char).max(0.5);
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let total_samples = (total_duration * sample_rate) as usize;
         
         let mut audio = Vec::with_capacity(total_samples);
@@ -52,6 +53,7 @@ impl SynthesisEngine {
             let t = i as f32 / sample_rate;
             
             // Character-based frequency modulation
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
             let char_index = ((t / duration_per_char) as usize) % text.len().max(1);
             let char_code = text.chars().nth(char_index).unwrap_or('a') as u32;
             
@@ -61,7 +63,7 @@ impl SynthesisEngine {
             let f3 = 2500.0 + (char_code % 300) as f32; // Third formant
             
             // Fundamental frequency with natural variation
-            let f0 = 120.0 + 20.0 * (t * 2.0).sin(); // Pitch variation
+            let f0 = 20.0f32.mul_add((t * 2.0).sin(), 120.0); // Pitch variation
             
             // Generate formant synthesis
             let formant1 = (2.0 * std::f32::consts::PI * f1 * t).sin() * 0.4;
@@ -79,7 +81,7 @@ impl SynthesisEngine {
                 (total_duration - t) / 0.1 // Release
             } else {
                 // Sustain with natural amplitude variation
-                0.8 + 0.2 * (t * 5.0).sin()
+                0.2f32.mul_add((t * 5.0).sin(), 0.8)
             };
             
             sample *= envelope * 0.3; // Overall amplitude

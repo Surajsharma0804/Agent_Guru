@@ -2,7 +2,7 @@
 //!
 //! Production-grade Ed25519 digital signature implementation with formal verification
 //! guarantees. Provides cryptographic identity management, secure key generation,
-//! and immutable audit trails for the AGENT_GURU system.
+//! and immutable audit trails for the `AGENT_GURU` system.
 //!
 //! ## Security Properties
 //!
@@ -91,6 +91,7 @@ impl PublicKey {
     }
     
     /// Add metadata to the key
+    #[must_use]
     pub fn with_metadata(mut self, key: String, value: String) -> Self {
         self.metadata.insert(key, value);
         self
@@ -154,6 +155,7 @@ impl Signature {
     }
     
     /// Add metadata to the signature
+    #[must_use]
     pub fn with_metadata(mut self, key: String, value: String) -> Self {
         self.metadata.insert(key, value);
         self
@@ -217,6 +219,10 @@ pub struct AuditEntry {
 
 impl AuditEntry {
     /// Create a new audit entry
+    ///
+    /// # Panics
+    ///
+    /// Panics if the system time is before the UNIX epoch.
     pub fn new(
         operation: String,
         key_id: Option<Uuid>,
@@ -358,10 +364,10 @@ impl Ed25519Identity {
 impl CryptoIdentity for Ed25519Identity {
     fn generate_keypair() -> Result<(PublicKey, SecretKey), CryptoError> {
         let mut csprng = OsRng;
-        let keypair = SigningKey::generate(&mut csprng);
+        let signing_key = SigningKey::generate(&mut csprng);
         
-        let public_key = PublicKey::new(keypair.verifying_key());
-        let secret_key = SecretKey::new(keypair.clone());
+        let public_key = PublicKey::new(signing_key.verifying_key());
+        let secret_key = SecretKey::new(signing_key);
         
         Ok((public_key, secret_key))
     }

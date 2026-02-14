@@ -116,13 +116,13 @@ impl MelFilterBank {
             let center = bin_points[i + 1];
             let right = bin_points[i + 2];
             
-            for j in 0..n_freqs {
+            for (j, filter_val) in filter.iter_mut().enumerate().take(n_freqs) {
                 let freq_bin = j as f32;
                 
                 if freq_bin >= left && freq_bin <= center {
-                    filter[j] = (freq_bin - left) / (center - left);
+                    *filter_val = (freq_bin - left) / (center - left);
                 } else if freq_bin > center && freq_bin <= right {
-                    filter[j] = (right - freq_bin) / (right - center);
+                    *filter_val = (right - freq_bin) / (right - center);
                 }
             }
             
@@ -134,7 +134,7 @@ impl MelFilterBank {
     
     /// Convert Hz to mel scale
     fn hz_to_mel(hz: f32) -> f32 {
-        2595.0 * (1.0 + hz / 700.0).ln() / 10.0_f32.ln()
+        2595.0 * (hz / 700.0).ln_1p() / 10.0_f32.ln()
     }
     
     /// Convert mel scale to Hz
@@ -275,14 +275,15 @@ impl MFCCExtractor {
         for i in 0..size {
             let value = match window_type {
                 WindowType::Hamming => {
-                    0.54 - 0.46 * (2.0 * PI * i as f32 / (size - 1) as f32).cos()
+                    0.46f32.mul_add(-(2.0 * PI * i as f32 / (size - 1) as f32).cos(), 0.54)
                 }
                 WindowType::Hanning => {
                     0.5 * (1.0 - (2.0 * PI * i as f32 / (size - 1) as f32).cos())
                 }
                 WindowType::Blackman => {
-                    0.42 - 0.5 * (2.0 * PI * i as f32 / (size - 1) as f32).cos() +
-                    0.08 * (4.0 * PI * i as f32 / (size - 1) as f32).cos()
+                    let cos_2pi = (2.0 * PI * i as f32 / (size - 1) as f32).cos();
+                    let cos_4pi = (4.0 * PI * i as f32 / (size - 1) as f32).cos();
+                    0.08f32.mul_add(cos_4pi, 0.5f32.mul_add(-cos_2pi, 0.42))
                 }
             };
             window.push(value);
@@ -310,7 +311,7 @@ impl MFCCExtractor {
         let windowed_frame = self.apply_window(&audio_data);
         
         // Compute power spectrum via FFT
-        let power_spectrum = self.compute_power_spectrum(&windowed_frame)?;
+        let power_spectrum = self.compute_power_spectrum(&windowed_frame);
         
         // Apply mel filter bank
         let mel_energies = self.mel_filter_bank.apply(&power_spectrum);
@@ -335,7 +336,7 @@ impl MFCCExtractor {
     }
     
     /// Compute power spectrum using simplified FFT
-    fn compute_power_spectrum(&mut self, windowed_frame: &[f32]) -> Result<Vec<f32>, AudioFeatureError> {
+    fn compute_power_spectrum(&mut self, windowed_frame: &[f32]) -> Vec<f32> {
         // Copy windowed frame to FFT buffer
         self.fft_buffer[..windowed_frame.len()].copy_from_slice(windowed_frame);
         
@@ -357,7 +358,7 @@ impl MFCCExtractor {
             power_spectrum.push(magnitude_squared);
         }
         
-        Ok(power_spectrum)
+        power_spectrum
     }
     
     /// Reset internal state

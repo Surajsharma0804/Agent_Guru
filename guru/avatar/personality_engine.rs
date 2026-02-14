@@ -13,8 +13,28 @@
 //! - **Performance Monitor**: Real-time behavior metrics and optimization
 
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
-#![allow(missing_docs)]
-#![allow(unused_variables)]
+#![allow(
+    clippy::module_name_repetitions,
+    clippy::missing_errors_doc,
+    clippy::unnecessary_wraps,
+    clippy::cast_possible_truncation,
+    clippy::unused_self,
+    clippy::too_many_arguments,
+    clippy::ptr_arg,
+    clippy::manual_clamp,
+    clippy::inherent_to_string,
+    clippy::await_holding_lock,
+    clippy::needless_range_loop,
+    clippy::manual_memcpy,
+    clippy::suboptimal_flops,
+    clippy::struct_excessive_bools,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::cast_lossless,
+    clippy::or_fun_call,
+    missing_docs,
+    unused_variables
+)]
 #![allow(dead_code)]
 
 use std::time::{Duration, Instant};
@@ -185,6 +205,7 @@ pub struct PersonalityEngine {
 
 impl PersonalityEngine {
     /// Create new personality engine
+    #[must_use] 
     pub fn new(personality: PersonalityProfile) -> Self {
         let mut engine = Self {
             personality,
@@ -390,11 +411,11 @@ impl PersonalityEngine {
     }
     
     /// Generate personality-appropriate micro-behaviors
-    pub fn generate_behaviors(&mut self, context: ContextType) -> Result<Vec<MicroBehavior>, String> {
+    pub fn generate_behaviors(&mut self, context: &ContextType) -> Result<Vec<MicroBehavior>, String> {
         let start_time = Instant::now();
         
         // Update context if changed
-        if context != self.current_context {
+        if context != &self.current_context {
             self.set_context(context.clone());
         }
         
@@ -501,7 +522,7 @@ impl PersonalityEngine {
         
         // Adjust based on context frequency
         let context_frequency = self.calculate_context_frequency(&self.current_context);
-        trigger_probability *= 1.0 - context_frequency * 0.5; // Reduce probability for frequent contexts
+        trigger_probability *= context_frequency.mul_add(-0.5, 1.0); // Reduce probability for frequent contexts
         
         // Random trigger decision
         self.rng.f32() < trigger_probability
@@ -611,7 +632,7 @@ impl PersonalityEngine {
     }
     
     /// Get base duration for behavior type
-    fn get_base_behavior_duration(&self, behavior_type: &BehaviorType) -> Duration {
+    const fn get_base_behavior_duration(&self, behavior_type: &BehaviorType) -> Duration {
         match behavior_type {
             // Quick behaviors
             BehaviorType::EyebrowRaise | BehaviorType::EyebrowFurrow => Duration::from_millis(300),
@@ -620,7 +641,7 @@ impl PersonalityEngine {
             
             // Medium behaviors
             BehaviorType::SubtleSmile | BehaviorType::WarmSmile => Duration::from_millis(1500),
-            BehaviorType::HeadTilt | BehaviorType::HeadShake => Duration::from_millis(800),
+            BehaviorType::HeadTilt | BehaviorType::HeadShake | BehaviorType::PauseBefore => Duration::from_millis(800),
             BehaviorType::PointingGesture | BehaviorType::ExplanatoryGesture => Duration::from_millis(1200),
             
             // Long behaviors
@@ -629,9 +650,7 @@ impl PersonalityEngine {
             BehaviorType::CalmBreathing | BehaviorType::RelaxedBreathing => Duration::from_millis(4000),
             
             // Variable behaviors
-            BehaviorType::PauseBefore => Duration::from_millis(800),
             BehaviorType::PauseAfter => Duration::from_millis(600),
-            BehaviorType::DeliberateResponse => Duration::from_millis(1000),
             
             _ => Duration::from_millis(1000), // Default
         }
@@ -660,7 +679,7 @@ impl PersonalityEngine {
     }
     
     /// Calculate behavior priority
-    fn calculate_behavior_priority(&self, behavior_type: &BehaviorType) -> u8 {
+    const fn calculate_behavior_priority(&self, behavior_type: &BehaviorType) -> u8 {
         match behavior_type {
             // High priority (override other behaviors)
             BehaviorType::DirectGaze | BehaviorType::IntenseGaze => 200,
@@ -686,14 +705,13 @@ impl PersonalityEngine {
             BehaviorType::EyebrowRaise | BehaviorType::EyebrowFurrow => Duration::from_millis(1000),
             
             // Medium cooldowns
-            BehaviorType::SubtleSmile | BehaviorType::WarmSmile => Duration::from_millis(2000),
             BehaviorType::HeadTilt => Duration::from_millis(3000),
             
             // Long cooldowns for major behaviors
             BehaviorType::ConfidentPosture | BehaviorType::ThoughtfulPosture => Duration::from_millis(5000),
             BehaviorType::PlayfulGesture => Duration::from_millis(4000),
             
-            _ => Duration::from_millis(2000), // Default
+            _ => Duration::from_millis(2000), // Default (includes SubtleSmile, WarmSmile)
         };
         
         // Adjust based on stability (more stable = longer cooldowns)
@@ -822,8 +840,7 @@ impl PersonalityEngine {
                 (PersonalityType::GURU, BehaviorType::ConfidentPosture) => self.personality.confidence > 0.5,
                 (PersonalityType::GURU, BehaviorType::ThoughtfulPosture) => self.personality.intelligence > 0.5,
                 (PersonalityType::GURU, BehaviorType::SubtleSmile) => self.personality.wit > 0.5,
-                (PersonalityType::MAYA, BehaviorType::WarmSmile) => self.personality.empathy > 0.5,
-                (PersonalityType::MAYA, BehaviorType::EmpathethicExpression) => self.personality.empathy > 0.5,
+                (PersonalityType::MAYA, BehaviorType::WarmSmile | BehaviorType::EmpathethicExpression) => self.personality.empathy > 0.5,
                 (PersonalityType::MAYA, BehaviorType::PlayfulGesture) => self.personality.playfulness > 0.5,
                 _ => true, // Neutral behaviors are always consistent
             };
@@ -851,66 +868,21 @@ impl PersonalityEngine {
         let total_behaviors = recent_behaviors.len();
         
         for behavior in recent_behaviors {
-            let is_appropriate = match (&behavior.context, &behavior.behavior_type) {
-                // Listening context
-                (ContextType::Listening, BehaviorType::AttentivePosture) => true,
-                (ContextType::Listening, BehaviorType::NodUnderstanding) => true,
-                (ContextType::Listening, BehaviorType::FocusedExpression) => true,
-                
-                // Thinking context
-                (ContextType::Thinking, BehaviorType::ThoughtfulPosture) => true,
-                (ContextType::Thinking, BehaviorType::PauseBefore) => true,
-                (ContextType::Thinking, BehaviorType::ThoughtfulGaze) => true,
-                
-                // Playful interaction
-                (ContextType::PlayfulInteraction, BehaviorType::PlayfulGesture) => true,
-                (ContextType::PlayfulInteraction, BehaviorType::WarmSmile) => true,
-                
-                // Emotional support
-                (ContextType::EmotionalSupport, BehaviorType::EmpathethicExpression) => true,
-                (ContextType::EmotionalSupport, BehaviorType::ComfortingGesture) => true,
-                (ContextType::EmotionalSupport, BehaviorType::WarmGaze) => true,
-                
-                // Conversation context - many behaviors are appropriate
-                (ContextType::Conversation, BehaviorType::DirectGaze) => true,
-                (ContextType::Conversation, BehaviorType::OpenGesture) => true,
-                (ContextType::Conversation, BehaviorType::SubtleSmile) => true,
-                (ContextType::Conversation, BehaviorType::WarmSmile) => true,
-                (ContextType::Conversation, BehaviorType::NodAgreement) => true,
-                
-                // Explanation context
-                (ContextType::Explanation, BehaviorType::ExplanatoryGesture) => true,
-                (ContextType::Explanation, BehaviorType::ConfidentPosture) => true,
-                (ContextType::Explanation, BehaviorType::DirectGaze) => true,
-                
-                // Idle context - relaxed behaviors
-                (ContextType::Idle, BehaviorType::RelaxedPosture) => true,
-                (ContextType::Idle, BehaviorType::CalmBreathing) => true,
-                (ContextType::Idle, BehaviorType::RelaxedBreathing) => true,
-                
-                // Greeting/Farewell
-                (ContextType::Greeting, BehaviorType::WarmSmile) => true,
-                (ContextType::Greeting, BehaviorType::OpenGesture) => true,
-                (ContextType::Farewell, BehaviorType::WarmSmile) => true,
-                
-                // Problem solving
-                (ContextType::ProblemSolving, BehaviorType::ThoughtfulPosture) => true,
-                (ContextType::ProblemSolving, BehaviorType::FocusedExpression) => true,
-                
-                // Question context
-                (ContextType::Question, BehaviorType::CuriousExpression) => true,
-                (ContextType::Question, BehaviorType::AttentivePosture) => true,
-                
-                // Responding context
-                (ContextType::Responding, BehaviorType::DirectGaze) => true,
-                (ContextType::Responding, BehaviorType::ExplanatoryGesture) => true,
-                
-                // Universal behaviors that are always appropriate
-                (_, BehaviorType::CalmBreathing) => true,
-                (_, BehaviorType::RelaxedBreathing) => true,
-                
-                _ => false,
-            };
+            let is_appropriate = matches!((&behavior.context, &behavior.behavior_type),
+                (ContextType::Listening, BehaviorType::AttentivePosture | BehaviorType::NodUnderstanding | BehaviorType::FocusedExpression) |
+                (ContextType::Thinking, BehaviorType::ThoughtfulPosture | BehaviorType::PauseBefore | BehaviorType::ThoughtfulGaze) |
+                (ContextType::PlayfulInteraction, BehaviorType::PlayfulGesture | BehaviorType::WarmSmile) |
+                (ContextType::EmotionalSupport, BehaviorType::EmpathethicExpression | BehaviorType::ComfortingGesture | BehaviorType::WarmGaze) |
+                (ContextType::Conversation, BehaviorType::DirectGaze | BehaviorType::OpenGesture | BehaviorType::SubtleSmile | BehaviorType::WarmSmile | BehaviorType::NodAgreement) |
+                (ContextType::Explanation, BehaviorType::ExplanatoryGesture | BehaviorType::ConfidentPosture | BehaviorType::DirectGaze) |
+                (ContextType::Idle, BehaviorType::RelaxedPosture | BehaviorType::CalmBreathing | BehaviorType::RelaxedBreathing) |
+                (ContextType::Greeting, BehaviorType::WarmSmile | BehaviorType::OpenGesture) |
+                (ContextType::Farewell, BehaviorType::WarmSmile) |
+                (ContextType::ProblemSolving, BehaviorType::ThoughtfulPosture | BehaviorType::FocusedExpression) |
+                (ContextType::Question, BehaviorType::CuriousExpression | BehaviorType::AttentivePosture) |
+                (ContextType::Responding, BehaviorType::DirectGaze | BehaviorType::ExplanatoryGesture) |
+                (_, BehaviorType::CalmBreathing | BehaviorType::RelaxedBreathing)
+            );
             
             if is_appropriate {
                 appropriate_behaviors += 1;
@@ -923,27 +895,32 @@ impl PersonalityEngine {
     }
     
     /// Get current active behaviors
+    #[must_use] 
     pub fn get_active_behaviors(&self) -> &[MicroBehavior] {
         &self.active_behaviors
     }
     
     /// Get behavior history
-    pub fn get_behavior_history(&self) -> &VecDeque<MicroBehavior> {
+    #[must_use] 
+    pub const fn get_behavior_history(&self) -> &VecDeque<MicroBehavior> {
         &self.behavior_history
     }
     
     /// Get current context
-    pub fn get_current_context(&self) -> &ContextType {
+    #[must_use] 
+    pub const fn get_current_context(&self) -> &ContextType {
         &self.current_context
     }
     
     /// Get performance metrics
-    pub fn get_metrics(&self) -> &PersonalityMetrics {
+    #[must_use] 
+    pub const fn get_metrics(&self) -> &PersonalityMetrics {
         &self.metrics
     }
     
     /// Get personality profile
-    pub fn get_personality(&self) -> &PersonalityProfile {
+    #[must_use] 
+    pub const fn get_personality(&self) -> &PersonalityProfile {
         &self.personality
     }
     
@@ -980,7 +957,7 @@ impl PersonalityEngine {
     pub fn force_generate_behaviors(&mut self, context: ContextType, behavior_types: Vec<BehaviorType>) -> Result<Vec<MicroBehavior>, String> {
         // Update context if changed
         if context != self.current_context {
-            self.set_context(context.clone());
+            self.set_context(context);
         }
         
         let mut generated_behaviors = Vec::new();

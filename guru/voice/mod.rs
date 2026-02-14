@@ -1,6 +1,6 @@
 //! # Voice Processing Module
 //!
-//! Production-grade voice processing system for AGENT_GURU including wake word
+//! Production-grade voice processing system for `AGENT_GURU` including wake word
 //! detection, speech recognition, and text-to-speech synthesis.
 //!
 //! ## Components
@@ -76,7 +76,7 @@ impl AudioBuffer {
     /// Create a new audio buffer
     pub fn new(samples: Vec<f32>, sample_rate: u32, channels: u16) -> Self {
         let duration = Duration::from_secs_f64(
-            samples.len() as f64 / (sample_rate as f64 * channels as f64)
+            samples.len() as f64 / (f64::from(sample_rate) * f64::from(channels))
         );
         
         Self {
@@ -103,6 +103,7 @@ impl AudioBuffer {
     }
     
     /// Convert to mono by averaging channels
+    #[must_use]
     pub fn to_mono(&self) -> AudioBuffer {
         if self.channels == 1 {
             return self.clone();
@@ -117,17 +118,20 @@ impl AudioBuffer {
     }
     
     /// Resample to target sample rate (simple linear interpolation)
+    #[must_use]
     pub fn resample(&self, target_sample_rate: u32) -> AudioBuffer {
         if self.sample_rate == target_sample_rate {
             return self.clone();
         }
         
-        let ratio = target_sample_rate as f64 / self.sample_rate as f64;
+        let ratio = f64::from(target_sample_rate) / f64::from(self.sample_rate);
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let new_length = (self.samples.len() as f64 * ratio) as usize;
         let mut resampled = Vec::with_capacity(new_length);
         
         for i in 0..new_length {
             let src_index = i as f64 / ratio;
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
             let src_index_floor = src_index.floor() as usize;
             let src_index_ceil = (src_index_floor + 1).min(self.samples.len() - 1);
             let fraction = src_index - src_index_floor as f64;
@@ -149,6 +153,7 @@ impl AudioBuffer {
 
 /// Voice processing configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct VoiceConfig {
     /// Wake word detection settings
     pub wake_word_config: WakeWordConfig,
@@ -160,16 +165,6 @@ pub struct VoiceConfig {
     pub audio_config: AudioConfig,
 }
 
-impl Default for VoiceConfig {
-    fn default() -> Self {
-        Self {
-            wake_word_config: WakeWordConfig::default(),
-            speech_recognition_config: SpeechRecognitionConfig::default(),
-            tts_config: TTSConfig::default(),
-            audio_config: AudioConfig::default(),
-        }
-    }
-}
 
 /// Wake word detection configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

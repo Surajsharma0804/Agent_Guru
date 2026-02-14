@@ -1,4 +1,4 @@
-//! # AGENT_GURU Policy Engine Property-Based Tests
+//! # `AGENT_GURU` Policy Engine Property-Based Tests
 //! 
 //! Comprehensive property-based testing for the policy evaluation engine with
 //! cryptographic governance, real-time decision making, and audit capabilities.
@@ -45,7 +45,7 @@ fn generate_test_rule(name: &str, priority: u32, always_allow: bool) -> PolicyRu
     PolicyRule {
         id: RuleId(Uuid::new_v4()),
         name: name.to_string(),
-        description: format!("Test rule: {}", name),
+        description: format!("Test rule: {name}"),
         priority,
         condition: if always_allow { RuleCondition::Always } else { RuleCondition::Never },
         action: if always_allow { RuleAction::Allow } else { RuleAction::Deny },
@@ -188,13 +188,12 @@ fn test_rule_evaluation_graph() -> Result<(), String> {
 
     // Create rules without dependencies first
     for i in 0..10 {
-        let rule = generate_test_rule(&format!("rule_{}", i), (i + 1) * 10, i % 2 == 0);
+        let rule = generate_test_rule(&format!("rule_{i}"), (i + 1) * 10, i % 2 == 0);
         
         match engine.register_rule(rule) {
-            Ok(_) => registered_rules += 1,
+            Ok(()) => registered_rules += 1,
             Err(PolicyError::CircularDependency { .. }) => {
                 // This is expected behavior - circular dependencies should be detected
-                continue;
             }
             Err(_) => return Err("Unexpected error registering rule".to_string()),
         }
@@ -223,7 +222,6 @@ fn test_rule_evaluation_graph() -> Result<(), String> {
             }
             Err(PolicyError::EvaluationTimeout { .. }) => {
                 // Timeout is acceptable for complex rule sets
-                continue;
             }
             Err(_) => return Err("Unexpected evaluation error".to_string()),
         }
@@ -244,7 +242,7 @@ fn test_audit_trail_verification() -> Result<(), String> {
 
     // Perform various operations that should generate audit entries
     for i in 0..20 {
-        let rule = generate_test_rule(&format!("audit_rule_{}", i), (i + 1) * 5, true);
+        let rule = generate_test_rule(&format!("audit_rule_{i}"), (i + 1) * 5, true);
         
         engine.register_rule(rule)
             .map_err(|_| "Failed to register rule for audit test".to_string())?;
@@ -285,7 +283,7 @@ fn test_performance_stress() -> Result<(), String> {
 
     // Register rules
     for i in 0..50 {
-        let rule = generate_test_rule(&format!("perf_rule_{}", i), (i + 1) * 2, i % 3 == 0);
+        let rule = generate_test_rule(&format!("perf_rule_{i}"), (i + 1) * 2, i % 3 == 0);
         engine.register_rule(rule)
             .map_err(|_| "Failed to register rule for stress test".to_string())?;
     }
@@ -395,7 +393,7 @@ fn test_performance_stress() -> Result<(), String> {
 /// Run all policy engine property tests with comprehensive validation
 pub fn run_policy_engine_property_tests() {
     println!("🛡️ Starting Policy Engine Property-Based Tests");
-    println!("Testing with {} iterations per property", PROPERTY_TEST_ITERATIONS);
+    println!("Testing with {PROPERTY_TEST_ITERATIONS} iterations per property");
     println!();
 
     // Property 2: Policy Enforcement Consistency
@@ -403,9 +401,9 @@ pub fn run_policy_engine_property_tests() {
     println!("Validating cryptographic signatures, capability-based access controls, and proof chains...");
     
     match test_policy_enforcement_consistency() {
-        Ok(_) => println!("✅ Policy Enforcement Consistency tests completed"),
+        Ok(()) => println!("✅ Policy Enforcement Consistency tests completed"),
         Err(e) => {
-            println!("❌ Policy Enforcement Consistency tests failed: {}", e);
+            println!("❌ Policy Enforcement Consistency tests failed: {e}");
             panic!("Property test failed");
         }
     }
@@ -416,9 +414,9 @@ pub fn run_policy_engine_property_tests() {
     println!("Validating dependency resolution, topological ordering, and cycle detection...");
     
     match test_rule_evaluation_graph() {
-        Ok(_) => println!("✅ Rule Evaluation Graph Processing tests completed"),
+        Ok(()) => println!("✅ Rule Evaluation Graph Processing tests completed"),
         Err(e) => {
-            println!("❌ Rule Evaluation Graph Processing tests failed: {}", e);
+            println!("❌ Rule Evaluation Graph Processing tests failed: {e}");
             panic!("Property test failed");
         }
     }
@@ -429,9 +427,9 @@ pub fn run_policy_engine_property_tests() {
     println!("Validating immutable audit entries and cryptographic linking...");
     
     match test_audit_trail_verification() {
-        Ok(_) => println!("✅ Audit Trail Verification tests completed"),
+        Ok(()) => println!("✅ Audit Trail Verification tests completed"),
         Err(e) => {
-            println!("❌ Audit Trail Verification tests failed: {}", e);
+            println!("❌ Audit Trail Verification tests failed: {e}");
             panic!("Property test failed");
         }
     }
@@ -442,9 +440,9 @@ pub fn run_policy_engine_property_tests() {
     println!("Validating sub-10ms evaluation times and concurrent access handling...");
     
     match test_performance_stress() {
-        Ok(_) => println!("✅ Performance Stress Testing completed"),
+        Ok(()) => println!("✅ Performance Stress Testing completed"),
         Err(e) => {
-            println!("❌ Performance Stress Testing failed: {}", e);
+            println!("❌ Performance Stress Testing failed: {e}");
             panic!("Property test failed");
         }
     }

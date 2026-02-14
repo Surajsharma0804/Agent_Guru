@@ -107,7 +107,7 @@ impl InstallationMetrics {
     fn record_operation_timing(&mut self, operation: &str, duration: Duration) {
         self.operation_timings
             .entry(operation.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(duration);
     }
     
@@ -230,22 +230,20 @@ impl InstallationMetrics {
     fn recordoperation_timing(&mut self, operation: &str, duration: Duration) {
         self.operation_timings
             .entry(operation.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(duration);
     }
     
     /// Get average time for an operation
     pub fn get_averageoperation_time(&self, operation: &str) -> Option<Duration> {
-        if let Some(timings) = self.operation_timings.get(operation) {
-            if !timings.is_empty() {
-                let total: Duration = timings.iter().sum();
-                Some(total / timings.len() as u32)
-            } else {
+        self.operation_timings.get(operation).and_then(|timings| {
+            if timings.is_empty() {
                 None
+            } else {
+                let total: Duration = timings.iter().sum();
+                Some(total / u32::try_from(timings.len()).unwrap_or(1))
             }
-        } else {
-            None
-        }
+        })
     }
     
     /// Get percentile time for an operation
@@ -258,6 +256,7 @@ impl InstallationMetrics {
             let mut sorted_timings = timings.clone();
             sorted_timings.sort();
             
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
             let index = ((percentile / 100.0) * (sorted_timings.len() - 1) as f32) as usize;
             Some(sorted_timings[index])
         } else {
@@ -339,8 +338,8 @@ impl InstallationMetrics {
         for (operation, timings) in &other.operation_timings {
             self.operation_timings
                 .entry(operation.clone())
-                .or_insert_with(Vec::new)
-                .extend(timings.iter().cloned());
+                .or_default()
+                .extend(timings.iter().copied());
         }
         
         self.last_updated = SystemTime::now();

@@ -1,5 +1,5 @@
 //! Intelligent Memory Pruning with Importance Scoring
-//! AGENT_GURU - Task 5 Implementation
+//! `AGENT_GURU` - Task 5 Implementation
 //!
 //! MAXIMUM ENGINEERING MANDATE (ZERO COMPROMISE):
 //! - Complete intelligent memory pruning with importance scoring
@@ -92,6 +92,7 @@ pub struct PrunableEntry {
 
 impl PrunableEntry {
     /// Calculate recency score (0.0 to 1.0, higher = more recent)
+    #[must_use] 
     pub fn recency_score(&self, now: DateTime<Utc>) -> f32 {
         let age = now.signed_duration_since(self.last_accessed);
         let age_hours = age.num_hours() as f32;
@@ -101,6 +102,7 @@ impl PrunableEntry {
     }
     
     /// Calculate frequency score (0.0 to 1.0, normalized by max access count)
+    #[must_use] 
     pub fn frequency_score(&self, max_access_count: u64) -> f32 {
         if max_access_count == 0 {
             0.0
@@ -110,12 +112,14 @@ impl PrunableEntry {
     }
     
     /// Calculate age in hours
+    #[must_use] 
     pub fn age_hours(&self, now: DateTime<Utc>) -> f32 {
         let age = now.signed_duration_since(self.created_at);
         age.num_hours() as f32
     }
     
     /// Check if entry is old enough to be pruned
+    #[must_use] 
     pub fn is_prunable(&self, config: &PruningConfig, now: DateTime<Utc>) -> bool {
         let age = now.signed_duration_since(self.created_at);
         age.num_seconds() >= config.min_age_for_pruning as i64
@@ -135,6 +139,7 @@ pub struct ImportanceScore {
 
 impl ImportanceScore {
     /// Create new importance score
+    #[must_use] 
     pub fn new(
         recency: f32,
         frequency: f32,
@@ -142,8 +147,7 @@ impl ImportanceScore {
         similarity: f32,
         config: &PruningConfig,
     ) -> Self {
-        let total = recency * config.recency_weight
-            + frequency * config.frequency_weight
+        let total = recency.mul_add(config.recency_weight, frequency * config.frequency_weight)
             + user_importance * config.user_importance_weight
             + similarity * config.similarity_weight;
         
@@ -158,10 +162,11 @@ impl ImportanceScore {
     }
     
     /// Update with ML prediction
+    #[must_use] 
     pub fn with_ml_prediction(mut self, prediction: f32) -> Self {
         self.ml_prediction = Some(prediction);
         // Blend ML prediction with traditional score
-        self.total = self.total * 0.7 + prediction * 0.3;
+        self.total = self.total.mul_add(0.7, prediction * 0.3);
         self
     }
 }
@@ -204,7 +209,7 @@ struct SimilarityCluster {
 }
 
 impl SimilarityCluster {
-    fn new(centroid: Vec<f32>) -> Self {
+    const fn new(centroid: Vec<f32>) -> Self {
         Self {
             centroid,
             entries: Vec::new(),
@@ -214,7 +219,7 @@ impl SimilarityCluster {
     
     fn add_entry(&mut self, entry_id: Uuid, importance: f32) {
         self.entries.push(entry_id);
-        self.avg_importance = (self.avg_importance * (self.entries.len() - 1) as f32 + importance) 
+        self.avg_importance = self.avg_importance.mul_add((self.entries.len() - 1) as f32, importance) 
             / self.entries.len() as f32;
     }
     
@@ -296,12 +301,12 @@ impl ImportancePredictor {
         self.bias += learning_rate * error;
         
         // Update feature statistics (exponential moving average)
-        let alpha = 0.01;
+        let alpha = 0.01_f32;
         for (i, &feature) in features.iter().enumerate() {
             if i < self.feature_means.len() {
-                self.feature_means[i] = (1.0 - alpha) * self.feature_means[i] + alpha * feature;
+                self.feature_means[i] = (1.0 - alpha).mul_add(self.feature_means[i], alpha * feature);
                 let diff = feature - self.feature_means[i];
-                self.feature_stds[i] = ((1.0 - alpha) * self.feature_stds[i].powi(2) + alpha * diff.powi(2)).sqrt();
+                self.feature_stds[i] = (1.0 - alpha).mul_add(self.feature_stds[i].powi(2), alpha * diff.powi(2)).sqrt();
             }
         }
     }
@@ -341,6 +346,7 @@ pub struct PruningEvent {
 
 impl MemoryPruning {
     /// Create new memory pruning system
+    #[must_use] 
     pub fn new(config: PruningConfig) -> Self {
         let ml_predictor = if config.use_ml_prediction {
             Some(ImportancePredictor::new(7)) // 7 features
@@ -358,7 +364,8 @@ impl MemoryPruning {
     }
     
     /// Determine if pruning is needed
-    pub fn needs_pruning(&self, current_count: usize) -> bool {
+    #[must_use] 
+    pub const fn needs_pruning(&self, current_count: usize) -> bool {
         current_count > self.config.max_entries
     }
     
@@ -646,10 +653,10 @@ impl MemoryPruning {
         let mut metrics = self.metrics.write().unwrap();
         
         if was_correctly_pruned {
-            metrics.user_satisfaction_score = (metrics.user_satisfaction_score * 0.9 + 1.0 * 0.1).min(1.0);
+            metrics.user_satisfaction_score = metrics.user_satisfaction_score.mul_add(0.9, 1.0 * 0.1).min(1.0);
         } else {
-            metrics.user_satisfaction_score = (metrics.user_satisfaction_score * 0.9 + 0.0 * 0.1).max(0.0);
-            metrics.false_positive_rate = (metrics.false_positive_rate * 0.9 + 1.0 * 0.1).min(1.0);
+            metrics.user_satisfaction_score = metrics.user_satisfaction_score.mul_add(0.9, 0.0 * 0.1).max(0.0);
+            metrics.false_positive_rate = metrics.false_positive_rate.mul_add(0.9, 1.0 * 0.1).min(1.0);
         }
         
         Ok(())
@@ -664,7 +671,7 @@ impl MemoryPruning {
         
         let pruning_time = duration.as_millis() as f64;
         metrics.avg_pruning_time_ms = 
-            (metrics.avg_pruning_time_ms * (metrics.total_pruning_operations - 1) as f64 + pruning_time) 
+            metrics.avg_pruning_time_ms.mul_add((metrics.total_pruning_operations - 1) as f64, pruning_time) 
             / metrics.total_pruning_operations as f64;
         
         metrics.last_pruning_time = Some(Utc::now());
@@ -712,12 +719,14 @@ impl MemoryPruning {
     }
     
     /// Get pruning metrics
+    #[must_use] 
     pub fn get_metrics(&self) -> PruningMetrics {
         let metrics = self.metrics.read().unwrap();
         metrics.clone()
     }
     
     /// Get pruning history
+    #[must_use] 
     pub fn get_pruning_history(&self) -> Vec<PruningEvent> {
         let history = self.pruning_history.read().unwrap();
         history.iter().cloned().collect()

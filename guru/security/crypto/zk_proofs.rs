@@ -2,7 +2,7 @@
 //! 
 //! Production-grade zero-knowledge proof implementation with formal soundness
 //! guarantees. This module provides cryptographic proof generation and verification
-//! for the AGENT_GURU system with mathematical correctness.
+//! for the `AGENT_GURU` system with mathematical correctness.
 //!
 //! ## Security Properties
 //! - Zero-knowledge: Proofs reveal no information beyond validity
@@ -57,7 +57,8 @@ pub struct ZKStatement {
 
 impl ZKStatement {
     /// Create a new zero-knowledge statement
-    pub fn new(
+    #[must_use] 
+    pub const fn new(
         claim: String,
         public_inputs: HashMap<String, Vec<u8>>,
         metadata: HashMap<String, String>,
@@ -70,6 +71,12 @@ impl ZKStatement {
     }
     
     /// Validate the statement structure
+    ///
+    /// # Errors
+    ///
+    /// Returns `ZKProofError::InvalidStatement` if:
+    /// - The claim is empty
+    /// - The claim exceeds 1024 bytes
     pub fn validate(&self) -> Result<(), ZKProofError> {
         if self.claim.is_empty() {
             return Err(ZKProofError::InvalidStatement("Empty claim".to_string()));
@@ -96,6 +103,7 @@ pub struct ZKProof {
 
 impl ZKProof {
     /// Create a new zero-knowledge proof
+    #[must_use] 
     pub fn new(
         statement: ZKStatement,
         proof_data: Vec<u8>,
@@ -114,6 +122,13 @@ impl ZKProof {
     }
     
     /// Verify the proof structure
+    ///
+    /// # Errors
+    ///
+    /// Returns `ZKProofError` if:
+    /// - The statement validation fails
+    /// - The proof data is empty
+    /// - The proof data exceeds 10KB
     pub fn verify_structure(&self) -> Result<(), ZKProofError> {
         self.statement.validate()?;
         
@@ -145,7 +160,8 @@ pub struct SystemParameters {
 
 impl SystemParameters {
     /// Create new system parameters
-    pub fn new(security_level: u32) -> Self {
+    #[must_use] 
+    pub const fn new(security_level: u32) -> Self {
         // Generate deterministic system parameters
         let mut generator = [0u8; 32];
         generator[0] = 1; // Simple generator for demonstration
@@ -159,6 +175,7 @@ impl SystemParameters {
     }
     
     /// Set the public key for the system
+    #[must_use] 
     pub fn with_public_key(mut self, public_key: PublicKey) -> Self {
         self.public_key = Some(public_key);
         self
@@ -167,13 +184,24 @@ impl SystemParameters {
 
 impl ZKProofSystem {
     /// Create a new zero-knowledge proof system
-    pub fn new(parameters: SystemParameters) -> Self {
+    #[must_use] 
+    pub const fn new(parameters: SystemParameters) -> Self {
         Self {
             system_parameters: parameters,
         }
     }
     
     /// Generate a zero-knowledge proof for a statement
+    ///
+    /// # Errors
+    ///
+    /// Returns `ZKProofError` if:
+    /// - Statement validation fails
+    /// - Commitment generation fails
+    /// - Challenge generation fails
+    /// - Response generation fails
+    /// - Proof serialization fails
+    /// - Proof structure verification fails
     pub fn generate_proof(
         &self,
         statement: ZKStatement,
@@ -187,16 +215,16 @@ impl ZKProofSystem {
         // In production, this would implement a full ZK protocol like zk-SNARKs or zk-STARKs
         
         // Step 1: Generate prover commitment
-        let prover_commitment = self.generate_commitment(&statement, witness)?;
+        let prover_commitment = self.generate_commitment(&statement, witness);
         
         // Step 2: Generate challenge (Fiat-Shamir heuristic)
-        let challenge = self.generate_challenge(&statement, &prover_commitment)?;
+        let challenge = self.generate_challenge(&statement, &prover_commitment);
         
         // Step 3: Generate response
-        let response = self.generate_response(&statement, witness, &challenge, secret_key)?;
+        let response = Self::generate_response(&statement, witness, &challenge, secret_key);
         
         // Step 4: Create proof data
-        let proof_data = self.serialize_proof_data(&prover_commitment, &challenge, &response)?;
+        let proof_data = Self::serialize_proof_data(&prover_commitment, &challenge, &response);
         
         let proof = ZKProof::new(
             statement,
@@ -213,6 +241,12 @@ impl ZKProofSystem {
     }
     
     /// Verify a zero-knowledge proof
+    ///
+    /// # Errors
+    ///
+    /// Returns `ZKProofError` if:
+    /// - Proof structure verification fails
+    /// - Proof equation verification fails
     pub fn verify_proof(&self, proof: &ZKProof) -> Result<bool, ZKProofError> {
         // Verify proof structure
         proof.verify_structure()?;
@@ -221,7 +255,7 @@ impl ZKProofSystem {
         // In production, this would implement the full verification algorithm
         
         // Step 1: Recompute challenge
-        let expected_challenge = self.generate_challenge(&proof.statement, &proof.prover_commitment)?;
+        let expected_challenge = self.generate_challenge(&proof.statement, &proof.prover_commitment);
         
         // Step 2: Verify challenge matches
         if proof.challenge != expected_challenge {
@@ -229,12 +263,12 @@ impl ZKProofSystem {
         }
         
         // Step 3: Verify proof equation (simplified)
-        let verification_result = self.verify_proof_equation(
+        let verification_result = Self::verify_proof_equation(
             &proof.statement,
             &proof.prover_commitment,
             &proof.challenge,
             &proof.response,
-        )?;
+        );
         
         Ok(verification_result)
     }
@@ -244,7 +278,7 @@ impl ZKProofSystem {
         &self,
         statement: &ZKStatement,
         witness: &HashMap<String, Vec<u8>>,
-    ) -> Result<[u8; 32], ZKProofError> {
+    ) -> [u8; 32] {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
         
@@ -278,7 +312,7 @@ impl ZKProofSystem {
             *byte = hash_bytes[i % 8];
         }
         
-        Ok(commitment)
+        commitment
     }
     
     /// Generate challenge using Fiat-Shamir heuristic
@@ -286,7 +320,7 @@ impl ZKProofSystem {
         &self,
         statement: &ZKStatement,
         commitment: &[u8; 32],
-    ) -> Result<[u8; 32], ZKProofError> {
+    ) -> [u8; 32] {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
         
@@ -307,20 +341,19 @@ impl ZKProofSystem {
         let mut challenge = [0u8; 32];
         let hash_bytes = challenge_hash.to_le_bytes();
         for (i, byte) in challenge.iter_mut().enumerate() {
-            *byte = hash_bytes[i % 8] ^ ((i as u8).wrapping_mul(7));
+            *byte = hash_bytes[i % 8] ^ (u8::try_from(i).unwrap_or(0).wrapping_mul(7));
         }
         
-        Ok(challenge)
+        challenge
     }
     
     /// Generate response to challenge
     fn generate_response(
-        &self,
         statement: &ZKStatement,
         witness: &HashMap<String, Vec<u8>>,
         challenge: &[u8; 32],
         _secret_key: &SecretKey,
-    ) -> Result<[u8; 32], ZKProofError> {
+    ) -> [u8; 32] {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
         
@@ -347,32 +380,30 @@ impl ZKProofSystem {
             *byte = hash_bytes[i % 8] ^ challenge[i % 32];
         }
         
-        Ok(response)
+        response
     }
     
     /// Serialize proof data
     fn serialize_proof_data(
-        &self,
         commitment: &[u8; 32],
         challenge: &[u8; 32],
         response: &[u8; 32],
-    ) -> Result<Vec<u8>, ZKProofError> {
+    ) -> Vec<u8> {
         let mut proof_data = Vec::with_capacity(96);
         proof_data.extend_from_slice(commitment);
         proof_data.extend_from_slice(challenge);
         proof_data.extend_from_slice(response);
         
-        Ok(proof_data)
+        proof_data
     }
     
     /// Verify the proof equation
     fn verify_proof_equation(
-        &self,
         statement: &ZKStatement,
         commitment: &[u8; 32],
         challenge: &[u8; 32],
         response: &[u8; 32],
-    ) -> Result<bool, ZKProofError> {
+    ) -> bool {
         // Simplified proof verification equation
         // In production, this would implement the specific ZK protocol verification
         
@@ -391,13 +422,12 @@ impl ZKProofSystem {
         
         // Simple verification: check if hash has specific properties
         // This is a placeholder for actual ZK verification logic
-        let verification_result = (verification_hash % 100) < 95; // 95% success rate for valid proofs
-        
-        Ok(verification_result)
+        (verification_hash % 100) < 95 // 95% success rate for valid proofs
     }
     
     /// Get system parameters
-    pub fn get_parameters(&self) -> &SystemParameters {
+    #[must_use] 
+    pub const fn get_parameters(&self) -> &SystemParameters {
         &self.system_parameters
     }
 }

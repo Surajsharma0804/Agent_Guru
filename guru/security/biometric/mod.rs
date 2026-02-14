@@ -104,6 +104,7 @@ impl BiometricTemplate {
     }
     
     /// Add metadata to the template
+    #[must_use]
     pub fn with_metadata(mut self, key: String, value: String) -> Self {
         self.metadata.insert(key, value);
         self
@@ -220,6 +221,7 @@ impl BiometricData {
     }
     
     /// Add face image data
+    #[must_use]
     pub fn with_face_image(mut self, image_data: Vec<u8>, quality: f32) -> Self {
         self.face_image = Some(image_data);
         self.quality_indicators.insert(BiometricType::Face, quality);
@@ -227,6 +229,7 @@ impl BiometricData {
     }
     
     /// Add voice sample data
+    #[must_use]
     pub fn with_voice_sample(mut self, audio_data: Vec<f32>, quality: f32) -> Self {
         self.voice_sample = Some(audio_data);
         self.quality_indicators.insert(BiometricType::Voice, quality);
@@ -234,6 +237,7 @@ impl BiometricData {
     }
     
     /// Add fingerprint image data
+    #[must_use]
     pub fn with_fingerprint_image(mut self, image_data: Vec<u8>, quality: f32) -> Self {
         self.fingerprint_image = Some(image_data);
         self.quality_indicators.insert(BiometricType::Fingerprint, quality);

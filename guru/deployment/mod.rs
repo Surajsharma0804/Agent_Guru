@@ -10,13 +10,13 @@
 //! The deployment system implements a comprehensive cross-platform installation and update framework
 //! with the following core components:
 //! 
-//! - **DeploymentManager**: Core orchestration of installation operations
-//! - **UpdateManager**: Atomic updates with rollback capabilities
-//! - **PackageManager**: Package extraction and component management
-//! - **CryptographicVerifier**: Signature verification and security validation
-//! - **DependencyResolver**: Dependency resolution with conflict detection
-//! - **RollbackManager**: Backup and restore functionality
-//! - **PlatformIntegrator**: Platform-specific integration and native API access
+//! - **`DeploymentManager`**: Core orchestration of installation operations
+//! - **`UpdateManager`**: Atomic updates with rollback capabilities
+//! - **`PackageManager`**: Package extraction and component management
+//! - **`CryptographicVerifier`**: Signature verification and security validation
+//! - **`DependencyResolver`**: Dependency resolution with conflict detection
+//! - **`RollbackManager`**: Backup and restore functionality
+//! - **`PlatformIntegrator`**: Platform-specific integration and native API access
 //! 
 //! ## Security Architecture
 //! 
@@ -31,7 +31,7 @@
 //! 
 //! - **Windows**: NSIS, MSI, MSIX installers with registry integration
 //! - **macOS**: PKG, DMG, App Bundle with notarization support
-//! - **Linux**: AppImage, DEB, RPM, Flatpak, Snap with distribution integration
+//! - **Linux**: `AppImage`, DEB, RPM, Flatpak, Snap with distribution integration
 //! 
 //! ## Performance Requirements
 //! 
@@ -106,31 +106,31 @@ pub enum PlatformTarget {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WindowsArchitecture { _X64, _ARM64 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WindowsVersion { _Windows10, Windows11, WindowsServer2019, _WindowsServer2022 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WindowsInstallerType { _NSIS, MSI, _MSIX }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MacOSArchitecture { _X64, _ARM64 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MacOSVersion { _Monterey, Ventura, Sonoma, _Sequoia }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MacOSBundleType { _PKG, DMG, _AppBundle }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LinuxArchitecture { X64, ARM64, ARMHF }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LinuxDistribution { Ubuntu, Debian, CentOS, RHEL, Fedora, SUSE, Arch }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LinuxPackageType { AppImage, DEB, RPM, Flatpak, Snap }
 
 /// Package component for installation
@@ -160,7 +160,7 @@ pub struct CryptographicSignature {
     pub certificate_chain: Vec<Vec<u8>>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SignatureAlgorithm {
     Ed25519,
     RSA2048,
@@ -183,7 +183,7 @@ pub struct DeploymentResult {
     pub rollback_available: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeploymentOperationType {
     Install,
     Update,
@@ -216,7 +216,7 @@ pub struct UpdateInfo {
     pub backup_required: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UpdateType {
     Major,
     Minor,
@@ -271,6 +271,10 @@ impl Default for InstallationTarget {
 
 impl PackageComponent {
     /// Create a new package component with validation
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if validation fails
     pub fn new(
         name: String,
         version: String,
@@ -318,7 +322,8 @@ impl PackageComponent {
     }
     
     /// Check if this component is compatible with the target platform
-    pub fn is_compatible_with_platform(&self, _platform: &PlatformTarget) -> bool {
+    #[must_use]
+    pub const fn is_compatible_with_platform(&self, _platform: &PlatformTarget) -> bool {
         if !self.platform_specific {
             return true;
         }
@@ -329,7 +334,8 @@ impl PackageComponent {
     }
     
     /// Get the total size including dependencies
-    pub fn get_total_size_with_dependencies(&self, all_components: &[PackageComponent]) -> u64 {
+    #[must_use]
+    pub fn get_total_size_with_dependencies(&self, all_components: &[Self]) -> u64 {
         let mut total_size = self.size_bytes;
         
         for dep_name in &self.dependencies {
@@ -344,6 +350,7 @@ impl PackageComponent {
 
 impl CryptographicSignature {
     /// Create a new cryptographic signature
+    #[must_use]
     pub fn new(
         algorithm: SignatureAlgorithm,
         signature_data: Vec<u8>,
@@ -359,6 +366,10 @@ impl CryptographicSignature {
     }
     
     /// Validate signature format and constraints
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if validation fails
     pub fn validate(&self) -> Result<(), DeploymentError> {
         match self.algorithm {
             SignatureAlgorithm::Ed25519 => {
@@ -395,17 +406,15 @@ impl CryptographicSignature {
     }
     
     /// Check if signature is expired (if timestamp is available)
+    #[must_use]
     pub fn is_expired(&self, max_age: Duration) -> bool {
-        if let Ok(elapsed) = self.timestamp.elapsed() {
-            elapsed > max_age
-        } else {
-            false
-        }
+        self.timestamp.elapsed().map_or(false, |elapsed| elapsed > max_age)
     }
 }
 
 impl InstallationProgress {
     /// Create a new installation progress tracker
+    #[must_use]
     pub fn new(total_components: usize, total_bytes: u64) -> Self {
         Self {
             current_operation: "Initializing".to_string(),
@@ -429,11 +438,13 @@ impl InstallationProgress {
     pub fn complete_component(&mut self, component_size: u64) {
         self.components_completed += 1;
         self.bytes_processed += component_size;
-        self.progress_percentage = if self.total_bytes > 0 {
+        #[allow(clippy::cast_precision_loss)]
+        let progress = if self.total_bytes > 0 {
             (self.bytes_processed as f32 / self.total_bytes as f32) * 100.0
         } else {
             (self.components_completed as f32 / self.total_components as f32) * 100.0
         };
+        self.progress_percentage = progress;
     }
     
     /// Estimate remaining time based on current progress

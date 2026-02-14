@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Errors that can occur during transformer decoder operations
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum DecoderError {
     #[error("Invalid model configuration: {message}")]
     InvalidConfiguration { message: String },
@@ -55,10 +55,10 @@ pub struct DecoderConfig {
     /// Number of decoder layers (must be > 0)
     pub n_layers: usize,
     
-    /// Model dimension (must be divisible by n_heads)
+    /// Model dimension (must be divisible by `n_heads`)
     pub d_model: usize,
     
-    /// Number of attention heads (must be > 0 and divide d_model)
+    /// Number of attention heads (must be > 0 and divide `d_model`)
     pub n_heads: usize,
     
     /// Feed-forward network dimension
@@ -117,7 +117,8 @@ impl DecoderConfig {
     }
     
     /// Returns the dimension per attention head
-    pub fn head_dim(&self) -> usize {
+    #[must_use] 
+    pub const fn head_dim(&self) -> usize {
         self.d_model / self.n_heads
     }
 }
@@ -309,6 +310,7 @@ impl KVCache {
     }
     
     /// Returns cache performance metrics
+    #[must_use] 
     pub fn get_metrics(&self) -> (u64, u64, f32) {
         let total_accesses = self.cache_hits + self.cache_misses;
         let hit_rate = if total_accesses > 0 {
@@ -350,16 +352,16 @@ pub struct AttentionLayer {
     /// Layer configuration
     config: DecoderConfig,
     
-    /// Query weight matrix (d_model x d_model)
+    /// Query weight matrix (`d_model` x `d_model`)
     query_weights: Vec<f32>,
     
-    /// Key weight matrix (d_model x d_model)
+    /// Key weight matrix (`d_model` x `d_model`)
     key_weights: Vec<f32>,
     
-    /// Value weight matrix (d_model x d_model)
+    /// Value weight matrix (`d_model` x `d_model`)
     value_weights: Vec<f32>,
     
-    /// Output projection weights (d_model x d_model)
+    /// Output projection weights (`d_model` x `d_model`)
     output_weights: Vec<f32>,
     
     /// Query bias
@@ -544,6 +546,7 @@ pub struct LayerNorm {
 
 impl LayerNorm {
     /// Creates a new layer normalization layer
+    #[must_use] 
     pub fn new(d_model: usize, eps: f32) -> Self {
         Self {
             weights: vec![1.0; d_model],
@@ -577,7 +580,7 @@ impl LayerNorm {
         
         for i in 0..input.len() {
             let normalized = (input[i] - mean) / std_dev;
-            output.push(self.weights[i] * normalized + self.bias[i]);
+            output.push(self.weights[i].mul_add(normalized, self.bias[i]));
         }
         
         Ok(output)
@@ -608,6 +611,7 @@ pub struct MLPLayer {
 
 impl MLPLayer {
     /// Creates a new MLP layer
+    #[must_use] 
     pub fn new(d_model: usize, d_ff: usize) -> Self {
         let scale1 = (2.0 / d_model as f32).sqrt();
         let scale2 = (2.0 / d_ff as f32).sqrt();
@@ -660,7 +664,7 @@ impl MLPLayer {
     /// GELU activation function
     fn gelu(x: f32) -> f32 {
         use std::f32::consts::PI;
-        0.5 * x * (1.0 + (((2.0 / PI).sqrt() * (x + 0.044715 * x.powi(3))).tanh()))
+        0.5 * x * (1.0 + (((2.0 / PI).sqrt() * 0.044_715f32.mul_add(x.powi(3), x)).tanh()))
     }
     
     /// Initialize weights with given scale
@@ -697,7 +701,7 @@ pub struct DecoderLayer {
 
 impl DecoderLayer {
     /// Creates a new decoder layer
-    pub fn new(config: DecoderConfig) -> DecoderResult<Self> {
+    pub fn new(config: &DecoderConfig) -> DecoderResult<Self> {
         config.validate()?;
         
         Ok(Self {
@@ -790,18 +794,17 @@ pub struct TransformerDecoder {
 
 impl TransformerDecoder {
     /// Creates a new transformer decoder
-    pub fn new(config: DecoderConfig) -> DecoderResult<Self> {
+    pub fn new(config: &DecoderConfig) -> DecoderResult<Self> {
         config.validate()?;
         
         // Initialize layers
         let mut layers = Vec::with_capacity(config.n_layers);
         for _ in 0..config.n_layers {
-            layers.push(DecoderLayer::new(config.clone())?);
+            layers.push(DecoderLayer::new(config)?);
         }
         
         // Initialize embeddings
         let embedding_size = config.vocab_size * config.d_model;
-        let _pos_embedding_size = config.max_seq_len * config.d_model;
         let output_proj_size = config.d_model * config.vocab_size;
         
         let token_embeddings = Self::initialize_embeddings(embedding_size);
@@ -827,6 +830,10 @@ impl TransformerDecoder {
     }
     
     /// Generates the next token given input tokens and optional encoder output
+    ///
+    /// # Panics
+    ///
+    /// Panics if `input_tokens` is empty (though this is checked and returns an error first).
     pub fn generate_next_token(
         &mut self,
         input_tokens: &[u32],
@@ -842,6 +849,7 @@ impl TransformerDecoder {
         }
         
         let last_token = *input_tokens.last().unwrap();
+        #[allow(clippy::cast_possible_wrap)]
         let position = input_tokens.len() as i32 - 1;
         
         // Get token embedding
@@ -866,7 +874,7 @@ impl TransformerDecoder {
                 layer_output = layer.forward(
                     &layer_output,
                     encoder_output,
-                    &mut *kv_cache,
+                    &mut kv_cache,
                     position,
                     seq_id,
                 )?;
@@ -902,15 +910,14 @@ impl TransformerDecoder {
     
     /// Clears KV cache for the given sequence
     pub fn clear_sequence(&mut self, seq_id: u32) -> DecoderResult<()> {
-        let mut kv_cache = self.kv_cache.lock().map_err(|_| DecoderError::KVCacheError {
+        self.kv_cache.lock().map_err(|_| DecoderError::KVCacheError {
             operation: "Failed to acquire KV cache lock for clearing".to_string(),
-        })?;
-        
-        kv_cache.clear_sequence(seq_id);
+        })?.clear_sequence(seq_id);
         Ok(())
     }
     
     /// Returns performance metrics
+    #[must_use] 
     pub fn get_performance_metrics(&self) -> (u64, u64, f32) {
         let avg_time_per_token = if self.total_tokens_processed > 0 {
             self.total_processing_time_ms as f32 / self.total_tokens_processed as f32

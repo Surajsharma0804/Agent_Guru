@@ -121,8 +121,7 @@ impl AdaptiveThreshold {
             let new_noise_level = sorted_confidences[median_idx];
             
             // Smooth noise level update
-            self.noise_level = self.smoothing_factor * new_noise_level + 
-                              (1.0 - self.smoothing_factor) * self.noise_level;
+            self.noise_level = self.smoothing_factor.mul_add(new_noise_level, (1.0 - self.smoothing_factor) * self.noise_level);
         }
     }
     
@@ -209,10 +208,7 @@ impl DebounceTimer {
     }
     
     fn can_detect(&self) -> bool {
-        match self.last_detection {
-            Some(last) => last.elapsed() >= self.debounce_duration,
-            None => true,
-        }
+        self.last_detection.map_or(true, |last| last.elapsed() >= self.debounce_duration)
     }
     
     fn record_detection(&mut self) {
@@ -290,6 +286,10 @@ impl ConfidenceFilter {
     }
     
     /// Filter predictions and return filtered confidence scores
+    ///
+    /// # Panics
+    ///
+    /// Panics if the adaptive threshold for a class index is not found in the map.
     pub fn filter_predictions(&mut self, predictions: &[f32], base_sensitivity: f32) -> Result<Vec<f32>, ConfidenceError> {
         if !self.configured {
             return Err(ConfidenceError::NotConfigured);
@@ -408,21 +408,21 @@ impl ConfidenceFilter {
         };
         
         // Calculate mean adaptive threshold
-        let adaptive_threshold = if !self.adaptive_thresholds.is_empty() {
+        let adaptive_threshold = if self.adaptive_thresholds.is_empty() {
+            0.5
+        } else {
             self.adaptive_thresholds.values()
                 .map(|t| t.get_adaptive_threshold(self.config.false_positive_penalty))
                 .sum::<f32>() / self.adaptive_thresholds.len() as f32
-        } else {
-            0.5
         };
         
         // Calculate mean noise level
-        let noise_level = if !self.adaptive_thresholds.is_empty() {
+        let noise_level = if self.adaptive_thresholds.is_empty() {
+            0.0
+        } else {
             self.adaptive_thresholds.values()
                 .map(|t| t.noise_level)
                 .sum::<f32>() / self.adaptive_thresholds.len() as f32
-        } else {
-            0.0
         };
         
         ConfidenceMetrics {

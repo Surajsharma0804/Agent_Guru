@@ -254,13 +254,13 @@ impl MediaPipeGestureDetector {
                 if px < image.width && py < image.height {
                     let idx = ((py * image.width + px) * image.channels) as usize;
                     if idx + 2 < image.data.len() {
-                        let r = image.data[idx] as f32;
-                        let g = image.data[idx + 1] as f32;
-                        let b = image.data[idx + 2] as f32;
+                        let red = image.data[idx] as f32;
+                        let green = image.data[idx + 1] as f32;
+                        let blue = image.data[idx + 2] as f32;
                         
                         // Simple skin color detection
-                        if r > 95.0 && g > 40.0 && b > 20.0 && 
-                           r > g && r > b && (r - g).abs() > 15.0 {
+                        if red > 95.0 && green > 40.0 && blue > 20.0 && 
+                           red > green && red > blue && (red - green).abs() > 15.0 {
                             confidence += 1.0;
                         }
                         pixel_count += 1;
@@ -299,15 +299,15 @@ impl MediaPipeGestureDetector {
         }
         
         let mut total_distance = 0.0;
-        for (_i, (&(x1, y1), &(x2, y2))) in landmarks.iter().zip(template.iter()).enumerate() {
+        for (&(x1, y1), &(x2, y2)) in landmarks.iter().zip(template.iter()) {
             let distance = ((x1 - x2).powi(2) + (y1 - y2).powi(2)).sqrt();
             total_distance += distance;
         }
         
         let avg_distance = total_distance / landmarks.len() as f32;
-        let normalized_score = 1.0 / (1.0 + avg_distance / 100.0); // Normalize to 0-1
+         // Normalize to 0-1
         
-        normalized_score
+        1.0 / (1.0 + avg_distance / 100.0)
     }
     
     /// Create bounding box for hand landmarks

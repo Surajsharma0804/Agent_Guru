@@ -239,7 +239,7 @@ impl NeuralClassifier {
         
         // Create simplified models for each wake word
         // In production, these would be loaded from trained model files
-        for (_idx, wake_word) in wake_words.iter().enumerate() {
+        for wake_word in wake_words {
             let config = ModelConfig {
                 input_shape: vec![13], // MFCC features
                 output_classes: 2,     // wake word / not wake word
@@ -313,8 +313,7 @@ impl NeuralClassifier {
                 let predicted_class = output.iter()
                     .enumerate()
                     .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                    .map(|(idx, _)| idx)
-                    .unwrap_or(0);
+                    .map_or(0, |(idx, _)| idx);
                 
                 results.push(PredictionResult {
                     class_probabilities: output,
@@ -338,14 +337,14 @@ impl NeuralClassifier {
             QuantizationType::Int8 => {
                 // Simplified int8 quantization simulation
                 // Production implementation would use proper quantization algorithms
-                for (_wake_word, config) in self.model_configs.iter_mut() {
+                for config in self.model_configs.values_mut() {
                     config.quantization = QuantizationType::Int8;
                 }
                 Ok(())
             }
             QuantizationType::Float16 => {
                 // Simplified float16 quantization simulation
-                for (_wake_word, config) in self.model_configs.iter_mut() {
+                for config in self.model_configs.values_mut() {
                     config.quantization = QuantizationType::Float16;
                 }
                 Ok(())

@@ -58,6 +58,10 @@ impl AudioRingBuffer {
     }
     
     /// Write audio samples to the ring buffer
+    ///
+    /// # Panics
+    ///
+    /// Panics if the mutex lock is poisoned.
     pub fn write(&self, samples: &[f32]) -> Result<usize, RingBufferError> {
         if !self.initialized {
             return Err(RingBufferError::NotInitialized);
@@ -76,7 +80,6 @@ impl AudioRingBuffer {
         }
         
         let write_pos = self.write_pos.load(Ordering::Acquire);
-        let written;
         
         // Handle wrap-around case
         let end_pos = write_pos + samples.len();
@@ -87,7 +90,6 @@ impl AudioRingBuffer {
             // No wrap-around needed - use safe slice operations
             let buffer_slice = &mut buffer[write_pos..write_pos + samples.len()];
             buffer_slice.copy_from_slice(samples);
-            written = samples.len();
         } else {
             // Handle wrap-around using safe slice operations
             let first_chunk_size = self.capacity - write_pos;
@@ -102,10 +104,10 @@ impl AudioRingBuffer {
             let second_buffer_slice = &mut buffer[..second_chunk_size];
             let second_sample_slice = &samples[first_chunk_size..];
             second_buffer_slice.copy_from_slice(second_sample_slice);
-            
-            written = samples.len();
         }
         drop(buffer);
+        
+        let written = samples.len();
         
         // Update write position with memory barrier
         let new_write_pos = (write_pos + written) % self.capacity;
@@ -115,6 +117,10 @@ impl AudioRingBuffer {
     }
     
     /// Read audio samples from the ring buffer
+    ///
+    /// # Panics
+    ///
+    /// Panics if the mutex lock is poisoned.
     pub fn read(&self, samples: &mut [f32]) -> Result<usize, RingBufferError> {
         if !self.initialized {
             return Err(RingBufferError::NotInitialized);
@@ -133,7 +139,6 @@ impl AudioRingBuffer {
         }
         
         let read_pos = self.read_pos.load(Ordering::Acquire);
-        let read_count;
         
         // Handle wrap-around case
         let end_pos = read_pos + samples.len();
@@ -144,7 +149,6 @@ impl AudioRingBuffer {
             // No wrap-around needed - use safe slice operations
             let buffer_slice = &buffer[read_pos..read_pos + samples.len()];
             samples.copy_from_slice(buffer_slice);
-            read_count = samples.len();
         } else {
             // Handle wrap-around using safe slice operations
             let first_chunk_size = self.capacity - read_pos;
@@ -159,9 +163,9 @@ impl AudioRingBuffer {
             let second_buffer_slice = &buffer[..second_chunk_size];
             let second_sample_slice = &mut samples[first_chunk_size..];
             second_sample_slice.copy_from_slice(second_buffer_slice);
-            
-            read_count = samples.len();
         }
+        let read_count = samples.len();
+        drop(buffer);
         
         // Update read position with memory barrier
         let new_read_pos = (read_pos + read_count) % self.capacity;
@@ -171,6 +175,10 @@ impl AudioRingBuffer {
     }
     
     /// Read latest N samples without advancing read position
+    ///
+    /// # Panics
+    ///
+    /// Panics if the mutex lock is poisoned.
     pub fn read_latest(&self, count: usize) -> Result<Vec<f32>, RingBufferError> {
         if !self.initialized {
             return Err(RingBufferError::NotInitialized);
@@ -217,6 +225,7 @@ impl AudioRingBuffer {
             let second_sample_slice = &mut samples[first_chunk_size..];
             second_sample_slice.copy_from_slice(second_buffer_slice);
         }
+        drop(buffer);
         
         Ok(samples)
     }
@@ -303,6 +312,7 @@ impl AudioRingBuffer {
 }
 
 /// Thread-safe shared ring buffer
+#[derive(Clone)]
 pub struct SharedAudioRingBuffer {
     inner: Arc<AudioRingBuffer>,
 }
@@ -312,13 +322,6 @@ impl SharedAudioRingBuffer {
     pub fn new(capacity: usize) -> Self {
         Self {
             inner: Arc::new(AudioRingBuffer::new(capacity)),
-        }
-    }
-    
-    /// Get a clone of the shared buffer
-    pub fn clone(&self) -> Self {
-        Self {
-            inner: Arc::clone(&self.inner),
         }
     }
     

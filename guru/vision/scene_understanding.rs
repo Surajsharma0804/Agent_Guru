@@ -318,7 +318,7 @@ impl ProductionSceneAnalyzer {
         let mut best_scene = "indoor".to_string();
         let mut best_confidence = 0.0f32;
         
-        for (scene_type, _model) in &self.scene_classifier.scene_models {
+        for scene_type in self.scene_classifier.scene_models.keys() {
             let confidence = self.calculate_scene_confidence(&combined_features, scene_type);
             if confidence > best_confidence {
                 best_confidence = confidence;

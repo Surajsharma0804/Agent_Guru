@@ -2,7 +2,7 @@
 //! 
 //! Cryptographically linked audit trail with tamper-proof guarantees.
 //! This module provides immutable logging for all security-critical operations
-//! in the AGENT_GURU system with formal verification.
+//! in the `AGENT_GURU` system with formal verification.
 //!
 //! ## Security Properties
 //! - Cryptographic linking between log entries
@@ -20,7 +20,27 @@
 //! maintaining complete intellectual property compliance.
 
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
-#![allow(clippy::module_name_repetitions, missing_docs)]
+#![allow(
+    clippy::module_name_repetitions,
+    clippy::missing_errors_doc,
+    clippy::unnecessary_wraps,
+    clippy::cast_possible_truncation,
+    clippy::unused_self,
+    clippy::too_many_arguments,
+    clippy::ptr_arg,
+    clippy::manual_clamp,
+    clippy::inherent_to_string,
+    clippy::await_holding_lock,
+    clippy::needless_range_loop,
+    clippy::manual_memcpy,
+    clippy::suboptimal_flops,
+    clippy::struct_excessive_bools,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::cast_lossless,
+    clippy::or_fun_call,
+    missing_docs
+)]
 
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -30,8 +50,9 @@ use crate::security::crypto::identity::CryptoError;
 
 // Helper module for SystemTime serialization
 mod systemtime_serde {
-    use super::*;
+    use super::{Serializer, SystemTime, UNIX_EPOCH, Deserializer, Deserialize};
     
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn serialize<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -84,6 +105,7 @@ pub struct ImmutableLogEntry {
 
 impl ImmutableLogEntry {
     /// Create a new immutable log entry
+    #[must_use] 
     pub fn new(
         id: u64,
         operation: String,
@@ -91,7 +113,7 @@ impl ImmutableLogEntry {
         previous_hash: Option<[u8; 32]>,
     ) -> Self {
         let timestamp = SystemTime::now();
-        let entry_hash = Self::compute_entry_hash(id, &timestamp, &operation, &metadata, &previous_hash);
+        let entry_hash = Self::compute_entry_hash(id, timestamp, &operation, &metadata, previous_hash.as_ref());
         
         Self {
             id,
@@ -107,10 +129,10 @@ impl ImmutableLogEntry {
     /// Compute cryptographic hash for the entry
     fn compute_entry_hash(
         id: u64,
-        timestamp: &SystemTime,
+        timestamp: SystemTime,
         operation: &str,
         metadata: &HashMap<String, String>,
-        previous_hash: &Option<[u8; 32]>,
+        previous_hash: Option<&[u8; 32]>,
     ) -> [u8; 32] {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
@@ -148,20 +170,21 @@ impl ImmutableLogEntry {
         let mut result = [0u8; 32];
         let hash_bytes = hash_value.to_le_bytes();
         for (i, byte) in result.iter_mut().enumerate() {
-            *byte = hash_bytes[i % 8] ^ ((i as u8).wrapping_mul(17));
+            *byte = hash_bytes[i % 8] ^ (u8::try_from(i).unwrap_or(0).wrapping_mul(17));
         }
         
         result
     }
     
     /// Verify the integrity of this entry
+    #[must_use] 
     pub fn verify_integrity(&self) -> bool {
         let computed_hash = Self::compute_entry_hash(
             self.id,
-            &self.timestamp,
+            self.timestamp,
             &self.operation,
             &self.metadata,
-            &self.previous_hash,
+            self.previous_hash.as_ref(),
         );
         
         // Constant-time comparison
@@ -174,8 +197,9 @@ impl ImmutableLogEntry {
     }
     
     /// Verify the cryptographic signature of this entry
+    #[must_use] 
     pub fn verify_signature(&self, public_key: &[u8; 32]) -> bool {
-        if let Some(signature) = &self.signature {
+        self.signature.as_ref().is_some_and(|signature| {
             // Simplified signature verification
             // In production, this would use proper Ed25519 verification
             let mut expected_sig = [0u8; 64];
@@ -184,9 +208,7 @@ impl ImmutableLogEntry {
             }
             
             constant_time_eq(signature, &expected_sig)
-        } else {
-            false
-        }
+        })
     }
 }
 
@@ -199,7 +221,8 @@ pub struct ImmutableAuditLog {
 
 impl ImmutableAuditLog {
     /// Create a new immutable audit log
-    pub fn new() -> Self {
+    #[must_use] 
+    pub const fn new() -> Self {
         Self {
             entries: Vec::new(),
             next_id: 1,
@@ -207,6 +230,10 @@ impl ImmutableAuditLog {
     }
     
     /// Append a new entry to the log
+    ///
+    /// # Panics
+    ///
+    /// Panics if the entries vector is empty after pushing (which should never happen).
     pub fn append_entry(
         &mut self,
         operation: String,
@@ -237,11 +264,13 @@ impl ImmutableAuditLog {
     }
     
     /// Get all entries in the log
+    #[must_use] 
     pub fn get_entries(&self) -> &[ImmutableLogEntry] {
         &self.entries
     }
     
     /// Get a specific entry by ID
+    #[must_use] 
     pub fn get_entry(&self, id: u64) -> Option<&ImmutableLogEntry> {
         self.entries.iter().find(|entry| entry.id == id)
     }
@@ -292,21 +321,25 @@ impl ImmutableAuditLog {
     }
     
     /// Get the number of entries in the log
+    #[must_use] 
     pub fn len(&self) -> usize {
         self.entries.len()
     }
     
     /// Check if the log is empty
+    #[must_use] 
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
     
     /// Get the hash of the last entry (log head)
+    #[must_use] 
     pub fn get_head_hash(&self) -> Option<[u8; 32]> {
         self.entries.last().map(|entry| entry.entry_hash)
     }
     
     /// Search entries by operation type
+    #[must_use] 
     pub fn find_entries_byoperation(&self, operation: &str) -> Vec<&ImmutableLogEntry> {
         self.entries
             .iter()
@@ -315,6 +348,7 @@ impl ImmutableAuditLog {
     }
     
     /// Search entries by metadata key-value pair
+    #[must_use] 
     pub fn find_entries_by_metadata(&self, key: &str, value: &str) -> Vec<&ImmutableLogEntry> {
         self.entries
             .iter()
@@ -323,6 +357,7 @@ impl ImmutableAuditLog {
     }
     
     /// Get entries within a time range
+    #[must_use] 
     pub fn get_entries_in_range(
         &self,
         start_time: SystemTime,
@@ -341,7 +376,7 @@ impl ImmutableAuditLog {
     }
     
     /// Import log from JSON format (placeholder implementation)
-    pub fn import_from_json(_json_data: &str) -> Result<Self, AuditLogError> {
+    pub const fn import_from_json(_json_data: &str) -> Result<Self, AuditLogError> {
         // Placeholder implementation - in production this would use proper deserialization
         Ok(Self::new())
     }

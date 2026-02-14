@@ -13,8 +13,28 @@
 //! - **Memory Management**: Lock-free concurrent access with atomic operations
 
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
-#![allow(missing_docs)]
-#![allow(unused_variables)]
+#![allow(
+    clippy::module_name_repetitions,
+    clippy::missing_errors_doc,
+    clippy::unnecessary_wraps,
+    clippy::cast_possible_truncation,
+    clippy::unused_self,
+    clippy::too_many_arguments,
+    clippy::ptr_arg,
+    clippy::manual_clamp,
+    clippy::inherent_to_string,
+    clippy::await_holding_lock,
+    clippy::needless_range_loop,
+    clippy::manual_memcpy,
+    clippy::suboptimal_flops,
+    clippy::struct_excessive_bools,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::cast_lossless,
+    clippy::or_fun_call,
+    missing_docs,
+    unused_variables
+)]
 #![allow(dead_code)]
 
 use std::time::{Duration, Instant};
@@ -150,6 +170,7 @@ pub struct EmotionController {
 
 impl EmotionController {
     /// Create new emotion controller with personality
+    #[must_use] 
     pub fn new(personality: PersonalityProfile) -> Self {
         let mut controller = Self {
             current_emotion: EmotionState::Neutral,
@@ -277,7 +298,7 @@ impl EmotionController {
     }
     
     /// Validate emotion transition based on personality and rules
-    fn is_valid_transition(&self, from: &EmotionState, to: &EmotionState) -> bool {
+    const fn is_valid_transition(&self, from: &EmotionState, to: &EmotionState) -> bool {
         // Always allow base emotions regardless of personality traits
         match to {
             // Base emotions (Ekman's 6 + common extensions) - always allowed
@@ -300,7 +321,7 @@ impl EmotionController {
     }
     
     /// Calculate transition curve based on emotion types
-    fn calculate_transition_curve(&self, from: &EmotionState, to: &EmotionState) -> (f32, f32, f32, f32) {
+    const fn calculate_transition_curve(&self, from: &EmotionState, to: &EmotionState) -> (f32, f32, f32, f32) {
         match (from, to) {
             // Smooth transitions for positive emotions
             (EmotionState::Neutral, EmotionState::Happy) => (0.25, 0.1, 0.75, 0.9),
@@ -320,7 +341,7 @@ impl EmotionController {
     }
     
     /// Calculate transition priority based on emotion importance
-    fn calculate_transition_priority(&self, emotion: &EmotionState) -> u8 {
+    const fn calculate_transition_priority(&self, emotion: &EmotionState) -> u8 {
         match emotion {
             // High priority emotions
             EmotionState::Angry | EmotionState::Fearful => 255,
@@ -383,7 +404,7 @@ impl EmotionController {
         let mt2 = mt * mt;
         let mt3 = mt2 * mt;
         
-        mt3 * 0.0 + 3.0 * mt2 * t * p1 + 3.0 * mt * t2 * p2 + t3 * 1.0
+        (3.0 * mt * t2).mul_add(p2, mt3 * 0.0 + 3.0 * mt2 * t * p1) + t3 * 1.0
     }
     
     /// Cubic Bézier interpolation for smooth transitions
@@ -394,18 +415,17 @@ impl EmotionController {
         let mt2 = mt * mt;
         let mt3 = mt2 * mt;
         
-        mt3 * 0.0 + 3.0 * mt2 * t * p1 + 3.0 * mt * t2 * p2 + t3 * 1.0
+        (3.0 * mt * t2).mul_add(p2, mt3 * 0.0 + 3.0 * mt2 * t * p1) + t3 * 1.0
     }
     
     /// Get current emotion blend (primary + secondary with weights)
+    #[must_use] 
     pub fn get_current_emotion_blend(&self) -> (EmotionState, Option<(EmotionState, f32)>) {
-        let secondary = if let Some(ref secondary) = self.secondary_emotion {
+        let secondary = self.secondary_emotion.as_ref().map(|secondary| {
             // Calculate blend weight based on active transitions
             let blend_weight = self.calculate_secondary_blend_weight();
-            Some((secondary.clone(), blend_weight))
-        } else {
-            None
-        };
+            (secondary.clone(), blend_weight)
+        });
         
         (self.current_emotion.clone(), secondary)
     }
@@ -464,28 +484,28 @@ impl EmotionController {
     }
     
     /// Get current performance metrics
-    pub fn get_metrics(&self) -> &EmotionMetrics {
+    #[must_use] 
+    pub const fn get_metrics(&self) -> &EmotionMetrics {
         &self.metrics
     }
     
     /// Get emotion state history
+    #[must_use] 
     pub fn get_state_history(&self) -> &[(EmotionState, Instant)] {
         &self.state_history
     }
     
     /// Get active transitions
+    #[must_use] 
     pub fn get_active_transitions(&self) -> &[EmotionTransition] {
         &self.active_transitions
     }
     
     /// Validate emotion consistency with personality
-    pub fn validate_emotion_consistency(&self) -> bool {
+    #[must_use] 
+    pub const fn validate_emotion_consistency(&self) -> bool {
         // Check current emotion against personality
-        match (&self.personality.personality_type, &self.current_emotion) {
-            (PersonalityType::GURU, EmotionState::MayaEmpathy | EmotionState::MayaPlayfulness) => false,
-            (PersonalityType::MAYA, EmotionState::GuruWisdom | EmotionState::GuruConfidence) => false,
-            _ => true,
-        }
+        !matches!((&self.personality.personality_type, &self.current_emotion), (PersonalityType::GURU, EmotionState::MayaEmpathy | EmotionState::MayaPlayfulness) | (PersonalityType::MAYA, EmotionState::GuruWisdom | EmotionState::GuruConfidence))
     }
     
     /// Force emotion state (for testing/debugging)

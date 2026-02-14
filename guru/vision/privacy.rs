@@ -315,7 +315,7 @@ pub mod privacy_utils {
         
         // Check for unusual aspect ratios that might indicate screenshots
         let aspect_ratio = image.width as f32 / image.height as f32;
-        if aspect_ratio > 3.0 || aspect_ratio < 0.3 {
+        if !(0.3..=3.0).contains(&aspect_ratio) {
             return true;
         }
         

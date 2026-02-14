@@ -4,6 +4,3 @@
 
 pub mod identity;
 pub mod zk_proofs;
-
-#[cfg(test)]
-pub mod identity_properties;

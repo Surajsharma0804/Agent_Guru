@@ -24,7 +24,7 @@ use thiserror::Error;
 /// Maximum Engineering Standards - Zero Tolerance Quality Gates
 const MAX_AGENTS_PER_ORCHESTRATOR: usize = 10000;
 const MAX_CONCURRENT_TASKS: usize = 1000;
-const _MAX_MESSAGE_QUEUE_SIZE: usize = 100000;
+const _MAX_MESSAGE_QUEUE_SIZE: usize = 100_000;
 const TASK_TIMEOUT_SECONDS: u64 = 300;
 const HEARTBEAT_INTERVAL_MS: u64 = 1000;
 const _CONFLICT_RESOLUTION_TIMEOUT_MS: u64 = 5000;
@@ -399,6 +399,7 @@ pub struct TaskResult {
 
 /// Resource usage tracking
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct ResourceUsage {
     /// CPU time consumed in milliseconds
     pub cpu_time_ms: u64,
@@ -412,17 +413,6 @@ pub struct ResourceUsage {
     pub gpu_time_ms: Option<u64>,
 }
 
-impl Default for ResourceUsage {
-    fn default() -> Self {
-        Self {
-            cpu_time_ms: 0,
-            memory_peak_mb: 0,
-            disk_io_mb: 0,
-            network_io_mb: 0,
-            gpu_time_ms: None,
-        }
-    }
-}
 
 /// Agent conflict definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -812,7 +802,7 @@ impl MultiAgentOrchestrator {
                 for capability in &metadata.capabilities {
                     available_capabilities
                         .entry(capability.capability_id.clone())
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(agent_id.clone());
                 }
             }
@@ -980,7 +970,7 @@ impl MultiAgentOrchestrator {
             if let Some(agent_id) = &subtask.assigned_agent {
                 agent_assignments
                     .entry(agent_id.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(subtask);
             }
         }
@@ -1281,9 +1271,9 @@ impl MultiAgentOrchestrator {
             // Update success/error rates
             if result.success {
                 metrics.success_rate = 0.9 * metrics.success_rate + 0.1;
-                metrics.error_rate = 0.9 * metrics.error_rate;
+                metrics.error_rate *= 0.9;
             } else {
-                metrics.success_rate = 0.9 * metrics.success_rate;
+                metrics.success_rate *= 0.9;
                 metrics.error_rate = 0.9 * metrics.error_rate + 0.1;
             }
             
@@ -1370,32 +1360,40 @@ impl MultiAgentOrchestrator {
     }
     
     /// Publish message to all subscribed agents
+    ///
+    /// # Panics
+    /// Panics if the `RwLock` for subscriptions, agent channels, or audit trail is poisoned.
     pub async fn publish_message(
         &self,
         message: MessageEnvelope,
     ) -> Result<(), OrchestrationError> {
         if let Some(topic_id) = &message.topic_id {
-            let subscriptions = self.subscriptions.read().unwrap();
-            let mut recipients = Vec::new();
-            
-            // Find all agents subscribed to this topic
-            for subscription in subscriptions.values() {
-                if subscription.matches_topic(topic_id) {
-                    recipients.push(subscription.agent_id.clone());
+            let recipients = {
+                let subscriptions = self.subscriptions.read().unwrap();
+                let mut recipients = Vec::new();
+                
+                // Find all agents subscribed to this topic
+                for subscription in subscriptions.values() {
+                    if subscription.matches_topic(topic_id) {
+                        recipients.push(subscription.agent_id.clone());
+                    }
                 }
-            }
+                recipients
+            };
             
             // Send message to all recipients
-            let agent_channels = self.agent_channels.read().unwrap();
-            for recipient in recipients {
-                if let Some(sender) = agent_channels.get(&recipient) {
-                    let mut recipient_message = message.clone();
-                    recipient_message.recipient = Some(recipient.clone());
-                    
-                    if let Err(_) = sender.send(recipient_message) {
-                        return Err(OrchestrationError::CommunicationFailed {
-                            details: format!("Failed to send message to agent: {}", recipient.to_string()),
-                        });
+            {
+                let agent_channels = self.agent_channels.read().unwrap();
+                for recipient in recipients {
+                    if let Some(sender) = agent_channels.get(&recipient) {
+                        let mut recipient_message = message.clone();
+                        recipient_message.recipient = Some(recipient.clone());
+                        
+                        if sender.send(recipient_message).is_err() {
+                            return Err(OrchestrationError::CommunicationFailed {
+                                details: format!("Failed to send message to agent: {}", recipient.to_string()),
+                            });
+                        }
                     }
                 }
             }
@@ -1413,6 +1411,9 @@ impl MultiAgentOrchestrator {
     }
     
     /// Send direct message to specific agent
+    ///
+    /// # Panics
+    /// Panics if the `RwLock` for agent channels or audit trail is poisoned.
     pub async fn send_message(
         &self,
         message: MessageEnvelope,
@@ -1421,7 +1422,7 @@ impl MultiAgentOrchestrator {
             let agent_channels = self.agent_channels.read().unwrap();
             
             if let Some(sender) = agent_channels.get(recipient) {
-                if let Err(_) = sender.send(message.clone()) {
+                if sender.send(message.clone()).is_err() {
                     return Err(OrchestrationError::CommunicationFailed {
                         details: format!("Failed to send message to agent: {}", recipient.to_string()),
                     });
@@ -1445,57 +1446,72 @@ impl MultiAgentOrchestrator {
     }
     
     /// Add subscription for an agent
+    ///
+    /// # Panics
+    /// Panics if the `RwLock` for subscriptions is poisoned.
     pub async fn add_subscription(
         &self,
         subscription: Subscription,
     ) -> Result<(), OrchestrationError> {
-        let mut subscriptions = self.subscriptions.write().unwrap();
-        subscriptions.insert(subscription.subscription_id.clone(), subscription);
+        self.subscriptions.write().unwrap().insert(subscription.subscription_id.clone(), subscription);
         
         Ok(())
     }
     
     /// Remove subscription
+    ///
+    /// # Panics
+    /// Panics if the `RwLock` for subscriptions is poisoned.
     pub async fn remove_subscription(
         &self,
         subscription_id: &str,
     ) -> Result<(), OrchestrationError> {
-        let mut subscriptions = self.subscriptions.write().unwrap();
-        subscriptions.remove(subscription_id);
+        self.subscriptions.write().unwrap().remove(subscription_id);
         
         Ok(())
     }
     
     /// Get system performance metrics
+    ///
+    /// # Panics
+    /// Panics if any `RwLock` for agents, active tasks, or system metrics is poisoned.
     pub async fn get_system_metrics(&self) -> SystemMetrics {
-        let agents = self.agents.read().unwrap();
-        let active_tasks = self.active_tasks.read().unwrap();
+        let total_agents = self.agents.read().unwrap().len();
+        let active_agents = {
+            let agents = self.agents.read().unwrap();
+            agents.values()
+                .filter(|m| m.current_status == AgentStatus::Ready || m.current_status == AgentStatus::Busy)
+                .count()
+        };
+        let active_tasks_count = self.active_tasks.read().unwrap().len();
         
         let mut metrics = self.system_metrics.write().unwrap();
-        metrics.total_agents = agents.len();
-        metrics.active_agents = agents.values()
-            .filter(|m| m.current_status == AgentStatus::Ready || m.current_status == AgentStatus::Busy)
-            .count();
-        metrics.active_tasks = active_tasks.len();
+        metrics.total_agents = total_agents;
+        metrics.active_agents = active_agents;
+        metrics.active_tasks = active_tasks_count;
         metrics.last_updated = SystemTime::now();
         
         metrics.clone()
     }
     
     /// Get audit trail
+    ///
+    /// # Panics
+    /// Panics if the `RwLock` for audit trail is poisoned.
     pub async fn get_audit_trail(&self) -> Vec<AuditEntry> {
         self.audit_trail.read().unwrap().clone()
     }
     
     /// Shutdown orchestrator gracefully
+    ///
+    /// # Panics
+    /// Panics if any `RwLock` for active tasks, agent channels, or audit trail is poisoned.
     pub async fn shutdown(&self) -> Result<(), OrchestrationError> {
         // Cancel all active tasks
-        let mut active_tasks = self.active_tasks.write().unwrap();
-        active_tasks.clear();
+        self.active_tasks.write().unwrap().clear();
         
         // Close all agent channels
-        let mut agent_channels = self.agent_channels.write().unwrap();
-        agent_channels.clear();
+        self.agent_channels.write().unwrap().clear();
         
         // Create shutdown audit entry
         let audit_entry = AuditEntry::new("orchestrator_shutdown", None, true);
@@ -1505,7 +1521,7 @@ impl MultiAgentOrchestrator {
     }
 }
 
-/// Default implementation for MultiAgentOrchestrator
+/// Default implementation for `MultiAgentOrchestrator`
 impl Default for MultiAgentOrchestrator {
     fn default() -> Self {
         Self::new()

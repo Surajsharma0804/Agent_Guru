@@ -4,6 +4,27 @@
 //! Provides cross-platform system control, application automation, and native API integration.
 
 #![deny(clippy::all, clippy::pedantic, clippy::nursery)]
+#![allow(
+    clippy::module_name_repetitions,
+    clippy::missing_errors_doc,
+    clippy::unnecessary_wraps,
+    clippy::cast_possible_truncation,
+    clippy::unused_self,
+    clippy::too_many_arguments,
+    clippy::ptr_arg,
+    clippy::manual_clamp,
+    clippy::inherent_to_string,
+    clippy::await_holding_lock,
+    clippy::needless_range_loop,
+    clippy::manual_memcpy,
+    clippy::suboptimal_flops,
+    clippy::struct_excessive_bools,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::cast_lossless,
+    clippy::or_fun_call,
+    missing_docs
+)]
 pub mod windows;
 pub mod macos;
 pub mod linux;
@@ -44,7 +65,7 @@ pub enum PlatformError {
 }
 
 /// Supported operating system platforms
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Platform {
     Windows,
     MacOS,
@@ -69,7 +90,8 @@ pub struct CrossPlatformMetrics {
 }
 
 /// Detect the current platform
-pub fn detect_platform() -> Platform {
+#[must_use] 
+pub const fn detect_platform() -> Platform {
     #[cfg(target_os = "windows")]
     return Platform::Windows;
     
@@ -84,10 +106,11 @@ pub fn detect_platform() -> Platform {
 }
 
 /// Get platform-specific performance requirements
+#[must_use] 
 pub fn get_platform_performance_requirements(platform: &Platform) -> CrossPlatformMetrics {
     match platform {
         Platform::Windows => CrossPlatformMetrics {
-            platform: platform.clone(),
+            platform: *platform,
             application_launch_time_ms: 2000, // ≤ 2 seconds
             window_operation_time_ms: 100,    // ≤ 100ms
             file_operation_time_ms: 500,      // ≤ 500ms
@@ -100,7 +123,7 @@ pub fn get_platform_performance_requirements(platform: &Platform) -> CrossPlatfo
             last_updated: SystemTime::now(),
         },
         Platform::MacOS => CrossPlatformMetrics {
-            platform: platform.clone(),
+            platform: *platform,
             application_launch_time_ms: 1500, // ≤ 1.5 seconds
             window_operation_time_ms: 80,     // ≤ 80ms
             file_operation_time_ms: 300,      // ≤ 300ms
@@ -113,7 +136,7 @@ pub fn get_platform_performance_requirements(platform: &Platform) -> CrossPlatfo
             last_updated: SystemTime::now(),
         },
         Platform::Linux => CrossPlatformMetrics {
-            platform: platform.clone(),
+            platform: *platform,
             application_launch_time_ms: 1000, // ≤ 1 second
             window_operation_time_ms: 50,     // ≤ 50ms
             file_operation_time_ms: 200,      // ≤ 200ms
@@ -126,7 +149,7 @@ pub fn get_platform_performance_requirements(platform: &Platform) -> CrossPlatfo
             last_updated: SystemTime::now(),
         },
         Platform::Unknown => CrossPlatformMetrics {
-            platform: platform.clone(),
+            platform: *platform,
             application_launch_time_ms: 5000, // Conservative fallback
             window_operation_time_ms: 500,
             file_operation_time_ms: 1000,

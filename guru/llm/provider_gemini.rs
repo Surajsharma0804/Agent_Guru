@@ -111,7 +111,7 @@ impl GeminiClient {
             .first()
             .and_then(|c| c.content.parts.first())
             .map(|p| p.text.clone())
-            .ok_or_else(|| ProviderError::EmptyResponse)
+            .ok_or(ProviderError::EmptyResponse)
     }
     
     /// Check if API is available

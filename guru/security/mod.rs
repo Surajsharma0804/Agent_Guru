@@ -1,6 +1,6 @@
 //! # Security Module
 //!
-//! Production-grade security components for AGENT_GURU including cryptographic
+//! Production-grade security components for `AGENT_GURU` including cryptographic
 //! identity management, biometric authentication, and audit systems.
 //!
 //! ## Components
@@ -38,7 +38,7 @@ pub use audit::{
     AuditLogger, AuditEvent, AuditLevel, ImmutableLog, AuditError
 };
 
-/// Security configuration for the AGENT_GURU system
+/// Security configuration for the `AGENT_GURU` system
 #[derive(Debug, Clone)]
 pub struct SecurityConfig {
     /// Enable formal verification checks
@@ -114,7 +114,7 @@ impl Default for CryptoConfig {
 }
 
 /// Initialize the security subsystem
-pub fn init_security(config: SecurityConfig) -> Result<(), Box<dyn std::error::Error>> {
+pub fn init_security(config: &SecurityConfig) -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Initializing AGENT_GURU security subsystem");
     
     if config.formal_verification {
@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn test_security_init() {
         let config = SecurityConfig::default();
-        let result = init_security(config);
+        let result = init_security(&config);
         assert!(result.is_ok());
     }
 }

@@ -1,5 +1,5 @@
 //! Memory Encryption with User-Specific Key Management
-//! AGENT_GURU - Task 5 Implementation
+//! `AGENT_GURU` - Task 5 Implementation
 //!
 //! MAXIMUM ENGINEERING MANDATE (ZERO COMPROMISE):
 //! - Complete memory encryption with user-specific key management
@@ -118,9 +118,10 @@ impl UserEncryptionKey {
     }
     
     /// Check if key needs rotation based on age and usage
+    #[must_use] 
     pub fn needs_rotation(&self, config: &EncryptionConfig) -> bool {
         let age = chrono::Utc::now().signed_duration_since(self.created_at);
-        age.num_seconds() > config.key_rotation_interval as i64
+        age.num_seconds() > i64::try_from(config.key_rotation_interval).unwrap_or(i64::MAX)
     }
 }
 
@@ -137,6 +138,7 @@ pub struct EncryptedData {
 
 impl EncryptedData {
     /// Verify data integrity using checksum
+    #[must_use] 
     pub fn verify_integrity(&self) -> bool {
         let computed_checksum = compute_checksum(&self.data);
         constant_time_compare(&self.checksum, &computed_checksum)
@@ -165,6 +167,7 @@ pub struct MemoryEncryption {
 
 impl MemoryEncryption {
     /// Create new memory encryption manager
+    #[must_use] 
     pub fn new(config: EncryptionConfig) -> Self {
         let hardware_acceleration = config.use_hardware_acceleration && Self::check_hardware_acceleration();
         
@@ -239,7 +242,7 @@ impl MemoryEncryption {
                 use password_hash::{PasswordHasher, SaltString};
                 
                 let params = Params::new(
-                    (self.config.kdf_memory_cost as f64).log2() as u8, // log_n
+                    f64::from(self.config.kdf_memory_cost).log2() as u8, // log_n
                     self.config.kdf_iterations,
                     self.config.kdf_parallelism,
                     32, // output length
@@ -276,12 +279,16 @@ impl MemoryEncryption {
                 Ok(key)
             },
             _ => Err(EncryptionError::KeyDerivationFailed(
-                format!("Unknown KDF algorithm: {}", algorithm)
+                format!("Unknown KDF algorithm: {algorithm}")
             ))
         }
     }
     
     /// Register user with password-derived encryption key
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     pub fn register_user(&self, user_id: Uuid, password: &str) -> Result<(), EncryptionError> {
         let key = UserEncryptionKey::new(user_id, password, self.config.algorithm, &self.config)?;
         
@@ -350,7 +357,7 @@ impl MemoryEncryption {
             metrics.total_encryptions += 1;
             let encryption_time = start_time.elapsed().as_millis() as f64;
             metrics.avg_encryption_time_ms = 
-                (metrics.avg_encryption_time_ms * (metrics.total_encryptions - 1) as f64 + encryption_time) 
+                metrics.avg_encryption_time_ms.mul_add((metrics.total_encryptions - 1) as f64, encryption_time) 
                 / metrics.total_encryptions as f64;
         }
         
@@ -394,7 +401,7 @@ impl MemoryEncryption {
             metrics.total_decryptions += 1;
             let decryption_time = start_time.elapsed().as_millis() as f64;
             metrics.avg_decryption_time_ms = 
-                (metrics.avg_decryption_time_ms * (metrics.total_decryptions - 1) as f64 + decryption_time) 
+                metrics.avg_decryption_time_ms.mul_add((metrics.total_decryptions - 1) as f64, decryption_time) 
                 / metrics.total_decryptions as f64;
         }
         
@@ -473,12 +480,14 @@ impl MemoryEncryption {
     }
     
     /// Get encryption metrics
+    #[must_use] 
     pub fn get_metrics(&self) -> EncryptionMetrics {
         let metrics = self.metrics.read().unwrap();
         metrics.clone()
     }
     
     /// Get user key information (without sensitive data)
+    #[must_use] 
     pub fn get_user_key_info(&self, user_id: &Uuid) -> Option<UserKeyInfo> {
         let user_keys = self.user_keys.read().unwrap();
         user_keys.get(user_id).map(|key| UserKeyInfo {
@@ -492,6 +501,7 @@ impl MemoryEncryption {
     }
     
     /// List all registered users (without sensitive data)
+    #[must_use] 
     pub fn list_users(&self) -> Vec<UserKeyInfo> {
         let user_keys = self.user_keys.read().unwrap();
         user_keys.values().map(|key| UserKeyInfo {
@@ -612,6 +622,7 @@ pub struct SecureRng {
 
 impl SecureRng {
     /// Create new secure RNG
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             rng: ChaCha20Rng::from_entropy(),

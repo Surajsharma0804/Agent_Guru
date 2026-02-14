@@ -9,7 +9,6 @@ use agent_guru::{
     voice::{
         AudioBuffer,
         wake::{MFCCWakeWordEngine, WakeWordEngine, WakeWordEvent, WakeWordError},
-        transcription::{SpectrogramGenerator, SpectrogramConfig},
         synthesis::{SynthesisEngine, SynthesisConfig},
     },
 };
