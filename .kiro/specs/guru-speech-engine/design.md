@@ -1,226 +1,370 @@
-# Design Document: Guru Speech Engine
+# Design Document: Speech Recognition & Voice Interface
 
 ## Overview
 
-The Guru Speech Engine is a custom speech recognition system built around the Whisper small model with optimized settings for performance and accuracy. The system implements a four-stage audio processing pipeline:
+The Speech Recognition & Voice Interface system provides a comprehensive Python-based solution for voice interaction within AGENT_GURU. The system supports dual AI personalities - Guru (male voice) and Maya (female voice) - each with distinct wake words and voice characteristics. The system is architected as a modular pipeline with core components: Dual Wake Word Detection, Speech-to-Text, Voice Biometric Authentication, Gender-Specific Text-to-Speech, Audio Processing, and Command Recognition.
 
-1. **Audio Capture**: Real-time microphone input or file-based audio
-2. **Noise Reduction**: Pre-processing using noisereduce library
-3. **Speech Transcription**: faster-whisper with int8 quantization and beam_size=5
-4. **Command Interpretation**: Pattern matching to map transcriptions to agent actions
+**System Capabilities**:
+- **Dual Wake Word Detection**: Detect "Hey Guru" (male) or "Hey Maya" (female) to activate respective personalities
+- **Speech-to-Text**: Convert speech to text using OpenAI Whisper
+- **Voice Biometric Authentication**: Speaker verification and identification for security
+- **Gender-Specific Text-to-Speech**: Male voice for Guru, female voice for Maya
+- **Voice Feature Extraction**: Extract voice features for biometric authentication integration
+- **Command Recognition**: Parse voice commands for complete laptop control
+- **Audio Processing**: Noise reduction, VAD, echo cancellation
 
-The architecture is designed for extensibility, allowing future fine-tuning with custom voice data while maintaining a clean separation of concerns between audio processing, transcription, and command interpretation.
+**Dual Personality System**:
+- **Guru (Male)**: Professional, confident voice with analytical tone
+- **Maya (Female)**: Warm, empathetic voice with friendly tone
+- Each personality maintains separate conversation context
+- Seamless switching between personalities during runtime
+
+**Complete Laptop Control**:
+The speech engine enables voice control for ANY laptop operation:
+- Open/close applications, type text, send messages
+- Control system settings, manage files, execute shortcuts
+- Mouse/keyboard control, window management, media control
+
+The design prioritizes low latency, high accuracy, and offline operation where possible.
 
 ## Architecture
 
-```mermaid
-graph LR
-    A[Microphone/File] --> B[Audio Capture]
-    B --> C[Noise Cleaner]
-    C --> D[Guru Speech Model]
-    D --> E[Command Interpreter]
-    E --> F[Guru Agent Actions]
+### System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Speech Engine Core                          │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │              Audio Input Manager                         │  │
+│  │  (Device enumeration, buffering, format handling)        │  │
+│  └────────────────────┬─────────────────────────────────────┘  │
+│                       │                                         │
+│                       ▼                                         │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │              Audio Processor                             │  │
+│  │  (VAD, Noise Reduction, Echo Cancellation, AGC)          │  │
+│  └────┬─────────────────────────────────────────────────────┘  │
+│       │                                                         │
+│       ├──────────────┬──────────────┬──────────────┐           │
+│       ▼              ▼              ▼              ▼           │
+│  ┌─────────┐   ┌─────────┐   ┌──────────┐   ┌──────────┐     │
+│  │  Wake   │   │   STT   │   │  Voice   │   │ Command  │     │
+│  │  Word   │   │ Engine  │   │ Feature  │   │  Parser  │     │
+│  │Detector │   │(Whisper)│   │Extractor │   │          │     │
+│  └─────────┘   └─────────┘   └────┬─────┘   └──────────┘     │
+│                      │             │              │           │
+│                      │             │              │           │
+│                      │             └──────────────┼───────────┼──> To Security System
+│                      │                            │           │    (for authentication)
+│                      └─────────────┬──────────────┘           │
+│                                    ▼                           │
+│                          ┌──────────────────┐                  │
+│                          │   TTS Engine     │                  │
+│                          │  (Synthesis)     │                  │
+│                          └──────────────────┘                  │
+│                                    │                           │
+└────────────────────────────────────┼───────────────────────────┘
+                                     ▼
+                          ┌──────────────────┐
+                          │  Audio Output    │
+                          └──────────────────┘
+```
+
+### Component Interaction Flow
+
+1. **Audio Input Flow**: Audio Input Manager → Audio Processor → Wake Word Detector
+2. **Transcription Flow**: Audio Processor → STT Engine → Command Parser
+3. **Voice Feature Extraction Flow**: Audio Processor → Voice Feature Extractor → Security System (for authentication)
+4. **Synthesis Flow**: TTS Engine → Audio Output
+5. **Command Flow**: Command Parser → Application Logic
+
+### Design Principles
+
+- **Modularity**: Each component is independently testable and replaceable
+- **Async-First**: All I/O operations are asynchronous to prevent blocking
+- **Type Safety**: Comprehensive type hints with mypy strict mode compliance
+- **Performance**: Meet or exceed all latency and real-time factor targets
+- **Offline-First**: Core functionality works without cloud connectivity
+- **Security Integration**: Voice features integrate with guru-security-cryptography for authentication
+
+## Integration Points
+
+This system provides voice processing capabilities for AGENT_GURU, with specific integration for biometric authentication.
+
+### Dependencies
+
+**Upstream Dependencies** (systems this component depends on):
+- None (standalone voice processing)
+
+**Downstream Dependencies** (systems that depend on this component):
+- **Security System** (guru-security-cryptography): Uses VoiceFeatureExtractor for biometric authentication
+- **LLM Runtime** (guru-llm-runtime): Uses transcription for voice commands
+- **Agent Orchestration** (guru-agent-orchestration): Uses command interpretation
+
+### API Contracts
+
+**Security System Integration:**
+```python
+class VoiceFeatureExtractor:
+    """Extracts voice biometric features for security system."""
     
-    style D fill:#e1f5ff
-    style E fill:#fff4e1
+    def extract_features(self, audio_data: bytes) -> np.ndarray:
+        """
+        Extract voice biometric features from audio.
+        
+        Returns feature vector for authentication by security system.
+        Does NOT perform authentication - only feature extraction.
+        """
+        pass
 ```
 
-### Component Hierarchy
-
-```
-GuruSpeechEngine (Facade)
-├── AudioCapture (Input Layer)
-│   ├── MicrophoneCapture
-│   └── FileCapture
-├── NoiseCleaner (Pre-processing)
-├── WhisperTranscriber (Core Model)
-│   └── ModelLoader
-└── CommandInterpreter (Post-processing)
-    └── CommandRegistry
+**LLM Runtime Integration:**
+```python
+# LLM runtime uses transcription for voice commands
+transcription = speech_engine.transcribe(audio_data, sample_rate)
+command = command_interpreter.interpret(transcription.text)
 ```
 
 ### Data Flow
 
-1. **Audio Input** → Raw audio data (numpy array, sample rate)
-2. **Noise Reduction** → Cleaned audio data (numpy array)
-3. **Transcription** → TranscriptionResult (text, language, confidence)
-4. **Command Detection** → CommandResult (action_id, parameters, raw_text)
+1. **Voice Authentication Flow:**
+   - User provides voice sample
+   - Audio Processor cleans audio
+   - VoiceFeatureExtractor extracts biometric features
+   - Features passed to guru-security-cryptography BiometricAuthenticator
+   - Security system performs authentication
+
+2. **Voice Command Flow:**
+   - User speaks command
+   - Wake Word Detector activates
+   - STT Engine transcribes speech
+   - Command Interpreter maps to action
+   - Action sent to LLM Runtime
 
 ## Components and Interfaces
 
-### 1. GuruSpeechEngine (Main Facade)
+### 1. Audio Input Manager
 
-The primary interface for the speech recognition system.
+**Responsibility**: Manage audio input from various sources with proper buffering and device handling.
 
+**Interface**:
 ```python
-class GuruSpeechEngine:
-    """
-    Main facade for the Guru Speech Engine.
-    Coordinates audio capture, noise reduction, transcription, and command interpretation.
-    """
+from typing import AsyncIterator, List
+from dataclasses import dataclass
+import numpy as np
+
+@dataclass
+class AudioDevice:
+    device_id: int
+    name: str
+    sample_rate: int
+    channels: int
+    is_default: bool
+
+@dataclass
+class AudioConfig:
+    sample_rate: int = 16000
+    channels: int = 1
+    chunk_size: int = 1024
+    buffer_size: int = 4096
+    format: str = "int16"
+
+class AudioInputManager:
+    async def list_devices(self) -> List[AudioDevice]:
+        """Enumerate available audio input devices."""
+        ...
     
-    def __init__(
-        self,
-        model_path: Optional[str] = None,
-        compute_type: str = "int8",
-        beam_size: int = 5,
-        enable_noise_reduction: bool = True
-    ):
-        """
-        Initialize the speech engine.
-        
-        Args:
-            model_path: Path to custom model weights (None for default Whisper small)
-            compute_type: Compute type for faster-whisper ("int8", "float16", "float32")
-            beam_size: Beam size for decoding (higher = more accurate but slower)
-            enable_noise_reduction: Whether to apply noise reduction
-        """
-        pass
+    async def open_device(self, device_id: int, config: AudioConfig) -> None:
+        """Open an audio input device with specified configuration."""
+        ...
     
-    def transcribe_microphone(
-        self,
-        duration: Optional[float] = None,
-        language: Optional[str] = None
-    ) -> TranscriptionResult:
-        """
-        Capture and transcribe audio from microphone.
-        
-        Args:
-            duration: Recording duration in seconds (None for continuous)
-            language: Force specific language (None for auto-detect)
-            
-        Returns:
-            TranscriptionResult with text, language, and confidence
-        """
-        pass
+    async def open_file(self, file_path: str, config: AudioConfig) -> None:
+        """Open an audio file as input source."""
+        ...
     
-    def transcribe_file(
-        self,
-        file_path: str,
-        language: Optional[str] = None
-    ) -> TranscriptionResult:
-        """
-        Transcribe audio from file.
-        
-        Args:
-            file_path: Path to audio file
-            language: Force specific language (None for auto-detect)
-            
-        Returns:
-            TranscriptionResult with text, language, and confidence
-        """
-        pass
+    async def stream_audio(self) -> AsyncIterator[np.ndarray]:
+        """Stream audio chunks as numpy arrays."""
+        ...
     
-    def interpret_command(
-        self,
-        transcription: TranscriptionResult
-    ) -> CommandResult:
-        """
-        Interpret transcribed text as a command.
-        
-        Args:
-            transcription: Result from transcription
-            
-        Returns:
-            CommandResult with action_id and parameters
-        """
-        pass
-    
-    def process_voice_command(
-        self,
-        duration: Optional[float] = None
-    ) -> CommandResult:
-        """
-        End-to-end: capture audio, transcribe, and interpret command.
-        
-        Args:
-            duration: Recording duration in seconds
-            
-        Returns:
-            CommandResult ready for Guru Agent
-        """
-        pass
+    async def close(self) -> None:
+        """Close the audio input source."""
+        ...
 ```
 
-### 2. NoiseCleaner (noise.py)
+**Key Features**:
+- Device enumeration and selection
+- File and microphone input support
+- Configurable buffering and chunk sizes
+- Async streaming interface
+- Format conversion (WAV, MP3, FLAC)
 
-Handles audio pre-processing and noise reduction.
+### 2. Audio Processor
 
+**Responsibility**: Enhance audio quality through noise reduction, VAD, echo cancellation, and AGC.
+
+**Interface**:
 ```python
-class NoiseCleaner:
-    """
-    Applies noise reduction to audio signals using noisereduce library.
-    """
+from typing import Tuple
+import numpy as np
+
+@dataclass
+class AudioProcessingConfig:
+    enable_noise_reduction: bool = True
+    enable_vad: bool = True
+    enable_echo_cancellation: bool = True
+    enable_agc: bool = True
+    vad_aggressiveness: int = 2  # 0-3
+    noise_reduction_strength: float = 0.5  # 0.0-1.0
+
+class AudioProcessor:
+    def __init__(self, config: AudioProcessingConfig):
+        ...
     
-    def __init__(
-        self,
-        stationary: bool = True,
-        prop_decrease: float = 1.0
-    ):
+    async def process_chunk(self, audio: np.ndarray) -> np.ndarray:
+        """Process a single audio chunk with all enabled enhancements."""
+        ...
+    
+    async def detect_voice_activity(self, audio: np.ndarray) -> bool:
+        """Detect if voice is present in audio chunk."""
+        ...
+    
+    async def reduce_noise(self, audio: np.ndarray) -> np.ndarray:
+        """Apply noise reduction to audio."""
+        ...
+    
+    async def cancel_echo(self, audio: np.ndarray, reference: np.ndarray) -> np.ndarray:
+        """Cancel echo using reference signal."""
+        ...
+    
+    async def apply_agc(self, audio: np.ndarray) -> np.ndarray:
+        """Apply automatic gain control."""
+        ...
+    
+    def convert_format(self, audio: np.ndarray, target_rate: int) -> np.ndarray:
+        """Convert audio sample rate."""
+        ...
+```
+
+**Key Features**:
+- Noise reduction using spectral subtraction or deep learning
+- Voice activity detection with configurable aggressiveness
+- Echo cancellation for full-duplex scenarios
+- Automatic gain control for level normalization
+- Sample rate conversion
+
+### 2.5. Voice Feature Extractor
+
+**Responsibility**: Extract voice biometric features for authentication by security system.
+
+**IMPORTANT**: This component does NOT perform authentication. It only extracts features that are passed to guru-security-cryptography for authentication.
+
+**Interface**:
+```python
+import numpy as np
+from typing import Optional
+from dataclasses import dataclass
+
+@dataclass
+class VoiceFeatures:
+    """Voice biometric features."""
+    feature_vector: np.ndarray  # Feature representation
+    sample_rate: int
+    duration: float
+    quality_score: float  # 0.0 to 1.0
+
+class VoiceFeatureExtractor:
+    """Extracts voice biometric features for security system."""
+    
+    def __init__(self, model_path: Optional[str] = None):
         """
-        Initialize noise cleaner.
+        Initialize voice feature extractor.
         
         Args:
-            stationary: Whether to use stationary noise reduction
-            prop_decrease: Proportion of noise to reduce (0.0 to 1.0)
+            model_path: Path to feature extraction model
         """
         pass
     
-    def clean(
-        self,
-        audio_data: np.ndarray,
-        sample_rate: int
-    ) -> np.ndarray:
+    async def extract_features(self, audio: np.ndarray, sample_rate: int) -> VoiceFeatures:
         """
-        Apply noise reduction to audio.
+        Extract voice biometric features from audio.
+        
+        Features are passed to guru-security-cryptography for authentication.
+        This method does NOT perform authentication.
         
         Args:
-            audio_data: Raw audio as numpy array
+            audio: Audio data as numpy array
             sample_rate: Sample rate in Hz
             
         Returns:
-            Cleaned audio as numpy array
+            VoiceFeatures with feature vector and metadata
         """
         pass
     
-    def clean_file(
-        self,
-        input_path: str,
-        output_path: str
-    ) -> None:
+    def compute_quality_score(self, audio: np.ndarray) -> float:
         """
-        Clean audio file and save result.
+        Compute quality score for voice sample.
         
-        Args:
-            input_path: Path to input audio file
-            output_path: Path to save cleaned audio
+        Considers SNR, duration, and voice activity.
+        
+        Returns:
+            Quality score between 0.0 and 1.0
         """
         pass
 ```
 
-### 3. WhisperTranscriber (speech.py)
+**Key Features**:
+- Voice feature extraction for biometric authentication
+- Quality scoring for sample selection
+- Integration with guru-security-cryptography
+- No authentication logic (delegated to security system)
 
-Core transcription engine using faster-whisper.
+### 3. Wake Word Detector
 
+**Responsibility**: Detect custom wake words with low latency and high accuracy.
+
+**Interface**:
 ```python
-class WhisperTranscriber:
-    """
-    Wraps faster-whisper for optimized speech-to-text transcription.
-    """
+from typing import Optional
+from dataclasses import dataclass
+
+@dataclass
+class WakeWordConfig:
+    wake_words: List[str]
+    sensitivity: float = 0.5  # 0.0-1.0
+    model_path: Optional[str] = None
+
+@dataclass
+class WakeWordDetection:
+    wake_word: str
+    confidence: float
+    timestamp: float
+    audio_chunk: np.ndarray
+
+class WakeWordDetector:
+    def __init__(self, config: WakeWordConfig):
+        ...
     
-    def __init__(
-        self,
-        model_size: str = "small",
-        model_path: Optional[str] = None,
-        compute_type: str = "int8",
-        beam_size: int = 5,
-        device: str = "cpu"
-    ):
-        """
-        Initialize Whisper transcriber.
-        
-        Args:
-            model_size: Whisper model size ("tiny", "base", "small", "medium", "large")
+    async def detect(self, audio: np.ndarray) -> Optional[WakeWordDetection]:
+        """Detect wake word in audio chunk."""
+        ...
+    
+    async def add_wake_word(self, wake_word: str) -> None:
+        """Register a new wake word."""
+        ...
+    
+    async def remove_wake_word(self, wake_word: str) -> None:
+        """Unregister a wake word."""
+        ...
+    
+    def get_wake_words(self) -> List[str]:
+        """Get list of registered wake words."""
+        ...
+```
+
+**Key Features**:
+- Multiple wake word support
+- Configurable sensitivity threshold
+- Sub-200ms detec_size: Whisper model size ("tiny", "base", "small", "medium", "large")
             model_path: Path to custom model (overrides model_size)
             compute_type: Compute type for inference
             beam_size: Beam size for decoding

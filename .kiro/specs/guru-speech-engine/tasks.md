@@ -1,206 +1,345 @@
-.
 # Implementation Plan: Guru Speech Engine
 
 ## Overview
 
-This implementation plan breaks down the Guru Speech Engine into discrete coding tasks. The approach follows a bottom-up strategy: build core components first (noise reduction, transcription, command interpretation), then integrate them into the main facade, and finally add real-time audio capture capabilities.
+This implementation plan breaks down the Guru Speech Engine into discrete coding tasks for implementing a voice-controlled AI assistant with dual personalities (Guru - male, Maya - female). Each task includes test requirements and must be pushed to GitHub upon completion.
+
+**Key Features**:
+- Dual wake word detection ("Hey Guru" / "Hey Maya")
+- Gender-specific text-to-speech (male/female voices)
+- Voice biometric authentication
+- Complete laptop control through voice commands
+- Multi-language support (English, Hindi, Punjabi)
+
+## Task Completion Protocol
+
+After completing EACH task:
+1. ✅ Run all tests for that task
+2. ✅ Verify all tests pass
+3. ✅ Commit changes with descriptive message
+4. ✅ Push to GitHub immediately
+5. ✅ Mark task as complete in this file
 
 ## Tasks
 
-- [x] 1. Set up project structure and dependencies
-  - Create guru_speech package directory structure
-  - Create __init__.py files for package initialization
-  - Create requirements.txt with all dependencies (faster-whisper, noisereduce, sounddevice, soundfile, numpy, hypothesis, pytest)
-  - Create model/ directory for model files
-  - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+### Phase 1: Project Setup and Core Infrastructure
 
-- [x] 2. Implement data models and exceptions
-  - [x] 2.1 Create data model classes in a models.py file
-    - Implement TranscriptionResult dataclass with text, language, confidence, segments, duration
-    - Implement TranscriptionSegment dataclass with text, start, end, confidence
-    - Implement CommandResult dataclass with action_id, parameters, raw_text, confidence, language, is_command
-    - Implement CommandPattern dataclass with patterns, action_id, description, languages, parameter_extractors
-    - Implement ModelConfig, NoiseReductionConfig, AudioConfig dataclasses
-    - _Requirements: 1.4, 4.2, 6.1, 6.2_
-  
-  - [x] 2.2 Create exception classes in exceptions.py
-    - Implement GuruSpeechError base exception with component tracking and error context
-    - Implement AudioCaptureError, ModelLoadError, TranscriptionError, CommandInterpretationError
-    - _Requirements: 10.1, 10.4_
+- [ ] **Task 1: Project Structure and Dependencies**
+  - Create `guru_speech/` package directory structure
+  - Create `__init__.py`, `models.py`, `exceptions.py`, `config.py`
+  - Create `requirements.txt` with dependencies:
+    - faster-whisper (STT)
+    - noisereduce (audio processing)
+    - sounddevice, soundfile (audio I/O)
+    - pyttsx3 or TTS library (text-to-speech)
+    - numpy, scipy (audio processing)
+    - hypothesis, pytest, pytest-cov (testing)
+  - Create `model/` directory for model files
+  - Create `tests/` directory structure
+  - _Requirements: Req 1 (Dual Wake Word), Req 4 (Gender TTS)_
+  - **Tests Required**: None (setup task)
+  - **GitHub Push**: ✅ Required after completion
 
-- [-] 3. Implement noise reduction module (noise.py)
-  - [x] 3.1 Create NoiseCleaner class
-    - Implement __init__ with stationary and prop_decrease parameters
-    - Implement clean() method that applies noisereduce to numpy audio arrays
-    - Implement clean_file() method for file-based noise reduction
-    - Add error handling with GuruSpeechError wrapping
-    - _Requirements: 2.1, 2.2, 2.4_
-  
-  - [x] 3.2 Write property test for noise cleaner format compatibility
-    - **Property 2: Noise Cleaner Format Compatibility**
-    - **Validates: Requirements 2.4**
-  
-  - [ ] 3.3 Write unit tests for NoiseCleaner
-    - Test clean() with various audio inputs
-    - Test clean_file() with sample audio files
-    - Test error handling for invalid inputs
-    - _Requirements: 2.4_
+- [ ] **Task 2: Data Models and Configuration**
+  - Implement data models in `models.py`:
+    - `PersonalityType` enum (GURU, MAYA)
+    - `WakeWordDetection` dataclass (wake_word, personality, confidence, timestamp)
+    - `TranscriptionResult` dataclass (text, language, confidence, segments, duration)
+    - `VoiceFeatures` dataclass (feature_vector, sample_rate, duration, quality_score)
+    - `TTSConfig` dataclass (voice_gender, rate, pitch, volume)
+    - `CommandResult` dataclass (action_id, parameters, raw_text, confidence)
+  - Implement exceptions in `exceptions.py`:
+    - `GuruSpeechError` (base exception)
+    - `AudioCaptureError`, `ModelLoadError`, `TranscriptionError`
+    - `WakeWordError`, `TTSError`, `BiometricError`
+  - Implement configuration in `config.py`:
+    - `SpeechEngineConfig` with all component settings
+    - Default configurations for Guru and Maya personalities
+  - _Requirements: Req 1, 2, 3, 4_
+  - **Tests Required**:
+    - Unit tests for dataclass validation
+    - Unit tests for exception formatting
+    - Unit tests for configuration loading
+  - **GitHub Push**: ✅ Required after completion
 
-- [-] 4. Implement Whisper transcription module (speech.py)
-  - [x] 4.1 Create WhisperTranscriber class
-    - Implement __init__ with model loading using faster-whisper
-    - Configure model with int8 compute type and beam_size=5
-    - Implement transcribe() method for numpy array input
-    - Implement transcribe_file() method for file input
-    - Add language detection and return TranscriptionResult
-    - Add error handling with ModelLoadError and TranscriptionError
-    - _Requirements: 1.1, 1.2, 1.3, 1.4, 7.1_
-  
-  - [x] 4.2 Write property test for transcription result completeness
-    - **Property 1: Transcription Result Completeness**
-    - **Validates: Requirements 1.4, 7.1, 7.2**
-  
-  - [x] 4.3 Write unit tests for WhisperTranscriber
-    - Test model initialization with int8 and beam_size=5
-    - Test transcription with English audio sample
-    - Test transcription with Hindi audio sample
-    - Test transcription with Punjabi audio sample
-    - Test file format support (WAV, MP3, FLAC)
-    - Test model loading error handling
-    - Test custom model path loading
-    - _Requirements: 1.2, 1.3, 1.5, 6.1, 6.2, 6.3, 6.4, 7.3, 7.4, 7.5, 8.1, 8.4, 9.2_
+### Phase 2: Audio Processing and Wake Word Detection
 
-- [x] 5. Checkpoint - Ensure core transcription works
-  - Ensure all tests pass, ask the user if questions arise.
+- [ ] **Task 3: Audio Input and Processing**
+  - Implement `audio_processor.py`:
+    - `AudioProcessor` class with VAD, noise reduction, AGC
+    - `process_chunk()` method for real-time processing
+    - `detect_voice_activity()` method
+    - `reduce_noise()` method using noisereduce
+  - Implement `capture.py`:
+    - `AudioCapture` base class
+    - `MicrophoneCapture` class using sounddevice
+    - `FileCapture` class using soundfile
+  - _Requirements: Req 5 (Audio Processing)_
+  - **Tests Required**:
+    - Unit tests for noise reduction with sample audio
+    - Unit tests for VAD with speech/silence samples
+    - Property tests for audio format compatibility
+    - Unit tests for microphone/file capture
+  - **GitHub Push**: ✅ Required after completion
 
-- [x] 6. Implement command interpretation module (commands.py)
-  - [x] 6.1 Create CommandInterpreter class
-    - Implement __init__ with default command registry
-    - Implement register_command() for adding new command patterns
-    - Implement interpret() method with pattern matching logic
-    - Implement get_registered_commands() to list all commands
-    - Add support for multi-language patterns (English, Hindi, Punjabi)
-    - Add fuzzy matching for command detection
-    - Return CommandResult with action_id and parameters
-    - _Requirements: 4.1, 4.2, 4.4, 4.5_
-  
-  - [x] 6.2 Add default command registry
-    - Register OPEN_YOUTUBE command with patterns in English, Hindi, Punjabi
-    - Register SEARCH command with parameter extraction
-    - Register PLAY_MUSIC command with multi-language patterns
-    - _Requirements: 4.3_
-  
-  - [x] 6.3 Write property test for command pattern matching
-    - **Property 3: Command Pattern Matching and Mapping**
-    - **Validates: Requirements 4.1, 4.2**
-  
-  - [x] 6.4 Write property test for unrecognized text passthrough
-    - **Property 4: Unrecognized Text Passthrough**
-    - **Validates: Requirements 4.4**
-  
-  - [x] 6.5 Write property test for command result structure
-    - **Property 7: Command Result Structure Completeness**
-    - **Validates: Requirements 12.1, 12.3**
-  
-  - [x] 6.6 Write unit tests for CommandInterpreter
-    - Test "open youtube" → OPEN_YOUTUBE mapping
-    - Test command registration and retrieval
-    - Test unrecognized text returns raw text
-    - Test multi-language command patterns
-    - Test parameter extraction from commands
-    - _Requirements: 4.3, 4.4, 4.5_
+- [ ] **Task 4: Dual Wake Word Detection**
+  - Implement `wake_word.py`:
+    - `WakeWordDetector` class
+    - Support for "Hey Guru" and "Hey Maya" detection
+    - `detect()` method returning personality identifier
+    - Configurable sensitivity per wake word
+    - MFCC-based feature extraction
+  - Train or integrate wake word models for both personalities
+  - _Requirements: Req 1 (Dual Personality Wake Word Detection)_
+  - **Tests Required**:
+    - Unit tests for "Hey Guru" detection
+    - Unit tests for "Hey Maya" detection
+    - Unit tests for false positive rate (<1/hour)
+    - Property tests for detection latency (<200ms)
+    - Unit tests for personality identification accuracy
+  - **GitHub Push**: ✅ Required after completion
 
-- [-] 7. Implement audio capture components
-  - [x] 7.1 Create audio capture base classes in capture.py
-    - Implement AudioCapture base class with capture() method
-    - Implement FileCapture class using soundfile for loading audio files
-    - Implement MicrophoneCapture class using sounddevice for real-time capture
-    - Add support for configurable sample rate and channels
-    - Add error handling with AudioCaptureError
-    - _Requirements: 3.1, 3.3, 9.1_
-  
-  - [x] 7.2 Write unit tests for audio capture
-    - Test FileCapture with various audio formats
-    - Test MicrophoneCapture initialization
-    - Test error handling for invalid files
-    - Test error handling for unavailable microphone
-    - _Requirements: 3.1, 3.4, 9.1, 9.4, 10.2_
+### Phase 3: Speech-to-Text and Voice Biometrics
 
-- [x] 8. Implement main GuruSpeechEngine facade
-  - [x] 8.1 Create GuruSpeechEngine class in __init__.py
-    - Implement __init__ with configuration parameters
-    - Initialize NoiseCleaner, WhisperTranscriber, CommandInterpreter components
-    - Implement transcribe_microphone() method
-    - Implement transcribe_file() method
-    - Implement interpret_command() method
-    - Implement process_voice_command() for end-to-end processing
-    - Add pipeline orchestration: capture → clean → transcribe → interpret
-    - Add error handling that preserves context from all components
-    - Add logging at INFO level for operations
-    - _Requirements: 1.4, 2.2, 3.1, 4.1, 9.1, 9.3, 10.1, 10.5, 12.2_
-  
-  - [x] 8.2 Write property test for error context preservation
-    - **Property 5: Error Context Preservation**
-    - **Validates: Requirements 10.1, 10.4**
-  
-  - [x] 8.3 Write property test for model reuse
-    - **Property 6: Model Reuse Across Requests**
-    - **Validates: Requirements 11.3**
-  
-  - [x] 8.4 Write integration tests for GuruSpeechEngine
-    - Test end-to-end pipeline with file input
-    - Test end-to-end pipeline with microphone input (mocked)
-    - Test process_voice_command() returns CommandResult
-    - Test pipeline processes files and microphone input consistently
-    - Test resource cleanup after processing
-    - Test configuration options (compute type, beam size, noise reduction)
-    - _Requirements: 9.3, 11.2, 11.4_
+- [ ] **Task 5: Whisper STT Integration**
+  - Implement `speech.py`:
+    - `WhisperTranscriber` class using faster-whisper
+    - `transcribe()` method for numpy arrays
+    - `transcribe_file()` method for files
+    - Support for English, Hindi, Punjabi
+    - Real-time factor <0.5
+  - _Requirements: Req 2 (Speech-to-Text Transcription)_
+  - **Tests Required**:
+    - Unit tests with English audio samples
+    - Unit tests with Hindi audio samples
+    - Unit tests with Punjabi audio samples
+    - Property tests for transcription completeness
+    - Performance tests for real-time factor
+    - Unit tests for multi-language detection
+  - **GitHub Push**: ✅ Required after completion
 
-- [x] 9. Checkpoint - Ensure integration works
-  - Ensure all tests pass, ask the user if questions arise.
+- [ ] **Task 6: Voice Biometric Feature Extraction**
+  - Implement `biometric.py`:
+    - `VoiceFeatureExtractor` class
+    - `extract_features()` method for biometric features
+    - `compute_quality_score()` method
+    - Integration interface for guru-security-cryptography
+    - Liveness detection (anti-spoofing)
+  - _Requirements: Req 3 (Voice Biometrics)_
+  - **Tests Required**:
+    - Unit tests for feature extraction
+    - Unit tests for quality scoring
+    - Unit tests for liveness detection
+    - Property tests for feature vector consistency
+    - Unit tests for recorded/synthesized voice rejection
+  - **GitHub Push**: ✅ Required after completion
 
-- [x] 10. Add async support for non-blocking integration
-  - [x] 10.1 Add async versions of main methods
-    - Implement async transcribe_microphone_async()
-    - Implement async transcribe_file_async()
-    - Implement async process_voice_command_async()
-    - Use asyncio for non-blocking execution
-    - _Requirements: 12.4_
-  
-  - [x] 10.2 Write unit tests for async methods
-    - Test async transcription methods
-    - Test async command processing
-    - Test concurrent async requests
-    - _Requirements: 12.4_
+### Phase 4: Text-to-Speech with Gender Support
 
-- [x] 11. Create example scripts and documentation
-  - [x] 11.1 Create example usage scripts
-    - Create example_basic.py demonstrating simple transcription
-    - Create example_commands.py demonstrating command detection
-    - Create example_microphone.py demonstrating real-time capture
-    - Create example_custom_commands.py demonstrating command registration
-    - _Requirements: 4.5, 12.2_
-  
-  - [x] 11.2 Create README.md with usage documentation
-    - Document installation instructions
-    - Document basic usage examples
-    - Document configuration options
-    - Document command registration
-    - Document multi-language support
-    - Document error handling
-    - _Requirements: 12.2_
+- [ ] **Task 7: Gender-Specific TTS Engine**
+  - Implement `tts.py`:
+    - `TTSEngine` class
+    - `synthesize()` method with gender parameter
+    - Male voice configuration for Guru personality
+    - Female voice configuration for Maya personality
+    - Support for emotion and tone control
+    - SSML markup support
+    - Real-time factor <0.3
+  - Integrate TTS library (pyttsx3, gTTS, or ElevenLabs)
+  - _Requirements: Req 4 (Gender-Specific TTS)_
+  - **Tests Required**:
+    - Unit tests for male voice synthesis (Guru)
+    - Unit tests for female voice synthesis (Maya)
+    - Unit tests for emotion control
+    - Property tests for synthesis latency
+    - Unit tests for SSML markup handling
+    - Unit tests for speech rate/pitch adjustment
+  - **GitHub Push**: ✅ Required after completion
 
-- [x] 12. Final checkpoint - Ensure all tests pass
-  - Run full test suite with coverage report
-  - Verify all 7 property tests are implemented and passing
-  - Verify unit tests cover edge cases and error conditions
-  - Ensure all tests pass, ask the user if questions arise.
+### Phase 5: Command Recognition and Integration
+
+- [ ] **Task 8: Command Interpretation**
+  - Implement `commands.py`:
+    - `CommandInterpreter` class
+    - `interpret()` method with pattern matching
+    - `register_command()` for custom commands
+    - Default command registry for laptop control:
+      - Open applications (YouTube, Notepad, WhatsApp, etc.)
+      - Type text
+      - Send messages
+      - Control system settings
+      - File operations
+      - Mouse/keyboard control
+    - Multi-language pattern support
+    - Fuzzy matching for command detection
+  - _Requirements: Req 6 (Command Recognition), Platform Integration_
+  - **Tests Required**:
+    - Unit tests for all default commands
+    - Unit tests for multi-language patterns
+    - Property tests for command pattern matching
+    - Unit tests for parameter extraction
+    - Unit tests for unrecognized text passthrough
+  - **GitHub Push**: ✅ Required after completion
+
+- [ ] **Task 9: Main Speech Engine Facade**
+  - Implement `engine.py`:
+    - `GuruSpeechEngine` class (main facade)
+    - `initialize()` method loading all components
+    - `process_voice_input()` end-to-end pipeline
+    - `transcribe_with_personality()` method
+    - `synthesize_response()` with personality voice
+    - `extract_voice_features()` for authentication
+    - Pipeline: capture → process → wake word → STT → interpret
+    - Error handling with context preservation
+    - Logging at INFO level
+  - _Requirements: All speech engine requirements_
+  - **Tests Required**:
+    - Integration tests for end-to-end pipeline
+    - Unit tests for personality switching
+    - Property tests for error context preservation
+    - Property tests for model reuse across requests
+    - Performance tests for pipeline latency
+  - **GitHub Push**: ✅ Required after completion
+
+### Phase 6: Advanced Features and Optimization
+
+- [ ] **Task 10: Streaming and Async Support**
+  - Add streaming transcription support
+  - Implement async versions of all methods:
+    - `transcribe_async()`
+    - `synthesize_async()`
+    - `process_voice_input_async()`
+  - Add concurrent request handling
+  - _Requirements: Req 7 (Streaming), Async Operations_
+  - **Tests Required**:
+    - Unit tests for streaming transcription
+    - Unit tests for async methods
+    - Property tests for concurrent requests
+    - Performance tests for async throughput
+  - **GitHub Push**: ✅ Required after completion
+
+- [ ] **Task 11: Voice Activity Detection and Optimization**
+  - Implement advanced VAD with configurable aggressiveness
+  - Add audio preprocessing optimization
+  - Implement model caching and warm-up
+  - Add performance monitoring and metrics
+  - _Requirements: Req 5 (Audio Processing), Performance_
+  - **Tests Required**:
+    - Unit tests for VAD accuracy
+    - Performance tests for processing latency
+    - Unit tests for model caching
+    - Property tests for resource usage
+  - **GitHub Push**: ✅ Required after completion
+
+### Phase 7: Testing, Documentation, and Examples
+
+- [ ] **Task 12: Comprehensive Test Suite**
+  - Implement all property-based tests (100+ iterations each)
+  - Implement all unit tests for edge cases
+  - Add integration tests for all workflows
+  - Add performance regression tests
+  - Achieve minimum 80% code coverage
+  - _Requirements: All testing requirements_
+  - **Tests Required**:
+    - All property tests passing
+    - All unit tests passing
+    - Coverage report >80%
+    - Performance benchmarks documented
+  - **GitHub Push**: ✅ Required after completion
+
+- [ ] **Task 13: Example Scripts and Documentation**
+  - Create example scripts:
+    - `example_basic.py` - Simple transcription
+    - `example_dual_personality.py` - Guru and Maya interaction
+    - `example_voice_commands.py` - Laptop control commands
+    - `example_biometric_auth.py` - Voice authentication
+    - `example_custom_commands.py` - Custom command registration
+  - Create comprehensive README.md:
+    - Installation instructions
+    - Quick start guide
+    - API documentation
+    - Configuration guide
+    - Multi-language support guide
+    - Troubleshooting guide
+  - _Requirements: Documentation requirements_
+  - **Tests Required**: None (documentation task)
+  - **GitHub Push**: ✅ Required after completion
+
+### Phase 8: Integration with Other Components
+
+- [ ] **Task 14: Security System Integration**
+  - Integrate with guru-security-cryptography for voice authentication
+  - Implement secure voice profile storage
+  - Add biometric enrollment workflow
+  - Test end-to-end authentication flow
+  - _Requirements: Biometric Consolidation requirements_
+  - **Tests Required**:
+    - Integration tests with security system
+    - Unit tests for voice profile management
+    - Unit tests for enrollment workflow
+  - **GitHub Push**: ✅ Required after completion
+
+- [ ] **Task 15: Avatar System Integration**
+  - Integrate with guru-avatar for lip sync
+  - Provide audio timing information for lip sync
+  - Coordinate personality switching with avatar
+  - _Requirements: Avatar integration requirements_
+  - **Tests Required**:
+    - Integration tests with avatar system
+    - Unit tests for lip sync timing
+    - Unit tests for personality coordination
+  - **GitHub Push**: ✅ Required after completion
+
+## Testing Summary
+
+### Property-Based Tests (Hypothesis)
+- Transcription result completeness
+- Audio format compatibility
+- Command pattern matching
+- Error context preservation
+- Model reuse across requests
+- Concurrent request handling
+- Voice feature consistency
+
+### Unit Tests
+- All component initialization
+- All public methods
+- Error handling for all failure modes
+- Multi-language support
+- Gender-specific TTS
+- Dual wake word detection
+- Command interpretation
+
+### Integration Tests
+- End-to-end voice pipeline
+- Personality switching
+- Security system integration
+- Avatar system integration
+- Performance benchmarks
+
+### Coverage Goals
+- Minimum 80% line coverage
+- All 7+ correctness properties tested
+- All error paths tested
+- All language variants tested
 
 ## Notes
 
-- Tasks marked with `*` are optional and can be skipped for faster MVP
-- Each task references specific requirements for traceability
-- Property tests validate universal correctness properties with 100+ iterations
-- Unit tests validate specific examples, edge cases, and error conditions
-- The implementation follows a bottom-up approach: components first, then integration
-- Checkpoints ensure incremental validation at key milestones
+- Each task must be completed, tested, and pushed to GitHub before moving to the next
+- Property tests must run minimum 100 iterations
+- All tests must pass before marking task complete
+- Integration tasks require coordination with other component teams
+- Performance tests must meet specified latency targets
+- Multi-language support must be tested with actual audio samples
+
+## Dependencies
+
+This component depends on:
+- guru-security-cryptography (for voice authentication)
+- guru-avatar (for lip sync coordination)
+- guru-platform (for system command execution)
+
+This component is used by:
+- Main AGENT_GURU application
+- Onboarding system (for voice enrollment)
+- Authentication system (for voice verification)
