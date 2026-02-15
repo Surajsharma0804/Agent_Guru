@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/agent-guru/agent-guru"
 documentation = "https://docs.rs/agent_guru"
 readme = "README.md"
-keywords = ["ai", "cryptography", "security", "voice", "biometrics"]
+keywords = ["ai", "cryptography", "security", "speech", "biometrics"]
 categories = ["cryptography", "authentication", "multimedia", "science"]
 
 [dependencies]
@@ -74,9 +74,6 @@ rayon = "1.8"
 # Regular expressions for logging sanitization
 regex = "1.10"
 
-# Audio processing for voice biometrics
-hound = "3.5"
-
 # Real-time audio I/O
 cpal = "0.15"
 rodio = "0.17"
@@ -106,10 +103,6 @@ path = "guru/lib.rs"
 [[bin]]
 name = "agent_guru"
 path = "guru/main.rs"
-
-[[bin]]
-name = "agent_guru_voice"
-path = "guru/voice_main.rs"
 
 [profile.release]
 opt-level = 3
@@ -148,7 +141,6 @@ linux = []
 
 # Component features
 cryptography = []
-voice-processing = []
 biometrics = []
 vision = []
 intelligence = []

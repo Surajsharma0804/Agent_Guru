@@ -5,11 +5,17 @@ This module contains property tests that verify universal correctness properties
 of the noise reduction functionality.
 """
 
+import warnings
 import numpy as np
 import pytest
 from hypothesis import given, strategies as st, settings, HealthCheck
 
 from .noise import NoiseCleaner
+
+# Suppress expected warnings from scipy and noisereduce
+# These warnings occur when processing short audio clips and are expected behavior
+warnings.filterwarnings("ignore", message="nperseg.*is greater than input length", category=UserWarning)
+warnings.filterwarnings("ignore", message="invalid value encountered in divide", category=RuntimeWarning)
 
 
 # Strategy for generating valid sample rates

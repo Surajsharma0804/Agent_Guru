@@ -54,7 +54,6 @@ dependencies = [
  "ed25519-dalek",
  "fastrand",
  "hex",
- "hound",
  "lru",
  "password-hash",
  "pbkdf2",

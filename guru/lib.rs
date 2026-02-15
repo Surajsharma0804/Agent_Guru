@@ -44,7 +44,6 @@
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod security;
-pub mod voice;
 pub mod llm;
 pub mod runtime;
 pub mod platform;

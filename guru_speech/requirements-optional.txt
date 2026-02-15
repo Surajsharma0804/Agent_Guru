@@ -1,0 +1,24 @@
+# Optional dependencies for enhanced Guru Speech Engine features
+
+# Wake Word Detection
+pvporcupine>=2.2.0
+
+# Voice Activity Detection
+torch>=2.0.0
+webrtcvad>=2.0.10
+
+# Text-to-Speech
+TTS>=0.22.0
+pyttsx3>=2.90
+
+# Voice Biometric Authentication
+resemblyzer>=0.1.1
+speechbrain>=0.5.0
+
+# Additional audio processing
+librosa>=0.10.0
+scipy>=1.11.0
+
+# Audio playback
+# Note: rodio is Rust, use sounddevice for Python
+# sounddevice is already in main requirements
