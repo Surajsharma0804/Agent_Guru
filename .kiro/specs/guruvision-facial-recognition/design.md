@@ -4,6 +4,18 @@
 
 GuruVision is a production-grade facial recognition system built on state-of-the-art deep learning models. The system follows a modular architecture where each component uses the industry-leading solution for its specific task. The design prioritizes accuracy and robustness over simplicity.
 
+**System Capabilities**:
+- **Face Detection**: Detect faces in images/video with bounding boxes and landmarks
+- **Face Recognition**: Identify known individuals by matching face embeddings
+- **Face Embedding Extraction**: Generate 512-dimensional embeddings for biometric authentication
+- **Liveness Detection**: Prevent spoofing attacks (photos, screens, masks)
+- **Emotion Recognition**: Classify facial expressions into 7 categories
+- **Face Tracking**: Track multiple faces across video frames with persistent IDs
+
+**Dual Integration Model**:
+1. **Standalone Face Recognition**: GuruVision can identify faces from its own database of known identities
+2. **Biometric Authentication Integration**: GuruVision provides face embeddings to guru-security-cryptography for secure authentication
+
 ### Core Design Principles
 
 1. **Modular Architecture**: Independent subsystems (detection, alignment, recognition, liveness, emotion, tracking) with clear interfaces
@@ -11,6 +23,7 @@ GuruVision is a production-grade facial recognition system built on state-of-the
 3. **Performance Optimization**: ONNX Runtime with C++ backend for fast inference, GPU acceleration when available
 4. **Production Ready**: Comprehensive error handling, logging, monitoring, and graceful degradation
 5. **Extensibility**: Clear APIs for AI agent integration and future enhancements
+6. **Security Integration**: Face embeddings integrate with guru-security-cryptography for authentication
 
 ### Technology Stack
 
@@ -37,7 +50,11 @@ Face Alignment (Landmark-based)
     ↓
 Embedding Extraction (ArcFace + ONNX Runtime)
     ↓
-Identity Matching (Cosine Similarity)
+┌─────────────────────────────────────┐
+│  Dual Path Processing:              │
+│  1. Face Recognition (Internal DB)  │
+│  2. Biometric Auth (Security System)│
+└─────────────────────────────────────┘
     ↓
 Liveness Detection (Silent-Face)
     ↓
@@ -49,6 +66,108 @@ Result Aggregation & Event Emission
     ↓
 AI Agent Integration
 ```
+
+## Integration Points
+
+This system provides BOTH standalone face recognition AND face embedding extraction for biometric authentication.
+
+### Dependencies
+
+**Upstream Dependencies** (systems this component depends on):
+- None (standalone face processing)
+
+**Downstream Dependencies** (systems that depend on this component):
+- **Security System** (guru-security-cryptography): Uses face embeddings for biometric authentication
+- **Agent Orchestration** (guru-agent-orchestration): Uses face recognition events
+
+### API Contracts
+
+**Standalone Face Recognition:**
+```python
+class GuruVisionEngine:
+    """Main face recognition engine with internal identity database."""
+    
+    def process_frame(self, frame: np.ndarray) -> RecognitionResult:
+        """
+        Process frame and recognize faces from internal database.
+        
+        Returns:
+            RecognitionResult with identified faces, unknown faces, emotions, etc.
+        """
+        pass
+    
+    def add_identity(self, name: str, images: List[np.ndarray]) -> bool:
+        """
+        Add new identity to internal database.
+        
+        Stores face embeddings for future recognition.
+        """
+        pass
+    
+    def recognize_face(self, face_embedding: np.ndarray) -> Optional[str]:
+        """
+        Match face embedding against internal database.
+        
+        Returns identity name if match found, None otherwise.
+        """
+        pass
+```
+
+**Security System Integration:**
+```python
+class GuruVisionClient:
+    """Client interface for biometric authentication integration."""
+    
+    def extract_face_embedding(self, image_data: bytes) -> np.ndarray:
+        """
+        Extract 512-dimensional face embedding from image.
+        
+        Returns embedding vector for authentication by security system.
+        This is separate from internal face recognition.
+        """
+        pass
+    
+    def detect_faces(self, image_data: bytes) -> List[FaceDetection]:
+        """
+        Detect all faces in image with bounding boxes and landmarks.
+        
+        Returns face detections for further processing.
+        """
+        pass
+```
+
+**Agent Orchestration Integration:**
+```python
+# Agent receives face recognition events
+engine.register_callback("identity_recognized", on_face_recognized)
+engine.register_callback("unknown_face", on_unknown_face)
+engine.register_callback("emotion_detected", on_emotion_detected)
+```
+
+### Data Flow
+
+1. **Standalone Face Recognition Flow:**
+   - Camera captures frame
+   - GuruVision detects and aligns faces
+   - GuruVision extracts embeddings
+   - GuruVision matches against internal database
+   - Identity recognized or marked as unknown
+   - Events emitted to agent orchestration
+
+2. **Biometric Authentication Flow:**
+   - User provides face image for authentication
+   - GuruVision detects and aligns face
+   - GuruVision extracts 512-dim embedding
+   - Embedding passed to guru-security-cryptography BiometricAuthenticator
+   - Security system performs authentication against secure identity store
+
+3. **Face Recognition Event Flow:**
+   - Camera captures frame
+   - GuruVision processes frame
+   - Faces detected, tracked, and analyzed
+   - Emotions detected
+   - Events emitted to agent orchestration
+   - Agent responds to recognition events
 
 ## Architecture
 
