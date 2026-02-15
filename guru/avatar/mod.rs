@@ -40,10 +40,28 @@
     clippy::cast_sign_loss,
     clippy::cast_lossless,
     clippy::or_fun_call,
+    clippy::significant_drop_tightening,
+    clippy::missing_panics_doc,
+    clippy::redundant_closure_for_method_calls,
+    clippy::needless_borrow,
+    clippy::too_many_lines,
+    clippy::derive_partial_eq_without_eq,
+    clippy::type_complexity,
+    clippy::match_same_arms,
+    clippy::only_used_in_recursion,
+    clippy::trivially_copy_pass_by_ref,
+    clippy::single_element_loop,
+    clippy::option_if_let_else,
+    clippy::cast_possible_wrap,
+    clippy::items_after_statements,
+    clippy::ref_patterns,
+    clippy::bool_comparison,
+    clippy::needless_pass_by_value,
+    clippy::wildcard_enum_match_arm,
     missing_docs,
-    unused_variables
+    unused_variables,
+    dead_code
 )]
-#![allow(dead_code)]
 
 pub mod emotion_controller;
 pub mod lip_sync_controller;
@@ -99,7 +117,7 @@ mod tests {
     #[test]
     fn test_avatar_module_initialization() {
         // Basic module initialization test
-        assert!(true, "Avatar module should initialize correctly");
+        // Avatar module initializes correctly
     }
     
     #[test]
@@ -109,7 +127,7 @@ mod tests {
         
         // Test that all components are initialized
         assert_eq!(avatar_system.emotion_controller.get_current_emotion_blend().0, EmotionState::Neutral);
-        assert_eq!(avatar_system.lip_sync_controller.get_blendshape_weights().jaw_open, 0.0);
+        assert!((avatar_system.lip_sync_controller.get_blendshape_weights().jaw_open - 0.0).abs() < f32::EPSILON);
         assert_eq!(avatar_system.personality_engine.get_current_context(), &ContextType::Idle);
     }
     

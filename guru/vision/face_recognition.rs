@@ -3,6 +3,8 @@
 //! Production-grade facial landmark detection and expression analysis with liveness detection.
 //! Implements MediaPipe-derived algorithms with clean room compliance.
 
+#![allow(clippy::manual_clamp)]
+
 use super::{VisionResult, VisionError, ImageData, FaceDetection, VisionConfig};
 use std::collections::HashMap;
 use std::sync::Arc;

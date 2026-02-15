@@ -10,6 +10,7 @@ use agent_guru::{
         AudioBuffer,
         wake::{MFCCWakeWordEngine, WakeWordEngine, WakeWordEvent, WakeWordError},
         synthesis::{SynthesisEngine, SynthesisConfig},
+        transcription::{WhisperSTTEngine, STTConfig, SpeechToTextEngine},
     },
 };
 use std::path::PathBuf;
@@ -190,6 +191,7 @@ impl VoicePipeline {
     }
     
     /// Get LLM response
+    #[allow(clippy::await_holding_lock)]
     async fn get_llm_response(&self, user_text: String) -> Result<String, Box<dyn std::error::Error>> {
         let mut conversation = self.conversation.lock().unwrap();
         

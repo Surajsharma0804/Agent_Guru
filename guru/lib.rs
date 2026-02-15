@@ -89,8 +89,8 @@ mod tests {
     
     #[test]
     fn test_version_info() {
-        assert!(VERSION.len() > 0, "VERSION should not be empty");
-        assert!(BUILD_INFO.len() > 0, "BUILD_INFO should not be empty");
+        // VERSION is a compile-time constant and cannot be empty
+        // BUILD_INFO is a compile-time constant and cannot be empty
         assert!(VERSION.chars().next().unwrap().is_ascii_digit(), "VERSION should start with a digit");
         assert!(BUILD_INFO.contains("AGENT_GURU"), "BUILD_INFO should contain project name");
     }

@@ -26,6 +26,7 @@ use crate::agents::{
 /// Test configuration constants
 const _PROPERTY_TEST_ITERATIONS: u32 = 10000;
 const MAX_TEST_AGENTS: usize = 50;
+#[allow(dead_code)]
 const MAX_TEST_TASKS: usize = 100;
 
 /// Helper function to create a properly initialized orchestrator with sufficient resources
@@ -467,7 +468,7 @@ mod benchmark_tests {
                     gpu_memory_mb: None,
                     specialized_hardware: Vec::new(),
                 },
-            ).await.expect(&format!("Failed to register agent {}", i));
+            ).await.unwrap_or_else(|_| panic!("Failed to register agent {}", i));
         }
         
         let start_time = Instant::now();

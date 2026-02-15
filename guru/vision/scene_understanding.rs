@@ -8,6 +8,8 @@
 //! The scene understanding system implements multi-level analysis:
 //! - Object-level: Individual object detection and classification
 //! - Spatial-level: Relationships between objects (above, below, inside, etc.)
+
+#![allow(clippy::manual_clamp)]
 //! - Semantic-level: Scene type classification and context understanding
 //! - Temporal-level: Changes and motion patterns over time
 //! 
@@ -981,7 +983,7 @@ mod tests {
             format: super::super::ImageFormat::Grayscale8,
         };
         
-        let lbp_value = analyzer.calculate_lbp(&image, 1, 1, 130);
+        let _lbp_value = analyzer.calculate_lbp(&image, 1, 1, 130);
         // LBP value is always valid for u8
     }
 }

@@ -259,7 +259,7 @@ impl DeploymentSystem {
         }
         
         // 2. Perform atomic rollback
-        let rollback_result = self.rollback_manager.rollback_to_version(&self.installation_root, target_version)?;
+        self.rollback_manager.rollback_to_version(&self.installation_root, target_version)?;
         
         // 3. Verify rollback integrity
         let integrity_result = self.verify_installation_integrity()?;
@@ -795,7 +795,7 @@ mod tests {
                 PlatformTarget::Windows { installer_type, .. } => {
                     // Windows-specific requirements
                     match installer_type {
-                        WindowsInstallerType::NSIS => {
+                        WindowsInstallerType::_NSIS => {
                             // NSIS installer must create proper registry entries
                             prop_assert!(
                                 deployment_system.platform_integrator.validate_windows_registry(&installation_root).unwrap_or(false),
@@ -809,7 +809,7 @@ mod tests {
                                 "MSI installer must support Windows Installer features"
                             );
                         }
-                        WindowsInstallerType::MSIX => {
+                        WindowsInstallerType::_MSIX => {
                             // MSIX installer must support modern Windows features
                             prop_assert!(
                                 deployment_system.platform_integrator.validate_msix_features(&installation_root).unwrap_or(false),
@@ -821,7 +821,7 @@ mod tests {
                 PlatformTarget::MacOS { bundle_type, .. } => {
                     // macOS-specific requirements
                     match bundle_type {
-                        MacOSBundleType::PKG => {
+                        MacOSBundleType::_PKG => {
                             // PKG installer must create proper receipts
                             prop_assert!(
                                 deployment_system.platform_integrator.validate_pkg_receipts(&installation_root).unwrap_or(false),
@@ -835,7 +835,7 @@ mod tests {
                                 "DMG must be properly signed and notarized"
                             );
                         }
-                        MacOSBundleType::AppBundle => {
+                        MacOSBundleType::_AppBundle => {
                             // App bundle must have proper structure
                             prop_assert!(
                                 deployment_system.platform_integrator.validate_app_bundle_structure(&installation_root).unwrap_or(false),

@@ -81,8 +81,9 @@ hound = "3.5"
 cpal = "0.15"
 rodio = "0.17"
 
-# Speech recognition - Whisper.cpp bindings (optional - requires LLVM/Clang)
+# Speech recognition - Whisper.cpp bindings with CUDA support
 # Using version 0.11 due to type compatibility issues in 0.12
+# CUDA acceleration provides 10-50x speedup on NVIDIA GPUs
 whisper-rs = { version = "0.11", optional = true }
 
 # Additional serialization

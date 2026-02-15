@@ -32,10 +32,14 @@
     clippy::cast_sign_loss,
     clippy::cast_lossless,
     clippy::or_fun_call,
+    clippy::significant_drop_tightening,
+    clippy::missing_panics_doc,
+    clippy::redundant_closure_for_method_calls,
+    clippy::needless_borrow,
     missing_docs,
-    unused_variables
+    unused_variables,
+    dead_code
 )]
-#![allow(dead_code)]
 
 use std::time::{Duration, Instant};
 use std::collections::{HashMap, VecDeque};
@@ -1001,9 +1005,7 @@ mod tests {
     
     #[test]
     fn test_guru_behavior_generation() {
-        let mut guru_personality = PersonalityProfile::default();
-        guru_personality.personality_type = PersonalityType::GURU;
-        guru_personality.confidence = 0.9;
+        let guru_personality = PersonalityProfile { personality_type: PersonalityType::GURU, confidence: 0.9, ..Default::default() };
         
         let mut engine = PersonalityEngine::new(guru_personality);
         
@@ -1025,9 +1027,7 @@ mod tests {
     
     #[test]
     fn test_maya_behavior_generation() {
-        let mut maya_personality = PersonalityProfile::default();
-        maya_personality.personality_type = PersonalityType::MAYA;
-        maya_personality.empathy = 0.9;
+        let maya_personality = PersonalityProfile { personality_type: PersonalityType::MAYA, empathy: 0.9, ..Default::default() };
         
         let mut engine = PersonalityEngine::new(maya_personality);
         
@@ -1068,9 +1068,7 @@ mod tests {
     
     #[test]
     fn test_behavior_intensity_calculation() {
-        let mut personality = PersonalityProfile::default();
-        personality.confidence = 0.9;
-        personality.expressiveness = 0.8;
+        let personality = PersonalityProfile { confidence: 0.9, expressiveness: 0.8, ..Default::default() };
         
         let mut engine = PersonalityEngine::new(personality);
         let intensity = engine.calculate_behavior_intensity(&BehaviorType::ConfidentPosture);
@@ -1113,9 +1111,7 @@ mod tests {
     
     #[test]
     fn test_consistency_score() {
-        let mut guru_personality = PersonalityProfile::default();
-        guru_personality.personality_type = PersonalityType::GURU;
-        guru_personality.confidence = 0.9;
+        let guru_personality = PersonalityProfile { personality_type: PersonalityType::GURU, confidence: 0.9, ..Default::default() };
         
         let mut engine = PersonalityEngine::new(guru_personality);
         
@@ -1133,8 +1129,7 @@ mod tests {
     
     #[test]
     fn test_trait_requirements() {
-        let mut low_confidence_personality = PersonalityProfile::default();
-        low_confidence_personality.confidence = 0.3;
+        let low_confidence_personality = PersonalityProfile { confidence: 0.3, ..Default::default() };
         
         let engine = PersonalityEngine::new(low_confidence_personality);
         

@@ -563,13 +563,13 @@ mod tests {
                 bbox: RawBoundingBox { x: 10.0, y: 10.0, width: 20.0, height: 20.0 },
                 confidence: 0.9,
                 class_id: 0,
-                objectness: 0.95,
+                _objectness: 0.95,
             },
             Detection {
                 bbox: RawBoundingBox { x: 12.0, y: 12.0, width: 20.0, height: 20.0 },
                 confidence: 0.8,
                 class_id: 0,
-                objectness: 0.85,
+                _objectness: 0.85,
             },
         ];
         

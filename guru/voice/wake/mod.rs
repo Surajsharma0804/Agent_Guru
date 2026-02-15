@@ -22,6 +22,12 @@ pub mod neural_gate;
 pub mod ring_buffer;
 pub mod false_positive_filter;
 
+#[cfg(test)]
+mod performance_bench;
+
+#[cfg(test)]
+mod property_tests;
+
 pub use audio_features::MFCCExtractor;
 pub use neural_gate::NeuralClassifier;
 pub use ring_buffer::AudioRingBuffer;

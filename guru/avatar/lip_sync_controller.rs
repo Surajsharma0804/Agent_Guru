@@ -32,10 +32,14 @@
     clippy::cast_sign_loss,
     clippy::cast_lossless,
     clippy::or_fun_call,
+    clippy::significant_drop_tightening,
+    clippy::missing_panics_doc,
+    clippy::redundant_closure_for_method_calls,
+    clippy::needless_borrow,
     missing_docs,
-    unused_variables
+    unused_variables,
+    dead_code
 )]
-#![allow(dead_code)]
 
 use std::time::{Duration, Instant};
 use std::collections::{HashMap, VecDeque};
@@ -868,7 +872,7 @@ mod tests {
     #[test]
     fn test_lip_sync_controller_creation() {
         let controller = LipSyncController::new();
-        assert_eq!(controller.blendshape_weights.jaw_open, 0.0);
+        assert!((controller.blendshape_weights.jaw_open - 0.0).abs() < f32::EPSILON);
         assert!(controller.phoneme_queue.is_empty());
     }
     
@@ -902,7 +906,7 @@ mod tests {
             formants: None,
         };
         
-        let result = controller.process_phoneme(phoneme_data);
+        let result = controller.process_phoneme(&phoneme_data);
         assert!(result.is_ok());
         
         // Check that jaw_open was set for AA phoneme
@@ -917,14 +921,14 @@ mod tests {
         // Test valid index
         let result = controller.set_blendshape_weight(19, 0.5); // jaw_open
         assert!(result.is_ok());
-        assert_eq!(controller.blendshape_weights.jaw_open, 0.5);
+        assert!((controller.blendshape_weights.jaw_open - 0.5).abs() < f32::EPSILON);
         
         // Test weight clamping
         controller.set_blendshape_weight(19, 1.5).unwrap();
-        assert_eq!(controller.blendshape_weights.jaw_open, 1.0);
+        assert!((controller.blendshape_weights.jaw_open - 1.0).abs() < f32::EPSILON);
         
         controller.set_blendshape_weight(19, -0.5).unwrap();
-        assert_eq!(controller.blendshape_weights.jaw_open, 0.0);
+        assert!((controller.blendshape_weights.jaw_open - 0.0).abs() < f32::EPSILON);
         
         // Test invalid index
         let result = controller.set_blendshape_weight(100, 0.5);
@@ -995,8 +999,7 @@ mod tests {
         
         // Add some weight history
         for i in 0..5 {
-            let mut weights = BlendshapeWeights::default();
-            weights.jaw_open = i as f32 * 0.2;
+            let weights = BlendshapeWeights { jaw_open: i as f32 * 0.2, ..Default::default() };
             controller.weight_history.push_back(weights);
         }
         
@@ -1005,3 +1008,4 @@ mod tests {
         assert!(smoothed.jaw_open < 0.8); // Should be averaged
     }
 }
+

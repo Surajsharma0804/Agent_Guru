@@ -8,6 +8,8 @@
 //! The OCR system implements a multi-stage pipeline:
 //! - Text Detection: Locates text regions in images using EAST/CRAFT algorithms
 //! - Text Recognition: Converts detected text regions to strings using CRNN/Transformer models
+
+#![allow(clippy::needless_range_loop)]
 //! - Language Detection: Identifies text language for optimal recognition
 //! - Post-processing: Applies spell checking and context-aware corrections
 //! 
@@ -1172,7 +1174,7 @@ mod tests {
         
         // Test with bimodal distribution
         let data = vec![50u8; 100].into_iter()
-            .chain(vec![200u8; 100].into_iter())
+            .chain(vec![200u8; 100])
             .collect::<Vec<u8>>();
         
         let threshold = engine.calculate_otsu_threshold(&data);

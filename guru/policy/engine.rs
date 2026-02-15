@@ -8,6 +8,8 @@
 //! The policy engine implements a hybrid rule evaluation system combining:
 //! - Graph-based rule dependency resolution
 //! - Multi-level caching for sub-10ms decision latency
+
+#![allow(clippy::single_element_loop, clippy::iter_on_single_items)]
 //! - Cryptographic policy integrity verification
 //! - Comprehensive audit trail generation
 //! - Conflict resolution with deterministic priority ordering

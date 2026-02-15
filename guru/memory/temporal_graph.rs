@@ -6,6 +6,8 @@
 //! - Full optimization with efficient graph traversal and relationship inference
 //! - Production standards: Must handle complex temporal relationships with <100ms query time
 
+#![allow(clippy::bool_comparison, clippy::neg_cmp_op_on_partial_ord, clippy::if_not_else)]
+
 use std::collections::{HashMap, HashSet, BTreeMap};
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
@@ -977,7 +979,7 @@ mod tests {
     fn create_test_node(id: Uuid, node_type: &str, importance: f32) -> TemporalNode {
         TemporalNode::new(
             id,
-            format!("hash_{}", id),
+            format!("hash_{id}"),
             node_type.to_string(),
             importance,
             HashMap::new(),
@@ -1075,10 +1077,12 @@ mod tests {
     
     #[test]
     fn test_temporal_decay() {
-        let mut config = TemporalGraphConfig::default();
-        config.enable_temporal_decay = true;
-        config.decay_rate = 1.0; // High decay rate for testing
-        config.min_relationship_strength = 0.5;
+        let config = TemporalGraphConfig {
+            enable_temporal_decay: true,
+            decay_rate: 1.0, // High decay rate for testing
+            min_relationship_strength: 0.5,
+            ..Default::default()
+        };
         
         let graph = TemporalGraph::new(config);
         
@@ -1104,8 +1108,7 @@ mod tests {
     
     #[test]
     fn test_relationship_inference() {
-        let mut config = TemporalGraphConfig::default();
-        config.auto_inference = false; // Manual inference for testing
+        let config = TemporalGraphConfig { auto_inference: false, ..Default::default() }; // Manual inference for testing
         
         let graph = TemporalGraph::new(config);
         
@@ -1136,3 +1139,4 @@ mod tests {
         assert!(has_contextual || has_cooccurrence);
     }
 }
+

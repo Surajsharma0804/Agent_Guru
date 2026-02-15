@@ -267,7 +267,7 @@ pub trait CryptoIdentity {
     fn generate_keypair() -> Result<(PublicKey, SecretKey), CryptoError>;
     
     /// Sign a message with the secret key
-    fn signmessage(&self, message: &[u8]) -> Result<Signature, CryptoError>;
+    fn sign_message(&self, message: &[u8]) -> Result<Signature, CryptoError>;
     
     /// Verify a signature against a message and public key
     fn verify_signature(
@@ -372,7 +372,7 @@ impl CryptoIdentity for Ed25519Identity {
         Ok((public_key, secret_key))
     }
     
-    fn signmessage(&self, message: &[u8]) -> Result<Signature, CryptoError> {
+    fn sign_message(&self, message: &[u8]) -> Result<Signature, CryptoError> {
         let signature = self.signing_key.sign(message);
         let sig = Signature::new(signature, self.public_key.key_id);
         

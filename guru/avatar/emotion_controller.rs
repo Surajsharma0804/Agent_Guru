@@ -32,10 +32,14 @@
     clippy::cast_sign_loss,
     clippy::cast_lossless,
     clippy::or_fun_call,
+    clippy::significant_drop_tightening,
+    clippy::missing_panics_doc,
+    clippy::redundant_closure_for_method_calls,
+    clippy::needless_borrow,
     missing_docs,
-    unused_variables
+    unused_variables,
+    dead_code
 )]
-#![allow(dead_code)]
 
 use std::time::{Duration, Instant};
 use std::collections::HashMap;
@@ -592,8 +596,7 @@ mod tests {
     
     #[test]
     fn test_invalid_personality_transition() {
-        let mut guru_personality = PersonalityProfile::default();
-        guru_personality.personality_type = PersonalityType::GURU;
+        let guru_personality = PersonalityProfile { personality_type: PersonalityType::GURU, ..Default::default() };
         
         let mut controller = EmotionController::new(guru_personality);
         
@@ -636,7 +639,7 @@ mod tests {
         
         // Test smooth curve
         let result = controller.cubic_bezier_interpolation(0.5, 0.25, 0.25, 0.75, 0.75);
-        assert!(result >= 0.0 && result <= 1.0);
+        assert!((0.0..=1.0).contains(&result));
         
         // Test edge cases
         let start = controller.cubic_bezier_interpolation(0.0, 0.25, 0.25, 0.75, 0.75);
@@ -647,8 +650,7 @@ mod tests {
     
     #[test]
     fn test_emotion_consistency_validation() {
-        let mut guru_personality = PersonalityProfile::default();
-        guru_personality.personality_type = PersonalityType::GURU;
+        let guru_personality = PersonalityProfile { personality_type: PersonalityType::GURU, ..Default::default() };
         
         let mut controller = EmotionController::new(guru_personality);
         
@@ -686,3 +688,4 @@ mod tests {
         assert!(metrics.memory_usage_bytes > 0);
     }
 }
+

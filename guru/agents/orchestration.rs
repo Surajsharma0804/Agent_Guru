@@ -8,6 +8,8 @@
 //! - Agent coordination and communication
 //! - Conflict resolution and consensus mechanisms
 //! - Resource allocation and scheduling
+
+#![allow(clippy::inherent_to_string, clippy::await_holding_lock)]
 //! 
 //! The implementation follows clean room development methodology with complete
 //! intellectual property compliance.
@@ -388,7 +390,7 @@ pub struct TaskResult {
     /// Output data produced by the task
     pub output_data: HashMap<String, Vec<u8>>,
     /// Error message if the task failed
-    pub errormessage: Option<String>,
+    pub error_message: Option<String>,
     /// Total execution time in milliseconds
     pub execution_time_ms: u64,
     /// Resource usage during task execution
@@ -1236,7 +1238,7 @@ impl MultiAgentOrchestrator {
                 task_id: subtask.task_definition.task_id.clone(),
                 success: true,
                 output_data: HashMap::new(),
-                errormessage: None,
+                error_message: None,
                 execution_time_ms: start_time.elapsed().as_millis() as u64,
                 resource_usage: ResourceUsage::default(),
                 metadata: HashMap::new(),

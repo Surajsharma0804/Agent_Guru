@@ -70,7 +70,8 @@ pub struct AvatarSystem {
 }
 
 impl AvatarSystem {
-    pub fn new(personality: PersonalityProfile) -> Self {
+
+    #[must_use]    pub fn new(personality: PersonalityProfile) -> Self {
         let now = Instant::now();
         Self {
             emotion_controller: EmotionController::new(personality.clone()),
@@ -108,7 +109,7 @@ impl AvatarSystem {
         let start_time = Instant::now();
         
         for phoneme_data in phonemes {
-            self.lip_sync_controller.process_phoneme(phoneme_data.clone())?;
+            self.lip_sync_controller.process_phoneme(&phoneme_data.clone())?;
         }
         
         let elapsed = start_time.elapsed();
@@ -123,7 +124,7 @@ impl AvatarSystem {
     
     /// Generate personality-appropriate micro-behaviors with validation
     pub fn generate_micro_behaviors(&mut self, context: ContextType) -> Result<Vec<MicroBehavior>, String> {
-        let behaviors = self.personality_engine.generate_behaviors(context)?;
+        let behaviors = self.personality_engine.generate_behaviors(&context)?;
         self.performance_metrics.active_behaviors_count = behaviors.len();
         
         // Update personality metrics
@@ -187,21 +188,25 @@ impl AvatarSystem {
     }
     
     /// Validate emotion transition consistency with personality
+    #[must_use]
     pub fn validate_emotion_consistency(&self) -> bool {
         self.emotion_controller.validate_emotion_consistency()
     }
     
     /// Validate lip sync timing accuracy (±5ms requirement)
+    #[must_use]
     pub fn validate_lip_sync_accuracy(&self) -> bool {
         self.performance_metrics.lip_sync_accuracy_ms <= 5.0
     }
     
     /// Validate personality behavior consistency
+    #[must_use]
     pub fn validate_personality_consistency(&self) -> bool {
         self.performance_metrics.personality_consistency_score >= 0.8
     }
     
     /// Validate system performance requirements
+    #[must_use]
     pub fn validate_performance_requirements(&self) -> bool {
         self.performance_metrics.frame_rate >= 24.0 &&
         self.performance_metrics.emotion_transition_time_ms <= 200.0 &&
@@ -254,7 +259,7 @@ impl AvatarSystem {
                 pitch: Some(150.0),
                 formants: None,
             };
-            self.lip_sync_controller.process_phoneme(phoneme_data)?;
+            self.lip_sync_controller.process_phoneme(&phoneme_data)?;
         }
         
         let total_time = start_time.elapsed();
@@ -262,7 +267,7 @@ impl AvatarSystem {
         // Validate that concurrent operations complete within reasonable time
         let max_expected_time = Duration::from_millis(operation_count as u64 * 50); // 50ms per operation
         if total_time > max_expected_time {
-            return Err(format!("Concurrent operations took too long: {:?} > {:?}", total_time, max_expected_time));
+            return Err(format!("Concurrent operations took too long: {total_time:?} > {max_expected_time:?}"));
         }
         
         Ok(())
@@ -885,7 +890,7 @@ mod tests {
             // 4. Phoneme-to-viseme mapping must be consistent
             for phoneme_data in &phoneme_sequence {
                 // Test that each phoneme can be processed successfully
-                let process_result = avatar.lip_sync_controller.process_phoneme(phoneme_data.clone());
+                let process_result = avatar.lip_sync_controller.process_phoneme(&phoneme_data.clone());
                 prop_assert!(process_result.is_ok(), "Phoneme {:?} must be processable", phoneme_data.phoneme);
             }
             
@@ -972,3 +977,4 @@ mod tests {
         }
     }
 }
+

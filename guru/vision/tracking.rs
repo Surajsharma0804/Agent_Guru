@@ -3,6 +3,8 @@
 //! Kalman filter-based multi-object tracking with state prediction and correction.
 //! Implements Deep SORT algorithms with clean room compliance for production-grade tracking.
 
+#![allow(clippy::needless_range_loop, clippy::manual_memcpy)]
+
 use super::{VisionResult, DetectionResult, TrackedObject, TrackingResult, VisionConfig};
 use std::collections::HashMap;
 use std::time::Instant;

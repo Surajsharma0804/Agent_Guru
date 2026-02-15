@@ -225,7 +225,7 @@ impl DeploymentManager {
             bytes_processed: total_bytes_processed,
             signatures_verified: verified_signatures,
             dependencies_resolved: resolved_dependencies.len(),
-            errormessage: None,
+            error_message: None,
             rollback_available: true,
         })
     }
@@ -348,7 +348,7 @@ impl DeploymentManager {
                     bytes_processed: total_bytes,
                     signatures_verified: verified_signatures,
                     dependencies_resolved: resolved_dependencies.len(),
-                    errormessage: None,
+                    error_message: None,
                     rollback_available: true,
                 })
             }

@@ -8,6 +8,8 @@
 //! - Memory optimization: SIMD vectorization, cache-friendly data structures
 //! - Research-backed implementations from top-tier sources (FAISS, Annoy, HNSW papers)
 
+#![allow(clippy::uninlined_format_args, clippy::wildcard_enum_match_arm, clippy::match_wildcard_for_single_variants, clippy::match_same_arms)]
+
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Mutex};
 use std::time::{Duration, Instant};
@@ -1134,7 +1136,8 @@ fn compute_advanced_similarity(a: &[f32], b: &[f32], metric: &str, use_simd: boo
                 numerator / denominator
             }
         },
-        "cosine" | _ => {
+        _ => {
+            // Default to cosine similarity
             if use_simd && a.len() >= 8 {
                 simd_cosine_similarity(a, b)
             } else {
@@ -1187,7 +1190,7 @@ fn normalize_embedding(embedding: &mut [f32]) {
     let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
     if norm > 1e-12 { // Numerical stability threshold
         let inv_norm = 1.0 / norm;
-        for x in embedding.iter_mut() {
+        for x in embedding {
             *x *= inv_norm;
         }
     }
@@ -1467,7 +1470,7 @@ mod tests {
             ..Default::default()
         };
         
-        let index = SemanticIndex::new(config);
+        let index = SemanticIndex::new(&config);
         
         println!("📊 PHASE 1: MASSIVE DATA INGESTION TEST");
         // STRESS TEST: Add 100,000 entries with realistic transformer embeddings
@@ -1493,7 +1496,7 @@ mod tests {
             // Normalize to unit length (like real transformer embeddings)
             let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
             if norm > 0.0 {
-                for x in embedding.iter_mut() {
+                for x in &mut embedding {
                     *x /= norm;
                 }
             }
@@ -1539,7 +1542,7 @@ mod tests {
         
         // Generate 1000 diverse query embeddings
         let mut query_embeddings = Vec::new();
-        for i in 0..1000 {
+        for _i in 0..1000 {
             let mut query = vec![0.0; 768];
             use rand::Rng;
             let mut rng = rand::thread_rng();
@@ -1551,7 +1554,7 @@ mod tests {
             // Normalize query
             let norm: f32 = query.iter().map(|x| x * x).sum::<f32>().sqrt();
             if norm > 0.0 {
-                for x in query.iter_mut() {
+                for x in &mut query {
                     *x /= norm;
                 }
             }
@@ -1645,12 +1648,12 @@ mod tests {
         }
         
         // Wait for all threads and validate results
-        let mut total_concurrent_results = 0;
+        let mut _total_concurrent_results = 0;
         let mut total_concurrent_time = Duration::new(0, 0);
         
         for handle in handles {
             let (thread_id, thread_results, thread_time) = handle.join().unwrap();
-            total_concurrent_results += thread_results.iter().map(|(count, _)| count).sum::<usize>();
+            _total_concurrent_results += thread_results.iter().map(|(count, _)| count).sum::<usize>();
             total_concurrent_time += thread_time;
             
             println!("   🧵 Thread {} completed: {} searches in {:.2}ms", 
@@ -1750,7 +1753,7 @@ mod tests {
     #[test]
     fn test_kmeans_clustering() {
         let config = SemanticIndexConfig::default();
-        let index = SemanticIndex::new(config);
+        let index = SemanticIndex::new(&config);
         
         let embeddings = vec![
             vec![1.0, 0.0],

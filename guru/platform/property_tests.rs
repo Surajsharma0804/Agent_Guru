@@ -43,6 +43,24 @@
     clippy::cast_sign_loss,
     clippy::cast_lossless,
     clippy::or_fun_call,
+    clippy::significant_drop_tightening,
+    clippy::missing_panics_doc,
+    clippy::redundant_closure_for_method_calls,
+    clippy::needless_borrow,
+    clippy::too_many_lines,
+    clippy::derive_partial_eq_without_eq,
+    clippy::type_complexity,
+    clippy::match_same_arms,
+    clippy::only_used_in_recursion,
+    clippy::trivially_copy_pass_by_ref,
+    clippy::single_element_loop,
+    clippy::option_if_let_else,
+    clippy::cast_possible_wrap,
+    clippy::items_after_statements,
+    clippy::ref_patterns,
+    clippy::bool_comparison,
+    clippy::needless_pass_by_value,
+    clippy::wildcard_enum_match_arm,
     missing_docs
 )]
 
@@ -94,13 +112,14 @@ mod test_config {
 // Default fallback configuration
 #[cfg(not(any(feature = "ci-testing", feature = "production-testing", feature = "stress-testing")))]
 mod test_config {
-    pub const _PROPERTY_TEST_CASES: u32 = 100; // Safe default
-    pub const _TIMEOUT_MS: u32 = 10000;
-    pub const _MAX_SHRINK_ITERS: u32 = 20;
+    pub const PROPERTY_TEST_CASES: u32 = 100; // Safe default
+    pub const TIMEOUT_MS: u32 = 10000;
+    pub const MAX_SHRINK_ITERS: u32 = 20;
     pub const _PROFILE_NAME: &str = "DEFAULT";
 }
 
 // Import the selected configuration
+#[allow(unused_imports)]
 use test_config::*;
 
 // PRODUCTION-GRADE Property test generators with cross-platform algorithms
@@ -128,7 +147,7 @@ prop_compose! {
         filename in "[a-zA-Z0-9_-]{1,20}",
         extension in prop::sample::select(vec!["txt", "doc", "pdf", "jpg", "png"])
     ) -> PathBuf {
-        PathBuf::from(format!("{}/{}.{}", base_path, filename, extension))
+        PathBuf::from(format!("{base_path}/{filename}.{extension}"))
     }
 }
 
@@ -210,19 +229,16 @@ proptest! {
                     let mut bridge = WindowsControlBridge::new().unwrap();
                     
                     // Property: Application launch should succeed or fail gracefully
-                    match bridge.launch_application(app_name) {
-                        Ok(process_id) => {
-                            // Property: Process ID should be valid
-                            prop_assert!(process_id.0 > 0, "Process ID must be positive: {}", process_id.0);
-                            
-                            // Property: Process should be trackable
-                            let processes = bridge.get_running_processes();
-                            prop_assert!(processes.iter().any(|p| p.process_id == process_id),
-                                        "Launched process should be in process list");
-                        }
-                        Err(_) => {
-                            // Graceful failure is acceptable for invalid applications
-                        }
+                    if let Ok(process_id) = bridge.launch_application(app_name) {
+                        // Property: Process ID should be valid
+                        prop_assert!(process_id.0 > 0, "Process ID must be positive: {}", process_id.0);
+                        
+                        // Property: Process should be trackable
+                        let processes = bridge.get_running_processes();
+                        prop_assert!(processes.iter().any(|p| p.process_id == process_id),
+                                    "Launched process should be in process list");
+                    } else {
+                        // Graceful failure is acceptable for invalid applications
                     }
                     
                     // Property: Performance requirements must be met
@@ -234,17 +250,14 @@ proptest! {
                 Platform::MacOS => {
                     let mut bridge = MacOSControlBridge::new().unwrap();
                     
-                    match bridge.launch_application(app_name) {
-                        Ok(process_id) => {
-                            prop_assert!(process_id.0 > 0, "Process ID must be positive: {}", process_id.0);
-                            
-                            let processes = bridge.get_running_processes();
-                            prop_assert!(processes.iter().any(|p| p.process_id == process_id),
-                                        "Launched process should be in process list");
-                        }
-                        Err(_) => {
-                            // Graceful failure is acceptable
-                        }
+                    if let Ok(process_id) = bridge.launch_application(app_name) {
+                        prop_assert!(process_id.0 > 0, "Process ID must be positive: {}", process_id.0);
+                        
+                        let processes = bridge.get_running_processes();
+                        prop_assert!(processes.iter().any(|p| p.process_id == process_id),
+                                    "Launched process should be in process list");
+                    } else {
+                        // Graceful failure is acceptable
                     }
                     
                     let launch_time = launch_start.elapsed();
@@ -255,17 +268,14 @@ proptest! {
                 Platform::Linux => {
                     let mut bridge = LinuxControlBridge::new().unwrap();
                     
-                    match bridge.launch_application(app_name) {
-                        Ok(process_id) => {
-                            prop_assert!(process_id.0 > 0, "Process ID must be positive: {}", process_id.0);
-                            
-                            let processes = bridge.get_running_processes();
-                            prop_assert!(processes.iter().any(|p| p.process_id == process_id),
-                                        "Launched process should be in process list");
-                        }
-                        Err(_) => {
-                            // Graceful failure is acceptable
-                        }
+                    if let Ok(process_id) = bridge.launch_application(app_name) {
+                        prop_assert!(process_id.0 > 0, "Process ID must be positive: {}", process_id.0);
+                        
+                        let processes = bridge.get_running_processes();
+                        prop_assert!(processes.iter().any(|p| p.process_id == process_id),
+                                    "Launched process should be in process list");
+                    } else {
+                        // Graceful failure is acceptable
                     }
                     
                     let launch_time = launch_start.elapsed();
@@ -293,15 +303,12 @@ proptest! {
                         content: file_content.clone(),
                     };
                     
-                    match bridge.perform_file_operation(create_op) {
-                        Ok(result) => {
-                            // Property: File operations should return appropriate results
-                            prop_assert!(matches!(result, crate::platform::windows::FileResult::Success),
-                                        "File creation should succeed or return appropriate error");
-                        }
-                        Err(_) => {
-                            // Permission errors are acceptable
-                        }
+                    if let Ok(result) = bridge.perform_file_operation(create_op) {
+                        // Property: File operations should return appropriate results
+                        prop_assert!(matches!(result, crate::platform::windows::FileResult::Success),
+                                    "File creation should succeed or return appropriate error");
+                    } else {
+                        // Permission errors are acceptable
                     }
                     
                     // Test file reading
@@ -309,16 +316,13 @@ proptest! {
                         path: file_path.clone(),
                     };
                     
-                    match bridge.perform_file_operation(read_op) {
-                        Ok(result) => {
-                            prop_assert!(matches!(result, 
-                                crate::platform::windows::FileResult::Content(_) | 
-                                crate::platform::windows::FileResult::Error(_)),
-                                "File read should return content or error");
-                        }
-                        Err(_) => {
-                            // Permission errors are acceptable
-                        }
+                    if let Ok(result) = bridge.perform_file_operation(read_op) {
+                        prop_assert!(matches!(result, 
+                            crate::platform::windows::FileResult::Content(_) | 
+                            crate::platform::windows::FileResult::Error(_)),
+                            "File read should return content or error");
+                    } else {
+                        // Permission errors are acceptable
                     }
                 }
                 Platform::MacOS => {
@@ -329,13 +333,10 @@ proptest! {
                         content: file_content.clone(),
                     };
                     
-                    match bridge.perform_file_operation(create_op) {
-                        Ok(_) => {
-                            // Success is good
-                        }
-                        Err(_) => {
-                            // Sandbox restrictions are acceptable
-                        }
+                    if bridge.perform_file_operation(create_op).is_ok() {
+                        // Success is good
+                    } else {
+                        // Sandbox restrictions are acceptable
                     }
                 }
                 Platform::Linux => {
@@ -346,13 +347,10 @@ proptest! {
                         content: file_content.clone(),
                     };
                     
-                    match bridge.perform_file_operation(create_op) {
-                        Ok(_) => {
-                            // Success is good
-                        }
-                        Err(_) => {
-                            // Permission restrictions are acceptable
-                        }
+                    if bridge.perform_file_operation(create_op).is_ok() {
+                        // Success is good
+                    } else {
+                        // Permission restrictions are acceptable
                     }
                 }
                 Platform::Unknown => {
@@ -378,33 +376,27 @@ proptest! {
                     
                     // Test window move operation
                     let move_action = WindowsWindowAction::Move { x: *x, y: *y };
-                    match bridge.control_window(window_id, move_action) {
-                        Ok(_) => {
-                            // Property: Window operations should update window state
-                            let windows = bridge.get_active_windows();
-                            if let Some(window) = windows.iter().find(|w| w.window_id == window_id) {
-                                prop_assert_eq!(window.bounds.x, *x, "Window X coordinate should be updated");
-                                prop_assert_eq!(window.bounds.y, *y, "Window Y coordinate should be updated");
-                            }
+                    if bridge.control_window(window_id, &move_action).is_ok() {
+                        // Property: Window operations should update window state
+                        let windows = bridge.get_active_windows();
+                        if let Some(window) = windows.iter().find(|w| w.window_id == window_id) {
+                            prop_assert_eq!(window.bounds.x, *x, "Window X coordinate should be updated");
+                            prop_assert_eq!(window.bounds.y, *y, "Window Y coordinate should be updated");
                         }
-                        Err(_) => {
-                            // Window not found errors are acceptable
-                        }
+                    } else {
+                        // Window not found errors are acceptable
                     }
                     
                     // Test window resize operation
                     let resize_action = WindowsWindowAction::Resize { width: *width, height: *height };
-                    match bridge.control_window(window_id, resize_action) {
-                        Ok(_) => {
-                            let windows = bridge.get_active_windows();
-                            if let Some(window) = windows.iter().find(|w| w.window_id == window_id) {
-                                prop_assert_eq!(window.bounds.width, *width, "Window width should be updated");
-                                prop_assert_eq!(window.bounds.height, *height, "Window height should be updated");
-                            }
+                    if bridge.control_window(window_id, &resize_action).is_ok() {
+                        let windows = bridge.get_active_windows();
+                        if let Some(window) = windows.iter().find(|w| w.window_id == window_id) {
+                            prop_assert_eq!(window.bounds.width, *width, "Window width should be updated");
+                            prop_assert_eq!(window.bounds.height, *height, "Window height should be updated");
                         }
-                        Err(_) => {
-                            // Errors are acceptable
-                        }
+                    } else {
+                        // Errors are acceptable
                     }
                 }
                 Platform::MacOS => {
@@ -412,19 +404,16 @@ proptest! {
                     let window_id = crate::platform::macos::WindowId(fastrand::u32(1..u32::MAX));
                     
                     let move_action = MacOSWindowAction::Move { x: *x as f64, y: *y as f64 };
-                    match bridge.control_window(window_id, move_action) {
-                        Ok(_) => {
-                            let windows = bridge.get_active_windows();
-                            if let Some(window) = windows.iter().find(|w| w.window_id == window_id) {
-                                prop_assert!((window.bounds.x - *x as f64).abs() < 1.0, 
-                                           "Window X coordinate should be approximately correct");
-                                prop_assert!((window.bounds.y - *y as f64).abs() < 1.0,
-                                           "Window Y coordinate should be approximately correct");
-                            }
+                    if bridge.control_window(window_id, &move_action).is_ok() {
+                        let windows = bridge.get_active_windows();
+                        if let Some(window) = windows.iter().find(|w| w.window_id == window_id) {
+                            prop_assert!((window.bounds.x - *x as f64).abs() < 1.0, 
+                                       "Window X coordinate should be approximately correct");
+                            prop_assert!((window.bounds.y - *y as f64).abs() < 1.0,
+                                       "Window Y coordinate should be approximately correct");
                         }
-                        Err(_) => {
-                            // Errors are acceptable
-                        }
+                    } else {
+                        // Errors are acceptable
                     }
                 }
                 Platform::Linux => {
@@ -432,17 +421,14 @@ proptest! {
                     let window_id = crate::platform::linux::WindowId(fastrand::u64(1..u64::MAX));
                     
                     let move_action = LinuxWindowAction::Move { x: *x, y: *y };
-                    match bridge.control_window(window_id, move_action) {
-                        Ok(_) => {
-                            let windows = bridge.get_active_windows();
-                            if let Some(window) = windows.iter().find(|w| w.window_id == window_id) {
-                                prop_assert_eq!(window.bounds.x, *x, "Window X coordinate should be updated");
-                                prop_assert_eq!(window.bounds.y, *y, "Window Y coordinate should be updated");
-                            }
+                    if bridge.control_window(window_id, &move_action).is_ok() {
+                        let windows = bridge.get_active_windows();
+                        if let Some(window) = windows.iter().find(|w| w.window_id == window_id) {
+                            prop_assert_eq!(window.bounds.x, *x, "Window X coordinate should be updated");
+                            prop_assert_eq!(window.bounds.y, *y, "Window Y coordinate should be updated");
                         }
-                        Err(_) => {
-                            // Errors are acceptable
-                        }
+                    } else {
+                        // Errors are acceptable
                     }
                 }
                 Platform::Unknown => {
@@ -464,8 +450,8 @@ proptest! {
                     let mut bridge = WindowsControlBridge::new().unwrap();
                     let volume_setting = WindowsSystemSetting::Volume((*volume * 100.0) as u8);
                     
-                    match bridge.modify_system_setting(volume_setting) {
-                        Ok(_) => {
+                    match bridge.modify_system_setting(&volume_setting) {
+                        Ok(()) => {
                             // Property: System settings should be modifiable
                             let metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.total_operations > 0, "Operations should be tracked");
@@ -483,8 +469,8 @@ proptest! {
                     let mut bridge = MacOSControlBridge::new().unwrap();
                     let volume_setting = MacOSSystemSetting::Volume(*volume);
                     
-                    match bridge.modify_system_setting(volume_setting) {
-                        Ok(_) => {
+                    match bridge.modify_system_setting(&volume_setting) {
+                        Ok(()) => {
                             let metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.total_operations > 0, "Operations should be tracked");
                         }
@@ -500,16 +486,13 @@ proptest! {
                     let mut bridge = LinuxControlBridge::new().unwrap();
                     let volume_setting = LinuxSystemSetting::Volume(*volume);
                     
-                    match bridge.modify_system_setting(volume_setting) {
-                        Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
-                            prop_assert!(metrics.total_operations > 0, "Operations should be tracked");
-                        }
-                        Err(e) => {
-                            if *volume > 1.0 {
-                                prop_assert!(matches!(e, crate::platform::linux::LinuxError::InvalidParameter { .. }),
-                                           "Invalid volume should be rejected with appropriate error");
-                            }
+                    if bridge.modify_system_setting(&volume_setting).is_ok() {
+                        let metrics = bridge.get_performance_metrics();
+                        prop_assert!(metrics.total_operations > 0, "Operations should be tracked");
+                    } else if let Err(e) = bridge.modify_system_setting(&volume_setting) {
+                        if *volume > 1.0 {
+                            prop_assert!(matches!(e, crate::platform::linux::LinuxError::InvalidParameter { .. }),
+                                       "Invalid volume should be rejected with appropriate error");
                         }
                     }
                 }
@@ -557,33 +540,27 @@ proptest! {
                         button: WindowsMouseButton::Left,
                     };
                     
-                    match bridge.inject_input_event(click_event) {
-                        Ok(_) => {
-                            // Property: Input events should be processed successfully
-                            let metrics = bridge.get_performance_metrics();
-                            prop_assert!(metrics.total_operations > 0, "Input events should be tracked");
-                            prop_assert!(metrics.successful_operations > 0, "Successful events should be counted");
-                        }
-                        Err(e) => {
-                            // Property: Invalid coordinates should be rejected
-                            if *x < 0 || *y < 0 {
-                                prop_assert!(matches!(e, crate::platform::windows::WindowsError::InvalidParameter { .. }),
-                                           "Invalid coordinates should be rejected");
-                            }
+                    if bridge.inject_input_event(&click_event).is_ok() {
+                        // Property: Input events should be processed successfully
+                        let metrics = bridge.get_performance_metrics();
+                        prop_assert!(metrics.total_operations > 0, "Input events should be tracked");
+                        prop_assert!(metrics.successful_operations > 0, "Successful events should be counted");
+                    } else if let Err(e) = bridge.inject_input_event(&click_event) {
+                        // Property: Invalid coordinates should be rejected
+                        if *x < 0 || *y < 0 {
+                            prop_assert!(matches!(e, crate::platform::windows::WindowsError::InvalidParameter { .. }),
+                                       "Invalid coordinates should be rejected");
                         }
                     }
                     
                     // Test mouse move injection
                     let move_event = WindowsInputEvent::MouseMove { x: *x, y: *y };
-                    match bridge.inject_input_event(move_event) {
-                        Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
-                            prop_assert!(metrics.event_injection_time_ms <= performance_requirements.event_injection_time_ms,
-                                        "Event injection time should meet performance requirements");
-                        }
-                        Err(_) => {
-                            // Errors are acceptable for invalid coordinates
-                        }
+                    if bridge.inject_input_event(&move_event).is_ok() {
+                        let metrics = bridge.get_performance_metrics();
+                        prop_assert!(metrics.event_injection_time_ms <= performance_requirements.event_injection_time_ms,
+                                    "Event injection time should meet performance requirements");
+                    } else {
+                        // Errors are acceptable for invalid coordinates
                     }
                 }
                 Platform::MacOS => {
@@ -595,16 +572,13 @@ proptest! {
                         button: MacOSMouseButton::Left,
                     };
                     
-                    match bridge.inject_input_event(click_event) {
-                        Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
-                            prop_assert!(metrics.total_operations > 0, "Input events should be tracked");
-                        }
-                        Err(e) => {
-                            if *x < 0 || *y < 0 {
-                                prop_assert!(matches!(e, crate::platform::macos::MacOSError::InvalidParameter { .. }),
-                                           "Invalid coordinates should be rejected");
-                            }
+                    if bridge.inject_input_event(&click_event).is_ok() {
+                        let metrics = bridge.get_performance_metrics();
+                        prop_assert!(metrics.total_operations > 0, "Input events should be tracked");
+                    } else if let Err(e) = bridge.inject_input_event(&click_event) {
+                        if *x < 0 || *y < 0 {
+                            prop_assert!(matches!(e, crate::platform::macos::MacOSError::InvalidParameter { .. }),
+                                       "Invalid coordinates should be rejected");
                         }
                     }
                 }
@@ -617,16 +591,13 @@ proptest! {
                         button: LinuxMouseButton::Left,
                     };
                     
-                    match bridge.inject_input_event(click_event) {
-                        Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
-                            prop_assert!(metrics.total_operations > 0, "Input events should be tracked");
-                        }
-                        Err(e) => {
-                            if *x < 0 || *y < 0 {
-                                prop_assert!(matches!(e, crate::platform::linux::LinuxError::InvalidParameter { .. }),
-                                           "Invalid coordinates should be rejected");
-                            }
+                    if bridge.inject_input_event(&click_event).is_ok() {
+                        let metrics = bridge.get_performance_metrics();
+                        prop_assert!(metrics.total_operations > 0, "Input events should be tracked");
+                    } else if let Err(e) = bridge.inject_input_event(&click_event) {
+                        if *x < 0 || *y < 0 {
+                            prop_assert!(matches!(e, crate::platform::linux::LinuxError::InvalidParameter { .. }),
+                                       "Invalid coordinates should be rejected");
                         }
                     }
                 }
@@ -653,8 +624,8 @@ proptest! {
                         modifiers: vec![],
                     };
                     
-                    match bridge.inject_input_event(key_event) {
-                        Ok(_) => {
+                    match bridge.inject_input_event(&key_event) {
+                        Ok(()) => {
                             // Property: Valid key codes should be processed
                             let metrics = bridge.get_performance_metrics();
                             prop_assert!(metrics.successful_operations > 0, "Key events should be successful");
@@ -676,16 +647,13 @@ proptest! {
                         modifiers: vec![],
                     };
                     
-                    match bridge.inject_input_event(key_event) {
-                        Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
-                            prop_assert!(metrics.successful_operations > 0, "Key events should be successful");
-                        }
-                        Err(e) => {
-                            if *key_code > 127 {
-                                prop_assert!(matches!(e, crate::platform::macos::MacOSError::InvalidParameter { .. }),
-                                           "Invalid key codes should be rejected");
-                            }
+                    if bridge.inject_input_event(&key_event).is_ok() {
+                        let metrics = bridge.get_performance_metrics();
+                        prop_assert!(metrics.successful_operations > 0, "Key events should be successful");
+                    } else if let Err(e) = bridge.inject_input_event(&key_event) {
+                        if *key_code > 127 {
+                            prop_assert!(matches!(e, crate::platform::macos::MacOSError::InvalidParameter { .. }),
+                                       "Invalid key codes should be rejected");
                         }
                     }
                 }
@@ -697,16 +665,13 @@ proptest! {
                         modifiers: vec![],
                     };
                     
-                    match bridge.inject_input_event(key_event) {
-                        Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
-                            prop_assert!(metrics.successful_operations > 0, "Key events should be successful");
-                        }
-                        Err(e) => {
-                            if *key_code > 255 {
-                                prop_assert!(matches!(e, crate::platform::linux::LinuxError::InvalidParameter { .. }),
-                                           "Invalid key codes should be rejected");
-                            }
+                    if bridge.inject_input_event(&key_event).is_ok() {
+                        let metrics = bridge.get_performance_metrics();
+                        prop_assert!(metrics.successful_operations > 0, "Key events should be successful");
+                    } else if let Err(e) = bridge.inject_input_event(&key_event) {
+                        if *key_code > 255 {
+                            prop_assert!(matches!(e, crate::platform::linux::LinuxError::InvalidParameter { .. }),
+                                       "Invalid key codes should be rejected");
                         }
                     }
                 }
@@ -726,15 +691,12 @@ proptest! {
                         content: text.clone(),
                     };
                     
-                    match bridge.inject_input_event(text_event) {
-                        Ok(_) => {
-                            // Property: Text input should be processed successfully
-                            let metrics = bridge.get_performance_metrics();
-                            prop_assert!(metrics.total_operations > 0, "Text input should be tracked");
-                        }
-                        Err(_) => {
-                            // Text input errors are acceptable
-                        }
+                    if bridge.inject_input_event(&text_event).is_ok() {
+                        // Property: Text input should be processed successfully
+                        let metrics = bridge.get_performance_metrics();
+                        prop_assert!(metrics.total_operations > 0, "Text input should be tracked");
+                    } else {
+                        // Text input errors are acceptable
                     }
                 }
                 Platform::MacOS => {
@@ -744,14 +706,11 @@ proptest! {
                         content: text.clone(),
                     };
                     
-                    match bridge.inject_input_event(text_event) {
-                        Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
-                            prop_assert!(metrics.total_operations > 0, "Text input should be tracked");
-                        }
-                        Err(_) => {
-                            // Text input errors are acceptable
-                        }
+                    if bridge.inject_input_event(&text_event).is_ok() {
+                        let metrics = bridge.get_performance_metrics();
+                        prop_assert!(metrics.total_operations > 0, "Text input should be tracked");
+                    } else {
+                        // Text input errors are acceptable
                     }
                 }
                 Platform::Linux => {
@@ -761,14 +720,11 @@ proptest! {
                         content: text.clone(),
                     };
                     
-                    match bridge.inject_input_event(text_event) {
-                        Ok(_) => {
-                            let metrics = bridge.get_performance_metrics();
-                            prop_assert!(metrics.total_operations > 0, "Text input should be tracked");
-                        }
-                        Err(_) => {
-                            // Text input errors are acceptable
-                        }
+                    if bridge.inject_input_event(&text_event).is_ok() {
+                        let metrics = bridge.get_performance_metrics();
+                        prop_assert!(metrics.total_operations > 0, "Text input should be tracked");
+                    } else {
+                        // Text input errors are acceptable
                     }
                 }
                 Platform::Unknown => {
@@ -779,29 +735,26 @@ proptest! {
         
         // Test UI tree extraction capabilities
         let ui_start = Instant::now();
-        let test_process_id = match current_platform {
+        let _test_process_id = match current_platform {
             Platform::Windows => {
                 let mut bridge = WindowsControlBridge::new().unwrap();
                 let process_id = crate::platform::windows::ProcessId(1234);
                 
-                match bridge.extract_ui_tree(process_id) {
-                    Ok(ui_tree) => {
-                        // Property: UI tree should have valid structure
-                        prop_assert!(!ui_tree.element_id.is_empty(), "UI element should have valid ID");
-                        prop_assert!(!ui_tree.name.is_empty(), "UI element should have name");
-                        prop_assert!(ui_tree.bounds.width > 0, "UI element should have positive width");
-                        prop_assert!(ui_tree.bounds.height > 0, "UI element should have positive height");
-                        
-                        // Property: UI tree should have children for complex applications
-                        if !ui_tree.children.is_empty() {
-                            for child in &ui_tree.children {
-                                prop_assert!(!child.element_id.is_empty(), "Child elements should have valid IDs");
-                            }
+                if let Ok(ui_tree) = bridge.extract_ui_tree(process_id) {
+                    // Property: UI tree should have valid structure
+                    prop_assert!(!ui_tree.element_id.is_empty(), "UI element should have valid ID");
+                    prop_assert!(!ui_tree.name.is_empty(), "UI element should have name");
+                    prop_assert!(ui_tree.bounds.width > 0, "UI element should have positive width");
+                    prop_assert!(ui_tree.bounds.height > 0, "UI element should have positive height");
+                    
+                    // Property: UI tree should have children for complex applications
+                    if !ui_tree.children.is_empty() {
+                        for child in &ui_tree.children {
+                            prop_assert!(!child.element_id.is_empty(), "Child elements should have valid IDs");
                         }
                     }
-                    Err(_) => {
-                        // UI automation errors are acceptable
-                    }
+                } else {
+                    // UI automation errors are acceptable
                 }
                 
                 process_id.0 as i32
@@ -810,16 +763,13 @@ proptest! {
                 let mut bridge = MacOSControlBridge::new().unwrap();
                 let process_id = crate::platform::macos::ProcessId(1234);
                 
-                match bridge.extract_ui_tree(process_id) {
-                    Ok(ui_tree) => {
-                        prop_assert!(!ui_tree.element_id.is_empty(), "UI element should have valid ID");
-                        prop_assert_eq!(ui_tree.role, "AXApplication", "Root element should be application");
-                        prop_assert!(ui_tree.bounds.width > 0.0, "UI element should have positive width");
-                        prop_assert!(ui_tree.bounds.height > 0.0, "UI element should have positive height");
-                    }
-                    Err(_) => {
-                        // Accessibility errors are acceptable
-                    }
+                if let Ok(ui_tree) = bridge.extract_ui_tree(process_id) {
+                    prop_assert!(!ui_tree.element_id.is_empty(), "UI element should have valid ID");
+                    prop_assert_eq!(ui_tree.role, "AXApplication", "Root element should be application");
+                    prop_assert!(ui_tree.bounds.width > 0.0, "UI element should have positive width");
+                    prop_assert!(ui_tree.bounds.height > 0.0, "UI element should have positive height");
+                } else {
+                    // Accessibility errors are acceptable
                 }
                 
                 process_id.0
@@ -828,16 +778,13 @@ proptest! {
                 let mut bridge = LinuxControlBridge::new().unwrap();
                 let process_id = crate::platform::linux::ProcessId(1234);
                 
-                match bridge.extract_ui_tree(process_id) {
-                    Ok(ui_tree) => {
-                        prop_assert!(!ui_tree.element_id.is_empty(), "UI element should have valid ID");
-                        prop_assert_eq!(ui_tree.role, "application", "Root element should be application");
-                        prop_assert!(ui_tree.bounds.width > 0, "UI element should have positive width");
-                        prop_assert!(ui_tree.bounds.height > 0, "UI element should have positive height");
-                    }
-                    Err(_) => {
-                        // AT-SPI errors are acceptable
-                    }
+                if let Ok(ui_tree) = bridge.extract_ui_tree(process_id) {
+                    prop_assert!(!ui_tree.element_id.is_empty(), "UI element should have valid ID");
+                    prop_assert_eq!(ui_tree.role, "application", "Root element should be application");
+                    prop_assert!(ui_tree.bounds.width > 0, "UI element should have positive width");
+                    prop_assert!(ui_tree.bounds.height > 0, "UI element should have positive height");
+                } else {
+                    // AT-SPI errors are acceptable
                 }
                 
                 process_id.0
@@ -888,7 +835,7 @@ proptest! {
                         let window_id = crate::platform::windows::WindowId(i as u64 + 1);
                         
                         // Window operation
-                        if bridge.control_window(window_id, WindowsWindowAction::Minimize).is_ok() {
+                        if bridge.control_window(window_id, &WindowsWindowAction::Minimize).is_ok() {
                             successful_operations += 1;
                         }
                         total_operations += 1;
@@ -904,7 +851,7 @@ proptest! {
                         
                         // System setting operation
                         let setting = WindowsSystemSetting::Volume(50);
-                        if bridge.modify_system_setting(setting).is_ok() {
+                        if bridge.modify_system_setting(&setting).is_ok() {
                             successful_operations += 1;
                         }
                         total_operations += 1;
@@ -925,7 +872,7 @@ proptest! {
                     for i in 0..*operation_count {
                         let window_id = crate::platform::macos::WindowId(i as u32 + 1);
                         
-                        if bridge.control_window(window_id, MacOSWindowAction::Minimize).is_ok() {
+                        if bridge.control_window(window_id, &MacOSWindowAction::Minimize).is_ok() {
                             successful_operations += 1;
                         }
                         total_operations += 1;
@@ -939,7 +886,7 @@ proptest! {
                         total_operations += 1;
                         
                         let setting = MacOSSystemSetting::Volume(0.5);
-                        if bridge.modify_system_setting(setting).is_ok() {
+                        if bridge.modify_system_setting(&setting).is_ok() {
                             successful_operations += 1;
                         }
                         total_operations += 1;
@@ -955,7 +902,7 @@ proptest! {
                     for i in 0..*operation_count {
                         let window_id = crate::platform::linux::WindowId(i as u64 + 1);
                         
-                        if bridge.control_window(window_id, LinuxWindowAction::Minimize).is_ok() {
+                        if bridge.control_window(window_id, &LinuxWindowAction::Minimize).is_ok() {
                             successful_operations += 1;
                         }
                         total_operations += 1;
@@ -969,7 +916,7 @@ proptest! {
                         total_operations += 1;
                         
                         let setting = LinuxSystemSetting::Volume(0.5);
-                        if bridge.modify_system_setting(setting).is_ok() {
+                        if bridge.modify_system_setting(&setting).is_ok() {
                             successful_operations += 1;
                         }
                         total_operations += 1;
@@ -1018,18 +965,15 @@ proptest! {
                         height: *height,
                     };
                     
-                    match bridge.modify_system_setting(setting) {
-                        Ok(_) => {
-                            // Property: Valid resolutions should be accepted
-                            prop_assert!(*width >= 640 && *height >= 480,
-                                        "Valid resolutions should be processed successfully");
-                        }
-                        Err(e) => {
-                            // Property: Invalid resolutions should be rejected
-                            if *width < 640 || *height < 480 {
-                                prop_assert!(matches!(e, crate::platform::windows::WindowsError::InvalidParameter { .. }),
-                                           "Invalid resolutions should be rejected");
-                            }
+                    if bridge.modify_system_setting(&setting).is_ok() {
+                        // Property: Valid resolutions should be accepted
+                        prop_assert!(*width >= 640 && *height >= 480,
+                                    "Valid resolutions should be processed successfully");
+                    } else if let Err(e) = bridge.modify_system_setting(&setting) {
+                        // Property: Invalid resolutions should be rejected
+                        if *width < 640 || *height < 480 {
+                            prop_assert!(matches!(e, crate::platform::windows::WindowsError::InvalidParameter { .. }),
+                                       "Invalid resolutions should be rejected");
                         }
                     }
                 }
@@ -1041,16 +985,13 @@ proptest! {
                         scale: *scale,
                     };
                     
-                    match bridge.modify_system_setting(setting) {
-                        Ok(_) => {
-                            prop_assert!(*width >= 640 && *height >= 480 && *scale >= 0.5 && *scale <= 3.0,
-                                        "Valid resolutions and scales should be processed successfully");
-                        }
-                        Err(e) => {
-                            if *width < 640 || *height < 480 || *scale < 0.5 || *scale > 3.0 {
-                                prop_assert!(matches!(e, crate::platform::macos::MacOSError::InvalidParameter { .. }),
-                                           "Invalid resolutions or scales should be rejected");
-                            }
+                    if bridge.modify_system_setting(&setting).is_ok() {
+                        prop_assert!(*width >= 640 && *height >= 480 && *scale >= 0.5 && *scale <= 3.0,
+                                    "Valid resolutions and scales should be processed successfully");
+                    } else if let Err(e) = bridge.modify_system_setting(&setting) {
+                        if *width < 640 || *height < 480 || *scale < 0.5 || *scale > 3.0 {
+                            prop_assert!(matches!(e, crate::platform::macos::MacOSError::InvalidParameter { .. }),
+                                       "Invalid resolutions or scales should be rejected");
                         }
                     }
                 }
@@ -1062,16 +1003,13 @@ proptest! {
                         refresh_rate: 60, // Standard refresh rate
                     };
                     
-                    match bridge.modify_system_setting(setting) {
-                        Ok(_) => {
-                            prop_assert!(*width >= 640 && *height >= 480,
-                                        "Valid resolutions should be processed successfully");
-                        }
-                        Err(e) => {
-                            if *width < 640 || *height < 480 {
-                                prop_assert!(matches!(e, crate::platform::linux::LinuxError::InvalidParameter { .. }),
-                                           "Invalid resolutions should be rejected");
-                            }
+                    if bridge.modify_system_setting(&setting).is_ok() {
+                        prop_assert!(*width >= 640 && *height >= 480,
+                                    "Valid resolutions should be processed successfully");
+                    } else if let Err(e) = bridge.modify_system_setting(&setting) {
+                        if *width < 640 || *height < 480 {
+                            prop_assert!(matches!(e, crate::platform::linux::LinuxError::InvalidParameter { .. }),
+                                       "Invalid resolutions should be rejected");
                         }
                     }
                 }
@@ -1193,21 +1131,21 @@ mod integration_tests {
                 
                 // Test invalid parameter handling
                 let invalid_setting = WindowsSystemSetting::Volume(200); // Invalid volume > 100
-                let result = bridge.modify_system_setting(invalid_setting);
+                let result = bridge.modify_system_setting(&invalid_setting);
                 assert!(result.is_err(), "Invalid parameters should be rejected");
             }
             Platform::MacOS => {
                 let mut bridge = MacOSControlBridge::new().unwrap();
                 
                 let invalid_setting = MacOSSystemSetting::Volume(2.0); // Invalid volume > 1.0
-                let result = bridge.modify_system_setting(invalid_setting);
+                let result = bridge.modify_system_setting(&invalid_setting);
                 assert!(result.is_err(), "Invalid parameters should be rejected");
             }
             Platform::Linux => {
                 let mut bridge = LinuxControlBridge::new().unwrap();
                 
                 let invalid_setting = LinuxSystemSetting::Volume(2.0); // Invalid volume > 1.0
-                let result = bridge.modify_system_setting(invalid_setting);
+                let result = bridge.modify_system_setting(&invalid_setting);
                 assert!(result.is_err(), "Invalid parameters should be rejected");
             }
             Platform::Unknown => {

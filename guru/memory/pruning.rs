@@ -789,7 +789,7 @@ mod tests {
         let now = Utc::now();
         PrunableEntry {
             id,
-            content_hash: format!("hash_{}", id),
+            content_hash: format!("hash_{id}"),
             user_importance: importance,
             access_count,
             created_at: now - chrono::Duration::hours(age_hours),
@@ -815,8 +815,8 @@ mod tests {
         
         assert!(score.total > 0.0);
         assert!(score.total <= 1.0);
-        assert_eq!(score.user_importance, 0.8);
-        assert_eq!(score.frequency, 0.5); // 100/200
+        assert!((score.user_importance - 0.8).abs() < f32::EPSILON);
+        assert!((score.frequency - 0.5).abs() < f32::EPSILON); // 100/200
     }
     
     #[test]
@@ -905,12 +905,12 @@ mod tests {
         let now = Utc::now();
         
         let prediction1 = predictor.predict(&entry, now);
-        assert!(prediction1 >= 0.0 && prediction1 <= 1.0);
+        assert!((0.0..=1.0).contains(&prediction1));
         
         // Update with feedback
         predictor.update(&entry, now, 0.9, 0.01);
         
         let prediction2 = predictor.predict(&entry, now);
-        assert!(prediction2 >= 0.0 && prediction2 <= 1.0);
+        assert!((0.0..=1.0).contains(&prediction2));
     }
 }

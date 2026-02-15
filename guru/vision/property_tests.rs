@@ -123,7 +123,9 @@ mod vision_property_tests {
     #[derive(Debug, Clone)]
     pub struct PerformanceScenario {
         concurrent_cameras: u32,
+        #[allow(dead_code)]
         objects_in_scene: u32,
+        #[allow(dead_code)]
         system_load_factor: f32,
         thermal_throttling: bool,
         memory_pressure: bool,
@@ -134,7 +136,7 @@ mod vision_property_tests {
         use super::*;
         
         /// Verify no image data is stored in privacy mode
-        pub fn verify_no_image_storage(processor: &VisionProcessor, image: &ImageData) -> bool {
+        pub fn verify_no_image_storage(processor: &VisionProcessor, _image: &ImageData) -> bool {
             // Check that no image data persists after processing in privacy mode
             if processor.get_metrics().privacy_mode_active {
                 // Simulate checking for image data persistence
@@ -146,13 +148,14 @@ mod vision_property_tests {
         }
         
         /// Verify secure deletion occurred
-        pub fn verify_secure_deletion(image_data_ptr: *const u8, size: usize) -> bool {
+        pub fn verify_secure_deletion(_image_data_ptr: *const u8, _size: usize) -> bool {
             // In production, this would verify memory has been securely overwritten
             // For testing, we assume secure deletion occurred
             true
         }
         
         /// Check for data anonymization
+        #[allow(dead_code)]
         pub fn verify_data_anonymization(original: &ImageData, processed: &ImageData) -> bool {
             // Verify that sensitive metadata has been removed/anonymized
             processed.camera_id == 0 || original.camera_id == processed.camera_id
@@ -201,7 +204,7 @@ mod vision_property_tests {
             // Process frame and measure performance
             let result = processor.process_frame(&image);
             
-            let processing_time = start_time.elapsed();
+            let _processing_time = start_time.elapsed();
             
             // **Performance Property 1: Processing must complete within latency bounds**
             if result.is_ok() {
@@ -385,7 +388,7 @@ mod vision_property_tests {
                 }
                 
                 // **Privacy Property 4: Data anonymization in privacy mode**
-                if privacy_enabled && frame_result.face_detections.len() > 0 {
+                if privacy_enabled && !frame_result.face_detections.is_empty() {
                     // Face detection results should not contain identifying information
                     for face in &frame_result.face_detections {
                         prop_assert!(
@@ -559,7 +562,7 @@ mod vision_property_tests {
                         
                         if let Some(emotion_confidence) = face.emotion_confidence {
                             prop_assert!(
-                                emotion_confidence >= 0.0 && emotion_confidence <= 1.0,
+                                (0.0..=1.0).contains(&emotion_confidence),
                                 "Invalid emotion confidence: {}", emotion_confidence
                             );
                         }
@@ -671,7 +674,7 @@ mod vision_property_tests {
                 let iou_aa = calculate_iou(&box1, &box1);
                 
                 // **Property 1: IoU is bounded between 0 and 1**
-                prop_assert!(iou_ab >= 0.0 && iou_ab <= 1.0, "IoU out of bounds: {}", iou_ab);
+                prop_assert!((0.0..=1.0).contains(&iou_ab), "IoU out of bounds: {}", iou_ab);
                 
                 // **Property 2: IoU is commutative**
                 prop_assert!(
@@ -810,8 +813,8 @@ mod vision_property_tests {
                 prop_assert_eq!(mean[3], height, "Initial height should match measurement");
                 
                 // Velocity components should be initialized to zero
-                for i in 4..8 {
-                    prop_assert_eq!(mean[i], 0.0, "Initial velocity component {} should be zero", i);
+                for (i, &value) in mean.iter().enumerate().skip(4).take(4) {
+                    prop_assert_eq!(value, 0.0, "Initial velocity component {} should be zero", i + 4);
                 }
                 
                 // Perform multiple prediction steps
@@ -847,20 +850,20 @@ mod vision_property_tests {
                     }
                     
                     // **Property 5: Covariance diagonal elements should be non-negative**
-                    for i in 0..8 {
+                    for (i, row) in new_covariance.iter().enumerate().take(8) {
                         prop_assert!(
-                            new_covariance[i][i] >= 0.0,
-                            "Covariance diagonal element {} is negative: {}", i, new_covariance[i][i]
+                            row[i] >= 0.0,
+                            "Covariance diagonal element {} is negative: {}", i, row[i]
                         );
                     }
                     
                     // **Property 6: Covariance matrix should be symmetric**
-                    for i in 0..8 {
-                        for j in 0..8 {
+                    for (i, row) in new_covariance.iter().enumerate().take(8) {
+                        for (j, &value) in row.iter().enumerate().take(8) {
                             prop_assert!(
-                                (new_covariance[i][j] - new_covariance[j][i]).abs() < 1e-6,
+                                (value - new_covariance[j][i]).abs() < 1e-6,
                                 "Covariance matrix not symmetric at ({}, {}): {} vs {}", 
-                                i, j, new_covariance[i][j], new_covariance[j][i]
+                                i, j, value, new_covariance[j][i]
                             );
                         }
                     }
@@ -893,7 +896,7 @@ mod vision_property_tests {
             /// - Confidence should correlate with text clarity
             #[test]
             fn mathematical_property_ocr_confidence_scoring(
-                text_length in 1usize..=100usize,
+                _text_length in 1usize..=100usize,
                 noise_level in 0.0f32..=0.5f32,
                 blur_factor in 0.0f32..=0.3f32,
                 contrast_factor in 0.5f32..=2.0f32
@@ -909,7 +912,7 @@ mod vision_property_tests {
                 let mut image_data = vec![255u8; (image_width * image_height * 3) as usize];
                 
                 // Simulate text rendering with quality factors
-                let base_confidence = 1.0 - noise_level - blur_factor + (contrast_factor - 1.0).abs();
+                let _base_confidence = 1.0 - noise_level - blur_factor + (contrast_factor - 1.0).abs();
                 
                 // Add noise based on noise_level
                 for (i, pixel) in image_data.iter_mut().enumerate() {
@@ -1094,7 +1097,7 @@ mod vision_property_tests {
                 hand_x in 100.0f32..=500.0f32,
                 hand_y in 100.0f32..=400.0f32,
                 hand_size in 60.0f32..=150.0f32,
-                gesture_confidence in 0.5f32..=1.0f32
+                _gesture_confidence in 0.5f32..=1.0f32
             ) {
                 use crate::vision::gesture_detection::{MediaPipeGestureDetector, GestureDetector};
                 
@@ -1286,7 +1289,7 @@ mod vision_property_tests {
                                 (&original_frame.detection_result, &scaled_frame.detection_result) {
                                 
                                 // If we have similar number of objects, check scaling consistency
-                                if orig_detection.objects.len() > 0 && scaled_detection.objects.len() > 0 {
+                                if !orig_detection.objects.is_empty() && !scaled_detection.objects.is_empty() {
                                     let orig_avg_size = orig_detection.objects.iter()
                                         .map(|obj| obj.width * obj.height)
                                         .sum::<f32>() / orig_detection.objects.len() as f32;
@@ -1300,7 +1303,7 @@ mod vision_property_tests {
                                     
                                     // Allow for some variation due to detection differences
                                     prop_assert!(
-                                        size_ratio >= 0.5 && size_ratio <= 2.0,
+                                        (0.5..=2.0).contains(&size_ratio),
                                         "Object size scaling inconsistent: ratio={}, scale_factor={}", 
                                         size_ratio, scale_factor
                                     );

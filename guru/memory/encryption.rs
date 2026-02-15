@@ -716,8 +716,7 @@ mod tests {
         encryption.remove_user(&user_id).unwrap();
         
         // Test ChaCha20-Poly1305
-        let mut config_chacha = EncryptionConfig::default();
-        config_chacha.algorithm = EncryptionAlgorithm::ChaCha20Poly1305;
+        let config_chacha = EncryptionConfig { algorithm: EncryptionAlgorithm::ChaCha20Poly1305, ..Default::default() };
         let encryption_chacha = MemoryEncryption::new(config_chacha);
         
         encryption_chacha.register_user(user_id, password).unwrap();
@@ -780,3 +779,4 @@ mod tests {
         assert_ne!(key_aes, key_chacha);
     }
 }
+

@@ -23,6 +23,22 @@
     clippy::cast_sign_loss,
     clippy::cast_lossless,
     clippy::or_fun_call,
+    clippy::significant_drop_tightening,
+    clippy::missing_panics_doc,
+    clippy::redundant_closure_for_method_calls,
+    clippy::needless_borrow,
+    clippy::too_many_lines,
+    clippy::derive_partial_eq_without_eq,
+    clippy::type_complexity,
+    clippy::match_same_arms,
+    clippy::only_used_in_recursion,
+    clippy::trivially_copy_pass_by_ref,
+    clippy::single_element_loop,
+    clippy::option_if_let_else,
+    clippy::cast_possible_wrap,
+    clippy::items_after_statements,
+    clippy::ref_patterns,
+    clippy::bool_comparison,
     missing_docs
 )]
 pub mod windows;

@@ -179,7 +179,7 @@ pub struct DeploymentResult {
     pub bytes_processed: u64,
     pub signatures_verified: usize,
     pub dependencies_resolved: usize,
-    pub errormessage: Option<String>,
+    pub error_message: Option<String>,
     pub rollback_available: bool,
 }
 

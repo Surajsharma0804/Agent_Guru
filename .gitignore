@@ -75,3 +75,8 @@ coverage/
 
 # Vendor directory (if using cargo vendor)
 # vendor/
+
+# Large model files
+models/
+*.bin
+*.ggml

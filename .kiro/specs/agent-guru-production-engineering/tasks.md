@@ -84,51 +84,51 @@ The implementation follows a phased approach: audit and cleanup → core integra
   - Verify code passes all linting checks
   - Ask the user if questions arise
 
-- [ ] 6. Wake word detection integration
-  - [ ] 6.1 Implement wake word engine with MFCC features
+- [x] 6. Wake word detection integration
+  - [x] 6.1 Implement wake word engine with MFCC features
     - Verify `MFCCWakeWordEngine` implementation in `guru/voice/wake/`
     - Ensure MFCC feature extraction is working correctly
     - Implement confidence threshold filtering
     - _Requirements: 5.1, 5.6, 5.7_
   
-  - [ ] 6.2 Optimize wake word performance
+  - [x] 6.2 Optimize wake word performance
     - Implement lock-free ring buffer for audio data
     - Optimize CPU usage to stay under 10%
     - Optimize memory usage to stay under 50MB
     - Measure and optimize detection latency to ≤50ms
     - _Requirements: 5.2, 5.3, 5.5_
   
-  - [ ]* 6.3 Write property test for wake word detection latency
+  - [x] 6.3 Write property test for wake word detection latency
     - **Property 1: Wake word detection latency**
     - **Validates: Requirements 5.1, 14.1**
   
-  - [ ]* 6.4 Write property test for wake word detection with noise
+  - [x] 6.4 Write property test for wake word detection with noise
     - **Property 2: Wake word detection with noise**
     - **Validates: Requirements 5.4**
   
-  - [ ]* 6.5 Write property test for wake word feedback latency
+  - [x] 6.5 Write property test for wake word feedback latency
     - **Property 3: Wake word feedback latency**
     - **Validates: Requirements 5.5**
   
-  - [ ]* 6.6 Write property test for multiple wake word support
+  - [x] 6.6 Write property test for multiple wake word support
     - **Property 4: Multiple wake word support**
     - **Validates: Requirements 5.8**
 
-- [ ] 7. Speech-to-text integration
-  - [ ] 7.1 Integrate Whisper.cpp for STT
+- [x] 7. Speech-to-text integration
+  - [x] 7.1 Integrate Whisper.cpp for STT
     - Verify Whisper model loading (base model ~140MB)
     - Implement transcription interface in `guru/voice/transcription/`
     - Add VAD (Voice Activity Detection) to skip silent segments
     - Support streaming transcription for real-time feedback
     - _Requirements: 6.4, 6.5, 6.8_
   
-  - [ ] 7.2 Optimize STT performance
+  - [x] 7.2 Optimize STT performance
     - Measure processing speed (target: ≤120ms per second of audio)
     - Cache model in memory to avoid reload overhead
     - Optimize audio preprocessing
     - _Requirements: 6.1_
   
-  - [ ]* 7.3 Write property test for STT processing latency
+  - [ ] 7.3 Write property test for STT processing latency
     - **Property 5: STT processing latency**
     - **Validates: Requirements 6.1**
   
