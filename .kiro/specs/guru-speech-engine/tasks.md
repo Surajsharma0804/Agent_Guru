@@ -214,7 +214,7 @@ After completing EACH task:
     - Test cloud fallback
     - _Requirements: 2 (iOS)_
 
-- [~] 8. Voice Biometric Feature Extraction
+- [x] 8. Voice Biometric Feature Extraction
   - Implement `Agent_Guru/speech/biometric/voice_features.py`:
     - `VoiceFeatureExtractor` class
     - `extract_features()` method for biometric features
@@ -224,11 +224,11 @@ After completing EACH task:
   - _Requirements: 3 (Voice Biometrics)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement voice biometric feature extraction with liveness detection"
 
-  - [~] 8.1 Write property test for voice biometric confidence
+  - [x] 8.1 Write property test for voice biometric confidence
     - **Property 8: Voice Biometric Confidence Bounds**
     - **Validates: Requirements 3.2, 3.3**
 
-  - [~] 8.2 Write unit tests for liveness detection
+  - [x] 8.2 Write unit tests for liveness detection
     - Test with genuine voice
     - Test with recorded voice
     - Test with synthesized voice

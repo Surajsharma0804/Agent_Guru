@@ -1,1 +1,1 @@
-"""Tests for voice biometric components."""
+"""Tests for voice biometric feature extraction."""
