@@ -2,26 +2,58 @@
 
 ## Overview
 
-The Platform Integration System provides a unified, cross-platform interface for OS control, hardware monitoring, and permission management. The design follows a strategy pattern where platform-specific implementations (Windows, macOS, Linux) are abstracted behind common interfaces, allowing the rest of AGENT_GURU to interact with the operating system without platform-specific code.
+The Platform Integration System provides comprehensive cross-platform laptop control for AGENT_GURU, enabling Guru and Maya personalities to execute ANY laptop operation through voice commands. This system is the core component that transforms AGENT_GURU from a simple voice assistant into a complete voice-controlled operating system.
 
-The system is built in Python using industry-standard libraries: psutil for cross-platform operations, pywin32 for Windows, pyobjc for macOS, and dbus-python for Linux. This approach leverages mature, well-tested libraries rather than implementing low-level OS interactions from scratch.
+**Complete Laptop Control Capabilities**:
+- **File Operations**: Create, read, update, delete, move, copy, rename files and directories
+- **Application Control**: Open, close, minimize, maximize, switch between applications
+- **Text Input**: Type text into any active application or text field
+- **Messaging**: Open messaging apps (WhatsApp, Telegram, Slack) and send messages
+- **Document Editing**: Open Notepad/TextEdit and write specified content
+- **Web Browsing**: Open browsers and navigate to specified URLs
+- **System Settings**: Adjust volume, brightness, network settings, display settings
+- **Mouse Control**: Move cursor, click, double-click, right-click, drag
+- **Keyboard Shortcuts**: Execute keyboard shortcuts (Ctrl+C, Ctrl+V, Alt+Tab, etc.)
+- **Window Management**: Arrange windows, snap to sides, manage virtual desktops
+- **Media Control**: Play, pause, skip, control media playback
+- **Screenshot/Recording**: Capture screenshots and start/stop screen recording
+- **Clipboard Management**: Copy, paste, manage clipboard history
+- **Search Operations**: Search files, applications, and system settings
+
+The design follows a strategy pattern where platform-specific implementations (Windows, macOS, Linux) are abstracted behind common interfaces, with specialized controllers for each operation category. The system is built in Python using industry-standard libraries: psutil for cross-platform operations, pyautogui for input control, pywin32 for Windows, pyobjc for macOS, and dbus-python for Linux.
 
 ## Architecture
 
 ### High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│              AGENT_GURU Core System                     │
-└─────────────────────┬───────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│              AGENT_GURU Core System (Guru & Maya)                   │
+│              Voice Commands → Platform Operations                    │
+└─────────────────────┬───────────────────────────────────────────────┘
                       │
                       ▼
-┌─────────────────────────────────────────────────────────┐
-│         Platform Integration Facade                     │
-│  (Unified interface for all platform operations)        │
-└─────────────────────┬───────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│         Main OS Controller (Facade)                                 │
+│  Routes operations to specialized controllers                       │
+└─────────────────────┬───────────────────────────────────────────────┘
                       │
-        ┌─────────────┼─────────────┐
+        ┌─────────────┼─────────────┬─────────────┬─────────────┐
+        │             │             │             │             │
+        ▼             ▼             ▼             ▼             ▼
+┌──────────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│    File      │ │   App    │ │   Text   │ │  Mouse/  │ │  System  │
+│ Operations   │ │ Control  │ │  Input   │ │ Keyboard │ │ Settings │
+│ Controller   │ │Controller│ │Controller│ │Controller│ │Controller│
+└──────────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘
+        │             │             │             │             │
+        └─────────────┼─────────────┴─────────────┼─────────────┘
+                      │                           │
+                      ▼                           ▼
+┌─────────────────────────────────┐   ┌─────────────────────────────┐
+│   Platform-Specific Integration │   │   Input Control Libraries   │
+│   (Windows/macOS/Linux)         │   │   (pyautogui, pynput)       │
+└─────────────────────────────────┘   └─────────────────────────────┘
         │             │             │
         ▼             ▼             ▼
 ┌──────────────┐ ┌──────────┐ ┌──────────────┐
@@ -33,10 +65,43 @@ The system is built in Python using industry-standard libraries: psutil for cros
         └─────────────┼─────────────┘
                       │
                       ▼
-┌─────────────────────────────────────────────────────────┐
-│         Hardware Abstraction Layer                      │
-│         (psutil, GPUtil)                                │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│         Hardware Abstraction Layer                                  │
+│         (psutil, GPUtil)                                            │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Voice Command Execution Flow
+
+```
+User Voice Command: "Hey Guru, open YouTube and play music"
+        │
+        ▼
+Speech Engine (guru_speech) → Transcription
+        │
+        ▼
+Agent Orchestration (guru_agent_orchestration) → Command Decomposition
+        │
+        ├─→ Sub-task 1: Open YouTube
+        └─→ Sub-task 2: Play music
+        │
+        ▼
+Policy Engine (guru_policy_engine) → Permission Check
+        │
+        ▼
+Platform Integration (this system) → Execution
+        │
+        ├─→ ApplicationController.open_application("YouTube")
+        │   └─→ Platform-specific browser launch
+        │
+        └─→ MediaController.play()
+            └─→ Platform-specific media key simulation
+        │
+        ▼
+Audit Logging → Record operation
+        │
+        ▼
+Response to User: "YouTube opened and playing music"
 ```
 
 ### Component Interaction
@@ -65,6 +130,102 @@ graph TD
 2. **Factory Pattern**: Platform detector creates appropriate implementation
 3. **Facade Pattern**: Unified interface hides platform complexity
 4. **Adapter Pattern**: Wraps platform-specific APIs with common interface
+5. **Controller Pattern**: Specialized controllers for each operation category
+
+## Specialized Controllers
+
+The system uses specialized controllers to organize operations by category. Each controller focuses on a specific type of laptop control operation.
+
+### 1. File Operations Controller
+Handles all file and directory operations:
+- Create, read, update, delete files
+- Move, copy, rename files
+- Directory operations (create, list, delete)
+- Permission checks before destructive operations
+- Audit logging for all file operations
+
+### 2. Application Controller
+Manages application lifecycle and window control:
+- Open applications by name or path
+- Close applications gracefully or forcefully
+- Minimize, maximize, restore windows
+- Switch between applications (Alt+Tab simulation)
+- Focus specific windows
+- Platform-specific application launching
+
+### 3. Text Input Controller
+Handles text input into any application:
+- Type text into active application using pyautogui
+- Handle special characters and Unicode
+- Typing speed control
+- Clipboard integration for large text
+- Text formatting (bold, italic, etc.)
+
+### 4. Messaging Controller
+Manages messaging application integration:
+- Open WhatsApp, Telegram, Slack, Discord
+- Send messages to contacts
+- Search for contacts
+- Platform-specific messaging integration
+- Web-based and desktop app support
+
+### 5. System Settings Controller
+Controls system-level settings:
+- Adjust volume (increase, decrease, mute)
+- Adjust brightness
+- Network settings (WiFi, Bluetooth, Airplane mode)
+- Display settings (resolution, orientation, multiple monitors)
+- Platform-specific settings access
+
+### 6. Mouse Controller
+Simulates mouse operations using pyautogui:
+- Move cursor to coordinates or relative position
+- Click, double-click, right-click
+- Drag and drop operations
+- Scroll operations
+- Mouse button hold/release
+
+### 7. Keyboard Controller
+Simulates keyboard operations:
+- Execute keyboard shortcuts (Ctrl+C, Ctrl+V, Alt+Tab, Win+D)
+- Key press, release, hold operations
+- Hotkey combinations
+- Platform-specific key mappings
+
+### 8. Window Manager
+Manages window arrangement and virtual desktops:
+- Arrange windows (tile, cascade, grid)
+- Snap windows to sides (left half, right half)
+- Manage virtual desktops (create, switch, close)
+- Platform-specific window management APIs
+
+### 9. Media Controller
+Controls media playback:
+- Play, pause, stop media
+- Skip forward/backward
+- Volume control for media
+- Platform-specific media key simulation
+
+### 10. Screen Capture Controller
+Handles screenshots and recording:
+- Capture full screen or specific region
+- Start/stop screen recording
+- Save to specified locations
+- Platform-specific capture tools integration
+
+### 11. Clipboard Manager
+Manages clipboard operations:
+- Copy text/images to clipboard
+- Paste from clipboard
+- Clipboard history management
+- Clear clipboard
+
+### 12. Search Controller
+Handles system-wide search:
+- Search files by name or content
+- Search applications
+- Search system settings
+- Platform-specific search integration (Spotlight, Windows Search, etc.)
 
 ## Components and Interfaces
 
