@@ -2,7 +2,16 @@
 
 ## Overview
 
-The Avatar and Emotion Engine is a Python-based system that provides real-time visual representation of the AGENT_GURU AI with emotion recognition, lip synchronization, and personality-driven behavior. The system integrates multiple ML models (DeepFace for emotion recognition, Wav2Lip/MediaPipe for lip sync) with a rule-based personality engine and real-time rendering using OpenCV and PyQt.
+The Avatar and Emotion Engine is a Python-based system that provides real-time visual representation of the AGENT_GURU AI with dual personalities: **Guru (male avatar)** and **Maya (female avatar)**. The system includes emotion recognition, lip synchronization, personality-driven behavior, and interactive rendering. Each personality has distinct visual characteristics, emotional expressions, and behavioral patterns that align with their voice and interaction style.
+
+**Key Features**:
+- **Dual Personalities**: Separate avatar models for Guru (male) and Maya (female)
+- **Personality-Driven Behavior**: Guru exhibits professional, confident, analytical traits; Maya exhibits warm, empathetic, creative traits
+- **Emotion Recognition**: Detects user emotions from facial expressions
+- **Lip Synchronization**: Syncs avatar lip movements with speech audio from guru_speech
+- **Real-Time Rendering**: 24+ FPS with smooth emotion transitions
+
+The system integrates multiple ML models (DeepFace for emotion recognition, Wav2Lip/MediaPipe for lip sync) with a rule-based personality engine and real-time rendering using OpenCV and PyQt.
 
 The architecture follows a modular pipeline design where each component (emotion recognition, lip sync, personality, rendering) operates independently but shares a unified state through a central state manager. This enables concurrent processing, graceful degradation, and easy testing of individual components.
 
@@ -11,30 +20,41 @@ The architecture follows a modular pipeline design where each component (emotion
 ### High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Avatar System                            │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              State Manager (Thread-Safe)                │ │
-│  │  - Current Emotion State                                │ │
-│  │  - Personality Profile                                  │ │
-│  │  - Lip Sync Data                                        │ │
-│  │  - Rendering Parameters                                 │ │
-│  └────────────────────────────────────────────────────────┘ │
-│                           ▲                                  │
-│                           │                                  │
-│  ┌────────────┬──────────┴──────────┬────────────┐         │
-│  │            │                      │            │         │
-│  ▼            ▼                      ▼            ▼         │
-│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
-│ │ Emotion  │ │   Lip    │ │Personality│ │ Renderer │       │
-│ │Recognizer│ │   Sync   │ │  Engine  │ │          │       │
-│ │          │ │Controller│ │          │ │          │       │
-│ └──────────┘ └──────────┘ └──────────┘ └──────────┘       │
-│      ▲            ▲             ▲            │              │
-└──────┼────────────┼─────────────┼────────────┼──────────────┘
-       │            │             │            │
-   Video Input  Audio Input  Config Files  Display Output
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Avatar System (Dual Personalities)               │
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │              State Manager (Thread-Safe)                        │ │
+│  │  - Active Personality (GURU or MAYA)                            │ │
+│  │  - Current Emotion State                                        │ │
+│  │  - Personality Profile (Guru: professional/Maya: empathetic)    │ │
+│  │  - Lip Sync Data                                                │ │
+│  │  - Rendering Parameters                                         │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+│                           ▲                                          │
+│                           │                                          │
+│  ┌────────────┬──────────┴──────────┬────────────┬────────────┐    │
+│  │            │                      │            │            │    │
+│  ▼            ▼                      ▼            ▼            ▼    │
+│ ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────┐ ┌────────┐│
+│ │ Emotion  │ │   Lip    │ │ Personality  │ │ Renderer │ │ Avatar ││
+│ │Recognizer│ │   Sync   │ │   Engine     │ │          │ │ Models ││
+│ │          │ │Controller│ │ (Guru/Maya)  │ │          │ │(M/F)   ││
+│ └──────────┘ └──────────┘ └──────────────┘ └──────────┘ └────────┘│
+│      ▲            ▲             ▲                │            │     │
+└──────┼────────────┼─────────────┼────────────────┼────────────┼─────┘
+       │            │             │                │            │
+   Video Input  Audio from    Config Files    Display      Avatar
+   (User Face)  guru_speech   (Personalities)  Output       Assets
+                (Guru/Maya)                                (Guru/Maya)
 ```
+
+**Personality Switching Flow**:
+1. Wake word detected ("Hey Guru" or "Hey Maya") by guru_speech
+2. Speech engine notifies avatar system of personality change
+3. State Manager updates active personality
+4. Personality Engine loads corresponding profile
+5. Renderer switches to corresponding avatar model
+6. All subsequent interactions use selected personality
 
 ### Component Interaction Flow
 

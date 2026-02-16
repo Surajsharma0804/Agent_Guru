@@ -2,395 +2,351 @@
 
 ## Overview
 
-This implementation plan breaks down the Avatar and Emotion Engine into discrete coding tasks. The approach follows a bottom-up strategy: build core components first (state management, emotion recognition, lip sync), then integrate them into the unified avatar system. Each task includes property-based tests to validate correctness properties from the design document.
+This implementation plan breaks down the Avatar and Emotion Engine into discrete coding tasks for implementing dual AI personalities (Guru - male, Maya - female) with visual representation, emotion recognition, and lip synchronization.
+
+**Key Features**:
+- Dual avatar models (Guru - male, Maya - female)
+- Personality-driven behavior (professional vs empathetic)
+- Real-time emotion recognition
+- Lip synchronization with speech audio
+- Smooth personality switching
+
+## Task Completion Protocol
+
+After completing EACH task:
+1. ✅ Run all tests for that task
+2. ✅ Verify all tests pass
+3. ✅ Commit changes with descriptive message
+4. ✅ Push to GitHub immediately
+5. ✅ Mark task as complete in this file
 
 ## Tasks
 
-- [ ] 1. Set up project structure and dependencies
-  - Create directory structure: `guru_avatar/` with subdirectories for components
-  - Create `pyproject.toml` or `requirements.txt` with dependencies: opencv-python, deepface, librosa, numpy, PyQt5, hypothesis, pytest
-  - Set up testing framework with pytest and hypothesis
-  - Create configuration schema using Pydantic or dataclasses
-  - _Requirements: 8.1, 8.2, 10.5_
+### Phase 1: Project Setup and Data Models
 
-- [ ] 2. Implement State Manager
-  - [ ] 2.1 Create data models for EmotionState, LipSyncState, PersonalityProfile, and AvatarState
-    - Define dataclasses or Pydantic models with type hints
-    - Include validation for value ranges (confidence 0.0-1.0, personality traits 0.0-1.0)
-    - Implement serialization methods (to_dict, from_dict)
-    - _Requirements: 5.1, 5.5_
-  
-  - [ ]* 2.2 Write property test for state serialization round-trip
-    - **Property 18: State serialization round-trip**
-    - **Validates: Requirements 5.5**
-  
-  - [ ] 2.3 Implement StateManager class with thread-safe access
-    - Use threading.Lock for thread safety
-    - Implement get_state(), update_emotion(), update_lip_sync(), update_personality()
-    - Add state validation in update methods
-    - Implement state propagation with timing tracking
-    - _Requirements: 5.1, 5.2, 5.3, 5.7_
-  
-  - [ ]* 2.4 Write property tests for state management
-    - **Property 17: State transition validation**
-    - **Property 19: Deserialization validation**
-    - **Property 20: Thread-safe state access**
-    - **Validates: Requirements 5.3, 5.6, 5.7**
-  
-  - [ ]* 2.5 Write unit tests for state manager edge cases
-    - Test invalid state updates (out-of-range values)
-    - Test concurrent access from multiple threads
-    - Test state propagation timing
-    - _Requirements: 5.3, 5.4, 5.7_
+- [ ] **Task 1: Project Structure and Dependencies**
+  - Create `guru_avatar/` package directory structure
+  - Create subpackages: `emotion/`, `lip_sync/`, `personality/`, `rendering/`, `models/`
+  - Create `requirements.txt` with dependencies:
+    - opencv-python (video processing)
+    - deepface or FER (emotion recognition)
+    - mediapipe or wav2lip (lip sync)
+    - PyQt5 or pygame (rendering)
+    - numpy, scipy (processing)
+    - hypothesis, pytest, pytest-cov (testing)
+  - Create `tests/` directory structure
+  - Create `assets/` directory for avatar models
+  - _Requirements: Req 11 (Python Implementation)_
+  - **Tests Required**: None (setup task)
+  - **GitHub Push**: ✅ Required after completion
 
-- [ ] 3. Implement Emotion Recognizer
-  - [ ] 3.1 Create EmotionRecognizer class with DeepFace integration
-    - Initialize DeepFace model in constructor
-    - Implement detect_emotion() method using DeepFace.analyze()
-    - Handle no-face-detected case (return neutral)
-    - Handle multiple faces (select largest/closest to center)
-    - Add confidence threshold filtering
-    - _Requirements: 1.1, 1.2, 1.3, 1.6_
-  
-  - [ ]* 3.2 Write property tests for emotion recognition
-    - **Property 1: Valid emotion detection output**
-    - **Property 2: Primary face selection consistency**
-    - **Property 3: Confidence threshold enforcement**
-    - **Validates: Requirements 1.1, 1.2, 1.4, 1.5, 1.6**
-  
-  - [ ] 3.3 Implement temporal smoothing for emotion detection
-    - Add detect_emotion_smooth() method with history buffer
-    - Use exponential moving average or majority voting
-    - Maintain configurable history window size
-    - _Requirements: 1.7_
-  
-  - [ ]* 3.4 Write property test for temporal smoothing
-    - **Property 4: Temporal smoothing reduces jitter**
-    - **Validates: Requirements 1.7**
-  
-  - [ ]* 3.5 Write unit tests for emotion recognizer edge cases
-    - Test with no-face images
-    - Test with multiple-face images
-    - Test with poor quality images
-    - Test confidence threshold behavior
-    - _Requirements: 1.3, 1.6_
+- [ ] **Task 2: Data Models and State Management**
+  - Implement data models in `models.py`:
+    - `PersonalityType` enum (GURU, MAYA)
+    - `EmotionState` dataclass (emotion, confidence, timestamp)
+    - `LipSyncState` dataclass (landmarks, audio_features, timestamp)
+    - `PersonalityProfile` dataclass (traits, behavior_rules)
+    - `AvatarState` dataclass (personality, emotion, lip_sync, rendering_params)
+  - Implement `state_manager.py`:
+    - `StateManager` class with thread-safe access
+    - `get_state()`, `update_emotion()`, `update_lip_sync()`, `switch_personality()` methods
+  - _Requirements: Req 5 (Avatar State Management)_
+  - **Tests Required**:
+    - Unit tests for all dataclasses
+    - Unit tests for state manager thread safety
+    - Property tests for state transitions
+    - Unit tests for personality switching
+  - **GitHub Push**: ✅ Required after completion
 
-- [ ] 4. Checkpoint - Ensure state and emotion tests pass
-  - Ensure all tests pass, ask the user if questions arise.
+### Phase 2: Emotion Recognition
 
-- [ ] 5. Implement Lip Sync Controller
-  - [ ] 5.1 Create LipSyncController class with audio feature extraction
-    - Initialize Wav2Lip or MediaPipe model
-    - Implement extract_audio_features() using librosa (MFCCs or mel spectrograms)
-    - Handle various audio formats (WAV, MP3, PCM) using librosa
-    - _Requirements: 2.1, 2.6_
-  
-  - [ ]* 5.2 Write property tests for audio feature extraction
-    - **Property 5: Audio feature extraction completeness**
-    - **Validates: Requirements 2.1**
-  
-  - [ ] 5.3 Implement landmark generation for lip movements
-    - Implement generate_landmarks() method
-    - Generate facial landmarks from audio features
-    - Normalize landmark coordinates to [0.0, 1.0] range
-    - Include timing information in LipSyncState
-    - _Requirements: 2.2_
-  
-  - [ ]* 5.4 Write property test for landmark validity
-    - **Property 6: Landmark validity**
-    - **Validates: Requirements 2.2**
-  
-  - [ ] 5.5 Implement audio stream processing with synchronization
-    - Implement process_audio_stream() with buffering
-    - Maintain synchronization within 50ms threshold
-    - Handle silence (return neutral mouth position)
-    - Implement graceful degradation for poor audio quality
-    - _Requirements: 2.3, 2.4, 2.5, 2.7_
-  
-  - [ ]* 5.6 Write property tests for lip sync timing
-    - **Property 7: Synchronization timing accuracy**
-    - **Property 8: Processing latency bound**
-    - **Validates: Requirements 2.3, 2.5**
-  
-  - [ ]* 5.7 Write unit tests for lip sync edge cases
-    - Test with silent audio
-    - Test with various audio formats
-    - Test with poor quality audio
-    - Test synchronization accuracy
-    - _Requirements: 2.4, 2.6, 2.7_
+- [ ] **Task 3: Emotion Recognition Engine**
+  - Implement `emotion/recognizer.py`:
+    - `EmotionRecognizer` class
+    - Integration with DeepFace or FER library
+    - `detect_emotion()` method from video frames
+    - Support for 7 emotions: happy, sad, angry, fear, surprise, disgust, neutral
+    - Confidence scoring (0.0-1.0)
+    - Emotion smoothing to avoid jitter
+  - _Requirements: Req 1 (Emotion Recognition)_
+  - **Tests Required**:
+    - Unit tests with sample face images for each emotion
+    - Unit tests for no-face-detected case
+    - Unit tests for multiple faces (select primary)
+    - Property tests for confidence scores [0.0, 1.0]
+    - Performance tests for processing latency
+  - **GitHub Push**: ✅ Required after completion
 
-- [ ] 6. Implement Personality Engine
-  - [ ] 6.1 Create PersonalityEngine class with profile loading
-    - Implement load_profile() to read JSON/YAML configuration
-    - Validate all required traits are present (friendliness, formality, expressiveness, responsiveness, humor)
-    - Validate trait values are in [0.0, 1.0] range
-    - _Requirements: 3.1, 3.2, 3.3_
-  
-  - [ ]* 6.2 Write property test for personality profile validation
-    - **Property 9: Personality profile validation**
-    - **Validates: Requirements 3.2, 3.3**
-  
-  - [ ] 6.3 Implement emotion modulation based on personality
-    - Implement modulate_emotion() method
-    - Apply expressiveness to emotion intensity
-    - Apply formality to reduce extreme emotions
-    - Ensure result remains in valid range [0.0, 1.0]
-    - _Requirements: 3.4_
-  
-  - [ ]* 6.4 Write property test for emotion intensity modulation
-    - **Property 10: Emotion intensity modulation**
-    - **Validates: Requirements 3.4**
-  
-  - [ ] 6.5 Implement avatar response generation
-    - Implement generate_response_emotion() method
-    - Apply personality traits to determine response (friendliness, responsiveness)
-    - Implement rule-based behavior patterns
-    - _Requirements: 3.5, 3.6_
-  
-  - [ ]* 6.6 Write property test for personality-based response
-    - **Property 11: Personality-based response generation**
-    - **Validates: Requirements 3.5**
-  
-  - [ ]* 6.7 Write unit tests for personality engine
-    - Test profile loading with valid configs
-    - Test profile loading with invalid configs
-    - Test emotion modulation with various personalities
-    - Test response generation
-    - _Requirements: 3.1, 3.2, 3.6_
+### Phase 3: Lip Synchronization
 
-- [ ] 7. Checkpoint - Ensure all component tests pass
-  - Ensure all tests pass, ask the user if questions arise.
+- [ ] **Task 4: Lip Sync Controller**
+  - Implement `lip_sync/controller.py`:
+    - `LipSyncController` class
+    - Integration with MediaPipe or Wav2Lip
+    - `generate_lip_movements()` method from audio
+    - Audio feature extraction
+    - Phoneme-to-landmark mapping
+    - Synchronization within 50ms of audio
+    - Support for WAV, MP3, raw PCM formats
+  - _Requirements: Req 2 (Lip Synchronization)_
+  - **Tests Required**:
+    - Unit tests with sample audio files
+    - Unit tests for silence handling
+    - Property tests for synchronization latency (<50ms)
+    - Unit tests for various audio formats
+    - Performance tests for real-time processing (<100ms)
+  - **GitHub Push**: ✅ Required after completion
 
-- [ ] 8. Implement Renderer
-  - [ ] 8.1 Create Renderer class with multiple backend support
-    - Implement backend selection (opencv, pyqt, headless)
-    - Implement initialize_display() for each backend
-    - Create abstract rendering interface
-    - _Requirements: 4.4_
-  
-  - [ ] 8.2 Implement frame generation from avatar state
-    - Implement render_frame() method
-    - Map emotion state to facial expression
-    - Apply lip sync landmarks to mouth region
-    - Blend emotion transitions smoothly (200-500ms)
-    - _Requirements: 4.2, 4.3, 4.6_
-  
-  - [ ]* 8.3 Write property tests for rendering
-    - **Property 13: Emotion update latency**
-    - **Property 14: Lip sync rendering synchronization**
-    - **Property 15: Smooth emotion transitions**
-    - **Validates: Requirements 4.2, 4.3, 4.6**
-  
-  - [ ] 8.4 Implement render loop with FPS control
-    - Implement start_render_loop() and stop_render_loop()
-    - Poll state manager at target FPS
-    - Implement FPS limiting using time.sleep() or QTimer
-    - Implement graceful FPS reduction under resource constraints
-    - _Requirements: 4.1, 4.7_
-  
-  - [ ]* 8.5 Write property test for frame rate maintenance
-    - **Property 12: Minimum frame rate maintenance**
-    - **Validates: Requirements 4.1**
-  
-  - [ ]* 8.6 Write unit tests for renderer
-    - Test backend initialization (opencv, pyqt, headless)
-    - Test frame generation with various states
-    - Test FPS control
-    - Test window resizing (windowed mode)
-    - _Requirements: 4.4, 4.5, 4.7_
+- [ ] **Task 5: Integration with guru_speech**
+  - Implement audio timing interface
+  - Receive audio from guru_speech TTS engine
+  - Coordinate lip sync with speech playback
+  - Handle personality-specific voices (Guru male, Maya female)
+  - _Requirements: Req 6 (Integration with Speech System)_
+  - **Tests Required**:
+    - Integration tests with guru_speech
+    - Unit tests for audio buffering
+    - Unit tests for playback synchronization
+    - Unit tests for personality voice coordination
+  - **GitHub Push**: ✅ Required after completion
 
-- [ ] 9. Implement Avatar System coordinator
-  - [ ] 9.1 Create AvatarSystem class integrating all components
-    - Initialize StateManager, EmotionRecognizer, LipSyncController, PersonalityEngine, Renderer
-    - Implement start() method to initialize all components
-    - Implement stop() method to cleanup resources
-    - Load configuration from file
-    - _Requirements: 5.1, 8.1, 8.3_
-  
-  - [ ] 9.2 Implement audio integration interface
-    - Implement process_audio() method
-    - Route audio to LipSyncController
-    - Update state manager with lip sync results
-    - Implement audio buffering for smooth playback
-    - Provide callbacks for audio events (start, stop, error)
-    - _Requirements: 6.1, 6.2, 6.3, 6.7_
-  
-  - [ ]* 9.3 Write property tests for audio integration
-    - **Property 21: Audio buffering smoothness**
-    - **Property 22: Audio-lip sync timing**
-    - **Validates: Requirements 6.2, 6.3**
-  
-  - [ ] 9.4 Implement state propagation timing
-    - Ensure state updates propagate to all components within 50ms
-    - Add timing measurement and logging
-    - _Requirements: 5.2_
-  
-  - [ ]* 9.5 Write property test for state propagation timing
-    - **Property 16: State propagation timing**
-    - **Validates: Requirements 5.2**
-  
-  - [ ]* 9.6 Write unit tests for avatar system integration
-    - Test system start/stop
-    - Test audio processing
-    - Test state propagation
-    - Test component coordination
-    - _Requirements: 6.1, 6.4, 6.5_
+### Phase 4: Dual Personality Engine
 
-- [ ] 10. Implement resource management and monitoring
-  - [ ] 10.1 Add resource usage monitoring
-    - Implement get_performance_metrics() method
-    - Monitor CPU usage using psutil
-    - Monitor memory usage using psutil
-    - Monitor FPS and latency
-    - _Requirements: 7.7_
-  
-  - [ ] 10.2 Implement resource limits and graceful degradation
-    - Add configurable CPU and memory limits
-    - Implement quality reduction when limits exceeded
-    - Release resources when avatar not displayed
-    - Implement GPU acceleration with CPU fallback
-    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
-  
-  - [ ]* 10.3 Write property test for resource usage bounds
-    - **Property 23: Resource usage bounds**
-    - **Validates: Requirements 7.1, 7.2**
-  
-  - [ ]* 10.4 Write unit tests for resource management
-    - Test resource monitoring
-    - Test graceful degradation
-    - Test GPU fallback to CPU
-    - Test resource cleanup
-    - _Requirements: 7.3, 7.4, 7.5, 7.6, 7.7_
+- [ ] **Task 6: Personality Profiles**
+  - Create personality configuration files:
+    - `config/guru_personality.json`: Professional, confident, analytical, supportive, formal
+    - `config/maya_personality.json`: Warm, empathetic, creative, encouraging, friendly
+  - Implement personality trait definitions
+  - Define behavior rules for each personality
+  - _Requirements: Req 3 (Dual Personality Engine)_
+  - **Tests Required**:
+    - Unit tests for configuration loading
+    - Unit tests for trait validation
+    - Unit tests for behavior rule parsing
+  - **GitHub Push**: ✅ Required after completion
 
-- [ ] 11. Implement configuration management
-  - [ ] 11.1 Create configuration schema and validation
-    - Define AvatarConfig dataclass/Pydantic model
-    - Implement schema validation for all parameters
-    - Provide default configurations
-    - _Requirements: 8.2, 8.3, 8.6_
-  
-  - [ ]* 11.2 Write property tests for configuration validation
-    - **Property 24: Configuration validation**
-    - **Property 25: Custom model validation**
-    - **Validates: Requirements 8.2, 8.7**
-  
-  - [ ] 11.3 Implement configuration loading and hot-reload
-    - Load configuration from JSON/YAML files
-    - Implement hot-reloading without system restart
-    - Validate custom avatar models for compatibility
-    - Log detailed errors for invalid configurations
-    - _Requirements: 8.1, 8.4, 8.5, 8.7_
-  
-  - [ ]* 11.4 Write unit tests for configuration management
-    - Test loading valid configurations
-    - Test loading invalid configurations
-    - Test hot-reloading
-    - Test custom model validation
-    - Test default configurations
-    - _Requirements: 8.1, 8.4, 8.5, 8.6_
+- [ ] **Task 7: Personality Engine**
+  - Implement `personality/engine.py`:
+    - `PersonalityEngine` class
+    - `load_personality()` method for Guru and Maya
+    - `apply_personality_traits()` method for emotion modulation
+    - `generate_response_behavior()` method based on personality
+    - Personality consistency enforcement
+    - Smooth personality switching
+  - _Requirements: Req 3 (Dual Personality Engine)_
+  - **Tests Required**:
+    - Unit tests for Guru personality traits
+    - Unit tests for Maya personality traits
+    - Unit tests for personality switching
+    - Property tests for trait consistency
+    - Unit tests for emotion modulation
+  - **GitHub Push**: ✅ Required after completion
 
-- [ ] 12. Implement error handling and robustness
-  - [ ] 12.1 Add error handling to all components
-    - Implement graceful degradation for camera failures
-    - Implement graceful degradation for emotion recognition failures
-    - Implement graceful degradation for lip sync failures
-    - Implement graceful degradation for rendering failures
-    - Add error recovery with retry logic
-    - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.7_
-  
-  - [ ] 12.2 Implement comprehensive error logging
-    - Use Python logging module with structured logging
-    - Log all errors with component name, error type, timestamp, context
-    - Implement error callbacks for critical errors
-    - _Requirements: 9.5, 9.6_
-  
-  - [ ]* 12.3 Write property test for error logging
-    - **Property 26: Error logging completeness**
-    - **Validates: Requirements 9.5**
-  
-  - [ ]* 12.4 Write unit tests for error handling
-    - Test camera failure handling
-    - Test emotion recognition failure handling
-    - Test lip sync failure handling
-    - Test rendering failure handling
-    - Test error callbacks
-    - Test error recovery
-    - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.6, 9.7_
+### Phase 5: Avatar Rendering
 
-- [ ] 13. Checkpoint - Ensure all integration tests pass
-  - Ensure all tests pass, ask the user if questions arise.
+- [ ] **Task 8: Avatar Models**
+  - Acquire or create avatar models:
+    - Guru (male) avatar model (3D or 2D)
+    - Maya (female) avatar model (3D or 2D)
+  - Implement model loading and management
+  - Support for standard formats (FBX, glTF, or image sequences)
+  - _Requirements: Req 4 (Avatar Rendering), Req 11 (Python Implementation)_
+  - **Tests Required**:
+    - Unit tests for model loading
+    - Unit tests for model format validation
+    - Unit tests for model switching
+  - **GitHub Push**: ✅ Required after completion
 
-- [ ] 14. Create test fixtures and test infrastructure
-  - [ ] 14.1 Create emotion recognition test fixtures
-    - Collect or generate images with known emotions
-    - Create images with no faces
-    - Create images with multiple faces
-    - Create images with poor quality/lighting
-    - _Requirements: 10.1, 10.3_
-  
-  - [ ] 14.2 Create lip sync test fixtures
-    - Collect or generate audio samples with known phonemes
-    - Create silent audio samples
-    - Create audio in various formats (WAV, MP3, PCM)
-    - Create poor quality audio samples
-    - Create known audio-landmark pairs for validation
-    - _Requirements: 10.2, 10.4_
-  
-  - [ ] 14.3 Create configuration test fixtures
-    - Create valid configuration files
-    - Create invalid configuration files (missing fields, wrong types)
-    - Create custom personality profiles
-    - _Requirements: 10.7_
-  
-  - [ ] 14.4 Implement hypothesis strategies for property tests
-    - Create strategies for EmotionState, PersonalityProfile, AvatarState
-    - Create strategies for video frames and audio samples
-    - Create strategies for configuration data
-    - _Requirements: 10.6_
+- [ ] **Task 9: Renderer**
+  - Implement `rendering/renderer.py`:
+    - `AvatarRenderer` class
+    - Support for OpenCV window or PyQt widget
+    - Render at minimum 24 FPS
+    - Apply emotion expressions to avatar
+    - Apply lip sync movements to avatar
+    - Smooth emotion transitions (200-500ms)
+    - Personality-specific rendering (Guru vs Maya)
+  - _Requirements: Req 4 (Avatar Rendering)_
+  - **Tests Required**:
+    - Unit tests for rendering initialization
+    - Performance tests for FPS (>24)
+    - Unit tests for emotion expression rendering
+    - Unit tests for lip sync rendering
+    - Unit tests for personality switching rendering
+    - Property tests for smooth transitions
+  - **GitHub Push**: ✅ Required after completion
 
-- [ ] 15. Write integration and end-to-end tests
-  - [ ]* 15.1 Write end-to-end test for complete avatar system
-    - Test starting avatar system with camera input
-    - Test processing video and audio simultaneously
-    - Test all components working together
-    - Measure overall system performance
-    - _Requirements: 10.5_
-  
-  - [ ]* 15.2 Write integration test for speech system integration
-    - Test audio routing from speech synthesis
-    - Test lip sync synchronization with synthesized speech
-    - Test error handling when speech system unavailable
-    - _Requirements: 6.1, 6.3, 6.6_
+### Phase 6: Main Avatar System
 
-- [ ] 16. Code quality and documentation
-  - [ ] 16.1 Add comprehensive docstrings to all classes and methods
-    - Use Google-style docstrings
-    - Document all parameters, return values, exceptions
-    - Include usage examples in docstrings
-  
-  - [ ] 16.2 Run code quality tools and fix issues
-    - Run black for formatting
-    - Run flake8 for linting (fix all errors)
-    - Run mypy for type checking (strict mode)
-    - Run pylint (achieve score ≥ 9.0/10)
-  
-  - [ ] 16.3 Measure and verify test coverage
-    - Run pytest with coverage measurement
-    - Verify coverage ≥ 90%
-    - Add tests for uncovered code paths
+- [ ] **Task 10: Avatar System Facade**
+  - Implement `avatar_system.py`:
+    - `GuruAvatarSystem` class (main facade)
+    - `initialize()` method loading all components
+    - `set_personality()` method (GURU or MAYA)
+    - `process_user_emotion()` method
+    - `process_speech_audio()` method for lip sync
+    - `render_frame()` method
+    - `update()` method for continuous operation
+    - Error handling and graceful degradation
+  - _Requirements: All avatar requirements_
+  - **Tests Required**:
+    - Integration tests for end-to-end pipeline
+    - Unit tests for personality switching
+    - Unit tests for emotion processing
+    - Unit tests for lip sync processing
+    - Property tests for state consistency
+    - Performance tests for overall latency
+  - **GitHub Push**: ✅ Required after completion
 
-- [ ] 17. Final checkpoint - Complete system validation
-  - Ensure all tests pass (unit, property, integration)
-  - Verify code quality standards met
-  - Verify test coverage ≥ 90%
-  - Run performance benchmarks
-  - Ask the user if questions arise.
+### Phase 7: Performance and Optimization
+
+- [ ] **Task 11: Performance Optimization**
+  - Implement resource management
+  - Add frame rate control
+  - Optimize emotion recognition (caching, batching)
+  - Optimize lip sync processing
+  - Add GPU acceleration where available
+  - Implement graceful quality degradation
+  - _Requirements: Req 7 (Performance and Resource Management)_
+  - **Tests Required**:
+    - Performance tests for CPU usage (<configurable max)
+    - Performance tests for memory usage
+    - Unit tests for GPU acceleration
+    - Unit tests for quality degradation
+    - Property tests for resource limits
+  - **GitHub Push**: ✅ Required after completion
+
+- [ ] **Task 12: Configuration System**
+  - Implement `config.py`:
+    - `AvatarConfig` class with Pydantic
+    - Configuration for all components
+    - Hot-reloading support
+    - Validation and defaults
+  - _Requirements: Req 8 (Configuration and Customization)_
+  - **Tests Required**:
+    - Unit tests for configuration loading
+    - Unit tests for validation
+    - Unit tests for hot-reloading
+    - Unit tests for default values
+  - **GitHub Push**: ✅ Required after completion
+
+### Phase 8: Error Handling and Testing
+
+- [ ] **Task 13: Error Handling**
+  - Implement comprehensive error handling
+  - Graceful degradation for component failures
+  - Error recovery mechanisms
+  - Logging and diagnostics
+  - _Requirements: Req 9 (Error Handling and Robustness)_
+  - **Tests Required**:
+    - Unit tests for camera failure handling
+    - Unit tests for emotion recognition failure
+    - Unit tests for lip sync failure
+    - Unit tests for rendering failure
+    - Integration tests for error recovery
+  - **GitHub Push**: ✅ Required after completion
+
+- [ ] **Task 14: Comprehensive Test Suite**
+  - Implement all property-based tests (100+ iterations each)
+  - Implement all unit tests for edge cases
+  - Add integration tests for all workflows
+  - Add performance regression tests
+  - Achieve minimum 80% code coverage
+  - _Requirements: All testing requirements_
+  - **Tests Required**:
+    - All property tests passing
+    - All unit tests passing
+    - Coverage report >80%
+    - Performance benchmarks documented
+  - **GitHub Push**: ✅ Required after completion
+
+### Phase 9: Documentation and Examples
+
+- [ ] **Task 15: Example Scripts and Documentation**
+  - Create example scripts:
+    - `example_basic.py` - Simple avatar display
+    - `example_dual_personality.py` - Guru and Maya switching
+    - `example_emotion_recognition.py` - User emotion detection
+    - `example_lip_sync.py` - Speech synchronization
+    - `example_full_system.py` - Complete avatar system
+  - Create comprehensive README.md:
+    - Installation instructions
+    - Quick start guide
+    - API documentation
+    - Configuration guide
+    - Troubleshooting guide
+  - _Requirements: Documentation requirements_
+  - **Tests Required**: None (documentation task)
+  - **GitHub Push**: ✅ Required after completion
+
+### Phase 10: Integration with Other Components
+
+- [ ] **Task 16: guru_speech Integration**
+  - Integrate with guru_speech for audio input
+  - Coordinate personality switching with wake words
+  - Test end-to-end speech-to-avatar flow
+  - _Requirements: Integration requirements_
+  - **Tests Required**:
+    - Integration tests with guru_speech
+    - End-to-end tests for personality coordination
+    - Unit tests for audio synchronization
+  - **GitHub Push**: ✅ Required after completion
+
+- [ ] **Task 17: guru_vision Integration**
+  - Integrate with guru_vision for user emotion detection
+  - Use face detection from guru_vision
+  - Test end-to-end emotion recognition flow
+  - _Requirements: Integration requirements_
+  - **Tests Required**:
+    - Integration tests with guru_vision
+    - End-to-end tests for emotion detection
+  - **GitHub Push**: ✅ Required after completion
+
+## Testing Summary
+
+### Property-Based Tests (Hypothesis)
+- State transition validation
+- Emotion confidence bounds [0.0, 1.0]
+- Lip sync timing accuracy
+- Personality trait consistency
+- Smooth transition properties
+- Resource usage limits
+
+### Unit Tests
+- All component initialization
+- All public methods
+- Error handling for all failure modes
+- Dual personality support
+- Emotion recognition accuracy
+- Lip sync synchronization
+
+### Integration Tests
+- End-to-end avatar pipeline
+- Personality switching
+- guru_speech integration
+- guru_vision integration
+- Performance benchmarks
+
+### Coverage Goals
+- Minimum 80% line coverage
+- All correctness properties tested
+- All error paths tested
+- All personality variants tested
 
 ## Notes
 
-- Tasks marked with `*` are optional test-related sub-tasks that can be skipped for faster MVP
-- Each task references specific requirements for traceability
-- Property tests validate universal correctness properties from the design document
-- Unit tests validate specific examples and edge cases
-- Checkpoints ensure incremental validation throughout implementation
-- All code must pass quality checks (black, flake8, mypy, pylint) before completion
+- Each task must be completed, tested, and pushed to GitHub before moving to the next
+- Property tests must run minimum 100 iterations
+- All tests must pass before marking task complete
+- Avatar models must be acquired or created for both personalities
+- Performance tests must meet specified FPS and latency targets
+
+## Dependencies
+
+This component depends on:
+- guru_speech (for audio input and personality coordination)
+- guru_vision (for user emotion detection)
+
+This component is used by:
+- Main AGENT_GURU application
+- User interface system
