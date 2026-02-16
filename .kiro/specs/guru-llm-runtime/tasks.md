@@ -341,3 +341,44 @@ This component depends on:
 This component is used by:
 - Main AGENT_GURU application
 - All components needing LLM capabilities
+
+
+## Mobile Platform Summary
+
+### Mobile-Specific Requirements:
+- **API ONLY**: No local LLM support on mobile (Android, iOS)
+- Mobile devices lack resources for local LLM inference
+- Users MUST provide cloud API keys during onboarding
+- Supported providers: OpenAI, Gemini, DeepSeek, Anthropic
+- Cost tracking and budget limits enforced
+- Offline mode: Use cached responses or graceful degradation
+
+### API Key Management:
+- Keys stored in OS-specific keychain:
+  - Android: Android Keystore
+  - iOS: iOS Keychain
+  - Desktop: macOS Keychain, Windows Credential Manager, Linux Secret Service
+- Keys NEVER bundled in application
+- Users provide their own API keys
+- Validation during onboarding
+
+### Cost Tracking:
+- Track API usage per provider
+- Calculate costs based on token usage
+- Display daily/weekly/monthly costs
+- Alert user when approaching budget limit
+- Enforce budget limits with graceful degradation
+
+### Onboarding Flow:
+**Desktop**:
+1. Choose: Local Ollama OR Cloud API
+2. If Cloud API: Enter API key, validate, store, set budget
+
+**Mobile**:
+1. Choose Cloud API Provider (OpenAI, Gemini, DeepSeek, Anthropic)
+2. Enter API key
+3. Validate key
+4. Store in OS keychain
+5. Set budget limit (recommended)
+
+### Total Tasks: 19 (no new tasks, but mobile considerations integrated throughout)

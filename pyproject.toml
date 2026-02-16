@@ -1,76 +1,171 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "guruvision"
+name = "agent-guru"
 version = "0.1.0"
-description = "Production-grade facial recognition system using ArcFace and InsightFace"
+description = "AI Voice Assistant with wake word detection, speech recognition, and intelligent conversation"
 readme = "README.md"
-requires-python = ">=3.8,<3.12"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "GuruVision Team"}
+    {name = "Agent Guru Team"}
 ]
-keywords = ["face-recognition", "arcface", "insightface", "computer-vision", "deep-learning"]
+keywords = [
+    "ai", "voice-assistant", "speech-recognition", "face-recognition",
+    "llm", "agent", "automation", "cross-platform"
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Scientific/Engineering :: Image Recognition",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Multimedia :: Graphics :: Capture :: Digital Camera",
 ]
 
 dependencies = [
-    "torch>=2.0.0",
-    "torchvision>=0.15.0",
-    "onnx>=1.14.0",
-    "onnxruntime-gpu>=1.15.0",
-    "opencv-python>=4.8.0",
-    "insightface>=0.7.3",
-    "numpy>=1.24.0",
-    "scikit-learn>=1.3.0",
+    # Core dependencies will be loaded from requirements.txt
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.1.0",
-    "black>=23.7.0",
-    "flake8>=6.1.0",
-    "mypy>=1.5.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.4.0",
 ]
+
+gpu = [
+    "torch",
+    "torchvision",
+    "torchaudio",
+    "onnxruntime-gpu>=1.15.0",
+]
+
 cpu = [
-    "onnxruntime>=1.15.0",  # CPU-only version
+    "torch",
+    "torchvision",
+    "torchaudio",
+    "onnxruntime>=1.15.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/guruvision/guruvision"
-Documentation = "https://guruvision.readthedocs.io"
-Repository = "https://github.com/guruvision/guruvision"
+Homepage = "https://github.com/agent-guru/agent-guru"
+Documentation = "https://agent-guru.readthedocs.io"
+Repository = "https://github.com/agent-guru/agent-guru"
+Issues = "https://github.com/agent-guru/agent-guru/issues"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["guru_vision*"]
-exclude = ["tests*", "docs*"]
+[tool.setuptools]
+packages = [
+    "guru_speech",
+    "guru_vision",
+    "guru_llm",
+    "guru_platform",
+    "guru_agents",
+    "guru_memory",
+    "guru_deployment",
+    "guru_policy",
+    "guru_security",
+    "guru_avatar",
+]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.json", "*.md"]
 
 [tool.black]
 line-length = 100
-target-version = ['py38', 'py39', 'py310', 'py311']
+target-version = ['py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "-v --cov=guru_vision --cov-report=html --cov-report=term"
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
 
 [tool.mypy]
 python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_optional = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers"
+testpaths = [
+    "guru_speech",
+    "guru_vision",
+    "guru_llm",
+    "guru_platform",
+    "guru_agents",
+    "guru_memory",
+    "guru_deployment",
+    "guru_policy",
+    "guru_security",
+    "guru_avatar",
+]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+[tool.coverage.run]
+source = [
+    "guru_speech",
+    "guru_vision",
+    "guru_llm",
+    "guru_platform",
+    "guru_agents",
+    "guru_memory",
+    "guru_deployment",
+    "guru_policy",
+    "guru_security",
+    "guru_avatar",
+]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]

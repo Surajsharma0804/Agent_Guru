@@ -265,9 +265,75 @@ After completing EACH task:
   - **Tests Required**: None (documentation task)
   - **GitHub Push**: ✅ Required after completion
 
-### Phase 8: Integration with Other Components
+### Phase 8: Mobile Platform Support ⚠️ CRITICAL FOR MOBILE
 
-- [ ] **Task 14: Security System Integration**
+- [ ] **Task 14: Android Speech Recognition Integration** ⚠️ NEW
+  - Implement `mobile/android_speech.py`:
+    - `AndroidSpeechRecognizer` class using pyjnius
+    - Android Speech Recognition API integration
+    - Fallback to cloud STT when offline unavailable
+    - Permission handling (RECORD_AUDIO)
+  - Implement `mobile/android_tts.py`:
+    - `AndroidTTS` class using pyjnius
+    - Android TextToSpeech integration
+    - Male/female voice selection
+    - Language support (English, Hindi, Punjabi)
+  - _Requirements: Req 1.5 (Always-On Background Service - Android)_
+  - **Tests Required**:
+    - Unit tests for Android STT (Android only)
+    - Unit tests for Android TTS (Android only)
+    - Unit tests for permission handling
+    - Integration tests with Android APIs
+  - **GitHub Push**: ✅ Required after completion
+
+- [ ] **Task 15: iOS Speech Recognition Integration** ⚠️ NEW
+  - Implement `mobile/ios_speech.py`:
+    - `IOSSpeechRecognizer` class using pyobjus
+    - Apple Speech Framework integration
+    - On-device recognition (iOS 13+)
+    - Permission handling (NSMicrophoneUsageDescription)
+  - Implement `mobile/ios_tts.py`:
+    - `IOSTTS` class using pyobjus
+    - AVSpeechSynthesizer integration
+    - Male/female voice selection
+    - Language support (English, Hindi, Punjabi)
+  - _Requirements: Req 1.5 (Always-On Background Service - iOS)_
+  - **Tests Required**:
+    - Unit tests for iOS STT (iOS only)
+    - Unit tests for iOS TTS (iOS only)
+    - Unit tests for permission handling
+    - Integration tests with iOS frameworks
+  - **GitHub Push**: ✅ Required after completion
+
+- [ ] **Task 16: Background Service Manager** ⚠️ CRITICAL FOR ALWAYS-ON
+  - Implement `background_service.py`:
+    - `BackgroundServiceManager` class
+    - Sleep/wake cycle management
+    - Battery optimization (<5% sleep, <10% wake)
+    - Wake word detection in sleep mode
+    - Full processing in wake mode
+    - Platform-specific service initialization:
+      - Android: ForegroundService with notification
+      - iOS: Background audio mode
+      - Desktop: System tray service
+  - Implement `battery_monitor.py`:
+    - `BatteryMonitor` class
+    - Track battery usage per mode
+    - Low battery handling (<20%)
+    - Thermal state monitoring
+  - _Requirements: Req 1.5 (Always-On Background Service)_
+  - **Tests Required**:
+    - Unit tests for sleep/wake transitions
+    - Unit tests for battery optimization
+    - Unit tests for service lifecycle
+    - Integration tests with wake word detection
+    - Battery usage measurement tests (target: <5% sleep, <10% wake)
+    - Stress tests for 24-hour operation
+  - **GitHub Push**: ✅ Required after completion
+
+### Phase 9: Integration with Other Components
+
+- [ ] **Task 17: Security System Integration**
   - Integrate with guru-security-cryptography for voice authentication
   - Implement secure voice profile storage
   - Add biometric enrollment workflow
@@ -343,3 +409,21 @@ This component is used by:
 - Main AGENT_GURU application
 - Onboarding system (for voice enrollment)
 - Authentication system (for voice verification)
+
+
+## Mobile Platform Summary
+
+### New Mobile Tasks (14-16):
+- Task 14: Android Speech Recognition Integration (Android STT/TTS)
+- Task 15: iOS Speech Recognition Integration (iOS STT/TTS)
+- Task 16: Background Service Manager (sleep/wake cycles, battery optimization)
+
+### Mobile-Specific Requirements:
+- Android: pyjnius for Java API access, Android Speech Recognition API, TextToSpeech
+- iOS: pyobjus for Objective-C API access, Apple Speech Framework, AVSpeechSynthesizer
+- Background service: ForegroundService (Android), Background Audio (iOS)
+- Battery optimization: <5% per hour in sleep mode, <10% per hour in wake mode
+- Always-on wake word detection without opening app
+- Proper permission handling (RECORD_AUDIO, NSMicrophoneUsageDescription)
+
+### Total Tasks: 18 (was 15, added 3 mobile tasks)

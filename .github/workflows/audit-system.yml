@@ -64,7 +64,7 @@ jobs:
           cargo run --release -- inventory --output ../docs/research/full_inventory.json
 
       - name: Upload inventory results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: inventory-results
           path: docs/research/full_inventory.json
@@ -96,7 +96,7 @@ jobs:
           cargo run --release -- naming --output ../docs/research/naming_map.md
 
       - name: Upload naming results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: naming-results
           path: docs/research/naming_map.md
@@ -123,7 +123,7 @@ jobs:
           cargo run --release -- purge --output ../docs/research/deletion_log.md
 
       - name: Upload purge results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: purge-results
           path: docs/research/deletion_log.md
@@ -150,7 +150,7 @@ jobs:
           cargo run --release -- integration --output ../docs/research/integration_matrix.md
 
       - name: Upload integration results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: integration-results
           path: docs/research/integration_matrix.md
@@ -203,7 +203,7 @@ jobs:
           cargo run --release -- performance --output ../docs/research/performance_report.md
 
       - name: Upload performance results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: performance-results
           path: docs/research/performance_report.md
@@ -230,7 +230,7 @@ jobs:
           cargo run --release -- formal --output ../docs/research/formal_verification_report.md
 
       - name: Upload formal verification results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: formal-results
           path: docs/research/formal_verification_report.md
@@ -257,7 +257,7 @@ jobs:
           cargo run --release -- build --output ../docs/research/build_attestation.json
 
       - name: Upload build results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-results
           path: docs/research/build_attestation.json
@@ -284,7 +284,7 @@ jobs:
           cargo run --release -- runtime --output ../docs/research/runtime_attestation.json
 
       - name: Upload runtime results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: runtime-results
           path: docs/research/runtime_attestation.json
@@ -311,7 +311,7 @@ jobs:
           cargo run --release -- certify --output ../docs/research/final_certification.json
 
       - name: Upload certification results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: certification-results
           path: docs/research/final_certification.json
@@ -322,7 +322,7 @@ jobs:
           cargo run --release -- report --output ../AUDIT_REPORT.md
 
       - name: Upload final report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: final-audit-report
           path: AUDIT_REPORT.md
@@ -333,7 +333,7 @@ jobs:
     needs: phase-10-certification
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Generate summary
         run: |
@@ -356,7 +356,7 @@ jobs:
           echo "- ✅ Phase 10: Final Certification" >> summary.md
 
       - name: Upload summary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: audit-summary
           path: summary.md

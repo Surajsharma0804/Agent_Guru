@@ -103,9 +103,55 @@ After completing EACH task:
     - Integration tests with Linux APIs
   - **GitHub Push**: ✅ Required after completion
 
+- [ ] **Task 6: Android Integration** ⚠️ CRITICAL FOR MOBILE
+  - Implement `android/integration.py`:
+    - `AndroidIntegration` class
+    - Intent system for app launching (using pyjnius)
+    - Accessibility Service for UI automation
+    - Storage Access Framework for file operations
+    - NotificationManager integration
+    - Permission request flows
+    - ForegroundService implementation
+    - Battery optimization handling
+  - Create `android/service.py`:
+    - Android ForegroundService class
+    - Service lifecycle management
+    - Notification creation
+  - _Requirements: Req 11 (Android Integration), Req 14 (Background Service)_
+  - **Tests Required**:
+    - Unit tests for Intent operations (Android only)
+    - Unit tests for Accessibility Service
+    - Unit tests for permission handling
+    - Integration tests with Android APIs
+    - Battery usage tests
+  - **GitHub Push**: ✅ Required after completion
+
+- [ ] **Task 7: iOS Integration** ⚠️ CRITICAL FOR MOBILE
+  - Implement `ios/integration.py`:
+    - `IOSIntegration` class
+    - URL scheme app launching (using pyobjus)
+    - Shortcuts automation
+    - Files app integration
+    - UserNotifications framework
+    - Permission request flows
+    - Background audio mode implementation
+    - Background task scheduling
+  - Create `ios/service.py`:
+    - iOS background service class
+    - Background mode management
+    - Task scheduling
+  - _Requirements: Req 12 (iOS Integration), Req 14 (Background Service)_
+  - **Tests Required**:
+    - Unit tests for URL scheme operations (iOS only)
+    - Unit tests for Shortcuts execution
+    - Unit tests for permission handling
+    - Integration tests with iOS frameworks
+    - Battery usage tests
+  - **GitHub Push**: ✅ Required after completion
+
 ### Phase 3: Hardware Abstraction
 
-- [ ] **Task 6: Hardware Monitor**
+- [ ] **Task 8: Hardware Monitor**
   - Implement `hardware/monitor.py`:
     - `HardwareMonitor` class using psutil
     - CPU usage metrics
@@ -115,17 +161,47 @@ After completing EACH task:
     - GPU metrics using GPUtil (if available)
     - Return None for unavailable metrics
     - Query response time <1 second
-  - _Requirements: Req 5 (Hardware Abstraction)_
+  - Implement `hardware/mobile_monitor.py`:
+    - Mobile-specific hardware monitoring
+    - Battery temperature monitoring
+    - Screen brightness control
+    - Cellular network information
+    - GPS location services
+    - Accelerometer/gyroscope data
+    - Thermal state monitoring
+    - Low power mode detection
+  - _Requirements: Req 5 (Hardware Abstraction), Req 13 (Mobile Hardware)_
   - **Tests Required**:
     - Unit tests for all hardware metrics
     - Unit tests for unavailable hardware handling
+    - Unit tests for mobile-specific metrics
     - Property tests for metric value ranges
     - Performance tests for query latency
   - **GitHub Push**: ✅ Required after completion
 
+- [ ] **Task 9: Mobile Background Service Manager** ⚠️ CRITICAL FOR ALWAYS-ON
+  - Implement `mobile/background_service.py`:
+    - `MobileBackgroundService` class
+    - Sleep/wake cycle management
+    - Battery optimization (<5% sleep, <10% wake)
+    - Wake word detection integration
+    - Service lifecycle management
+    - Crash recovery and restart
+    - Battery usage tracking
+    - Thermal state handling
+  - _Requirements: Req 14 (Background Service Architecture)_
+  - **Tests Required**:
+    - Unit tests for sleep/wake transitions
+    - Unit tests for battery optimization
+    - Unit tests for service lifecycle
+    - Integration tests with wake word detection
+    - Battery usage measurement tests
+    - Stress tests for 24-hour operation
+  - **GitHub Push**: ✅ Required after completion
+
 ### Phase 4: Process Management
 
-- [ ] **Task 7: Cross-Platform Process Manager**
+- [ ] **Task 10: Cross-Platform Process Manager**
   - Implement `process_manager.py`:
     - `ProcessManager` class using psutil
     - List all running processes
@@ -144,7 +220,7 @@ After completing EACH task:
 
 ### Phase 5: Permission Management
 
-- [ ] **Task 8: Permission Manager**
+- [ ] **Task 11: Permission Manager**
   - Implement `permissions/manager.py`:
     - `PermissionManager` class
     - Validate current permission level
@@ -152,17 +228,23 @@ After completing EACH task:
     - Check required permissions for operations
     - Raise permission errors with clear messages
     - Platform-specific permission checks
+  - Implement `permissions/mobile_permissions.py`:
+    - Mobile permission request flows
+    - Runtime permission handling (Android 6.0+)
+    - Permission denial handling
+    - Permission status checking
   - _Requirements: Req 7 (Permission Management)_
   - **Tests Required**:
     - Unit tests for permission detection
     - Unit tests for permission validation
     - Unit tests for permission error messages
+    - Unit tests for mobile permission flows
     - Integration tests for elevated operations
   - **GitHub Push**: ✅ Required after completion
 
 ### Phase 6: Complete Laptop Control Operations
 
-- [ ] **Task 9: File Operations Controller**
+- [ ] **Task 12: File Operations Controller**
   - Implement `controllers/file_operations.py`:
     - `FileOperationsController` class
     - Create, read, update, delete files
@@ -378,4 +460,23 @@ This component depends on:
 This component is used by:
 - guru-agent-orchestration (for executing voice commands)
 - Main AGENT_GURU application
+
+## Mobile Platform Summary
+
+### New Mobile Tasks (6-9):
+- Task 6: Android Integration (Intent system, Accessibility Service, ForegroundService)
+- Task 7: iOS Integration (URL schemes, Shortcuts, Background audio)
+- Task 8: Hardware Monitor (Extended with mobile-specific metrics)
+- Task 9: Mobile Background Service Manager (Sleep/wake cycles, battery optimization)
+
+### Mobile-Specific Requirements:
+- Android: pyjnius for Java API access, Chaquopy or Kivy for Python integration
+- iOS: pyobjus for Objective-C API access, Kivy or BeeWare for Python integration
+- Background service with <5% battery usage in sleep mode, <10% in wake mode
+- Always-on wake word detection without opening app
+- Proper permission request flows with user-friendly explanations
+- Thermal state monitoring and adaptive behavior
+- Low power mode detection and adaptation
+
+### Total Tasks: 21 (was 20, added 2 mobile tasks + extended 2 existing tasks)
 

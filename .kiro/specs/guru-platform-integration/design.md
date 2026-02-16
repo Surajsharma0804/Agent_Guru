@@ -468,9 +468,166 @@ class LinuxIntegration(PlatformIntegration):
         pass
 ```
 
-### 6. Hardware Abstraction
+### 6. Android Integration
 
-**Purpose**: Provide cross-platform hardware monitoring using psutil and GPUtil.
+**Purpose**: Implement Android-specific operations using pyjnius and Android APIs.
+
+**Key Operations**:
+- Intent-based app launching
+- Accessibility Service for UI automation
+- Storage Access Framework for file operations
+- NotificationManager for notifications
+- Background service management
+- Permission handling
+
+**Implementation Details**:
+```python
+class AndroidIntegration(PlatformIntegration):
+    def launch_app_by_package(self, package_name: str) -> bool:
+        """
+        Launch Android app by package name.
+        
+        Args:
+            package_name: Android package identifier (e.g., "com.whatsapp")
+            
+        Returns:
+            True if app launched successfully
+            
+        Raises:
+            AppNotFoundError: If package not installed
+            PermissionError: If insufficient permissions
+        """
+        pass
+    
+    def send_intent(self, action: str, data: Optional[str] = None, 
+                   extras: Optional[Dict[str, Any]] = None) -> bool:
+        """
+        Send Android Intent.
+        
+        Args:
+            action: Intent action (e.g., "android.intent.action.VIEW")
+            data: Intent data URI
+            extras: Intent extras
+            
+        Returns:
+            True if intent sent successfully
+        """
+        pass
+    
+    def simulate_touch(self, x: int, y: int) -> None:
+        """Simulate touch event using Accessibility Service."""
+        pass
+    
+    def type_text(self, text: str) -> None:
+        """Type text using Accessibility Service."""
+        pass
+    
+    def get_battery_info(self) -> BatteryInfo:
+        """Get Android battery information."""
+        pass
+    
+    def request_permission(self, permission: str) -> bool:
+        """
+        Request Android runtime permission.
+        
+        Args:
+            permission: Permission name (e.g., "android.permission.RECORD_AUDIO")
+            
+        Returns:
+            True if permission granted
+        """
+        pass
+    
+    def start_foreground_service(self, service_class: str) -> None:
+        """Start Android ForegroundService for always-on operation."""
+        pass
+    
+    def create_notification(self, title: str, message: str, 
+                          channel_id: str) -> None:
+        """Create Android notification."""
+        pass
+```
+
+### 7. iOS Integration
+
+**Purpose**: Implement iOS-specific operations using pyobjus and iOS frameworks.
+
+**Key Operations**:
+- URL scheme app launching
+- Shortcuts automation
+- Files app integration
+- UserNotifications framework
+- Background modes management
+- Permission handling
+
+**Implementation Details**:
+```python
+class IOSIntegration(PlatformIntegration):
+    def launch_app_by_url_scheme(self, url_scheme: str) -> bool:
+        """
+        Launch iOS app by URL scheme.
+        
+        Args:
+            url_scheme: URL scheme (e.g., "whatsapp://")
+            
+        Returns:
+            True if app launched successfully
+            
+        Raises:
+            AppNotFoundError: If app not installed
+        """
+        pass
+    
+    def execute_shortcut(self, shortcut_name: str, 
+                        input_data: Optional[Dict[str, Any]] = None) -> Any:
+        """
+        Execute iOS Shortcut.
+        
+        Args:
+            shortcut_name: Name of the shortcut
+            input_data: Input data for shortcut
+            
+        Returns:
+            Shortcut output
+            
+        Raises:
+            ShortcutNotFoundError: If shortcut doesn't exist
+        """
+        pass
+    
+    def get_battery_info(self) -> BatteryInfo:
+        """Get iOS battery information."""
+        pass
+    
+    def request_permission(self, permission: str) -> bool:
+        """
+        Request iOS permission.
+        
+        Args:
+            permission: Permission type (e.g., "microphone", "camera")
+            
+        Returns:
+            True if permission granted
+        """
+        pass
+    
+    def start_background_audio(self) -> None:
+        """Start background audio mode for always-on operation."""
+        pass
+    
+    def schedule_background_task(self, task_id: str, 
+                                 interval_seconds: int) -> None:
+        """Schedule iOS background task."""
+        pass
+    
+    def create_notification(self, title: str, message: str) -> None:
+        """Create iOS notification using UserNotifications."""
+        pass
+```
+
+### 8. Hardware Abstraction
+
+**Purpose**: Provide cross-platform hardware monitoring using psutil and GPUtil, with mobile-specific extensions.
 
 **Interface**:
 ```python
@@ -514,6 +671,95 @@ class HardwareMonitor:
         
         Returns:
             Battery info or None if no battery
+        """
+        pass
+    
+    # Mobile-specific methods
+    
+    def get_battery_temperature(self) -> Optional[float]:
+        """
+        Get battery temperature (mobile only).
+        
+        Returns:
+            Temperature in Celsius or None if unavailable
+        """
+        pass
+    
+    def get_screen_brightness(self) -> Optional[int]:
+        """
+        Get screen brightness (mobile only).
+        
+        Returns:
+            Brightness level (0-255) or None if unavailable
+        """
+        pass
+    
+    def set_screen_brightness(self, level: int) -> None:
+        """
+        Set screen brightness (mobile only).
+        
+        Args:
+            level: Brightness level (0-255)
+            
+        Raises:
+            PermissionError: If WRITE_SETTINGS permission not granted
+        """
+        pass
+    
+    def get_cellular_info(self) -> Optional[CellularInfo]:
+        """
+        Get cellular network information (mobile only).
+        
+        Returns:
+            Cellular info or None if unavailable
+        """
+        pass
+    
+    def get_location(self) -> Optional[LocationInfo]:
+        """
+        Get GPS location (mobile only).
+        
+        Returns:
+            Location info or None if unavailable
+            
+        Raises:
+            PermissionError: If location permission not granted
+        """
+        pass
+    
+    def get_accelerometer_data(self) -> Optional[AccelerometerData]:
+        """
+        Get accelerometer data (mobile only).
+        
+        Returns:
+            Accelerometer data or None if unavailable
+        """
+        pass
+    
+    def get_thermal_state(self) -> ThermalState:
+        """
+        Get device thermal state (mobile only).
+        
+        Returns:
+            Thermal state (NORMAL, FAIR, SERIOUS, CRITICAL)
+        """
+        pass
+    
+    def is_low_power_mode(self) -> bool:
+        """
+        Check if device is in low power mode (mobile only).
+        
+        Returns:
+            True if low power mode is active
+        """
+        pass
+    
+    def get_device_info(self) -> DeviceInfo:
+        """
+        Get device information (model, manufacturer, OS version).
+        
+        Returns:
+            Device information
         """
         pass
 ```
@@ -561,7 +807,7 @@ class PermissionManager:
         pass
 ```
 
-### 8. Platform Factory
+### 9. Platform Factory
 
 **Purpose**: Create appropriate platform implementation based on detected OS.
 
@@ -587,8 +833,114 @@ class PlatformFactory:
             return MacOSIntegration()
         elif platform_info.os_name == "Linux":
             return LinuxIntegration()
+        elif platform_info.os_name == "Android":
+            return AndroidIntegration()
+        elif platform_info.os_name == "iOS":
+            return IOSIntegration()
         else:
             raise UnsupportedPlatformError(f"Unsupported OS: {platform_info.os_name}")
+```
+
+### 10. Mobile Background Service Manager
+
+**Purpose**: Manage always-on background service for mobile platforms.
+
+**Interface**:
+```python
+class MobileBackgroundService:
+    """
+    Background service manager for mobile platforms.
+    
+    Handles:
+    - ForegroundService (Android) / Background Audio (iOS)
+    - Sleep/wake cycles for battery optimization
+    - Wake word detection
+    - Service lifecycle management
+    """
+    
+    def __init__(self, platform: Union[AndroidIntegration, IOSIntegration]):
+        """Initialize background service."""
+        self.platform = platform
+        self.is_running = False
+        self.is_sleeping = False
+        self.battery_usage_tracker = BatteryUsageTracker()
+    
+    async def start_service(self) -> None:
+        """
+        Start background service.
+        
+        - Android: Start ForegroundService with notification
+        - iOS: Start background audio mode
+        """
+        pass
+    
+    async def stop_service(self) -> None:
+        """Stop background service and cleanup resources."""
+        pass
+    
+    async def enter_sleep_mode(self) -> None:
+        """
+        Enter sleep mode for battery optimization.
+        
+        - Reduce CPU usage to <1%
+        - Use minimal wake word detection
+        - Target: <5% battery per hour
+        """
+        pass
+    
+    async def enter_wake_mode(self) -> None:
+        """
+        Enter wake mode for full functionality.
+        
+        - Full voice processing
+        - LLM inference
+        - Target: <10% battery per hour
+        """
+        pass
+    
+    async def handle_wake_word_detected(self) -> None:
+        """Handle wake word detection event."""
+        pass
+    
+    async def request_battery_optimization_exemption(self) -> bool:
+        """
+        Request battery optimization exemption (Android).
+        
+        Returns:
+            True if exemption granted
+        """
+        pass
+    
+    async def monitor_battery_usage(self) -> BatteryUsageStats:
+        """
+        Monitor battery usage statistics.
+        
+        Returns:
+            Battery usage stats (% per hour in sleep/wake modes)
+        """
+        pass
+    
+    async def handle_low_battery(self, battery_percent: float) -> None:
+        """
+        Handle low battery condition.
+        
+        Args:
+            battery_percent: Current battery percentage
+        """
+        if battery_percent < 20:
+            await self.enter_sleep_mode()
+        if battery_percent < 10:
+            await self.stop_service()
+    
+    async def handle_thermal_state(self, thermal_state: ThermalState) -> None:
+        """
+        Handle thermal state changes.
+        
+        Args:
+            thermal_state: Current thermal state
+        """
+        if thermal_state.state == "critical":
+            await self.enter_sleep_mode()
 ```
 
 ## Data Models
@@ -660,6 +1012,8 @@ class BatteryInfo:
     percent: float  # 0-100
     power_plugged: bool
     time_remaining: Optional[int]  # seconds, None if plugged in
+    temperature: Optional[float]  # Celsius (mobile only)
+    health: Optional[str]  # "good", "overheat", "dead", "unknown" (mobile only)
 
 @dataclass
 class UserInfo:
@@ -674,6 +1028,44 @@ class ServiceStatus:
     name: str
     status: str  # "running", "stopped", "disabled"
     startup_type: str  # "automatic", "manual", "disabled"
+
+# Mobile-specific data models
+
+@dataclass
+class CellularInfo:
+    signal_strength: int  # 0-100
+    network_type: str  # "4G", "5G", "LTE", "3G", "2G"
+    carrier: str
+    is_roaming: bool
+
+@dataclass
+class LocationInfo:
+    latitude: float
+    longitude: float
+    altitude: Optional[float]  # meters
+    accuracy: float  # meters
+    timestamp: float  # Unix timestamp
+
+@dataclass
+class AccelerometerData:
+    x: float  # m/s²
+    y: float  # m/s²
+    z: float  # m/s²
+    timestamp: float  # Unix timestamp
+
+@dataclass
+class ThermalState:
+    state: str  # "normal", "fair", "serious", "critical"
+    temperature: Optional[float]  # Celsius
+
+@dataclass
+class DeviceInfo:
+    model: str
+    manufacturer: str
+    os_version: str
+    screen_width: int  # pixels
+    screen_height: int  # pixels
+    dpi: int
 ```
 
 ### Error Hierarchy

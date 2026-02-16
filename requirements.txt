@@ -1,23 +1,115 @@
-# Core Deep Learning
+# ============================================================================
+# Agent Guru - Python Dependencies
+# ============================================================================
+# 
+# GPU Support: This file includes GPU-accelerated packages by default.
+# For CPU-only installation, see requirements-cpu.txt
+#
+# Installation:
+#   pip install -r requirements.txt
+#
+# GPU Setup Guide: See GPU_SETUP.md for detailed instructions
+# ============================================================================
+
+# Core Deep Learning (GPU-accelerated)
+# Install PyTorch with CUDA separately:
+#   CUDA 11.8: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+#   CUDA 12.1: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 torch>=2.0.0
 torchvision>=0.15.0
-onnx>=1.14.0
+torchaudio>=2.0.0
+
+# ONNX Runtime (GPU-accelerated)
 onnxruntime-gpu>=1.15.0
+onnx>=1.14.0
 onnxscript>=0.6.0
 
 # Computer Vision
 opencv-python>=4.8.0
+opencv-contrib-python>=4.8.0
 insightface>=0.7.3
+pillow>=10.0.0
 
 # Scientific Computing
-numpy>=1.24.0
+numpy>=1.24.0,<2.0.0
 scikit-learn>=1.3.0
 scipy>=1.11.0
+pandas>=2.0.0
 
-# Face Recognition Components
-# Note: Some InsightFace dependencies may require additional setup
-# For CPU-only systems, replace onnxruntime-gpu with onnxruntime
+# Audio Processing
+librosa>=0.10.0
+soundfile>=0.12.0
+pyaudio>=0.2.13
+webrtcvad>=2.0.10
 
-# Optional: For enhanced functionality
+# Speech Recognition
+openai-whisper>=20230314
+faster-whisper>=0.9.0
+
+# Natural Language Processing
+transformers>=4.30.0
+tokenizers>=0.13.0
+sentencepiece>=0.1.99
+
+# API Clients for LLM Providers
+openai>=1.0.0
+google-generativeai>=0.3.0
+anthropic>=0.7.0
+
+# Configuration & Utilities
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.0
+pyyaml>=6.0.0
+toml>=0.10.2
+
+# Logging & Monitoring
+loguru>=0.7.0
+tqdm>=4.65.0
+rich>=13.0.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-timeout>=2.1.0
+
+# Code Quality
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.4.0
+pylint>=2.17.0
+
+# Type Stubs
+types-pyyaml>=6.0.0
+types-requests>=2.31.0
+
+# Performance
+psutil>=5.9.0
+gputil>=1.4.0
+
+# Security
+cryptography>=41.0.0
+pyjwt>=2.8.0
+
+# Database (for memory system)
+sqlalchemy>=2.0.0
+aiosqlite>=0.19.0
+
+# HTTP & Networking
+httpx>=0.24.0
+aiohttp>=3.8.0
+requests>=2.31.0
+
+# Platform Integration
+pywin32>=306; sys_platform == 'win32'
+pyobjc-framework-Cocoa>=9.2; sys_platform == 'darwin'
+pyobjc-framework-Quartz>=9.2; sys_platform == 'darwin'
+dbus-python>=1.3.2; sys_platform == 'linux'
+
+# Optional: Enhanced Features
+# Uncomment if needed:
 # deepface>=0.0.79  # Alternative emotion recognition
 # fer>=22.5.0  # Facial Expression Recognition
+# face-recognition>=1.3.0  # Alternative face recognition

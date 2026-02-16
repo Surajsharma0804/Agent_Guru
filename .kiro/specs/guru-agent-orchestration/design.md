@@ -102,6 +102,239 @@ The design leverages industry-standard Python frameworks:
 5. **Fail-Fast**: Validate inputs early and provide clear error messages
 6. **Observable**: Comprehensive metrics and audit trail for debugging and monitoring
 
+## Background Service Orchestration
+
+### Always-On Coordination
+
+The orchestrator manages background services across all AGENT_GURU components to enable always-on operation with battery optimization:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│           Background Service Orchestrator                    │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │         Service Lifecycle Manager                      │ │
+│  │  - Start/stop all background services                 │ │
+│  │  - Monitor service health (heartbeat)                 │ │
+│  │  - Restart failed services                            │ │
+│  └────────────────────────────────────────────────────────┘ │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │         Sleep/Wake Coordinator                         │ │
+│  │  - Coordinate sleep mode across components            │ │
+│  │  - Coordinate wake mode on voice detection            │ │
+│  │  - Battery optimization (<5% sleep, <10% wake)        │ │
+│  └────────────────────────────────────────────────────────┘ │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │         Platform Lifecycle Handler                     │ │
+│  │  - Android: onPause, onResume, onStop                 │ │
+│  │  - iOS: didEnterBackground, willEnterForeground       │ │
+│  │  - Desktop: minimize, restore, close                  │ │
+│  └────────────────────────────────────────────────────────┘ │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │         Resource Monitor                               │ │
+│  │  - Battery level monitoring                           │ │
+│  │  - Thermal state monitoring                           │ │
+│  │  - Network connectivity monitoring                    │ │
+│  │  - Audio focus management                             │ │
+│  └────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+         │                    │                    │
+         ▼                    ▼                    ▼
+    ┌────────┐          ┌────────┐          ┌────────┐
+    │ Speech │          │  LLM   │          │Platform│
+    │ Engine │          │Runtime │          │  Integ │
+    │Service │          │Service │          │Service │
+    └────────┘          └────────┘          └────────┘
+```
+
+### Background Service Coordination Interface
+
+```python
+from enum import Enum
+from dataclasses import dataclass
+from typing import Dict, List
+
+class ServiceState(Enum):
+    STOPPED = "stopped"
+    STARTING = "starting"
+    RUNNING = "running"
+    SLEEPING = "sleeping"
+    WAKING = "waking"
+    STOPPING = "stopping"
+    FAILED = "failed"
+
+class SystemMode(Enum):
+    SLEEP = "sleep"  # <5% battery per hour
+    WAKE = "wake"    # <10% battery per hour
+
+@dataclass
+class ServiceHealth:
+    service_name: str
+    state: ServiceState
+    last_heartbeat: datetime
+    error_count: int
+    restart_count: int
+    uptime_seconds: float
+
+class BackgroundServiceOrchestrator:
+    """
+    Coordinate background services across all AGENT_GURU components.
+    
+    Responsibilities:
+    - Start/stop all background services
+    - Coordinate sleep/wake transitions
+    - Monitor service health
+    - Handle platform lifecycle events
+    - Optimize battery usage
+    """
+    
+    def __init__(self):
+        self.services: Dict[str, ServiceHealth] = {}
+        self.system_mode = SystemMode.SLEEP
+        self.battery_monitor = None
+        self.thermal_monitor = None
+    
+    async def start_all_services(self) -> None:
+        """
+        Start all background services.
+        
+        Services:
+        - Speech Engine (wake word detection)
+        - LLM Runtime (inference)
+        - Platform Integration (system control)
+        - Memory System (context management)
+        - Policy Engine (permission checking)
+        """
+        await self._start_service("speech_engine")
+        await self._start_service("llm_runtime")
+        await self._start_service("platform_integration")
+        await self._start_service("memory_system")
+        await self._start_service("policy_engine")
+        
+        # Enter sleep mode by default
+        await self.enter_sleep_mode()
+    
+    async def stop_all_services(self) -> None:
+        """Stop all background services gracefully."""
+        for service_name in list(self.services.keys()):
+            await self._stop_service(service_name)
+    
+    async def enter_sleep_mode(self) -> None:
+        """
+        Enter sleep mode for battery optimization.
+        
+        Sleep mode characteristics:
+        - Minimal CPU usage (<1%)
+        - Wake word detection only
+        - No LLM inference
+        - No network activity
+        - Target: <5% battery per hour
+        """
+        self.system_mode = SystemMode.SLEEP
+        
+        # Coordinate sleep across all services
+        await self._send_to_all_services("enter_sleep_mode")
+        
+        # Speech engine: minimal wake word detection
+        # LLM runtime: suspend inference
+        # Platform integration: minimal monitoring
+        # Memory system: suspend writes
+        # Policy engine: cache-only mode
+    
+    async def enter_wake_mode(self) -> None:
+        """
+        Enter wake mode for full functionality.
+        
+        Wake mode characteristics:
+        - Full voice processing
+        - LLM inference
+        - Command execution
+        - Network activity
+        - Target: <10% battery per hour
+        """
+        self.system_mode = SystemMode.WAKE
+        
+        # Coordinate wake across all services
+        await self._send_to_all_services("enter_wake_mode")
+        
+        # Speech engine: full processing
+        # LLM runtime: enable inference
+        # Platform integration: full control
+        # Memory system: enable writes
+        # Policy engine: full validation
+    
+    async def handle_wake_word_detected(self) -> None:
+        """Handle wake word detection event."""
+        if self.system_mode == SystemMode.SLEEP:
+            await self.enter_wake_mode()
+    
+    async def handle_low_battery(self, battery_percent: float) -> None:
+        """
+        Handle low battery condition.
+        
+        Args:
+            battery_percent: Current battery percentage
+        """
+        if battery_percent < 20:
+            await self.enter_sleep_mode()
+        if battery_percent < 10:
+            await self.stop_all_services()
+    
+    async def handle_thermal_state(self, thermal_state: str) -> None:
+        """
+        Handle thermal state changes.
+        
+        Args:
+            thermal_state: "normal", "fair", "serious", "critical"
+        """
+        if thermal_state == "critical":
+            await self.enter_sleep_mode()
+    
+    async def handle_platform_lifecycle(self, event: str) -> None:
+        """
+        Handle platform-specific lifecycle events.
+        
+        Args:
+            event: Platform lifecycle event
+                - Android: "onPause", "onResume", "onStop", "onDestroy"
+                - iOS: "didEnterBackground", "willEnterForeground", "willTerminate"
+                - Desktop: "minimize", "restore", "close"
+        """
+        if event in ["onPause", "didEnterBackground", "minimize"]:
+            await self.enter_sleep_mode()
+        elif event in ["onResume", "willEnterForeground", "restore"]:
+            await self.enter_wake_mode()
+        elif event in ["onDestroy", "willTerminate", "close"]:
+            await self.stop_all_services()
+    
+    async def monitor_service_health(self) -> List[ServiceHealth]:
+        """
+        Monitor health of all services.
+        
+        Returns:
+            List of service health status
+        """
+        health_reports = []
+        for service_name, health in self.services.items():
+            # Check heartbeat
+            if (datetime.now() - health.last_heartbeat).seconds > 30:
+                # Service unresponsive, restart
+                await self._restart_service(service_name)
+            health_reports.append(health)
+        return health_reports
+    
+    async def _restart_service(self, service_name: str) -> None:
+        """Restart a failed service with exponential backoff."""
+        health = self.services[service_name]
+        health.restart_count += 1
+        
+        # Exponential backoff
+        delay = min(2 ** health.restart_count, 60)
+        await asyncio.sleep(delay)
+        
+        await self._stop_service(service_name)
+        await self._start_service(service_name)
+```
+
 ## Components and Interfaces
 
 ### Core Data Models

@@ -138,3 +138,92 @@ This component depends on:
 This component is used by:
 - Main AGENT_GURU application
 
+
+
+### Phase 4: Background Service Orchestration ⚠️ CRITICAL FOR ALWAYS-ON
+
+- [ ] **Task 8: Background Service Orchestrator** ⚠️ NEW
+  - Implement `background/orchestrator.py`:
+    - `BackgroundServiceOrchestrator` class
+    - Start/stop all background services
+    - Service health monitoring (heartbeat checks)
+    - Automatic service restart with exponential backoff
+    - Watchdog timers for all services
+  - _Requirements: Req 12 (Background Service Orchestration)_
+  - **Tests Required**:
+    - Unit tests for service lifecycle
+    - Unit tests for health monitoring
+    - Unit tests for service restart
+    - Integration tests with all services
+  - **GitHub Push**: ✅ Required after completion
+
+- [ ] **Task 9: Sleep/Wake Coordinator** ⚠️ NEW
+  - Implement `background/sleep_wake.py`:
+    - `SleepWakeCoordinator` class
+    - Coordinate sleep mode across all components
+    - Coordinate wake mode on voice detection
+    - Battery optimization (<5% sleep, <10% wake)
+    - Transition management between modes
+  - _Requirements: Req 12 (Background Service Orchestration)_
+  - **Tests Required**:
+    - Unit tests for sleep/wake transitions
+    - Unit tests for battery optimization
+    - Integration tests with all components
+    - Battery usage measurement tests
+  - **GitHub Push**: ✅ Required after completion
+
+- [ ] **Task 10: Platform Lifecycle Handler** ⚠️ NEW
+  - Implement `background/lifecycle.py`:
+    - `PlatformLifecycleHandler` class
+    - Handle Android lifecycle (onPause, onResume, onStop, onDestroy)
+    - Handle iOS lifecycle (didEnterBackground, willEnterForeground, willTerminate)
+    - Handle Desktop lifecycle (minimize, restore, close)
+    - Coordinate component responses to lifecycle events
+  - _Requirements: Req 12 (Background Service Orchestration)_
+  - **Tests Required**:
+    - Unit tests for all lifecycle events
+    - Unit tests for platform-specific handling
+    - Integration tests with platform integration
+  - **GitHub Push**: ✅ Required after completion
+
+- [ ] **Task 11: Resource Monitor** ⚠️ NEW
+  - Implement `background/resource_monitor.py`:
+    - `ResourceMonitor` class
+    - Battery level monitoring
+    - Thermal state monitoring
+    - Network connectivity monitoring
+    - Audio focus management
+    - Low battery handling (<20%)
+    - Thermal throttling (critical state)
+  - _Requirements: Req 12 (Background Service Orchestration)_
+  - **Tests Required**:
+    - Unit tests for all monitoring functions
+    - Unit tests for low battery handling
+    - Unit tests for thermal throttling
+    - Integration tests with platform integration
+  - **GitHub Push**: ✅ Required after completion
+
+## Mobile Platform Summary
+
+### New Background Service Tasks (8-11):
+- Task 8: Background Service Orchestrator (service lifecycle, health monitoring)
+- Task 9: Sleep/Wake Coordinator (battery optimization, mode transitions)
+- Task 10: Platform Lifecycle Handler (Android, iOS, Desktop lifecycle events)
+- Task 11: Resource Monitor (battery, thermal, network, audio focus)
+
+### Background Service Requirements:
+- Coordinate wake word detection service lifecycle
+- Manage sleep/wake transitions across all components
+- Optimize battery usage (<5% sleep, <10% wake)
+- Handle platform-specific lifecycle events
+- Coordinate component shutdown during low battery
+- Restart failed components automatically
+- Health monitoring for all services (heartbeat, status checks)
+- Log all orchestration events
+
+### Platform-Specific Lifecycle:
+- **Android**: onPause, onResume, onStop, onDestroy
+- **iOS**: applicationDidEnterBackground, applicationWillEnterForeground, applicationWillTerminate
+- **Desktop**: minimize, restore, close
+
+### Total Tasks: 11 (was 7, added 4 background service tasks)

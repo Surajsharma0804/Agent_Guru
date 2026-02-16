@@ -219,7 +219,35 @@ This orchestration enables AGENT_GURU (Guru and Maya personalities) to handle co
 5. **MANDATORY**: Audit trail SHALL be tested for completeness and tamper-evidence
 
 
-### Requirement 12: Python Implementation Requirements ⚠️ IMPLEMENTATION GAP
+### Requirement 12: Background Service Orchestration ⚠️ CRITICAL FOR ALWAYS-ON
+
+**User Story:** As a system architect, I want the orchestrator to coordinate background services across all components, so that AGENT_GURU runs reliably in the background on all platforms.
+
+#### Acceptance Criteria
+
+1. **MANDATORY**: THE Orchestrator SHALL coordinate wake word detection service lifecycle across all platforms
+2. **MANDATORY**: THE Orchestrator SHALL manage sleep/wake transitions across all components (speech, LLM, platform, memory)
+3. **MANDATORY**: THE Orchestrator SHALL optimize battery usage on mobile platforms (<5% sleep, <10% wake)
+4. **MANDATORY**: THE Orchestrator SHALL handle platform-specific lifecycle events:
+   - Android: onPause, onResume, onStop, onDestroy
+   - iOS: applicationDidEnterBackground, applicationWillEnterForeground, applicationWillTerminate
+   - Desktop: minimize, restore, close
+5. **MANDATORY**: THE Orchestrator SHALL coordinate component shutdown during low battery (<20%)
+6. **MANDATORY**: THE Orchestrator SHALL restart failed components automatically with exponential backoff
+7. **MANDATORY**: THE Orchestrator SHALL provide health monitoring for all services (heartbeat, status checks)
+8. **MANDATORY**: THE Orchestrator SHALL log all orchestration events for debugging and audit
+9. **MANDATORY**: THE Orchestrator SHALL coordinate thermal state handling (throttle on overheat)
+10. **MANDATORY**: THE Orchestrator SHALL coordinate Low Power Mode adaptation (iOS) and Battery Saver (Android)
+11. **MANDATORY**: THE Orchestrator SHALL ensure wake word detection continues during device sleep (Doze mode on Android)
+12. **MANDATORY**: THE Orchestrator SHALL coordinate crash recovery across all components
+13. **MANDATORY**: THE Orchestrator SHALL implement watchdog timers for all background services
+14. **MANDATORY**: THE Orchestrator SHALL coordinate permission requests across components
+15. **MANDATORY**: THE Orchestrator SHALL handle network connectivity changes (online/offline transitions)
+16. **MANDATORY**: THE Orchestrator SHALL coordinate audio focus management (pause on phone call, resume after)
+17. **MANDATORY**: THE Orchestrator SHALL implement graceful degradation when components fail
+18. **MANDATORY**: THE Orchestrator SHALL provide user controls to start/stop background services
+
+### Requirement 13: Python Implementation Requirements ⚠️ IMPLEMENTATION GAP
 
 **User Story:** As a developer, I want a complete Python implementation of agent orchestration using industry-standard frameworks, so that multi-agent coordination is robust and maintainable.
 

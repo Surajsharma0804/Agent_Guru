@@ -518,6 +518,321 @@ class FileCapture(AudioCapture):
         pass
 ```
 
+### 8. Mobile Speech Recognition (NEW)
+
+**Responsibility**: Provide platform-specific speech recognition for Android and iOS.
+
+**Android Implementation**:
+```python
+class AndroidSpeechRecognizer:
+    """Android-specific speech recognition using Android Speech Recognition API."""
+    
+    def __init__(self):
+        from jnius import autoclass
+        self.SpeechRecognizer = autoclass('android.speech.SpeechRecognizer')
+        self.RecognizerIntent = autoclass('android.speech.RecognizerIntent')
+        self.recognizer = None
+    
+    async def initialize(self) -> None:
+        """Initialize Android speech recognizer."""
+        self.recognizer = self.SpeechRecognizer.createSpeechRecognizer(
+            self._get_android_context()
+        )
+    
+    async def recognize(self, audio_data: bytes) -> TranscriptionResult:
+        """
+        Recognize speech using Android Speech Recognition API.
+        
+        Falls back to cloud STT if offline recognition unavailable.
+        """
+        intent = self.RecognizerIntent(self.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+        intent.putExtra(
+            self.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+            self.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+        )
+        # Start recognition and await result
+        ...
+```
+
+**iOS Implementation**:
+```python
+class IOSSpeechRecognizer:
+    """iOS-specific speech recognition using Apple Speech Framework."""
+    
+    def __init__(self):
+        from pyobjus import autoclass
+        self.SFSpeechRecognizer = autoclass('SFSpeechRecognizer')
+        self.SFSpeechAudioBufferRecognitionRequest = autoclass(
+            'SFSpeechAudioBufferRecognitionRequest'
+        )
+        self.recognizer = None
+    
+    async def initialize(self) -> None:
+        """Initialize iOS speech recognizer."""
+        self.recognizer = self.SFSpeechRecognizer.alloc().init()
+        # Request authorization
+        await self._request_authorization()
+    
+    async def recognize(self, audio_data: bytes) -> TranscriptionResult:
+        """
+        Recognize speech using Apple Speech Framework.
+        
+        Uses on-device recognition when available (iOS 13+).
+        """
+        request = self.SFSpeechAudioBufferRecognitionRequest.alloc().init()
+        request.shouldReportPartialResults = True
+        # Start recognition and await result
+        ...
+```
+
+### 9. Mobile Text-to-Speech (NEW)
+
+**Responsibility**: Provide platform-specific text-to-speech for Android and iOS.
+
+**Android Implementation**:
+```python
+class AndroidTTS:
+    """Android-specific TTS using Android TextToSpeech."""
+    
+    def __init__(self):
+        from jnius import autoclass
+        self.TextToSpeech = autoclass('android.speech.tts.TextToSpeech')
+        self.tts = None
+    
+    async def initialize(self, voice_gender: str) -> None:
+        """
+        Initialize Android TTS.
+        
+        Args:
+            voice_gender: "male" for Guru, "female" for Maya
+        """
+        self.tts = self.TextToSpeech(
+            self._get_android_context(),
+            self._on_init_listener
+        )
+        # Set voice based on gender
+        await self._set_voice(voice_gender)
+    
+    async def synthesize(self, text: str) -> bytes:
+        """Synthesize speech from text."""
+        # Use TextToSpeech.synthesizeToFile for audio data
+        ...
+```
+
+**iOS Implementation**:
+```python
+class IOSTTS:
+    """iOS-specific TTS using AVSpeechSynthesizer."""
+    
+    def __init__(self):
+        from pyobjus import autoclass
+        self.AVSpeechSynthesizer = autoclass('AVSpeechSynthesizer')
+        self.AVSpeechUtterance = autoclass('AVSpeechUtterance')
+        self.synthesizer = None
+    
+    async def initialize(self, voice_gender: str) -> None:
+        """
+        Initialize iOS TTS.
+        
+        Args:
+            voice_gender: "male" for Guru, "female" for Maya
+        """
+        self.synthesizer = self.AVSpeechSynthesizer.alloc().init()
+        # Set voice based on gender
+        await self._set_voice(voice_gender)
+    
+    async def synthesize(self, text: str) -> bytes:
+        """Synthesize speech from text."""
+        utterance = self.AVSpeechUtterance.speechUtteranceWithString_(text)
+        # Configure voice and rate
+        ...
+```
+
+### 10. Background Service Manager (NEW)
+
+**Responsibility**: Manage always-on background service with sleep/wake cycles for battery optimization.
+
+**Interface**:
+```python
+from enum import Enum
+from dataclasses import dataclass
+
+class ServiceState(Enum):
+    STOPPED = "stopped"
+    SLEEPING = "sleeping"
+    WAKING = "waking"
+    AWAKE = "awake"
+
+@dataclass
+class BatteryUsageStats:
+    sleep_mode_percent_per_hour: float
+    wake_mode_percent_per_hour: float
+    total_uptime_hours: float
+    wake_count: int
+    average_wake_duration_seconds: float
+
+class BackgroundServiceManager:
+    """
+    Manage always-on background service with battery optimization.
+    
+    Targets:
+    - Sleep mode: <5% battery per hour
+    - Wake mode: <10% battery per hour
+    """
+    
+    def __init__(self, platform: str):
+        """
+        Initialize background service manager.
+        
+        Args:
+            platform: "android", "ios", "windows", "macos", "linux"
+        """
+        self.platform = platform
+        self.state = ServiceState.STOPPED
+        self.wake_word_detector = None
+        self.battery_monitor = None
+    
+    async def start_service(self) -> None:
+        """
+        Start background service.
+        
+        - Android: Start ForegroundService with notification
+        - iOS: Start background audio mode
+        - Desktop: Start system tray service
+        """
+        if self.platform == "android":
+            await self._start_android_foreground_service()
+        elif self.platform == "ios":
+            await self._start_ios_background_audio()
+        else:
+            await self._start_desktop_service()
+        
+        await self.enter_sleep_mode()
+    
+    async def stop_service(self) -> None:
+        """Stop background service and cleanup resources."""
+        await self._cleanup_resources()
+        self.state = ServiceState.STOPPED
+    
+    async def enter_sleep_mode(self) -> None:
+        """
+        Enter sleep mode for battery optimization.
+        
+        Sleep mode characteristics:
+        - Minimal CPU usage (<1%)
+        - Lightweight wake word detection only
+        - No LLM inference
+        - No network activity
+        - Target: <5% battery per hour
+        """
+        self.state = ServiceState.SLEEPING
+        
+        # Use minimal wake word detection
+        await self.wake_word_detector.set_sensitivity("low")
+        await self.wake_word_detector.set_buffer_size(512)  # Smaller buffer
+        
+        # Disable non-essential features
+        await self._disable_voice_biometrics()
+        await self._disable_command_recognition()
+        
+        # Monitor battery usage
+        await self.battery_monitor.start_tracking("sleep")
+    
+    async def enter_wake_mode(self) -> None:
+        """
+        Enter wake mode for full functionality.
+        
+        Wake mode characteristics:
+        - Full voice processing
+        - LLM inference
+        - Command execution
+        - Network activity
+        - Target: <10% battery per hour
+        """
+        self.state = ServiceState.WAKING
+        
+        # Enable full wake word detection
+        await self.wake_word_detector.set_sensitivity("high")
+        await self.wake_word_detector.set_buffer_size(2048)
+        
+        # Enable all features
+        await self._enable_voice_biometrics()
+        await self._enable_command_recognition()
+        
+        # Monitor battery usage
+        await self.battery_monitor.start_tracking("wake")
+        
+        self.state = ServiceState.AWAKE
+    
+    async def handle_wake_word_detected(self, wake_word: str) -> None:
+        """
+        Handle wake word detection event.
+        
+        Args:
+            wake_word: "hey_guru" or "hey_maya"
+        """
+        if self.state == ServiceState.SLEEPING:
+            await self.enter_wake_mode()
+        
+        # Process voice command
+        await self._process_voice_command(wake_word)
+        
+        # Return to sleep after timeout (e.g., 30 seconds of inactivity)
+        await self._schedule_sleep_timeout()
+    
+    async def handle_low_battery(self, battery_percent: float) -> None:
+        """
+        Handle low battery condition.
+        
+        Args:
+            battery_percent: Current battery percentage
+        """
+        if battery_percent < 20:
+            await self.enter_sleep_mode()
+        if battery_percent < 10:
+            await self.stop_service()
+    
+    async def handle_thermal_state(self, thermal_state: str) -> None:
+        """
+        Handle thermal state changes.
+        
+        Args:
+            thermal_state: "normal", "fair", "serious", "critical"
+        """
+        if thermal_state == "critical":
+            await self.enter_sleep_mode()
+    
+    async def get_battery_usage_stats(self) -> BatteryUsageStats:
+        """Get battery usage statistics."""
+        return await self.battery_monitor.get_stats()
+    
+    async def _start_android_foreground_service(self) -> None:
+        """Start Android ForegroundService with persistent notification."""
+        from jnius import autoclass
+        Intent = autoclass('android.content.Intent')
+        PendingIntent = autoclass('android.app.PendingIntent')
+        NotificationCompat = autoclass('androidx.core.app.NotificationCompat')
+        
+        # Create notification
+        notification = NotificationCompat.Builder(self._get_context(), "guru_service")
+        notification.setContentTitle("AGENT_GURU")
+        notification.setContentText("Listening for 'Hey Guru' or 'Hey Maya'")
+        notification.setSmallIcon(R.drawable.ic_notification)
+        notification.setPriority(NotificationCompat.PRIORITY_LOW)
+        
+        # Start foreground service
+        self.service.startForeground(1, notification.build())
+    
+    async def _start_ios_background_audio(self) -> None:
+        """Start iOS background audio mode."""
+        from pyobjus import autoclass
+        AVAudioSession = autoclass('AVAudioSession')
+        
+        session = AVAudioSession.sharedInstance()
+        session.setCategory_error_("AVAudioSessionCategoryPlayback", None)
+        session.setActive_error_(True, None)
+```
+
 ## Data Models
 
 ### TranscriptionResult

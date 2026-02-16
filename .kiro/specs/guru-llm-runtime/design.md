@@ -207,6 +207,101 @@ class LLMRuntime:
    - Key provided to adapter (never logged or cached)
    - Adapter authenticates with cloud provider
 
+## Mobile Platform Considerations
+
+### Desktop vs Mobile LLM Configuration
+
+**Desktop Platforms (Windows, macOS, Linux)**:
+- **Option 1**: Local Ollama (recommended for privacy)
+  - Free, private, offline-capable
+  - Models run locally on user's hardware
+  - No API costs
+  - Requires sufficient RAM (8GB+ recommended)
+- **Option 2**: Cloud APIs (OpenAI, Gemini, DeepSeek, Anthropic)
+  - User provides their own API keys
+  - Pay-per-use pricing
+  - Advanced capabilities (GPT-4, Claude, etc.)
+
+**Mobile Platforms (Android, iOS)**:
+- **API ONLY**: No local LLM support on mobile
+  - Mobile devices lack sufficient resources for local LLM inference
+  - Battery and thermal constraints prohibit local models
+  - Users MUST provide cloud API keys during onboarding
+  - Supported providers: OpenAI, Gemini, DeepSeek, Anthropic
+  - Cost tracking and budget limits enforced
+  - Offline mode: Use cached responses or graceful degradation
+
+### API Key Management
+
+**Security Requirements**:
+- API keys NEVER bundled in application
+- Users provide their own API keys during onboarding
+- Keys stored securely in OS-specific keychain:
+  - macOS: Keychain Services
+  - Windows: Credential Manager
+  - Linux: Secret Service API (libsecret)
+  - Android: Android Keystore
+  - iOS: iOS Keychain
+
+**Onboarding Flow**:
+```
+Desktop Onboarding:
+1. Choose LLM Provider:
+   - [ ] Local Ollama (Free, Private)
+   - [ ] Cloud API (Advanced Features)
+2. If Cloud API selected:
+   - Enter API key
+   - Validate key
+   - Store in OS keychain
+   - Set budget limit (optional)
+
+Mobile Onboarding:
+1. Choose Cloud API Provider:
+   - [ ] OpenAI (GPT-4, GPT-3.5)
+   - [ ] Google Gemini (Gemini Pro)
+   - [ ] DeepSeek (DeepSeek V2)
+   - [ ] Anthropic (Claude)
+2. Enter API key
+3. Validate key
+4. Store in OS keychain
+5. Set budget limit (recommended)
+```
+
+### Cost Tracking and Budget Management
+
+**Cost Tracking**:
+- Track API usage per provider
+- Calculate costs based on token usage
+- Display daily/weekly/monthly costs
+- Alert user when approaching budget limit
+
+**Budget Limits**:
+- User sets monthly budget during onboarding
+- System enforces budget limits
+- Graceful degradation when budget exceeded:
+  - Switch to cached responses
+  - Reduce context window
+  - Disable non-essential features
+  - Notify user
+
+**Implementation**:
+```python
+@dataclass
+class CostTracker:
+    provider: str
+    tokens_used: int
+    estimated_cost_usd: float
+    budget_limit_usd: float
+    period_start: datetime
+    period_end: datetime
+    
+    def is_over_budget(self) -> bool:
+        return self.estimated_cost_usd >= self.budget_limit_usd
+    
+    def remaining_budget(self) -> float:
+        return max(0, self.budget_limit_usd - self.estimated_cost_usd)
+```
+
 ## Components and Interfaces
 
 ### 1. LLM Runtime API

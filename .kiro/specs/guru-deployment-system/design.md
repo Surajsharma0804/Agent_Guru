@@ -126,7 +126,205 @@ graph TB
    - Package Registry reverted to previous state
    - Audit log records rollback event
 
+## Mobile Deployment Architecture
+
+### Android App Building
+
+The Android deployment pipeline uses buildozer or python-for-android to create APK/AAB packages:
+
+```
+Python Source Code
+        ↓
+buildozer/python-for-android
+        ↓
+Compile Python to Bytecode
+        ↓
+Package with Kivy/Chaquopy Runtime
+        ↓
+Add Android Native Code (Java/Kotlin)
+        ↓
+Create APK (for sideloading)
+        ↓
+Create AAB (for Play Store)
+        ↓
+Sign with Release Keystore
+        ↓
+Upload to Play Store / Distribute APK
+```
+
+**Key Components**:
+- buildozer.spec: Configuration file for Android build
+- AndroidManifest.xml: App permissions and metadata
+- build.gradle: Android build configuration
+- ProGuard rules: Code obfuscation configuration
+- Firebase Crashlytics: Crash reporting integration
+
+### iOS App Building
+
+The iOS deployment pipeline uses Kivy-iOS or BeeWare to create IPA packages:
+
+```
+Python Source Code
+        ↓
+Kivy-iOS/BeeWare
+        ↓
+Compile Python to Bytecode
+        ↓
+Package with Python Runtime
+        ↓
+Add iOS Native Code (Swift/Objective-C)
+        ↓
+Create Xcode Project
+        ↓
+Build IPA with Xcode
+        ↓
+Sign with Apple Developer Certificate
+        ↓
+Upload to TestFlight / App Store
+```
+
+**Key Components**:
+- Info.plist: App metadata and permissions
+- Entitlements: App capabilities (background modes, etc.)
+- Provisioning Profile: Code signing configuration
+- Firebase Crashlytics: Crash reporting integration
+
+### Onboarding Flow Integration
+
+The onboarding system is launched automatically on first app run:
+
+```
+App Launch
+    ↓
+Check Onboarding Status
+    ↓
+If Not Completed → Launch Onboarding
+    ↓
+Step 1: Welcome Screen
+    ↓
+Step 2: Profile Setup
+    ↓
+Step 3: Biometric Enrollment (guru-security-cryptography)
+    ↓
+Step 4: LLM Configuration (guru-llm-runtime)
+    ↓
+Step 5: Permission Granting
+    ↓
+Step 6: Completion
+    ↓
+Save Onboarding Status
+    ↓
+Launch Main App
+```
+
 ## Components and Interfaces
+
+### 0. Mobile App Builder (NEW)
+
+**Responsibility**: Build Android APK/AAB and iOS IPA packages from Python source.
+
+**Interface**:
+```python
+class MobileAppBuilder:
+    def build_android_apk(self, config: AndroidBuildConfig) -> Path:
+        """
+        Build Android APK for sideloading.
+        
+        Args:
+            config: Android build configuration
+            
+        Returns:
+            Path to generated APK file
+            
+        Raises:
+            BuildError: If build fails
+        """
+        pass
+    
+    def build_android_aab(self, config: AndroidBuildConfig) -> Path:
+        """
+        Build Android App Bundle for Play Store.
+        
+        Args:
+            config: Android build configuration
+            
+        Returns:
+            Path to generated AAB file
+            
+        Raises:
+            BuildError: If build fails
+        """
+        pass
+    
+    def build_ios_ipa(self, config: IOSBuildConfig) -> Path:
+        """
+        Build iOS IPA for TestFlight/App Store.
+        
+        Args:
+            config: iOS build configuration
+            
+        Returns:
+            Path to generated IPA file
+            
+        Raises:
+            BuildError: If build fails
+        """
+        pass
+    
+    def sign_android_package(self, package_path: Path, 
+                            keystore: Path, keystore_password: str) -> None:
+        """Sign Android package with release keystore."""
+        pass
+    
+    def sign_ios_package(self, package_path: Path,
+                        certificate: Path, provisioning_profile: Path) -> None:
+        """Sign iOS package with Apple Developer certificate."""
+        pass
+    
+    def upload_to_play_store(self, aab_path: Path, 
+                            track: str = "internal") -> None:
+        """
+        Upload AAB to Google Play Store.
+        
+        Args:
+            aab_path: Path to AAB file
+            track: Release track (internal, alpha, beta, production)
+        """
+        pass
+    
+    def upload_to_app_store(self, ipa_path: Path) -> None:
+        """Upload IPA to Apple App Store Connect."""
+        pass
+
+@dataclass
+class AndroidBuildConfig:
+    app_name: str
+    package_name: str  # e.g., "com.agent.guru"
+    version_code: int
+    version_name: str
+    min_sdk_version: int = 24
+    target_sdk_version: int = 34
+    permissions: List[str]
+    icon_path: Path
+    splash_screen_path: Path
+    buildozer_spec_path: Path
+    enable_crashlytics: bool = True
+    enable_proguard: bool = True
+
+@dataclass
+class IOSBuildConfig:
+    app_name: str
+    bundle_identifier: str  # e.g., "com.agent.guru"
+    version: str
+    build_number: int
+    min_ios_version: str = "14.0"
+    permissions: Dict[str, str]  # Permission key -> usage description
+    icon_path: Path
+    launch_screen_path: Path
+    enable_crashlytics: bool = True
+    team_id: str
+    provisioning_profile_name: str
+```
 
 ### 1. Package Manager
 

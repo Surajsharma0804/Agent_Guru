@@ -165,31 +165,113 @@ This system is responsible for creating professional installers for Windows and 
 7. THE Deployment_System SHALL support packages up to 1 GB in size
 
 
-### Requirement 11: Professional Installation System
+### Requirement 11: Android App Deployment ⚠️ CRITICAL FOR MOBILE
 
-**User Story:** As a user, I want a professional installation experience that guides me through setup, so that I can start using AGENT_GURU quickly and securely.
+**User Story:** As an Android user, I want to install AGENT_GURU from the Play Store or sideload it, so that I can use the app on my Android device.
 
 #### Acceptance Criteria
 
-1. **Windows Installer**: THE Deployment_System SHALL provide a professional MSI installer for Windows 10/11
-2. **macOS Installer**: THE Deployment_System SHALL provide a professional DMG installer for macOS 11+
-3. **Installation Wizard**: THE installer SHALL include a beautiful wizard UI with progress indicators
-4. **Dependency Installation**: THE installer SHALL automatically install all required dependencies (Python, Ollama, system libraries)
-5. **Permission Requests**: THE installer SHALL request necessary system permissions (microphone, camera, accessibility, automation)
-6. **Desktop Integration**: THE installer SHALL create desktop shortcuts, start menu entries, and system tray integration
-7. **Auto-Start Configuration**: THE installer SHALL offer to start AGENT_GURU on system boot
-8. **Onboarding Launch**: WHEN installation completes, THE installer SHALL automatically launch the onboarding flow
-9. **Uninstaller**: THE installer SHALL include a complete uninstaller that removes all components and user data (with confirmation)
-10. **Silent Installation**: THE installer SHALL support silent/automated installation for enterprise deployment
-11. **Update Mechanism**: THE installer SHALL include an auto-update mechanism that checks for new versions
-12. **Rollback Support**: THE installer SHALL support rolling back to previous versions if updates fail
-13. **System Requirements Check**: THE installer SHALL verify system requirements before installation
-14. **Disk Space Check**: THE installer SHALL verify sufficient disk space (minimum 5GB recommended)
-15. **Installation Logs**: THE installer SHALL create detailed installation logs for troubleshooting
-16. THE installer SHALL be code-signed for Windows and macOS to avoid security warnings
+1. **MANDATORY**: THE Deployment_System SHALL create APK (Android Package) for sideloading and testing
+2. **MANDATORY**: THE Deployment_System SHALL create AAB (Android App Bundle) for Google Play Store distribution
+3. **MANDATORY**: THE Deployment_System SHALL include Play Store listing assets (title, short description, full description, screenshots, feature graphic, icon)
+4. **MANDATORY**: THE Deployment_System SHALL pass Google Play Store security review requirements (no malware, proper permissions, privacy policy)
+5. **MANDATORY**: THE Deployment_System SHALL implement in-app updates using Play Core Library for seamless updates
+6. **MANDATORY**: THE Deployment_System SHALL support staged rollouts (5%, 10%, 25%, 50%, 100%) for gradual deployment
+7. **MANDATORY**: THE Deployment_System SHALL include crash reporting using Firebase Crashlytics for production monitoring
+8. **MANDATORY**: THE Deployment_System SHALL support multiple APK variants for different architectures (arm64-v8a, armeabi-v7a, x86_64)
+9. **MANDATORY**: THE Deployment_System SHALL include ProGuard/R8 code obfuscation for release builds
+10. **MANDATORY**: THE Deployment_System SHALL sign APK/AAB with release keystore for Play Store submission
+11. **MANDATORY**: THE Deployment_System SHALL include version code and version name in build configuration
+12. **MANDATORY**: THE Deployment_System SHALL support minimum SDK version 24 (Android 7.0) and target SDK version 34 (Android 14)
+13. **MANDATORY**: THE Deployment_System SHALL include all required permissions in AndroidManifest.xml with usage descriptions
+14. **MANDATORY**: THE Deployment_System SHALL implement proper app icon with adaptive icon support (foreground + background)
+15. **MANDATORY**: THE Deployment_System SHALL include splash screen following Android 12+ guidelines
+16. **MANDATORY**: THE Deployment_System SHALL use buildozer or python-for-android for building APK/AAB from Python code
+17. **MANDATORY**: THE Deployment_System SHALL include automated build pipeline (GitHub Actions or GitLab CI)
+18. **MANDATORY**: THE Deployment_System SHALL generate release notes for each version
+19. **MANDATORY**: THE Deployment_System SHALL include privacy policy URL in Play Store listing
+20. **MANDATORY**: THE Deployment_System SHALL support Google Play App Signing for enhanced security
 
+### Requirement 12: iOS App Deployment ⚠️ CRITICAL FOR MOBILE
 
-### Requirement 12: Python Implementation Requirements ⚠️ IMPLEMENTATION GAP
+**User Story:** As an iOS user, I want to install AGENT_GURU from the App Store or TestFlight, so that I can use the app on my iPhone or iPad.
+
+#### Acceptance Criteria
+
+1. **MANDATORY**: THE Deployment_System SHALL create IPA (iOS App Store Package) for TestFlight distribution and testing
+2. **MANDATORY**: THE Deployment_System SHALL create App Store submission package for Apple App Store
+3. **MANDATORY**: THE Deployment_System SHALL include App Store listing assets (title, subtitle, description, screenshots, preview videos, icon)
+4. **MANDATORY**: THE Deployment_System SHALL pass App Store Review Guidelines (no private APIs, proper permissions, privacy policy)
+5. **MANDATORY**: THE Deployment_System SHALL implement in-app updates using App Store mechanisms
+6. **MANDATORY**: THE Deployment_System SHALL support TestFlight beta testing with up to 10,000 external testers
+7. **MANDATORY**: THE Deployment_System SHALL include crash reporting using Firebase Crashlytics for production monitoring
+8. **MANDATORY**: THE Deployment_System SHALL support universal binary (iPhone + iPad) with proper UI adaptation
+9. **MANDATORY**: THE Deployment_System SHALL sign IPA with Apple Developer certificate and provisioning profile
+10. **MANDATORY**: THE Deployment_System SHALL include CFBundleVersion (build number) and CFBundleShortVersionString (version) in Info.plist
+11. **MANDATORY**: THE Deployment_System SHALL support minimum iOS version 14.0 and target latest iOS version
+12. **MANDATORY**: THE Deployment_System SHALL include all required permissions in Info.plist with usage descriptions (NSMicrophoneUsageDescription, NSCameraUsageDescription, etc.)
+13. **MANDATORY**: THE Deployment_System SHALL implement proper app icon with all required sizes (1024x1024 for App Store, various sizes for device)
+14. **MANDATORY**: THE Deployment_System SHALL include launch screen following iOS guidelines
+15. **MANDATORY**: THE Deployment_System SHALL use Kivy-iOS or BeeWare for building IPA from Python code
+16. **MANDATORY**: THE Deployment_System SHALL include automated build pipeline (GitHub Actions or GitLab CI with macOS runner)
+17. **MANDATORY**: THE Deployment_System SHALL generate release notes for each version
+18. **MANDATORY**: THE Deployment_System SHALL include privacy policy URL in App Store listing
+19. **MANDATORY**: THE Deployment_System SHALL support App Store Connect API for automated submission
+20. **MANDATORY**: THE Deployment_System SHALL implement proper code signing with automatic signing or manual signing
+
+### Requirement 13: Onboarding Integration ⚠️ CRITICAL FOR USER EXPERIENCE
+
+**User Story:** As a new user, I want a guided onboarding experience after installation, so that I can set up AGENT_GURU quickly and correctly.
+
+#### Acceptance Criteria
+
+1. **MANDATORY**: THE Deployment_System SHALL launch onboarding wizard automatically on first app run
+2. **MANDATORY**: THE Deployment_System SHALL skip onboarding if already completed (check persistent flag)
+3. **MANDATORY**: THE Deployment_System SHALL allow re-running onboarding from app settings
+4. **MANDATORY**: THE Deployment_System SHALL integrate with platform-specific setup flows (Android Setup Wizard, iOS Setup Assistant)
+5. **MANDATORY**: THE Deployment_System SHALL handle interrupted onboarding gracefully (save progress, resume on next launch)
+6. **MANDATORY**: THE Deployment_System SHALL include onboarding steps:
+   - Welcome screen with Guru and Maya introduction
+   - Profile setup (gender, age, date of birth, name)
+   - Biometric enrollment (fingerprint, face, voice, passphrase)
+   - LLM configuration (local Ollama for desktop, API keys for mobile)
+   - Permission granting (microphone, camera, accessibility, automation)
+   - Completion screen with "Hey Guru" / "Hey Maya" instructions
+7. **MANDATORY**: THE Deployment_System SHALL validate all onboarding inputs before proceeding to next step
+8. **MANDATORY**: THE Deployment_System SHALL provide clear error messages for invalid inputs or failed operations
+9. **MANDATORY**: THE Deployment_System SHALL allow skipping optional steps (biometric enrollment)
+10. **MANDATORY**: THE Deployment_System SHALL store onboarding completion status in persistent storage
+11. **MANDATORY**: THE Deployment_System SHALL integrate with guru-security-cryptography for biometric enrollment
+12. **MANDATORY**: THE Deployment_System SHALL integrate with guru-llm-runtime for LLM configuration
+13. **MANDATORY**: THE Deployment_System SHALL provide progress indicator showing current step and total steps
+14. **MANDATORY**: THE Deployment_System SHALL support back navigation to previous onboarding steps
+15. **MANDATORY**: THE Deployment_System SHALL use platform-native UI components for onboarding (Material Design on Android, Human Interface Guidelines on iOS)
+
+### Requirement 14: Desktop Installer Enhancements ⚠️ UPDATED
+
+**User Story:** As a desktop user, I want professional installers for Windows, macOS, and Linux, so that I can install AGENT_GURU easily.
+
+#### Acceptance Criteria
+
+1. **MANDATORY**: THE Deployment_System SHALL provide Windows MSI installer for Windows 10/11
+2. **MANDATORY**: THE Deployment_System SHALL provide macOS DMG installer for macOS 11+
+3. **MANDATORY**: THE Deployment_System SHALL provide Linux packages (DEB for Ubuntu/Debian, RPM for Fedora/RHEL, AppImage for universal)
+4. **MANDATORY**: THE Deployment_System SHALL include installation wizard UI with progress indicators
+5. **MANDATORY**: THE Deployment_System SHALL automatically install all required dependencies (Python, Ollama, system libraries)
+6. **MANDATORY**: THE Deployment_System SHALL request necessary system permissions during installation
+7. **MANDATORY**: THE Deployment_System SHALL create desktop shortcuts, start menu entries, and system tray integration
+8. **MANDATORY**: THE Deployment_System SHALL offer to start AGENT_GURU on system boot
+9. **MANDATORY**: WHEN installation completes, THE installer SHALL automatically launch the onboarding flow
+10. **MANDATORY**: THE Deployment_System SHALL include complete uninstaller that removes all components and user data (with confirmation)
+11. **MANDATORY**: THE Deployment_System SHALL support silent/automated installation for enterprise deployment
+12. **MANDATORY**: THE Deployment_System SHALL include auto-update mechanism that checks for new versions
+13. **MANDATORY**: THE Deployment_System SHALL support rolling back to previous versions if updates fail
+14. **MANDATORY**: THE Deployment_System SHALL verify system requirements before installation (CPU, RAM, disk space)
+15. **MANDATORY**: THE Deployment_System SHALL verify sufficient disk space (minimum 5GB recommended)
+16. **MANDATORY**: THE Deployment_System SHALL create detailed installation logs for troubleshooting
+17. **MANDATORY**: THE Deployment_System SHALL be code-signed for Windows (Authenticode) and macOS (Apple Developer ID) to avoid security warnings
+
+### Requirement 15: Python Implementation Requirements ⚠️ IMPLEMENTATION GAP
 
 **User Story:** As a developer, I want a complete Python implementation of the deployment system, so that package management is robust and maintainable.
 

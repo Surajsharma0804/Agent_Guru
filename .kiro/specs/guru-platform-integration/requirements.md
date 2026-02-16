@@ -168,9 +168,127 @@ The system abstracts platform-specific operations behind a common interface, all
 6. WHEN logging errors, THE Platform_Integration_System SHALL include the platform name, operation name, and error details
 
 
-### Requirement 11: Python Implementation Requirements ⚠️ IMPLEMENTATION GAP
+### Requirement 11: Android Platform Integration ⚠️ CRITICAL FOR MOBILE
 
-**User Story:** As a developer, I want a complete Python implementation of platform integration, so that OS control is accessible across all platforms.
+**User Story:** As an Android user, I want AGENT_GURU to control Android-specific features, so that I can automate Android operations through voice commands.
+
+#### Acceptance Criteria
+
+1. **MANDATORY**: WHEN running on Android, THE Android_Integration SHALL provide access to Android Intent system for app launching
+2. **MANDATORY**: WHEN an Intent is created, THE Android_Integration SHALL support explicit intents (specific app) and implicit intents (action-based)
+3. **MANDATORY**: WHEN launching apps, THE Android_Integration SHALL use PackageManager to resolve app names to package identifiers
+4. **MANDATORY**: THE Android_Integration SHALL use Accessibility Service for text input and UI automation
+5. **MANDATORY**: WHEN Accessibility Service is enabled, THE Android_Integration SHALL simulate touch events, text input, and gesture navigation
+6. **MANDATORY**: THE Android_Integration SHALL use Storage Access Framework (SAF) for file operations
+7. **MANDATORY**: WHEN accessing files, THE Android_Integration SHALL request appropriate permissions (READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE)
+8. **MANDATORY**: THE Android_Integration SHALL use NotificationManager for creating and managing notifications
+9. **MANDATORY**: THE Android_Integration SHALL use ActivityManager for process and task management
+10. **MANDATORY**: THE Android_Integration SHALL use AudioManager for volume control and audio routing
+11. **MANDATORY**: THE Android_Integration SHALL use Settings API for system settings (WiFi, Bluetooth, Airplane mode, brightness)
+12. **MANDATORY**: WHEN modifying system settings, THE Android_Integration SHALL request WRITE_SETTINGS permission
+13. **MANDATORY**: THE Android_Integration SHALL use ContentResolver for accessing contacts, messages, and calendar
+14. **MANDATORY**: THE Android_Integration SHALL request runtime permissions (Android 6.0+) for all sensitive operations
+15. **MANDATORY**: THE Android_Integration SHALL use Android Speech Recognition API for voice input (fallback to cloud STT)
+16. **MANDATORY**: THE Android_Integration SHALL use Android TextToSpeech for voice output
+17. **MANDATORY**: THE Android_Integration SHALL integrate with Android background service lifecycle (onCreate, onStartCommand, onDestroy)
+18. **MANDATORY**: THE Android_Integration SHALL use WorkManager for scheduled background tasks
+19. **MANDATORY**: THE Android_Integration SHALL use ForegroundService for always-on wake word detection
+20. **MANDATORY**: THE Android_Integration SHALL implement battery optimization exemption requests for reliable background operation
+21. **MANDATORY**: THE Android_Integration SHALL use Doze mode whitelisting for wake word detection during device sleep
+22. **MANDATORY**: THE Android_Integration SHALL implement proper Android lifecycle handling (onPause, onResume, onStop)
+23. **MANDATORY**: THE Android_Integration SHALL use SharedPreferences for configuration storage
+24. **MANDATORY**: THE Android_Integration SHALL use Room database for local data persistence
+25. **MANDATORY**: THE Android_Integration SHALL implement proper permission request flows with user-friendly explanations
+26. **MANDATORY**: THE Android_Integration SHALL handle permission denials gracefully with fallback options
+27. **MANDATORY**: THE Android_Integration SHALL use Kotlin or Java for Android-specific code with Python bindings via Chaquopy or Kivy
+28. IF a Android operation fails due to insufficient permissions, THEN THE Android_Integration SHALL raise a permission error with details and guidance
+
+### Requirement 12: iOS Platform Integration ⚠️ CRITICAL FOR MOBILE
+
+**User Story:** As an iOS user, I want AGENT_GURU to control iOS-specific features, so that I can automate iOS operations through voice commands.
+
+#### Acceptance Criteria
+
+1. **MANDATORY**: WHEN running on iOS, THE iOS_Integration SHALL provide access to URL schemes for app launching
+2. **MANDATORY**: WHEN launching apps, THE iOS_Integration SHALL use custom URL schemes (e.g., `whatsapp://`, `spotify://`)
+3. **MANDATORY**: THE iOS_Integration SHALL use Shortcuts automation for complex multi-step actions
+4. **MANDATORY**: WHEN executing shortcuts, THE iOS_Integration SHALL use Intents framework for app integration
+5. **MANDATORY**: THE iOS_Integration SHALL use Files app integration for file operations
+6. **MANDATORY**: WHEN accessing files, THE iOS_Integration SHALL use UIDocumentPickerViewController for user-selected files
+7. **MANDATORY**: THE iOS_Integration SHALL use UserNotifications framework for creating and managing notifications
+8. **MANDATORY**: THE iOS_Integration SHALL use AVAudioSession for audio control and routing
+9. **MANDATORY**: THE iOS_Integration SHALL use Settings bundle for app-specific settings
+10. **MANDATORY**: THE iOS_Integration SHALL request appropriate permissions (Microphone, Camera, Photos, Contacts, Automation)
+11. **MANDATORY**: WHEN requesting permissions, THE iOS_Integration SHALL provide clear usage descriptions in Info.plist
+12. **MANDATORY**: THE iOS_Integration SHALL use Apple Speech Framework for voice input (on-device STT)
+13. **MANDATORY**: THE iOS_Integration SHALL use AVSpeechSynthesizer for voice output (on-device TTS)
+14. **MANDATORY**: THE iOS_Integration SHALL integrate with iOS background modes (audio, voip, fetch)
+15. **MANDATORY**: THE iOS_Integration SHALL use Background App Refresh for periodic updates
+16. **MANDATORY**: THE iOS_Integration SHALL implement proper iOS lifecycle handling (applicationDidEnterBackground, applicationWillEnterForeground)
+17. **MANDATORY**: THE iOS_Integration SHALL use UserDefaults for configuration storage
+18. **MANDATORY**: THE iOS_Integration SHALL use Core Data or Realm for local data persistence
+19. **MANDATORY**: THE iOS_Integration SHALL implement proper permission request flows with user-friendly explanations
+20. **MANDATORY**: THE iOS_Integration SHALL handle permission denials gracefully with fallback options
+21. **MANDATORY**: THE iOS_Integration SHALL use Swift or Objective-C for iOS-specific code with Python bindings via Kivy or BeeWare
+22. **MANDATORY**: THE iOS_Integration SHALL use SiriKit for voice command integration (optional enhancement)
+23. **MANDATORY**: THE iOS_Integration SHALL implement Low Power Mode detection and adapt behavior accordingly
+24. **MANDATORY**: THE iOS_Integration SHALL use Background Task Scheduler for wake word detection during app suspension
+25. **MANDATORY**: THE iOS_Integration SHALL implement proper memory management to avoid iOS memory pressure termination
+26. **MANDATORY**: THE iOS_Integration SHALL use Keychain for secure storage of API keys and credentials
+27. IF a iOS operation fails due to insufficient permissions, THEN THE iOS_Integration SHALL raise a permission error with details and guidance
+
+### Requirement 13: Mobile-Specific Hardware Abstraction ⚠️ CRITICAL FOR MOBILE
+
+**User Story:** As a mobile developer, I want to access mobile-specific hardware in a platform-independent way, so that I can monitor device resources and capabilities.
+
+#### Acceptance Criteria
+
+1. **MANDATORY**: THE Hardware_Abstraction SHALL provide battery status (percentage, charging state, health) on mobile platforms
+2. **MANDATORY**: THE Hardware_Abstraction SHALL provide battery temperature monitoring on mobile platforms
+3. **MANDATORY**: THE Hardware_Abstraction SHALL provide screen brightness control on mobile platforms
+4. **MANDATORY**: THE Hardware_Abstraction SHALL provide cellular network information (signal strength, network type, carrier)
+5. **MANDATORY**: THE Hardware_Abstraction SHALL provide GPS location services (with permission)
+6. **MANDATORY**: THE Hardware_Abstraction SHALL provide accelerometer and gyroscope data (with permission)
+7. **MANDATORY**: THE Hardware_Abstraction SHALL provide camera availability and capabilities
+8. **MANDATORY**: THE Hardware_Abstraction SHALL provide microphone availability and capabilities
+9. **MANDATORY**: THE Hardware_Abstraction SHALL provide storage information (internal, external, available space)
+10. **MANDATORY**: THE Hardware_Abstraction SHALL provide device model, manufacturer, and OS version
+11. **MANDATORY**: THE Hardware_Abstraction SHALL provide screen resolution and DPI
+12. **MANDATORY**: THE Hardware_Abstraction SHALL provide thermal state monitoring (normal, fair, serious, critical)
+13. **MANDATORY**: THE Hardware_Abstraction SHALL adapt behavior based on battery level (<20% = aggressive power saving)
+14. **MANDATORY**: THE Hardware_Abstraction SHALL adapt behavior based on thermal state (throttle operations when overheating)
+15. **MANDATORY**: THE Hardware_Abstraction SHALL provide Low Power Mode detection (iOS) and Battery Saver detection (Android)
+16. WHEN Low Power Mode is active, THE Hardware_Abstraction SHALL reduce background activity and disable non-essential features
+17. WHEN thermal state is critical, THE Hardware_Abstraction SHALL pause intensive operations until device cools down
+
+### Requirement 14: Mobile Background Service Architecture ⚠️ CRITICAL FOR ALWAYS-ON
+
+**User Story:** As a user, I want AGENT_GURU to run in the background on my mobile device, so that I can use voice commands without opening the app.
+
+#### Acceptance Criteria
+
+1. **MANDATORY**: THE Platform_Integration SHALL implement Android ForegroundService for always-on operation
+2. **MANDATORY**: WHEN ForegroundService is running, THE Platform_Integration SHALL display a persistent notification
+3. **MANDATORY**: THE Platform_Integration SHALL implement iOS Background Audio mode for always-on operation
+4. **MANDATORY**: THE Platform_Integration SHALL implement sleep/wake cycles to optimize battery usage
+5. **MANDATORY**: WHEN in sleep mode, THE Platform_Integration SHALL use minimal CPU (<1%) and wake on voice activity detection
+6. **MANDATORY**: WHEN in wake mode, THE Platform_Integration SHALL process voice commands with full capabilities
+7. **MANDATORY**: THE Platform_Integration SHALL implement battery optimization: <5% per hour in sleep mode, <10% per hour in wake mode
+8. **MANDATORY**: THE Platform_Integration SHALL request battery optimization exemption on Android (REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+9. **MANDATORY**: THE Platform_Integration SHALL use Background Task Scheduler on iOS for periodic wake word checks
+10. **MANDATORY**: THE Platform_Integration SHALL implement proper service restart on device reboot (BOOT_COMPLETED receiver on Android)
+11. **MANDATORY**: THE Platform_Integration SHALL implement crash recovery and automatic service restart
+12. **MANDATORY**: THE Platform_Integration SHALL implement watchdog timer to detect and recover from hangs
+13. **MANDATORY**: THE Platform_Integration SHALL log all background service events for debugging
+14. **MANDATORY**: THE Platform_Integration SHALL provide user controls to start/stop background service
+15. **MANDATORY**: THE Platform_Integration SHALL provide battery usage statistics to user
+16. **MANDATORY**: THE Platform_Integration SHALL implement adaptive wake word sensitivity based on ambient noise
+17. **MANDATORY**: THE Platform_Integration SHALL implement voice activity detection (VAD) to minimize false wakes
+18. **MANDATORY**: THE Platform_Integration SHALL implement proper cleanup on service stop (release audio resources, cancel timers)
+
+### Requirement 15: Python Implementation Requirements ⚠️ IMPLEMENTATION GAP
+
+**User Story:** As a developer, I want a complete Python implementation of platform integration, so that OS control is accessible across all platforms including mobile.
 
 #### Acceptance Criteria
 
@@ -180,11 +298,17 @@ The system abstracts platform-specific operations behind a common interface, all
 4. **MANDATORY**: THE Platform_Integration_System SHALL use pyobjc for macOS-specific operations
 5. **MANDATORY**: THE Platform_Integration_System SHALL use dbus-python for Linux-specific operations
 6. **MANDATORY**: THE Platform_Integration_System SHALL use GPUtil for GPU monitoring
-7. **MANDATORY**: THE Platform_Integration_System SHALL provide async/await interfaces for all operations
-8. **MANDATORY**: THE Platform_Integration_System SHALL integrate with guru_security for permission validation
-9. **MANDATORY**: THE Platform_Integration_System SHALL provide a Python package `guru_platform` with proper module structure
-10. **MANDATORY**: THE Platform_Integration_System SHALL use Pydantic for configuration and data validation
-11. **MANDATORY**: THE Platform_Integration_System SHALL provide CLI tools for system inspection and control
-12. **MANDATORY**: THE Platform_Integration_System SHALL include comprehensive docstrings and type hints
-13. WHERE Rust optimization is needed, THE Platform_Integration_System SHALL use PyO3 bindings for performance-critical paths
-14. THE Platform_Integration_System SHALL provide migration tools from Rust implementation to Python implementation
+7. **MANDATORY**: THE Platform_Integration_System SHALL use Kivy or BeeWare for mobile platform support (Android and iOS)
+8. **MANDATORY**: THE Platform_Integration_System SHALL use Chaquopy for Android Python integration (alternative to Kivy)
+9. **MANDATORY**: THE Platform_Integration_System SHALL use pyjnius for Android Java API access from Python
+10. **MANDATORY**: THE Platform_Integration_System SHALL use pyobjus for iOS Objective-C API access from Python
+11. **MANDATORY**: THE Platform_Integration_System SHALL provide async/await interfaces for all operations
+12. **MANDATORY**: THE Platform_Integration_System SHALL integrate with guru_security for permission validation
+13. **MANDATORY**: THE Platform_Integration_System SHALL provide a Python package `guru_platform` with proper module structure
+14. **MANDATORY**: THE Platform_Integration_System SHALL use Pydantic for configuration and data validation
+15. **MANDATORY**: THE Platform_Integration_System SHALL provide CLI tools for system inspection and control
+16. **MANDATORY**: THE Platform_Integration_System SHALL include comprehensive docstrings and type hints
+17. WHERE Rust optimization is needed, THE Platform_Integration_System SHALL use PyO3 bindings for performance-critical paths
+18. THE Platform_Integration_System SHALL provide migration tools from Rust implementation to Python implementation
+19. **MANDATORY**: THE Platform_Integration_System SHALL support building Android APK/AAB using buildozer or python-for-android
+20. **MANDATORY**: THE Platform_Integration_System SHALL support building iOS IPA using Kivy-iOS or BeeWare
