@@ -1,0 +1,45 @@
+# Speech Engine Dependencies
+
+# Speech-to-Text
+faster-whisper>=0.10.0
+
+# Audio Processing
+noisereduce>=3.0.0
+librosa>=0.10.0
+scipy>=1.11.0
+
+# Audio I/O
+sounddevice>=0.4.6
+soundfile>=0.12.1
+
+# Text-to-Speech
+pyttsx3>=2.90
+# Alternative TTS options (uncomment as needed):
+# TTS>=0.22.0  # Coqui TTS
+# google-cloud-texttospeech>=2.14.0
+# azure-cognitiveservices-speech>=1.31.0
+# boto3>=1.28.0  # AWS Polly
+
+# Numerical Computing
+numpy>=1.24.0
+
+# Emotion Detection
+transformers>=4.30.0
+torch>=2.0.0
+
+# Testing
+hypothesis>=6.82.0
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+
+# Type Checking
+mypy>=1.4.0
+
+# Code Quality
+black>=23.7.0
+flake8>=6.0.0
+
+# Mobile Platform Support (optional)
+# pyjnius>=1.5.0  # Android
+# pyobjus>=1.2.0  # iOS
