@@ -2,26 +2,36 @@
 
 ## Overview
 
-The Guru Memory System is a hybrid storage architecture that combines temporal graph databases with semantic vector search to provide intelligent, context-aware memory management for AI agents. The system uses a dual-storage approach: NetworkX for in-memory graph operations with SQLite persistence, and ChromaDB for semantic vector indexing. All data is encrypted at rest using AES-256-GCM with keys derived from a master secret.
+The Guru Memory System is a hybrid storage architecture that provides intelligent, context-aware memory management for AGENT_GURU's dual AI personalities (Guru and Maya). The system maintains separate memory contexts for each personality while providing unified storage and retrieval capabilities.
 
 **IMPORTANT**: This system is the ONLY conversation history and memory storage system in AGENT_GURU. All other components (LLM Runtime, Agent Orchestration) must use this system for conversation context management.
+
+**Dual Personality Memory**:
+- **Separate Contexts**: Guru and Maya maintain independent conversation histories and memories
+- **Personality Profiles**: Each personality has distinct preferences, learned patterns, and interaction styles
+- **Context Isolation**: Memories from one personality don't leak into the other's context
+- **Unified Storage**: Both personalities use the same underlying storage infrastructure
+- **Seamless Switching**: Users can switch between personalities without losing context
+
+**Memory Types**:
+1. **Conversation History**: Complete message history per personality
+2. **User Profiles**: User preferences, demographics, interaction patterns
+3. **Semantic Memory**: Facts, knowledge, and learned information
+4. **Episodic Memory**: Specific events and interactions
+5. **Personality Preferences**: Each personality's learned user preferences
+
+The system uses a dual-storage approach:
+- **SQLite** for structured data (conversations, profiles, metadata)
+- **ChromaDB** for semantic vector search (similarity-based retrieval)
+- **AES-256-GCM encryption** for all data at rest
 
 The architecture prioritizes:
 - **Fast retrieval**: Sub-100ms semantic queries through HNSW indexing
 - **Privacy**: End-to-end encryption with no plaintext on disk
+- **Personality Isolation**: Clean separation between Guru and Maya contexts
 - **Scalability**: Efficient pruning strategies to manage growth
 - **Reliability**: ACID transactions and graceful degradation
 - **Central Storage**: Single source of truth for all conversation and memory data
-
-### Key Design Decisions
-
-1. **NetworkX + SQLite over Neo4j**: NetworkX provides excellent Python integration and performance for graphs under 1M nodes, with SQLite offering reliable persistence. Neo4j would be overkill for initial deployment and adds operational complexity.
-
-2. **ChromaDB over FAISS**: ChromaDB provides a higher-level API with built-in persistence, metadata filtering, and collection management. FAISS requires more manual infrastructure but could be swapped in later for performance.
-
-3. **sentence-transformers for embeddings**: Industry-standard models (all-MiniLM-L6-v2) provide excellent quality-to-speed tradeoff. Models are loaded once and cached.
-
-4. **Encryption at the storage layer**: Encrypting before persistence ensures all data on disk is protected. Decryption happens transparently during retrieval.
 
 ## Integration Points
 
