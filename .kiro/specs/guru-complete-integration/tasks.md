@@ -107,18 +107,20 @@ After completing EACH task:
     - `initialize()` method loading LLM configuration
     - `generate_response()` method with personality context
     - Platform-specific implementations:
-      - Desktop: Ollama (local) + Cloud APIs
-      - Mobile: Cloud APIs (OpenAI, Gemini) primarily
+      - **Desktop (Windows/macOS/Linux)**: Support both Ollama (local) AND Cloud APIs
+      - **Mobile (Android/iOS)**: Cloud APIs ONLY (no local LLM support)
+    - API key validation and storage
   - Personality-specific system prompts (Guru vs Maya)
   - Conversation context management
-  - Fallback mechanism (cloud → local on desktop)
-  - _Requirements: LLM Integration, Dual Personalities_
+  - Fallback mechanism (cloud → local on desktop only)
+  - _Requirements: LLM Integration, Dual Personalities, Platform-Specific_
   - **Tests Required**:
     - Unit tests for prompt generation
     - Unit tests for personality prompts
-    - Integration tests with Ollama and cloud APIs
+    - Integration tests with Ollama (desktop only)
+    - Integration tests with cloud APIs (all platforms)
     - Performance tests for LLM latency (<2 seconds)
-    - Unit tests for fallback mechanism
+    - Unit tests for fallback mechanism (desktop only)
     - Platform-specific tests (Windows, macOS, Linux, Android, iOS)
   - **GitHub Push**: ✅ Required after completion
 
@@ -344,15 +346,19 @@ After completing EACH task:
   - Create `guru_main/agent_guru.py`
   - Implement `AgentGuru` class (main application):
     - `initialize()` method loading all components
-    - `run()` method with main event loop
+    - `run_as_background_service()` method - always-on wake word detection
     - Platform-specific implementations:
-      - Desktop: Standard Python application
-      - Android: Android Service + Activity
-      - iOS: iOS App with background modes
+      - **Desktop**: Background service (auto-start on boot)
+      - **Android**: Android Service (foreground service with notification)
+      - **iOS**: iOS App with background modes (audio, voip)
+    - Sleep mode when idle (low power)
+    - Wake up on "Hey Guru" or "Hey Maya"
+    - Return to sleep after responding
   - Integrate all managers (wake word, STT, TTS, LLM, etc.)
   - Error handling and recovery
   - Graceful shutdown
-  - _Requirements: Complete Integration, All Platforms_
+  - **No need to open app after installation** - runs automatically
+  - _Requirements: Complete Integration, Always-On Service, All Platforms_
   - **Tests Required**:
     - Integration tests for complete voice interaction flow
     - End-to-end tests for multiple commands in sequence
@@ -360,27 +366,50 @@ After completing EACH task:
     - Stress tests for continuous usage (1 hour)
     - Platform-specific tests (Windows, macOS, Linux, Android, iOS)
     - Mobile tests for battery impact (<10% per hour)
+    - Unit tests for sleep/wake cycle
+    - Unit tests for background service auto-start
   - **GitHub Push**: ✅ Required after completion
 
 - [ ] **Task 18: Multi-Platform Onboarding Wizard**
   - Create `guru_main/onboarding_wizard.py`
   - Implement `OnboardingWizard` class:
     - `run()` method with step-by-step wizard
-    - Steps: Welcome, Profile Setup, Biometric Enrollment, LLM Config, Permissions, Test, Complete
+    - **Desktop Steps** (Windows/macOS/Linux):
+      1. Welcome and profile setup
+      2. Biometric enrollment (face, voice, fingerprint)
+      3. **LLM Configuration Choice**:
+         - Option A: Local Ollama (auto-install) - Recommended
+         - Option B: Cloud API (user enters their own API key)
+      4. Permission granting (microphone, camera, accessibility)
+      5. Background service setup (auto-start on boot)
+      6. Test voice interaction ("Hey Guru" / "Hey Maya")
+      7. Complete - app runs in background
+    - **Mobile Steps** (Android/iOS):
+      1. Welcome and profile setup
+      2. Biometric enrollment (face, voice, fingerprint)
+      3. **API Configuration** (required):
+         - Choose provider: OpenAI, Gemini, DeepSeek, Anthropic
+         - User enters their own API key
+      4. Permission granting (microphone, camera, accessibility, background)
+      5. Background service setup
+      6. Test voice interaction ("Hey Guru" / "Hey Maya")
+      7. Complete - app runs in background
     - Platform-specific UI:
       - Desktop: tkinter or PyQt GUI
       - Android: Native Android UI (XML layouts)
       - iOS: Native iOS UI (SwiftUI)
-  - Biometric enrollment integration
-  - LLM configuration (local vs cloud)
-  - Permission granting workflow
-  - _Requirements: Onboarding, All Platforms_
+  - API key validation before proceeding
+  - Background service registration
+  - Auto-start configuration
+  - _Requirements: Onboarding, All Platforms, Always-On Service_
   - **Tests Required**:
     - Unit tests for each onboarding step
     - Integration tests for complete onboarding flow
     - User tests with 10+ users per platform (50+ total)
     - Performance tests for onboarding time (<10 minutes)
     - Platform-specific tests (Windows, macOS, Linux, Android, iOS)
+    - Unit tests for API key validation
+    - Unit tests for background service setup
   - **GitHub Push**: ✅ Required after completion
 
 ### Phase 6: Testing and Quality Assurance

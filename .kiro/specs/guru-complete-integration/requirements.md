@@ -17,12 +17,18 @@ Create a production-ready AI companion that:
 
 ### 1. Voice Interaction (PRIMARY)
 - **Voice Output**: MUST speak responses, NOT write text
-- **Voice Input**: Continuous listening for wake words
+- **Voice Input**: Continuous listening for wake words (always-on background service)
 - **Natural Conversation**: Talk like a friend, not a robot
 - **Dual Personalities**:
   - Guru (Male): Professional, confident, analytical
   - Maya (Female): Warm, empathetic, creative
 - **Wake Words**: "Hey Guru" and "Hey Maya"
+- **Always-On Behavior**: 
+  - No need to open app after installation
+  - Runs as background service on all platforms
+  - Wakes up on "Hey Guru" or "Hey Maya" command
+  - Returns to sleep mode after responding
+  - Works like Siri, Google Assistant, Alexa
 - **Response Time**: < 2 seconds from wake word to response
 
 ### 2. Complete Device Control
@@ -67,11 +73,21 @@ Voice commands must execute ANY operation on ANY platform:
 - Semantic search of history
 
 ### 5. Flexible LLM Configuration
-- **Local Option**: Ollama (free, private, offline)
-- **Cloud Options**: OpenAI, Gemini, DeepSeek, Anthropic
-- User chooses during onboarding
-- Secure API key storage
+
+**Desktop (Windows/macOS/Linux)**:
+- **Installation Choice**: User chooses during installation:
+  - Local Ollama (free, private, offline) OR
+  - Cloud API (OpenAI, Gemini, DeepSeek, Anthropic)
+- **API Configuration**: If cloud API chosen, user enters their own API key after installation
+- Secure API key storage in OS keychain
 - Cost tracking for cloud usage
+
+**Mobile (Android/iOS)**:
+- **API Only**: No local LLM support (device limitations)
+- **API Configuration**: User enters their own API key after installation
+- Supported providers: OpenAI, Gemini, DeepSeek, Anthropic
+- Secure API key storage
+- Cost tracking
 
 ### 6. Professional Installation
 - **Windows**: MSI installer with code signing
@@ -84,13 +100,34 @@ Voice commands must execute ANY operation on ANY platform:
 - Auto-update mechanism for all platforms
 
 ### 7. Onboarding Experience
-Multi-step setup wizard:
+
+**Desktop (Windows/macOS/Linux)**:
 1. Welcome and profile setup
 2. Biometric enrollment (face, voice, fingerprint)
-3. LLM configuration (local vs cloud)
+3. **LLM configuration choice**:
+   - Option A: Local Ollama (free, private, offline) - auto-install
+   - Option B: Cloud API (OpenAI, Gemini, DeepSeek, Anthropic) - enter API key
 4. Permission granting (microphone, camera, accessibility)
-5. Test voice interaction
-6. Complete setup
+5. Background service setup (auto-start on boot)
+6. Test voice interaction ("Hey Guru" / "Hey Maya")
+7. Complete setup - app runs in background
+
+**Mobile (Android/iOS)**:
+1. Welcome and profile setup
+2. Biometric enrollment (face, voice, fingerprint)
+3. **API configuration** (required):
+   - Choose provider: OpenAI, Gemini, DeepSeek, Anthropic
+   - Enter your own API key
+4. Permission granting (microphone, camera, accessibility, background)
+5. Background service setup
+6. Test voice interaction ("Hey Guru" / "Hey Maya")
+7. Complete setup - app runs in background
+
+**After Installation**:
+- App runs as background service automatically
+- No need to open app again
+- Just say "Hey Guru" or "Hey Maya" to wake up
+- App goes to sleep after responding
 
 ### 8. Production Readiness
 - Comprehensive error handling

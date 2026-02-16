@@ -343,35 +343,49 @@ class OnboardingWizard:
 ```
 
 #### LLM Configuration
+
+**Desktop (Windows/macOS/Linux)**:
 ```python
-def configure_llm(self) -> LLMConfig:
+def configure_llm_desktop(self) -> LLMConfig:
     choice = show_dialog(
         "Choose your AI model:",
         options=[
-            "Local (Ollama) - Free, Private, Offline",
-            "Cloud (OpenAI/Gemini) - Faster, More Capable"
+            "Local (Ollama) - Free, Private, Offline - Recommended",
+            "Cloud API - OpenAI, Gemini, DeepSeek, Anthropic"
         ]
     )
     
     if choice == "Local":
-        # Install Ollama if needed
+        # Install Ollama automatically
         if not ollama_installed():
+            show_progress("Installing Ollama...")
             install_ollama()
         
         # Pull default models
+        show_progress("Downloading AI models...")
         ollama_pull("mistral:7b")
         ollama_pull("qwen2.5:14b")
         
         return LLMConfig(mode="local", provider="ollama")
     
     else:
-        # Collect API keys
+        # Cloud API - user enters their own key
         provider = show_dialog(
             "Choose cloud provider:",
             options=["OpenAI", "Gemini", "DeepSeek", "Anthropic"]
         )
         
+        show_message(
+            f"You'll need your own {provider} API key.\n"
+            f"Get it from: {get_provider_url(provider)}"
+        )
+        
         api_key = show_input(f"Enter your {provider} API key:")
+        
+        # Validate API key
+        if not validate_api_key(provider, api_key):
+            show_error("Invalid API key. Please try again.")
+            return configure_llm_desktop()
         
         # Store securely in OS keychain
         keyring.set_password("agent_guru", provider, api_key)
@@ -381,6 +395,46 @@ def configure_llm(self) -> LLMConfig:
             provider=provider,
             api_key_stored=True
         )
+
+**Mobile (Android/iOS)**:
+```python
+def configure_llm_mobile(self) -> LLMConfig:
+    # Mobile: API only (no local LLM support)
+    show_message(
+        "AGENT_GURU uses cloud AI on mobile.\n"
+        "You'll need your own API key from:\n"
+        "• OpenAI (ChatGPT)\n"
+        "• Google Gemini\n"
+        "• DeepSeek\n"
+        "• Anthropic (Claude)"
+    )
+    
+    provider = show_dialog(
+        "Choose your AI provider:",
+        options=["OpenAI", "Gemini", "DeepSeek", "Anthropic"]
+    )
+    
+    show_message(
+        f"Get your {provider} API key from:\n"
+        f"{get_provider_url(provider)}\n\n"
+        f"You'll be charged by {provider} for usage."
+    )
+    
+    api_key = show_input(f"Enter your {provider} API key:")
+    
+    # Validate API key
+    if not validate_api_key(provider, api_key):
+        show_error("Invalid API key. Please try again.")
+        return configure_llm_mobile()
+    
+    # Store securely
+    keyring.set_password("agent_guru", provider, api_key)
+    
+    return LLMConfig(
+        mode="cloud",
+        provider=provider,
+        api_key_stored=True
+    )
 ```
 
 ### 9. Main Application Loop
@@ -396,24 +450,31 @@ class AgentGuru:
         self.security = BiometricAuth()
         self.policy_engine = PolicyEngine()
         self.current_personality = None
+        self.is_sleeping = True
     
-    async def run(self):
-        # Authenticate user
+    async def run_as_background_service(self):
+        """
+        Run as always-on background service.
+        No need to open app - just say "Hey Guru" or "Hey Maya".
+        """
+        # Authenticate user once at startup
         if not await self.security.authenticate():
-            self.speak("Authentication failed. Goodbye.")
+            self.speak("Authentication failed. Please restart AGENT_GURU.")
             return
         
-        self.speak("Hello! I'm ready. Say 'Hey Guru' or 'Hey Maya' to start.")
+        self.speak("AGENT_GURU is ready. Say 'Hey Guru' or 'Hey Maya' to wake me up.")
         
-        # Main loop
+        # Main loop - always listening for wake word
         while True:
-            # Listen for wake word
+            # Listen for wake word (low power mode)
             wake_word = await self.speech_engine.detect_wake_word()
             
             if wake_word == "hey_guru":
                 self.current_personality = "guru"
+                self.is_sleeping = False
             elif wake_word == "hey_maya":
                 self.current_personality = "maya"
+                self.is_sleeping = False
             else:
                 continue
             
@@ -424,10 +485,14 @@ class AgentGuru:
             command = await self.speech_engine.listen()
             
             if not command:
+                self.is_sleeping = True
                 continue
             
             # Process command
             await self.process_command(command)
+            
+            # Go back to sleep mode
+            self.is_sleeping = True
     
     async def process_command(self, command: str):
         # Get conversation context
