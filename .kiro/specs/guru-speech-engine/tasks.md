@@ -192,7 +192,7 @@ After completing EACH task:
     - **Property 7: Speaker Diarization Completeness**
     - **Validates: Requirements 2.5**
 
-- [~] 7. Mobile STT Integration
+- [x] 7. Mobile STT Integration
   - Implement `Agent_Guru/speech/mobile/android_stt.py`:
     - `AndroidSpeechRecognizer` class using pyjnius
     - Android Speech Recognition API integration
@@ -204,12 +204,12 @@ After completing EACH task:
   - _Requirements: 2 (Speech-to-Text Transcription - Mobile)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add mobile STT integration for Android and iOS platforms"
 
-  - [~] 7.1 Write unit tests for Android STT
+  - [x] 7.1 Write unit tests for Android STT
     - Test on-device recognition
     - Test cloud fallback
     - _Requirements: 2 (Android)_
 
-  - [~] 7.2 Write unit tests for iOS STT
+  - [x] 7.2 Write unit tests for iOS STT
     - Test on-device recognition
     - Test cloud fallback
     - _Requirements: 2 (iOS)_
