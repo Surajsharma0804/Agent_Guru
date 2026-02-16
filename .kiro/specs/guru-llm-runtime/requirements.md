@@ -120,29 +120,110 @@ The LLM Runtime & Provider Management system provides a unified interface for in
 6. WHEN caching is disabled for a request, THE Cache_Manager SHALL bypass the cache and forward directly to the provider
 7. THE Cache_Manager SHALL use request content and parameters as cache keys to ensure correctness
 
-### Requirement 9: Flexible LLM Configuration with User Choice
+### Requirement 9: Flexible LLM Configuration with Platform-Specific Support ⚠️ CRITICAL
 
-**User Story:** As a user, I want to choose between local Ollama models or cloud API providers during setup, so that I can use AGENT_GURU according to my preferences and resources.
+**User Story:** As a user, I want to choose between local Ollama models or cloud API providers during setup, with platform-appropriate options, so that I can use AGENT_GURU according to my preferences and device capabilities.
 
-#### Acceptance Criteria
+#### Acceptance Criteria - Desktop (Windows/macOS/Linux)
 
-1. **Local Ollama Support**: THE LLM_Runtime SHALL support local Ollama models for offline, private operation
-2. **Cloud API Support**: THE LLM_Runtime SHALL support OpenAI, Google Gemini, DeepSeek, Anthropic Claude, and other major providers
-3. **Onboarding Configuration**: WHEN user completes onboarding, THE LLM_Runtime SHALL save their LLM preference (local/cloud)
-4. **Secure API Key Storage**: WHEN user provides API keys, THE LLM_Runtime SHALL encrypt and securely store them using OS keychain
-5. **API Key Validation**: WHEN API keys are entered, THE LLM_Runtime SHALL validate them by making a test request
-6. **Provider Switching**: THE LLM_Runtime SHALL allow users to switch between local and cloud providers at runtime
-7. **Model Selection**: THE LLM_Runtime SHALL allow users to select specific models for each provider
-8. **Cost Tracking**: WHEN using cloud APIs, THE LLM_Runtime SHALL track token usage and estimated costs
-9. **Fallback Configuration**: THE LLM_Runtime SHALL allow users to configure fallback providers if primary fails
-10. THE Configuration SHALL use Pydantic models for all configuration structures
-11. WHEN configuration is loaded, THE Configuration SHALL validate all required fields are present
-12. WHEN configuration contains invalid values, THE Configuration SHALL raise descriptive validation errors
-13. THE Configuration SHALL support provider-specific settings including API keys, endpoints, and model names
-14. THE Configuration SHALL support routing rules, fallback chains, and cache settings
-15. THE Configuration SHALL support environment variable overrides for sensitive values
-16. WHEN configuration changes, THE LLM_Runtime SHALL support hot-reloading without restart
-17. THE LLM_Runtime SHALL provide a user-friendly UI for managing LLM configuration post-onboarding
+1. **MANDATORY**: THE LLM_Runtime SHALL support local Ollama models for offline, private operation
+2. **MANDATORY**: THE LLM_Runtime SHALL support cloud API providers (OpenAI, Google Gemini, DeepSeek, Anthropic Claude)
+3. **MANDATORY**: THE LLM_Runtime SHALL allow user to choose between local OR cloud during installation/onboarding
+4. **MANDATORY**: WHEN user chooses local Ollama, THE LLM_Runtime SHALL automatically install Ollama if not present
+5. **MANDATORY**: WHEN user chooses local Ollama, THE LLM_Runtime SHALL download recommended models (mistral:7b, qwen2.5:14b)
+6. **MANDATORY**: WHEN user chooses cloud API, THE LLM_Runtime SHALL prompt for user's own API key
+7. **MANDATORY**: THE LLM_Runtime SHALL validate API keys by making a test request before saving
+8. **MANDATORY**: THE LLM_Runtime SHALL encrypt and securely store API keys using OS keychain (Windows Credential Manager, macOS Keychain, Linux Secret Service)
+9. **MANDATORY**: THE LLM_Runtime SHALL allow user to switch between local and cloud at runtime
+10. **MANDATORY**: THE LLM_Runtime SHALL provide fallback from cloud to local if cloud fails (desktop only)
+11. **MANDATORY**: THE LLM_Runtime SHALL track token usage and estimated costs for cloud APIs
+12. **MANDATORY**: THE LLM_Runtime SHALL warn user when approaching API rate limits
+13. **MANDATORY**: THE LLM_Runtime SHALL allow user to set monthly budget limits for cloud APIs
+14. **MANDATORY**: THE LLM_Runtime SHALL provide model selection UI for both local and cloud models
+15. **MANDATORY**: THE LLM_Runtime SHALL cache model responses to reduce API costs
+
+#### Acceptance Criteria - Mobile (Android/iOS) ⚠️ API ONLY
+
+1. **MANDATORY**: THE LLM_Runtime SHALL support cloud API providers ONLY on mobile platforms
+2. **MANDATORY**: THE LLM_Runtime SHALL NOT attempt to install or run local LLM models on mobile
+3. **MANDATORY**: THE LLM_Runtime SHALL NOT offer local Ollama option during mobile onboarding
+4. **MANDATORY**: THE LLM_Runtime SHALL require user to provide their own API key during mobile onboarding
+5. **MANDATORY**: THE LLM_Runtime SHALL support OpenAI, Google Gemini, DeepSeek, and Anthropic on mobile
+6. **MANDATORY**: THE LLM_Runtime SHALL validate API keys before completing onboarding
+7. **MANDATORY**: THE LLM_Runtime SHALL store API keys securely using platform keychain (Android Keystore, iOS Keychain)
+8. **MANDATORY**: THE LLM_Runtime SHALL track token usage and costs on mobile
+9. **MANDATORY**: THE LLM_Runtime SHALL warn user about data usage for cloud API calls
+10. **MANDATORY**: THE LLM_Runtime SHALL allow user to set mobile data usage limits
+11. **MANDATORY**: THE LLM_Runtime SHALL cache responses aggressively on mobile to reduce API calls
+12. **MANDATORY**: THE LLM_Runtime SHALL provide offline mode with cached responses only
+13. **MANDATORY**: THE LLM_Runtime SHALL show clear error when API key is invalid or expired
+14. **MANDATORY**: THE LLM_Runtime SHALL allow user to update API key from settings
+15. **MANDATORY**: THE LLM_Runtime SHALL provide API key management UI in mobile app settings
+
+#### Acceptance Criteria - API Key Management
+
+1. **MANDATORY**: THE LLM_Runtime SHALL never bundle or include API keys in the application
+2. **MANDATORY**: THE LLM_Runtime SHALL never log or display API keys in plain text
+3. **MANDATORY**: THE LLM_Runtime SHALL mask API keys in UI (show only last 4 characters)
+4. **MANDATORY**: THE LLM_Runtime SHALL provide "Get API Key" links to provider websites
+5. **MANDATORY**: THE LLM_Runtime SHALL provide clear instructions for obtaining API keys
+6. **MANDATORY**: THE LLM_Runtime SHALL validate API key format before making requests
+7. **MANDATORY**: THE LLM_Runtime SHALL handle API key rotation gracefully
+8. **MANDATORY**: THE LLM_Runtime SHALL allow multiple API keys per provider (for backup)
+9. **MANDATORY**: THE LLM_Runtime SHALL automatically switch to backup key if primary fails
+10. **MANDATORY**: THE LLM_Runtime SHALL notify user when API key is about to expire (if supported by provider)
+
+#### Acceptance Criteria - Cost Tracking and Budgets
+
+1. **MANDATORY**: THE LLM_Runtime SHALL track token usage per request (input + output tokens)
+2. **MANDATORY**: THE LLM_Runtime SHALL calculate estimated cost based on provider pricing
+3. **MANDATORY**: THE LLM_Runtime SHALL maintain daily, weekly, and monthly cost summaries
+4. **MANDATORY**: THE LLM_Runtime SHALL allow user to set budget limits (daily, weekly, monthly)
+5. **MANDATORY**: THE LLM_Runtime SHALL warn user when approaching budget limit (80%, 90%, 100%)
+6. **MANDATORY**: THE LLM_Runtime SHALL optionally block requests when budget exceeded
+7. **MANDATORY**: THE LLM_Runtime SHALL provide cost breakdown by personality (Guru vs Maya)
+8. **MANDATORY**: THE LLM_Runtime SHALL provide cost breakdown by request type (conversation, command, etc.)
+9. **MANDATORY**: THE LLM_Runtime SHALL export cost reports in CSV format
+10. **MANDATORY**: THE LLM_Runtime SHALL update provider pricing automatically (with user consent)
+
+#### Acceptance Criteria - Provider Selection and Routing
+
+1. THE LLM_Runtime SHALL allow user to select default provider
+2. THE LLM_Runtime SHALL allow user to select provider per personality (Guru uses OpenAI, Maya uses Gemini)
+3. THE LLM_Runtime SHALL allow user to select provider per task type (conversation, coding, analysis)
+4. THE LLM_Runtime SHALL provide provider comparison (cost, speed, quality)
+5. THE LLM_Runtime SHALL benchmark providers on user's device
+6. THE LLM_Runtime SHALL recommend optimal provider based on usage patterns
+7. THE LLM_Runtime SHALL support A/B testing between providers
+8. THE LLM_Runtime SHALL collect user feedback on provider quality
+9. THE LLM_Runtime SHALL learn user preferences over time
+10. THE LLM_Runtime SHALL provide "auto-select best provider" option
+
+#### Acceptance Criteria - Onboarding Integration
+
+1. **MANDATORY**: WHEN user completes onboarding, THE LLM_Runtime SHALL save their LLM preference (local/cloud on desktop, cloud on mobile)
+2. **MANDATORY**: THE LLM_Runtime SHALL guide user through API key setup with clear instructions
+3. **MANDATORY**: THE LLM_Runtime SHALL test API key immediately after entry
+4. **MANDATORY**: THE LLM_Runtime SHALL provide troubleshooting help if API key fails
+5. **MANDATORY**: THE LLM_Runtime SHALL allow user to skip API key setup and configure later (desktop only with local Ollama)
+6. **MANDATORY**: THE LLM_Runtime SHALL not allow skipping API key setup on mobile
+7. **MANDATORY**: THE LLM_Runtime SHALL provide video tutorial for obtaining API keys
+8. **MANDATORY**: THE LLM_Runtime SHALL estimate monthly costs based on expected usage
+9. **MANDATORY**: THE LLM_Runtime SHALL recommend free tier options for budget-conscious users
+10. **MANDATORY**: THE LLM_Runtime SHALL provide comparison table of providers during onboarding
+
+#### Acceptance Criteria - Post-Onboarding Configuration
+
+1. THE LLM_Runtime SHALL provide a user-friendly settings UI for managing LLM configuration
+2. THE LLM_Runtime SHALL allow switching providers without re-onboarding
+3. THE LLM_Runtime SHALL allow adding/removing API keys
+4. THE LLM_Runtime SHALL allow testing different providers
+5. THE LLM_Runtime SHALL preserve conversation history when switching providers
+6. THE LLM_Runtime SHALL migrate settings when updating app
+7. THE LLM_Runtime SHALL export/import LLM configuration
+8. THE LLM_Runtime SHALL provide configuration backup
+9. THE LLM_Runtime SHALL sync configuration across devices (with user consent)
+10. THE LLM_Runtime SHALL provide configuration reset option
 
 ### Requirement 10: Model Selection and Capabilities
 
