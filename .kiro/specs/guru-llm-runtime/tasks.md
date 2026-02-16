@@ -24,7 +24,7 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Implement approximation logic for Google and Ollama
     - _Requirements: 5.1, 5.7_
   
-  - [ ]* 2.2 Write property test for token counting accuracy
+  - [ ] 2.2 Write property test for token counting accuracy
     - **Property 23: Provider-Specific Token Counting**
     - **Validates: Requirements 5.1**
   
@@ -34,7 +34,7 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Handle special tokens correctly per provider
     - _Requirements: 5.1, 5.7_
   
-  - [ ]* 2.4 Write unit tests for token counter
+  - [ ] 2.4 Write unit tests for token counter
     - Test OpenAI counting matches tiktoken
     - Test Anthropic counting matches anthropic library
     - Test special token handling
@@ -79,11 +79,11 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Implement embed() for Google embeddings
     - _Requirements: 1.1, 1.2, 1.3_
   
-  - [ ]* 3.6 Write property test for cross-provider compatibility
+  - [ ] 3.6 Write property test for cross-provider compatibility
     - **Property 1: Cross-Provider Request Compatibility**
     - **Validates: Requirements 1.1, 1.2, 1.3, 1.8**
   
-  - [ ]* 3.7 Write property test for function calling
+  - [ ] 3.7 Write property test for function calling
     - **Property 14: Function Argument Validation**
     - **Validates: Requirements 3.6, 3.7**
 
@@ -111,15 +111,15 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Implement clear_context() for session cleanup
     - _Requirements: 4.5, 4.6_
   
-  - [ ]* 5.4 Write property test for context isolation
+  - [ ] 5.4 Write property test for context isolation
     - **Property 16: Per-Session History Isolation**
     - **Validates: Requirements 4.1**
   
-  - [ ]* 5.5 Write property test for automatic compression
+  - [ ] 5.5 Write property test for automatic compression
     - **Property 19: Automatic Context Compression**
     - **Validates: Requirements 4.4, 4.7**
   
-  - [ ]* 5.6 Write unit tests for context manager
+  - [ ] 5.6 Write unit tests for context manager
     - Test session creation and history tracking
     - Test token count calculation
     - Test compression preserves critical elements
@@ -141,15 +141,15 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Open circuit after 5 failures, close after 60 seconds
     - _Requirements: 7.5, 7.6_
   
-  - [ ]* 6.3 Write property test for retry logic
+  - [ ] 6.3 Write property test for retry logic
     - **Property 37: Transient Error Retry with Backoff**
     - **Validates: Requirements 7.1**
   
-  - [ ]* 6.4 Write property test for circuit breaker
+  - [ ] 6.4 Write property test for circuit breaker
     - **Property 41: Circuit Breaker Pattern**
     - **Validates: Requirements 7.5, 7.6**
   
-  - [ ]* 6.5 Write unit tests for error handler
+  - [ ] 6.5 Write unit tests for error handler
     - Test transient error retry with backoff
     - Test permanent error no retry
     - Test rate limit wait and retry
@@ -181,11 +181,11 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Implement report_to_self_improvement() for integration
     - _Requirements: 6.6, 6.7_
   
-  - [ ]* 8.4 Write property test for cost estimation
+  - [ ] 8.4 Write property test for cost estimation
     - **Property 31: Cost Estimation Accuracy**
     - **Validates: Requirements 6.3**
   
-  - [ ]* 8.5 Write unit tests for performance monitor
+  - [ ] 8.5 Write unit tests for performance monitor
     - Test latency tracking and percentile calculation
     - Test token usage tracking
     - Test cost estimation
@@ -223,15 +223,15 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Return embeddings in consistent format
     - _Requirements: 1.3_
   
-  - [ ]* 9.5 Write property test for streaming
+  - [ ] 9.5 Write property test for streaming
     - **Property 4: Incremental Token Delivery**
     - **Validates: Requirements 2.1**
   
-  - [ ]* 9.6 Write property test for context window validation
+  - [ ] 9.6 Write property test for context window validation
     - **Property 25: Context Window Pre-Validation**
     - **Validates: Requirements 5.3**
   
-  - [ ]* 9.7 Write integration tests for LLM Runtime
+  - [ ] 9.7 Write integration tests for LLM Runtime
     - Test complete() with all providers
     - Test stream() with all providers
     - Test embed() with all providers
@@ -264,11 +264,11 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Implement persistent queue for unavailability
     - _Requirements: 9.5, 9.6_
   
-  - [ ]* 11.4 Write property test for README-only updates
+  - [ ] 11.4 Write property test for README-only updates
     - **Property 50: README-Only File Updates**
     - **Validates: Requirements 9.2, 9.3**
   
-  - [ ]* 11.5 Write unit tests for GitHub sync
+  - [ ] 11.5 Write unit tests for GitHub sync
     - Test queue operation adds to queue
     - Test README.md update (mock GitHub API)
     - Test retry logic on failure
@@ -295,15 +295,15 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Reject invalid certificates
     - _Requirements: 12.6, 12.7_
   
-  - [ ]* 12.4 Write property test for credential logging prevention
+  - [ ] 12.4 Write property test for credential logging prevention
     - **Property 60: Credential Logging Prevention**
     - **Validates: Requirements 12.1**
   
-  - [ ]* 12.5 Write property test for TLS validation
+  - [ ] 12.5 Write property test for TLS validation
     - **Property 63: TLS Certificate Validation**
     - **Validates: Requirements 12.6, 12.7**
   
-  - [ ]* 12.6 Write unit tests for security features
+  - [ ] 12.6 Write unit tests for security features
     - Test API key redaction in logs
     - Test error message sanitization
     - Test PII redaction
@@ -331,7 +331,7 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Implement shutdown timeout (30 seconds max)
     - _Requirements: 8.6, 8.7_
   
-  - [ ]* 13.4 Write unit tests for configuration
+  - [ ] 13.4 Write unit tests for configuration
     - Test configuration loading from env vars
     - Test configuration loading from files
     - Test configuration validation
@@ -343,7 +343,7 @@ The implementation follows a bottom-up approach: core data models → provider a
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 15. Implement Adversarial Property-Based Tests
-  - [ ]* 15.1 Write streaming adversarial tests
+  - [ ] 15.1 Write streaming adversarial tests
     - Test stream interruption with partial response
     - Test empty chunks handling
     - Test malformed JSON in stream
@@ -351,7 +351,7 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Test unicode and special characters in stream
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
   
-  - [ ]* 15.2 Write function calling adversarial tests
+  - [ ] 15.2 Write function calling adversarial tests
     - Test invalid JSON arguments
     - Test missing required arguments
     - Test non-existent function calls
@@ -359,7 +359,7 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Test multi-turn circular function calls
     - _Requirements: 3.3, 3.4, 3.6, 3.7_
   
-  - [ ]* 15.3 Write context management adversarial tests
+  - [ ] 15.3 Write context management adversarial tests
     - Test filling context to exact limit
     - Test exceeding context by 1 token
     - Test compression with only system message
@@ -367,7 +367,7 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Test very large messages (10K tokens)
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.7_
   
-  - [ ]* 15.4 Write token counting adversarial tests
+  - [ ] 15.4 Write token counting adversarial tests
     - Test text with only special tokens
     - Test mixed languages (English, Chinese, Arabic)
     - Test very long text (100K characters)
@@ -375,7 +375,7 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Test emoji and unicode
     - _Requirements: 5.1, 5.7_
   
-  - [ ]* 15.5 Write error handling adversarial tests
+  - [ ] 15.5 Write error handling adversarial tests
     - Test 5 consecutive failures (circuit opens)
     - Test rate limit without Retry-After header
     - Test network timeout during request
@@ -384,7 +384,7 @@ The implementation follows a bottom-up approach: core data models → provider a
     - Test provider 400 error (no retry)
     - _Requirements: 7.1, 7.2, 7.3, 7.5, 7.6, 7.7, 7.8_
   
-  - [ ]* 15.6 Write security adversarial tests
+  - [ ] 15.6 Write security adversarial tests
     - Test API key in request header (redacted in logs)
     - Test error message contains API key (sanitized)
     - Test request with PII (redacted in logs)

@@ -22,7 +22,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Add platform detection and renderer selection (Canvas API for web)
     - _Requirements: 1.1, 1.2, 1.4, 1.6, 1.7_
   
-  - [ ]* 2.2 Write property tests for Avatar System
+  - [ ] 2.2 Write property tests for Avatar System
     - **Property 1: Avatar personality distinction**
     - **Property 4: Avatar facial features completeness**
     - **Validates: Requirements 1.4, 1.7**
@@ -34,7 +34,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Add customization validation
     - _Requirements: 10.1, 10.2, 10.3, 10.6_
   
-  - [ ]* 2.4 Write property tests for customization
+  - [ ] 2.4 Write property tests for customization
     - **Property 47: Customization visibility toggle**
     - **Property 50: Customization validation**
     - **Validates: Requirements 10.3, 10.6**
@@ -48,7 +48,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Implement dominant emotion selection based on intensity
     - _Requirements: 2.2, 2.4, 2.6, 2.7_
   
-  - [ ]* 3.2 Write property tests for emotion detection
+  - [ ] 3.2 Write property tests for emotion detection
     - **Property 7: Dominant emotion selection**
     - **Property 8: Emotion state persistence**
     - **Property 9: Text emotion detection**
@@ -60,7 +60,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Integrate with text-based detection for combined analysis
     - _Requirements: 2.5_
   
-  - [ ]* 3.4 Write property tests for voice emotion detection
+  - [ ] 3.4 Write property tests for voice emotion detection
     - **Property 10: Voice emotion detection**
     - **Validates: Requirements 2.5**
 
@@ -73,7 +73,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Implement idle animations (breathing, blinking, micro-expressions)
     - _Requirements: 2.1, 2.3, 11.1, 11.2, 11.3, 11.4_
   
-  - [ ]* 4.2 Write property tests for animation
+  - [ ] 4.2 Write property tests for animation
     - **Property 6: Emotion transition timing**
     - **Property 52: Animation frame rate maintenance**
     - **Property 53: Easing function application**
@@ -87,7 +87,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Implement adaptive complexity reduction (maintain 30 FPS minimum)
     - _Requirements: 11.6, 14.4_
   
-  - [ ]* 4.4 Write property tests for performance adaptation
+  - [ ] 4.4 Write property tests for performance adaptation
     - **Property 56: Adaptive performance degradation**
     - **Property 75: Frame drop timing preservation**
     - **Validates: Requirements 11.6, 14.4**
@@ -104,7 +104,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Add trait update methods with validation
     - _Requirements: 3.1, 3.2, 3.6, 3.7_
   
-  - [ ]* 6.2 Write property tests for trait management
+  - [ ] 6.2 Write property tests for trait management
     - **Property 11: Trait bounds invariant**
     - **Property 14: Profile isolation**
     - **Validates: Requirements 3.6, 3.7**
@@ -116,7 +116,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Add combined condition handling (empathy > 70 AND negative mood → empathetic)
     - _Requirements: 3.5, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7_
   
-  - [ ]* 6.4 Write property tests for personality context
+  - [ ] 6.4 Write property tests for personality context
     - **Property 13: Personality context completeness**
     - **Property 31: Trait-based prompt injection**
     - **Property 32: Low formality language request**
@@ -133,7 +133,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Add confidence score tracking (0-100) for each preference
     - _Requirements: 4.1, 4.2, 4.5, 6.4_
   
-  - [ ]* 7.2 Write property tests for feedback learning
+  - [ ] 7.2 Write property tests for feedback learning
     - **Property 15: Positive feedback learning**
     - **Property 16: Negative feedback learning**
     - **Validates: Requirements 4.1, 4.2**
@@ -146,7 +146,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Implement exponential moving average for preference scores
     - _Requirements: 4.3, 6.2, 6.3_
   
-  - [ ]* 7.4 Write property tests for pattern inference
+  - [ ] 7.4 Write property tests for pattern inference
     - **Property 27: Short response pattern inference**
     - **Property 28: Technical question pattern inference**
     - **Validates: Requirements 6.2, 6.3**
@@ -158,7 +158,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Implement preference conflict resolution (prioritize by recency and confidence)
     - _Requirements: 4.4, 4.6, 4.8, 6.5, 6.6_
   
-  - [ ]* 7.6 Write property tests for learning constraints
+  - [ ] 7.6 Write property tests for learning constraints
     - **Property 17: Gradual learning convergence**
     - **Property 18: Confidence-based adjustment scaling**
     - **Property 19: Daily change rate limiting**
@@ -175,7 +175,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Add mood classification (very_positive, positive, neutral, negative, very_negative)
     - _Requirements: 5.1, 5.2, 5.3_
   
-  - [ ]* 8.2 Write property tests for mood tracking
+  - [ ] 8.2 Write property tests for mood tracking
     - **Property 21: Emotion recording completeness**
     - **Property 22: Mood average calculation correctness**
     - **Property 23: Mood classification consistency**
@@ -189,7 +189,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Add automatic aggregation of old entries into daily summaries
     - _Requirements: 5.4, 5.5, 5.6_
   
-  - [ ]* 8.4 Write property tests for mood alerts and history
+  - [ ] 8.4 Write property tests for mood alerts and history
     - **Property 24: Declining mood alert detection**
     - **Property 25: Mood history size limit**
     - **Property 26: Mood history aggregation**
@@ -207,7 +207,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Implement querying by emotion type and mood classification
     - _Requirements: 8.1, 8.2, 8.4, 8.5_
   
-  - [ ]* 10.2 Write property tests for emotional memory
+  - [ ] 10.2 Write property tests for emotional memory
     - **Property 35: Emotional context storage completeness**
     - **Property 36: Emotional context association**
     - **Property 38: Emotion query correctness**
@@ -221,7 +221,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Add retrieval with emotional context inclusion
     - _Requirements: 8.3, 8.6, 8.7_
   
-  - [ ]* 10.4 Write property tests for memory pruning
+  - [ ] 10.4 Write property tests for memory pruning
     - **Property 40: Emotional memory size limit**
     - **Property 41: Emotional memory pruning with preservation**
     - **Validates: Requirements 8.6, 8.7**
@@ -235,7 +235,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Create default profile for new users
     - _Requirements: 9.1, 9.2, 9.3, 9.5_
   
-  - [ ]* 11.2 Write property tests for profile management
+  - [ ] 11.2 Write property tests for profile management
     - **Property 42: Multiple profile creation**
     - **Property 43: Profile association**
     - **Property 44: Profile switching performance**
@@ -249,7 +249,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Add schema versioning for compatibility
     - _Requirements: 9.4, 9.6, 9.7, 16.3, 16.4, 16.5_
   
-  - [ ]* 11.4 Write property tests for profile isolation and persistence
+  - [ ] 11.4 Write property tests for profile isolation and persistence
     - **Property 45: Profile persistence independence**
     - **Property 46: Profile deletion completeness**
     - **Property 89: Profile export capability**
@@ -266,7 +266,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Add emotion-based trait adjustments (frustrated: empathy +20, assertiveness -10, etc.)
     - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6_
   
-  - [ ]* 12.2 Write property tests for context adaptation
+  - [ ] 12.2 Write property tests for context adaptation
     - **Property 64: Task type detection**
     - **Property 65: Coding context adjustment**
     - **Property 66: Casual conversation context adjustment**
@@ -282,7 +282,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Add adjustment tracking for debugging
     - _Requirements: 13.7, 13.8_
   
-  - [ ]* 12.4 Write property tests for adjustment lifecycle
+  - [ ] 12.4 Write property tests for adjustment lifecycle
     - **Property 70: Context adjustment reversion**
     - **Property 71: Temporary adjustment non-persistence**
     - **Validates: Requirements 13.7, 13.8**
@@ -297,7 +297,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Add emotion transition after voice completion
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6_
   
-  - [ ]* 13.2 Write property tests for voice-emotion sync
+  - [ ] 13.2 Write property tests for voice-emotion sync
     - **Property 57: Voice text emotion analysis**
     - **Property 58: Voice prosody emotion detection**
     - **Property 59: Voice-avatar synchronization timing**
@@ -312,7 +312,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Ensure seamless operation without voice
     - _Requirements: 12.7_
   
-  - [ ]* 13.4 Write property tests for voice fallback
+  - [ ] 13.4 Write property tests for voice fallback
     - **Property 63: Voice disabled fallback**
     - **Validates: Requirements 12.7**
 
@@ -328,7 +328,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Implement customization settings persistence per profile
     - _Requirements: 3.3, 3.4, 4.7, 6.7, 10.4, 16.1, 16.2, 16.7, 17.1, 17.2_
   
-  - [ ]* 15.2 Write property tests for persistence
+  - [ ] 15.2 Write property tests for persistence
     - **Property 12: Personality persistence round-trip**
     - **Property 20: Learning persistence**
     - **Property 48: Customization persistence round-trip**
@@ -347,7 +347,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Implement in-memory operation when Memory System unavailable
     - _Requirements: 14.5, 16.8_
   
-  - [ ]* 15.4 Write property tests for sync and resilience
+  - [ ] 15.4 Write property tests for sync and resilience
     - **Property 76: Memory system unavailability resilience**
     - **Property 94: Sync conflict resolution**
     - **Validates: Requirements 14.5, 16.8**
@@ -362,7 +362,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Add error logging throughout system
     - _Requirements: 14.1, 14.2, 14.3, 14.6, 14.7_
   
-  - [ ]* 16.2 Write property tests for error handling
+  - [ ] 16.2 Write property tests for error handling
     - **Property 72: Avatar rendering failure fallback**
     - **Property 73: Emotion detection failure default**
     - **Property 74: Personality load failure default**
@@ -381,7 +381,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Add memory usage monitoring and limits (< 100MB)
     - _Requirements: 1.5, 2.1, 15.1, 15.2, 15.3, 15.4, 15.5, 15.6_
   
-  - [ ]* 17.2 Write property tests for performance
+  - [ ] 17.2 Write property tests for performance
     - **Property 2: Avatar switching performance**
     - **Property 3: Avatar rendering performance**
     - **Property 5: Emotion update performance**
@@ -400,7 +400,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Optimize memory usage for mobile constraints
     - _Requirements: 15.7, 15.8_
   
-  - [ ]* 17.4 Write property tests for mobile optimization
+  - [ ] 17.4 Write property tests for mobile optimization
     - **Property 85: Mobile platform adaptation**
     - **Property 86: Resource release on hide**
     - **Validates: Requirements 15.7, 15.8**
@@ -414,7 +414,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Implement data deletion within 24 hours of request
     - _Requirements: 17.3, 17.4, 17.5, 17.6, 17.7_
   
-  - [ ]* 18.2 Write property tests for security
+  - [ ] 18.2 Write property tests for security
     - **Property 97: Profile access authentication**
     - **Property 98: Profile access isolation**
     - **Property 99: External transmission consent**
@@ -432,7 +432,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Test integration with mock LLM Runtime
     - _Requirements: 3.5, 7.1, 7.2, 7.3, 18.1_
   
-  - [ ]* 20.2 Write integration tests for LLM Runtime
+  - [ ] 20.2 Write integration tests for LLM Runtime
     - **Property 102: LLM Runtime API integration**
     - **Validates: Requirements 18.1**
   
@@ -442,7 +442,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Test integration with mock Speech Engine
     - _Requirements: 2.5, 12.1, 12.2, 12.3, 18.2, 18.7_
   
-  - [ ]* 20.4 Write integration tests for Speech Engine
+  - [ ] 20.4 Write integration tests for Speech Engine
     - **Property 103: Speech Engine event integration**
     - **Property 108: Speech Engine synchronization protocol**
     - **Validates: Requirements 18.2, 18.7**
@@ -453,7 +453,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Test integration with mock Memory System
     - _Requirements: 3.3, 3.4, 4.7, 5.5, 8.2, 8.6, 16.1, 18.3_
   
-  - [ ]* 20.6 Write integration tests for Memory System
+  - [ ] 20.6 Write integration tests for Memory System
     - **Property 104: Memory System API integration**
     - **Validates: Requirements 18.3**
   
@@ -463,7 +463,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Test integration with mock Platform Integration
     - _Requirements: 1.6, 18.4_
   
-  - [ ]* 20.8 Write integration tests for Platform Integration
+  - [ ] 20.8 Write integration tests for Platform Integration
     - **Property 105: Platform Integration rendering commands**
     - **Validates: Requirements 18.4**
   
@@ -473,7 +473,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Test integration with mock Self-Improvement Engine
     - _Requirements: 18.5_
   
-  - [ ]* 20.10 Write integration tests for Self-Improvement Engine
+  - [ ] 20.10 Write integration tests for Self-Improvement Engine
     - **Property 106: Self-Improvement Engine feedback integration**
     - **Validates: Requirements 18.5**
   
@@ -483,7 +483,7 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Test event delivery
     - _Requirements: 5.7, 18.6_
   
-  - [ ]* 20.12 Write integration tests for mood events
+  - [ ] 20.12 Write integration tests for mood events
     - **Property 107: Mood change event publishing**
     - **Validates: Requirements 18.6**
   
@@ -493,12 +493,12 @@ This implementation plan breaks down the Avatar/Emotion System into discrete cod
     - Test failure scenarios for all integrations
     - _Requirements: 18.8_
   
-  - [ ]* 20.14 Write integration tests for failure resilience
+  - [ ] 20.14 Write integration tests for failure resilience
     - **Property 109: Component failure resilience**
     - **Validates: Requirements 18.8**
 
 - [ ] 21. Create comprehensive integration tests
-  - [ ]* 21.1 Write end-to-end integration tests
+  - [ ] 21.1 Write end-to-end integration tests
     - Test complete flow: emotion detection → avatar update → personality learning → persistence
     - Test profile switching with personality context changes
     - Test voice-emotion synchronization with avatar rendering

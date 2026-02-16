@@ -23,15 +23,15 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Aggregate detection results into HallucinationDetectionResult
     - _Requirements: 1.1, 1.2, 1.3, 1.4_
   
-  - [ ]* 2.2 Write property test for multi-technique detection
+  - [ ] 2.2 Write property test for multi-technique detection
     - **Property 1: Multi-Technique Hallucination Detection**
     - **Validates: Requirements 1.1, 1.2, 1.3, 1.4**
   
-  - [ ]* 2.3 Write property test for hallucination specificity
+  - [ ] 2.3 Write property test for hallucination specificity
     - **Property 2: Hallucination Detection Specificity**
     - **Validates: Requirements 1.5**
   
-  - [ ]* 2.4 Write adversarial tests for hallucination injection
+  - [ ] 2.4 Write adversarial tests for hallucination injection
     - Inject fabricated facts and verify detection >95%
     - Inject contradictions and verify detection >95%
     - Inject uncertainty signals and verify detection
@@ -46,15 +46,15 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement recursive nested structure validation
     - _Requirements: 2.1, 2.2, 2.3, 2.5_
   
-  - [ ]* 3.2 Write property test for schema validation completeness
+  - [ ] 3.2 Write property test for schema validation completeness
     - **Property 3: Schema Validation Completeness**
     - **Validates: Requirements 2.1, 2.2, 2.3, 2.5**
   
-  - [ ]* 3.3 Write property test for validation failure specificity
+  - [ ] 3.3 Write property test for validation failure specificity
     - **Property 4: Validation Failure Specificity**
     - **Validates: Requirements 2.4**
   
-  - [ ]* 3.4 Write adversarial tests for malformed outputs
+  - [ ] 3.4 Write adversarial tests for malformed outputs
     - Inject invalid JSON, XML, markdown
     - Inject type mismatches
     - Verify detection rate >98%
@@ -68,11 +68,11 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Support tool schema registration
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
   
-  - [ ]* 4.2 Write property test for tool output safety verification
+  - [ ] 4.2 Write property test for tool output safety verification
     - **Property 5: Tool Output Safety Verification**
     - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5**
   
-  - [ ]* 4.3 Write adversarial tests for tool errors
+  - [ ] 4.3 Write adversarial tests for tool errors
     - Inject tool error indicators
     - Inject semantically inconsistent results
     - Verify detection rate >95%
@@ -90,15 +90,15 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement trace preservation
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
   
-  - [ ]* 6.2 Write property test for loop detection via state tracking
+  - [ ] 6.2 Write property test for loop detection via state tracking
     - **Property 6: Loop Detection via State Tracking**
     - **Validates: Requirements 4.1, 4.2**
   
-  - [ ]* 6.3 Write property test for loop termination with diagnostics
+  - [ ] 6.3 Write property test for loop termination with diagnostics
     - **Property 7: Loop Termination with Diagnostics**
     - **Validates: Requirements 4.3, 4.4, 4.5**
   
-  - [ ]* 6.4 Write adversarial tests for infinite loops
+  - [ ] 6.4 Write adversarial tests for infinite loops
     - Generate circular reasoning patterns
     - Generate repeated states beyond threshold
     - Verify detection rate 100%
@@ -111,11 +111,11 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement threshold-based recommendations
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
   
-  - [ ]* 7.2 Write property test for confidence score bounds and aggregation
+  - [ ] 7.2 Write property test for confidence score bounds and aggregation
     - **Property 8: Confidence Score Bounds and Aggregation**
     - **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
   
-  - [ ]* 7.3 Write property test for low confidence triggers
+  - [ ] 7.3 Write property test for low confidence triggers
     - **Property 9: Low Confidence Triggers Additional Verification**
     - **Validates: Requirements 5.5**
 
@@ -128,7 +128,7 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement tool result detection
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
   
-  - [ ]* 8.2 Write property test for strategy selection based on task type
+  - [ ] 8.2 Write property test for strategy selection based on task type
     - **Property 10: Strategy Selection Based on Task Type**
     - **Validates: Requirements 6.1, 6.2, 6.3, 6.4**
 
@@ -139,7 +139,7 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement actionable suggestions
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
   
-  - [ ]* 9.2 Write property test for failure generates actionable feedback
+  - [ ] 9.2 Write property test for failure generates actionable feedback
     - **Property 12: Failure Generates Actionable Feedback**
     - **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5**
 
@@ -155,11 +155,11 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement log querying with filters
     - _Requirements: 16.1, 16.5_
   
-  - [ ]* 11.2 Write property test for verification result logging
+  - [ ] 11.2 Write property test for verification result logging
     - **Property 15: Verification Result Logging**
     - **Validates: Requirements 8.5, 16.1**
   
-  - [ ]* 11.3 Write property test for log filtering support
+  - [ ] 11.3 Write property test for log filtering support
     - **Property 38: Log Filtering Support**
     - **Validates: Requirements 16.5**
 
@@ -173,23 +173,23 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement self-improvement reporting
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 9.1, 9.2, 9.3, 10.1, 10.2, 10.3_
   
-  - [ ]* 12.2 Write property test for LLM response interception and forwarding
+  - [ ] 12.2 Write property test for LLM response interception and forwarding
     - **Property 13: LLM Response Interception and Forwarding**
     - **Validates: Requirements 8.1, 8.2, 8.3**
   
-  - [ ]* 12.3 Write property test for non-blocking concurrent verification
+  - [ ] 12.3 Write property test for non-blocking concurrent verification
     - **Property 14: Non-Blocking Concurrent Verification**
     - **Validates: Requirements 8.4**
   
-  - [ ]* 12.4 Write property test for parallel strategy execution
+  - [ ] 12.4 Write property test for parallel strategy execution
     - **Property 11: Parallel Strategy Execution**
     - **Validates: Requirements 6.5, 12.2**
   
-  - [ ]* 12.5 Write property test for task output validation before completion
+  - [ ] 12.5 Write property test for task output validation before completion
     - **Property 16: Task Output Validation Before Completion**
     - **Validates: Requirements 9.1, 9.2, 9.3**
   
-  - [ ]* 12.6 Write property test for pre-storage verification
+  - [ ] 12.6 Write property test for pre-storage verification
     - **Property 19: Pre-Storage Verification**
     - **Validates: Requirements 10.1, 10.2, 10.3**
 
@@ -201,15 +201,15 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement alerting on degraded accuracy
     - _Requirements: 13.1, 13.2, 13.3, 13.4_
   
-  - [ ]* 13.2 Write property test for false positive rate bound
+  - [ ] 13.2 Write property test for false positive rate bound
     - **Property 28: False Positive Rate Bound**
     - **Validates: Requirements 13.1**
   
-  - [ ]* 13.3 Write property test for false negative rate bound
+  - [ ] 13.3 Write property test for false negative rate bound
     - **Property 29: False Negative Rate Bound**
     - **Validates: Requirements 13.2**
   
-  - [ ]* 13.4 Write property test for accuracy degradation alerting
+  - [ ] 13.4 Write property test for accuracy degradation alerting
     - **Property 30: Accuracy Degradation Alerting**
     - **Validates: Requirements 13.3**
 
@@ -225,15 +225,15 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement high-priority task handling
     - _Requirements: 12.4_
   
-  - [ ]* 14.3 Write property test for verification latency target
+  - [ ] 14.3 Write property test for verification latency target
     - **Property 24: Verification Latency Target**
     - **Validates: Requirements 12.1**
   
-  - [ ]* 14.4 Write property test for verification result caching
+  - [ ] 14.4 Write property test for verification result caching
     - **Property 27: Verification Result Caching**
     - **Validates: Requirements 12.5**
   
-  - [ ]* 14.5 Write property test for priority-based verification
+  - [ ] 14.5 Write property test for priority-based verification
     - **Property 26: Priority-Based Verification**
     - **Validates: Requirements 12.4**
 
@@ -250,11 +250,11 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Support loop detection threshold configuration
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5_
   
-  - [ ]* 16.2 Write property test for configuration flexibility
+  - [ ] 16.2 Write property test for configuration flexibility
     - **Property 39: Configuration Flexibility**
     - **Validates: Requirements 17.1, 17.2, 17.3, 17.4**
   
-  - [ ]* 16.3 Write property test for configuration validation
+  - [ ] 16.3 Write property test for configuration validation
     - **Property 40: Configuration Validation**
     - **Validates: Requirements 17.5**
 
@@ -267,11 +267,11 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement mode switching
     - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5_
   
-  - [ ]* 17.2 Write property test for test mode injection acceptance
+  - [ ] 17.2 Write property test for test mode injection acceptance
     - **Property 34: Test Mode Injection Acceptance**
     - **Validates: Requirements 15.1, 15.2, 15.3, 15.4**
   
-  - [ ]* 17.3 Write property test for production mode behavior
+  - [ ] 17.3 Write property test for production mode behavior
     - **Property 35: Production Mode Behavior**
     - **Validates: Requirements 15.5**
 
@@ -283,11 +283,11 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement success rate tracking
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
   
-  - [ ]* 18.2 Write property test for failure reporting to self-improvement
+  - [ ] 18.2 Write property test for failure reporting to self-improvement
     - **Property 22: Failure Reporting to Self-Improvement**
     - **Validates: Requirements 11.1, 11.2, 11.3**
   
-  - [ ]* 18.3 Write property test for historical verification data retrieval
+  - [ ] 18.3 Write property test for historical verification data retrieval
     - **Property 23: Historical Verification Data Retrieval**
     - **Validates: Requirements 11.4, 11.5**
 
@@ -299,7 +299,7 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement feedback provision
     - _Requirements: 8.1, 8.2, 8.3, 8.5_
   
-  - [ ]* 19.2 Write integration tests for LLM Runtime
+  - [ ] 19.2 Write integration tests for LLM Runtime
     - Test response interception
     - Test verification flow
     - Test blocking behavior
@@ -313,17 +313,17 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement confidence score attachment
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
   
-  - [ ]* 20.2 Write integration tests for Agent Orchestration
+  - [ ] 20.2 Write integration tests for Agent Orchestration
     - Test task output validation
     - Test retry behavior
     - Test escalation
     - _Requirements: 9.1, 9.2, 9.3, 9.4_
   
-  - [ ]* 20.3 Write property test for retry exhaustion escalation
+  - [ ] 20.3 Write property test for retry exhaustion escalation
     - **Property 17: Retry Exhaustion Escalation**
     - **Validates: Requirements 9.4**
   
-  - [ ]* 20.4 Write property test for confidence score attachment
+  - [ ] 20.4 Write property test for confidence score attachment
     - **Property 18: Confidence Score Attachment**
     - **Validates: Requirements 9.5**
 
@@ -336,17 +336,17 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement time-based re-verification flagging
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
   
-  - [ ]* 21.2 Write integration tests for Memory System
+  - [ ] 21.2 Write integration tests for Memory System
     - Test pre-storage verification
     - Test storage blocking
     - Test metadata attachment
     - _Requirements: 10.1, 10.2, 10.3_
   
-  - [ ]* 21.3 Write property test for retrieval includes confidence metadata
+  - [ ] 21.3 Write property test for retrieval includes confidence metadata
     - **Property 20: Retrieval Includes Confidence Metadata**
     - **Validates: Requirements 10.4**
   
-  - [ ]* 21.4 Write property test for time-based re-verification flagging
+  - [ ] 21.4 Write property test for time-based re-verification flagging
     - **Property 21: Time-Based Re-Verification Flagging**
     - **Validates: Requirements 10.5**
 
@@ -363,7 +363,7 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement graceful degradation logic
     - _Requirements: All error handling requirements_
   
-  - [ ]* 23.2 Write unit tests for error conditions
+  - [ ] 23.2 Write unit tests for error conditions
     - Test component failures
     - Test timeouts
     - Test invalid inputs
@@ -377,15 +377,15 @@ This implementation plan creates the Verifier System for Agent_Guru—a multi-la
     - Implement pattern change alerting
     - _Requirements: 16.1, 16.2, 16.3, 16.4_
   
-  - [ ]* 24.2 Write property test for failure diagnostic logging
+  - [ ] 24.2 Write property test for failure diagnostic logging
     - **Property 36: Failure Diagnostic Logging**
     - **Validates: Requirements 16.2**
   
-  - [ ]* 24.3 Write property test for high latency logging
+  - [ ] 24.3 Write property test for high latency logging
     - **Property 25: High Latency Logging**
     - **Validates: Requirements 12.3, 16.3**
   
-  - [ ]* 24.4 Write property test for pattern change alerting
+  - [ ] 24.4 Write property test for pattern change alerting
     - **Property 37: Pattern Change Alerting**
     - **Validates: Requirements 16.4**
 

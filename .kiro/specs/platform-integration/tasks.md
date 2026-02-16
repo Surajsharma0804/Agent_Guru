@@ -36,7 +36,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - Handle case-insensitive default file system
     - _Requirements: 2.2, 2.3_
   
-  - [ ]* 2.5 Write property tests for cross-platform adapters
+  - [ ] 2.5 Write property tests for cross-platform adapters
     - **Property 10: Path separator normalization**
     - **Validates: Requirements 2.1, 2.2, 2.5**
     - **Property 11: Permission representation consistency**
@@ -64,7 +64,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - Skip writes when content is identical
     - _Requirements: 12.1, 12.2, 12.8_
   
-  - [ ]* 3.4 Write property tests for file operations
+  - [ ] 3.4 Write property tests for file operations
     - **Property 1: File read-write round trip**
     - **Validates: Requirements 1.1, 1.2**
     - **Property 2: Permission enforcement for disallowed paths**
@@ -78,7 +78,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - **Property 61: File write duplicate detection**
     - **Validates: Requirements 12.1, 12.2**
   
-  - [ ]* 3.5 Write unit tests for file system edge cases
+  - [ ] 3.5 Write unit tests for file system edge cases
     - Test empty files, maximum file sizes
     - Test special characters in paths
     - Test disk full scenarios
@@ -93,7 +93,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - Implement privilege escalation detection
     - _Requirements: 3.1, 3.2, 3.7, 3.8_
   
-  - [ ]* 4.2 Write property tests for command security
+  - [ ] 4.2 Write property tests for command security
     - **Property 13: Dangerous command rejection**
     - **Validates: Requirements 3.1, 3.2**
     - **Property 16: Privilege escalation prevention**
@@ -101,7 +101,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - **Property 17: Argument sanitization**
     - **Validates: Requirements 3.8**
   
-  - [ ]* 4.3 Write unit tests for specific dangerous commands
+  - [ ] 4.3 Write unit tests for specific dangerous commands
     - Test known dangerous patterns (rm -rf /, format, sudo, etc.)
     - Test injection attempts (&&, ||, ;, $())
     - _Requirements: 3.2, 3.8_
@@ -127,7 +127,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - Return existing process ID for duplicates
     - _Requirements: 12.3, 12.4_
   
-  - [ ]* 5.4 Write property tests for process management
+  - [ ] 5.4 Write property tests for process management
     - **Property 14: Command output capture completeness**
     - **Validates: Requirements 3.3, 3.4**
     - **Property 15: Command timeout enforcement**
@@ -143,7 +143,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - **Property 62: Command duplicate detection**
     - **Validates: Requirements 12.3, 12.4**
   
-  - [ ]* 5.5 Write unit tests for process edge cases
+  - [ ] 5.5 Write unit tests for process edge cases
     - Test graceful termination with force-kill fallback (5 second timeout)
     - Test process completion notification
     - Test error handling for failed command starts
@@ -160,7 +160,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - Integrate with ProcessManager for variable inheritance
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.6_
   
-  - [ ]* 7.2 Write property tests for environment management
+  - [ ] 7.2 Write property tests for environment management
     - **Property 25: Environment variable isolation**
     - **Validates: Requirements 5.2, 5.3**
     - **Property 26: Environment variable inheritance**
@@ -168,7 +168,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - **Property 28: Environment variable name validation**
     - **Validates: Requirements 5.6**
   
-  - [ ]* 7.3 Write unit tests for environment edge cases
+  - [ ] 7.3 Write unit tests for environment edge cases
     - Test system limit enforcement
     - Test sensitive data patterns
     - _Requirements: 5.7_
@@ -193,7 +193,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - Handle parsing errors gracefully
     - _Requirements: 6.10_
   
-  - [ ]* 8.4 Write property tests for network operations
+  - [ ] 8.4 Write property tests for network operations
     - **Property 29: HTTP method support**
     - **Validates: Requirements 6.1, 6.2, 6.8**
     - **Property 30: Custom header inclusion**
@@ -207,7 +207,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - **Property 34: Response parsing**
     - **Validates: Requirements 6.10**
   
-  - [ ]* 8.5 Write unit tests for network edge cases
+  - [ ] 8.5 Write unit tests for network edge cases
     - Test connectivity failures
     - Test various response formats
     - _Requirements: 6.4_
@@ -226,7 +226,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - Integrate with Memory_System for historical data storage
     - _Requirements: 7.7, 7.9_
   
-  - [ ]* 9.3 Write property tests for resource monitoring
+  - [ ] 9.3 Write property tests for resource monitoring
     - **Property 35: Resource metric tracking**
     - **Validates: Requirements 7.1, 7.2, 7.3**
     - **Property 36: Resource threshold alerting**
@@ -256,7 +256,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - Implement log archiving when storage limits exceeded
     - _Requirements: 9.6, 9.9, 9.10_
   
-  - [ ]* 10.4 Write property tests for security auditing
+  - [ ] 10.4 Write property tests for security auditing
     - **Property 4: Audit logging completeness**
     - **Validates: Requirements 1.6, 3.4, 6.5, 8.7, 9.1, 9.2**
     - **Property 27: Sensitive data redaction**
@@ -285,7 +285,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - Integrate with Security_Auditor for logging
     - _Requirements: 8.1, 8.7, 8.9, 12.5, 12.6_
   
-  - [ ]* 11.3 Write property tests for GitHub integration
+  - [ ] 11.3 Write property tests for GitHub integration
     - **Property 39: Automatic commit on task completion**
     - **Validates: Requirements 8.1, 8.2**
     - **Property 40: Automatic push after commit**
@@ -299,7 +299,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - **Property 44: Repository state validation**
     - **Validates: Requirements 8.10**
   
-  - [ ]* 11.4 Write unit tests for GitHub edge cases
+  - [ ] 11.4 Write unit tests for GitHub edge cases
     - Test push failures and retry logic
     - Test authentication with SSH keys and tokens
     - Test branch configuration
@@ -321,7 +321,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - Implement cancel_operation with resource cleanup
     - _Requirements: 10.9_
   
-  - [ ]* 13.3 Write property tests for controller
+  - [ ] 13.3 Write property tests for controller
     - **Property 63: Duplicate operation logging**
     - **Validates: Requirements 12.9**
     - **Property 64: Content hashing for efficiency**
@@ -350,7 +350,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - Implement partial failure handling for batch operations
     - _Requirements: 10.5, 10.8, 10.10_
   
-  - [ ]* 14.4 Write property tests for error handling
+  - [ ] 14.4 Write property tests for error handling
     - **Property 50: Structured error responses**
     - **Validates: Requirements 10.1**
     - **Property 51: Retry with exponential backoff**
@@ -376,7 +376,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - Implement most-specific-rule selection
     - _Requirements: 11.10_
   
-  - [ ]* 15.3 Write property tests for permission model
+  - [ ] 15.3 Write property tests for permission model
     - **Property 57: Permission model hot-reload**
     - **Validates: Requirements 11.5**
     - **Property 58: Operation validation against permission model**
@@ -384,7 +384,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - **Property 59: Permission inheritance and overrides**
     - **Validates: Requirements 11.10**
   
-  - [ ]* 15.4 Write unit tests for permission model
+  - [ ] 15.4 Write unit tests for permission model
     - Test configuration loading at startup
     - Test various permission definitions
     - Test environment-specific configurations
@@ -407,7 +407,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - Implement API version compatibility checking
     - _Requirements: 13.8, 13.9, 13.10_
   
-  - [ ]* 16.3 Write property tests for component integration
+  - [ ] 16.3 Write property tests for component integration
     - **Property 23: Process completion notification**
     - **Validates: Requirements 4.5, 13.1**
     - **Property 38: Historical metric storage**
@@ -425,7 +425,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - **Property 70: Asynchronous callback invocation**
     - **Validates: Requirements 13.9**
   
-  - [ ]* 16.4 Write integration tests for component interactions
+  - [ ] 16.4 Write integration tests for component interactions
     - Test end-to-end workflows with all components
     - Test component failure scenarios
     - _Requirements: 13.6_
@@ -454,7 +454,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - Integrate with all external service calls
     - _Requirements: 16.10_
   
-  - [ ]* 17.5 Write property tests for external service integration
+  - [ ] 17.5 Write property tests for external service integration
     - **Property 71: Database connection pooling**
     - **Validates: Requirements 16.4**
     - **Property 72: Database query result standardization**
@@ -466,7 +466,7 @@ This implementation plan breaks down the Platform Integration System into increm
     - **Property 75: Circuit breaker state transitions**
     - **Validates: Requirements 16.10**
   
-  - [ ]* 17.6 Write unit tests for external service edge cases
+  - [ ] 17.6 Write unit tests for external service edge cases
     - Test cloud service authentication
     - Test rate limiting for external services
     - Test response caching
@@ -479,23 +479,23 @@ This implementation plan breaks down the Platform Integration System into increm
     - Implement cache size limits
     - _Requirements: 12.10_
   
-  - [ ]* 18.2 Write property tests for duplicate detection configuration
+  - [ ] 18.2 Write property tests for duplicate detection configuration
     - **Property 65: Duplicate detection cache maintenance** (already covered)
     - Test configuration changes take effect
     - _Requirements: 12.10_
 
 - [ ] 19. Final integration and end-to-end testing
-  - [ ]* 19.1 Write end-to-end workflow tests
+  - [ ] 19.1 Write end-to-end workflow tests
     - Test complete file operation workflow
     - Test complete command execution workflow
     - Test complete GitHub workflow
     - Test complete error handling workflow
   
-  - [ ]* 19.2 Write cross-platform integration tests
+  - [ ] 19.2 Write cross-platform integration tests
     - Run full test suite on Windows, Linux, macOS
     - Verify platform-specific behaviors
   
-  - [ ]* 19.3 Write stress and performance tests
+  - [ ] 19.3 Write stress and performance tests
     - Test concurrent operations (100+ file ops, 50+ commands, 1000+ network requests)
     - Test resource limit scenarios
     - Test long-running stability (24 hours)

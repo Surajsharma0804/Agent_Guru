@@ -141,15 +141,15 @@ After completing EACH task:
     - **Property 5: STT processing latency**
     - **Validates: Requirements 6.1**
   
-  - [ ]* 7.4 Write property test for STT transcription accuracy
+  - [ ] 7.4 Write property test for STT transcription accuracy
     - **Property 6: STT transcription accuracy**
     - **Validates: Requirements 6.2**
   
-  - [ ]* 7.5 Write property test for STT interface contract
+  - [ ] 7.5 Write property test for STT interface contract
     - **Property 7: STT interface contract**
     - **Validates: Requirements 6.6**
   
-  - [ ]* 7.6 Write property test for STT confidence scoring
+  - [ ] 7.6 Write property test for STT confidence scoring
     - **Property 8: STT confidence scoring**
     - **Validates: Requirements 6.7**
 
@@ -167,22 +167,22 @@ After completing EACH task:
     - Support command aliases and variations
     - _Requirements: 18.8_
   
-  - [ ]* 8.3 Write property test for intent classification latency
+  - [ ] 8.3 Write property test for intent classification latency
     - **Property 9: Intent classification latency**
     - **Validates: Requirements 7.1**
   
-  - [ ]* 8.4 Write property tests for parameter extraction
+  - [ ] 8.4 Write property tests for parameter extraction
     - **Property 10: Application name extraction**
     - **Property 11: Text extraction for typing**
     - **Property 12: Message parameter extraction**
     - **Property 14: System action extraction**
     - **Validates: Requirements 7.2, 7.3, 7.4, 7.6**
   
-  - [ ]* 8.5 Write property test for query routing
+  - [ ] 8.5 Write property test for query routing
     - **Property 13: Query routing to LLM**
     - **Validates: Requirements 7.5**
   
-  - [ ]* 8.6 Write property test for low confidence clarification
+  - [ ] 8.6 Write property test for low confidence clarification
     - **Property 15: Low confidence clarification**
     - **Validates: Requirements 7.8**
 
@@ -209,7 +209,7 @@ After completing EACH task:
     - Implement log rotation (max 100MB per file)
     - _Requirements: 8.8, 19.5_
   
-  - [ ]* 9.4 Write property tests for OS control
+  - [ ] 9.4 Write property tests for OS control
     - **Property 16: Windows application launching**
     - **Property 17: macOS application launching**
     - **Property 18: Keyboard input simulation**
@@ -219,7 +219,7 @@ After completing EACH task:
     - **Property 23: OS operation audit logging**
     - **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.6, 8.7, 8.8**
   
-  - [ ]* 9.5 Write unit tests for example commands
+  - [ ] 9.5 Write unit tests for example commands
     - Test "Open YouTube" command
     - Test "Open Notepad" command
     - Test "Write hello world" command
@@ -253,7 +253,7 @@ After completing EACH task:
     - Add system prompt for voice interaction personality
     - _Requirements: 9.5, 9.8_
   
-  - [ ]* 11.4 Write property tests for LLM provider
+  - [ ] 11.4 Write property tests for LLM provider
     - **Property 24: LLM first token latency**
     - **Property 25: Provider switching context preservation**
     - **Property 26: LLM response streaming**
@@ -275,7 +275,7 @@ After completing EACH task:
     - Ensure output at 22kHz or higher sample rate
     - _Requirements: 10.6, 10.7_
   
-  - [ ]* 12.3 Write property tests for TTS
+  - [ ] 12.3 Write property tests for TTS
     - **Property 29: TTS synthesis latency**
     - **Property 30: Speech rate adjustment**
     - **Property 31: Punctuation handling**
@@ -296,7 +296,7 @@ After completing EACH task:
     - Implement user controls for history deletion
     - _Requirements: 11.2, 11.7, 11.8, 19.4_
   
-  - [ ]* 13.3 Write property tests for memory system
+  - [ ] 13.3 Write property tests for memory system
     - **Property 33: Conversation storage**
     - **Property 34: Context preservation across queries**
     - **Property 35: LRU eviction strategy**
@@ -319,7 +319,7 @@ After completing EACH task:
     - Prevent audio feedback loops during simultaneous capture/playback
     - _Requirements: 12.6, 12.7, 12.8_
   
-  - [ ]* 14.3 Write property tests for audio pipeline
+  - [ ] 14.3 Write property tests for audio pipeline
     - **Property 39: Audio device disconnection handling**
     - **Property 40: Audio feedback prevention**
     - **Validates: Requirements 12.6, 12.7**
@@ -339,7 +339,7 @@ After completing EACH task:
     - Add manual activation button as fallback
     - _Requirements: 18.6_
   
-  - [ ]* 15.3 Write integration tests for voice pipeline
+  - [ ] 15.3 Write integration tests for voice pipeline
     - Test wake word → STT → intent → OS action → feedback flow
     - Test wake word → STT → intent → LLM → TTS → playback flow
     - Test error scenarios → recovery → retry → success flow
@@ -371,12 +371,12 @@ After completing EACH task:
     - Optimize startup time (target: <5 seconds)
     - _Requirements: 14.6, 14.7, 14.8_
   
-  - [ ]* 17.3 Write property tests for performance
+  - [ ] 17.3 Write property tests for performance
     - **Property 41: End-to-end latency for simple commands**
     - **Property 42: Startup time optimization**
     - **Validates: Requirements 14.5, 14.8**
   
-  - [ ]* 17.4 Write performance benchmarks
+  - [ ] 17.4 Write performance benchmarks
     - Create latency benchmarks for each pipeline stage
     - Create resource usage benchmarks
     - Create stress tests (24-hour operation, 1000 commands)
@@ -398,7 +398,7 @@ After completing EACH task:
     - Verify audio pipeline works with various devices
     - _Requirements: 15.2, 15.4_
   
-  - [ ]* 18.3 Write property tests for cross-platform support
+  - [ ] 18.3 Write property tests for cross-platform support
     - **Property 43: Audio device detection across platforms**
     - **Property 44: Graceful degradation**
     - **Validates: Requirements 15.5, 15.7**
@@ -416,7 +416,7 @@ After completing EACH task:
     - Implement input validation to prevent injection attacks
     - _Requirements: 19.6, 19.7, 19.8_
   
-  - [ ]* 19.3 Write property tests for security
+  - [ ] 19.3 Write property tests for security
     - **Property 45: Local model data privacy**
     - **Property 46: HTTPS for cloud APIs**
     - **Property 47: Sensitive action confirmation**
@@ -444,7 +444,7 @@ After completing EACH task:
     - Implement log rotation (max 100MB per file)
     - _Requirements: 20.6_
   
-  - [ ]* 20.4 Write property tests for error handling
+  - [ ] 20.4 Write property tests for error handling
     - **Property 50: Microphone error recovery**
     - **Property 51: OS action error reporting**
     - **Property 52: Audio playback error handling**
@@ -487,7 +487,7 @@ After completing EACH task:
     - Display clear error messages if requirements not met
     - _Requirements: 16.8_
   
-  - [ ]* 22.4 Test installers on clean systems
+  - [ ] 22.4 Test installers on clean systems
     - Test Windows installer on clean Windows 10 and 11
     - Test macOS installer on clean macOS 11, 12, 13, 14
     - Verify all components install correctly

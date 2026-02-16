@@ -23,7 +23,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Implement in-memory cache with TTL
     - _Requirements: 1.1_
 
-  - [ ]* 2.2 Write property test for model storage completeness
+  - [ ] 2.2 Write property test for model storage completeness
     - **Property 1: Model Registry Storage Completeness**
     - **Validates: Requirements 1.1**
 
@@ -33,11 +33,11 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Implement `markUnavailable()` without data deletion
     - _Requirements: 1.2, 1.3, 1.5_
 
-  - [ ]* 2.4 Write property test for registration validation
+  - [ ] 2.4 Write property test for registration validation
     - **Property 2: Model Registration Validation**
     - **Validates: Requirements 1.2**
 
-  - [ ]* 2.5 Write property test for historical data immutability
+  - [ ] 2.5 Write property test for historical data immutability
     - **Property 3: Historical Data Immutability**
     - **Validates: Requirements 1.3, 1.5**
 
@@ -47,7 +47,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Optimize queries with proper indexing
     - _Requirements: 1.4_
 
-  - [ ]* 2.7 Write property test for query result correctness
+  - [ ] 2.7 Write property test for query result correctness
     - **Property 4: Query Result Correctness**
     - **Validates: Requirements 1.4**
 
@@ -69,19 +69,19 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Implement `estimateTokens()` for input and output
     - _Requirements: 2.4_
 
-  - [ ]* 3.4 Write property test for task analysis completeness
+  - [ ] 3.4 Write property test for task analysis completeness
     - **Property 5: Task Analysis Completeness**
     - **Validates: Requirements 2.1**
 
-  - [ ]* 3.5 Write property test for task analysis robustness
+  - [ ] 3.5 Write property test for task analysis robustness
     - **Property 6: Task Analysis Robustness**
     - **Validates: Requirements 2.3**
 
-  - [ ]* 3.6 Write property test for token estimation bounds
+  - [ ] 3.6 Write property test for token estimation bounds
     - **Property 7: Token Estimation Bounds**
     - **Validates: Requirements 2.4**
 
-  - [ ]* 3.7 Write property test for constraint preservation
+  - [ ] 3.7 Write property test for constraint preservation
     - **Property 8: Constraint Preservation**
     - **Validates: Requirements 2.5**
 
@@ -107,11 +107,11 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Implement cost constraint filtering
     - _Requirements: 3.2, 3.4_
 
-  - [ ]* 5.3 Write property test for capability filtering
+  - [ ] 5.3 Write property test for capability filtering
     - **Property 10: Capability Filtering**
     - **Validates: Requirements 3.2**
 
-  - [ ]* 5.4 Write property test for latency constraint satisfaction
+  - [ ] 5.4 Write property test for latency constraint satisfaction
     - **Property 12: Latency Constraint Satisfaction**
     - **Validates: Requirements 3.4**
 
@@ -130,15 +130,15 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Generate selection reasoning string
     - _Requirements: 3.1, 3.3, 3.5_
 
-  - [ ]* 5.7 Write property test for cost-optimal selection
+  - [ ] 5.7 Write property test for cost-optimal selection
     - **Property 9: Cost-Optimal Selection**
     - **Validates: Requirements 3.1**
 
-  - [ ]* 5.8 Write property test for performance-based tie breaking
+  - [ ] 5.8 Write property test for performance-based tie breaking
     - **Property 11: Performance-Based Tie Breaking**
     - **Validates: Requirements 3.3**
 
-  - [ ]* 5.9 Write property test for graceful constraint relaxation
+  - [ ] 5.9 Write property test for graceful constraint relaxation
     - **Property 13: Graceful Constraint Relaxation**
     - **Validates: Requirements 3.5**
 
@@ -148,11 +148,11 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Implement provider routing based on selected model
     - _Requirements: 4.3, 4.4_
 
-  - [ ]* 6.2 Write property test for local model preference
+  - [ ] 6.2 Write property test for local model preference
     - **Property 14: Local Model Preference**
     - **Validates: Requirements 4.3**
 
-  - [ ]* 6.3 Write property test for provider routing consistency
+  - [ ] 6.3 Write property test for provider routing consistency
     - **Property 15: Provider Routing Consistency**
     - **Validates: Requirements 4.4**
 
@@ -174,11 +174,11 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Implement cost aggregation by model, task type, and time period
     - _Requirements: 5.1, 5.2_
 
-  - [ ]* 7.3 Write property test for cost calculation accuracy
+  - [ ] 7.3 Write property test for cost calculation accuracy
     - **Property 17: Cost Calculation Accuracy**
     - **Validates: Requirements 5.1**
 
-  - [ ]* 7.4 Write property test for cost aggregation consistency
+  - [ ] 7.4 Write property test for cost aggregation consistency
     - **Property 18: Cost Aggregation Consistency**
     - **Validates: Requirements 5.2**
 
@@ -188,15 +188,15 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Implement `calculateSavings()` against baseline
     - _Requirements: 5.3, 5.4, 5.5_
 
-  - [ ]* 7.6 Write property test for cost projection reasonableness
+  - [ ] 7.6 Write property test for cost projection reasonableness
     - **Property 19: Cost Projection Reasonableness**
     - **Validates: Requirements 5.3**
 
-  - [ ]* 7.7 Write property test for budget alert triggering
+  - [ ] 7.7 Write property test for budget alert triggering
     - **Property 20: Budget Alert Triggering**
     - **Validates: Requirements 5.4**
 
-  - [ ]* 7.8 Write property test for savings calculation correctness
+  - [ ] 7.8 Write property test for savings calculation correctness
     - **Property 21: Savings Calculation Correctness**
     - **Validates: Requirements 5.5**
 
@@ -212,11 +212,11 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Ensure all required fields are captured
     - _Requirements: 6.1, 6.4_
 
-  - [ ]* 8.3 Write property test for performance recording completeness
+  - [ ] 8.3 Write property test for performance recording completeness
     - **Property 22: Performance Recording Completeness**
     - **Validates: Requirements 6.1**
 
-  - [ ]* 8.4 Write property test for failure recording completeness
+  - [ ] 8.4 Write property test for failure recording completeness
     - **Property 25: Failure Recording Completeness**
     - **Validates: Requirements 6.4**
 
@@ -226,11 +226,11 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Implement quality score aggregation
     - _Requirements: 6.2, 6.3_
 
-  - [ ]* 8.6 Write property test for success rate calculation
+  - [ ] 8.6 Write property test for success rate calculation
     - **Property 23: Success Rate Calculation**
     - **Validates: Requirements 6.2**
 
-  - [ ]* 8.7 Write property test for latency average calculation
+  - [ ] 8.7 Write property test for latency average calculation
     - **Property 24: Latency Average Calculation**
     - **Validates: Requirements 6.3**
 
@@ -239,7 +239,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Implement `detectDegradation()` for performance drops
     - _Requirements: 6.5_
 
-  - [ ]* 8.9 Write property test for performance comparison completeness
+  - [ ] 8.9 Write property test for performance comparison completeness
     - **Property 26: Performance Comparison Completeness**
     - **Validates: Requirements 6.5**
 
@@ -259,15 +259,15 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Handle exhaustion with descriptive errors
     - _Requirements: 7.1, 7.2, 7.3_
 
-  - [ ]* 10.3 Write property test for fallback execution
+  - [ ] 10.3 Write property test for fallback execution
     - **Property 27: Fallback Execution**
     - **Validates: Requirements 7.1**
 
-  - [ ]* 10.4 Write property test for fallback priority ordering
+  - [ ] 10.4 Write property test for fallback priority ordering
     - **Property 28: Fallback Priority Ordering**
     - **Validates: Requirements 7.2**
 
-  - [ ]* 10.5 Write property test for fallback exhaustion error
+  - [ ] 10.5 Write property test for fallback exhaustion error
     - **Property 29: Fallback Exhaustion Error**
     - **Validates: Requirements 7.3**
 
@@ -277,11 +277,11 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Implement circuit breaker pattern for failing models
     - _Requirements: 7.4, 7.5_
 
-  - [ ]* 10.7 Write property test for fallback event recording
+  - [ ] 10.7 Write property test for fallback event recording
     - **Property 30: Fallback Event Recording**
     - **Validates: Requirements 7.4**
 
-  - [ ]* 10.8 Write property test for failure-based deprioritization
+  - [ ] 10.8 Write property test for failure-based deprioritization
     - **Property 31: Failure-Based Deprioritization**
     - **Validates: Requirements 7.5**
 
@@ -289,7 +289,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Ensure fallback sequences prefer cloud models when local models fail
     - _Requirements: 4.5_
 
-  - [ ]* 10.10 Write property test for local-to-cloud fallback
+  - [ ] 10.10 Write property test for local-to-cloud fallback
     - **Property 16: Local-to-Cloud Fallback**
     - **Validates: Requirements 4.5**
 
@@ -306,7 +306,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Update confidence based on sample size
     - _Requirements: 8.1, 8.2_
 
-  - [ ]* 11.3 Write property test for performance-based weight adjustment
+  - [ ] 11.3 Write property test for performance-based weight adjustment
     - **Property 32: Performance-Based Weight Adjustment**
     - **Validates: Requirements 8.1, 8.2**
 
@@ -315,7 +315,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Implement epsilon-greedy selection in Model Selector
     - _Requirements: 8.3_
 
-  - [ ]* 11.5 Write property test for exploration behavior
+  - [ ] 11.5 Write property test for exploration behavior
     - **Property 33: Exploration Behavior**
     - **Validates: Requirements 8.3**
 
@@ -324,7 +324,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Automatically adjust weights when degradation detected
     - _Requirements: 8.4_
 
-  - [ ]* 11.7 Write property test for degradation detection
+  - [ ] 11.7 Write property test for degradation detection
     - **Property 34: Degradation Detection**
     - **Validates: Requirements 8.4**
 
@@ -333,7 +333,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Calculate initial weights from models with similar capabilities
     - _Requirements: 8.5_
 
-  - [ ]* 11.9 Write property test for new model initialization
+  - [ ] 11.9 Write property test for new model initialization
     - **Property 35: New Model Initialization**
     - **Validates: Requirements 8.5**
 
@@ -344,7 +344,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Implement TTL-based cache invalidation
     - _Requirements: 9.2_
 
-  - [ ]* 12.2 Write property test for selection caching
+  - [ ] 12.2 Write property test for selection caching
     - **Property 36: Selection Caching**
     - **Validates: Requirements 9.2**
 
@@ -353,7 +353,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Emit warnings when selection exceeds thresholds
     - _Requirements: 9.3_
 
-  - [ ]* 12.4 Write property test for latency warning logging
+  - [ ] 12.4 Write property test for latency warning logging
     - **Property 37: Latency Warning Logging**
     - **Validates: Requirements 9.3**
 
@@ -369,11 +369,11 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Implement configuration validation before applying
     - _Requirements: 10.5, 11.4_
 
-  - [ ]* 13.3 Write property test for configuration hot reload
+  - [ ] 13.3 Write property test for configuration hot reload
     - **Property 39: Configuration Hot Reload**
     - **Validates: Requirements 10.5**
 
-  - [ ]* 13.4 Write property test for configuration validation
+  - [ ] 13.4 Write property test for configuration validation
     - **Property 43: Configuration Validation**
     - **Validates: Requirements 11.4**
 
@@ -382,7 +382,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Fail selection with descriptive error when limits exceeded
     - _Requirements: 11.1_
 
-  - [ ]* 13.6 Write property test for cost limit enforcement
+  - [ ] 13.6 Write property test for cost limit enforcement
     - **Property 40: Cost Limit Enforcement**
     - **Validates: Requirements 11.1**
 
@@ -391,7 +391,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Boost scores for preferred providers/models
     - _Requirements: 11.2_
 
-  - [ ]* 13.8 Write property test for provider preference enforcement
+  - [ ] 13.8 Write property test for provider preference enforcement
     - **Property 41: Provider Preference Enforcement**
     - **Validates: Requirements 11.2**
 
@@ -400,7 +400,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Apply configured strategies in Fallback Manager
     - _Requirements: 11.3_
 
-  - [ ]* 13.10 Write property test for fallback strategy configuration
+  - [ ] 13.10 Write property test for fallback strategy configuration
     - **Property 42: Fallback Strategy Configuration**
     - **Validates: Requirements 11.3**
 
@@ -419,11 +419,11 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Include score calculations in debug mode
     - _Requirements: 12.1_
 
-  - [ ]* 15.3 Write property test for selection logging completeness
+  - [ ] 15.3 Write property test for selection logging completeness
     - **Property 44: Selection Logging Completeness**
     - **Validates: Requirements 12.1**
 
-  - [ ]* 15.4 Write property test for debug mode verbosity
+  - [ ] 15.4 Write property test for debug mode verbosity
     - **Property 47: Debug Mode Verbosity**
     - **Validates: Requirements 12.4**
 
@@ -432,7 +432,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Use Prometheus format or similar
     - _Requirements: 12.2_
 
-  - [ ]* 15.6 Write property test for metrics emission completeness
+  - [ ] 15.6 Write property test for metrics emission completeness
     - **Property 45: Metrics Emission Completeness**
     - **Validates: Requirements 12.2**
 
@@ -441,7 +441,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Include attempted models, failure reasons, selection state
     - _Requirements: 12.3_
 
-  - [ ]* 15.8 Write property test for failure trace completeness
+  - [ ] 15.8 Write property test for failure trace completeness
     - **Property 46: Failure Trace Completeness**
     - **Validates: Requirements 12.3**
 
@@ -457,7 +457,7 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Wire together all components (registry, analyzer, selector, tracking, fallback, learning)
     - _Requirements: 10.1_
 
-  - [ ]* 16.2 Write property test for API contract compliance
+  - [ ] 16.2 Write property test for API contract compliance
     - **Property 38: API Contract Compliance**
     - **Validates: Requirements 10.1**
 
@@ -483,35 +483,35 @@ The implementation uses Python with type hints, dataclasses for models, and the 
     - Test learning flow: new model → initialize → explore → adjust weights
 
 - [ ] 17. Implement Adversarial and Edge Case Tests
-  - [ ]* 17.1 Write adversarial test for contradictory constraints
+  - [ ] 17.1 Write adversarial test for contradictory constraints
     - Test tasks with impossible requirements (lowest cost + highest capability + lowest latency)
     - Verify graceful handling and best-effort selection
 
-  - [ ]* 17.2 Write adversarial test for cascading failures
+  - [ ] 17.2 Write adversarial test for cascading failures
     - Test scenario where all models fail simultaneously
     - Verify fallback exhaustion handling
 
-  - [ ]* 17.3 Write adversarial test for data corruption
+  - [ ] 17.3 Write adversarial test for data corruption
     - Inject corrupted performance data
     - Verify system continues operating with degraded learning
 
-  - [ ]* 17.4 Write adversarial test for rapid model changes
+  - [ ] 17.4 Write adversarial test for rapid model changes
     - Rapidly toggle model availability
     - Verify no race conditions or crashes
 
-  - [ ]* 17.5 Write adversarial test for extreme scale
+  - [ ] 17.5 Write adversarial test for extreme scale
     - Test with 10,000 models and 100 task types
     - Verify selection latency remains acceptable
 
-  - [ ]* 17.6 Write adversarial test for learning instability
+  - [ ] 17.6 Write adversarial test for learning instability
     - Inject oscillating performance data
     - Verify learning weights don't diverge
 
-  - [ ]* 17.7 Write adversarial test for cost manipulation
+  - [ ] 17.7 Write adversarial test for cost manipulation
     - Test models with zero or negative costs
     - Verify proper handling and validation
 
-  - [ ]* 17.8 Write adversarial test for capability mismatch
+  - [ ] 17.8 Write adversarial test for capability mismatch
     - Test when no models have required capabilities
     - Verify descriptive error and no crash
 

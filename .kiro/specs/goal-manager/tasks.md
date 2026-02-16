@@ -23,11 +23,11 @@ This plan implements the Goal Manager system for Agent_Guru, enabling persistent
     - Add validation for timestamp ordering
     - _Requirements: 1.1, 1.5, 3.5_
   
-  - [ ]* 2.2 Write property test for Goal model validation
+  - [ ] 2.2 Write property test for Goal model validation
     - **Property 1: Goal Creation Initialization**
     - **Validates: Requirements 1.1, 1.4, 1.5**
   
-  - [ ]* 2.3 Write property test for timestamp ordering
+  - [ ] 2.3 Write property test for timestamp ordering
     - **Property 9: Timestamp Chronological Order**
     - **Validates: Requirements 3.5**
 
@@ -48,19 +48,19 @@ This plan implements the Goal Manager system for Agent_Guru, enabling persistent
     - Add schema validation on deserialization
     - _Requirements: 12.1, 12.2, 12.3, 12.5_
   
-  - [ ]* 3.3 Write property test for immediate persistence
+  - [ ] 3.3 Write property test for immediate persistence
     - **Property 2: Immediate Persistence**
     - **Validates: Requirements 1.2, 3.4, 4.6**
   
-  - [ ]* 3.4 Write property test for serialization round-trip
+  - [ ] 3.4 Write property test for serialization round-trip
     - **Property 21: Serialization Round-Trip**
     - **Validates: Requirements 12.1, 12.2**
   
-  - [ ]* 3.5 Write property test for query filtering correctness
+  - [ ] 3.5 Write property test for query filtering correctness
     - **Property 19: Query Filtering Correctness**
     - **Validates: Requirements 8.2, 8.3**
   
-  - [ ]* 3.6 Write unit tests for storage error handling
+  - [ ] 3.6 Write unit tests for storage error handling
     - Test retry logic on write failures
     - Test corruption detection and recovery
     - _Requirements: 11.1, 11.3_
@@ -78,15 +78,15 @@ This plan implements the Goal Manager system for Agent_Guru, enabling persistent
     - Implement _validate_subgoals() for quality checks
     - _Requirements: 2.1, 2.3, 10.1, 10.4, 11.4_
   
-  - [ ]* 5.2 Write property test for parent-child reference consistency
+  - [ ] 5.2 Write property test for parent-child reference consistency
     - **Property 6: Parent-Child Reference Consistency**
     - **Validates: Requirements 2.3**
   
-  - [ ]* 5.3 Write property test for retry with exponential backoff
+  - [ ] 5.3 Write property test for retry with exponential backoff
     - **Property 23: Retry with Exponential Backoff**
     - **Validates: Requirements 11.1, 11.4, 11.5**
   
-  - [ ]* 5.4 Write unit tests for decomposition edge cases
+  - [ ] 5.4 Write unit tests for decomposition edge cases
     - Test with empty goal description
     - Test with very long goal description
     - Test LLM failure scenarios
@@ -100,15 +100,15 @@ This plan implements the Goal Manager system for Agent_Guru, enabling persistent
     - Implement _update_parent_progress() with recursive propagation
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.6_
   
-  - [ ]* 6.2 Write property test for progress calculation
+  - [ ] 6.2 Write property test for progress calculation
     - **Property 7: Progress Calculation Correctness**
     - **Validates: Requirements 3.2**
   
-  - [ ]* 6.3 Write property test for completion propagation
+  - [ ] 6.3 Write property test for completion propagation
     - **Property 8: Completion Propagation**
     - **Validates: Requirements 3.3**
   
-  - [ ]* 6.4 Write unit tests for progress edge cases
+  - [ ] 6.4 Write unit tests for progress edge cases
     - Test goal with no sub-goals
     - Test goal with single sub-goal
     - Test deep hierarchy (5+ levels)
@@ -120,11 +120,11 @@ This plan implements the Goal Manager system for Agent_Guru, enabling persistent
     - Implement select_next_goal() with priority and age sorting
     - _Requirements: 4.1, 4.3, 4.4, 4.5, 4.6_
   
-  - [ ]* 7.2 Write property test for priority selection
+  - [ ] 7.2 Write property test for priority selection
     - **Property 10: Priority Selection Correctness**
     - **Validates: Requirements 4.3, 4.4**
   
-  - [ ]* 7.3 Write property test for priority validity
+  - [ ] 7.3 Write property test for priority validity
     - **Property 11: Priority Validity**
     - **Validates: Requirements 4.2**
 
@@ -137,19 +137,19 @@ This plan implements the Goal Manager system for Agent_Guru, enabling persistent
     - Implement mark_blocked() with recursive propagation
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
   
-  - [ ]* 8.2 Write property test for circular dependency detection
+  - [ ] 8.2 Write property test for circular dependency detection
     - **Property 16: Circular Dependency Detection**
     - **Validates: Requirements 7.4**
   
-  - [ ]* 8.3 Write property test for dependency blocking
+  - [ ] 8.3 Write property test for dependency blocking
     - **Property 15: Dependency Blocking**
     - **Validates: Requirements 7.2**
   
-  - [ ]* 8.4 Write property test for dependency satisfaction
+  - [ ] 8.4 Write property test for dependency satisfaction
     - **Property 17: Dependency Satisfaction**
     - **Validates: Requirements 7.5**
   
-  - [ ]* 8.5 Write unit tests for complex dependency graphs
+  - [ ] 8.5 Write unit tests for complex dependency graphs
     - Test linear dependencies (A -> B -> C)
     - Test diamond dependencies (A -> B,C -> D)
     - Test multiple independent chains
@@ -168,19 +168,19 @@ This plan implements the Goal Manager system for Agent_Guru, enabling persistent
     - Implement resume_goal() for interrupted goals
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 10.2, 10.3_
   
-  - [ ]* 10.2 Write property test for sequential execution
+  - [ ] 10.2 Write property test for sequential execution
     - **Property 12: Sequential Sub-Goal Execution**
     - **Validates: Requirements 5.6**
   
-  - [ ]* 10.3 Write property test for task creation
+  - [ ] 10.3 Write property test for task creation
     - **Property 13: Task Creation for Execution**
     - **Validates: Requirements 5.1, 10.2**
   
-  - [ ]* 10.4 Write property test for GitHub commit
+  - [ ] 10.4 Write property test for GitHub commit
     - **Property 14: GitHub Commit on Completion**
     - **Validates: Requirements 5.5**
   
-  - [ ]* 10.5 Write unit tests for execution scenarios
+  - [ ] 10.5 Write unit tests for execution scenarios
     - Test successful execution flow
     - Test execution with failures
     - Test execution cancellation
@@ -195,15 +195,15 @@ This plan implements the Goal Manager system for Agent_Guru, enabling persistent
     - Implement persist_all() for shutdown
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
   
-  - [ ]* 11.2 Write property test for session persistence
+  - [ ] 11.2 Write property test for session persistence
     - **Property 3: Session Persistence Round-Trip**
     - **Validates: Requirements 1.3, 6.1, 6.2, 6.5**
   
-  - [ ]* 11.3 Write property test for corruption recovery
+  - [ ] 11.3 Write property test for corruption recovery
     - **Property 25: Corruption Recovery**
     - **Validates: Requirements 6.4, 11.3**
   
-  - [ ]* 11.4 Write unit tests for session scenarios
+  - [ ] 11.4 Write unit tests for session scenarios
     - Test normal startup and shutdown
     - Test recovery from crash (interrupted goals)
     - Test handling of corrupted data
@@ -223,19 +223,19 @@ This plan implements the Goal Manager system for Agent_Guru, enabling persistent
     - Implement _decompose_goal() async helper
     - _Requirements: 1.1, 1.5, 8.1, 8.2, 8.3, 8.4, 8.5, 9.1, 9.2, 9.3_
   
-  - [ ]* 12.2 Write property test for unique identifier invariant
+  - [ ] 12.2 Write property test for unique identifier invariant
     - **Property 4: Unique Identifier Invariant**
     - **Validates: Requirements 1.4**
   
-  - [ ]* 12.3 Write property test for hierarchical tree structure
+  - [ ] 12.3 Write property test for hierarchical tree structure
     - **Property 5: Hierarchical Tree Structure**
     - **Validates: Requirements 2.6**
   
-  - [ ]* 12.4 Write property test for cancellation propagation
+  - [ ] 12.4 Write property test for cancellation propagation
     - **Property 18: Cancellation Propagation**
     - **Validates: Requirements 9.1**
   
-  - [ ]* 12.5 Write property test for hierarchical retrieval
+  - [ ] 12.5 Write property test for hierarchical retrieval
     - **Property 20: Hierarchical Retrieval Completeness**
     - **Validates: Requirements 8.4**
 
@@ -250,7 +250,7 @@ This plan implements the Goal Manager system for Agent_Guru, enabling persistent
     - Include context (goal ID, operation, timestamp)
     - _Requirements: 11.2, 11.6_
   
-  - [ ]* 13.3 Write property test for error logging
+  - [ ] 13.3 Write property test for error logging
     - **Property 24: Error Logging Completeness**
     - **Validates: Requirements 11.2, 11.6**
 
@@ -266,7 +266,7 @@ This plan implements the Goal Manager system for Agent_Guru, enabling persistent
     - Test GitHub integration
     - _Requirements: 1.1, 2.1, 5.1, 6.1, 9.1_
   
-  - [ ]* 15.2 Write adversarial tests
+  - [ ] 15.2 Write adversarial tests
     - Test with corrupted database
     - Test with extremely deep hierarchies (100+ levels)
     - Test with large numbers of sub-goals (100+ per goal)

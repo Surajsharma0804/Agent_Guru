@@ -53,7 +53,7 @@ The implementation follows this sequence:
     - Implement PersonalityProfile with user_id, version, parameters, metrics, history
     - _Requirements: 4.2_
 
-  - [ ]* 2.6 Write property tests for data model validation
+  - [ ] 2.6 Write property tests for data model validation
     - **Property 1: Verified Information Storage Completeness**
     - Test that all required fields are present and valid
     - **Validates: Requirements 1.1, 1.2, 1.3**
@@ -78,13 +78,13 @@ The implementation follows this sequence:
     - Add relationship traversal queries
     - _Requirements: 1.3, 1.5, 1.7_
   
-  - [ ]* 3.4 Write property test for referential integrity
+  - [ ] 3.4 Write property test for referential integrity
     - **Property 3: Referential Integrity Invariant**
     - Generate random entities, relationships, and updates
     - Verify no dangling references after operations
     - **Validates: Requirements 1.5, 12.8**
   
-  - [ ]* 3.5 Write property test for concurrent update serialization
+  - [ ] 3.5 Write property test for concurrent update serialization
     - **Property 4: Concurrent Update Serialization**
     - Generate concurrent updates to same entity
     - Verify no data corruption or lost updates
@@ -108,14 +108,14 @@ The implementation follows this sequence:
     - Add temporal query support to retrieve historical state
     - _Requirements: 1.4_
   
-  - [ ]* 4.4 Write property test for semantic query traversal
+  - [ ] 4.4 Write property test for semantic query traversal
     - **Property 5: Semantic Query Traversal**
     - Generate random graphs and queries
     - Verify all reachable entities within depth are returned
     - Verify results are ranked by relevance and confidence
     - **Validates: Requirements 1.7, 1.8**
   
-  - [ ]* 4.5 Write property test for temporal versioning
+  - [ ] 4.5 Write property test for temporal versioning
     - **Property 2: Temporal Versioning on Conflict**
     - Generate conflicting information
     - Verify both versions exist and are queryable
@@ -143,13 +143,13 @@ The implementation follows this sequence:
     - Maintain merge history for auditing and rollback
     - _Requirements: 1.10, 10.2, 10.4, 10.6, 10.8, 10.9_
   
-  - [ ]* 5.4 Write property test for semantic deduplication
+  - [ ] 5.4 Write property test for semantic deduplication
     - **Property 6: Semantic Deduplication**
     - Generate semantically similar items above threshold
     - Verify detection and merging occurs
     - **Validates: Requirements 1.9, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7**
   
-  - [ ]* 5.5 Write property test for merge data preservation
+  - [ ] 5.5 Write property test for merge data preservation
     - **Property 7: Merge Data Preservation**
     - Generate items to merge with unique data
     - Verify all unique data preserved after merge
@@ -188,25 +188,25 @@ The implementation follows this sequence:
     - Associate preferences with context and conditions
     - _Requirements: 2.7, 2.8_
   
-  - [ ]* 7.6 Write property test for preference signal extraction
+  - [ ] 7.6 Write property test for preference signal extraction
     - **Property 8: Preference Signal Extraction**
     - Generate random user choices and feedback
     - Verify preference extraction and model updates
     - **Validates: Requirements 2.1**
   
-  - [ ]* 7.7 Write property test for recency-weighted conflict resolution
+  - [ ] 7.7 Write property test for recency-weighted conflict resolution
     - **Property 9: Recency-Weighted Conflict Resolution**
     - Generate conflicting preference signals
     - Verify recent signals weighted more heavily
     - **Validates: Requirements 2.2, 2.3**
   
-  - [ ]* 7.8 Write property test for preference shift detection
+  - [ ] 7.8 Write property test for preference shift detection
     - **Property 10: Preference Shift Detection**
     - Generate signal sequences with consistent directional changes
     - Verify shift detection and model updates
     - **Validates: Requirements 2.4**
   
-  - [ ]* 7.9 Write property test for multi-user preference isolation
+  - [ ] 7.9 Write property test for multi-user preference isolation
     - **Property 11: Multi-User Preference Isolation**
     - Generate signals for multiple users
     - Verify no cross-contamination between user profiles
@@ -245,19 +245,19 @@ The implementation follows this sequence:
     - Track pattern success rates
     - _Requirements: 3.5, 3.8_
   
-  - [ ]* 8.6 Write property test for complete trace storage
+  - [ ] 8.6 Write property test for complete trace storage
     - **Property 15: Complete Trace Storage**
     - Generate random completed tasks
     - Verify all trace components stored
     - **Validates: Requirements 3.1, 3.2**
   
-  - [ ]* 8.7 Write property test for similarity-based ranking
+  - [ ] 8.7 Write property test for similarity-based ranking
     - **Property 17: Similarity-Based Experience Ranking**
     - Generate experiences and similarity queries
     - Verify ranking by combined similarity metrics
     - **Validates: Requirements 3.4**
   
-  - [ ]* 8.8 Write property test for outcome-based filtering
+  - [ ] 8.8 Write property test for outcome-based filtering
     - **Property 21: Outcome-Based Experience Filtering**
     - Generate experiences with varying outcomes
     - Verify negative outcomes filtered unless requested
@@ -295,19 +295,19 @@ The implementation follows this sequence:
     - Verify state restoration after rollback
     - _Requirements: 4.4, 4.5_
   
-  - [ ]* 10.6 Write property test for consistency-bounded changes
+  - [ ] 10.6 Write property test for consistency-bounded changes
     - **Property 23: Consistency-Bounded Parameter Changes**
     - Generate personality updates
     - Verify changes within ±0.1 bounds
     - **Validates: Requirements 4.3, 4.8**
   
-  - [ ]* 10.7 Write property test for rollback capability
+  - [ ] 10.7 Write property test for rollback capability
     - **Property 24: Personality Rollback Capability**
     - Evolve personality, then rollback
     - Verify complete state restoration
     - **Validates: Requirements 4.4**
   
-  - [ ]* 10.8 Write property test for negative feedback rollback
+  - [ ] 10.8 Write property test for negative feedback rollback
     - **Property 25: Negative Feedback Automatic Rollback**
     - Provide negative feedback after evolution
     - Verify automatic rollback occurs
@@ -337,13 +337,13 @@ The implementation follows this sequence:
     - Implement periodic re-verification of stored information
     - _Requirements: 5.7, 5.8_
   
-  - [ ]* 11.5 Write property test for mandatory verification
+  - [ ] 11.5 Write property test for mandatory verification
     - **Property 28: Mandatory Pre-Storage Verification**
     - Attempt to store information
     - Verify verification occurs before storage
     - **Validates: Requirements 5.1, 5.4**
   
-  - [ ]* 11.6 Write property test for rejection handling
+  - [ ] 11.6 Write property test for rejection handling
     - **Property 29: Rejection Handling**
     - Simulate verification rejections
     - Verify information discarded and logged
@@ -368,13 +368,13 @@ The implementation follows this sequence:
     - Implement learning from router decisions
     - _Requirements: 8.1, 8.2, 8.3, 8.4_
   
-  - [ ]* 12.4 Write property test for complete context provision
+  - [ ] 12.4 Write property test for complete context provision
     - **Property 35: Complete Context Provision**
     - Request context from integrations
     - Verify all required components included
     - **Validates: Requirements 6.1, 6.3, 6.4, 8.1, 8.3**
   
-  - [ ]* 12.5 Write property test for success-prioritized returns
+  - [ ] 12.5 Write property test for success-prioritized returns
     - **Property 36: Success-Prioritized Experience Return**
     - Request experiences for goal/task context
     - Verify higher success scores prioritized
@@ -420,19 +420,19 @@ The implementation follows this sequence:
     - Queue updates for later sync
     - _Requirements: 9.7_
   
-  - [ ]* 14.7 Write property test for exponential backoff retry
+  - [ ] 14.7 Write property test for exponential backoff retry
     - **Property 45: Exponential Backoff Retry**
     - Simulate network failures
     - Verify retry with correct backoff delays
     - **Validates: Requirements 9.4**
   
-  - [ ]* 14.8 Write property test for persistent queue
+  - [ ] 14.8 Write property test for persistent queue
     - **Property 47: Persistent Sync Queue**
     - Queue updates, simulate restart
     - Verify queue survives restart
     - **Validates: Requirements 9.6**
   
-  - [ ]* 14.9 Write property test for README-only constraint
+  - [ ] 14.9 Write property test for README-only constraint
     - **Property 44: README-Only File Constraint**
     - Attempt to update various file types
     - Verify only README.md allowed
@@ -472,13 +472,13 @@ The implementation follows this sequence:
     - Ensure instance isolation
     - _Requirements: 11.10_
   
-  - [ ]* 15.7 Write property test for comprehensive metrics tracking
+  - [ ] 15.7 Write property test for comprehensive metrics tracking
     - **Property 52: Comprehensive Metrics Tracking**
     - Perform various operations
     - Verify all relevant metrics tracked
     - **Validates: Requirements 11.1, 11.2, 11.4, 11.5, 11.6**
   
-  - [ ]* 15.8 Write property test for metric degradation alerts
+  - [ ] 15.8 Write property test for metric degradation alerts
     - **Property 54: Metric Degradation Alerts**
     - Degrade metrics below threshold
     - Verify alerts triggered
@@ -522,19 +522,19 @@ The implementation follows this sequence:
     - Detect tampering attempts
     - _Requirements: 12.10_
   
-  - [ ]* 16.8 Write property test for conflict preservation
+  - [ ] 16.8 Write property test for conflict preservation
     - **Property 57: Conflict Preservation**
     - Introduce conflicting information
     - Verify both versions preserved
     - **Validates: Requirements 12.1**
   
-  - [ ]* 16.9 Write property test for data poisoning detection
+  - [ ] 16.9 Write property test for data poisoning detection
     - **Property 58: Data Poisoning Detection**
     - Attempt data poisoning
     - Verify detection and flagging
     - **Validates: Requirements 12.2, 12.3**
   
-  - [ ]* 16.10 Write property test for tamper detection
+  - [ ] 16.10 Write property test for tamper detection
     - **Property 64: Tamper Detection**
     - Tamper with critical structures
     - Verify detection occurs
@@ -602,19 +602,19 @@ The implementation follows this sequence:
     - _Requirements: All (deployment)_
 
 - [ ] 21. Integration testing and final validation
-  - [ ]* 21.1 Write end-to-end integration tests
+  - [ ] 21.1 Write end-to-end integration tests
     - Test complete flow: Verifier → Memory → GitHub
     - Test all component integrations
     - Test failure recovery scenarios
     - _Requirements: All_
   
-  - [ ]* 21.2 Write performance tests
+  - [ ] 21.2 Write performance tests
     - Test query response time (<500ms for 100K entities)
     - Test concurrent operation throughput (>100 ops/sec)
     - Test memory usage growth (sub-linear)
     - _Requirements: Non-functional (performance)_
   
-  - [ ]* 21.3 Write adversarial tests
+  - [ ] 21.3 Write adversarial tests
     - Test data poisoning scenarios
     - Test concurrent race conditions
     - Test resource exhaustion
