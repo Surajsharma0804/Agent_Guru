@@ -140,7 +140,7 @@ After completing EACH task:
     - Test SNR computation
     - _Requirements: 15.3_
 
-- [~] 5. Dual Wake Word Detection
+- [x] 5. Dual Wake Word Detection
   - Implement `Agent_Guru/speech/audio/wake_word.py`:
     - `WakeWordDetector` class
     - Support for "Hey Guru" and "Hey Maya" detection
@@ -151,15 +151,15 @@ After completing EACH task:
   - _Requirements: 1 (Dual Personality Wake Word Detection)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement dual wake word detection for Guru and Maya personalities"
 
-  - [~] 5.1 Write property test for wake word detection
+  - [x] 5.1 Write property test for wake word detection
     - **Property 1: Wake Word Detection Latency and Accuracy**
     - **Validates: Requirements 1.1, 1.2, 1.6**
 
-  - [~] 5.2 Write property test for false positive rate
+  - [x] 5.2 Write property test for false positive rate
     - **Property 2: Wake Word False Positive Rate**
     - **Validates: Requirements 1.3**
 
-  - [~] 5.3 Write property test for dual wake word support
+  - [x] 5.3 Write property test for dual wake word support
     - **Property 3: Dual Wake Word Support**
     - **Validates: Requirements 1.4**
 
