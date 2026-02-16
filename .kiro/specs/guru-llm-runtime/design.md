@@ -2,15 +2,26 @@
 
 ## Overview
 
-The LLM Runtime & Provider Management system provides a unified, high-performance interface for interacting with multiple Large Language Model providers. The architecture follows a layered approach with clear separation of concerns:
+The LLM Runtime & Provider Management system provides a unified, high-performance interface for interacting with multiple Large Language Model providers. The system supports AGENT_GURU's dual AI personalities (Guru and Maya) with flexible LLM configuration during onboarding - users can choose between local Ollama models or cloud API providers (OpenAI, Gemini, DeepSeek, Anthropic).
+
+The architecture follows a layered approach with clear separation of concerns:
 
 - **API Layer**: Unified interface for LLM interactions
 - **Routing Layer**: Intelligent provider selection and fallback
-- **Provider Layer**: Adapter pattern for multiple LLM providers
+- **Provider Layer**: Adapter pattern for multiple LLM providers (local + cloud)
 - **Caching Layer**: Response caching for performance optimization
 - **Audit Layer**: Comprehensive logging and monitoring
+- **Onboarding Integration**: LLM configuration during user setup
 
 **IMPORTANT**: This system does NOT manage conversation history. All conversation context is managed by the guru-memory-system. This system retrieves context from memory system and passes it to LLM providers.
+
+**Onboarding LLM Configuration**:
+During AGENT_GURU onboarding, users choose their LLM provider:
+1. **Local Ollama**: Free, private, offline-capable (default for privacy-conscious users)
+2. **Cloud APIs**: OpenAI, Gemini, DeepSeek, Anthropic (for advanced capabilities)
+   - Users securely provide API keys
+   - Keys stored in OS keychain (macOS Keychain, Windows Credential Manager)
+   - Cost tracking and usage monitoring enabled
 
 The system is built using Python with async/await patterns throughout, leveraging LangChain for provider abstractions, Pydantic for configuration management, and Redis for caching.
 
@@ -18,6 +29,11 @@ The system is built using Python with async/await patterns throughout, leveragin
 
 ```mermaid
 graph TB
+    subgraph "Onboarding System"
+        Onboard[LLM Configuration<br/>During Onboarding]
+        KeyMgmt[API Key Management<br/>OS Keychain]
+    end
+    
     subgraph "API Layer"
         API[LLM Runtime API]
     end
@@ -27,22 +43,32 @@ graph TB
         Fallback[Fallback Handler]
     end
     
-    subgraph "Provider Layer"
-        Ollama[Ollama Adapter]
-        OpenAI[OpenAI Adapter]
-        Gemini[Gemini Adapter]
-        Anthropic[Anthropic Adapter]
+    subgraph "Local Provider"
+        Ollama[Ollama Adapter<br/>Free, Private, Offline]
+    end
+    
+    subgraph "Cloud Providers"
+        OpenAI[OpenAI Adapter<br/>GPT-4, GPT-3.5]
+        Gemini[Gemini Adapter<br/>Gemini Pro]
+        DeepSeek[DeepSeek Adapter<br/>DeepSeek V2]
+        Anthropic[Anthropic Adapter<br/>Claude]
     end
     
     subgraph "Support Services"
         Cache[Cache Manager]
         Audit[Audit Logger]
+        Cost[Cost Tracker]
         Config[Configuration]
     end
     
     subgraph "External Systems"
         Memory[Memory System<br/>guru-memory-system]
+        Security[Security System<br/>guru-security-cryptography]
     end
+    
+    Onboard --> KeyMgmt
+    Onboard --> Config
+    KeyMgmt --> Security
     
     API --> Router
     API --> Memory
@@ -50,14 +76,22 @@ graph TB
     Fallback --> Ollama
     Fallback --> OpenAI
     Fallback --> Gemini
+    Fallback --> DeepSeek
     Fallback --> Anthropic
     
     API --> Cache
     API --> Audit
+    API --> Cost
     
     Router --> Config
     Fallback --> Config
     Cache --> Config
+    Cost --> Config
+    
+    OpenAI --> KeyMgmt
+    Gemini --> KeyMgmt
+    DeepSeek --> KeyMgmt
+    Anthropic --> KeyMgmt
 ```
 
 ### Key Architectural Decisions
@@ -68,6 +102,10 @@ graph TB
 4. **Structured Logging**: All audit logs use structured formats for easy parsing and analysis
 5. **Configuration as Code**: Pydantic models provide type-safe, validated configuration
 6. **Memory System Integration**: All conversation context managed by guru-memory-system (no local context storage)
+7. **Onboarding LLM Selection**: Users choose local Ollama or cloud APIs during onboarding
+8. **Secure API Key Storage**: Cloud API keys stored in OS keychain via guru-security-cryptography
+9. **Cost Tracking**: Cloud API usage tracked and reported to users
+10. **Local-First Default**: Ollama recommended for privacy and offline capability
 
 ## Integration Points
 
@@ -77,9 +115,11 @@ This system provides LLM provider management and routing for AGENT_GURU, with co
 
 **Upstream Dependencies** (systems this component depends on):
 - **Memory System** (guru-memory-system): Provides conversation context storage and retrieval
+- **Security System** (guru-security-cryptography): Secure API key storage in OS keychain
 
 **Downstream Dependencies** (systems that depend on this component):
 - **Agent Orchestration** (guru-agent-orchestration): Uses LLM Runtime for agent reasoning
+- **Deployment System** (guru-deployment-system): Integrates onboarding LLM configuration
 - **All other systems**: Use LLM Runtime for LLM interactions
 
 ### API Contracts
@@ -128,19 +168,44 @@ class LLMRuntime:
 
 ### Data Flow
 
-1. **LLM Generation with Context Flow:**
+1. **Onboarding LLM Configuration Flow:**
+   - User completes profile setup (gender, age, name)
+   - User completes biometric enrollment (fingerprint, face, voice)
+   - Onboarding presents LLM configuration options:
+     - Option 1: Local Ollama (recommended for privacy)
+     - Option 2: Cloud APIs (OpenAI, Gemini, DeepSeek, Anthropic)
+   - If cloud API selected:
+     - User provides API key
+     - LLMRuntime validates API key with provider
+     - SecuritySystem stores API key in OS keychain
+     - LLMRuntime creates provider configuration
+   - If Ollama selected:
+     - LLMRuntime checks Ollama installation
+     - Downloads recommended models if needed
+     - Creates local provider configuration
+   - Configuration saved to user profile
+
+2. **LLM Generation with Context Flow:**
    - Agent calls LLMRuntime.generate() with conversation_id
    - LLMRuntime retrieves context from MemorySystem
-   - LLMRuntime routes to appropriate provider
+   - LLMRuntime routes to appropriate provider (Ollama or cloud)
    - Provider generates response
    - LLMRuntime stores response in MemorySystem
+   - If cloud provider: CostTracker records usage
    - Response returned to agent
 
-2. **Provider Fallback Flow:**
+3. **Provider Fallback Flow:**
    - Primary provider fails
    - FallbackHandler selects next provider
    - Request retried with fallback provider
    - Success/failure logged to AuditLogger
+
+4. **API Key Retrieval Flow:**
+   - Cloud provider adapter needs API key
+   - Adapter requests key from SecuritySystem
+   - SecuritySystem retrieves key from OS keychain
+   - Key provided to adapter (never logged or cached)
+   - Adapter authenticates with cloud provider
 
 ## Components and Interfaces
 
