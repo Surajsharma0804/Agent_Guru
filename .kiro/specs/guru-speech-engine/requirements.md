@@ -1,10 +1,12 @@
-# Requirements Document: Speech Recognition & Voice Interface
+# Requirements Document: Speech Engine
 
 ## Introduction
 
-The Speech Recognition & Voice Interface system provides comprehensive voice interaction capabilities for AGENT_GURU, including dual personality wake word detection (Guru - male, Maya - female), speech-to-text transcription, voice biometrics, gender-specific text-to-speech synthesis, audio processing, and command recognition. This system enables natural voice-based interaction with the AI operating system while maintaining high accuracy, low latency, and robust security through voice biometrics.
+The Speech Engine is a critical component that enables Agent_Guru to interact through voice, providing natural speech recognition, text-to-speech synthesis, voice biometrics, emotion detection, and multi-language support. This component transforms Agent_Guru from a text-based system into a truly conversational AI that can understand and respond with human-like voice interaction.
 
-AGENT_GURU is designed as a voice-controlled personal assistant that can execute any laptop operation through voice commands - from sending messages and opening applications to typing text and controlling system settings. The speech engine is the primary interface for this comprehensive system control.
+The Speech Engine provides comprehensive voice interaction capabilities for Agent_Guru, including dual personality wake word detection (Guru - male, Maya - female), speech-to-text transcription, voice biometrics, emotion detection, gender-specific text-to-speech synthesis, audio processing, voice cloning, noise cancellation, streaming audio, voice commands, and conversation context management. This system enables natural voice-based interaction with the AI operating system while maintaining high accuracy, low latency (<500ms for real-time interaction), and robust security through voice biometrics.
+
+Agent_Guru is designed as a voice-controlled personal assistant that can execute any laptop operation through voice commands - from sending messages and opening applications to typing text and controlling system settings. The speech engine is the primary interface for this comprehensive system control, supporting both local models (Whisper, Coqui TTS) and cloud services (Google, Azure, AWS) with offline capability.
 
 ## Glossary
 
@@ -13,21 +15,30 @@ AGENT_GURU is designed as a voice-controlled personal assistant that can execute
 - **Sleep_Mode**: Low-power state where only wake word detection is active
 - **Wake_Mode**: Active state where full speech processing is enabled
 - **Wake_Word_Detector**: Component that detects custom wake words in audio streams
-- **STT_Engine**: Speech-to-text transcription engine using OpenAI Whisper
-- **Voice_Biometrics**: Speaker recognition and verification system
-- **TTS_Engine**: Text-to-speech synthesis engine
-- **Audio_Processor**: Audio enhancement and preprocessing component
+- **STT_Engine**: Speech-to-text transcription engine using OpenAI Whisper or platform-native APIs
+- **Voice_Biometrics**: Speaker recognition and verification system for user authentication
+- **Emotion_Detector**: Component that analyzes voice for emotional state (happy, sad, angry, neutral, etc.)
+- **TTS_Engine**: Text-to-speech synthesis engine with emotion and personality support
+- **Voice_Cloner**: System that learns and replicates user voice characteristics
+- **Audio_Processor**: Audio enhancement and preprocessing component with noise cancellation
 - **Command_Parser**: Intent and entity extraction from transcribed speech
-- **VAD**: Voice Activity Detection system
-- **Audio_Stream**: Continuous audio input from microphone or file
-- **Voice_Profile**: Biometric template for speaker identification
-- **Wake_Word**: Trigger phrase that activates the system
+- **VAD**: Voice Activity Detection system that identifies when user starts/stops speaking
+- **Audio_Stream**: Continuous audio input from microphone or file with real-time processing
+- **Voice_Profile**: Biometric template for speaker identification and authentication
+- **Wake_Word**: Trigger phrase that activates the system ("Hey Guru", "Agent Guru")
 - **Confidence_Score**: Numerical measure of recognition certainty (0.0 to 1.0)
-- **Real_Time_Factor**: Ratio of processing time to audio duration
+- **Real_Time_Factor**: Ratio of processing time to audio duration (must be <1.0 for real-time)
 - **Speaker_Diarization**: Process of identifying different speakers in audio
 - **Battery_Impact**: Power consumption rate measured in percentage per hour
 - **Foreground_Service**: Android service with persistent notification (required for always-on)
 - **Background_Mode**: iOS capability for continuous audio processing
+- **Noise_Cancellation**: Process of filtering background noise for clear recognition
+- **Voice_Command**: Specific command pattern recognized for system control
+- **Conversation_Context**: State maintained across multiple conversation turns
+- **Model_Router**: Component that selects optimal STT/TTS model for current context
+- **Local_Model**: On-device model (Whisper, Coqui TTS) for offline operation
+- **Cloud_Model**: Cloud-based model (Google, Azure, AWS) for enhanced accuracy
+- **Latency_Target**: Maximum acceptable delay (<500ms for real-time interaction)
 
 ## Requirements
 
@@ -383,7 +394,162 @@ AGENT_GURU is designed as a voice-controlled personal assistant that can execute
 6. THE Speech_Engine SHALL support environment variable overrides for configuration values
 
 
-### Requirement 13: Comprehensive Testing Requirements ⚠️ CRITICAL
+### Requirement 13: Emotion Detection from Voice
+
+**User Story:** As a user, I want Agent_Guru to detect my emotional state from my voice, so that it can respond with appropriate empathy and adjust its tone accordingly.
+
+#### Acceptance Criteria
+
+1. WHEN audio is analyzed, THE Emotion_Detector SHALL identify emotional state from voice patterns
+2. THE Emotion_Detector SHALL detect at least these emotions: happy, sad, angry, neutral, surprised, fearful, disgusted
+3. WHEN detecting emotion, THE Emotion_Detector SHALL return confidence scores for each emotion category
+4. THE Emotion_Detector SHALL complete emotion analysis within 200 milliseconds
+5. THE Emotion_Detector SHALL work across multiple languages and accents
+6. WHEN emotion changes during speech, THE Emotion_Detector SHALL track emotion transitions over time
+7. THE Emotion_Detector SHALL integrate with TTS_Engine to adjust response tone based on detected emotion
+8. THE Emotion_Detector SHALL provide emotion history for conversation context
+9. WHEN audio quality is poor, THE Emotion_Detector SHALL indicate low confidence rather than guessing
+10. THE Emotion_Detector SHALL support both real-time streaming and batch emotion analysis
+
+### Requirement 14: Voice Cloning and Personalization
+
+**User Story:** As a user, I want Agent_Guru to learn and replicate my voice characteristics, so that responses can be delivered in a personalized voice that sounds like me.
+
+#### Acceptance Criteria
+
+1. WHEN enrolling for voice cloning, THE Voice_Cloner SHALL capture at least 5 minutes of user speech samples
+2. THE Voice_Cloner SHALL create a voice model that replicates user's pitch, tone, and speaking style
+3. WHEN synthesizing with cloned voice, THE TTS_Engine SHALL achieve similarity score above 0.85
+4. THE Voice_Cloner SHALL complete voice model training within 10 minutes on GPU
+5. THE Voice_Cloner SHALL support incremental learning to improve voice quality over time
+6. WHEN cloned voice is used, THE Voice_Cloner SHALL maintain ethical safeguards against misuse
+7. THE Voice_Cloner SHALL store voice models securely using the security system
+8. THE Voice_Cloner SHALL support voice model export and import for backup
+9. WHEN voice cloning fails, THE Voice_Cloner SHALL fall back to default personality voices
+10. THE Voice_Cloner SHALL allow users to delete their voice models at any time
+
+### Requirement 15: Advanced Noise Cancellation
+
+**User Story:** As a user in noisy environments, I want advanced noise cancellation, so that Agent_Guru can understand me clearly even with background noise.
+
+#### Acceptance Criteria
+
+1. WHEN background noise is present, THE Noise_Cancellation SHALL reduce noise by at least 20dB
+2. THE Noise_Cancellation SHALL preserve speech intelligibility while removing noise
+3. THE Noise_Cancellation SHALL handle various noise types: white noise, music, conversations, traffic, wind
+4. THE Noise_Cancellation SHALL complete processing within 50 milliseconds per audio chunk
+5. THE Noise_Cancellation SHALL adapt to changing noise conditions in real-time
+6. WHEN multiple noise sources are present, THE Noise_Cancellation SHALL prioritize speech preservation
+7. THE Noise_Cancellation SHALL use machine learning models for optimal noise reduction
+8. THE Noise_Cancellation SHALL support both single-channel and multi-channel audio
+9. WHEN noise is too loud (SNR < 0dB), THE Noise_Cancellation SHALL notify user of poor audio quality
+10. THE Noise_Cancellation SHALL provide adjustable noise reduction levels (light, medium, aggressive)
+
+### Requirement 16: Streaming Audio Processing
+
+**User Story:** As a user, I want real-time audio streaming with low latency, so that conversations with Agent_Guru feel natural and responsive.
+
+#### Acceptance Criteria
+
+1. THE Audio_Stream SHALL process audio in chunks of 100-500 milliseconds
+2. THE Audio_Stream SHALL maintain end-to-end latency below 500 milliseconds
+3. WHEN streaming audio, THE Audio_Stream SHALL provide incremental STT results
+4. THE Audio_Stream SHALL support full-duplex audio (simultaneous input and output)
+5. THE Audio_Stream SHALL handle audio buffer underruns and overruns gracefully
+6. WHEN network latency increases, THE Audio_Stream SHALL adapt buffer sizes dynamically
+7. THE Audio_Stream SHALL support multiple audio codecs: PCM, Opus, AAC
+8. THE Audio_Stream SHALL provide audio quality metrics (jitter, packet loss, latency)
+9. WHEN streaming fails, THE Audio_Stream SHALL fall back to batch processing
+10. THE Audio_Stream SHALL support audio stream recording for debugging and quality analysis
+
+### Requirement 17: Voice Commands and System Control
+
+**User Story:** As a user, I want to control my entire system through voice commands, so that I can operate my computer hands-free.
+
+#### Acceptance Criteria
+
+1. THE Command_Parser SHALL recognize system control commands: open app, close app, type text, click, scroll
+2. THE Command_Parser SHALL recognize communication commands: send message, make call, read email
+3. THE Command_Parser SHALL recognize file operations: create file, delete file, move file, search files
+4. THE Command_Parser SHALL recognize settings commands: adjust volume, change brightness, toggle wifi
+5. WHEN command is ambiguous, THE Command_Parser SHALL ask for clarification
+6. THE Command_Parser SHALL support command chaining: "open browser and search for weather"
+7. THE Command_Parser SHALL support command parameters: "set volume to 50 percent"
+8. THE Command_Parser SHALL integrate with Platform_Integration for system operation execution
+9. WHEN command requires confirmation, THE Command_Parser SHALL request user approval
+10. THE Command_Parser SHALL provide command history and undo capability
+11. THE Command_Parser SHALL support custom command creation and macros
+12. WHEN command fails, THE Command_Parser SHALL provide clear error explanation and alternatives
+
+### Requirement 18: Conversation Context Management
+
+**User Story:** As a user, I want Agent_Guru to remember our conversation context, so that I don't have to repeat information and conversations flow naturally.
+
+#### Acceptance Criteria
+
+1. THE Speech_Engine SHALL maintain conversation state across multiple turns
+2. THE Speech_Engine SHALL track conversation history for at least the last 10 exchanges
+3. WHEN user refers to previous context ("it", "that", "the one I mentioned"), THE Speech_Engine SHALL resolve references
+4. THE Speech_Engine SHALL integrate with Memory_System for long-term conversation storage
+5. WHEN conversation topic changes, THE Speech_Engine SHALL detect topic shift and update context
+6. THE Speech_Engine SHALL maintain separate conversation contexts for Guru and Maya personalities
+7. WHEN user says "forget that" or "start over", THE Speech_Engine SHALL clear conversation context
+8. THE Speech_Engine SHALL provide conversation summary on request
+9. THE Speech_Engine SHALL track user preferences mentioned in conversation (e.g., "I prefer email over calls")
+10. WHEN conversation is interrupted, THE Speech_Engine SHALL resume context when user returns
+
+### Requirement 19: Multi-Language Support
+
+**User Story:** As a multilingual user, I want Agent_Guru to understand and respond in multiple languages, so that I can communicate in my preferred language.
+
+#### Acceptance Criteria
+
+1. THE Speech_Engine SHALL support at least these languages: English, Spanish, French, German, Chinese, Japanese, Hindi, Punjabi
+2. THE Speech_Engine SHALL detect language automatically from speech input
+3. WHEN language is detected, THE Speech_Engine SHALL switch STT and TTS models accordingly
+4. THE Speech_Engine SHALL support code-switching (mixing languages in same conversation)
+5. THE Speech_Engine SHALL maintain consistent personality voice characteristics across languages
+6. WHEN translating between languages, THE Speech_Engine SHALL preserve meaning and tone
+7. THE Speech_Engine SHALL support language-specific wake words and commands
+8. THE Speech_Engine SHALL allow users to set preferred language explicitly
+9. WHEN language model is unavailable, THE Speech_Engine SHALL notify user and suggest alternatives
+10. THE Speech_Engine SHALL support downloading additional language models on demand
+
+### Requirement 20: Model Router Integration
+
+**User Story:** As a system administrator, I want intelligent model selection between local and cloud models, so that Agent_Guru optimizes for accuracy, latency, and cost.
+
+#### Acceptance Criteria
+
+1. THE Speech_Engine SHALL integrate with Model_Router for optimal STT/TTS model selection
+2. WHEN offline, THE Speech_Engine SHALL use local models (Whisper, Coqui TTS) automatically
+3. WHEN online with good connection, THE Speech_Engine SHALL prefer cloud models for better accuracy
+4. THE Speech_Engine SHALL support these cloud providers: Google Cloud Speech/TTS, Azure Speech, AWS Transcribe/Polly
+5. WHEN cloud model fails, THE Speech_Engine SHALL fall back to local models within 1 second
+6. THE Speech_Engine SHALL track model performance metrics (accuracy, latency, cost)
+7. THE Speech_Engine SHALL allow users to prefer local-only or cloud-only operation
+8. WHEN battery is low, THE Speech_Engine SHALL prefer local models to reduce network usage
+9. THE Speech_Engine SHALL cache cloud model results for common phrases
+10. THE Speech_Engine SHALL provide model selection transparency to users
+
+### Requirement 21: Integration with Agent_Guru Components
+
+**User Story:** As a developer, I want seamless integration with other Agent_Guru components, so that voice capabilities enhance the entire system.
+
+#### Acceptance Criteria
+
+1. THE Speech_Engine SHALL integrate with Goal_Manager for voice-driven task creation
+2. THE Speech_Engine SHALL integrate with Agent_Orchestration for voice command routing
+3. THE Speech_Engine SHALL integrate with Memory_System for voice preference learning
+4. THE Speech_Engine SHALL integrate with Self_Improvement_Engine for recognition accuracy improvement
+5. THE Speech_Engine SHALL integrate with Platform_Integration for audio device access and system control
+6. THE Speech_Engine SHALL integrate with Security_System for voice biometric storage
+7. WHEN voice command creates a task, THE Speech_Engine SHALL confirm task creation verbally
+8. WHEN voice command triggers agent action, THE Speech_Engine SHALL provide status updates
+9. THE Speech_Engine SHALL expose voice events to other components via event bus
+10. THE Speech_Engine SHALL provide voice capability discovery API for other components
+
+### Requirement 22: Comprehensive Testing Requirements ⚠️ CRITICAL
 
 **User Story:** As a quality engineer, I want the most rigorous testing possible for speech engine, so that voice interactions are flawless.
 
@@ -458,3 +624,75 @@ AGENT_GURU is designed as a voice-controlled personal assistant that can execute
 3. **MANDATORY**: Model loading failures SHALL be simulated and fallback verified
 4. **MANDATORY**: Disk full scenarios SHALL be simulated during audio recording
 5. **MANDATORY**: CPU/GPU exhaustion SHALL be simulated and degradation verified
+
+#### Acceptance Criteria - Emotion Detection Testing
+
+1. **MANDATORY**: Emotion detection SHALL be tested with acted emotional speech samples
+2. **MANDATORY**: Emotion detection SHALL be tested across different languages and accents
+3. **MANDATORY**: Emotion transitions SHALL be tested with speech containing multiple emotions
+4. **MANDATORY**: Emotion confidence scores SHALL be tested to verify proper calibration
+5. **MANDATORY**: Emotion detection SHALL be tested with noisy audio to verify robustness
+
+#### Acceptance Criteria - Voice Cloning Testing
+
+1. **MANDATORY**: Voice cloning SHALL be tested with various voice types (male, female, different ages)
+2. **MANDATORY**: Voice similarity SHALL be tested to verify >0.85 similarity score
+3. **MANDATORY**: Voice cloning SHALL be tested with limited training data (5, 10, 15 minutes)
+4. **MANDATORY**: Cloned voice quality SHALL be tested across different text types
+5. **MANDATORY**: Voice cloning security SHALL be tested to prevent unauthorized cloning
+
+#### Acceptance Criteria - Noise Cancellation Testing
+
+1. **MANDATORY**: Noise reduction SHALL be tested with various noise types at different SNR levels
+2. **MANDATORY**: Speech preservation SHALL be tested to verify no speech distortion
+3. **MANDATORY**: Adaptive noise cancellation SHALL be tested with changing noise conditions
+4. **MANDATORY**: Multi-channel noise cancellation SHALL be tested with stereo and multi-mic arrays
+5. **MANDATORY**: Noise cancellation latency SHALL be tested to verify <50ms processing time
+
+#### Acceptance Criteria - Streaming Audio Testing
+
+1. **MANDATORY**: End-to-end latency SHALL be tested to verify <500ms target
+2. **MANDATORY**: Audio buffer management SHALL be tested with various chunk sizes
+3. **MANDATORY**: Network conditions SHALL be tested with varying latency and packet loss
+4. **MANDATORY**: Full-duplex audio SHALL be tested with simultaneous input and output
+5. **MANDATORY**: Audio codec performance SHALL be tested with PCM, Opus, and AAC
+
+#### Acceptance Criteria - Voice Commands Testing
+
+1. **MANDATORY**: System control commands SHALL be tested with all supported operations
+2. **MANDATORY**: Command chaining SHALL be tested with complex multi-step commands
+3. **MANDATORY**: Command disambiguation SHALL be tested with ambiguous inputs
+4. **MANDATORY**: Command parameters SHALL be tested with various value types
+5. **MANDATORY**: Command error handling SHALL be tested with invalid and impossible commands
+
+#### Acceptance Criteria - Conversation Context Testing
+
+1. **MANDATORY**: Context resolution SHALL be tested with pronouns and references
+2. **MANDATORY**: Topic shift detection SHALL be tested with conversation transitions
+3. **MANDATORY**: Context persistence SHALL be tested across session boundaries
+4. **MANDATORY**: Multi-turn conversations SHALL be tested with 10+ exchanges
+5. **MANDATORY**: Context clearing SHALL be tested with explicit user requests
+
+#### Acceptance Criteria - Multi-Language Testing
+
+1. **MANDATORY**: Language detection SHALL be tested with all supported languages
+2. **MANDATORY**: Code-switching SHALL be tested with mixed-language speech
+3. **MANDATORY**: Language-specific models SHALL be tested for accuracy and latency
+4. **MANDATORY**: Language fallback SHALL be tested when preferred language unavailable
+5. **MANDATORY**: Cross-language consistency SHALL be tested for personality voices
+
+#### Acceptance Criteria - Model Router Integration Testing
+
+1. **MANDATORY**: Local/cloud model switching SHALL be tested with network transitions
+2. **MANDATORY**: Model fallback SHALL be tested when cloud models fail
+3. **MANDATORY**: Model performance tracking SHALL be tested with various models
+4. **MANDATORY**: Model caching SHALL be tested to verify cache hit rates
+5. **MANDATORY**: Model selection logic SHALL be tested with different contexts (battery, network, accuracy needs)
+
+#### Acceptance Criteria - Component Integration Testing
+
+1. **MANDATORY**: Goal_Manager integration SHALL be tested with voice task creation
+2. **MANDATORY**: Agent_Orchestration integration SHALL be tested with voice command routing
+3. **MANDATORY**: Memory_System integration SHALL be tested with preference learning
+4. **MANDATORY**: Platform_Integration SHALL be tested with system control operations
+5. **MANDATORY**: Security_System integration SHALL be tested with voice biometric storage

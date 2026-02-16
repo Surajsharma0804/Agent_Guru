@@ -1,1063 +1,1382 @@
-# Design Document: Guru Memory System
+# Design Document: Memory System
 
 ## Overview
 
-The Guru Memory System is a hybrid storage architecture that provides intelligent, context-aware memory management for AGENT_GURU's dual AI personalities (Guru and Maya). The system maintains separate memory contexts for each personality while providing unified storage and retrieval capabilities.
+The Memory System is the foundational learning and knowledge management component of Agent_Guru. It implements a sophisticated architecture that goes far beyond simple storage, enabling autonomous learning through structured knowledge graphs, adaptive preference models, experience-based reasoning, and personality evolution.
 
-**IMPORTANT**: This system is the ONLY conversation history and memory storage system in AGENT_GURU. All other components (LLM Runtime, Agent Orchestration) must use this system for conversation context management.
+The system is built on four core pillars:
 
-**Dual Personality Memory**:
-- **Separate Contexts**: Guru and Maya maintain independent conversation histories and memories
-- **Personality Profiles**: Each personality has distinct preferences, learned patterns, and interaction styles
-- **Context Isolation**: Memories from one personality don't leak into the other's context
-- **Unified Storage**: Both personalities use the same underlying storage infrastructure
-- **Seamless Switching**: Users can switch between personalities without losing context
+1. **Knowledge Graph Engine**: A temporal, versioned graph database that stores entities, relationships, and concepts with semantic reasoning capabilities
+2. **Preference Learning Engine**: An adaptive system that learns user preferences from behavior and explicit feedback, maintaining confidence scores and temporal evolution
+3. **Experience Repository**: A structured store of task execution traces with causal relationship extraction and pattern recognition
+4. **Personality Evolution Engine**: An adaptive communication style system with measurable metrics and rollback capabilities
 
-**Memory Types**:
-1. **Conversation History**: Complete message history per personality
-2. **User Profiles**: User preferences, demographics, interaction patterns
-3. **Semantic Memory**: Facts, knowledge, and learned information
-4. **Episodic Memory**: Specific events and interactions
-5. **Personality Preferences**: Each personality's learned user preferences
-
-The system uses a dual-storage approach:
-- **SQLite** for structured data (conversations, profiles, metadata)
-- **ChromaDB** for semantic vector search (similarity-based retrieval)
-- **AES-256-GCM encryption** for all data at rest
-
-The architecture prioritizes:
-- **Fast retrieval**: Sub-100ms semantic queries through HNSW indexing
-- **Privacy**: End-to-end encryption with no plaintext on disk
-- **Personality Isolation**: Clean separation between Guru and Maya contexts
-- **Scalability**: Efficient pruning strategies to manage growth
-- **Reliability**: ACID transactions and graceful degradation
-- **Central Storage**: Single source of truth for all conversation and memory data
-
-## Integration Points
-
-This system is the CENTRAL MEMORY AND CONVERSATION STORAGE for AGENT_GURU. All conversation history and memory operations must go through this system.
-
-### Dependencies
-
-**Upstream Dependencies** (systems this component depends on):
-- None (standalone storage system)
-
-**Downstream Dependencies** (systems that depend on this component):
-- **LLM Runtime** (guru-llm-runtime): Uses MemorySystem for conversation context management
-- **Agent Orchestration** (guru-agent-orchestration): Uses MemorySystem for agent memory
-- **All other systems**: Use MemorySystem for persistent storage needs
-
-### API Contracts
-
-**LLM Runtime Integration:**
-```python
-class MemorySystem:
-    """Central memory and conversation storage."""
-    
-    def store_conversation_message(
-        self,
-        conversation_id: str,
-        role: str,
-        content: str,
-        metadata: Optional[Dict] = None
-    ) -> Memory:
-        """
-        Store a conversation message.
-        
-        Used by LLM Runtime to persist conversation history.
-        """
-        pass
-    
-    def get_conversation_context(
-        self,
-        conversation_id: str,
-        max_tokens: Optional[int] = None
-    ) -> List[Memory]:
-        """
-        Retrieve conversation context within token limits.
-        
-        Returns messages in chronological order, truncated to fit max_tokens.
-        """
-        pass
-```
-
-**Agent Orchestration Integration:**
-```python
-# Agent stores and retrieves memories
-memory = memory_system.store_memory(
-    content="User prefers dark mode",
-    metadata={"type": "preference", "user_id": "user123"}
-)
-
-# Agent queries relevant memories
-relevant = memory_system.query_similar(
-    query="What are the user's UI preferences?",
-    limit=5
-)
-```
-
-### Data Flow
-
-1. **Conversation Storage Flow:**
-   - LLM Runtime receives user message
-   - LLM Runtime calls MemorySystem.store_conversation_message()
-   - MemorySystem encrypts and stores in graph + vector stores
-   - LLM Runtime retrieves context via get_conversation_context()
-   - LLM Runtime sends context + new message to LLM provider
-
-2. **Memory Retrieval Flow:**
-   - Agent needs relevant context
-   - Agent queries MemorySystem with semantic query
-   - MemorySystem performs vector search
-   - Results decrypted and returned to agent
-   - Agent uses memories to inform decisions
+The design emphasizes measurable improvement, adversarial robustness, and seamless integration with other Agent_Guru components (Verifier System, Goal Manager, Self-Improvement Engine, Model Router).
 
 ## Architecture
 
-### Component Diagram
+### High-Level Architecture
 
-```mermaid
-graph TB
-    Agent[AI Agent] --> API[Memory API]
-    API --> Cache[Memory Cache]
-    API --> QueryEngine[Query Engine]
-    
-    QueryEngine --> GraphStore[Graph Store<br/>NetworkX + SQLite]
-    QueryEngine --> VectorStore[Vector Store<br/>ChromaDB]
-    
-    GraphStore --> Encryption[Encryption Layer]
-    VectorStore --> Encryption
-    
-    Encryption --> Disk[(Encrypted Storage)]
-    
-    API --> Pruning[Pruning Manager]
-    Pruning --> GraphStore
-    Pruning --> VectorStore
-    
-    subgraph "Memory System Core"
-        API
-        Cache
-        QueryEngine
-        Pruning
-    end
-    
-    subgraph "Storage Layer"
-        GraphStore
-        VectorStore
-        Encryption
-    end
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Memory System                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────┐ │
+│  │  Knowledge Graph │  │   Preference     │  │  Experience   │ │
+│  │     Engine       │  │ Learning Engine  │  │  Repository   │ │
+│  └──────────────────┘  └──────────────────┘  └───────────────┘ │
+│           │                     │                     │          │
+│           └─────────────────────┴─────────────────────┘          │
+│                              │                                   │
+│                    ┌─────────▼─────────┐                        │
+│                    │  Deduplication    │                        │
+│                    │     Engine        │                        │
+│                    └─────────┬─────────┘                        │
+│                              │                                   │
+│           ┌──────────────────┴──────────────────┐               │
+│           │                                     │               │
+│  ┌────────▼────────┐                  ┌────────▼────────┐      │
+│  │   Personality   │                  │     Metrics     │      │
+│  │ Evolution Engine│                  │   & Monitoring  │      │
+│  └─────────────────┘                  └─────────────────┘      │
+│                                                                   │
+├─────────────────────────────────────────────────────────────────┤
+│                    Integration Layer                             │
+├─────────────────────────────────────────────────────────────────┤
+│  Verifier │ Goal Manager │ Self-Improvement │ Model Router      │
+│  System   │              │     Engine       │                   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                    ┌─────────▼─────────┐
+                    │   GitHub Sync     │
+                    │     Engine        │
+                    └───────────────────┘
 ```
 
-### Data Flow
+### Component Interaction Flow
 
-**Write Path**:
-1. Agent calls `store_memory(content, metadata)`
-2. Memory API generates unique ID and timestamp
-3. Embedding model converts content to vector
-4. Graph Store creates node with encrypted content
-5. Vector Store indexes embedding with metadata
-6. Both operations wrapped in transaction
-7. Cache updated with new memory
-
-**Read Path (Semantic Query)**:
-1. Agent calls `query_similar(query_text, limit=10)`
-2. Query Engine checks cache for recent queries
-3. Embedding model converts query to vector
-4. Vector Store performs ANN search
-5. Results decrypted and returned
-6. Cache updated with results
-
-**Read Path (Temporal Query)**:
-1. Agent calls `query_temporal(start_time, end_time)`
-2. Graph Store queries nodes by timestamp range
-3. Graph traversal finds connected memories
-4. Results decrypted and returned
+1. **Information Ingestion**: New information flows through Verifier System → Memory System
+2. **Knowledge Extraction**: Memory System extracts entities, relationships, preferences, and experiences
+3. **Deduplication**: Deduplication Engine checks for semantic duplicates before storage
+4. **Storage**: Information stored in appropriate engine (Knowledge Graph, Preference, Experience)
+5. **GitHub Sync**: Significant updates trigger async GitHub commits
+6. **Retrieval**: Other components query Memory System for context and learned knowledge
+7. **Metrics**: Continuous monitoring tracks learning progress and system health
 
 ## Components and Interfaces
 
-### 1. Memory API (`memory_api.py`)
+### 1. Knowledge Graph Engine
 
-The main interface for all memory operations.
+**Purpose**: Store and reason over structured knowledge with temporal versioning and semantic querying.
 
-```python
-from typing import List, Dict, Optional, Any
-from datetime import datetime
-from dataclasses import dataclass
+**Data Model**:
 
-@dataclass
-class Memory:
-    """A single memory node with content and metadata."""
-    id: str
-    content: str
-    timestamp: datetime
-    metadata: Dict[str, Any]
-    embedding: Optional[List[float]] = None
-    importance: float = 1.0
+```
+Entity {
+  id: UUID
+  type: EntityType
+  attributes: Map<String, AttributeValue>
+  created_at: Timestamp
+  updated_at: Timestamp
+  confidence: Float [0.0, 1.0]
+  source: String
+  versions: List<EntityVersion>
+}
 
-class MemorySystem:
-    """Main interface for memory storage and retrieval."""
-    
-    def __init__(
-        self,
-        storage_path: str,
-        encryption_key: bytes,
-        embedding_model: str = "all-MiniLM-L6-v2"
-    ):
-        """Initialize memory system with storage path and encryption key."""
-        pass
-    
-    def store_memory(
-        self,
-        content: str,
-        metadata: Optional[Dict[str, Any]] = None,
-        parent_id: Optional[str] = None
-    ) -> Memory:
-        """
-        Store a new memory with optional parent relationship.
-        
-        Args:
-            content: The memory content (text)
-            metadata: Optional metadata (tags, source, etc.)
-            parent_id: Optional parent memory for temporal edges
-            
-        Returns:
-            The created Memory object
-            
-        Raises:
-            EncryptionError: If encryption fails
-            StorageError: If persistence fails
-        """
-        pass
-    
-    def query_similar(
-        self,
-        query: str,
-        limit: int = 10,
-        threshold: float = 0.7,
-        metadata_filter: Optional[Dict[str, Any]] = None
-    ) -> List[Memory]:
-        """
-        Query semantically similar memories.
-        
-        Args:
-            query: Query text
-            limit: Maximum number of results
-            threshold: Minimum similarity score (0-1)
-            metadata_filter: Optional metadata filters
-            
-        Returns:
-            List of similar memories ranked by similarity
-        """
-        pass
-    
-    def query_temporal(
-        self,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        root_id: Optional[str] = None,
-        max_depth: int = 5
-    ) -> List[Memory]:
-        """
-        Query memories by temporal range or graph traversal.
-        
-        Args:
-            start_time: Start of time range
-            end_time: End of time range
-            root_id: Root node for graph traversal
-            max_depth: Maximum traversal depth
-            
-        Returns:
-            List of memories in temporal order
-        """
-        pass
-    
-    def update_metadata(self, memory_id: str, metadata: Dict[str, Any]) -> None:
-        """Update metadata for an existing memory."""
-        pass
-    
-    def delete_memory(self, memory_id: str) -> None:
-        """Delete a memory and its edges."""
-        pass
-    
-    def prune(self, strategy: str = "importance", target_size: Optional[int] = None) -> int:
-        """
-        Prune low-importance memories.
-        
-        Args:
-            strategy: Pruning strategy ("importance", "age", "capacity")
-            target_size: Target number of memories to retain
-            
-        Returns:
-            Number of memories pruned
-        """
-        pass
-    
-    def export_memories(self, output_path: str) -> None:
-        """Export all memories to JSON file."""
-        pass
-    
-    def import_memories(self, input_path: str) -> int:
-        """Import memories from JSON file. Returns count imported."""
-        pass
-    
-    def close(self) -> None:
-        """Flush pending writes and close connections."""
-        pass
+EntityVersion {
+  version_id: UUID
+  attributes: Map<String, AttributeValue>
+  valid_from: Timestamp
+  valid_until: Optional<Timestamp>
+  confidence: Float
+  source: String
+}
+
+Relationship {
+  id: UUID
+  source_entity_id: UUID
+  target_entity_id: UUID
+  relationship_type: RelationshipType
+  attributes: Map<String, AttributeValue>
+  confidence: Float [0.0, 1.0]
+  created_at: Timestamp
+  valid_from: Timestamp
+  valid_until: Optional<Timestamp>
+  bidirectional: Boolean
+}
+
+SemanticQuery {
+  query_type: QueryType  // ENTITY_LOOKUP, RELATIONSHIP_TRAVERSAL, PATTERN_MATCH
+  constraints: List<Constraint>
+  max_depth: Integer
+  min_confidence: Float
+  temporal_filter: Optional<TimeRange>
+}
+
+QueryResult {
+  entities: List<Entity>
+  relationships: List<Relationship>
+  relevance_scores: Map<UUID, Float>
+  execution_time_ms: Integer
+}
 ```
 
-### 2. Graph Store (`graph_store.py`)
+**Core Operations**:
 
-Manages temporal graph storage using NetworkX with SQLite persistence.
-
-```python
-import networkx as nx
-from typing import List, Optional, Tuple
-from datetime import datetime
-
-class GraphStore:
-    """Temporal graph storage with SQLite persistence."""
-    
-    def __init__(self, db_path: str, encryption_layer: 'EncryptionLayer'):
-        """Initialize graph store with database path."""
-        self.graph = nx.DiGraph()
-        self.db_path = db_path
-        self.encryption = encryption_layer
-    
-    def add_node(
-        self,
-        node_id: str,
-        content: str,
-        timestamp: datetime,
-        metadata: dict
-    ) -> None:
-        """Add a node to the graph with encrypted content."""
-        pass
-    
-    def add_edge(self, source_id: str, target_id: str, edge_type: str = "temporal") -> None:
-        """Add a directed edge between two nodes."""
-        pass
-    
-    def get_node(self, node_id: str) -> Optional[dict]:
-        """Retrieve a node by ID with decrypted content."""
-        pass
-    
-    def query_by_time_range(
-        self,
-        start_time: Optional[datetime],
-        end_time: Optional[datetime]
-    ) -> List[dict]:
-        """Query nodes within a time range."""
-        pass
-    
-    def traverse_from_node(
-        self,
-        root_id: str,
-        max_depth: int = 5,
-        direction: str = "forward"
-    ) -> List[dict]:
-        """Traverse graph from a root node."""
-        pass
-    
-    def remove_node(self, node_id: str) -> None:
-        """Remove a node and its edges."""
-        pass
-    
-    def persist(self) -> None:
-        """Persist graph to SQLite database."""
-        pass
-    
-    def load(self) -> None:
-        """Load graph from SQLite database."""
-        pass
-    
-    def get_node_importance(self, node_id: str) -> float:
-        """Calculate node importance using PageRank and degree centrality."""
-        pass
+```
+add_entity(entity: Entity, verified: Boolean) -> Result<UUID, Error>
+update_entity(entity_id: UUID, updates: Map<String, AttributeValue>, verified: Boolean) -> Result<EntityVersion, Error>
+add_relationship(relationship: Relationship, verified: Boolean) -> Result<UUID, Error>
+query_semantic(query: SemanticQuery) -> Result<QueryResult, Error>
+merge_entities(entity_id_1: UUID, entity_id_2: UUID) -> Result<UUID, Error>
+get_entity_history(entity_id: UUID) -> Result<List<EntityVersion>, Error>
+validate_integrity() -> Result<IntegrityReport, Error>
 ```
 
-### 3. Vector Store (`vector_store.py`)
+**Concurrency Control**:
+- Uses optimistic locking with version numbers for entity updates
+- Serializes updates to the same entity using entity-level locks
+- Supports concurrent reads without blocking
+- Detects and resolves conflicts using last-write-wins with confidence scoring
 
-Manages semantic indexing using ChromaDB.
+**Temporal Versioning**:
+- Every entity update creates a new version with validity period
+- Queries can specify temporal filters to retrieve historical state
+- Conflicting information creates parallel versions rather than overwriting
+- Version consolidation occurs when confidence scores clearly favor one version
 
-```python
-import chromadb
-from typing import List, Dict, Optional, Any
+### 2. Preference Learning Engine
 
-class VectorStore:
-    """Semantic vector storage using ChromaDB."""
-    
-    def __init__(
-        self,
-        persist_directory: str,
-        collection_name: str = "memories",
-        embedding_function: Optional[Any] = None
-    ):
-        """Initialize ChromaDB client and collection."""
-        pass
-    
-    def add_memory(
-        self,
-        memory_id: str,
-        embedding: List[float],
-        metadata: Dict[str, Any]
-    ) -> None:
-        """Add a memory embedding to the collection."""
-        pass
-    
-    def query(
-        self,
-        query_embedding: List[float],
-        limit: int = 10,
-        metadata_filter: Optional[Dict[str, Any]] = None
-    ) -> List[Tuple[str, float]]:
-        """
-        Query similar memories by embedding.
-        
-        Returns:
-            List of (memory_id, similarity_score) tuples
-        """
-        pass
-    
-    def update_metadata(self, memory_id: str, metadata: Dict[str, Any]) -> None:
-        """Update metadata for a memory."""
-        pass
-    
-    def delete(self, memory_id: str) -> None:
-        """Delete a memory from the collection."""
-        pass
-    
-    def get_collection_size(self) -> int:
-        """Get the number of memories in the collection."""
-        pass
+**Purpose**: Learn and adapt to user preferences through behavioral analysis and explicit feedback.
+
+**Data Model**:
+
+```
+Preference {
+  id: UUID
+  user_id: UUID
+  preference_type: PreferenceType
+  context: Map<String, String>
+  value: PreferenceValue
+  confidence: Float [0.0, 1.0]
+  evidence: List<PreferenceEvidence>
+  created_at: Timestamp
+  updated_at: Timestamp
+  last_confirmed: Timestamp
+}
+
+PreferenceEvidence {
+  evidence_id: UUID
+  evidence_type: EvidenceType  // EXPLICIT_STATEMENT, BEHAVIORAL_PATTERN, FEEDBACK
+  timestamp: Timestamp
+  weight: Float
+  description: String
+}
+
+PreferenceSignal {
+  user_id: UUID
+  signal_type: SignalType
+  context: Map<String, String>
+  value: Any
+  timestamp: Timestamp
+}
+
+PreferenceQuery {
+  user_id: UUID
+  preference_type: PreferenceType
+  context: Map<String, String>
+  min_confidence: Float
+}
 ```
 
-### 4. Encryption Layer (`encryption.py`)
+**Core Operations**:
 
-Handles encryption/decryption of memory content.
-
-```python
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives import hashes
-import os
-
-class EncryptionLayer:
-    """Encryption layer for memory content using AES-256-GCM."""
-    
-    def __init__(self, master_key: bytes):
-        """
-        Initialize encryption layer with master key.
-        
-        Args:
-            master_key: 32-byte master key for key derivation
-        """
-        if len(master_key) != 32:
-            raise ValueError("Master key must be 32 bytes")
-        self.master_key = master_key
-    
-    def derive_key(self, context: bytes) -> bytes:
-        """Derive a context-specific key using HKDF."""
-        hkdf = HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=None,
-            info=context
-        )
-        return hkdf.derive(self.master_key)
-    
-    def encrypt(self, plaintext: str, context: str = "memory") -> bytes:
-        """
-        Encrypt plaintext using AES-256-GCM.
-        
-        Returns:
-            nonce (12 bytes) + ciphertext + tag (16 bytes)
-        """
-        key = self.derive_key(context.encode())
-        aesgcm = AESGCM(key)
-        nonce = os.urandom(12)
-        ciphertext = aesgcm.encrypt(nonce, plaintext.encode(), None)
-        return nonce + ciphertext
-    
-    def decrypt(self, ciphertext: bytes, context: str = "memory") -> str:
-        """
-        Decrypt ciphertext using AES-256-GCM.
-        
-        Args:
-            ciphertext: nonce + encrypted_data + tag
-            
-        Returns:
-            Decrypted plaintext string
-            
-        Raises:
-            DecryptionError: If decryption fails (wrong key or corrupted data)
-        """
-        key = self.derive_key(context.encode())
-        aesgcm = AESGCM(key)
-        nonce = ciphertext[:12]
-        encrypted_data = ciphertext[12:]
-        plaintext = aesgcm.decrypt(nonce, encrypted_data, None)
-        return plaintext.decode()
+```
+process_signal(signal: PreferenceSignal) -> Result<List<Preference>, Error>
+query_preference(query: PreferenceQuery) -> Result<Option<Preference>, Error>
+update_preference_confidence(preference_id: UUID, outcome: Boolean) -> Result<Preference, Error>
+detect_preference_shift(user_id: UUID, preference_type: PreferenceType) -> Result<ShiftAnalysis, Error>
+get_user_preferences(user_id: UUID) -> Result<List<Preference>, Error>
 ```
 
-### 5. Embedding Model (`embedding_model.py`)
+**Learning Algorithm**:
+- Bayesian updating for confidence scores based on new evidence
+- Temporal decay for old evidence (exponential decay with configurable half-life)
+- Context-aware preference matching using semantic similarity
+- Conflict resolution through evidence weighting and recency bias
 
-Wrapper for sentence-transformers models.
+**Confidence Calculation**:
+```
+confidence = sigmoid(
+  sum(evidence.weight * temporal_decay(evidence.timestamp)) / evidence_count
+)
 
-```python
-from sentence_transformers import SentenceTransformer
-from typing import List, Union
-import numpy as np
-
-class EmbeddingModel:
-    """Wrapper for sentence-transformers embedding models."""
-    
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        """Load the embedding model."""
-        self.model = SentenceTransformer(model_name)
-        self.dimension = self.model.get_sentence_embedding_dimension()
-    
-    def encode(self, text: Union[str, List[str]]) -> np.ndarray:
-        """
-        Encode text to embedding vector(s).
-        
-        Args:
-            text: Single string or list of strings
-            
-        Returns:
-            Embedding vector(s) as numpy array
-        """
-        return self.model.encode(text, convert_to_numpy=True)
-    
-    def encode_batch(self, texts: List[str], batch_size: int = 32) -> np.ndarray:
-        """Encode multiple texts in batches for efficiency."""
-        return self.model.encode(texts, batch_size=batch_size, convert_to_numpy=True)
+temporal_decay(timestamp) = exp(-lambda * (now - timestamp))
 ```
 
-### 6. Pruning Manager (`pruning.py`)
+### 3. Experience Repository
 
-Implements memory pruning strategies.
+**Purpose**: Store complete task execution traces with causal analysis and pattern recognition.
 
-```python
-from typing import List, Callable
-from datetime import datetime, timedelta
+**Data Model**:
 
-class PruningManager:
-    """Manages memory pruning strategies."""
-    
-    def __init__(self, graph_store: 'GraphStore', vector_store: 'VectorStore'):
-        self.graph_store = graph_store
-        self.vector_store = vector_store
-    
-    def prune_by_importance(self, target_size: int) -> List[str]:
-        """
-        Prune lowest-importance memories to reach target size.
-        
-        Returns:
-            List of pruned memory IDs
-        """
-        pass
-    
-    def prune_by_age(self, max_age_days: int) -> List[str]:
-        """
-        Prune memories older than max_age_days.
-        
-        Returns:
-            List of pruned memory IDs
-        """
-        pass
-    
-    def prune_by_capacity(self, max_memories: int) -> List[str]:
-        """
-        Prune oldest memories when capacity exceeded.
-        
-        Returns:
-            List of pruned memory IDs
-        """
-        pass
-    
-    def calculate_importance(self, memory_id: str) -> float:
-        """
-        Calculate memory importance score.
-        
-        Factors:
-        - Recency (exponential decay)
-        - Access frequency
-        - Graph centrality (PageRank)
-        - Semantic centrality (distance to cluster centers)
-        """
-        pass
+```
+Experience {
+  id: UUID
+  task_type: String
+  start_time: Timestamp
+  end_time: Timestamp
+  success: Boolean
+  success_score: Float [0.0, 1.0]
+  execution_trace: ExecutionTrace
+  causal_chain: List<CausalLink>
+  patterns: List<PatternID>
+  metadata: Map<String, String>
+}
+
+ExecutionTrace {
+  actions: List<Action>
+  states: List<State>
+  observations: List<Observation>
+}
+
+Action {
+  action_id: UUID
+  action_type: String
+  parameters: Map<String, Any>
+  timestamp: Timestamp
+  duration_ms: Integer
+}
+
+State {
+  state_id: UUID
+  timestamp: Timestamp
+  variables: Map<String, Any>
+}
+
+CausalLink {
+  cause_action_id: UUID
+  effect_state_id: UUID
+  causal_strength: Float [0.0, 1.0]
+  explanation: String
+}
+
+Pattern {
+  pattern_id: UUID
+  pattern_type: PatternType
+  abstraction: PatternAbstraction
+  occurrences: List<UUID>  // Experience IDs
+  success_rate: Float
+}
+
+ExperienceQuery {
+  task_type: Optional<String>
+  similarity_threshold: Float
+  min_success_score: Float
+  max_results: Integer
+  include_failures: Boolean
+}
 ```
 
-### 7. Query Engine (`query_engine.py`)
+**Core Operations**:
 
-Optimizes and executes memory queries.
+```
+store_experience(experience: Experience) -> Result<UUID, Error>
+query_similar_experiences(query: ExperienceQuery, reference: Experience) -> Result<List<Experience>, Error>
+extract_causal_links(trace: ExecutionTrace) -> Result<List<CausalLink>, Error>
+identify_patterns(experiences: List<Experience>) -> Result<List<Pattern>, Error>
+get_success_factors(experience_id: UUID) -> Result<List<CausalLink>, Error>
+```
 
-```python
-from typing import List, Optional, Dict, Any
-from datetime import datetime
+**Similarity Calculation**:
+- Action sequence similarity using edit distance with semantic action matching
+- State similarity using cosine similarity of state vectors
+- Outcome similarity based on success scores and final states
+- Combined similarity: `0.4 * action_sim + 0.3 * state_sim + 0.3 * outcome_sim`
 
-class QueryEngine:
-    """Optimizes and executes memory queries."""
-    
-    def __init__(
-        self,
-        graph_store: 'GraphStore',
-        vector_store: 'VectorStore',
-        embedding_model: 'EmbeddingModel',
-        cache_size: int = 1000
-    ):
-        self.graph_store = graph_store
-        self.vector_store = vector_store
-        self.embedding_model = embedding_model
-        self.cache = {}  # Simple LRU cache
-    
-    def semantic_query(
-        self,
-        query: str,
-        limit: int = 10,
-        threshold: float = 0.7,
-        metadata_filter: Optional[Dict[str, Any]] = None
-    ) -> List['Memory']:
-        """Execute semantic similarity query with caching."""
-        pass
-    
-    def temporal_query(
-        self,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        root_id: Optional[str] = None,
-        max_depth: int = 5
-    ) -> List['Memory']:
-        """Execute temporal graph query."""
-        pass
-    
-    def hybrid_query(
-        self,
-        query: str,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        limit: int = 10
-    ) -> List['Memory']:
-        """
-        Execute hybrid query combining semantic and temporal constraints.
-        
-        Optimization: Filter by time first (cheaper), then semantic search.
-        """
-        pass
-    
-    def _cache_get(self, key: str) -> Optional[Any]:
-        """Get from cache with LRU eviction."""
-        pass
-    
-    def _cache_put(self, key: str, value: Any) -> None:
-        """Put in cache with LRU eviction."""
-        pass
+**Causal Extraction**:
+- Temporal correlation analysis between actions and state changes
+- Counterfactual reasoning using similar experiences with different outcomes
+- Causal strength estimation using conditional probability
+- Explanation generation using template-based natural language generation
+
+### 4. Personality Evolution Engine
+
+**Purpose**: Adapt communication style based on user interactions while maintaining consistency.
+
+**Data Model**:
+
+```
+PersonalityProfile {
+  user_id: UUID
+  version: Integer
+  parameters: PersonalityParameters
+  created_at: Timestamp
+  metrics: PersonalityMetrics
+  evolution_history: List<PersonalitySnapshot>
+}
+
+PersonalityParameters {
+  formality: Float [0.0, 1.0]  // 0=casual, 1=formal
+  verbosity: Float [0.0, 1.0]  // 0=concise, 1=detailed
+  humor: Float [0.0, 1.0]      // 0=serious, 1=humorous
+  technical_depth: Float [0.0, 1.0]  // 0=simple, 1=technical
+  empathy: Float [0.0, 1.0]    // 0=direct, 1=empathetic
+  proactivity: Float [0.0, 1.0]  // 0=reactive, 1=proactive
+}
+
+PersonalityMetrics {
+  consistency_score: Float [0.0, 1.0]
+  user_satisfaction: Float [0.0, 1.0]
+  interaction_count: Integer
+  last_updated: Timestamp
+}
+
+PersonalitySnapshot {
+  version: Integer
+  parameters: PersonalityParameters
+  timestamp: Timestamp
+  trigger: String
+}
+
+InteractionFeedback {
+  user_id: UUID
+  interaction_id: UUID
+  feedback_type: FeedbackType  // POSITIVE, NEGATIVE, NEUTRAL
+  feedback_aspects: List<String>  // Which aspects user responded to
+  timestamp: Timestamp
+}
+```
+
+**Core Operations**:
+
+```
+process_interaction_feedback(feedback: InteractionFeedback) -> Result<PersonalityProfile, Error>
+get_personality_profile(user_id: UUID) -> Result<PersonalityProfile, Error>
+rollback_personality(user_id: UUID, version: Integer) -> Result<PersonalityProfile, Error>
+calculate_consistency(profile: PersonalityProfile) -> Result<Float, Error>
+suggest_personality_adjustment(user_id: UUID) -> Result<PersonalityParameters, Error>
+```
+
+**Evolution Algorithm**:
+- Gradient descent on personality parameters based on feedback
+- Consistency constraint: parameter changes limited to ±0.1 per update
+- Automatic rollback if user satisfaction drops below threshold
+- Multi-armed bandit exploration for parameter optimization
+
+**Consistency Calculation**:
+```
+consistency = 1.0 - (
+  sum(abs(param[i] - param[i-1]) for all parameters) / (num_parameters * max_change)
+)
+```
+
+### 5. Deduplication Engine
+
+**Purpose**: Detect and merge duplicate entities, preferences, and experiences using semantic similarity.
+
+**Data Model**:
+
+```
+DuplicationCandidate {
+  item_type: ItemType  // ENTITY, PREFERENCE, EXPERIENCE
+  item_id_1: UUID
+  item_id_2: UUID
+  similarity_score: Float [0.0, 1.0]
+  similarity_breakdown: Map<String, Float>
+  merge_strategy: MergeStrategy
+}
+
+MergeStrategy {
+  strategy_type: StrategyType  // UNION, INTERSECTION, WEIGHTED_AVERAGE
+  conflict_resolution: ConflictResolution
+  preserve_history: Boolean
+}
+
+MergeResult {
+  merged_id: UUID
+  source_ids: List<UUID>
+  merge_timestamp: Timestamp
+  preserved_data: Map<String, Any>
+}
+```
+
+**Core Operations**:
+
+```
+detect_duplicates(item_type: ItemType, threshold: Float) -> Result<List<DuplicationCandidate>, Error>
+merge_items(candidate: DuplicationCandidate) -> Result<MergeResult, Error>
+calculate_semantic_similarity(item1: Any, item2: Any) -> Result<Float, Error>
+schedule_deduplication_scan() -> Result<ScanID, Error>
+```
+
+**Semantic Similarity**:
+- Entity similarity: attribute overlap + embedding cosine similarity
+- Preference similarity: context matching + value semantic similarity
+- Experience similarity: action sequence edit distance + outcome similarity
+- Threshold: 0.85 for automatic merge, 0.70-0.85 for manual review
+
+### 6. GitHub Sync Engine
+
+**Purpose**: Persist memory updates to GitHub with retry logic and batching.
+
+**Data Model**:
+
+```
+SyncOperation {
+  operation_id: UUID
+  operation_type: OperationType  // UPDATE, BATCH_UPDATE
+  file_path: String  // Must be README.md
+  content: String
+  commit_message: String
+  timestamp: Timestamp
+  status: SyncStatus  // PENDING, IN_PROGRESS, COMPLETED, FAILED
+  retry_count: Integer
+  last_error: Optional<String>
+}
+
+SyncQueue {
+  pending_operations: Queue<SyncOperation>
+  in_progress: Map<UUID, SyncOperation>
+  completed: List<UUID>
+  failed: List<UUID>
+}
+
+SyncConfig {
+  repository_url: String
+  branch: String
+  auth_token: String
+  batch_window_ms: Integer  // Time to wait for batching
+  max_retries: Integer
+  retry_backoff_ms: Integer
+}
+```
+
+**Core Operations**:
+
+```
+queue_sync(operation: SyncOperation) -> Result<UUID, Error>
+process_sync_queue() -> Result<SyncStats, Error>
+retry_failed_sync(operation_id: UUID) -> Result<SyncStatus, Error>
+batch_operations(operations: List<SyncOperation>) -> Result<SyncOperation, Error>
+validate_sync_success(operation_id: UUID) -> Result<Boolean, Error>
+```
+
+**Sync Strategy**:
+- Async processing: sync operations never block memory updates
+- Batching window: 5 seconds to collect multiple updates
+- Retry logic: exponential backoff (100ms, 200ms, 400ms, 800ms, 1600ms)
+- Persistent queue: survives system restarts
+- Validation: verify commit SHA after push
+
+**Commit Message Format**:
+```
+[Memory Update] <component>: <description>
+
+- Entity updates: <count>
+- Preference updates: <count>
+- Experience updates: <count>
+- Personality updates: <count>
+
+Triggered by: <triggering_component>
+```
+
+### 7. Metrics and Monitoring Engine
+
+**Purpose**: Track learning progress and system health with measurable metrics.
+
+**Data Model**:
+
+```
+MetricSnapshot {
+  timestamp: Timestamp
+  metric_type: MetricType
+  value: Float
+  metadata: Map<String, String>
+}
+
+MetricType {
+  // Knowledge Graph Metrics
+  ENTITY_COUNT,
+  RELATIONSHIP_COUNT,
+  GRAPH_DENSITY,
+  QUERY_ACCURACY,
+  QUERY_LATENCY,
+  
+  // Preference Learning Metrics
+  PREFERENCE_PREDICTION_ACCURACY,
+  AVERAGE_CONFIDENCE,
+  PREFERENCE_SHIFT_RATE,
+  
+  // Experience Metrics
+  EXPERIENCE_COUNT,
+  PATTERN_COUNT,
+  RETRIEVAL_RELEVANCE,
+  
+  // Personality Metrics
+  PERSONALITY_CONSISTENCY,
+  USER_SATISFACTION,
+  ADAPTATION_RATE,
+  
+  // System Metrics
+  DEDUPLICATION_RATE,
+  GITHUB_SYNC_SUCCESS_RATE,
+  MEMORY_USAGE,
+  OPERATION_THROUGHPUT
+}
+
+Dashboard {
+  time_range: TimeRange
+  metrics: Map<MetricType, List<MetricSnapshot>>
+  alerts: List<Alert>
+  trends: Map<MetricType, Trend>
+}
+```
+
+**Core Operations**:
+
+```
+record_metric(metric: MetricSnapshot) -> Result<Void, Error>
+get_metric_history(metric_type: MetricType, time_range: TimeRange) -> Result<List<MetricSnapshot>, Error>
+calculate_trend(metric_type: MetricType, time_range: TimeRange) -> Result<Trend, Error>
+generate_dashboard(time_range: TimeRange) -> Result<Dashboard, Error>
+check_alerts() -> Result<List<Alert>, Error>
+```
+
+### Integration Interfaces
+
+#### Verifier System Integration
+
+```
+interface VerifierIntegration {
+  verify_before_storage(information: Information) -> Result<VerificationResult, Error>
+  request_reverification(entity_id: UUID) -> Result<VerificationResult, Error>
+  get_confidence_score(entity_id: UUID) -> Result<Float, Error>
+}
+
+VerificationResult {
+  verified: Boolean
+  confidence: Float
+  explanation: String
+  sources: List<String>
+}
+```
+
+#### Goal Manager Integration
+
+```
+interface GoalManagerIntegration {
+  provide_goal_context(goal: Goal) -> Result<GoalContext, Error>
+  store_goal_outcome(goal_id: UUID, outcome: GoalOutcome) -> Result<Void, Error>
+}
+
+GoalContext {
+  relevant_experiences: List<Experience>
+  relevant_knowledge: List<Entity>
+  learned_preferences: List<Preference>
+  success_factors: List<CausalLink>
+}
+```
+
+#### Self-Improvement Engine Integration
+
+```
+interface SelfImprovementIntegration {
+  provide_performance_data(time_range: TimeRange) -> Result<PerformanceData, Error>
+  identify_improvement_opportunities() -> Result<List<ImprovementOpportunity>, Error>
+  store_improvement_outcome(improvement_id: UUID, outcome: ImprovementOutcome) -> Result<Void, Error>
+}
+
+PerformanceData {
+  success_rate_by_task_type: Map<String, Float>
+  failure_patterns: List<Pattern>
+  metric_trends: Map<MetricType, Trend>
+}
+```
+
+#### Model Router Integration
+
+```
+interface ModelRouterIntegration {
+  provide_task_classification_context(task: Task) -> Result<ClassificationContext, Error>
+  store_model_performance(task_id: UUID, model: String, performance: Float) -> Result<Void, Error>
+}
+
+ClassificationContext {
+  similar_tasks: List<Experience>
+  model_performance_history: Map<String, Float>
+  task_characteristics: Map<String, Any>
+}
 ```
 
 ## Data Models
 
-### Memory Node Schema
+### Core Data Structures
 
-```python
-{
-    "id": "uuid-string",
-    "content": "encrypted-bytes",  # Encrypted with AES-256-GCM
-    "timestamp": "iso-8601-datetime",
-    "metadata": {
-        "tags": ["conversation", "important"],
-        "source": "user-input",
-        "importance": 0.85,
-        "access_count": 5,
-        "last_accessed": "iso-8601-datetime"
-    },
-    "embedding": [0.123, -0.456, ...],  # 384-dim vector for all-MiniLM-L6-v2
-    "edges": [
-        {"target": "uuid-string", "type": "temporal", "weight": 1.0}
-    ]
-}
-```
+All data models are defined in the Components section above. Key design decisions:
 
-### SQLite Schema (Graph Persistence)
+1. **UUID-based identifiers**: Enable distributed generation and merging
+2. **Confidence scores**: Every piece of information has associated confidence
+3. **Temporal metadata**: All data includes creation and update timestamps
+4. **Versioning**: Entities support temporal versioning for conflict resolution
+5. **Provenance tracking**: Source information preserved for audit trails
 
-```sql
-CREATE TABLE nodes (
-    id TEXT PRIMARY KEY,
-    content BLOB NOT NULL,  -- Encrypted content
-    timestamp TEXT NOT NULL,
-    metadata TEXT NOT NULL,  -- JSON
-    importance REAL DEFAULT 1.0,
-    access_count INTEGER DEFAULT 0,
-    last_accessed TEXT
-);
+### Storage Layer
 
-CREATE TABLE edges (
-    source_id TEXT NOT NULL,
-    target_id TEXT NOT NULL,
-    edge_type TEXT NOT NULL,
-    weight REAL DEFAULT 1.0,
-    PRIMARY KEY (source_id, target_id),
-    FOREIGN KEY (source_id) REFERENCES nodes(id) ON DELETE CASCADE,
-    FOREIGN KEY (target_id) REFERENCES nodes(id) ON DELETE CASCADE
-);
+**Primary Storage**: Graph database (e.g., Neo4j, ArangoDB) for Knowledge Graph
+**Secondary Storage**: Document database (e.g., MongoDB) for Preferences and Experiences
+**Cache Layer**: Redis for frequently accessed data and query results
+**Persistent Queue**: RocksDB for GitHub sync queue
 
-CREATE INDEX idx_timestamp ON nodes(timestamp);
-CREATE INDEX idx_importance ON nodes(importance);
-CREATE INDEX idx_source ON edges(source_id);
-CREATE INDEX idx_target ON edges(target_id);
-```
-
-### ChromaDB Collection Schema
-
-```python
-{
-    "ids": ["uuid-string"],
-    "embeddings": [[0.123, -0.456, ...]],
-    "metadatas": [{
-        "timestamp": "iso-8601-datetime",
-        "tags": "conversation,important",  # Comma-separated for filtering
-        "source": "user-input",
-        "importance": 0.85
-    }],
-    "documents": ["original-content"]  # Stored for reference, not encrypted in ChromaDB
-}
-```
-
-Note: ChromaDB stores documents in plaintext for search. Sensitive content should be stored only in the encrypted graph store, with ChromaDB holding only embeddings and non-sensitive metadata.
-
+**Storage Schema**:
+- Knowledge Graph: Native graph storage with node/edge model
+- Preferences: Document collections partitioned by user_id
+- Experiences: Document collections partitioned by task_type
+- Personality Profiles: Document collections partitioned by user_id
+- Metrics: Time-series database (e.g., InfluxDB) for efficient querying
 
 ## Correctness Properties
 
-A property is a characteristic or behavior that should hold true across all valid executions of a system—essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.
+*A property is a characteristic or behavior that should hold true across all valid executions of a system—essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
-### Property 1: Memory Creation Completeness
+### Knowledge Graph Properties
 
-*For any* valid memory content and metadata, when stored in the Memory_System, the created Memory_Node should have a unique ID, the correct timestamp, all metadata fields preserved, and an embedding vector of the correct dimension.
+Property 1: Verified Information Storage Completeness
+*For any* verified information received from the Verifier System, when extracted and stored, the Knowledge Graph SHALL contain all entities with unique identifiers and temporal metadata, and all relationships with type, direction, confidence score, and temporal validity.
+**Validates: Requirements 1.1, 1.2, 1.3**
 
-**Validates: Requirements 1.1, 1.4, 2.1**
+Property 2: Temporal Versioning on Conflict
+*For any* new information that conflicts with existing knowledge, the system SHALL create a new temporal version rather than overwriting, and both versions SHALL remain queryable with their respective validity periods.
+**Validates: Requirements 1.4**
 
-### Property 2: Temporal Graph Traversal Completeness
+Property 3: Referential Integrity Invariant
+*For any* Knowledge Graph update operation, after the operation completes, all relationships SHALL reference existing entities, and no dangling references SHALL exist.
+**Validates: Requirements 1.5, 12.8**
 
-*For any* memory with parent relationships, when querying temporal relationships from a root node, the traversal should return all memories reachable through directed edges up to the specified depth.
+Property 4: Concurrent Update Serialization
+*For any* set of concurrent updates to the same entity, the final state SHALL be equivalent to some serial execution of those updates, with no data corruption or lost updates.
+**Validates: Requirements 1.6**
 
-**Validates: Requirements 1.2, 1.3**
+Property 5: Semantic Query Traversal
+*For any* semantic query with relationship traversal, the results SHALL include all entities reachable within the specified depth that match the constraints, ranked by relevance and confidence.
+**Validates: Requirements 1.7, 1.8**
 
-### Property 3: Semantic Query Result Ordering
+Property 6: Semantic Deduplication
+*For any* new item (entity, preference, or experience) with semantic similarity above threshold to an existing item, the system SHALL detect the duplicate and merge them while preserving all unique data.
+**Validates: Requirements 1.9, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7**
 
-*For any* semantic query, all returned results should be ordered by descending cosine similarity score, and all scores should meet or exceed the specified threshold.
+Property 7: Merge Data Preservation
+*For any* merge operation between duplicate items, all unique attributes, relationships, temporal information, and history from both items SHALL be preserved in the merged result.
+**Validates: Requirements 1.10, 10.2, 10.8, 10.9**
 
-**Validates: Requirements 2.2, 2.3, 2.4**
+### Preference Learning Properties
 
-### Property 4: Encryption Round-Trip Preservation
+Property 8: Preference Signal Extraction
+*For any* user choice or feedback signal, the system SHALL extract preference signals and update the preference model with appropriate confidence weighting.
+**Validates: Requirements 2.1**
 
-*For any* memory content string, encrypting then decrypting with the same key and context should produce the original plaintext exactly.
+Property 9: Recency-Weighted Conflict Resolution
+*For any* set of conflicting preference signals, the system SHALL weight recent signals more heavily while maintaining historical context, with confidence scores reflecting signal consistency.
+**Validates: Requirements 2.2, 2.3**
 
-**Validates: Requirements 3.2**
+Property 10: Preference Shift Detection
+*For any* sequence of preference signals showing a consistent change in direction, the system SHALL detect the shift and update the preference model to reflect the new preference.
+**Validates: Requirements 2.4**
 
-### Property 5: Key Derivation Determinism
+Property 11: Multi-User Preference Isolation
+*For any* two different users, preference updates for one user SHALL NOT affect the preference profile of the other user, and queries SHALL return user-specific preferences.
+**Validates: Requirements 2.5, 4.9**
 
-*For any* master key and context string, deriving a key multiple times should produce the same derived key, and different contexts should produce different derived keys.
+Property 12: Confidence-Based Preference Ranking
+*For any* preference query, the system SHALL return the preference with the highest confidence score along with supporting evidence from the preference history.
+**Validates: Requirements 2.6**
 
+Property 13: Implicit Preference Learning
+*For any* repeated behavior pattern occurring above a frequency threshold, the system SHALL identify and extract an implicit preference with confidence proportional to pattern consistency.
+**Validates: Requirements 2.7**
+
+Property 14: Context-Aware Preference Association
+*For any* learned preference, the system SHALL associate it with the relevant context and conditions under which it applies, enabling context-specific preference retrieval.
+**Validates: Requirements 2.8**
+
+### Experience Storage Properties
+
+Property 15: Complete Trace Storage
+*For any* completed task, the system SHALL store the complete execution trace including all actions, intermediate states, outcomes, and extracted causal relationships.
+**Validates: Requirements 3.1, 3.2**
+
+Property 16: Success Metric Assignment
+*For any* stored experience, the system SHALL assign a success metric based on outcome quality, enabling success-based filtering and ranking.
 **Validates: Requirements 3.3**
 
-### Property 6: No Plaintext on Disk
+Property 17: Similarity-Based Experience Ranking
+*For any* experience similarity query, the system SHALL return experiences ranked by combined action sequence, state, and outcome similarity.
+**Validates: Requirements 3.4**
 
-*For any* memory stored in the system, reading the raw database files should never reveal the plaintext content of the memory.
+Property 18: Pattern Recognition and Abstraction
+*For any* set of experiences sharing common action patterns, the system SHALL identify the pattern, create an abstracted representation, and link all matching experiences.
+**Validates: Requirements 3.5, 3.8**
 
-**Validates: Requirements 3.5**
+Property 19: Causal Chain Retrieval
+*For any* retrieved experience, the system SHALL include the complete causal chain linking actions to outcomes and identified success factors.
+**Validates: Requirements 3.6**
 
-### Property 7: Pruning Preserves Important Memories
+Property 20: Temporal Experience Ordering
+*For any* set of stored experiences, the system SHALL maintain temporal ordering enabling time-based analysis and pattern detection across time periods.
+**Validates: Requirements 3.9**
 
-*For any* memory set with varying importance scores, when pruning to a target size, all retained memories should have importance scores greater than or equal to any pruned memory.
+Property 21: Outcome-Based Experience Filtering
+*For any* experience retrieval query not explicitly requesting failures, the system SHALL filter out experiences with negative outcomes, returning only successful experiences.
+**Validates: Requirements 3.10**
 
-**Validates: Requirements 4.2, 4.3**
+### Personality Evolution Properties
 
-### Property 8: Pruning Removes Orphaned Edges
+Property 22: Interaction-Based Metric Updates
+*For any* user interaction, the system SHALL analyze communication effectiveness and update personality metrics accordingly.
+**Validates: Requirements 4.1**
 
-*For any* memory that is pruned, after the pruning operation completes, no edges in the Temporal_Graph should reference the pruned memory's ID.
+Property 23: Consistency-Bounded Parameter Changes
+*For any* personality parameter change, the change SHALL remain within acceptable consistency bounds (maximum ±0.1 per update), preventing erratic behavior.
+**Validates: Requirements 4.3, 4.8**
 
+Property 24: Personality Rollback Capability
+*For any* previous personality state, the system SHALL support rollback to that state, restoring all personality parameters to their historical values.
+**Validates: Requirements 4.4**
+
+Property 25: Negative Feedback Automatic Rollback
+*For any* user feedback indicating negative response to personality changes, the system SHALL automatically revert to the previous personality state.
 **Validates: Requirements 4.5**
 
-### Property 9: Cache Consistency
+Property 26: Personality Consistency Measurement
+*For any* sequence of interactions, the system SHALL measure personality consistency across interactions and maintain consistency scores above threshold.
+**Validates: Requirements 4.6**
 
-*For any* memory query, executing the same query twice in succession should return identical results, with the second query served from cache.
+Property 27: Confidence-Scored Parameter Queries
+*For any* personality parameter query, the system SHALL return current parameter values along with confidence scores indicating stability.
+**Validates: Requirements 4.7**
 
+### Verifier System Integration Properties
+
+Property 28: Mandatory Pre-Storage Verification
+*For any* information ready for storage, the system SHALL send it to the Verifier System for validation, and SHALL NOT store any information that has not been verified.
+**Validates: Requirements 5.1, 5.4**
+
+Property 29: Rejection Handling
+*For any* information rejected by the Verifier System, the system SHALL discard it, log the rejection, and NOT add it to any memory store.
+**Validates: Requirements 5.2**
+
+Property 30: Confidence Score Preservation
+*For any* verified information with a confidence score from the Verifier System, the system SHALL store the confidence score with the information for future reference.
 **Validates: Requirements 5.3**
 
-### Property 10: Batch Query Correctness
-
-*For any* list of queries, executing them as a batch should return the same results as executing each query individually in the same order.
-
+Property 31: Contradiction Re-Verification
+*For any* verified information that contradicts existing high-confidence memory, the system SHALL request re-verification of the existing information before resolving the conflict.
 **Validates: Requirements 5.5**
 
-### Property 11: Persistence Across Sessions
+Property 32: Verification Audit Trail
+*For any* verification request and result, the system SHALL maintain a complete audit trail including request timestamp, result, and confidence score.
+**Validates: Requirements 5.6**
 
-*For any* memory stored in the system, after shutting down and reinitializing the Memory_System, the memory should be retrievable with all fields intact.
+Property 33: Verification Queue on Unavailability
+*For any* information ready for storage when the Verifier System is unavailable, the system SHALL queue it for later verification rather than storing unverified data.
+**Validates: Requirements 5.7**
 
-**Validates: Requirements 6.1, 6.5**
+Property 34: Periodic Re-Verification
+*For any* stored information older than the re-verification threshold, the system SHALL periodically re-verify it to detect knowledge decay or outdated facts.
+**Validates: Requirements 5.8**
 
-### Property 12: Atomic Dual-Store Persistence
+### Integration Context Properties
 
-*For any* memory stored in the system, the memory should appear in both the Graph_Store and Vector_Store, or in neither (no partial persistence).
+Property 35: Complete Context Provision
+*For any* context request from Goal Manager or Model Router, the system SHALL provide all relevant experiences, knowledge entities, learned preferences, causal relationships, and task characteristics.
+**Validates: Requirements 6.1, 6.3, 6.4, 8.1, 8.3**
 
-**Validates: Requirements 6.2**
+Property 36: Success-Prioritized Experience Return
+*For any* experience retrieval for goal decomposition or task classification, the system SHALL prioritize experiences with higher success scores.
+**Validates: Requirements 6.2, 8.2**
 
-### Property 13: Backup Completeness
+Property 37: Goal Outcome Storage
+*For any* completed goal from the Goal Manager, the system SHALL store the decomposition strategy, execution trace, and outcome for future reference.
+**Validates: Requirements 6.5**
 
-*For any* set of memories in the system, exporting to a backup file then importing into a fresh system should result in all memories being present with identical content and metadata.
+Property 38: Knowledge Gap Identification
+*For any* suboptimal goal decomposition or task classification, the system SHALL identify knowledge gaps that contributed to the suboptimal result and flag them for learning.
+**Validates: Requirements 6.6**
 
-**Validates: Requirements 6.4, 7.3**
+### Self-Improvement Integration Properties
 
-### Property 14: Serialization Round-Trip Preservation
+Property 39: Aggregated Performance Data Provision
+*For any* performance data request from the Self-Improvement Engine, the system SHALL provide aggregated metrics from stored experiences including success rates and failure patterns.
+**Validates: Requirements 7.1, 7.2**
 
-*For any* valid Memory_Node object, serializing to JSON then deserializing should produce an equivalent Memory_Node with all fields preserved.
+Property 40: Balanced Learning Data Provision
+*For any* learning data request, the system SHALL include both successful and failed experiences with causal analysis for each.
+**Validates: Requirements 7.3**
 
-**Validates: Requirements 7.1, 7.5**
+Property 41: Improvement Impact Tracking
+*For any* improvement implemented by the Self-Improvement Engine, the system SHALL track the improvement and measure its impact on subsequent performance.
+**Validates: Requirements 7.4, 7.5**
 
-### Property 15: Import Duplicate Prevention
+### Model Router Integration Properties
 
-*For any* memory, importing it multiple times should result in only one instance of that memory in the system (duplicates prevented by ID).
+Property 42: Model Performance Learning
+*For any* Model Router decision and outcome, the system SHALL learn from the result and improve future model recommendations for similar tasks.
+**Validates: Requirements 8.4**
 
-**Validates: Requirements 7.4**
+### GitHub Sync Properties
 
-### Property 16: Concurrent Access Safety
+Property 43: GitHub Commit Completeness
+*For any* significant memory update, the system SHALL commit and push to GitHub with a meaningful commit message describing what was learned and metadata indicating the triggering component.
+**Validates: Requirements 9.1, 9.3, 9.10**
 
-*For any* set of concurrent read and write operations on different memories, all operations should complete successfully without data corruption or race conditions.
-
-**Validates: Requirements 8.1, 8.2**
-
-### Property 17: Transaction Isolation
-
-*For any* multi-memory transaction, concurrent readers should never observe partial updates (either all changes visible or none).
-
-**Validates: Requirements 8.5**
-
-### Property 18: Metadata Preservation
-
-*For any* memory with metadata, storing and retrieving the memory should preserve all metadata fields exactly.
-
-**Validates: Requirements 9.1, 9.5**
-
-### Property 19: Metadata Filtering Correctness
-
-*For any* metadata filter, all returned memories should match the filter criteria, and no matching memories should be excluded.
-
+Property 44: README-Only File Constraint
+*For any* GitHub sync operation, the system SHALL update ONLY README.md files and SHALL NOT create or modify any other markdown files.
 **Validates: Requirements 9.2**
 
-### Property 20: Metadata Update Immutability
-
-*For any* memory, updating its metadata should not change the memory's content, timestamp, or ID.
-
+Property 45: Exponential Backoff Retry
+*For any* GitHub push failure due to network issues, the system SHALL retry with exponential backoff (100ms, 200ms, 400ms, 800ms, 1600ms) up to 5 attempts.
 **Validates: Requirements 9.4**
 
-### Property 21: Degraded Mode Write Queueing
+Property 46: Queue on Retry Exhaustion
+*For any* GitHub sync operation where all retries are exhausted, the system SHALL queue the update for the next successful sync without data loss.
+**Validates: Requirements 9.5**
 
-*For any* write operation performed while in degraded mode, the operation should be queued and successfully applied when the system recovers.
+Property 47: Persistent Sync Queue
+*For any* queued GitHub update, the queue SHALL persist across system restarts, ensuring no updates are lost due to system failures.
+**Validates: Requirements 9.6**
 
-**Validates: Requirements 10.3, 10.4**
+Property 48: Continued Operation on GitHub Unavailability
+*For any* extended period of GitHub unavailability, the system SHALL continue all memory operations using local storage without blocking or failing.
+**Validates: Requirements 9.7**
 
-### Property 22: Error Logging Completeness
+Property 49: Commit Validation
+*For any* GitHub push operation, the system SHALL validate that the commit was successfully received by GitHub before marking it as synced.
+**Validates: Requirements 9.8**
 
-*For any* error that occurs in the Memory_System, a log entry should be created containing the error type, message, timestamp, and relevant context.
+Property 50: Rapid Update Batching
+*For any* sequence of multiple updates occurring within the batching window, the system SHALL batch them into a single commit to reduce GitHub API usage.
+**Validates: Requirements 9.9**
 
-**Validates: Requirements 10.5**
+### Deduplication Properties
+
+Property 51: Periodic Deduplication Scanning
+*For any* configured scan interval, the system SHALL perform a comprehensive scan for duplicates that were not detected during initial storage.
+**Validates: Requirements 10.10**
+
+### Learning and Improvement Properties
+
+Property 52: Comprehensive Metrics Tracking
+*For any* memory operation, the system SHALL track relevant metrics including recall accuracy (precision, recall, F1), query response time, graph growth, preference prediction accuracy, and experience retrieval relevance.
+**Validates: Requirements 11.1, 11.2, 11.4, 11.5, 11.6**
+
+Property 53: Demonstrable Accuracy Improvement
+*For any* repeated query for similar information over time, the system SHALL demonstrate improving accuracy in subsequent queries compared to earlier queries.
+**Validates: Requirements 11.3**
+
+Property 54: Metric Degradation Alerts
+*For any* learning metric that degrades below threshold, the system SHALL trigger an alert for investigation.
+**Validates: Requirements 11.8**
+
+Property 55: Baseline Metric Preservation
+*For any* metric tracked by the system, the system SHALL maintain baseline values from initial deployment to enable cumulative improvement measurement.
+**Validates: Requirements 11.9**
+
+Property 56: A/B Testing Isolation
+*For any* parallel memory instances used for A/B testing, updates to one instance SHALL NOT affect the other instance, enabling independent algorithm comparison.
+**Validates: Requirements 11.10**
+
+### Adversarial Robustness Properties
+
+Property 57: Conflict Preservation
+*For any* conflicting information received, the system SHALL maintain both versions with their respective confidence scores rather than discarding either version.
+**Validates: Requirements 12.1**
+
+Property 58: Data Poisoning Detection
+*For any* information that contradicts established high-confidence knowledge, the system SHALL detect it as a potential poisoning attempt and flag it for additional verification.
+**Validates: Requirements 12.2, 12.3**
+
+Property 59: Provenance Tracking
+*For any* stored information, the system SHALL maintain complete provenance tracking including source, timestamp, and verification history.
+**Validates: Requirements 12.4**
+
+Property 60: Source Trust Degradation
+*For any* information source that is repeatedly flagged as suspicious, the system SHALL progressively reduce trust in that source for future information.
+**Validates: Requirements 12.5**
+
+Property 61: Corruption Rollback Capability
+*For any* detected data corruption, the system SHALL support rollback to a previous consistent memory state.
+**Validates: Requirements 12.6**
+
+Property 62: Concurrent Inconsistency Resolution
+*For any* inconsistencies created by concurrent updates, the system SHALL detect and resolve them using defined conflict resolution rules.
+**Validates: Requirements 12.7**
+
+Property 63: Integrity Violation Quarantine
+*For any* detected integrity violation, the system SHALL quarantine the affected data and alert administrators without affecting other memory operations.
+**Validates: Requirements 12.9**
+
+Property 64: Tamper Detection
+*For any* critical memory structure, the system SHALL maintain checksums or cryptographic hashes, and SHALL detect any tampering attempts.
+**Validates: Requirements 12.10**
+
+
 
 ## Error Handling
 
-### Error Types
+### Error Categories
 
-The Memory_System defines the following exception hierarchy:
-
-```python
-class MemorySystemError(Exception):
-    """Base exception for all memory system errors."""
-    pass
-
-class EncryptionError(MemorySystemError):
-    """Raised when encryption or decryption fails."""
-    pass
-
-class StorageError(MemorySystemError):
-    """Raised when database operations fail."""
-    pass
-
-class ValidationError(MemorySystemError):
-    """Raised when input validation fails."""
-    pass
-
-class QueryError(MemorySystemError):
-    """Raised when query execution fails."""
-    pass
-
-class DegradedModeError(MemorySystemError):
-    """Raised when operations are attempted in degraded mode that require full functionality."""
-    pass
-```
+1. **Verification Errors**: Information rejected by Verifier System
+2. **Storage Errors**: Database failures, disk full, corruption
+3. **Concurrency Errors**: Deadlocks, race conditions, conflicts
+4. **Integration Errors**: External component unavailability
+5. **GitHub Sync Errors**: Network failures, authentication failures, rate limits
+6. **Data Integrity Errors**: Referential integrity violations, corruption detection
+7. **Query Errors**: Invalid queries, timeout, resource exhaustion
 
 ### Error Handling Strategies
 
-1. **Encryption Failures**: 
-   - Fail fast and raise `EncryptionError`
-   - Never persist unencrypted data
-   - Log error with context (key ID, operation type)
+**Verification Errors**:
+- Discard rejected information immediately
+- Log rejection with reason and confidence score
+- Do not retry verification unless explicitly requested
+- Maintain audit trail of all rejections
 
-2. **Database Connection Failures**:
-   - Retry with exponential backoff (100ms, 200ms, 400ms)
-   - After 3 failures, enter degraded mode
-   - Queue writes, serve reads from cache
-   - Periodically attempt reconnection
+**Storage Errors**:
+- Retry transient failures with exponential backoff
+- Fail fast on non-transient errors (disk full, corruption)
+- Maintain write-ahead log for crash recovery
+- Alert administrators on persistent failures
 
-3. **Validation Failures**:
-   - Raise `ValidationError` with descriptive message
-   - Do not modify system state
-   - Log validation failure details
+**Concurrency Errors**:
+- Use optimistic locking with automatic retry
+- Detect deadlocks and abort one transaction
+- Serialize conflicting operations at entity level
+- Log all concurrency conflicts for analysis
 
-4. **Query Failures**:
-   - Retry once for transient errors
-   - Raise `QueryError` for persistent failures
-   - Return empty results rather than crashing
+**Integration Errors**:
+- Queue operations when external components unavailable
+- Continue local operations without blocking
+- Retry with exponential backoff
+- Provide degraded functionality when possible
 
-5. **Concurrent Access Conflicts**:
-   - Use database-level locking
-   - Retry transactions on deadlock (up to 3 times)
-   - Raise `StorageError` if deadlock persists
+**GitHub Sync Errors**:
+- Retry with exponential backoff (5 attempts)
+- Queue failed operations for later retry
+- Continue memory operations without blocking
+- Alert on extended unavailability (>1 hour)
 
-### Degraded Mode Behavior
+**Data Integrity Errors**:
+- Quarantine affected data immediately
+- Alert administrators with detailed diagnostics
+- Prevent cascading failures through isolation
+- Support rollback to last known good state
 
-When the Memory_System enters degraded mode due to database failures:
+**Query Errors**:
+- Return partial results with error indication
+- Implement query timeout (default 5 seconds)
+- Provide query complexity estimation
+- Suggest query simplification for complex queries
 
-- **Reads**: Served from in-memory cache (limited to cached items)
-- **Writes**: Queued in memory (bounded queue, oldest dropped if full)
-- **Queries**: Limited to cached memories only
-- **Recovery**: Automatic reconnection attempts every 30 seconds
-- **Flush**: Queued writes applied in order when connection restored
+### Error Recovery
+
+**Crash Recovery**:
+- Use write-ahead logging for all mutations
+- Replay log on startup to restore consistent state
+- Validate integrity after recovery
+- Alert if recovery detects corruption
+
+**Corruption Recovery**:
+- Maintain periodic snapshots (hourly)
+- Support rollback to last valid snapshot
+- Preserve corrupted data for forensic analysis
+- Re-verify all data after rollback
+
+**Network Partition Recovery**:
+- Continue local operations during partition
+- Reconcile state after partition heals
+- Use vector clocks for conflict detection
+- Apply conflict resolution rules automatically
 
 ## Testing Strategy
 
 ### Dual Testing Approach
 
-The Memory_System requires both unit tests and property-based tests for comprehensive coverage:
+The Memory System requires both unit testing and property-based testing for comprehensive coverage:
 
-**Unit Tests** focus on:
-- Specific examples of memory operations
-- Edge cases (empty content, special characters, large memories)
-- Error conditions (invalid keys, corrupted data, connection failures)
-- Integration between components (API → stores → encryption)
-- Degraded mode transitions and recovery
+**Unit Tests**: Validate specific examples, edge cases, and error conditions
+**Property Tests**: Verify universal properties across all inputs
 
-**Property-Based Tests** focus on:
-- Universal properties that hold for all inputs
-- Round-trip properties (encryption, serialization)
-- Invariants (graph connectivity, data consistency)
-- Concurrent access safety
-- Comprehensive input coverage through randomization
+Both approaches are complementary and necessary. Unit tests catch concrete bugs in specific scenarios, while property tests verify general correctness across the input space.
 
-### Property-Based Testing Configuration
+### Property-Based Testing
 
-**Framework**: `hypothesis` for Python property-based testing
+**Framework**: Use fast-check (JavaScript/TypeScript), Hypothesis (Python), or QuickCheck (Haskell) depending on implementation language
 
 **Configuration**:
-- Minimum 100 iterations per property test
-- Deadline: 500ms per test case (some operations are I/O bound)
-- Database: Use temporary SQLite databases for isolation
-- Cleanup: Each test creates and destroys its own Memory_System instance
+- Minimum 100 iterations per property test (due to randomization)
+- Each property test must reference its design document property
+- Tag format: `Feature: memory-system, Property {number}: {property_text}`
+- Each correctness property MUST be implemented by a SINGLE property-based test
 
-**Test Tagging**: Each property test must include a comment referencing the design property:
+**Generator Strategy**:
 
-```python
-@given(memory_content=st.text(min_size=1), metadata=st.dictionaries(st.text(), st.text()))
-@settings(max_examples=100)
-def test_memory_creation_completeness(memory_content, metadata):
-    """
-    Feature: guru-memory-system, Property 1: Memory Creation Completeness
-    
-    For any valid memory content and metadata, when stored in the Memory_System,
-    the created Memory_Node should have a unique ID, correct timestamp, all
-    metadata fields preserved, and an embedding vector of correct dimension.
-    """
-    # Test implementation
+1. **Entity Generators**:
+   - Generate random entities with varying attribute counts and types
+   - Include edge cases: empty attributes, very large attributes, special characters
+   - Generate entities with semantic similarity for deduplication testing
+
+2. **Relationship Generators**:
+   - Generate random relationships between existing entities
+   - Include bidirectional and unidirectional relationships
+   - Generate relationship chains for traversal testing
+
+3. **Preference Signal Generators**:
+   - Generate random user choices and feedback
+   - Include conflicting signals for conflict resolution testing
+   - Generate temporal sequences for shift detection
+
+4. **Experience Generators**:
+   - Generate random execution traces with varying complexity
+   - Include successful and failed experiences
+   - Generate similar experiences for pattern recognition testing
+
+5. **Concurrent Operation Generators**:
+   - Generate sequences of concurrent updates to same entities
+   - Include read-write and write-write conflicts
+   - Generate interleaved operations for race condition testing
+
+**Property Test Examples**:
+
+```typescript
+// Property 3: Referential Integrity Invariant
+test('Feature: memory-system, Property 3: Referential Integrity Invariant', () => {
+  fc.assert(
+    fc.property(
+      fc.array(entityGenerator()),
+      fc.array(relationshipGenerator()),
+      fc.array(updateOperationGenerator()),
+      (entities, relationships, updates) => {
+        const graph = new KnowledgeGraph();
+        entities.forEach(e => graph.addEntity(e));
+        relationships.forEach(r => graph.addRelationship(r));
+        updates.forEach(u => graph.applyUpdate(u));
+        
+        // After all updates, verify referential integrity
+        const integrityReport = graph.validateIntegrity();
+        expect(integrityReport.valid).toBe(true);
+        expect(integrityReport.danglingReferences).toHaveLength(0);
+      }
+    ),
+    { numRuns: 100 }
+  );
+});
+
+// Property 6: Semantic Deduplication
+test('Feature: memory-system, Property 6: Semantic Deduplication', () => {
+  fc.assert(
+    fc.property(
+      entityGenerator(),
+      fc.float({ min: 0.85, max: 0.99 }), // Similarity above threshold
+      (entity, similarity) => {
+        const graph = new KnowledgeGraph();
+        const entity1 = graph.addEntity(entity);
+        const entity2 = createSimilarEntity(entity, similarity);
+        const entity2Id = graph.addEntity(entity2);
+        
+        // Should detect and merge duplicates
+        expect(entity1).toBe(entity2Id); // Same ID after merge
+        const merged = graph.getEntity(entity1);
+        // Verify all unique data preserved
+        expect(hasAllUniqueData(merged, entity, entity2)).toBe(true);
+      }
+    ),
+    { numRuns: 100 }
+  );
+});
+
+// Property 11: Multi-User Preference Isolation
+test('Feature: memory-system, Property 11: Multi-User Preference Isolation', () => {
+  fc.assert(
+    fc.property(
+      fc.array(preferenceSignalGenerator(), { minLength: 10 }),
+      fc.uuid(),
+      fc.uuid(),
+      (signals, user1, user2) => {
+        const prefEngine = new PreferenceLearningEngine();
+        
+        // Process signals for user1
+        signals.forEach(s => prefEngine.processSignal({ ...s, userId: user1 }));
+        
+        // Query preferences for user2 (should be empty)
+        const user2Prefs = prefEngine.getUserPreferences(user2);
+        expect(user2Prefs).toHaveLength(0);
+        
+        // Query preferences for user1 (should have learned preferences)
+        const user1Prefs = prefEngine.getUserPreferences(user1);
+        expect(user1Prefs.length).toBeGreaterThan(0);
+      }
+    ),
+    { numRuns: 100 }
+  );
+});
 ```
 
-### Unit Test Coverage
+### Unit Testing
 
-Unit tests should cover:
+**Focus Areas**:
+- Specific examples demonstrating correct behavior
+- Edge cases (empty inputs, boundary values, special characters)
+- Error conditions (invalid inputs, unavailable services, corruption)
+- Integration points between components
 
-1. **Memory API**:
-   - Store memory with various content types
-   - Query similar memories with different thresholds
-   - Query temporal ranges and graph traversal
-   - Update and delete operations
-   - Export/import functionality
+**Unit Test Balance**:
+- Avoid writing too many unit tests for input variations (property tests handle this)
+- Focus on concrete scenarios that demonstrate key functionality
+- Test error handling paths explicitly
+- Test integration interfaces with mocked dependencies
 
-2. **Graph Store**:
-   - Node and edge operations
-   - SQLite persistence and loading
-   - Time range queries
-   - Graph traversal algorithms
-   - Importance calculation
+**Unit Test Examples**:
 
-3. **Vector Store**:
-   - ChromaDB collection management
-   - Embedding storage and retrieval
-   - Metadata filtering
-   - Similarity search accuracy
+```typescript
+// Example: Specific verification rejection scenario
+test('should discard information rejected by Verifier System', async () => {
+  const verifier = createMockVerifier({ verified: false, reason: 'Factually incorrect' });
+  const memory = new MemorySystem({ verifier });
+  
+  const info = { type: 'entity', data: { name: 'Test', value: 'Invalid' } };
+  const result = await memory.storeInformation(info);
+  
+  expect(result.stored).toBe(false);
+  expect(result.reason).toBe('Verification failed');
+  
+  // Verify not in knowledge graph
+  const entities = await memory.queryEntities({ name: 'Test' });
+  expect(entities).toHaveLength(0);
+  
+  // Verify rejection logged
+  const auditLog = await memory.getVerificationAuditLog();
+  expect(auditLog).toContainEqual(expect.objectContaining({
+    info,
+    verified: false,
+    reason: 'Factually incorrect'
+  }));
+});
 
-4. **Encryption Layer**:
-   - AES-256-GCM encryption/decryption
-   - HKDF key derivation
-   - Error handling for invalid keys
-   - Nonce uniqueness
+// Example: GitHub sync retry logic
+test('should retry GitHub push with exponential backoff', async () => {
+  const github = createMockGitHub();
+  github.push.mockRejectedValueOnce(new Error('Network timeout'))
+         .mockRejectedValueOnce(new Error('Network timeout'))
+         .mockResolvedValueOnce({ sha: 'abc123' });
+  
+  const syncEngine = new GitHubSyncEngine({ github });
+  const operation = { type: 'UPDATE', content: 'Test update' };
+  
+  const result = await syncEngine.sync(operation);
+  
+  expect(result.success).toBe(true);
+  expect(github.push).toHaveBeenCalledTimes(3);
+  
+  // Verify exponential backoff delays
+  const delays = github.push.mock.calls.map((_, i) => i > 0 ? getDelay(i) : 0);
+  expect(delays).toEqual([0, 100, 200]);
+});
 
-5. **Pruning Manager**:
-   - Importance-based pruning
-   - Age-based pruning
-   - Capacity-based pruning
-   - Graph cleanup after pruning
+// Example: Personality rollback on negative feedback
+test('should rollback personality on negative feedback', async () => {
+  const personality = new PersonalityEvolutionEngine();
+  const userId = 'user123';
+  
+  // Initial state
+  const initial = await personality.getProfile(userId);
+  expect(initial.parameters.formality).toBe(0.5);
+  
+  // Evolve personality
+  await personality.processInteractionFeedback({
+    userId,
+    feedbackType: 'POSITIVE',
+    feedbackAspects: ['formality']
+  });
+  
+  const evolved = await personality.getProfile(userId);
+  expect(evolved.parameters.formality).toBeGreaterThan(0.5);
+  
+  // Negative feedback triggers rollback
+  await personality.processInteractionFeedback({
+    userId,
+    feedbackType: 'NEGATIVE',
+    feedbackAspects: ['formality']
+  });
+  
+  const rolledBack = await personality.getProfile(userId);
+  expect(rolledBack.parameters.formality).toBe(initial.parameters.formality);
+  expect(rolledBack.version).toBe(initial.version);
+});
+```
 
-6. **Query Engine**:
-   - Semantic queries
-   - Temporal queries
-   - Hybrid queries
-   - Cache behavior
-   - Query optimization
+### Integration Testing
 
-7. **Error Handling**:
-   - Connection failure and retry
-   - Degraded mode transitions
-   - Write queue management
-   - Recovery and flush
+**Integration Test Scenarios**:
+1. End-to-end flow: Information → Verifier → Memory → GitHub
+2. Goal Manager context provision with real knowledge graph
+3. Self-Improvement Engine performance data aggregation
+4. Model Router task classification with experience retrieval
+5. Concurrent operations across all components
+6. Failure recovery scenarios (component unavailability, crashes)
 
-### Integration Tests
+### Performance Testing
 
-Integration tests should verify:
-- End-to-end memory storage and retrieval
-- Concurrent access from multiple threads
-- System restart and persistence
-- Backup and restore workflows
-- Performance under load (benchmarking)
+**Performance Benchmarks**:
+- Semantic query response time: <500ms for graphs with 100K entities
+- Entity addition throughput: >1000 entities/second
+- Concurrent operation throughput: >100 operations/second
+- Memory usage growth: Sub-linear with graph size
+- GitHub sync latency: <2 seconds for typical updates
 
-### Performance Benchmarks
+**Load Testing**:
+- Sustained load: 100 concurrent operations for 1 hour
+- Spike load: 1000 operations in 10 seconds
+- Large graph: 1M entities, 10M relationships
+- Long-running: 7 days continuous operation
 
-Use `pytest-benchmark` to track:
-- Memory storage latency (target: <10ms)
-- Semantic query latency (target: <100ms for 100k memories)
-- Graph traversal latency (target: <50ms for depth 5)
-- Encryption/decryption throughput
-- Pruning operation duration
+### Adversarial Testing
 
-### Test Data Generation
+**Adversarial Scenarios**:
+1. Data poisoning attempts with contradictory information
+2. Concurrent updates designed to create race conditions
+3. Malformed inputs attempting to corrupt data structures
+4. Resource exhaustion attacks (memory, disk, connections)
+5. Timing attacks attempting to infer sensitive information
 
-Use `hypothesis` strategies for generating:
-- Random memory content (text, various lengths)
-- Random metadata (dictionaries with various types)
-- Random graph structures (trees, DAGs, cycles)
-- Random timestamps (past, present, future)
-- Random embeddings (valid dimension vectors)
+**Fuzzing**:
+- Fuzz all input parsers and validators
+- Fuzz query language parser
+- Fuzz serialization/deserialization
+- Fuzz concurrent operation sequences
 
-### Continuous Integration
+### Test Coverage Goals
 
-All tests must pass before merging:
-- Unit tests: 90%+ coverage
-- Property tests: All properties verified
-- Integration tests: All scenarios passing
-- Linting: `black`, `flake8`, `mypy` all passing
-- Performance: No regressions in benchmarks
+- Line coverage: >90%
+- Branch coverage: >85%
+- Property coverage: 100% (all 64 properties tested)
+- Integration coverage: All integration interfaces tested
+- Error path coverage: All error handling paths tested
+
+### Continuous Testing
+
+- Run unit tests on every commit
+- Run property tests on every pull request
+- Run integration tests nightly
+- Run performance tests weekly
+- Run adversarial tests before releases
+
+## Implementation Notes
+
+### Technology Recommendations
+
+**Graph Database**: Neo4j or ArangoDB for Knowledge Graph
+- Native graph storage and traversal
+- ACID transactions
+- Temporal querying support
+- Horizontal scalability
+
+**Document Database**: MongoDB for Preferences and Experiences
+- Flexible schema for evolving data models
+- Efficient querying and indexing
+- Horizontal scalability
+- Change streams for real-time updates
+
+**Cache Layer**: Redis
+- Sub-millisecond latency
+- Support for complex data structures
+- Pub/sub for event distribution
+- Persistence options for durability
+
+**Time-Series Database**: InfluxDB for Metrics
+- Optimized for time-series data
+- Efficient aggregation and downsampling
+- Retention policies for data management
+- Grafana integration for dashboards
+
+**Message Queue**: RabbitMQ or Apache Kafka for async operations
+- Reliable message delivery
+- Persistent queues
+- Dead letter queues for failed operations
+- Horizontal scalability
+
+### Security Considerations
+
+**Encryption**:
+- Encrypt all data at rest using AES-256
+- Encrypt GitHub sync traffic using TLS 1.3
+- Encrypt inter-component communication
+- Rotate encryption keys periodically
+
+**Authentication & Authorization**:
+- Require authentication for all memory operations
+- Implement role-based access control (RBAC)
+- Audit all access attempts
+- Support multi-factor authentication
+
+**Data Privacy**:
+- Redact sensitive information before GitHub sync
+- Support user data deletion (GDPR compliance)
+- Implement data retention policies
+- Anonymize data for analytics
+
+**Tamper Detection**:
+- Maintain cryptographic hashes of critical structures
+- Implement Merkle trees for efficient verification
+- Log all data modifications with signatures
+- Alert on detected tampering attempts
+
+### Scalability Considerations
+
+**Horizontal Scaling**:
+- Shard Knowledge Graph by entity type or hash
+- Partition Preferences and Experiences by user_id
+- Distribute query load across read replicas
+- Use consistent hashing for cache distribution
+
+**Vertical Scaling**:
+- Optimize data structures for memory efficiency
+- Use compression for large text fields
+- Implement lazy loading for large graphs
+- Cache frequently accessed data
+
+**Performance Optimization**:
+- Index frequently queried fields
+- Materialize common query patterns
+- Use bloom filters for existence checks
+- Implement query result caching
+
+### Monitoring and Observability
+
+**Metrics to Track**:
+- Operation latency (p50, p95, p99)
+- Throughput (operations/second)
+- Error rates by error type
+- Resource usage (CPU, memory, disk, network)
+- Learning metrics (accuracy, improvement rate)
+- Integration health (component availability)
+
+**Logging**:
+- Structured logging with correlation IDs
+- Log levels: DEBUG, INFO, WARN, ERROR, FATAL
+- Centralized log aggregation
+- Log retention: 30 days for INFO, 90 days for ERROR
+
+**Alerting**:
+- Alert on error rate spikes
+- Alert on latency degradation
+- Alert on learning metric degradation
+- Alert on integration failures
+- Alert on data integrity violations
+
+**Dashboards**:
+- Real-time operations dashboard
+- Learning progress dashboard
+- System health dashboard
+- Integration status dashboard
+- GitHub sync status dashboard

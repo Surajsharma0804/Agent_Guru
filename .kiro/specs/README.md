@@ -26,80 +26,169 @@ Each spec contains 3 files:
 
 ## 🔧 Core Specifications
 
-### 1. guru-complete-integration
+### Intelligence & Learning Layer
+
+#### 1. self-improvement-engine
+**Autonomous learning and optimization** - The core differentiator that makes Agent_Guru evolve.
+- Failure analysis and categorization
+- Strategy learning and optimization
+- Prompt evolution and refinement
+- Performance measurement and tracking
+- Meta-learning and pattern recognition
+- Measurable improvement guarantee (15% after 100 tasks)
+- **Status**: ✅ Complete specification
+
+#### 2. guru-memory-system
+**Knowledge graph and preference learning** - Long-term memory that learns and adapts.
+- Semantic memory with vector embeddings
+- Temporal knowledge graph
+- Preference learning and user modeling
+- Conversation context management
+- Memory consolidation and pruning
+- **Status**: ✅ Complete specification
+
+#### 3. guru-llm-runtime
+**Model execution environment** - Flexible LLM provider management.
+- **Desktop**: Local Ollama OR Cloud API (user choice)
+- **Mobile**: Cloud API ONLY (OpenAI, Gemini, DeepSeek, Anthropic)
+- Multi-provider support with intelligent routing
+- Context management and streaming
+- Cost tracking and budget limits
+- **Status**: ✅ Complete specification
+
+#### 4. model-router
+**Cost-aware model selection** - Intelligent routing between local and cloud models.
+- Dynamic model selection based on task requirements
+- Cost optimization and budget management
+- Performance monitoring and adaptive learning
+- Fallback strategies for reliability
+- **Status**: ✅ Complete specification
+
+### Orchestration & Execution Layer
+
+#### 5. agent-orchestration
+**Dynamic agent creation and specialization** - Emergent multi-agent behavior.
+- Multi-agent coordination and task decomposition
+- Dynamic agent creation and specialization
+- Conflict resolution and consensus building
+- Background service lifecycle management
+- Sleep/wake coordination across components
+- **Status**: ✅ Complete specification
+
+#### 6. goal-manager
+**Long-term objective management** - Persistent, self-managing goal execution.
+- High-level goal decomposition
+- Progress tracking and priority management
+- Session persistence and recovery
+- Dependency management
+- **Status**: ✅ Complete specification
+
+#### 7. verifier-system
+**Correctness validation** - Ensures reliability and detects hallucinations.
+- Hallucination detection
+- Output validation and tool output checking
+- Infinite loop prevention
+- Confidence scoring
+- Self-correction feedback
+- **Status**: ✅ Complete specification
+
+### Interface & Interaction Layer
+
+#### 8. guru-speech-engine
+**Voice interaction with dual personalities** - Always-on voice interface.
+- Dual wake word detection ("Hey Guru", "Hey Maya")
+- Speech-to-text (Whisper with GPU acceleration)
+- Text-to-speech (gender-specific voices: male/female)
+- Voice biometrics for authentication
+- Emotion detection from voice
+- Voice cloning and personalization
+- Advanced noise cancellation (>20dB reduction)
+- Streaming audio (<500ms latency)
+- Voice commands for complete system control
+- Conversation context management
+- Multi-language support (8+ languages)
+- Mobile: Android Speech API, Apple Speech Framework
+- **Status**: ✅ Complete specification with 28 tasks
+
+#### 9. avatar-emotion-system
+**Adaptive personality and emotional intelligence** - Living entity with personality.
+- Dual avatar system (Guru male, Maya female)
+- Real-time emotion visualization (7 emotions)
+- Personality trait management and evolution
+- Long-term mood tracking
+- User preference learning
+- Adaptive response generation
+- Emotional memory system
+- Multiple personality profiles
+- Avatar customization
+- Smooth animation system (60 FPS)
+- Voice-emotion synchronization
+- Context-aware personality adaptation
+- **Status**: ✅ Complete specification with 23 tasks
+
+#### 10. guruvision-facial-recognition
+**Facial recognition and biometrics** - Visual identity and emotion detection.
+- Face detection (RetinaFace)
+- Face recognition (ArcFace)
+- Liveness detection (anti-spoofing)
+- Emotion recognition from facial expressions
+- Face tracking (DeepSORT/ByteTrack)
+- Multi-face handling
+- **Status**: ✅ Complete specification
+
+### Infrastructure & Security Layer
+
+#### 11. platform-integration
+**System-level capabilities and OS interaction** - Bridge to the real world.
+- **Desktop**: Windows, macOS, Linux
+- **Mobile**: Android, iOS
+- Secure file system operations
+- Command execution with security validation
+- Process lifecycle management
+- Environment variable management
+- Network operations and API integration
+- System resource monitoring
+- GitHub integration (auto-commit/push)
+- Security auditing and compliance
+- Cross-platform compatibility
+- Complete laptop/phone control through voice
+- Background service with sleep/wake cycles
+- **Status**: ✅ Complete specification with 20 tasks
+
+#### 12. guru-security-cryptography
+**Trust, safety, and encryption** - Comprehensive security framework.
+- Cryptographic identity (Ed25519)
+- Biometric authentication (voice, face, fingerprint)
+- Zero-knowledge proofs
+- Secure key storage
+- Audit logging
+- **Status**: ✅ Complete specification
+
+#### 13. guru-policy-engine
+**Governance and constraints** - Policy evaluation and enforcement.
+- Rule-based access control
+- User consent management
+- Policy validation
+- Compliance enforcement
+- **Status**: ✅ Complete specification
+
+#### 14. guru-deployment-system
+**Production infrastructure** - Professional deployment and distribution.
+- **Desktop**: MSI (Windows), DMG (macOS), DEB/RPM/AppImage (Linux)
+- **Mobile**: APK/AAB (Android), IPA (iOS)
+- Professional installers
+- Onboarding integration
+- Auto-update mechanism
+- Package management
+- **Status**: ✅ Complete specification
+
+### Master Integration
+
+#### 15. guru-complete-integration
 **Master integration spec** with 29 executable tasks covering the entire system.
 - **Start here**: Task 1 - Project setup
 - **Purpose**: Complete end-to-end integration
 - **Status**: Ready for implementation
-
-### 2. guru-speech-engine
-Voice recognition and synthesis with always-on background service.
-- Wake word detection ("Hey Guru", "Hey Maya")
-- Speech-to-text (Whisper)
-- Text-to-speech (gender-specific voices)
-- Mobile: Android Speech API, Apple Speech Framework
-- **Tasks**: 18 total
-
-### 3. guru-llm-runtime
-LLM provider management with flexible configuration.
-- **Desktop**: Local Ollama OR Cloud API (user choice)
-- **Mobile**: Cloud API ONLY (OpenAI, Gemini, DeepSeek, Anthropic)
-- API keys: User provides their own (never bundled)
-- Cost tracking and budget limits
-- **Tasks**: 19 total
-
-### 4. guru-platform-integration
-Cross-platform OS control and hardware abstraction.
-- **Desktop**: Windows, macOS, Linux
-- **Mobile**: Android, iOS
-- Complete laptop/phone control through voice
-- Background service with sleep/wake cycles
-- **Tasks**: 21 total
-
-### 5. guru-deployment-system
-Professional installers and app store deployment.
-- **Desktop**: MSI (Windows), DMG (macOS), DEB/RPM/AppImage (Linux)
-- **Mobile**: APK/AAB (Android), IPA (iOS)
-- Onboarding integration
-- Auto-update mechanism
-- **Tasks**: 11 total
-
-### 6. guru-agent-orchestration
-Multi-agent coordination and background service orchestration.
-- Voice command decomposition
-- Multi-step operation coordination
-- Background service lifecycle management
-- Sleep/wake coordination across components
-- **Tasks**: 11 total
-
-### 7. guru-security-cryptography
-Biometric authentication and cryptographic identity.
-- Voice biometric authentication
-- Face recognition
-- Fingerprint (mobile)
-- Secure key storage
-- **Tasks**: See spec for details
-
-### 8. guru-memory-system
-Conversation context and memory management.
-- Semantic memory storage
-- Temporal graph for relationships
-- Context retrieval for LLM
-- **Tasks**: See spec for details
-
-### 9. guru-policy-engine
-Permission management and policy enforcement.
-- Rule-based access control
-- User consent management
-- Audit logging
-- **Tasks**: See spec for details
-
-### 10. guru-avatar-emotion
-Visual avatar with emotion and lip sync.
-- Guru and Maya avatars
-- Emotion expression
-- Lip sync with speech
-- **Tasks**: See spec for details
 
 ## 🚀 Implementation Workflow
 
@@ -169,19 +258,96 @@ Each task requires:
 - ✅ Minimum 80% code coverage
 - ✅ All tests passing before GitHub push
 
-## 🔗 Dependencies
+## 🔗 Component Dependencies
 
 ```
-guru-speech-engine
-    ↓
-guru-llm-runtime ← guru-memory-system
-    ↓
-guru-agent-orchestration
-    ↓
-guru-platform-integration ← guru-policy-engine
-    ↓
-guru-security-cryptography
+┌─────────────────────────────────────────────────────────────────┐
+│                    Application Layer                             │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ Speech Engine    │  │ Avatar/Emotion   │                    │
+│  │ (Voice I/O)      │  │ (Personality)    │                    │
+│  └────────┬─────────┘  └────────┬─────────┘                    │
+│           │                     │                               │
+└───────────┼─────────────────────┼───────────────────────────────┘
+            │                     │
+┌───────────┼─────────────────────┼───────────────────────────────┐
+│           │   Intelligence Layer│                               │
+│           ▼                     ▼                               │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ LLM Runtime      │  │ Memory System    │                    │
+│  │ (Reasoning)      │◄─┤ (Knowledge)      │                    │
+│  └────────┬─────────┘  └────────┬─────────┘                    │
+│           │                     │                               │
+│           ▼                     ▼                               │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ Model Router     │  │ Self-Improvement │                    │
+│  │ (Optimization)   │  │ (Learning)       │                    │
+│  └──────────────────┘  └──────────────────┘                    │
+└───────────┼─────────────────────────────────────────────────────┘
+            │
+┌───────────┼─────────────────────────────────────────────────────┐
+│           │   Orchestration Layer                               │
+│           ▼                                                     │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ Agent            │  │ Goal Manager     │                    │
+│  │ Orchestration    │◄─┤ (Objectives)     │                    │
+│  └────────┬─────────┘  └──────────────────┘                    │
+│           │                                                     │
+│           ▼                                                     │
+│  ┌──────────────────┐                                          │
+│  │ Verifier System  │                                          │
+│  │ (Validation)     │                                          │
+│  └────────┬─────────┘                                          │
+└───────────┼─────────────────────────────────────────────────────┘
+            │
+┌───────────┼─────────────────────────────────────────────────────┐
+│           │   Infrastructure Layer                              │
+│           ▼                                                     │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ Platform         │  │ Vision System    │                    │
+│  │ Integration      │  │ (Biometrics)     │                    │
+│  └────────┬─────────┘  └────────┬─────────┘                    │
+│           │                     │                               │
+│           ▼                     ▼                               │
+│  ┌──────────────────┐  ┌──────────────────┐                    │
+│  │ Security/Crypto  │  │ Policy Engine    │                    │
+│  │ (Trust)          │  │ (Governance)     │                    │
+│  └────────┬─────────┘  └──────────────────┘                    │
+│           │                                                     │
+│           ▼                                                     │
+│  ┌──────────────────┐                                          │
+│  │ Deployment       │                                          │
+│  │ (Distribution)   │                                          │
+│  └──────────────────┘                                          │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+### Key Dependencies
+
+**Speech Engine** depends on:
+- Platform Integration (audio device access)
+- Model Router (STT/TTS model selection)
+- Security/Crypto (voice biometric storage)
+
+**Avatar/Emotion** depends on:
+- Speech Engine (emotion detection, voice-emotion sync)
+- Memory System (personality and preference storage)
+- LLM Runtime (personality-aware response generation)
+
+**LLM Runtime** depends on:
+- Model Router (optimal model selection)
+- Memory System (context retrieval)
+- Platform Integration (API access)
+
+**Agent Orchestration** depends on:
+- Goal Manager (task coordination)
+- Verifier System (output validation)
+- Platform Integration (command execution)
+
+**All components** depend on:
+- Security/Crypto (authentication, encryption)
+- Policy Engine (permission validation)
+- Platform Integration (system access)
 
 ## 📝 Task Completion Protocol
 
@@ -196,14 +362,43 @@ For EACH task:
 
 ## 🎯 Success Criteria
 
+### Functional Requirements
 - ✅ All 5 platforms working (Windows, macOS, Linux, Android, iOS)
 - ✅ Always-on background service operational
 - ✅ Battery optimization targets met (<5% sleep, <10% wake)
 - ✅ Voice commands working end-to-end
-- ✅ Dual personalities (Guru and Maya) functional
-- ✅ All tests passing (>80% coverage)
-- ✅ Professional installers created
-- ✅ App store submissions complete
+- ✅ Dual personalities (Guru and Maya) functional with distinct voices and avatars
+- ✅ Biometric authentication working (voice, face, fingerprint)
+- ✅ Complete system control through voice commands
+- ✅ Emotion detection and adaptive personality working
+- ✅ Memory system learning and adapting to user preferences
+
+### Technical Requirements
+- ✅ All tests passing (>80% coverage per component)
+- ✅ Property-based tests with 100+ iterations
+- ✅ Performance targets met:
+  - Wake word detection: <200ms
+  - Speech recognition: <1s
+  - LLM response: <2s end-to-end
+  - Avatar rendering: 60 FPS
+  - Emotion detection: <50ms
+- ✅ Self-improvement demonstrable (15% improvement after 100 tasks)
+- ✅ No memory leaks (24+ hour operation)
+- ✅ Graceful error handling and recovery
+
+### Deployment Requirements
+- ✅ Professional installers created for all platforms
+- ✅ App store submissions complete (Android, iOS)
+- ✅ Auto-update mechanism working
+- ✅ Onboarding flow complete
+- ✅ Documentation complete (user and developer)
+
+### Security Requirements
+- ✅ All biometric data encrypted
+- ✅ API keys stored securely in OS keychain
+- ✅ Audit logging operational
+- ✅ Policy engine enforcing permissions
+- ✅ Zero-knowledge proofs for sensitive operations
 
 ## 📚 Additional Resources
 

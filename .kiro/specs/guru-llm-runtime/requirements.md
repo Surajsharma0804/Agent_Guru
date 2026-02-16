@@ -1,364 +1,204 @@
-# Requirements Document: LLM Runtime & Provider Management
+# Requirements Document: LLM Runtime System
 
 ## Introduction
 
-The LLM Runtime & Provider Management system provides a unified interface for interacting with multiple Large Language Model providers (Ollama, OpenAI, Gemini, Anthropic) within the AGENT_GURU architecture. The system handles provider routing, fallback mechanisms, conversation context management, streaming responses, audit logging, and performance optimization through async operations and caching.
+The LLM Runtime System (guru-llm-runtime) is the foundational execution layer of Agent_Guru that provides a unified, high-performance interface for running language models across multiple providers (local via Ollama, cloud via OpenAI/Anthropic/Google). This is NOT a simple API wrapper - it provides advanced capabilities including streaming, function calling, intelligent context management, token optimization, and comprehensive performance monitoring. The runtime abstracts provider-specific differences while preserving access to advanced features, enabling the Agent_Guru system to operate seamlessly across different model backends.
 
 ## Glossary
 
-- **LLM_Runtime**: The core system that manages LLM provider interactions and request routing
-- **Provider**: An external LLM service (Ollama, OpenAI, Gemini, Anthropic)
-- **Router**: Component that selects the appropriate provider for a given request
-- **Fallback_Handler**: Component that switches to alternative providers when primary provider fails
-- **Context_Manager**: Component that maintains conversation history and context
-- **Audit_Logger**: Component that records all LLM interactions for compliance and debugging
-- **Cache_Manager**: Component that stores and retrieves responses for repeated queries
-- **Configuration**: Pydantic-based settings for providers, models, and system behavior
-- **Stream**: Real-time token-by-token response delivery from LLM providers
+- **LLM_Runtime**: The core system that executes language model requests across multiple providers
+- **Model_Provider**: A service that hosts language models (Ollama, OpenAI, Anthropic, Google)
+- **Streaming**: Real-time token-by-token delivery of model responses as they are generated
+- **Function_Calling**: The capability for models to request execution of predefined functions/tools
+- **Context_Window**: The maximum number of tokens a model can process in a single request
+- **Token**: The basic unit of text processing in language models (roughly 0.75 words)
+- **Context_Manager**: Component responsible for tracking and optimizing conversation history
+- **Token_Counter**: Component that accurately counts tokens per provider's tokenization rules
+- **Performance_Monitor**: Component that tracks latency, token usage, and costs
+- **Circuit_Breaker**: Error handling pattern that prevents cascading failures
+- **Model_Router**: Upstream component that selects which model to use
+- **Self_Improvement_Engine**: Downstream component that receives performance metrics
+- **Verifier_System**: Component that validates model outputs
+- **Memory_System**: Component that provides conversation history and context
+- **Session**: A logical grouping of related model interactions with shared context
+- **Embeddings**: Vector representations of text used for semantic search and similarity
 
 ## Requirements
 
-### Requirement 1: Multi-Provider Support
+### Requirement 1: Unified Model Interface
 
-**User Story:** As a developer, I want to interact with multiple LLM providers through a unified interface, so that I can switch providers without changing application code.
-
-#### Acceptance Criteria
-
-1. THE LLM_Runtime SHALL support Ollama as a provider
-2. THE LLM_Runtime SHALL support OpenAI as a provider
-3. THE LLM_Runtime SHALL support Gemini as a provider
-4. THE LLM_Runtime SHALL support Anthropic as a provider
-5. WHEN a request is made, THE LLM_Runtime SHALL use a unified interface regardless of the underlying provider
-6. WHEN a provider is added or removed, THE LLM_Runtime SHALL continue functioning without code changes to calling applications
-
-### Requirement 2: Intelligent Provider Routing
-
-**User Story:** As a system administrator, I want requests to be routed to the most appropriate provider, so that I can optimize for cost, performance, and availability.
+**User Story:** As a developer, I want a single consistent API for all model providers, so that I can switch between local and cloud models without changing my code.
 
 #### Acceptance Criteria
 
-1. WHEN a request is received, THE Router SHALL select a provider based on configured routing rules
-2. WHERE routing rules include model capabilities, THE Router SHALL select a provider that supports the requested model type
-3. WHERE routing rules include cost optimization, THE Router SHALL prefer lower-cost providers when quality requirements are met
-4. WHERE routing rules include load balancing, THE Router SHALL distribute requests across available providers
-5. WHEN multiple providers can handle a request, THE Router SHALL select based on priority configuration
+1. THE LLM_Runtime SHALL provide a unified interface for text generation across all Model_Providers
+2. THE LLM_Runtime SHALL provide a unified interface for chat completion across all Model_Providers
+3. THE LLM_Runtime SHALL provide a unified interface for embeddings generation across all Model_Providers
+4. WHEN a Model_Provider supports a feature, THE LLM_Runtime SHALL expose that feature through the unified interface
+5. WHEN a Model_Provider does not support a feature, THE LLM_Runtime SHALL return a clear error message indicating the limitation
+6. THE LLM_Runtime SHALL abstract provider-specific request formats into a common internal representation
+7. THE LLM_Runtime SHALL abstract provider-specific response formats into a common internal representation
+8. WHEN switching between Model_Providers, THE application code SHALL require no modifications to the request structure
 
-### Requirement 3: Provider Fallback Mechanism
+### Requirement 2: Streaming Support
 
-**User Story:** As a system operator, I want automatic fallback to alternative providers when the primary provider fails, so that the system remains available during provider outages.
-
-#### Acceptance Criteria
-
-1. WHEN a provider returns an error, THE Fallback_Handler SHALL attempt the request with the next available provider
-2. WHEN a provider times out, THE Fallback_Handler SHALL attempt the request with the next available provider
-3. WHEN all providers fail, THE Fallback_Handler SHALL return a descriptive error to the caller
-4. WHEN fallback occurs, THE Audit_Logger SHALL record the failure and fallback action
-5. THE Fallback_Handler SHALL respect provider-specific retry limits to prevent cascading failures
-
-### Requirement 4: Streaming Response Support
-
-**User Story:** As an application developer, I want to receive LLM responses as streams, so that I can provide real-time feedback to users.
+**User Story:** As a user, I want to see model responses appear in real-time as they are generated, so that I can interact with the system responsively without waiting for complete responses.
 
 #### Acceptance Criteria
 
-1. WHEN a streaming request is made, THE LLM_Runtime SHALL return tokens as they are generated by the provider
-2. WHEN streaming is enabled, THE LLM_Runtime SHALL support async iteration over response tokens
-3. WHEN a streaming error occurs, THE LLM_Runtime SHALL gracefully close the stream and report the error
-4. THE LLM_Runtime SHALL support both streaming and non-streaming modes for all providers
-5. WHEN streaming completes, THE LLM_Runtime SHALL provide the complete response for logging and caching
+1. WHEN a streaming request is made, THE LLM_Runtime SHALL deliver tokens incrementally as they are generated by the Model_Provider
+2. THE LLM_Runtime SHALL support partial response handling for all streaming requests
+3. WHEN a stream is interrupted, THE LLM_Runtime SHALL provide the partial response received up to that point
+4. WHEN a stream fails mid-response, THE LLM_Runtime SHALL report the failure with context about what was received
+5. THE LLM_Runtime SHALL support stream resumption when the Model_Provider allows it
+6. WHEN streaming is not supported by a Model_Provider, THE LLM_Runtime SHALL fall back to non-streaming mode and simulate streaming by chunking the response
+7. THE LLM_Runtime SHALL maintain consistent streaming behavior across all Model_Providers
 
-### Requirement 5: Conversation Context Management
+### Requirement 3: Function Calling and Tool Use
 
-**User Story:** As a developer, I want to maintain conversation history across multiple requests, so that the LLM can provide contextually relevant responses.
-
-#### Acceptance Criteria
-
-1. WHEN a conversation is initiated, THE Context_Manager SHALL create a new conversation context with a unique identifier
-2. WHEN a message is sent, THE Context_Manager SHALL append it to the conversation history
-3. WHEN a response is received, THE Context_Manager SHALL append it to the conversation history
-4. WHEN a request is made with a conversation ID, THE Context_Manager SHALL include the conversation history in the provider request
-5. THE Context_Manager SHALL enforce maximum context length limits based on provider capabilities
-6. WHEN context length exceeds limits, THE Context_Manager SHALL truncate or summarize older messages while preserving recent context
-
-### Requirement 6: Comprehensive Audit Logging
-
-**User Story:** As a compliance officer, I want all LLM interactions logged with complete metadata, so that I can audit system usage and troubleshoot issues.
+**User Story:** As a developer, I want models to request function execution when they need external data or actions, so that I can build agents that interact with external systems.
 
 #### Acceptance Criteria
 
-1. WHEN a request is received, THE Audit_Logger SHALL record the request timestamp, user identifier, and request content
-2. WHEN a response is generated, THE Audit_Logger SHALL record the response timestamp, provider used, model used, and response content
-3. WHEN an error occurs, THE Audit_Logger SHALL record the error type, error message, and stack trace
-4. WHEN fallback occurs, THE Audit_Logger SHALL record the original provider failure and the fallback provider used
-5. THE Audit_Logger SHALL record token usage and cost estimates for each request
-6. THE Audit_Logger SHALL support structured logging formats for integration with log aggregation systems
-7. THE Audit_Logger SHALL persist logs to durable storage
+1. THE LLM_Runtime SHALL accept function definitions in a provider-agnostic format
+2. THE LLM_Runtime SHALL translate function definitions to each Model_Provider's specific format
+3. WHEN a model requests a function call, THE LLM_Runtime SHALL parse the request and return structured function call information
+4. THE LLM_Runtime SHALL support multi-turn function calling where function results are fed back to the model
+5. WHEN a Model_Provider does not support function calling, THE LLM_Runtime SHALL return an error indicating the limitation
+6. THE LLM_Runtime SHALL validate function call arguments against the provided function schema
+7. WHEN function call arguments are invalid, THE LLM_Runtime SHALL return a validation error with details
+8. THE LLM_Runtime SHALL support parallel function calling when the Model_Provider supports it
 
-### Requirement 7: Asynchronous Operations
+### Requirement 4: Context Management
 
-**User Story:** As a system architect, I want all LLM operations to be asynchronous, so that the system can handle multiple concurrent requests efficiently.
-
-#### Acceptance Criteria
-
-1. THE LLM_Runtime SHALL use async/await patterns for all provider interactions
-2. WHEN multiple requests are made concurrently, THE LLM_Runtime SHALL process them without blocking
-3. THE LLM_Runtime SHALL support asyncio-compatible interfaces for integration with async applications
-4. WHEN a request is cancelled, THE LLM_Runtime SHALL properly clean up resources and cancel provider requests
-5. THE LLM_Runtime SHALL use connection pooling to optimize provider API connections
-
-### Requirement 8: Response Caching
-
-**User Story:** As a system administrator, I want repeated queries to be served from cache, so that I can reduce costs and improve response times.
+**User Story:** As a developer, I want automatic conversation history tracking and context window management, so that I don't have to manually handle context limits and history.
 
 #### Acceptance Criteria
 
-1. WHEN a request is received, THE Cache_Manager SHALL check if an identical request has been cached
-2. WHEN a cache hit occurs, THE Cache_Manager SHALL return the cached response without calling the provider
-3. WHEN a cache miss occurs, THE Cache_Manager SHALL forward the request to the provider and cache the response
-4. THE Cache_Manager SHALL support configurable cache expiration times
-5. THE Cache_Manager SHALL support cache invalidation by conversation ID or request pattern
-6. WHEN caching is disabled for a request, THE Cache_Manager SHALL bypass the cache and forward directly to the provider
-7. THE Cache_Manager SHALL use request content and parameters as cache keys to ensure correctness
+1. THE Context_Manager SHALL track conversation history per Session
+2. THE Context_Manager SHALL calculate the current context usage in tokens for each Session
+3. WHEN context usage approaches the Context_Window limit, THE Context_Manager SHALL emit a warning
+4. WHEN context usage exceeds a configurable threshold, THE Context_Manager SHALL automatically compress or truncate the context
+5. THE Context_Manager SHALL support manual context injection for adding system messages or examples
+6. THE Context_Manager SHALL support context manipulation operations including insertion, deletion, and reordering
+7. THE Context_Manager SHALL preserve critical context elements (system prompts, recent messages) during compression
+8. THE Context_Manager SHALL use provider-specific Context_Window limits for each Model_Provider
 
-### Requirement 9: Flexible LLM Configuration with Platform-Specific Support ⚠️ CRITICAL
+### Requirement 5: Token Optimization
 
-**User Story:** As a user, I want to choose between local Ollama models or cloud API providers during setup, with platform-appropriate options, so that I can use AGENT_GURU according to my preferences and device capabilities.
-
-#### Acceptance Criteria - Desktop (Windows/macOS/Linux)
-
-1. **MANDATORY**: THE LLM_Runtime SHALL support local Ollama models for offline, private operation
-2. **MANDATORY**: THE LLM_Runtime SHALL support cloud API providers (OpenAI, Google Gemini, DeepSeek, Anthropic Claude)
-3. **MANDATORY**: THE LLM_Runtime SHALL allow user to choose between local OR cloud during installation/onboarding
-4. **MANDATORY**: WHEN user chooses local Ollama, THE LLM_Runtime SHALL automatically install Ollama if not present
-5. **MANDATORY**: WHEN user chooses local Ollama, THE LLM_Runtime SHALL download recommended models (mistral:7b, qwen2.5:14b)
-6. **MANDATORY**: WHEN user chooses cloud API, THE LLM_Runtime SHALL prompt for user's own API key
-7. **MANDATORY**: THE LLM_Runtime SHALL validate API keys by making a test request before saving
-8. **MANDATORY**: THE LLM_Runtime SHALL encrypt and securely store API keys using OS keychain (Windows Credential Manager, macOS Keychain, Linux Secret Service)
-9. **MANDATORY**: THE LLM_Runtime SHALL allow user to switch between local and cloud at runtime
-10. **MANDATORY**: THE LLM_Runtime SHALL provide fallback from cloud to local if cloud fails (desktop only)
-11. **MANDATORY**: THE LLM_Runtime SHALL track token usage and estimated costs for cloud APIs
-12. **MANDATORY**: THE LLM_Runtime SHALL warn user when approaching API rate limits
-13. **MANDATORY**: THE LLM_Runtime SHALL allow user to set monthly budget limits for cloud APIs
-14. **MANDATORY**: THE LLM_Runtime SHALL provide model selection UI for both local and cloud models
-15. **MANDATORY**: THE LLM_Runtime SHALL cache model responses to reduce API costs
-
-#### Acceptance Criteria - Mobile (Android/iOS) ⚠️ API ONLY
-
-1. **MANDATORY**: THE LLM_Runtime SHALL support cloud API providers ONLY on mobile platforms
-2. **MANDATORY**: THE LLM_Runtime SHALL NOT attempt to install or run local LLM models on mobile
-3. **MANDATORY**: THE LLM_Runtime SHALL NOT offer local Ollama option during mobile onboarding
-4. **MANDATORY**: THE LLM_Runtime SHALL require user to provide their own API key during mobile onboarding
-5. **MANDATORY**: THE LLM_Runtime SHALL support OpenAI, Google Gemini, DeepSeek, and Anthropic on mobile
-6. **MANDATORY**: THE LLM_Runtime SHALL validate API keys before completing onboarding
-7. **MANDATORY**: THE LLM_Runtime SHALL store API keys securely using platform keychain (Android Keystore, iOS Keychain)
-8. **MANDATORY**: THE LLM_Runtime SHALL track token usage and costs on mobile
-9. **MANDATORY**: THE LLM_Runtime SHALL warn user about data usage for cloud API calls
-10. **MANDATORY**: THE LLM_Runtime SHALL allow user to set mobile data usage limits
-11. **MANDATORY**: THE LLM_Runtime SHALL cache responses aggressively on mobile to reduce API calls
-12. **MANDATORY**: THE LLM_Runtime SHALL provide offline mode with cached responses only
-13. **MANDATORY**: THE LLM_Runtime SHALL show clear error when API key is invalid or expired
-14. **MANDATORY**: THE LLM_Runtime SHALL allow user to update API key from settings
-15. **MANDATORY**: THE LLM_Runtime SHALL provide API key management UI in mobile app settings
-
-#### Acceptance Criteria - API Key Management
-
-1. **MANDATORY**: THE LLM_Runtime SHALL never bundle or include API keys in the application
-2. **MANDATORY**: THE LLM_Runtime SHALL never log or display API keys in plain text
-3. **MANDATORY**: THE LLM_Runtime SHALL mask API keys in UI (show only last 4 characters)
-4. **MANDATORY**: THE LLM_Runtime SHALL provide "Get API Key" links to provider websites
-5. **MANDATORY**: THE LLM_Runtime SHALL provide clear instructions for obtaining API keys
-6. **MANDATORY**: THE LLM_Runtime SHALL validate API key format before making requests
-7. **MANDATORY**: THE LLM_Runtime SHALL handle API key rotation gracefully
-8. **MANDATORY**: THE LLM_Runtime SHALL allow multiple API keys per provider (for backup)
-9. **MANDATORY**: THE LLM_Runtime SHALL automatically switch to backup key if primary fails
-10. **MANDATORY**: THE LLM_Runtime SHALL notify user when API key is about to expire (if supported by provider)
-
-#### Acceptance Criteria - Cost Tracking and Budgets
-
-1. **MANDATORY**: THE LLM_Runtime SHALL track token usage per request (input + output tokens)
-2. **MANDATORY**: THE LLM_Runtime SHALL calculate estimated cost based on provider pricing
-3. **MANDATORY**: THE LLM_Runtime SHALL maintain daily, weekly, and monthly cost summaries
-4. **MANDATORY**: THE LLM_Runtime SHALL allow user to set budget limits (daily, weekly, monthly)
-5. **MANDATORY**: THE LLM_Runtime SHALL warn user when approaching budget limit (80%, 90%, 100%)
-6. **MANDATORY**: THE LLM_Runtime SHALL optionally block requests when budget exceeded
-7. **MANDATORY**: THE LLM_Runtime SHALL provide cost breakdown by personality (Guru vs Maya)
-8. **MANDATORY**: THE LLM_Runtime SHALL provide cost breakdown by request type (conversation, command, etc.)
-9. **MANDATORY**: THE LLM_Runtime SHALL export cost reports in CSV format
-10. **MANDATORY**: THE LLM_Runtime SHALL update provider pricing automatically (with user consent)
-
-#### Acceptance Criteria - Provider Selection and Routing
-
-1. THE LLM_Runtime SHALL allow user to select default provider
-2. THE LLM_Runtime SHALL allow user to select provider per personality (Guru uses OpenAI, Maya uses Gemini)
-3. THE LLM_Runtime SHALL allow user to select provider per task type (conversation, coding, analysis)
-4. THE LLM_Runtime SHALL provide provider comparison (cost, speed, quality)
-5. THE LLM_Runtime SHALL benchmark providers on user's device
-6. THE LLM_Runtime SHALL recommend optimal provider based on usage patterns
-7. THE LLM_Runtime SHALL support A/B testing between providers
-8. THE LLM_Runtime SHALL collect user feedback on provider quality
-9. THE LLM_Runtime SHALL learn user preferences over time
-10. THE LLM_Runtime SHALL provide "auto-select best provider" option
-
-#### Acceptance Criteria - Onboarding Integration
-
-1. **MANDATORY**: WHEN user completes onboarding, THE LLM_Runtime SHALL save their LLM preference (local/cloud on desktop, cloud on mobile)
-2. **MANDATORY**: THE LLM_Runtime SHALL guide user through API key setup with clear instructions
-3. **MANDATORY**: THE LLM_Runtime SHALL test API key immediately after entry
-4. **MANDATORY**: THE LLM_Runtime SHALL provide troubleshooting help if API key fails
-5. **MANDATORY**: THE LLM_Runtime SHALL allow user to skip API key setup and configure later (desktop only with local Ollama)
-6. **MANDATORY**: THE LLM_Runtime SHALL not allow skipping API key setup on mobile
-7. **MANDATORY**: THE LLM_Runtime SHALL provide video tutorial for obtaining API keys
-8. **MANDATORY**: THE LLM_Runtime SHALL estimate monthly costs based on expected usage
-9. **MANDATORY**: THE LLM_Runtime SHALL recommend free tier options for budget-conscious users
-10. **MANDATORY**: THE LLM_Runtime SHALL provide comparison table of providers during onboarding
-
-#### Acceptance Criteria - Post-Onboarding Configuration
-
-1. THE LLM_Runtime SHALL provide a user-friendly settings UI for managing LLM configuration
-2. THE LLM_Runtime SHALL allow switching providers without re-onboarding
-3. THE LLM_Runtime SHALL allow adding/removing API keys
-4. THE LLM_Runtime SHALL allow testing different providers
-5. THE LLM_Runtime SHALL preserve conversation history when switching providers
-6. THE LLM_Runtime SHALL migrate settings when updating app
-7. THE LLM_Runtime SHALL export/import LLM configuration
-8. THE LLM_Runtime SHALL provide configuration backup
-9. THE LLM_Runtime SHALL sync configuration across devices (with user consent)
-10. THE LLM_Runtime SHALL provide configuration reset option
-
-### Requirement 10: Model Selection and Capabilities
-
-**User Story:** As a developer, I want to specify model requirements and have the system select an appropriate model, so that I can optimize for task-specific needs.
+**User Story:** As a system administrator, I want accurate token counting and optimization, so that I can control costs and stay within model limits.
 
 #### Acceptance Criteria
 
-1. WHEN a request specifies a model name, THE LLM_Runtime SHALL use that specific model
-2. WHEN a request specifies model capabilities, THE Router SHALL select a model that meets those capabilities
-3. THE LLM_Runtime SHALL maintain a registry of available models and their capabilities
-4. WHEN a requested model is unavailable, THE Fallback_Handler SHALL select an alternative model with similar capabilities
-5. THE Configuration SHALL define model capability mappings for each provider
+1. THE Token_Counter SHALL count tokens accurately using each Model_Provider's specific tokenization rules
+2. THE LLM_Runtime SHALL report token usage for both input and output after each request
+3. WHEN a request would exceed the Context_Window, THE LLM_Runtime SHALL reject it before sending to the Model_Provider
+4. THE LLM_Runtime SHALL support token budget enforcement per Session
+5. WHEN a Session exceeds its token budget, THE LLM_Runtime SHALL reject further requests for that Session
+6. THE LLM_Runtime SHALL provide token optimization suggestions when requests are inefficient
+7. THE Token_Counter SHALL handle special tokens and formatting tokens correctly per provider
 
-### Requirement 11: Error Handling and Reporting
+### Requirement 6: Performance Monitoring
 
-**User Story:** As a developer, I want clear error messages and error types, so that I can handle failures appropriately in my application.
-
-#### Acceptance Criteria
-
-1. WHEN a provider returns an error, THE LLM_Runtime SHALL wrap it in a standardized error type
-2. WHEN a timeout occurs, THE LLM_Runtime SHALL return a timeout-specific error
-3. WHEN authentication fails, THE LLM_Runtime SHALL return an authentication-specific error
-4. WHEN rate limits are exceeded, THE LLM_Runtime SHALL return a rate-limit-specific error
-5. THE LLM_Runtime SHALL include the original provider error details in the error context
-6. THE LLM_Runtime SHALL distinguish between retryable and non-retryable errors
-
-### Requirement 12: Integration with AGENT_GURU Architecture
-
-**User Story:** As a system architect, I want the LLM Runtime to integrate seamlessly with existing AGENT_GURU components, so that agents can use LLM capabilities without tight coupling.
+**User Story:** As a system operator, I want comprehensive performance metrics, so that I can optimize costs, detect issues, and improve system performance.
 
 #### Acceptance Criteria
 
-1. THE LLM_Runtime SHALL expose a Python API compatible with AGENT_GURU agent interfaces
-2. THE LLM_Runtime SHALL support the AGENT_GURU message format for requests and responses
-3. WHEN an agent makes a request, THE LLM_Runtime SHALL handle authentication and authorization through AGENT_GURU security components
-4. THE LLM_Runtime SHALL emit events for monitoring and observability through AGENT_GURU event system
-5. THE LLM_Runtime SHALL support graceful shutdown when AGENT_GURU system shuts down
+1. THE Performance_Monitor SHALL track request latency for each Model_Provider
+2. THE Performance_Monitor SHALL track token usage per request and per Session
+3. THE Performance_Monitor SHALL calculate cost estimates based on Model_Provider pricing
+4. WHEN a Model_Provider responds slowly, THE Performance_Monitor SHALL emit a performance warning
+5. WHEN a Model_Provider fails repeatedly, THE Performance_Monitor SHALL emit a reliability warning
+6. THE Performance_Monitor SHALL report metrics to the Self_Improvement_Engine after each request
+7. THE Performance_Monitor SHALL aggregate metrics over time windows for trend analysis
+8. THE Performance_Monitor SHALL track success rates per Model_Provider
 
+### Requirement 7: Error Handling and Retry Logic
 
-### Requirement 13: Comprehensive Testing Requirements ⚠️ CRITICAL
-
-**User Story:** As a quality engineer, I want the most rigorous testing possible for LLM runtime, so that AI interactions are reliable and safe.
-
-#### Acceptance Criteria - Unit Testing
-
-1. **MANDATORY**: THE LLM_Runtime SHALL achieve minimum 95% code coverage
-2. **MANDATORY**: EVERY provider integration SHALL have tests for: success, failure, timeout, rate limiting, authentication errors
-3. **MANDATORY**: Router logic SHALL be tested with all routing strategies and provider combinations
-4. **MANDATORY**: Fallback chains SHALL be tested with 1, 2, 3, and 5 providers
-5. **MANDATORY**: Context management SHALL be tested with short, long, and maximum-length contexts
-
-#### Acceptance Criteria - Property-Based Testing
-
-1. **MANDATORY**: Request routing SHALL have property tests verifying: determinism, load balancing fairness, priority ordering
-2. **MANDATORY**: Fallback SHALL have property tests verifying: eventual success or exhaustion, no infinite loops, correct error propagation
-3. **MANDATORY**: Caching SHALL have property tests verifying: cache hits return same result, cache invalidation works, no stale data
-4. **MANDATORY**: Streaming SHALL have property tests verifying: complete data delivery, correct ordering, no duplicates
-5. **MANDATORY**: Context truncation SHALL have property tests verifying: important content preserved, token limits respected
-
-#### Acceptance Criteria - Integration Testing
-
-1. **MANDATORY**: Multi-provider workflows SHALL be tested with all provider combinations
-2. **MANDATORY**: Streaming responses SHALL be tested with slow, fast, and interrupted streams
-3. **MANDATORY**: Context persistence SHALL be tested across multiple requests
-4. **MANDATORY**: Audit logging SHALL be tested to verify all requests logged correctly
-5. **MANDATORY**: Cost tracking SHALL be tested to verify accurate token counting
-
-#### Acceptance Criteria - Performance Testing
-
-1. **MANDATORY**: Request latency SHALL be tested to verify <2s for non-streaming, <500ms for first token in streaming
-2. **MANDATORY**: Throughput SHALL be tested to verify 100+ requests/second
-3. **MANDATORY**: Concurrent requests SHALL be tested with 50+ simultaneous requests
-4. **MANDATORY**: Cache hit rate SHALL be tested to verify >80% for repeated queries
-5. **MANDATORY**: Memory usage SHALL be tested with long-running conversations (1000+ turns)
-
-#### Acceptance Criteria - Reliability Testing
-
-1. **MANDATORY**: Provider failures SHALL be tested with simulated outages
-2. **MANDATORY**: Network issues SHALL be tested with latency, packet loss, and disconnections
-3. **MANDATORY**: Rate limiting SHALL be tested with burst and sustained load
-4. **MANDATORY**: Retry logic SHALL be tested with transient and permanent failures
-5. **MANDATORY**: Circuit breakers SHALL be tested with cascading failures
-
-#### Acceptance Criteria - Security Testing
-
-1. **MANDATORY**: Prompt injection SHALL be tested with known attack patterns
-2. **MANDATORY**: API key leakage SHALL be tested to verify no keys in logs
-3. **MANDATORY**: Input validation SHALL be tested with malicious inputs
-4. **MANDATORY**: Output sanitization SHALL be tested to prevent XSS and injection
-5. **MANDATORY**: Rate limiting SHALL be tested against DoS attacks
-
-#### Acceptance Criteria - Cost Testing
-
-1. **MANDATORY**: Token counting SHALL be tested for accuracy across all providers
-2. **MANDATORY**: Cost estimation SHALL be tested to verify <5% error
-3. **MANDATORY**: Budget limits SHALL be tested to verify enforcement
-4. **MANDATORY**: Cost optimization SHALL be tested to verify cheapest provider selected when appropriate
-5. **MANDATORY**: Cost tracking SHALL be tested with concurrent requests
-
-#### Acceptance Criteria - Compatibility Testing
-
-1. **MANDATORY**: Provider APIs SHALL be tested with latest and previous API versions
-2. **MANDATORY**: Model compatibility SHALL be tested with all supported models
-3. **MANDATORY**: Streaming formats SHALL be tested across all providers
-4. **MANDATORY**: Error formats SHALL be tested to verify correct parsing
-5. **MANDATORY**: Authentication methods SHALL be tested for all providers
-
-#### Acceptance Criteria - Chaos Testing
-
-1. **MANDATORY**: Provider crashes SHALL be simulated during streaming
-2. **MANDATORY**: Partial responses SHALL be simulated and handled
-3. **MANDATORY**: Corrupted responses SHALL be simulated and detected
-4. **MANDATORY**: Clock skew SHALL be simulated for timeout testing
-5. **MANDATORY**: Resource exhaustion SHALL be simulated (connections, memory)
-
-
-### Requirement 14: Python Implementation Requirements ⚠️ IMPLEMENTATION GAP
-
-**User Story:** As a developer, I want a complete Python implementation of the LLM runtime, so that AI capabilities are accessible and maintainable.
+**User Story:** As a developer, I want robust error handling with automatic retries, so that transient failures don't break my application.
 
 #### Acceptance Criteria
 
-1. **MANDATORY**: THE LLM_Runtime SHALL be implemented in Python as the primary implementation language
-2. **MANDATORY**: THE LLM_Runtime SHALL use LangChain for LLM provider abstraction
-3. **MANDATORY**: THE LLM_Runtime SHALL use httpx or aiohttp for async HTTP requests
-4. **MANDATORY**: THE LLM_Runtime SHALL use Redis or diskcache for response caching
-5. **MANDATORY**: THE LLM_Runtime SHALL use SQLite or PostgreSQL for audit logging
-6. **MANDATORY**: THE LLM_Runtime SHALL provide async/await interfaces for all operations
-7. **MANDATORY**: THE LLM_Runtime SHALL integrate with guru_memory for conversation context
-8. **MANDATORY**: THE LLM_Runtime SHALL integrate with guru_policy for usage policies
-9. **MANDATORY**: THE LLM_Runtime SHALL provide a Python package `guru_llm` with proper module structure
-10. **MANDATORY**: THE LLM_Runtime SHALL use Pydantic for configuration and data validation
-11. **MANDATORY**: THE LLM_Runtime SHALL provide CLI tools for LLM testing and monitoring
-12. **MANDATORY**: THE LLM_Runtime SHALL include comprehensive docstrings and type hints
-13. WHERE Rust optimization is needed, THE LLM_Runtime SHALL use PyO3 bindings for performance-critical paths
-14. THE LLM_Runtime SHALL provide migration tools from Rust implementation to Python implementation
-15. THE LLM_Runtime SHALL support streaming responses with Server-Sent Events (SSE)
-16. THE LLM_Runtime SHALL support function calling and tool use for all providers
+1. WHEN a Model_Provider returns a transient error, THE LLM_Runtime SHALL retry the request with exponential backoff
+2. THE LLM_Runtime SHALL implement a maximum retry limit to prevent infinite retry loops
+3. WHEN a Model_Provider returns a rate limit error, THE LLM_Runtime SHALL wait the specified duration before retrying
+4. WHEN retries are exhausted, THE LLM_Runtime SHALL return a detailed error message with all failure information
+5. THE LLM_Runtime SHALL implement the Circuit_Breaker pattern to prevent cascading failures
+6. WHEN a Circuit_Breaker is open, THE LLM_Runtime SHALL fail fast without attempting requests
+7. THE LLM_Runtime SHALL distinguish between retryable errors and permanent errors
+8. WHEN a permanent error occurs, THE LLM_Runtime SHALL not retry and SHALL return immediately
+9. THE LLM_Runtime SHALL log all errors with sufficient context for debugging
+
+### Requirement 8: Integration with Agent_Guru Components
+
+**User Story:** As a system architect, I want seamless integration with other Agent_Guru components, so that the LLM Runtime functions as part of a cohesive system.
+
+#### Acceptance Criteria
+
+1. THE LLM_Runtime SHALL receive model selection decisions from the Model_Router
+2. THE LLM_Runtime SHALL report performance metrics to the Self_Improvement_Engine after each request
+3. THE LLM_Runtime SHALL support verification hooks that allow the Verifier_System to validate outputs
+4. THE LLM_Runtime SHALL accept context injection from the Memory_System
+5. WHEN the Memory_System provides conversation history, THE Context_Manager SHALL incorporate it into the Session context
+6. THE LLM_Runtime SHALL expose health check endpoints for monitoring
+7. THE LLM_Runtime SHALL support graceful shutdown that completes in-flight requests
+
+### Requirement 9: GitHub Integration for Performance Data
+
+**User Story:** As a system operator, I want runtime performance data automatically pushed to GitHub, so that I can track system evolution and share metrics with the team.
+
+#### Acceptance Criteria
+
+1. WHEN significant performance changes occur, THE LLM_Runtime SHALL push performance data to GitHub
+2. THE LLM_Runtime SHALL update ONLY README.md files when pushing to GitHub
+3. THE LLM_Runtime SHALL never create additional markdown files beyond README.md
+4. THE LLM_Runtime SHALL include meaningful commit messages that describe the performance changes
+5. WHEN GitHub API calls fail, THE LLM_Runtime SHALL retry with exponential backoff
+6. WHEN GitHub is unavailable, THE LLM_Runtime SHALL queue performance data for later upload
+7. THE LLM_Runtime SHALL authenticate with GitHub using secure credential management
+8. THE LLM_Runtime SHALL validate that performance data is properly formatted before pushing
+
+### Requirement 10: Comprehensive Property-Based Testing
+
+**User Story:** As a quality engineer, I want the hardest possible property-based tests, so that I can have confidence the system handles all edge cases and adversarial scenarios.
+
+#### Acceptance Criteria
+
+1. THE test suite SHALL include property-based tests for streaming correctness across all Model_Providers
+2. THE test suite SHALL include property-based tests for function calling round-trips
+3. THE test suite SHALL include property-based tests for context window management under varying loads
+4. THE test suite SHALL include property-based tests for token counting accuracy
+5. THE test suite SHALL test adversarial scenarios including malformed responses from Model_Providers
+6. THE test suite SHALL test adversarial scenarios including rate limiting and timeout conditions
+7. THE test suite SHALL test adversarial scenarios including network failures and partial responses
+8. THE test suite SHALL verify that retry logic eventually succeeds or fails appropriately
+9. THE test suite SHALL verify that Circuit_Breaker patterns prevent cascading failures
+10. THE test suite SHALL test concurrent requests to verify thread safety and resource management
+
+### Requirement 11: Configuration and Extensibility
+
+**User Story:** As a developer, I want flexible configuration and easy extensibility, so that I can add new providers and customize behavior without modifying core code.
+
+#### Acceptance Criteria
+
+1. THE LLM_Runtime SHALL load configuration from environment variables and configuration files
+2. THE LLM_Runtime SHALL support adding new Model_Providers through a plugin architecture
+3. WHEN a new Model_Provider is added, THE LLM_Runtime SHALL require only provider-specific adapter implementation
+4. THE LLM_Runtime SHALL support per-provider configuration including API keys, endpoints, and timeouts
+5. THE LLM_Runtime SHALL validate configuration at startup and report errors clearly
+6. THE LLM_Runtime SHALL support runtime configuration updates for non-critical settings
+7. THE LLM_Runtime SHALL provide sensible defaults for all configuration options
+
+### Requirement 12: Security and Privacy
+
+**User Story:** As a security engineer, I want secure credential management and data privacy, so that API keys and user data are protected.
+
+#### Acceptance Criteria
+
+1. THE LLM_Runtime SHALL never log API keys or sensitive credentials
+2. THE LLM_Runtime SHALL support secure credential storage using environment variables or secret management systems
+3. THE LLM_Runtime SHALL sanitize error messages to prevent credential leakage
+4. THE LLM_Runtime SHALL support request/response logging with automatic PII redaction
+5. WHEN PII is detected in logs, THE LLM_Runtime SHALL redact it before writing
+6. THE LLM_Runtime SHALL support TLS for all network communications with Model_Providers
+7. THE LLM_Runtime SHALL validate TLS certificates to prevent man-in-the-middle attacks
