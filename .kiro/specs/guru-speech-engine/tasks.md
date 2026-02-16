@@ -120,7 +120,7 @@ After completing EACH task:
     - Test format conversion
     - _Requirements: 7 (Audio Input Management)_
 
-- [~] 4. Advanced Noise Cancellation
+- [x] 4. Advanced Noise Cancellation
   - Implement `Agent_Guru/speech/audio/noise_cancellation.py`:
     - `AdvancedNoiseCancellation` class
     - `reduce_noise()` method with >20dB reduction
@@ -131,11 +131,11 @@ After completing EACH task:
   - _Requirements: 15 (Advanced Noise Cancellation)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add advanced noise cancellation with >20dB reduction and adaptive filtering"
 
-  - [~] 4.1 Write property test for noise reduction effectiveness
+  - [x] 4.1 Write property test for noise reduction effectiveness
     - **Property 18: Advanced Noise Cancellation Effectiveness**
     - **Validates: Requirements 15.1, 15.2, 15.4**
 
-  - [~] 4.2 Write unit tests for noise type detection
+  - [x] 4.2 Write unit tests for noise type detection
     - Test with various noise types
     - Test SNR computation
     - _Requirements: 15.3_
