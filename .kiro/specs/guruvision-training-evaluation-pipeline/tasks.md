@@ -6,6 +6,15 @@ This implementation plan breaks down the GuruVision Training Evaluation Pipeline
 
 The implementation uses Python with PyTorch for training, ONNX Runtime for inference, InsightFace for face detection/alignment, and Hypothesis for property-based testing.
 
+## Task Completion Protocol
+
+After completing EACH task:
+1. ✅ Run all tests for that task
+2. ✅ Verify all tests pass
+3. ✅ Commit changes with descriptive message
+4. ✅ Push to GitHub immediately
+5. ✅ Mark task as complete in this file
+
 ## Documentation Policy
 
 **CRITICAL: Minimize markdown file creation**
