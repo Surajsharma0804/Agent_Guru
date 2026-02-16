@@ -2,14 +2,50 @@
 
 ## Overview
 
-The Guru Deployment System is a secure, transactional package management system built on top of Python's packaging ecosystem. It provides cryptographic verification, atomic updates with rollback capabilities, and intelligent dependency resolution. The system is designed as a layered architecture with clear separation between package operations, security verification, dependency management, and transaction coordination.
+The Guru Deployment System provides professional installation, comprehensive onboarding, and automatic updates for AGENT_GURU. This system transforms AGENT_GURU from a development project into a production-ready application that users can install and configure with a polished, professional experience.
 
-The system leverages industry-standard Python libraries:
-- **pip** and **pip-tools** for package management and dependency resolution
-- **cryptography** library for Ed25519 signature verification
-- **packaging** library for version parsing and comparison
-- **requests** for HTTP operations with retry logic
-- **sqlite3** for package registry and audit logging
+**Core Capabilities**:
+1. **Professional Installers**: Native installers for Windows (MSI) and macOS (DMG) with proper code signing and system integration
+2. **Comprehensive Onboarding**: Multi-step onboarding flow that configures the complete AGENT_GURU system
+3. **Automatic Updates**: Background update checking and safe update application with rollback
+4. **Dependency Management**: Automatic installation of all required dependencies
+5. **Uninstallation**: Clean removal of all AGENT_GURU components
+
+**Onboarding Flow**:
+The onboarding system guides users through complete AGENT_GURU setup:
+
+1. **Welcome Screen**: Introduction to Guru and Maya personalities
+2. **Profile Setup**: 
+   - Gender selection
+   - Age input
+   - Date of birth
+   - Name input
+3. **Biometric Enrollment** (via guru-security-cryptography):
+   - Fingerprint enrollment (if hardware available)
+   - Face enrollment (via webcam)
+   - Voice enrollment (via microphone)
+   - Passphrase setup
+4. **LLM Configuration** (via guru-llm-runtime):
+   - Option 1: Local Ollama (recommended for privacy)
+     - Check Ollama installation
+     - Download recommended models
+   - Option 2: Cloud APIs (OpenAI, Gemini, DeepSeek, Anthropic)
+     - API key input
+     - Secure storage in OS keychain
+     - API key validation
+5. **Permission Granting**:
+   - Microphone access
+   - Camera access
+   - Accessibility permissions (for system control)
+   - Automation permissions
+6. **Completion**: Launch AGENT_GURU with "Hey Guru" or "Hey Maya"
+
+The system leverages industry-standard tools and libraries:
+- **WiX Toolset** for Windows MSI installers
+- **macOS Installer** for DMG creation
+- **PyQt5** or **Tkinter** for onboarding UI
+- **cryptography** library for update verification
+- **requests** for update checking
 
 ## Architecture
 
