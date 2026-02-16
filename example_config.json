@@ -1,0 +1,21 @@
+{
+  "onnx_model_path": "guru_face/model/guru_face_model.onnx",
+  "database_path": "guru_face/database/identities.json",
+  "liveness_model_path": null,
+  "emotion_model_path": null,
+  "recognition_threshold": 0.7,
+  "detection_confidence": 0.5,
+  "use_gpu": true,
+  "target_fps": 10,
+  "enable_liveness": true,
+  "enable_emotion": true,
+  "enable_tracking": true,
+  "enable_low_light_enhancement": true,
+  "tracker_algorithm": "deepsort",
+  "tracker_max_age": 30,
+  "log_level": "DEBUG",
+  "log_file": "guru_face/logs/guruvision.log",
+  "log_max_size_mb": 100,
+  "camera_index": 0,
+  "video_source": null
+}

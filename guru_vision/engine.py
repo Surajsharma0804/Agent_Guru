@@ -56,6 +56,11 @@ class RecognitionResult:
         frame_id: Sequential frame identifier
         timestamp: ISO format timestamp of when frame was processed
         processing_time_ms: Time taken to process the frame in milliseconds
+        detected_objects: List of detected objects (if object detection enabled)
+        recognized_texts: List of recognized text (if OCR enabled)
+        detected_gestures: List of detected gestures (if gesture detection enabled)
+        scene_classification: Scene classification (if scene understanding enabled)
+        spatial_relationships: List of spatial relationships (if scene understanding enabled)
     
     Requirements: 13.2, 31.3
     """
@@ -63,6 +68,11 @@ class RecognitionResult:
     frame_id: int
     timestamp: str
     processing_time_ms: float
+    detected_objects: List[Any] = field(default_factory=list)  # List[DetectedObject]
+    recognized_texts: List[Any] = field(default_factory=list)  # List[RecognizedText]
+    detected_gestures: List[Any] = field(default_factory=list)  # List[DetectedGesture]
+    scene_classification: Optional[Any] = None  # SceneClassification
+    spatial_relationships: List[Any] = field(default_factory=list)  # List[SpatialRelationship]
 
 
 @dataclass
@@ -121,6 +131,11 @@ class GuruVisionEngine:
         self.emotion_recognizer = None
         self.tracker = None
         self.database = None
+        self.privacy_manager = None
+        self.object_detector = None
+        self.text_recognizer = None
+        self.gesture_detector = None
+        self.scene_analyzer = None
         
         # State
         self.initialized = False
@@ -268,15 +283,115 @@ class GuruVisionEngine:
             except Exception as e:
                 self.logger.warning(f"Could not load database (will create new): {e}")
             
+            # Step 10: Initialize privacy manager (if enabled)
+            if self.config.privacy_mode:
+                try:
+                    from guru_vision.privacy import PrivacyManager, AnonymizationLevel
+                    self.logger.info("Initializing privacy manager...")
+                    self.privacy_manager = PrivacyManager(
+                        privacy_mode=True,
+                        anonymization_level=AnonymizationLevel[self.config.anonymization_level.upper()]
+                    )
+                    self.privacy_manager.secure_deletion = self.config.secure_deletion
+                    self.logger.info(f"Privacy mode enabled with {self.config.anonymization_level} anonymization")
+                except Exception as e:
+                    # Graceful degradation: Continue without privacy mode
+                    self.logger.warning(f"Failed to initialize privacy manager: {e}. Continuing without privacy mode.")
+                    self.privacy_manager = None
+                    self.config.privacy_mode = False
+            else:
+                self.logger.info("Privacy mode disabled")
+                self.privacy_manager = None
+            
+            # Step 11: Initialize object detector (if enabled)
+            if self.config.enable_object_detection:
+                try:
+                    from guru_vision.object_detection import YOLODetector
+                    self.logger.info("Initializing object detector...")
+                    self.object_detector = YOLODetector(
+                        model_path=self.config.object_detection_model_path,
+                        confidence_threshold=self.config.object_detection_confidence,
+                        nms_threshold=self.config.object_detection_nms_threshold,
+                        use_gpu=self.config.use_gpu
+                    )
+                    self.logger.info("Object detection enabled")
+                except Exception as e:
+                    # Graceful degradation: Continue without object detection
+                    self.logger.warning(f"Failed to initialize object detector: {e}. Continuing without object detection.")
+                    self.object_detector = None
+                    self.config.enable_object_detection = False
+            else:
+                self.logger.info("Object detection disabled")
+                self.object_detector = None
+            
+            # Step 12: Initialize text recognizer (if enabled)
+            if self.config.enable_ocr:
+                try:
+                    from guru_vision.ocr import TextRecognizer
+                    self.logger.info("Initializing text recognizer...")
+                    self.text_recognizer = TextRecognizer(
+                        languages=self.config.ocr_languages,
+                        confidence_threshold=self.config.ocr_confidence,
+                        use_gpu=self.config.ocr_use_gpu
+                    )
+                    self.logger.info("OCR enabled")
+                except Exception as e:
+                    # Graceful degradation: Continue without OCR
+                    self.logger.warning(f"Failed to initialize text recognizer: {e}. Continuing without OCR.")
+                    self.text_recognizer = None
+                    self.config.enable_ocr = False
+            else:
+                self.logger.info("OCR disabled")
+                self.text_recognizer = None
+            
+            # Step 13: Initialize gesture detector (if enabled)
+            if self.config.enable_gesture_detection:
+                try:
+                    from guru_vision.gesture import GestureDetector
+                    self.logger.info("Initializing gesture detector...")
+                    self.gesture_detector = GestureDetector(
+                        max_hands=self.config.gesture_max_hands,
+                        confidence_threshold=self.config.gesture_confidence,
+                        use_static_mode=self.config.gesture_static_mode
+                    )
+                    self.logger.info("Gesture detection enabled")
+                except Exception as e:
+                    # Graceful degradation: Continue without gesture detection
+                    self.logger.warning(f"Failed to initialize gesture detector: {e}. Continuing without gesture detection.")
+                    self.gesture_detector = None
+                    self.config.enable_gesture_detection = False
+            else:
+                self.logger.info("Gesture detection disabled")
+                self.gesture_detector = None
+            
+            # Step 14: Initialize scene analyzer (if enabled)
+            if self.config.enable_scene_understanding:
+                try:
+                    from guru_vision.scene import SceneAnalyzer
+                    self.logger.info("Initializing scene analyzer...")
+                    self.scene_analyzer = SceneAnalyzer(
+                        confidence_threshold=self.config.scene_confidence,
+                        max_relationships=self.config.scene_max_relationships
+                    )
+                    self.logger.info("Scene understanding enabled")
+                except Exception as e:
+                    # Graceful degradation: Continue without scene understanding
+                    self.logger.warning(f"Failed to initialize scene analyzer: {e}. Continuing without scene understanding.")
+                    self.scene_analyzer = None
+                    self.config.enable_scene_understanding = False
+            else:
+                self.logger.info("Scene understanding disabled")
+                self.scene_analyzer = None
+            
             # Mark as initialized
             self.initialized = True
             self.frame_counter = 0
             
-            # Step 10: Register signal handlers for graceful shutdown
+            # Step 12: Register signal handlers for graceful shutdown
             # Requirements: 20.6 - Support graceful shutdown on interrupt signals
             self._register_signal_handlers()
             
-            # Step 11: Emit "system_ready" event
+            # Step 13: Emit "system_ready" event
             # Requirements: 20.2, 14.4
             self.logger.info("GuruVision Engine initialization complete")
             self._emit_event('system_ready', {
@@ -378,7 +493,30 @@ class GuruVisionEngine:
         # Increment frame counter
         self.frame_counter += 1
         
-        # Step 1: Check frame brightness and apply low-light enhancement if needed
+        # Step 1: Privacy compliance validation
+        # Check if privacy mode is enabled and validate frame
+        if self.config.privacy_mode and self.privacy_manager is not None:
+            try:
+                self.privacy_manager.validate_privacy_compliance(frame)
+            except ValueError as e:
+                self.logger.error(f"Privacy compliance validation failed: {e}")
+                # Emit error event
+                self._emit_event('error', {
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'frame_id': self.frame_counter,
+                    'component': 'privacy_validation',
+                    'error_type': 'PrivacyViolation',
+                    'error_message': str(e)
+                })
+                # Return empty result
+                return RecognitionResult(
+                    faces=[],
+                    frame_id=self.frame_counter,
+                    timestamp=datetime.utcnow().isoformat(),
+                    processing_time_ms=(time.time() - start_time) * 1000.0
+                )
+        
+        # Step 2: Check frame brightness and apply low-light enhancement if needed
         # Requirements: 22.1
         processed_frame = frame
         if self.config.enable_low_light_enhancement:
@@ -389,7 +527,7 @@ class GuruVisionEngine:
                 if was_enhanced:
                     self.logger.debug("Low-light enhancement applied")
         
-        # Step 2: Run face detection
+        # Step 3: Run face detection
         # Requirements: 3.1
         try:
             detections = self.detector.detect(
@@ -409,7 +547,7 @@ class GuruVisionEngine:
             })
             detections = []
         
-        # Step 3: Update tracker with detections
+        # Step 4: Update tracker with detections
         # Requirements: 10.1, 32.4
         tracks = []
         if self.config.enable_tracking and self.tracker is not None:
@@ -465,7 +603,7 @@ class GuruVisionEngine:
                 )
                 detection_to_track[i] = pseudo_track
         
-        # Step 4: Process each detected face (implemented in subtask 19.4)
+        # Step 5: Process each detected face (implemented in subtask 19.4)
         face_results = []
         for i, detection in enumerate(detections):
             track = detection_to_track.get(i)
@@ -481,7 +619,108 @@ class GuruVisionEngine:
             if face_result is not None:
                 face_results.append(face_result)
         
-        # Step 5: Combine results and add metadata (implemented in subtask 19.5)
+        # Step 6: Run object detection (if enabled)
+        detected_objects = []
+        if self.config.enable_object_detection and self.object_detector is not None:
+            try:
+                detected_objects = self.object_detector.detect(processed_frame)
+                self.logger.debug(f"Detected {len(detected_objects)} objects")
+            except Exception as e:
+                self.logger.error(f"Object detection failed: {e}", exc_info=True)
+                # Emit error event
+                self._emit_event('error', {
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'frame_id': self.frame_counter,
+                    'component': 'object_detection',
+                    'error_type': type(e).__name__,
+                    'error_message': str(e)
+                })
+        
+        # Step 6.5: Run OCR (if enabled)
+        recognized_texts = []
+        if self.config.enable_ocr and self.text_recognizer is not None:
+            try:
+                # Apply preprocessing if enabled
+                ocr_frame = processed_frame
+                if self.config.ocr_preprocessing:
+                    from guru_vision.ocr.preprocessing import preprocess_for_ocr
+                    ocr_frame = preprocess_for_ocr(processed_frame)
+                
+                recognized_texts = self.text_recognizer.recognize(ocr_frame)
+                self.logger.debug(f"Recognized {len(recognized_texts)} text regions")
+            except Exception as e:
+                self.logger.error(f"OCR failed: {e}", exc_info=True)
+                # Emit error event
+                self._emit_event('error', {
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'frame_id': self.frame_counter,
+                    'component': 'ocr',
+                    'error_type': type(e).__name__,
+                    'error_message': str(e)
+                })
+        
+        # Step 6.6: Run gesture detection (if enabled)
+        detected_gestures = []
+        if self.config.enable_gesture_detection and self.gesture_detector is not None:
+            try:
+                detected_gestures = self.gesture_detector.detect(processed_frame)
+                self.logger.debug(f"Detected {len(detected_gestures)} gestures")
+            except Exception as e:
+                self.logger.error(f"Gesture detection failed: {e}", exc_info=True)
+                # Emit error event
+                self._emit_event('error', {
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'frame_id': self.frame_counter,
+                    'component': 'gesture_detection',
+                    'error_type': type(e).__name__,
+                    'error_message': str(e)
+                })
+        
+        # Step 6.7: Run scene understanding (if enabled)
+        scene_classification = None
+        spatial_relationships = []
+        if self.config.enable_scene_understanding and self.scene_analyzer is not None:
+            try:
+                # Analyze scene
+                scene_classification = self.scene_analyzer.analyze_scene(processed_frame)
+                self.logger.debug(f"Scene classified as: {scene_classification.scene_type.value}")
+                
+                # Analyze spatial relationships if we have detected objects
+                if detected_objects:
+                    object_bboxes = [obj.bbox for obj in detected_objects]
+                    spatial_relationships = self.scene_analyzer.analyze_spatial_relationships(object_bboxes)
+                    self.logger.debug(f"Found {len(spatial_relationships)} spatial relationships")
+            except Exception as e:
+                self.logger.error(f"Scene understanding failed: {e}", exc_info=True)
+                # Emit error event
+                self._emit_event('error', {
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'frame_id': self.frame_counter,
+                    'component': 'scene_understanding',
+                    'error_type': type(e).__name__,
+                    'error_message': str(e)
+                })
+        
+        # Step 7: Apply privacy anonymization if enabled
+        # Anonymize frame after processing but before returning
+        if self.config.privacy_mode and self.privacy_manager is not None:
+            try:
+                # Extract face bounding boxes for anonymization
+                face_boxes = [(f.bbox[0], f.bbox[1], f.bbox[2], f.bbox[3]) for f in face_results]
+                processed_frame = self.privacy_manager.anonymize_frame(processed_frame, face_boxes)
+                self.logger.debug(f"Frame anonymized with {len(face_boxes)} faces")
+            except Exception as e:
+                self.logger.error(f"Frame anonymization failed: {e}", exc_info=True)
+                # Emit error event
+                self._emit_event('error', {
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'frame_id': self.frame_counter,
+                    'component': 'privacy_anonymization',
+                    'error_type': type(e).__name__,
+                    'error_message': str(e)
+                })
+        
+        # Step 8: Combine results and add metadata (implemented in subtask 19.5)
         end_time = time.time()
         processing_time_ms = (end_time - start_time) * 1000.0
         
@@ -489,10 +728,15 @@ class GuruVisionEngine:
             faces=face_results,
             frame_id=self.frame_counter,
             timestamp=datetime.utcnow().isoformat(),
-            processing_time_ms=processing_time_ms
+            processing_time_ms=processing_time_ms,
+            detected_objects=detected_objects,
+            recognized_texts=recognized_texts,
+            detected_gestures=detected_gestures,
+            scene_classification=scene_classification,
+            spatial_relationships=spatial_relationships
         )
         
-        # Step 6: Emit recognition events (implemented in subtask 19.5)
+        # Step 9: Emit recognition events (implemented in subtask 19.5)
         self._emit_recognition_events(result)
         
         return result
@@ -1426,6 +1670,11 @@ class GuruVisionEngine:
             self.emotion_recognizer = None
             self.tracker = None
             self.database = None
+            self.privacy_manager = None
+            self.object_detector = None
+            self.text_recognizer = None
+            self.gesture_detector = None
+            self.scene_analyzer = None
             
             # Mark as not initialized
             self.initialized = False

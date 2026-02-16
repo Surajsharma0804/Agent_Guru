@@ -10,7 +10,7 @@ import logging
 import os
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from guru_vision.exceptions import ConfigurationError
 
@@ -100,6 +100,36 @@ class GuruVisionConfig:
     # Camera settings
     camera_index: int = 0
     video_source: Optional[str] = None
+    
+    # Privacy settings
+    privacy_mode: bool = False
+    anonymization_level: str = "enhanced"  # none, basic, enhanced, maximum
+    secure_deletion: bool = True
+    
+    # Object Detection settings
+    enable_object_detection: bool = False
+    object_detection_model_path: Optional[str] = None
+    object_detection_confidence: float = 0.5
+    object_detection_nms_threshold: float = 0.4
+    object_detection_classes: List[str] = field(default_factory=list)  # Empty = all classes
+    
+    # OCR settings
+    enable_ocr: bool = False
+    ocr_languages: List[str] = field(default_factory=lambda: ['en'])
+    ocr_confidence: float = 0.5
+    ocr_preprocessing: bool = True
+    ocr_use_gpu: bool = False
+    
+    # Gesture Detection settings
+    enable_gesture_detection: bool = False
+    gesture_max_hands: int = 2
+    gesture_confidence: float = 0.5
+    gesture_static_mode: bool = False
+    
+    # Scene Understanding settings
+    enable_scene_understanding: bool = False
+    scene_confidence: float = 0.5
+    scene_max_relationships: int = 10
     
     def __post_init__(self):
         """
@@ -201,6 +231,91 @@ class GuruVisionConfig:
                 f"Must be non-negative. Using default: {default_value}"
             )
             self.camera_index = default_value
+        
+        # Validate anonymization_level (must be valid level)
+        valid_anonymization_levels = ["none", "basic", "enhanced", "maximum"]
+        if self.anonymization_level.lower() not in valid_anonymization_levels:
+            default_value = defaults['anonymization_level'].default
+            logger.warning(
+                f"Invalid anonymization_level: {self.anonymization_level}. "
+                f"Must be one of {valid_anonymization_levels}. Using default: {default_value}"
+            )
+            self.anonymization_level = default_value
+        else:
+            # Normalize to lowercase
+            self.anonymization_level = self.anonymization_level.lower()
+        
+        # Validate object_detection_confidence (must be between 0.0 and 1.0)
+        if not (0.0 <= self.object_detection_confidence <= 1.0):
+            default_value = defaults['object_detection_confidence'].default
+            logger.warning(
+                f"Invalid object_detection_confidence: {self.object_detection_confidence}. "
+                f"Must be between 0.0 and 1.0. Using default: {default_value}"
+            )
+            self.object_detection_confidence = default_value
+        
+        # Validate object_detection_nms_threshold (must be between 0.0 and 1.0)
+        if not (0.0 <= self.object_detection_nms_threshold <= 1.0):
+            default_value = defaults['object_detection_nms_threshold'].default
+            logger.warning(
+                f"Invalid object_detection_nms_threshold: {self.object_detection_nms_threshold}. "
+                f"Must be between 0.0 and 1.0. Using default: {default_value}"
+            )
+            self.object_detection_nms_threshold = default_value
+        
+        # Validate ocr_confidence (must be between 0.0 and 1.0)
+        if not (0.0 <= self.ocr_confidence <= 1.0):
+            default_value = defaults['ocr_confidence'].default
+            logger.warning(
+                f"Invalid ocr_confidence: {self.ocr_confidence}. "
+                f"Must be between 0.0 and 1.0. Using default: {default_value}"
+            )
+            self.ocr_confidence = default_value
+        
+        # Validate ocr_languages (must not be empty)
+        if not self.ocr_languages:
+            default_value = defaults['ocr_languages'].default_factory()
+            logger.warning(
+                f"Invalid ocr_languages: empty list. "
+                f"Using default: {default_value}"
+            )
+            self.ocr_languages = default_value
+        
+        # Validate gesture_confidence (must be between 0.0 and 1.0)
+        if not (0.0 <= self.gesture_confidence <= 1.0):
+            default_value = defaults['gesture_confidence'].default
+            logger.warning(
+                f"Invalid gesture_confidence: {self.gesture_confidence}. "
+                f"Must be between 0.0 and 1.0. Using default: {default_value}"
+            )
+            self.gesture_confidence = default_value
+        
+        # Validate gesture_max_hands (must be 1 or 2)
+        if not (1 <= self.gesture_max_hands <= 2):
+            default_value = defaults['gesture_max_hands'].default
+            logger.warning(
+                f"Invalid gesture_max_hands: {self.gesture_max_hands}. "
+                f"Must be 1 or 2. Using default: {default_value}"
+            )
+            self.gesture_max_hands = default_value
+        
+        # Validate scene_confidence (must be between 0.0 and 1.0)
+        if not (0.0 <= self.scene_confidence <= 1.0):
+            default_value = defaults['scene_confidence'].default
+            logger.warning(
+                f"Invalid scene_confidence: {self.scene_confidence}. "
+                f"Must be between 0.0 and 1.0. Using default: {default_value}"
+            )
+            self.scene_confidence = default_value
+        
+        # Validate scene_max_relationships (must be positive)
+        if self.scene_max_relationships < 1:
+            default_value = defaults['scene_max_relationships'].default
+            logger.warning(
+                f"Invalid scene_max_relationships: {self.scene_max_relationships}. "
+                f"Must be at least 1. Using default: {default_value}"
+            )
+            self.scene_max_relationships = default_value
 
     @classmethod
     def from_file(cls, config_path: str) -> 'GuruVisionConfig':

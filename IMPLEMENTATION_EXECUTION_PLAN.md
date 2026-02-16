@@ -173,6 +173,43 @@ This document defines the **step-by-step execution order** for implementing all 
 
 ---
 
+#### Module 4.5: Biometric Consolidation
+**Spec**: `.kiro/specs/biometric-consolidation/`
+**Priority**: HIGH - Consolidates biometric authentication
+**Duration**: 5 days
+
+**Why After Security?**
+- Consolidates biometric authentication into security system
+- Ensures single source of truth for authentication
+- Integrates voice and face biometrics
+
+**Dependencies**:
+- Core Security & Cryptography (provides BiometricAuthenticator)
+
+**Tasks File**: `.kiro/specs/biometric-consolidation/tasks.md`
+
+**Key Deliverables**:
+- Unified BiometricAuthenticator interface
+- VoiceFeatureExtractor interface definition
+- FaceEmbeddingExtractor interface definition
+- Multi-modal biometric fusion
+- Liveness detection integration
+- Template protection
+
+**Integration Points**:
+- Integrates with guru-security-cryptography
+- Defines interfaces for guru-speech-engine
+- Defines interfaces for guruvision-facial-recognition
+
+**Validation**:
+- [ ] All biometric requirements tested
+- [ ] Unit test coverage ≥90%
+- [ ] Voice authentication working
+- [ ] Face authentication working
+- [ ] Multi-modal fusion working
+
+---
+
 #### Module 5: Deployment System
 **Spec**: `.kiro/specs/guru-deployment-system/`
 **Priority**: HIGH - Required for package management
@@ -560,6 +597,7 @@ Create a `IMPLEMENTATION_PROGRESS.md` file to track progress:
 
 ## Phase 2: Security & Authentication
 - [ ] Module 4: Core Security & Cryptography (0/X tasks)
+- [ ] Module 4.5: Biometric Consolidation (0/12 tasks)
 - [ ] Module 5: Deployment System (0/X tasks)
 
 ## Phase 3: Intelligence & Memory
@@ -587,7 +625,7 @@ Create a `IMPLEMENTATION_PROGRESS.md` file to track progress:
 - **Phase 5**: 2 weeks (14 days)
 - **Phase 6**: 1 week (5 days)
 
-**Total**: ~13 weeks (65 working days)
+**Total**: ~13.5 weeks (68 working days)
 
 ## Getting Started
 
