@@ -2,22 +2,35 @@
 
 ## Overview
 
-The Guru Policy Engine is a Python-based governance and access control system that provides policy evaluation, RBAC/ABAC enforcement, conflict resolution, audit logging, and performance optimization for the AGENT_GURU AI operating system.
+The Guru Policy Engine is a Python-based governance and access control system that provides permission management, user confirmation policies, and safety policies for AGENT_GURU's complete laptop control capabilities. This system ensures that Guru and Maya personalities can only execute operations that are safe, authorized, and confirmed by the user when necessary.
+
+**Core Responsibilities**:
+- **Permission Management**: Control which system operations are allowed for each user/session
+- **User Confirmation**: Request user confirmation for sensitive operations (file deletion, system shutdown, etc.)
+- **Safety Policies**: Prevent dangerous operations that could harm the system or data
+- **Audit Logging**: Record all policy decisions for compliance and debugging
+- **Trust-Based Policies**: Integrate with trust scoring for dynamic access control
+
+**Policy Types**:
+1. **Permission Policies**: Define what operations are allowed (e.g., "allow file operations in Documents folder")
+2. **Confirmation Policies**: Define what operations require user confirmation (e.g., "confirm before deleting files")
+3. **Safety Policies**: Define what operations are prohibited (e.g., "deny format system drive")
+4. **Trust Policies**: Define trust score requirements for operations (e.g., "require trust score >0.7 for system settings")
 
 The design follows a modular architecture with clear separation of concerns:
 - **Policy Storage Layer**: SQLite-based persistent storage with efficient indexing
-- **Evaluation Engine**: Rule evaluation using the `business-rules` library with custom extensions
-- **Access Control Layer**: RBAC and ABAC implementations with role hierarchy support
-- **Conflict Resolution**: Priority-based resolution with configurable strategies
+- **Evaluation Engine**: Rule evaluation with custom policy language
+- **Permission Manager**: Grant/revoke/check permissions
+- **Confirmation Handler**: Request and track user confirmations
+- **Safety Engine**: Detect and prevent dangerous operations
 - **Audit System**: Immutable audit trail with efficient querying
-- **Performance Layer**: Multi-level caching and memoization for optimal performance
 
 The system is designed to be:
 - **Fast**: Sub-millisecond policy evaluations through aggressive caching
+- **Safe**: Multiple layers of protection against dangerous operations
 - **Flexible**: Support for complex policies through expressive rule language
 - **Auditable**: Comprehensive logging of all decisions for compliance
-- **Scalable**: Efficient storage and retrieval for thousands of policies
-- **Testable**: Property-based testing ensures correctness across all scenarios
+- **User-Friendly**: Clear confirmation prompts with operation details
 
 ## Integration Points
 
