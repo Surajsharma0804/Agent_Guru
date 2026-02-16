@@ -163,11 +163,6 @@ jobs:
         echo "Auditing Python dependencies..."
         pip-audit -r requirements-cpu.txt --desc || echo "⚠️ pip-audit encountered issues, continuing..."
     
-    - name: Install System Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libdbus-1-dev pkg-config
-    
     - name: Check for Outdated Packages
       run: |
         pip install -r requirements-cpu.txt
