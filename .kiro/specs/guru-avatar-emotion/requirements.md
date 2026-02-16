@@ -178,9 +178,9 @@ Each personality has distinct visual characteristics, emotional expressions, and
 4. **MANDATORY**: THE Avatar_System SHALL use Wav2Lip or similar for lip synchronization
 5. **MANDATORY**: THE Avatar_System SHALL use PyQt5 or Pygame for avatar rendering
 6. **MANDATORY**: THE Avatar_System SHALL provide async/await interfaces for all operations
-7. **MANDATORY**: THE Avatar_System SHALL integrate with guru_vision for emotion detection
-8. **MANDATORY**: THE Avatar_System SHALL integrate with guru_speech for lip sync audio
-9. **MANDATORY**: THE Avatar_System SHALL provide a Python package `guru_avatar` with proper module structure
+7. **MANDATORY**: THE Avatar_System SHALL integrate with Agent_Guru.vision for emotion detection
+8. **MANDATORY**: THE Avatar_System SHALL integrate with Agent_Guru.speech for lip sync audio
+9. **MANDATORY**: THE Avatar_System SHALL provide a Python package within `Agent_Guru.avatar` with proper module structure
 10. **MANDATORY**: THE Avatar_System SHALL use Pydantic for configuration and data validation
 11. **MANDATORY**: THE Avatar_System SHALL provide CLI tools for avatar testing and configuration
 12. **MANDATORY**: THE Avatar_System SHALL include comprehensive docstrings and type hints

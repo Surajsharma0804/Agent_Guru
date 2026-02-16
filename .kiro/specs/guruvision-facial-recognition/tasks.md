@@ -18,8 +18,8 @@ After completing EACH task:
 ## Tasks
 
 - [ ] 1. Set up project structure and dependencies
-  - Create directory structure: guru_vision/{detection,alignment,recognition,liveness,emotion,tracking,database,training,utils}
-  - Create guru_face/{model,database,logs} data directories
+  - Create directory structure: Agent_Guru/vision/{detection,alignment,recognition,liveness,emotion,tracking,database,training,utils}
+  - Create data directories: Agent_Guru/vision/data/{model,database,logs}
   - Create requirements.txt with core dependencies: torch, torchvision, onnx, onnxruntime-gpu, opencv-python, insightface, numpy, scikit-learn
   - Create setup.py or pyproject.toml for package installation
   - Create .gitignore for Python projects

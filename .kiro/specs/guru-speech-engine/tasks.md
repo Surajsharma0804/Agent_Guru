@@ -31,8 +31,9 @@ After completing EACH task:
 ### Phase 1: Project Setup and Core Infrastructure
 
 - [ ] 1. Project Structure and Dependencies
-  - Create `guru_speech/` package directory structure
-  - Create core modules: `__init__.py`, `models.py`, `exceptions.py`, `config.py`
+  - Create subdirectories in `Agent_Guru/speech/`: `audio/`, `stt/`, `tts/`, `emotion/`, `biometric/`, `commands/`, `context/`, `mobile/`
+  - Create core modules in `Agent_Guru/speech/`: `models.py`, `exceptions.py`, `config.py`
+  - Create `tests/` directory structure in `Agent_Guru/speech/tests/`
   - Create `requirements.txt` with dependencies:
     - faster-whisper (STT)
     - noisereduce, librosa (audio processing)
@@ -41,9 +42,11 @@ After completing EACH task:
     - numpy, scipy (audio processing)
     - hypothesis, pytest, pytest-cov, pytest-asyncio (testing)
     - transformers (for emotion detection models)
-  - Create subdirectories: `audio/`, `stt/`, `tts/`, `emotion/`, `biometric/`, `commands/`, `context/`, `mobile/`
-  - Create `tests/` directory structure
+  - Create subdirectories in `Agent_Guru/speech/`: `audio/`, `stt/`, `tts/`, `emotion/`, `biometric/`, `commands/`, `context/`, `mobile/`
+  - Create core modules in `Agent_Guru/speech/`: `models.py`, `exceptions.py`, `config.py`
+  - Create `tests/` directory structure in `Agent_Guru/speech/tests/`
   - _Requirements: 1, 2, 3, 4, 13, 14, 15_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Initialize speech engine project structure with core modules and subdirectories"
 
   - [ ]* 1.1 Write unit tests for project structure validation
     - Test package imports
@@ -71,6 +74,7 @@ After completing EACH task:
     - `SpeechEngineConfig` with all component settings
     - Default configurations for Guru and Maya personalities
   - _Requirements: 1, 2, 3, 4, 13, 14, 15, 16, 17, 18_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add data models, exceptions, and configuration for speech engine"
 
   - [ ]* 2.1 Write unit tests for dataclass validation
     - Test all dataclass constructors
@@ -86,16 +90,17 @@ After completing EACH task:
 ### Phase 2: Audio Processing and Wake Word Detection
 
 - [ ] 3. Audio Input and Basic Processing
-  - Implement `audio/processor.py`:
+  - Implement `Agent_Guru/speech/audio/processor.py`:
     - `AudioProcessor` class with VAD, basic noise reduction, AGC
     - `process_chunk()` method for real-time processing
     - `detect_voice_activity()` method
     - `reduce_noise()` method using noisereduce
-  - Implement `audio/capture.py`:
+  - Implement `Agent_Guru/speech/audio/capture.py`:
     - `AudioCapture` base class
     - `MicrophoneCapture` class using sounddevice
     - `FileCapture` class using soundfile
   - _Requirements: 5 (Audio Processing)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement audio processing with VAD, noise reduction, and audio capture"
 
   - [ ]* 3.1 Write unit tests for basic noise reduction
     - Test with clean audio
@@ -116,7 +121,7 @@ After completing EACH task:
     - _Requirements: 7 (Audio Input Management)_
 
 - [ ] 4. Advanced Noise Cancellation
-  - Implement `audio/noise_cancellation.py`:
+  - Implement `Agent_Guru/speech/audio/noise_cancellation.py`:
     - `AdvancedNoiseCancellation` class
     - `reduce_noise()` method with >20dB reduction
     - `detect_noise_type()` method
@@ -124,6 +129,7 @@ After completing EACH task:
     - `adapt_to_noise()` method for adaptive reduction
     - Support for multiple noise types (white, pink, babble, music, traffic, wind)
   - _Requirements: 15 (Advanced Noise Cancellation)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add advanced noise cancellation with >20dB reduction and adaptive filtering"
 
   - [ ]* 4.1 Write property test for noise reduction effectiveness
     - **Property 18: Advanced Noise Cancellation Effectiveness**
@@ -135,7 +141,7 @@ After completing EACH task:
     - _Requirements: 15.3_
 
 - [ ] 5. Dual Wake Word Detection
-  - Implement `audio/wake_word.py`:
+  - Implement `Agent_Guru/speech/audio/wake_word.py`:
     - `WakeWordDetector` class
     - Support for "Hey Guru" and "Hey Maya" detection
     - `detect()` method returning personality identifier
@@ -143,6 +149,7 @@ After completing EACH task:
     - MFCC-based feature extraction
   - Train or integrate wake word models for both personalities
   - _Requirements: 1 (Dual Personality Wake Word Detection)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement dual wake word detection for Guru and Maya personalities"
 
   - [ ]* 5.1 Write property test for wake word detection
     - **Property 1: Wake Word Detection Latency and Accuracy**
@@ -159,7 +166,7 @@ After completing EACH task:
 ### Phase 3: Speech-to-Text and Voice Biometrics
 
 - [ ] 6. Whisper STT Integration (Desktop)
-  - Implement `stt/whisper_stt.py`:
+  - Implement `Agent_Guru/speech/stt/whisper_stt.py`:
     - `WhisperTranscriber` class using faster-whisper
     - `transcribe()` method for numpy arrays
     - `transcribe_file()` method for files
@@ -167,6 +174,7 @@ After completing EACH task:
     - Real-time factor <0.5
     - Speaker diarization support
   - _Requirements: 2 (Speech-to-Text Transcription - Desktop)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate Whisper STT with multi-language support and speaker diarization"
 
   - [ ]* 6.1 Write property test for transcription completeness
     - **Property 4: STT Transcription Completeness**
@@ -185,15 +193,16 @@ After completing EACH task:
     - **Validates: Requirements 2.5**
 
 - [ ] 7. Mobile STT Integration
-  - Implement `mobile/android_stt.py`:
+  - Implement `Agent_Guru/speech/mobile/android_stt.py`:
     - `AndroidSpeechRecognizer` class using pyjnius
     - Android Speech Recognition API integration
     - On-device and cloud STT support
-  - Implement `mobile/ios_stt.py`:
+  - Implement `Agent_Guru/speech/mobile/ios_stt.py`:
     - `IOSSpeechRecognizer` class using pyobjus
     - Apple Speech Framework integration
     - On-device recognition (iOS 13+)
   - _Requirements: 2 (Speech-to-Text Transcription - Mobile)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add mobile STT integration for Android and iOS platforms"
 
   - [ ]* 7.1 Write unit tests for Android STT
     - Test on-device recognition
@@ -206,13 +215,14 @@ After completing EACH task:
     - _Requirements: 2 (iOS)_
 
 - [ ] 8. Voice Biometric Feature Extraction
-  - Implement `biometric/voice_features.py`:
+  - Implement `Agent_Guru/speech/biometric/voice_features.py`:
     - `VoiceFeatureExtractor` class
     - `extract_features()` method for biometric features
     - `compute_quality_score()` method
     - Integration interface for Security_System
     - Liveness detection (anti-spoofing)
   - _Requirements: 3 (Voice Biometrics)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement voice biometric feature extraction with liveness detection"
 
   - [ ]* 8.1 Write property test for voice biometric confidence
     - **Property 8: Voice Biometric Confidence Bounds**
@@ -227,7 +237,7 @@ After completing EACH task:
 ### Phase 4: Emotion Detection
 
 - [ ] 9. Emotion Detection from Voice
-  - Implement `emotion/emotion_detector.py`:
+  - Implement `Agent_Guru/speech/emotion/emotion_detector.py`:
     - `EmotionDetector` class
     - `detect_emotion()` method for 7 emotion types
     - `detect_emotion_streaming()` for real-time detection
@@ -235,6 +245,7 @@ After completing EACH task:
     - `extract_acoustic_features()` for pitch, energy, tempo, MFCC
     - Complete analysis within 200ms
   - _Requirements: 13 (Emotion Detection from Voice)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add emotion detection from voice with 7 emotion types and real-time analysis"
 
   - [ ]* 9.1 Write property test for emotion detection completeness
     - **Property 15: Emotion Detection Completeness**
@@ -252,7 +263,7 @@ After completing EACH task:
 ### Phase 5: Text-to-Speech with Emotion and Voice Cloning
 
 - [ ] 10. Gender-Specific TTS Engine (Desktop)
-  - Implement `tts/tts_engine.py`:
+  - Implement `Agent_Guru/speech/tts/tts_engine.py`:
     - `TTSEngine` class
     - `synthesize()` method with gender and emotion parameters
     - Male voice configuration for Guru personality
@@ -262,6 +273,7 @@ After completing EACH task:
     - Real-time factor <0.3
   - Integrate TTS library (pyttsx3, coqui-tts, or cloud TTS)
   - _Requirements: 4 (Gender-Specific TTS - Desktop)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement gender-specific TTS engine with emotion support for Guru and Maya"
 
   - [ ]* 10.1 Write property test for personality-voice mapping
     - **Property 9: TTS Personality-Voice Mapping**
@@ -276,15 +288,16 @@ After completing EACH task:
     - **Validates: Requirements 4.7, 4.24**
 
 - [ ] 11. Mobile TTS Integration
-  - Implement `mobile/android_tts.py`:
+  - Implement `Agent_Guru/speech/mobile/android_tts.py`:
     - `AndroidTTS` class using pyjnius
     - Android TextToSpeech integration
     - Male/female voice selection
-  - Implement `mobile/ios_tts.py`:
+  - Implement `Agent_Guru/speech/mobile/ios_tts.py`:
     - `IOSTTS` class using pyobjus
     - AVSpeechSynthesizer integration
     - Male/female voice selection
   - _Requirements: 4 (Gender-Specific TTS - Mobile)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add mobile TTS integration with gender-specific voice selection"
 
   - [ ]* 11.1 Write unit tests for Android TTS
     - Test male voice synthesis
@@ -297,7 +310,7 @@ After completing EACH task:
     - _Requirements: 4 (iOS)_
 
 - [ ] 12. Voice Cloning and Personalization
-  - Implement `tts/voice_cloner.py`:
+  - Implement `Agent_Guru/speech/tts/voice_cloner.py`:
     - `VoiceCloner` class
     - `enroll_voice()` method for training (5+ minutes of audio)
     - `update_voice_model()` for incremental learning
@@ -305,6 +318,7 @@ After completing EACH task:
     - `compute_similarity()` method
     - Target similarity >0.85
   - _Requirements: 14 (Voice Cloning and Personalization)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement voice cloning with personalized voice synthesis"
 
   - [ ]* 12.1 Write property test for voice cloning quality
     - **Property 17: Voice Cloning Quality**
@@ -318,7 +332,7 @@ After completing EACH task:
 ### Phase 6: Streaming Audio and Command Recognition
 
 - [ ] 13. Streaming Audio Manager
-  - Implement `audio/streaming.py`:
+  - Implement `Agent_Guru/speech/audio/streaming.py`:
     - `StreamingAudioManager` class
     - `stream_input()` method for input streaming
     - `stream_output()` method for output streaming
@@ -327,6 +341,7 @@ After completing EACH task:
     - Support for PCM, Opus, AAC codecs
     - Target <500ms end-to-end latency
   - _Requirements: 16 (Streaming Audio Processing)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add streaming audio manager with low-latency processing"
 
   - [ ]* 13.1 Write property test for streaming latency
     - **Property 19: Streaming Audio Latency**
@@ -339,7 +354,7 @@ After completing EACH task:
     - _Requirements: 16.7_
 
 - [ ] 14. Command Recognition and Parsing
-  - Implement `commands/command_parser.py`:
+  - Implement `Agent_Guru/speech/commands/command_parser.py`:
     - `CommandParser` class
     - `interpret()` method with pattern matching
     - `register_command()` for custom commands
@@ -353,6 +368,7 @@ After completing EACH task:
     - Entity extraction (dates, numbers, names)
     - Command chaining support
   - _Requirements: 6 (Command Recognition), 17 (Voice Commands)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement command recognition and parsing with system control support"
 
   - [ ]* 14.1 Write property test for command parsing completeness
     - **Property 14: Command Parsing Completeness**
@@ -375,7 +391,7 @@ After completing EACH task:
 ### Phase 7: Conversation Context Management
 
 - [ ] 15. Conversation Context Manager
-  - Implement `context/context_manager.py`:
+  - Implement `Agent_Guru/speech/context/context_manager.py`:
     - `ConversationContextManager` class
     - `create_context()` method
     - `add_turn()` method for conversation turns
@@ -385,6 +401,7 @@ After completing EACH task:
     - `extract_preferences()` method
     - Maintain last 10 turns in memory
   - _Requirements: 18 (Conversation Context Management)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add conversation context manager with reference resolution"
 
   - [ ]* 15.1 Write property test for context persistence
     - **Property 22: Conversation Context Persistence**
@@ -403,13 +420,14 @@ After completing EACH task:
 ### Phase 8: Multi-Language Support and Model Router Integration
 
 - [ ] 16. Multi-Language Support
-  - Implement `stt/language_detector.py`:
+  - Implement `Agent_Guru/speech/stt/language_detector.py`:
     - `LanguageDetector` class
     - `detect_language()` method for automatic detection
     - Support for 8+ languages
     - Code-switching support
   - Update STT and TTS engines for language switching
   - _Requirements: 19 (Multi-Language Support)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add multi-language support with automatic language detection"
 
   - [ ]* 16.1 Write property test for language detection and switching
     - **Property 23: Language Detection and Switching**
@@ -421,13 +439,14 @@ After completing EACH task:
     - _Requirements: 19.4_
 
 - [ ] 17. Model Router Integration
-  - Implement `model_router_client.py`:
+  - Implement `Agent_Guru/speech/model_router_client.py`:
     - `ModelRouterClient` class
     - `select_stt_model()` method
     - `select_tts_model()` method
     - Local/cloud model selection logic
     - Fallback handling
   - _Requirements: 20 (Model Router Integration)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate model router for intelligent local/cloud model selection"
 
   - [ ]* 17.1 Write property test for model router fallback
     - **Property 24: Model Router Fallback**
@@ -442,7 +461,7 @@ After completing EACH task:
 ### Phase 9: Background Service and Main Engine
 
 - [ ] 18. Background Service Manager
-  - Implement `background_service.py`:
+  - Implement `Agent_Guru/speech/background_service.py`:
     - `BackgroundServiceManager` class
     - Sleep/wake cycle management
     - `enter_sleep_mode()` method (<5% CPU, <100MB RAM)
@@ -453,11 +472,12 @@ After completing EACH task:
       - Android: ForegroundService with notification
       - iOS: Background audio mode
       - Desktop: System tray service
-  - Implement `battery_monitor.py`:
+  - Implement `Agent_Guru/speech/battery_monitor.py`:
     - `BatteryMonitor` class
     - Track battery usage per mode
     - Low battery handling
   - _Requirements: 1.5 (Always-On Background Service)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement background service manager with sleep/wake cycles and battery optimization"
 
   - [ ]* 18.1 Write property test for state transition latency
     - **Property 27: State Transition Latency**
@@ -475,7 +495,7 @@ After completing EACH task:
     - _Requirements: 1.5 (Battery Optimization)_
 
 - [ ] 19. Main Speech Engine Facade
-  - Implement `engine.py`:
+  - Implement `Agent_Guru/speech/engine.py`:
     - `SpeechEngine` class (main facade)
     - `initialize()` method loading all components
     - `process_voice_input()` end-to-end pipeline
@@ -488,6 +508,7 @@ After completing EACH task:
     - Error handling with context preservation
     - Logging at INFO level
   - _Requirements: All speech engine requirements_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Complete main speech engine facade with end-to-end voice processing pipeline"
 
   - [ ]* 19.1 Write integration tests for end-to-end pipeline
     - Test complete voice interaction flow
@@ -508,6 +529,7 @@ After completing EACH task:
   - Add biometric enrollment workflow
   - Test end-to-end authentication flow
   - _Requirements: 21.1 (Integration with Agent_Guru Components)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate with security system for voice biometric authentication"
 
   - [ ]* 20.1 Write property test for component integration
     - **Property 25: Component Integration Completeness**
@@ -523,6 +545,7 @@ After completing EACH task:
   - Implement command execution callbacks
   - Add status update notifications
   - _Requirements: 21.2 (Integration with Agent_Guru Components)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate with agent orchestration for command routing"
 
   - [ ]* 21.1 Write integration tests with Agent_Orchestration
     - Test command routing
@@ -535,6 +558,7 @@ After completing EACH task:
   - Store conversation history
   - Extract and store user preferences
   - _Requirements: 21.3 (Integration with Agent_Guru Components)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate with memory system for emotion and preference learning"
 
   - [ ]* 22.1 Write integration tests with Memory_System
     - Test emotion storage
@@ -547,6 +571,7 @@ After completing EACH task:
   - Implement task creation commands
   - Add verbal confirmation
   - _Requirements: 21.1 (Integration with Agent_Guru Components)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate with goal manager for voice-driven task creation"
 
   - [ ]* 23.1 Write integration tests with Goal_Manager
     - Test task creation via voice
@@ -558,6 +583,7 @@ After completing EACH task:
   - Implement system control operations
   - Add cross-platform audio handling
   - _Requirements: 21.5 (Integration with Agent_Guru Components)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate with platform integration for audio device access and system control"
 
   - [ ]* 24.1 Write integration tests with Platform_Integration
     - Test audio device access
@@ -576,6 +602,7 @@ After completing EACH task:
   - Add accuracy regression tests
   - Achieve minimum 95% code coverage
   - _Requirements: 22 (Comprehensive Testing Requirements)_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "test(speech): Add comprehensive test suite with property-based and performance tests"
 
   - [ ]* 26.1 Write stress tests
     - Test 24-hour continuous operation
@@ -614,6 +641,7 @@ After completing EACH task:
     - Multi-language support guide
     - Troubleshooting guide
   - _Requirements: Documentation requirements_
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "docs(speech): Add example scripts and comprehensive documentation"
 
 - [ ] 28. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.

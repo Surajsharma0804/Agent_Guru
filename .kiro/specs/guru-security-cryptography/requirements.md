@@ -20,8 +20,8 @@ The security system is central to the AGENT_GURU onboarding experience, where us
 - **Trust_Score**: Numerical value representing confidence in an identity (0.0 to 1.0)
 - **Trust_Graph**: Network of trust relationships between identities
 - **Security_Event**: Any operation that affects system security (authentication, key generation, etc.)
-- **GuruVision**: Face recognition system integration
-- **Guru_Speech**: Voice biometric system integration
+- **GuruVision**: Face recognition system integration (Agent_Guru.vision)
+- **Guru_Speech**: Voice biometric system integration (Agent_Guru.speech)
 
 ## Requirements
 
@@ -81,7 +81,7 @@ The security system is central to the AGENT_GURU onboarding experience, where us
 
 #### Acceptance Criteria
 
-1. WHEN voice authentication is requested, THE Biometric_Authenticator SHALL integrate with guru_speech to capture and analyze voice features
+1. WHEN voice authentication is requested, THE Biometric_Authenticator SHALL integrate with Agent_Guru.speech to capture and analyze voice features
 2. WHEN a voice sample is captured, THE Biometric_Authenticator SHALL verify the identity within 500ms
 3. WHEN voice verification succeeds, THE Biometric_Authenticator SHALL return a confidence score between 0.0 and 1.0
 4. WHEN voice verification fails, THE Biometric_Authenticator SHALL return an error with the reason for failure
@@ -95,7 +95,7 @@ The security system is central to the AGENT_GURU onboarding experience, where us
 
 1. **Fingerprint Authentication**: WHEN configured, THE Biometric_Authenticator SHALL verify user identity using fingerprint sensor
 2. **Face Authentication**: WHEN configured, THE Biometric_Authenticator SHALL verify user identity using facial recognition (via GuruVision)
-3. **Voice Authentication**: WHEN configured, THE Biometric_Authenticator SHALL verify user identity using voice biometrics (via guru_speech)
+3. **Voice Authentication**: WHEN configured, THE Biometric_Authenticator SHALL verify user identity using voice biometrics (via Agent_Guru.speech)
 4. **Passphrase Authentication**: WHEN configured, THE Biometric_Authenticator SHALL verify user identity using secure passphrase
 5. WHEN multiple biometric factors are available, THE Biometric_Authenticator SHALL compute a fused confidence score
 6. WHEN computing fused scores, THE Biometric_Authenticator SHALL weight each factor based on its reliability
@@ -372,8 +372,8 @@ The security system is central to the AGENT_GURU onboarding experience, where us
 3. **MANDATORY**: THE Security_System SHALL use cryptography library for Python-native operations
 4. **MANDATORY**: THE Security_System SHALL use SQLite or PostgreSQL for audit log storage
 5. **MANDATORY**: THE Security_System SHALL provide async/await interfaces for all operations
-6. **MANDATORY**: THE Security_System SHALL integrate with guru_vision for face biometric authentication
-7. **MANDATORY**: THE Security_System SHALL integrate with guru_speech for voice biometric authentication
+6. **MANDATORY**: THE Security_System SHALL integrate with Agent_Guru.vision for face biometric authentication
+7. **MANDATORY**: THE Security_System SHALL integrate with Agent_Guru.speech for voice biometric authentication
 8. **MANDATORY**: THE Security_System SHALL provide a Python package `guru_security` with proper module structure
 9. **MANDATORY**: THE Security_System SHALL use Pydantic for configuration and data validation
 10. **MANDATORY**: THE Security_System SHALL provide CLI tools for identity management and security operations

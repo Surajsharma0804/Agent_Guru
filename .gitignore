@@ -122,16 +122,27 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# GuruVision specific
-guru_face/model/*.pth
-guru_face/model/*.onnx
-guru_face/database/*.json
-guru_face/logs/*.log
+# Agent_Guru specific data directories
+Agent_Guru/vision/data/model/*.pth
+Agent_Guru/vision/data/model/*.onnx
+Agent_Guru/vision/data/database/*.json
+Agent_Guru/vision/data/logs/*.log
+Agent_Guru/speech/data/models/*.bin
+Agent_Guru/speech/data/models/*.pt
+Agent_Guru/speech/data/logs/*.log
+Agent_Guru/avatar/data/*.pkl
+Agent_Guru/avatar/data/*.pth
 dataset/
 aligned_dataset/
 *.mp4
 *.avi
 *.mov
+
+# Legacy paths (deprecated - use Agent_Guru structure)
+guru_face/
+guru_vision/
+guru_speech/
+guru_avatar/
 
 # Large model files
 models/whisper/*.bin

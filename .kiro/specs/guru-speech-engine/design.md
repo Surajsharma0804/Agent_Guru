@@ -1847,7 +1847,7 @@ class CommandInterpretationError(GuruSpeechError):
 ```python
 import logging
 
-logger = logging.getLogger("guru_speech")
+logger = logging.getLogger("Agent_Guru.speech")
 
 # Log levels:
 # - DEBUG: Detailed processing information (audio characteristics, model parameters)

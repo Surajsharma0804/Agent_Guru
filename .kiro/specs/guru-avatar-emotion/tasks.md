@@ -25,8 +25,7 @@ After completing EACH task:
 ### Phase 1: Project Setup and Data Models
 
 - [ ] **Task 1: Project Structure and Dependencies**
-  - Create `guru_avatar/` package directory structure
-  - Create subpackages: `emotion/`, `lip_sync/`, `personality/`, `rendering/`, `models/`
+  - Create subdirectories in `Agent_Guru/avatar/`: `emotion/`, `lip_sync/`, `personality/`, `rendering/`, `models/`
   - Create `requirements.txt` with dependencies:
     - opencv-python (video processing)
     - deepface or FER (emotion recognition)
@@ -34,8 +33,8 @@ After completing EACH task:
     - PyQt5 or pygame (rendering)
     - numpy, scipy (processing)
     - hypothesis, pytest, pytest-cov (testing)
-  - Create `tests/` directory structure
-  - Create `assets/` directory for avatar models
+  - Create `Agent_Guru/avatar/tests/` directory structure
+  - Create `Agent_Guru/avatar/assets/` directory for avatar models
   - _Requirements: Req 11 (Python Implementation)_
   - **Tests Required**: None (setup task)
   - **GitHub Push**: ✅ Required after completion
@@ -97,9 +96,9 @@ After completing EACH task:
     - Performance tests for real-time processing (<100ms)
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 5: Integration with guru_speech**
+- [ ] **Task 5: Integration with Agent_Guru.speech**
   - Implement audio timing interface
-  - Receive audio from guru_speech TTS engine
+  - Receive audio from Agent_Guru.speech TTS engine
   - Coordinate lip sync with speech playback
   - Handle personality-specific voices (Guru male, Maya female)
   - _Requirements: Req 6 (Integration with Speech System)_
@@ -281,8 +280,8 @@ After completing EACH task:
 
 ### Phase 10: Integration with Other Components
 
-- [ ] **Task 16: guru_speech Integration**
-  - Integrate with guru_speech for audio input
+- [ ] **Task 16: Agent_Guru.speech Integration**
+  - Integrate with Agent_Guru.speech for audio input
   - Coordinate personality switching with wake words
   - Test end-to-end speech-to-avatar flow
   - _Requirements: Integration requirements_
@@ -292,13 +291,13 @@ After completing EACH task:
     - Unit tests for audio synchronization
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 17: guru_vision Integration**
-  - Integrate with guru_vision for user emotion detection
-  - Use face detection from guru_vision
+- [ ] **Task 17: Agent_Guru.vision Integration**
+  - Integrate with Agent_Guru.vision for user emotion detection
+  - Use face detection from Agent_Guru.vision
   - Test end-to-end emotion recognition flow
   - _Requirements: Integration requirements_
   - **Tests Required**:
-    - Integration tests with guru_vision
+    - Integration tests with Agent_Guru.vision
     - End-to-end tests for emotion detection
   - **GitHub Push**: ✅ Required after completion
 
@@ -323,8 +322,8 @@ After completing EACH task:
 ### Integration Tests
 - End-to-end avatar pipeline
 - Personality switching
-- guru_speech integration
-- guru_vision integration
+- Agent_Guru.speech integration
+- Agent_Guru.vision integration
 - Performance benchmarks
 
 ### Coverage Goals
@@ -344,8 +343,8 @@ After completing EACH task:
 ## Dependencies
 
 This component depends on:
-- guru_speech (for audio input and personality coordination)
-- guru_vision (for user emotion detection)
+- Agent_Guru.speech (for audio input and personality coordination)
+- Agent_Guru.vision (for user emotion detection)
 
 This component is used by:
 - Main AGENT_GURU application

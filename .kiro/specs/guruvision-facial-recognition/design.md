@@ -320,7 +320,7 @@ def train_arcface_model(aligned_dataset_dir: str, config: TrainingConfig) -> str
     # 2. Initialize ResNet-50 backbone with ArcFace loss
     # 3. Create data loaders from aligned dataset
     # 4. Train for num_epochs with specified hyperparameters
-    # 5. Save PyTorch model as guru_face_model.pth
+    # 5. Save PyTorch model as Agent_Guru_vision_model.pth
     # 6. Return model path
     
 def export_to_onnx(pytorch_model_path: str, output_path: str) -> bool:
@@ -329,7 +329,7 @@ def export_to_onnx(pytorch_model_path: str, output_path: str) -> bool:
     # 2. Create dummy input (1, 3, 112, 112)
     # 3. Export using torch.onnx.export
     # 4. Validate ONNX model produces identical embeddings
-    # 5. Save as guru_face_model.onnx
+    # 5. Save as Agent_Guru_vision_model.onnx
 ```
 
 **Training Configuration**:
@@ -531,7 +531,7 @@ class Track:
 
 ```python
 class FaceDatabase:
-    def __init__(self, db_path: str = "guru_face/database/identities.json"):
+    def __init__(self, db_path: str = "Agent_Guru/vision/data/database/identities.json"):
         """Initialize database, load from disk"""
         
     def add_identity(self, name: str, embeddings: List[np.ndarray], 
@@ -600,8 +600,8 @@ class Embedding:
 @dataclass
 class GuruVisionConfig:
     # Model paths
-    onnx_model_path: str = "guru_face/model/guru_face_model.onnx"
-    database_path: str = "guru_face/database/identities.json"
+    onnx_model_path: str = "Agent_Guru/vision/data/model/vision_model.onnx"
+    database_path: str = "Agent_Guru/vision/data/database/identities.json"
     
     # Recognition settings
     recognition_threshold: float = 0.6
@@ -623,7 +623,7 @@ class GuruVisionConfig:
     
     # Logging
     log_level: str = "INFO"
-    log_file: str = "guru_face/logs/guruvision.log"
+    log_file: str = "Agent_Guru/vision/data/logs/guruvision.log"
     log_max_size_mb: int = 100
     
     # Camera settings
@@ -727,7 +727,7 @@ class GuruVisionConfig:
    - Optimizer: SGD with momentum 0.9
    - Loss: ArcFace (additive angular margin)
 6. Train model with validation monitoring
-7. Save best checkpoint as `guru_face_model.pth`
+7. Save best checkpoint as `Agent_Guru_vision_model.pth`
 
 **Output**: Trained PyTorch model
 
@@ -741,7 +741,7 @@ class GuruVisionConfig:
 5. Load ONNX model with ONNX Runtime
 6. Validate: run same inputs through PyTorch and ONNX
 7. Assert embeddings match within 0.001 tolerance
-8. Save as `guru_face_model.onnx`
+8. Save as `Agent_Guru_vision_model.onnx`
 
 **Output**: ONNX model ready for production inference
 
@@ -1230,7 +1230,7 @@ The system uses the official InsightFace repository for core face recognition co
 import onnxruntime as ort
 
 session = ort.InferenceSession(
-    "guru_face_model.onnx",
+    "Agent_Guru/vision/data/model/vision_model.onnx",
     providers=['CPUExecutionProvider']
 )
 ```
@@ -1238,7 +1238,7 @@ session = ort.InferenceSession(
 **GPU Inference** (CUDA):
 ```python
 session = ort.InferenceSession(
-    "guru_face_model.onnx",
+    "Agent_Guru/vision/data/model/vision_model.onnx",
     providers=['CUDAExecutionProvider', 'CPUExecutionProvider']
 )
 ```
@@ -1384,7 +1384,7 @@ python -c "import torch; print(torch.cuda.is_available())"
 ### Directory Structure
 
 ```
-guru_vision/
+Agent_Guru/vision/
 ├── __init__.py
 ├── engine.py              # Main GuruVisionEngine class
 ├── config.py              # Configuration management
@@ -1419,10 +1419,10 @@ guru_vision/
     ├── logging.py         # Logging utilities
     └── preprocessing.py   # Image preprocessing
 
-guru_face/                 # Data directory
+Agent_Guru/vision/data/    # Data directory
 ├── model/
-│   ├── guru_face_model.pth
-│   └── guru_face_model.onnx
+│   ├── vision_model.pth
+│   └── vision_model.onnx
 ├── database/
 │   └── identities.json
 └── logs/

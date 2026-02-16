@@ -97,7 +97,7 @@ After completing EACH task:
 - [ ] **Task 5: Voice Biometric Authentication**
   - Implement `biometric/voice.py`:
     - `VoiceBiometricAuthenticator` class
-    - Integration with guru_speech for voice features
+    - Integration with Agent_Guru.speech for voice features
     - `authenticate()` method (<500ms)
     - `enroll()` method for voice enrollment
     - Confidence score calculation (0.0-1.0)
@@ -370,7 +370,7 @@ After completing EACH task:
 ### Phase 7: Integration with Other Components
 
 - [ ] **Task 22: GuruVision Integration**
-  - Integrate with guru_vision for face biometric authentication
+  - Integrate with Agent_Guru.vision for face biometric authentication
   - Test end-to-end face authentication flow
   - _Requirements: Biometric Consolidation_
   - **Tests Required**:
@@ -379,11 +379,11 @@ After completing EACH task:
   - **GitHub Push**: ✅ Required after completion
 
 - [ ] **Task 23: Guru Speech Integration**
-  - Integrate with guru_speech for voice biometric authentication
+  - Integrate with Agent_Guru.speech for voice biometric authentication
   - Test end-to-end voice authentication flow
   - _Requirements: Biometric Consolidation_
   - **Tests Required**:
-    - Integration tests with guru_speech
+    - Integration tests with Agent_Guru.speech
     - End-to-end authentication tests
   - **GitHub Push**: ✅ Required after completion
 
@@ -444,9 +444,9 @@ After completing EACH task:
 ## Dependencies
 
 This component depends on:
-- guru_vision (for face biometric authentication)
-- guru_speech (for voice biometric authentication)
-- guru_llm (for LLM configuration)
+- Agent_Guru.vision (for face biometric authentication)
+- Agent_Guru.speech (for voice biometric authentication)
+- Agent_Guru.llm (for LLM configuration)
 
 This component is used by:
 - All AGENT_GURU components (authentication)
