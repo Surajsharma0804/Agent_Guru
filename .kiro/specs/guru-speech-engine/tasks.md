@@ -165,7 +165,7 @@ After completing EACH task:
 
 ### Phase 3: Speech-to-Text and Voice Biometrics
 
-- [~] 6. Whisper STT Integration (Desktop)
+- [x] 6. Whisper STT Integration (Desktop)
   - Implement `Agent_Guru/speech/stt/whisper_stt.py`:
     - `WhisperTranscriber` class using faster-whisper
     - `transcribe()` method for numpy arrays
@@ -176,19 +176,19 @@ After completing EACH task:
   - _Requirements: 2 (Speech-to-Text Transcription - Desktop)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate Whisper STT with multi-language support and speaker diarization"
 
-  - [~] 6.1 Write property test for transcription completeness
+  - [x] 6.1 Write property test for transcription completeness
     - **Property 4: STT Transcription Completeness**
     - **Validates: Requirements 2.1, 2.14**
 
-  - [~] 6.2 Write property test for STT performance
+  - [x] 6.2 Write property test for STT performance
     - **Property 5: STT Real-Time Performance**
     - **Validates: Requirements 2.2, 2.11**
 
-  - [~] 6.3 Write property test for output format
+  - [x] 6.3 Write property test for output format
     - **Property 6: STT Output Format**
     - **Validates: Requirements 2.3**
 
-  - [~] 6.4 Write property test for speaker diarization
+  - [x] 6.4 Write property test for speaker diarization
     - **Property 7: Speaker Diarization Completeness**
     - **Validates: Requirements 2.5**
 
