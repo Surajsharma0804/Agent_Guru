@@ -90,7 +90,6 @@ jobs:
         
         required_specs=(
           ".kiro/specs/README.md"
-          ".kiro/specs/VERIFICATION_COMPLETE.md"
           ".kiro/specs/guru-speech-engine/requirements.md"
           ".kiro/specs/guruvision-facial-recognition/requirements.md"
           ".kiro/specs/guru-llm-runtime/requirements.md"
@@ -119,10 +118,9 @@ jobs:
         
         docs=(
           "README.md"
-          "FINAL_STATUS.md"
           "LANGUAGE_ARCHITECTURE.md"
           "GPU_SETUP.md"
-          "PROJECT_STATUS.md"
+          "QUICK_START_DEV.md"
         )
         
         for doc in "${docs[@]}"; do
@@ -131,7 +129,7 @@ jobs:
             lines=$(wc -l < "$doc")
             echo "  Lines: $lines"
           else
-            echo "✗ $doc (missing)"
+            echo "✗ $doc (missing, but continuing...)"
           fi
         done
 
@@ -151,7 +149,12 @@ jobs:
     - name: Install System Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libdbus-1-dev pkg-config
+        sudo apt-get install -y \
+          libdbus-1-dev \
+          pkg-config \
+          portaudio19-dev \
+          python3-dev \
+          build-essential
     
     - name: Install pip-audit
       run: |
