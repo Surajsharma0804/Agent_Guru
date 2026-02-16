@@ -168,23 +168,40 @@ class SystemController:
 
 #### Platform-Specific Implementation
 ```python
-# Windows
+# Desktop - Windows
 class WindowsApplicationController:
     def open_app(self, app_name: str):
-        # Use pyautogui + win32api
         subprocess.Popen(["start", app_name], shell=True)
 
-# macOS
+# Desktop - macOS
 class MacOSApplicationController:
     def open_app(self, app_name: str):
-        # Use AppleScript
         subprocess.run(["open", "-a", app_name])
 
-# Linux
+# Desktop - Linux
 class LinuxApplicationController:
     def open_app(self, app_name: str):
-        # Use xdg-open
         subprocess.run(["xdg-open", app_name])
+
+# Mobile - Android
+class AndroidApplicationController:
+    def open_app(self, app_name: str):
+        # Use Android Debug Bridge (ADB) or native Android APIs
+        from android.intent import Intent
+        intent = Intent()
+        intent.setAction(Intent.ACTION_MAIN)
+        intent.setPackage(app_name)
+        startActivity(intent)
+
+# Mobile - iOS
+class IOSApplicationController:
+    def open_app(self, app_name: str):
+        # Use iOS URL schemes or native iOS APIs
+        import objc
+        from Foundation import NSURL
+        from UIKit import UIApplication
+        url = NSURL.URLWithString_(f"{app_name}://")
+        UIApplication.sharedApplication().openURL_(url)
 ```
 
 ### 5. Memory System
@@ -465,11 +482,25 @@ class AgentGuru:
 
 #### Installer Structure
 ```
-AGENT_GURU_Installer/
-├── bin/
-│   ├── agent_guru.exe (Windows)
-│   ├── agent_guru (macOS/Linux)
-│   └── dependencies/
+AGENT_GURU_Installers/
+├── desktop/
+│   ├── windows/
+│   │   ├── agent_guru.msi
+│   │   └── setup.exe
+│   ├── macos/
+│   │   ├── agent_guru.dmg
+│   │   └── agent_guru.pkg
+│   └── linux/
+│       ├── agent_guru.AppImage
+│       ├── agent_guru.deb
+│       └── agent_guru.rpm
+├── mobile/
+│   ├── android/
+│   │   ├── agent_guru.apk
+│   │   └── agent_guru.aab (Play Store)
+│   └── ios/
+│       ├── agent_guru.ipa
+│       └── App Store submission
 ├── models/
 │   ├── wake_word/
 │   ├── whisper/
@@ -477,11 +508,10 @@ AGENT_GURU_Installer/
 ├── config/
 │   ├── default_config.yaml
 │   └── llm_config.yaml
-├── resources/
-│   ├── sounds/
-│   ├── icons/
-│   └── avatars/
-└── install.sh / install.bat
+└── resources/
+    ├── sounds/
+    ├── icons/
+    └── avatars/
 ```
 
 #### Installation Steps
