@@ -2,15 +2,43 @@
 
 ## Overview
 
-The Agent Orchestration System is a Python-based multi-agent coordination framework that enables autonomous AI agents to work together efficiently. The system provides event-driven publish-subscribe messaging, intelligent task decomposition and delegation, automatic conflict detection and resolution, and comprehensive performance monitoring.
+The Agent Orchestration System is the central coordination layer for AGENT_GURU that transforms voice commands into executed actions. This system bridges the gap between what users say ("Hey Guru, open YouTube and play music") and what the system does (opens browser, navigates to YouTube, clicks play).
+
+**Core Responsibilities**:
+1. **Voice Command Decomposition**: Break complex voice commands into discrete sub-tasks
+2. **Multi-Step Coordination**: Execute tasks in the correct order with dependency management
+3. **Component Integration**: Coordinate speech, LLM, platform, policy, and memory systems
+4. **Error Recovery**: Handle failures gracefully with fallback strategies
+5. **Personality Coordination**: Maintain context for Guru and Maya personalities
+
+**Voice Command Execution Flow**:
+```
+User: "Hey Guru, open YouTube and play music"
+        ↓
+1. Speech Engine: Transcribe audio → "open YouTube and play music"
+2. Agent Orchestration: Decompose command
+   - Sub-task 1: Open YouTube
+   - Sub-task 2: Play music
+3. Policy Engine: Check permissions for each sub-task
+4. Platform Integration: Execute sub-tasks
+   - Open browser
+   - Navigate to YouTube
+   - Simulate play button click
+5. Memory System: Store interaction
+6. Response: "YouTube opened and playing music"
+```
+
+**Multi-Step Operation Examples**:
+- "Send a message to John saying I'll be late" → Open messaging app + Find contact + Type message + Send
+- "Create a document called Meeting Notes and write the agenda" → Open text editor + Create file + Type content + Save
+- "Search for Python tutorials and open the first result" → Open browser + Search + Click first link
+- "Take a screenshot and email it to Sarah" → Capture screen + Open email + Attach file + Send
 
 The design leverages industry-standard Python frameworks:
 - **LangChain/LangGraph**: For agent coordination patterns and workflow orchestration
 - **asyncio**: For concurrent task execution and non-blocking I/O
 - **Pydantic**: For data validation and settings management
 - **SQLite**: For persistent storage of audit trails and metrics
-
-This refactoring from Rust to Python prioritizes developer productivity, AI/ML ecosystem integration, and maintainability while maintaining production-grade quality standards.
 
 ## Architecture
 
