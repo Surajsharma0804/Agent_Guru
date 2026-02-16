@@ -17,7 +17,7 @@ After completing EACH task:
 
 ## Tasks
 
-- [x] 1. Repository audit and system mapping
+- [ ] 1. Repository audit and system mapping
   - Analyze and document all Rust modules in `guru/` directory
   - Analyze and document all Python integration points
   - Analyze and document C++ bindings (Whisper, Llama, TTS)
@@ -26,112 +26,112 @@ After completing EACH task:
   - Create architecture diagram showing all components and dependencies
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.7, 1.8_
 
-- [x] 2. Error and warning elimination
-  - [x] 2.1 Fix all Rust compilation errors and warnings
+- [ ] 2. Error and warning elimination
+  - [ ] 2.1 Fix all Rust compilation errors and warnings
     - Run `cargo build --all-features` and fix all errors
     - Run `cargo clippy --all-features` and fix all warnings
     - Ensure zero warnings with `RUSTFLAGS="-D warnings"`
     - _Requirements: 2.1, 2.2_
   
-  - [x] 2.2 Fix all Python import and runtime errors
+  - [ ] 2.2 Fix all Python import and runtime errors
     - Test all Python module imports
     - Fix any missing dependencies or import errors
     - Run pylint and fix critical issues
     - _Requirements: 2.3, 2.4_
   
-  - [x] 2.3 Fix all C++ binding compilation issues
+  - [ ] 2.3 Fix all C++ binding compilation issues
     - Verify Whisper.cpp bindings compile cleanly
     - Verify any other C++ integrations compile without warnings
     - _Requirements: 2.5, 2.6_
   
-  - [x] 2.4 Run static analysis tools
+  - [ ] 2.4 Run static analysis tools
     - Run `cargo audit` for security vulnerabilities
     - Run clippy with strict lints
     - Document any remaining issues with justification
     - _Requirements: 2.7_
 
-- [x] 3. Dead code and file cleanup
-  - [x] 3.1 Remove unreachable code in Rust modules
+- [ ] 3. Dead code and file cleanup
+  - [ ] 3.1 Remove unreachable code in Rust modules
     - Use `cargo-udeps` to find unused dependencies
     - Remove unused dependencies from Cargo.toml
     - Search for unreachable code using code coverage tools
     - _Requirements: 3.1, 3.4_
   
-  - [x] 3.2 Remove unreachable code in Python modules
+  - [ ] 3.2 Remove unreachable code in Python modules
     - Identify and remove unused Python modules
     - Remove unused imports
     - _Requirements: 3.2, 3.5_
   
-  - [x] 3.3 Remove duplicate files and commented code
+  - [ ] 3.3 Remove duplicate files and commented code
     - Search for duplicate file implementations
     - Remove commented-out code blocks exceeding 10 lines
     - Clean up temporary files and build artifacts
     - _Requirements: 3.3, 3.6_
 
-- [x] 4. Naming convention standardization
-  - [x] 4.1 Standardize Rust naming conventions
+- [ ] 4. Naming convention standardization
+  - [ ] 4.1 Standardize Rust naming conventions
     - Verify all functions and variables use snake_case
     - Verify all structs and enums use PascalCase
     - Run clippy naming lints
     - _Requirements: 4.1, 4.2_
   
-  - [x] 4.2 Standardize Python naming conventions
+  - [ ] 4.2 Standardize Python naming conventions
     - Verify all functions and variables use snake_case
     - Verify all classes use PascalCase
     - Run pylint naming checks
     - _Requirements: 4.3, 4.4_
   
-  - [x] 4.3 Ensure consistent terminology across codebase
+  - [ ] 4.3 Ensure consistent terminology across codebase
     - Create glossary of standard terms (STT, TTS, LLM, etc.)
     - Update code to use consistent terminology
     - Add comments for non-obvious naming choices
     - _Requirements: 4.5, 4.6, 4.7, 4.8_
 
-- [x] 5. Checkpoint - Ensure clean build
+- [ ] 5. Checkpoint - Ensure clean build
   - Verify `cargo build --release --all-features` succeeds with zero warnings
   - Verify all Python modules import successfully
   - Verify code passes all linting checks
   - Ask the user if questions arise
 
-- [x] 6. Wake word detection integration
-  - [x] 6.1 Implement wake word engine with MFCC features
+- [ ] 6. Wake word detection integration
+  - [ ] 6.1 Implement wake word engine with MFCC features
     - Verify `MFCCWakeWordEngine` implementation in `guru/voice/wake/`
     - Ensure MFCC feature extraction is working correctly
     - Implement confidence threshold filtering
     - _Requirements: 5.1, 5.6, 5.7_
   
-  - [x] 6.2 Optimize wake word performance
+  - [ ] 6.2 Optimize wake word performance
     - Implement lock-free ring buffer for audio data
     - Optimize CPU usage to stay under 10%
     - Optimize memory usage to stay under 50MB
     - Measure and optimize detection latency to ≤50ms
     - _Requirements: 5.2, 5.3, 5.5_
   
-  - [x] 6.3 Write property test for wake word detection latency
+  - [ ] 6.3 Write property test for wake word detection latency
     - **Property 1: Wake word detection latency**
     - **Validates: Requirements 5.1, 14.1**
   
-  - [x] 6.4 Write property test for wake word detection with noise
+  - [ ] 6.4 Write property test for wake word detection with noise
     - **Property 2: Wake word detection with noise**
     - **Validates: Requirements 5.4**
   
-  - [x] 6.5 Write property test for wake word feedback latency
+  - [ ] 6.5 Write property test for wake word feedback latency
     - **Property 3: Wake word feedback latency**
     - **Validates: Requirements 5.5**
   
-  - [x] 6.6 Write property test for multiple wake word support
+  - [ ] 6.6 Write property test for multiple wake word support
     - **Property 4: Multiple wake word support**
     - **Validates: Requirements 5.8**
 
-- [x] 7. Speech-to-text integration
-  - [x] 7.1 Integrate Whisper.cpp for STT
+- [ ] 7. Speech-to-text integration
+  - [ ] 7.1 Integrate Whisper.cpp for STT
     - Verify Whisper model loading (base model ~140MB)
     - Implement transcription interface in `guru/voice/transcription/`
     - Add VAD (Voice Activity Detection) to skip silent segments
     - Support streaming transcription for real-time feedback
     - _Requirements: 6.4, 6.5, 6.8_
   
-  - [x] 7.2 Optimize STT performance
+  - [ ] 7.2 Optimize STT performance
     - Measure processing speed (target: ≤120ms per second of audio)
     - Cache model in memory to avoid reload overhead
     - Optimize audio preprocessing
