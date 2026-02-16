@@ -1,1 +1,1 @@
-"""Tests for audio processing components."""
+"""Tests for audio processing and capture."""

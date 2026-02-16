@@ -89,7 +89,7 @@ After completing EACH task:
 
 ### Phase 2: Audio Processing and Wake Word Detection
 
-- [~] 3. Audio Input and Basic Processing
+- [x] 3. Audio Input and Basic Processing
   - Implement `Agent_Guru/speech/audio/processor.py`:
     - `AudioProcessor` class with VAD, basic noise reduction, AGC
     - `process_chunk()` method for real-time processing
@@ -102,19 +102,19 @@ After completing EACH task:
   - _Requirements: 5 (Audio Processing)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement audio processing with VAD, noise reduction, and audio capture"
 
-  - [~] 3.1 Write unit tests for basic noise reduction
+  - [x] 3.1 Write unit tests for basic noise reduction
     - Test with clean audio
     - Test with noisy audio
     - **Property 12: Audio Processing Noise Reduction**
     - **Validates: Requirements 5.1, 5.2**
 
-  - [~] 3.2 Write unit tests for VAD
+  - [x] 3.2 Write unit tests for VAD
     - Test with speech segments
     - Test with silence
     - **Property 13: Voice Activity Detection Latency**
     - **Validates: Requirements 5.3**
 
-  - [~] 3.3 Write unit tests for audio capture
+  - [x] 3.3 Write unit tests for audio capture
     - Test microphone capture
     - Test file capture
     - Test format conversion
