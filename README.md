@@ -84,64 +84,77 @@ Agent_Guru/
 │   ├── biometric-consolidation/ # Biometric specs
 │   └── guruvision-facial-recognition/ # Face recognition specs
 │
-├── 🎤 guru_speech/              # Speech Engine (Python)
-│   ├── wake_word.py             # Wake word detection
-│   ├── stt.py                   # Speech-to-text (Whisper)
-│   ├── tts.py                   # Text-to-speech
-│   ├── biometric.py             # Voice biometrics
-│   ├── vad.py                   # Voice activity detection
-│   └── engine.py                # Main speech engine
-│
-├── 👁️ guru_vision/              # Vision Engine (Python)
-│   ├── detection.py             # Face detection (RetinaFace)
-│   ├── recognition.py           # Face recognition (ArcFace)
-│   ├── liveness.py              # Liveness detection
-│   ├── emotion.py               # Emotion recognition
-│   ├── tracking.py              # Face tracking
-│   └── engine.py                # Main vision engine
-│
-├── 🤖 guru_llm/                 # LLM Runtime (Python)
-│   ├── providers/               # LLM providers
-│   │   ├── ollama.py            # Local Ollama
-│   │   ├── openai.py            # OpenAI API
-│   │   ├── gemini.py            # Google Gemini
-│   │   └── anthropic.py         # Anthropic Claude
-│   ├── router.py                # Intelligent routing
-│   ├── context.py               # Context management
-│   └── runtime.py               # Main LLM runtime
-│
-├── 💻 guru_platform/            # Platform Integration (Python)
-│   ├── windows.py               # Windows integration
-│   ├── macos.py                 # macOS integration
-│   ├── linux.py                 # Linux integration
-│   ├── android.py               # Android integration
-│   ├── ios.py                   # iOS integration
-│   └── controller.py            # Main OS controller
-│
-├── 🎭 guru_agents/              # Agent Orchestration (Python)
-│   └── orchestrator.py          # Multi-agent coordination
-│
-├── 🧠 guru_memory/              # Memory System (Python)
-│   ├── semantic_index.py        # Semantic search
-│   ├── temporal_graph.py        # Temporal relationships
-│   └── encryption.py            # Memory encryption
-│
-├── 📦 guru_deployment/          # Deployment System (Python)
-│   ├── package_manager.py       # Package management
-│   ├── installer_builder.py    # Installer creation
-│   └── onboarding.py            # Onboarding flow
-│
-├── 🔐 guru_security/            # Security & Crypto (Python)
-│   ├── crypto_identity.py       # Cryptographic identity
-│   ├── biometric_auth.py        # Biometric authentication
-│   └── audit_log.py             # Audit logging
-│
-├── 🛡️ guru_policy/              # Policy Engine (Python)
-│   └── policy_engine.py         # Policy evaluation
-│
-├── 🎨 guru_avatar/              # Avatar & Emotion (Python)
-│   ├── emotion_controller.py    # Emotion engine
-│   └── avatar_renderer.py       # Avatar rendering
+├── 🤖 Agent_Guru/               # Main Python Package
+│   ├── __init__.py              # Package initialization
+│   │
+│   ├── 🎤 speech/               # Speech Engine
+│   │   ├── __init__.py
+│   │   ├── wake_word.py         # Wake word detection
+│   │   ├── stt.py               # Speech-to-text (Whisper)
+│   │   ├── tts.py               # Text-to-speech
+│   │   ├── biometric.py         # Voice biometrics
+│   │   ├── vad.py               # Voice activity detection
+│   │   └── engine.py            # Main speech engine
+│   │
+│   ├── 👁️ vision/               # Vision Engine
+│   │   ├── __init__.py
+│   │   ├── detection.py         # Face detection (RetinaFace)
+│   │   ├── recognition.py       # Face recognition (ArcFace)
+│   │   ├── liveness.py          # Liveness detection
+│   │   ├── emotion.py           # Emotion recognition
+│   │   ├── tracking.py          # Face tracking
+│   │   └── engine.py            # Main vision engine
+│   │
+│   ├── 🤖 llm/                  # LLM Runtime
+│   │   ├── __init__.py
+│   │   ├── providers/           # LLM providers
+│   │   │   ├── ollama.py        # Local Ollama
+│   │   │   ├── openai.py        # OpenAI API
+│   │   │   ├── gemini.py        # Google Gemini
+│   │   │   └── anthropic.py     # Anthropic Claude
+│   │   ├── router.py            # Intelligent routing
+│   │   ├── context.py           # Context management
+│   │   └── runtime.py           # Main LLM runtime
+│   │
+│   ├── 💻 platform/             # Platform Integration
+│   │   ├── __init__.py
+│   │   ├── windows.py           # Windows integration
+│   │   ├── macos.py             # macOS integration
+│   │   ├── linux.py             # Linux integration
+│   │   ├── android.py           # Android integration
+│   │   ├── ios.py               # iOS integration
+│   │   └── controller.py        # Main OS controller
+│   │
+│   ├── 🎭 agents/               # Agent Orchestration
+│   │   ├── __init__.py
+│   │   └── orchestrator.py      # Multi-agent coordination
+│   │
+│   ├── 🧠 memory/               # Memory System
+│   │   ├── __init__.py
+│   │   ├── semantic_index.py    # Semantic search
+│   │   ├── temporal_graph.py    # Temporal relationships
+│   │   └── encryption.py        # Memory encryption
+│   │
+│   ├── 📦 deployment/           # Deployment System
+│   │   ├── __init__.py
+│   │   ├── package_manager.py   # Package management
+│   │   ├── installer_builder.py # Installer creation
+│   │   └── onboarding.py        # Onboarding flow
+│   │
+│   ├── 🔐 security/             # Security & Crypto
+│   │   ├── __init__.py
+│   │   ├── crypto_identity.py   # Cryptographic identity
+│   │   ├── biometric_auth.py    # Biometric authentication
+│   │   └── audit_log.py         # Audit logging
+│   │
+│   ├── 🛡️ policy/               # Policy Engine
+│   │   ├── __init__.py
+│   │   └── policy_engine.py     # Policy evaluation
+│   │
+│   └── 🎨 avatar/               # Avatar & Emotion
+│       ├── __init__.py
+│       ├── emotion_controller.py # Emotion engine
+│       └── avatar_renderer.py   # Avatar rendering
 │
 ├── 📚 Documentation
 │   ├── README.md                # This file
@@ -205,63 +218,63 @@ cat .kiro/specs/README.md
 
 ## 📋 Components
 
-### 1. Speech Engine (guru_speech/)
+### 1. Speech Engine (Agent_Guru.speech)
 - Wake word detection (Guru/Maya)
 - Speech-to-text (Whisper with GPU)
 - Text-to-speech (gender-specific)
 - Voice biometrics
 - Background service (always-on)
 
-### 2. Vision Engine (guru_vision/)
+### 2. Vision Engine (Agent_Guru.vision)
 - Face detection (RetinaFace)
 - Face recognition (ArcFace)
 - Liveness detection (anti-spoofing)
 - Emotion recognition
 - Face tracking (DeepSORT/ByteTrack)
 
-### 3. LLM Runtime (guru_llm/)
+### 3. LLM Runtime (Agent_Guru.llm)
 - Multi-provider support (Ollama, OpenAI, Gemini, Anthropic)
 - Intelligent routing and fallback
 - Context management
 - Streaming responses
 - Cost tracking
 
-### 4. Platform Integration (guru_platform/)
+### 4. Platform Integration (Agent_Guru.platform)
 - Windows/macOS/Linux/Android/iOS support
 - Complete OS control
 - Hardware abstraction
 - Permission management
 
-### 5. Agent Orchestration (guru_agents/)
+### 5. Agent Orchestration (Agent_Guru.agents)
 - Multi-agent coordination
 - Task decomposition
 - Conflict resolution
 - Performance monitoring
 
-### 6. Memory System (guru_memory/)
+### 6. Memory System (Agent_Guru.memory)
 - Conversation history
 - Semantic indexing
 - Temporal graphs
 - Encryption
 
-### 7. Deployment System (guru_deployment/)
+### 7. Deployment System (Agent_Guru.deployment)
 - Professional installers (MSI, DMG, APK, IPA)
 - Package management
 - Auto-update mechanism
 - Onboarding flow
 
-### 8. Security & Crypto (guru_security/)
+### 8. Security & Crypto (Agent_Guru.security)
 - Cryptographic identity (Ed25519)
 - Biometric authentication
 - Zero-knowledge proofs
 - Audit logging
 
-### 9. Policy Engine (guru_policy/)
+### 9. Policy Engine (Agent_Guru.policy)
 - Policy evaluation
 - Permission checking
 - Compliance enforcement
 
-### 10. Avatar & Emotion (guru_avatar/)
+### 10. Avatar & Emotion (Agent_Guru.avatar)
 - Emotion controller
 - Lip sync
 - Avatar rendering
@@ -405,4 +418,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Status**: 🚀 Ready for Implementation | **Specifications**: ✅ 100% Complete | **Architecture**: Python-First
 
-Made with ❤️ by the Agent Guru Team
+Made with inspiration and critical thing and hard work by the Agent Guru Team

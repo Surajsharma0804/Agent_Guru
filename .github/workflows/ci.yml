@@ -41,7 +41,7 @@ jobs:
     
     - name: Type Check with mypy
       run: |
-        mypy guru_speech guru_vision guru_llm guru_platform guru_agents guru_memory guru_deployment guru_policy guru_security guru_avatar --ignore-missing-imports || true
+        mypy Agent_Guru --ignore-missing-imports || true
     
     - name: Run Tests
       run: |
@@ -79,15 +79,22 @@ jobs:
         echo "Verifying Python project structure..."
         python -c "import sys; print(f'Python {sys.version}')"
         
-        echo "Checking module directories..."
-        for module in guru_speech guru_vision guru_llm guru_platform guru_agents guru_memory guru_deployment guru_policy guru_security guru_avatar; do
-          if [ -d "$module" ]; then
-            echo "✓ $module exists"
-          else
-            echo "✗ $module missing"
-            exit 1
-          fi
-        done
+        echo "Checking Agent_Guru package structure..."
+        if [ -d "Agent_Guru" ]; then
+          echo "✓ Agent_Guru main package exists"
+          
+          for module in speech vision llm platform agents memory deployment policy security avatar; do
+            if [ -d "Agent_Guru/$module" ]; then
+              echo "✓ Agent_Guru.$module exists"
+            else
+              echo "✗ Agent_Guru.$module missing"
+              exit 1
+            fi
+          done
+        else
+          echo "✗ Agent_Guru package missing"
+          exit 1
+        fi
         
         echo "All modules verified successfully!"
     
@@ -131,8 +138,8 @@ jobs:
     
     - name: Run Bandit Security Scan
       run: |
-        bandit -r guru_speech guru_vision guru_llm guru_platform guru_agents guru_memory guru_deployment guru_policy guru_security guru_avatar -f json -o bandit-report.json || true
-        bandit -r . -ll || true
+        bandit -r Agent_Guru -f json -o bandit-report.json || true
+        bandit -r Agent_Guru -ll || true
     
     - name: Upload Security Reports
       uses: actions/upload-artifact@v4

@@ -34,15 +34,21 @@ jobs:
         echo "" >> audit_report.md
         
         echo "## Module Structure" >> audit_report.md
-        for module in guru_speech guru_vision guru_llm guru_platform guru_agents guru_memory guru_deployment guru_policy guru_security guru_avatar; do
-          if [ -d "$module" ]; then
-            echo "- ✅ $module" >> audit_report.md
-            file_count=$(find "$module" -type f -name "*.py" | wc -l)
-            echo "  - Python files: $file_count" >> audit_report.md
-          else
-            echo "- ❌ $module (missing)" >> audit_report.md
-          fi
-        done
+        if [ -d "Agent_Guru" ]; then
+          echo "- ✅ Agent_Guru (main package)" >> audit_report.md
+          
+          for module in speech vision llm platform agents memory deployment policy security avatar; do
+            if [ -d "Agent_Guru/$module" ]; then
+              echo "  - ✅ Agent_Guru.$module" >> audit_report.md
+              file_count=$(find "Agent_Guru/$module" -type f -name "*.py" | wc -l)
+              echo "    - Python files: $file_count" >> audit_report.md
+            else
+              echo "  - ❌ Agent_Guru.$module (missing)" >> audit_report.md
+            fi
+          done
+        else
+          echo "- ❌ Agent_Guru package (missing)" >> audit_report.md
+        fi
         
         echo "" >> audit_report.md
         echo "## Specifications" >> audit_report.md

@@ -66,16 +66,17 @@ Issues = "https://github.com/agent-guru/agent-guru/issues"
 
 [tool.setuptools]
 packages = [
-    "guru_speech",
-    "guru_vision",
-    "guru_llm",
-    "guru_platform",
-    "guru_agents",
-    "guru_memory",
-    "guru_deployment",
-    "guru_policy",
-    "guru_security",
-    "guru_avatar",
+    "Agent_Guru",
+    "Agent_Guru.speech",
+    "Agent_Guru.vision",
+    "Agent_Guru.llm",
+    "Agent_Guru.platform",
+    "Agent_Guru.agents",
+    "Agent_Guru.memory",
+    "Agent_Guru.deployment",
+    "Agent_Guru.policy",
+    "Agent_Guru.security",
+    "Agent_Guru.avatar",
 ]
 
 [tool.setuptools.package-data]
@@ -125,16 +126,7 @@ strict_optional = true
 minversion = "7.0"
 addopts = "-ra -q --strict-markers"
 testpaths = [
-    "guru_speech",
-    "guru_vision",
-    "guru_llm",
-    "guru_platform",
-    "guru_agents",
-    "guru_memory",
-    "guru_deployment",
-    "guru_policy",
-    "guru_security",
-    "guru_avatar",
+    "Agent_Guru",
 ]
 python_files = "test_*.py"
 python_classes = "Test*"
@@ -142,16 +134,7 @@ python_functions = "test_*"
 
 [tool.coverage.run]
 source = [
-    "guru_speech",
-    "guru_vision",
-    "guru_llm",
-    "guru_platform",
-    "guru_agents",
-    "guru_memory",
-    "guru_deployment",
-    "guru_policy",
-    "guru_security",
-    "guru_avatar",
+    "Agent_Guru",
 ]
 omit = [
     "*/tests/*",
