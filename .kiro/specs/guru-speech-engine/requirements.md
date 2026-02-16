@@ -9,6 +9,9 @@ AGENT_GURU is designed as a voice-controlled personal assistant that can execute
 ## Glossary
 
 - **Speech_Engine**: The complete speech recognition and voice interface system
+- **Background_Service**: Always-on system service that runs without user interaction
+- **Sleep_Mode**: Low-power state where only wake word detection is active
+- **Wake_Mode**: Active state where full speech processing is enabled
 - **Wake_Word_Detector**: Component that detects custom wake words in audio streams
 - **STT_Engine**: Speech-to-text transcription engine using OpenAI Whisper
 - **Voice_Biometrics**: Speaker recognition and verification system
@@ -22,6 +25,9 @@ AGENT_GURU is designed as a voice-controlled personal assistant that can execute
 - **Confidence_Score**: Numerical measure of recognition certainty (0.0 to 1.0)
 - **Real_Time_Factor**: Ratio of processing time to audio duration
 - **Speaker_Diarization**: Process of identifying different speakers in audio
+- **Battery_Impact**: Power consumption rate measured in percentage per hour
+- **Foreground_Service**: Android service with persistent notification (required for always-on)
+- **Background_Mode**: iOS capability for continuous audio processing
 
 ## Requirements
 
@@ -42,19 +48,149 @@ AGENT_GURU is designed as a voice-controlled personal assistant that can execute
 9. WHEN switching between personalities, THE Speech_Engine SHALL maintain conversation context
 10. THE Wake_Word_Detector SHALL support custom wake word training for personalization
 
-### Requirement 2: Speech-to-Text Transcription
+### Requirement 1.5: Always-On Background Service (Like Siri/Alexa) ⚠️ CRITICAL
 
-**User Story:** As a user, I want accurate real-time speech transcription with proper punctuation and speaker identification, so that my spoken commands and queries are correctly understood.
+**User Story:** As a user, I want AGENT_GURU to always listen for wake words without opening the app, so that I can interact naturally like with Siri, Google Assistant, or Alexa.
 
-#### Acceptance Criteria
+#### Acceptance Criteria - Background Service Architecture
 
-1. WHEN audio is provided to the STT_Engine, THE STT_Engine SHALL transcribe it using OpenAI Whisper
+1. **MANDATORY**: THE Speech_Engine SHALL run as a background service on all platforms (Windows, macOS, Linux, Android, iOS)
+2. **MANDATORY**: THE Speech_Engine SHALL auto-start on system boot without user interaction
+3. **MANDATORY**: THE Speech_Engine SHALL continue running even when the main app is closed
+4. **MANDATORY**: THE Speech_Engine SHALL survive system sleep/wake cycles
+5. **MANDATORY**: THE Speech_Engine SHALL restart automatically if crashed or killed
+6. **MANDATORY**: THE Speech_Engine SHALL provide a system tray icon (desktop) or persistent notification (mobile) indicating active status
+7. **MANDATORY**: THE Speech_Engine SHALL allow users to pause/resume the service from system tray/notification
+8. **MANDATORY**: THE Speech_Engine SHALL provide a "Quit" option that stops the service completely
+
+#### Acceptance Criteria - Sleep/Wake Cycle
+
+1. **MANDATORY**: THE Speech_Engine SHALL enter sleep mode immediately after responding to a command
+2. **MANDATORY**: WHEN in sleep mode, THE Speech_Engine SHALL use <5% CPU and <100MB RAM
+3. **MANDATORY**: WHEN in sleep mode, THE Speech_Engine SHALL only run wake word detection (no STT, LLM, or TTS)
+4. **MANDATORY**: WHEN wake word is detected, THE Speech_Engine SHALL transition to wake mode within 500ms
+5. **MANDATORY**: WHEN in wake mode, THE Speech_Engine SHALL activate full speech processing pipeline
+6. **MANDATORY**: WHEN user stops speaking for 3 seconds, THE Speech_Engine SHALL return to sleep mode
+7. **MANDATORY**: WHEN an error occurs, THE Speech_Engine SHALL return to sleep mode (not crash)
+8. **MANDATORY**: THE Speech_Engine SHALL log all sleep/wake transitions for debugging
+
+#### Acceptance Criteria - Platform-Specific Implementation
+
+**Desktop (Windows/macOS/Linux)**:
+1. **MANDATORY**: THE Speech_Engine SHALL register as a system service (Windows Service, launchd daemon, systemd service)
+2. **MANDATORY**: THE Speech_Engine SHALL request microphone permission on first run
+3. **MANDATORY**: THE Speech_Engine SHALL provide a system tray icon with status indicator
+4. **MANDATORY**: THE Speech_Engine SHALL use <30% CPU average during wake mode
+5. **MANDATORY**: THE Speech_Engine SHALL use <500MB RAM during wake mode
+
+**Mobile (Android)**:
+1. **MANDATORY**: THE Speech_Engine SHALL run as a Foreground Service with persistent notification
+2. **MANDATORY**: THE Speech_Engine SHALL request RECORD_AUDIO, FOREGROUND_SERVICE, and WAKE_LOCK permissions
+3. **MANDATORY**: THE Speech_Engine SHALL use <5% battery per hour in sleep mode
+4. **MANDATORY**: THE Speech_Engine SHALL use <10% battery per hour in wake mode
+5. **MANDATORY**: THE Speech_Engine SHALL optimize for Doze mode and App Standby
+6. **MANDATORY**: THE Speech_Engine SHALL use Android AudioRecord API for audio capture
+7. **MANDATORY**: THE Speech_Engine SHALL show battery usage in notification
+
+**Mobile (iOS)**:
+1. **MANDATORY**: THE Speech_Engine SHALL use background modes: audio, voip
+2. **MANDATORY**: THE Speech_Engine SHALL request microphone and speech recognition permissions
+3. **MANDATORY**: THE Speech_Engine SHALL use <5% battery per hour in sleep mode
+4. **MANDATORY**: THE Speech_Engine SHALL use <10% battery per hour in wake mode
+5. **MANDATORY**: THE Speech_Engine SHALL handle iOS background restrictions gracefully
+6. **MANDATORY**: THE Speech_Engine SHALL use AVAudioEngine for audio capture
+7. **MANDATORY**: THE Speech_Engine SHALL show battery usage in Settings
+
+#### Acceptance Criteria - Battery Optimization
+
+1. **MANDATORY**: THE Speech_Engine SHALL use hardware-accelerated wake word detection where available
+2. **MANDATORY**: THE Speech_Engine SHALL reduce wake word detection frequency when battery is low (<20%)
+3. **MANDATORY**: THE Speech_Engine SHALL pause service when battery is critical (<5%)
+4. **MANDATORY**: THE Speech_Engine SHALL resume service when device is charging
+5. **MANDATORY**: THE Speech_Engine SHALL provide battery usage statistics to user
+6. **MANDATORY**: THE Speech_Engine SHALL allow user to configure battery optimization level (aggressive, balanced, performance)
+7. **MANDATORY**: THE Speech_Engine SHALL warn user if battery impact exceeds 15% per hour
+
+#### Acceptance Criteria - Permissions and Privacy
+
+1. **MANDATORY**: THE Speech_Engine SHALL request microphone permission with clear explanation
+2. **MANDATORY**: THE Speech_Engine SHALL show microphone indicator when listening (platform-dependent)
+3. **MANDATORY**: THE Speech_Engine SHALL allow user to revoke permissions at any time
+4. **MANDATORY**: THE Speech_Engine SHALL stop gracefully when permissions are revoked
+5. **MANDATORY**: THE Speech_Engine SHALL NOT record audio except during wake word detection and active commands
+6. **MANDATORY**: THE Speech_Engine SHALL delete audio buffers immediately after processing
+7. **MANDATORY**: THE Speech_Engine SHALL provide privacy dashboard showing listening time and command count
+
+#### Acceptance Criteria - User Experience
+
+1. **MANDATORY**: THE Speech_Engine SHALL provide visual feedback when wake word is detected (sound + animation)
+2. **MANDATORY**: THE Speech_Engine SHALL provide visual feedback when listening for command (pulsing animation)
+3. **MANDATORY**: THE Speech_Engine SHALL provide visual feedback when processing (thinking animation)
+4. **MANDATORY**: THE Speech_Engine SHALL provide visual feedback when speaking response (speaking animation)
+5. **MANDATORY**: THE Speech_Engine SHALL allow user to interrupt response by saying wake word again
+6. **MANDATORY**: THE Speech_Engine SHALL provide "What can I say?" help command
+7. **MANDATORY**: THE Speech_Engine SHALL provide voice feedback for errors ("Sorry, I didn't catch that")
+
+#### Acceptance Criteria - Reliability
+
+1. **MANDATORY**: THE Speech_Engine SHALL run continuously for 24+ hours without restart
+2. **MANDATORY**: THE Speech_Engine SHALL handle 1000+ wake word detections without memory leaks
+3. **MANDATORY**: THE Speech_Engine SHALL recover from microphone disconnection within 5 seconds
+4. **MANDATORY**: THE Speech_Engine SHALL handle network disconnection gracefully (for cloud STT/TTS)
+5. **MANDATORY**: THE Speech_Engine SHALL log all errors with context for debugging
+6. **MANDATORY**: THE Speech_Engine SHALL provide health check endpoint for monitoring
+7. **MANDATORY**: THE Speech_Engine SHALL send crash reports (with user consent)
+
+### Requirement 2: Speech-to-Text Transcription (Multi-Platform)
+
+**User Story:** As a user, I want accurate real-time speech transcription with proper punctuation and speaker identification on ALL platforms, so that my spoken commands and queries are correctly understood.
+
+#### Acceptance Criteria - Desktop (Windows/macOS/Linux)
+
+1. WHEN audio is provided to the STT_Engine, THE STT_Engine SHALL transcribe it using OpenAI Whisper (faster-whisper)
 2. THE STT_Engine SHALL achieve a real-time factor below 0.5 for transcription processing
 3. WHEN transcribing audio, THE STT_Engine SHALL include proper punctuation and capitalization
-4. THE STT_Engine SHALL support transcription in multiple languages
+4. THE STT_Engine SHALL support transcription in multiple languages (English, Hindi, Punjabi, Spanish, French, German, Chinese, Japanese)
 5. WHEN multiple speakers are present, THE STT_Engine SHALL perform speaker diarization and label each segment
 6. THE STT_Engine SHALL support both streaming and batch transcription modes
 7. WHEN streaming audio, THE STT_Engine SHALL provide incremental transcription results
+8. THE STT_Engine SHALL use GPU acceleration when available (CUDA, Metal, OpenCL)
+9. THE STT_Engine SHALL fall back to CPU if GPU is unavailable
+10. THE STT_Engine SHALL cache loaded models to reduce startup time
+
+#### Acceptance Criteria - Mobile (Android)
+
+1. **MANDATORY**: THE STT_Engine SHALL use Android Speech Recognition API as primary STT engine
+2. **MANDATORY**: THE STT_Engine SHALL use on-device speech recognition when available (Android 11+)
+3. **MANDATORY**: THE STT_Engine SHALL fall back to cloud STT when on-device is unavailable
+4. **MANDATORY**: THE STT_Engine SHALL support offline transcription for common languages
+5. **MANDATORY**: THE STT_Engine SHALL achieve <1 second latency for short commands
+6. **MANDATORY**: THE STT_Engine SHALL handle network interruptions gracefully
+7. **MANDATORY**: THE STT_Engine SHALL use <50MB RAM during transcription
+8. **MANDATORY**: THE STT_Engine SHALL support continuous recognition for long commands
+9. **MANDATORY**: THE STT_Engine SHALL provide confidence scores for transcriptions
+10. **MANDATORY**: THE STT_Engine SHALL support language auto-detection
+
+#### Acceptance Criteria - Mobile (iOS)
+
+1. **MANDATORY**: THE STT_Engine SHALL use Apple Speech Framework as primary STT engine
+2. **MANDATORY**: THE STT_Engine SHALL use on-device speech recognition when available (iOS 13+)
+3. **MANDATORY**: THE STT_Engine SHALL fall back to cloud STT when on-device is unavailable
+4. **MANDATORY**: THE STT_Engine SHALL support offline transcription for common languages
+5. **MANDATORY**: THE STT_Engine SHALL achieve <1 second latency for short commands
+6. **MANDATORY**: THE STT_Engine SHALL handle network interruptions gracefully
+7. **MANDATORY**: THE STT_Engine SHALL use <50MB RAM during transcription
+8. **MANDATORY**: THE STT_Engine SHALL support continuous recognition for long commands
+9. **MANDATORY**: THE STT_Engine SHALL provide confidence scores for transcriptions
+10. **MANDATORY**: THE STT_Engine SHALL support language auto-detection
+
+#### Acceptance Criteria - Cross-Platform
+
+1. THE STT_Engine SHALL provide a unified API across all platforms
+2. THE STT_Engine SHALL normalize transcription output format across platforms
+3. THE STT_Engine SHALL handle platform-specific errors gracefully
+4. THE STT_Engine SHALL log platform-specific performance metrics
+5. THE STT_Engine SHALL support platform-specific optimizations transparently
 
 ### Requirement 3: Voice Biometrics
 
@@ -70,11 +206,11 @@ AGENT_GURU is designed as a voice-controlled personal assistant that can execute
 6. THE Voice_Biometrics SHALL support updating voice profiles with additional samples
 7. WHEN verification fails, THE Voice_Biometrics SHALL provide a reason code for the failure
 
-### Requirement 4: Gender-Specific Text-to-Speech Synthesis
+### Requirement 4: Gender-Specific Text-to-Speech Synthesis (Multi-Platform)
 
-**User Story:** As a user, I want Guru to speak with a male voice and Maya with a female voice, so that each personality has a distinct auditory identity.
+**User Story:** As a user, I want Guru to speak with a male voice and Maya with a female voice on ALL platforms, so that each personality has a distinct auditory identity.
 
-#### Acceptance Criteria
+#### Acceptance Criteria - Desktop (Windows/macOS/Linux)
 
 1. WHEN text is provided for Guru personality, THE TTS_Engine SHALL synthesize speech with male voice characteristics
 2. WHEN text is provided for Maya personality, THE TTS_Engine SHALL synthesize speech with female voice characteristics
@@ -86,9 +222,57 @@ AGENT_GURU is designed as a voice-controlled personal assistant that can execute
 8. THE TTS_Engine SHALL maintain consistent voice characteristics for each personality across sessions
 9. THE TTS_Engine SHALL support speech rate adjustment (0.5x to 2.0x) for both voices
 10. THE TTS_Engine SHALL support pitch adjustment for both voices
-11. THE TTS_Engine SHALL support offline operation with local TTS models for both genders
+11. THE TTS_Engine SHALL support offline operation with local TTS models (pyttsx3, coqui-tts) for both genders
 12. THE TTS_Engine SHALL support cloud TTS services (Google TTS, Azure TTS, ElevenLabs) with gender selection
 13. WHEN synthesis is interrupted, THE TTS_Engine SHALL stop immediately and clean up resources
+14. THE TTS_Engine SHALL use GPU acceleration when available for neural TTS models
+15. THE TTS_Engine SHALL cache synthesized audio for common phrases
+
+#### Acceptance Criteria - Mobile (Android)
+
+1. **MANDATORY**: THE TTS_Engine SHALL use Android TextToSpeech API as primary TTS engine
+2. **MANDATORY**: THE TTS_Engine SHALL select male voice for Guru personality from available system voices
+3. **MANDATORY**: THE TTS_Engine SHALL select female voice for Maya personality from available system voices
+4. **MANDATORY**: THE TTS_Engine SHALL achieve <1 second latency for short responses (<50 words)
+5. **MANDATORY**: THE TTS_Engine SHALL support offline synthesis with downloaded voice packs
+6. **MANDATORY**: THE TTS_Engine SHALL fall back to default voice if gender-specific voice unavailable
+7. **MANDATORY**: THE TTS_Engine SHALL support speech rate adjustment (0.5x to 2.0x)
+8. **MANDATORY**: THE TTS_Engine SHALL support pitch adjustment
+9. **MANDATORY**: THE TTS_Engine SHALL use <30MB RAM during synthesis
+10. **MANDATORY**: THE TTS_Engine SHALL queue multiple utterances for smooth playback
+11. **MANDATORY**: THE TTS_Engine SHALL support interruption for new commands
+12. **MANDATORY**: THE TTS_Engine SHALL provide synthesis progress callbacks
+13. **MANDATORY**: THE TTS_Engine SHALL handle audio focus properly (pause for calls, etc.)
+14. **MANDATORY**: THE TTS_Engine SHALL support multiple languages with gender-specific voices
+15. **MANDATORY**: THE TTS_Engine SHALL allow user to select preferred voice from available options
+
+#### Acceptance Criteria - Mobile (iOS)
+
+1. **MANDATORY**: THE TTS_Engine SHALL use AVSpeechSynthesizer as primary TTS engine
+2. **MANDATORY**: THE TTS_Engine SHALL select male voice for Guru personality (e.g., AVSpeechSynthesisVoiceIdentifierAlex)
+3. **MANDATORY**: THE TTS_Engine SHALL select female voice for Maya personality (e.g., AVSpeechSynthesisVoiceIdentifierSamantha)
+4. **MANDATORY**: THE TTS_Engine SHALL achieve <1 second latency for short responses (<50 words)
+5. **MANDATORY**: THE TTS_Engine SHALL support offline synthesis with downloaded voice packs
+6. **MANDATORY**: THE TTS_Engine SHALL fall back to default voice if gender-specific voice unavailable
+7. **MANDATORY**: THE TTS_Engine SHALL support speech rate adjustment (0.5x to 2.0x)
+8. **MANDATORY**: THE TTS_Engine SHALL support pitch adjustment
+9. **MANDATORY**: THE TTS_Engine SHALL use <30MB RAM during synthesis
+10. **MANDATORY**: THE TTS_Engine SHALL queue multiple utterances for smooth playback
+11. **MANDATORY**: THE TTS_Engine SHALL support interruption for new commands
+12. **MANDATORY**: THE TTS_Engine SHALL provide synthesis progress callbacks
+13. **MANDATORY**: THE TTS_Engine SHALL handle audio session properly (pause for calls, etc.)
+14. **MANDATORY**: THE TTS_Engine SHALL support multiple languages with gender-specific voices
+15. **MANDATORY**: THE TTS_Engine SHALL allow user to select preferred voice from available options
+
+#### Acceptance Criteria - Cross-Platform
+
+1. THE TTS_Engine SHALL provide a unified API across all platforms
+2. THE TTS_Engine SHALL normalize voice selection across platforms (male/female)
+3. THE TTS_Engine SHALL handle platform-specific voice availability gracefully
+4. THE TTS_Engine SHALL log platform-specific voice characteristics
+5. THE TTS_Engine SHALL support voice quality preferences (speed vs quality)
+6. THE TTS_Engine SHALL provide voice preview functionality during setup
+7. THE TTS_Engine SHALL allow user to download additional voices on all platforms
 
 ### Requirement 5: Audio Processing
 
