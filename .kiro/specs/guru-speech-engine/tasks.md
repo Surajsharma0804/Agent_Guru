@@ -283,11 +283,11 @@ After completing EACH task:
     - **Property 10: TTS Real-Time Performance**
     - **Validates: Requirements 4.3, 4.19**
 
-  - [x] 10.3 Write property test for TTS output format
+  - [ ] 10.3 Write property test for TTS output format
     - **Property 11: TTS Output Format**
     - **Validates: Requirements 4.7, 4.24**
 
-- [~] 11. Mobile TTS Integration
+- [-] 11. Mobile TTS Integration
   - Implement `Agent_Guru/speech/mobile/android_tts.py`:
     - `AndroidTTS` class using pyjnius
     - Android TextToSpeech integration
@@ -299,17 +299,17 @@ After completing EACH task:
   - _Requirements: 4 (Gender-Specific TTS - Mobile)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add mobile TTS integration with gender-specific voice selection"
 
-  - [~] 11.1 Write unit tests for Android TTS
+  - [ ] 11.1 Write unit tests for Android TTS
     - Test male voice synthesis
     - Test female voice synthesis
     - _Requirements: 4 (Android)_
 
-  - [~] 11.2 Write unit tests for iOS TTS
+  - [ ] 11.2 Write unit tests for iOS TTS
     - Test male voice synthesis
     - Test female voice synthesis
     - _Requirements: 4 (iOS)_
 
-- [~] 12. Voice Cloning and Personalization
+- [ ] 12. Voice Cloning and Personalization
   - Implement `Agent_Guru/speech/tts/voice_cloner.py`:
     - `VoiceCloner` class
     - `enroll_voice()` method for training (5+ minutes of audio)
@@ -320,18 +320,18 @@ After completing EACH task:
   - _Requirements: 14 (Voice Cloning and Personalization)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement voice cloning with personalized voice synthesis"
 
-  - [~] 12.1 Write property test for voice cloning quality
+  - [ ] 12.1 Write property test for voice cloning quality
     - **Property 17: Voice Cloning Quality**
     - **Validates: Requirements 14.2, 14.3, 14.5**
 
-  - [~] 12.2 Write unit tests for voice enrollment
+  - [ ] 12.2 Write unit tests for voice enrollment
     - Test with various voice types
     - Test incremental learning
     - _Requirements: 14.1, 14.5_
 
 ### Phase 6: Streaming Audio and Command Recognition
 
-- [~] 13. Streaming Audio Manager
+- [ ] 13. Streaming Audio Manager
   - Implement `Agent_Guru/speech/audio/streaming.py`:
     - `StreamingAudioManager` class
     - `stream_input()` method for input streaming
@@ -343,17 +343,17 @@ After completing EACH task:
   - _Requirements: 16 (Streaming Audio Processing)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add streaming audio manager with low-latency processing"
 
-  - [~] 13.1 Write property test for streaming latency
+  - [ ] 13.1 Write property test for streaming latency
     - **Property 19: Streaming Audio Latency**
     - **Validates: Requirements 16.1, 16.2, 16.3**
 
-  - [~] 13.2 Write unit tests for codec support
+  - [ ] 13.2 Write unit tests for codec support
     - Test PCM encoding/decoding
     - Test Opus encoding/decoding
     - Test AAC encoding/decoding
     - _Requirements: 16.7_
 
-- [~] 14. Command Recognition and Parsing
+- [ ] 14. Command Recognition and Parsing
   - Implement `Agent_Guru/speech/commands/command_parser.py`:
     - `CommandParser` class
     - `interpret()` method with pattern matching
@@ -370,19 +370,19 @@ After completing EACH task:
   - _Requirements: 6 (Command Recognition), 17 (Voice Commands)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement command recognition and parsing with system control support"
 
-  - [~] 14.1 Write property test for command parsing completeness
+  - [ ] 14.1 Write property test for command parsing completeness
     - **Property 14: Command Parsing Completeness**
     - **Validates: Requirements 6.1, 6.2, 6.4**
 
-  - [~] 14.2 Write property test for command recognition coverage
+  - [ ] 14.2 Write property test for command recognition coverage
     - **Property 20: Command Recognition Coverage**
     - **Validates: Requirements 17.1**
 
-  - [~] 14.3 Write property test for command chaining
+  - [ ] 14.3 Write property test for command chaining
     - **Property 21: Command Chaining Support**
     - **Validates: Requirements 17.6**
 
-  - [~] 14.4 Write unit tests for entity extraction
+  - [ ] 14.4 Write unit tests for entity extraction
     - Test date extraction
     - Test number extraction
     - Test name extraction
@@ -390,7 +390,7 @@ After completing EACH task:
 
 ### Phase 7: Conversation Context Management
 
-- [~] 15. Conversation Context Manager
+- [ ] 15. Conversation Context Manager
   - Implement `Agent_Guru/speech/context/context_manager.py`:
     - `ConversationContextManager` class
     - `create_context()` method
@@ -403,23 +403,23 @@ After completing EACH task:
   - _Requirements: 18 (Conversation Context Management)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add conversation context manager with reference resolution"
 
-  - [~] 15.1 Write property test for context persistence
+  - [ ] 15.1 Write property test for context persistence
     - **Property 22: Conversation Context Persistence**
     - **Validates: Requirements 18.1, 18.3, 18.5**
 
-  - [~] 15.2 Write unit tests for reference resolution
+  - [ ] 15.2 Write unit tests for reference resolution
     - Test pronoun resolution ("it", "that")
     - Test context-based resolution
     - _Requirements: 18.3_
 
-  - [~] 15.3 Write unit tests for topic shift detection
+  - [ ] 15.3 Write unit tests for topic shift detection
     - Test topic change detection
     - Test context updates
     - _Requirements: 18.5_
 
 ### Phase 8: Multi-Language Support and Model Router Integration
 
-- [~] 16. Multi-Language Support
+- [ ] 16. Multi-Language Support
   - Implement `Agent_Guru/speech/stt/language_detector.py`:
     - `LanguageDetector` class
     - `detect_language()` method for automatic detection
@@ -429,16 +429,16 @@ After completing EACH task:
   - _Requirements: 19 (Multi-Language Support)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add multi-language support with automatic language detection"
 
-  - [~] 16.1 Write property test for language detection and switching
+  - [ ] 16.1 Write property test for language detection and switching
     - **Property 23: Language Detection and Switching**
     - **Validates: Requirements 19.2, 19.3, 19.4**
 
-  - [~] 16.2 Write unit tests for code-switching
+  - [ ] 16.2 Write unit tests for code-switching
     - Test mixed-language audio
     - Test language transitions
     - _Requirements: 19.4_
 
-- [~] 17. Model Router Integration
+- [ ] 17. Model Router Integration
   - Implement `Agent_Guru/speech/model_router_client.py`:
     - `ModelRouterClient` class
     - `select_stt_model()` method
@@ -448,11 +448,11 @@ After completing EACH task:
   - _Requirements: 20 (Model Router Integration)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate model router for intelligent local/cloud model selection"
 
-  - [~] 17.1 Write property test for model router fallback
+  - [ ] 17.1 Write property test for model router fallback
     - **Property 24: Model Router Fallback**
     - **Validates: Requirements 20.2, 20.3, 20.5**
 
-  - [~] 17.2 Write unit tests for model selection
+  - [ ] 17.2 Write unit tests for model selection
     - Test online model selection
     - Test offline model selection
     - Test fallback scenarios
@@ -460,7 +460,7 @@ After completing EACH task:
 
 ### Phase 9: Background Service and Main Engine
 
-- [~] 18. Background Service Manager
+- [ ] 18. Background Service Manager
   - Implement `Agent_Guru/speech/background_service.py`:
     - `BackgroundServiceManager` class
     - Sleep/wake cycle management
@@ -479,22 +479,22 @@ After completing EACH task:
   - _Requirements: 1.5 (Always-On Background Service)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement background service manager with sleep/wake cycles and battery optimization"
 
-  - [~] 18.1 Write property test for state transition latency
+  - [ ] 18.1 Write property test for state transition latency
     - **Property 27: State Transition Latency**
     - **Validates: Requirements 1.5.11**
 
-  - [~] 18.2 Write unit tests for sleep/wake cycles
+  - [ ] 18.2 Write unit tests for sleep/wake cycles
     - Test sleep mode resource usage
     - Test wake mode activation
     - Test timeout handling
     - _Requirements: 1.5.9, 1.5.11, 1.5.12_
 
-  - [~] 18.3 Write unit tests for battery optimization
+  - [ ] 18.3 Write unit tests for battery optimization
     - Test low battery handling
     - Test battery usage tracking
     - _Requirements: 1.5 (Battery Optimization)_
 
-- [~] 19. Main Speech Engine Facade
+- [ ] 19. Main Speech Engine Facade
   - Implement `Agent_Guru/speech/engine.py`:
     - `SpeechEngine` class (main facade)
     - `initialize()` method loading all components
@@ -510,20 +510,20 @@ After completing EACH task:
   - _Requirements: All speech engine requirements_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Complete main speech engine facade with end-to-end voice processing pipeline"
 
-  - [~] 19.1 Write integration tests for end-to-end pipeline
+  - [ ] 19.1 Write integration tests for end-to-end pipeline
     - Test complete voice interaction flow
     - Test personality switching
     - Test emotion-aware responses
     - _Requirements: All_
 
-  - [~] 19.2 Write unit tests for error handling
+  - [ ] 19.2 Write unit tests for error handling
     - Test component failure handling
     - Test error context preservation
     - _Requirements: Error Handling_
 
 ### Phase 10: Component Integration
 
-- [~] 20. Security System Integration
+- [ ] 20. Security System Integration
   - Integrate with Security_System for voice authentication
   - Implement secure voice profile storage
   - Add biometric enrollment workflow
@@ -531,28 +531,28 @@ After completing EACH task:
   - _Requirements: 21.1 (Integration with Agent_Guru Components)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate with security system for voice biometric authentication"
 
-  - [~] 20.1 Write property test for component integration
+  - [ ] 20.1 Write property test for component integration
     - **Property 25: Component Integration Completeness**
     - **Validates: Requirements 21.1, 21.7**
 
-  - [~] 20.2 Write integration tests with Security_System
+  - [ ] 20.2 Write integration tests with Security_System
     - Test voice profile storage
     - Test authentication flow
     - _Requirements: 3 (Voice Biometrics)_
 
-- [~] 21. Agent Orchestration Integration
+- [ ] 21. Agent Orchestration Integration
   - Integrate with Agent_Orchestration for command routing
   - Implement command execution callbacks
   - Add status update notifications
   - _Requirements: 21.2 (Integration with Agent_Guru Components)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate with agent orchestration for command routing"
 
-  - [~] 21.1 Write integration tests with Agent_Orchestration
+  - [ ] 21.1 Write integration tests with Agent_Orchestration
     - Test command routing
     - Test status updates
     - _Requirements: 17 (Voice Commands)_
 
-- [~] 22. Memory System Integration
+- [ ] 22. Memory System Integration
   - Integrate with Memory_System for emotion and preference learning
   - Store emotion states
   - Store conversation history
@@ -560,42 +560,42 @@ After completing EACH task:
   - _Requirements: 21.3 (Integration with Agent_Guru Components)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate with memory system for emotion and preference learning"
 
-  - [~] 22.1 Write integration tests with Memory_System
+  - [ ] 22.1 Write integration tests with Memory_System
     - Test emotion storage
     - Test conversation history
     - Test preference extraction
     - _Requirements: 13 (Emotion Detection), 18 (Conversation Context)_
 
-- [~] 23. Goal Manager Integration
+- [ ] 23. Goal Manager Integration
   - Integrate with Goal_Manager for voice-driven task creation
   - Implement task creation commands
   - Add verbal confirmation
   - _Requirements: 21.1 (Integration with Agent_Guru Components)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate with goal manager for voice-driven task creation"
 
-  - [~] 23.1 Write integration tests with Goal_Manager
+  - [ ] 23.1 Write integration tests with Goal_Manager
     - Test task creation via voice
     - Test verbal confirmation
     - _Requirements: 17 (Voice Commands)_
 
-- [~] 24. Platform Integration
+- [ ] 24. Platform Integration
   - Integrate with Platform_Integration for audio device access
   - Implement system control operations
   - Add cross-platform audio handling
   - _Requirements: 21.5 (Integration with Agent_Guru Components)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate with platform integration for audio device access and system control"
 
-  - [~] 24.1 Write integration tests with Platform_Integration
+  - [ ] 24.1 Write integration tests with Platform_Integration
     - Test audio device access
     - Test system control operations
     - _Requirements: 7 (Audio Input Management), 17 (Voice Commands)_
 
 ### Phase 11: Comprehensive Testing and Documentation
 
-- [~] 25. Checkpoint - Ensure all tests pass
+- [ ] 25. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [~] 26. Comprehensive Test Suite
+- [ ] 26. Comprehensive Test Suite
   - Implement all remaining property-based tests (100+ iterations each)
   - Implement all remaining unit tests for edge cases
   - Add performance regression tests
@@ -604,27 +604,27 @@ After completing EACH task:
   - _Requirements: 22 (Comprehensive Testing Requirements)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "test(speech): Add comprehensive test suite with property-based and performance tests"
 
-  - [~] 26.1 Write stress tests
+  - [ ] 26.1 Write stress tests
     - Test 24-hour continuous operation
     - Test 100 commands in 1 minute
     - Test 10+ concurrent sessions
     - _Requirements: 22 (Stress Testing)_
 
-  - [~] 26.2 Write chaos tests
+  - [ ] 26.2 Write chaos tests
     - Test microphone disconnection
     - Test audio buffer overflow
     - Test model loading failures
     - Test disk full scenarios
     - _Requirements: 22 (Chaos Testing)_
 
-  - [~] 26.3 Write accuracy tests
+  - [ ] 26.3 Write accuracy tests
     - Test STT accuracy (>95% clean, >85% noisy)
     - Test wake word accuracy (>99% TP, <1 FP/hour)
     - Test emotion detection accuracy (>80%)
     - Test voice cloning similarity (>0.85)
     - _Requirements: 22 (Accuracy Testing)_
 
-- [~] 27. Example Scripts and Documentation
+- [ ] 27. Example Scripts and Documentation
   - Create example scripts:
     - `example_basic.py` - Simple transcription
     - `example_dual_personality.py` - Guru and Maya interaction
@@ -643,7 +643,7 @@ After completing EACH task:
   - _Requirements: Documentation requirements_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "docs(speech): Add example scripts and comprehensive documentation"
 
-- [~] 28. Final checkpoint - Ensure all tests pass
+- [ ] 28. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Testing Summary
