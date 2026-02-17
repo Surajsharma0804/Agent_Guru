@@ -1,1 +1,1 @@
-"""Tests for conversation context components."""
+"""Tests for conversation context management."""
