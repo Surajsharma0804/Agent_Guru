@@ -438,7 +438,7 @@ After completing EACH task:
     - Test language transitions
     - _Requirements: 19.4_
 
-- [ ] 17. Model Router Integration
+- [-] 17. Model Router Integration
   - Implement `Agent_Guru/speech/model_router_client.py`:
     - `ModelRouterClient` class
     - `select_stt_model()` method
