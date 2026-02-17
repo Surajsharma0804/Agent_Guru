@@ -1,1 +1,1 @@
-"""Tests for command parsing components."""
+"""Tests for command recognition and parsing."""

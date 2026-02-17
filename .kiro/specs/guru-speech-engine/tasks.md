@@ -353,7 +353,7 @@ After completing EACH task:
     - Test AAC encoding/decoding
     - _Requirements: 16.7_
 
-- [ ] 14. Command Recognition and Parsing
+- [x] 14. Command Recognition and Parsing
   - Implement `Agent_Guru/speech/commands/command_parser.py`:
     - `CommandParser` class
     - `interpret()` method with pattern matching
@@ -370,19 +370,19 @@ After completing EACH task:
   - _Requirements: 6 (Command Recognition), 17 (Voice Commands)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement command recognition and parsing with system control support"
 
-  - [ ] 14.1 Write property test for command parsing completeness
+  - [x] 14.1 Write property test for command parsing completeness
     - **Property 14: Command Parsing Completeness**
     - **Validates: Requirements 6.1, 6.2, 6.4**
 
-  - [ ] 14.2 Write property test for command recognition coverage
+  - [x] 14.2 Write property test for command recognition coverage
     - **Property 20: Command Recognition Coverage**
     - **Validates: Requirements 17.1**
 
-  - [ ] 14.3 Write property test for command chaining
+  - [x] 14.3 Write property test for command chaining
     - **Property 21: Command Chaining Support**
     - **Validates: Requirements 17.6**
 
-  - [ ] 14.4 Write unit tests for entity extraction
+  - [x] 14.4 Write unit tests for entity extraction
     - Test date extraction
     - Test number extraction
     - Test name extraction
