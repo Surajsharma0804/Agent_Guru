@@ -158,7 +158,7 @@ class Intent(BaseModel):
     @classmethod
     def validate_alternatives(cls, v: List[Tuple[IntentType, float]]) -> List[Tuple[IntentType, float]]:
         """Validate alternative intents have valid confidence scores."""
-        for intent_type, confidence in v:
+        for _, confidence in v:
             if not 0.0 <= confidence <= 1.0:
                 raise ValueError(f"Alternative intent confidence must be between 0.0 and 1.0, got {confidence}")
         return v
