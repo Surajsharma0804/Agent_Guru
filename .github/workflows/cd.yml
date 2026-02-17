@@ -75,6 +75,7 @@ jobs:
     
     - name: Generate SBOM
       uses: anchore/sbom-action@v0
+      continue-on-error: true
       with:
         image: ${{ steps.meta.outputs.tags }}
         format: spdx-json
@@ -82,10 +83,12 @@ jobs:
     
     - name: Upload SBOM
       uses: actions/upload-artifact@v4
+      if: success() || failure()
       with:
         name: sbom
         path: sbom.spdx.json
         retention-days: 90
+        if-no-files-found: warn
 
   deploy-staging:
     name: Deploy to Staging
