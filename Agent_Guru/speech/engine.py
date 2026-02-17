@@ -226,10 +226,9 @@ class SpeechEngine:
             
             # Step 2: Detect personality from wake word if not provided
             if personality is None:
-                # Note: wake_word_detector.detect is async in some implementations
-                # For now, use synchronous detection or default to GURU
+                # Wake word detector has async detect() method
                 try:
-                    wake_word_result = self.wake_word_detector.detect(processed_audio)
+                    wake_word_result = await self.wake_word_detector.detect(processed_audio)
                     if wake_word_result:
                         personality = wake_word_result.personality
                     else:
@@ -434,9 +433,9 @@ class SpeechEngine:
     
     def shutdown(self) -> None:
         """Shutdown speech engine and cleanup resources."""
+        self.logger.info("Shutting down Speech Engine...")
+        
         try:
-            self.logger.info("Shutting down Speech Engine...")
-            
             # Stop background service
             if self.background_service:
                 self.background_service.stop()
@@ -465,8 +464,10 @@ class SpeechEngine:
             self.background_service = None
             self.model_router = None
             
-            self._state = EngineState.UNINITIALIZED
             self.logger.info("Speech Engine shutdown complete")
             
         except Exception as e:
             self.logger.error(f"Error during shutdown: {e}", exc_info=True)
+        finally:
+            # ALWAYS set state to UNINITIALIZED, even on error
+            self._state = EngineState.UNINITIALIZED

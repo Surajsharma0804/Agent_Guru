@@ -585,3 +585,251 @@ class TestSpeechEngine:
         # Second initialization should work
         engine.initialize()
         assert engine.get_state() == EngineState.READY
+    
+
+    # ========================================================================
+    # ZERO COMPROMISE - 100% COVERAGE TESTS
+    # ========================================================================
+    
+    def test_initialization_failure_sets_error_state(self):
+        """ZERO COMPROMISE: Test initialization failure sets ERROR state."""
+        engine = SpeechEngine()
+        
+        # Mock audio_capture to fail
+        import unittest.mock as mock
+        with mock.patch.object(engine, 'audio_capture', None):
+            with mock.patch('Agent_Guru.speech.engine.MicrophoneCapture', side_effect=Exception("Test failure")):
+                with pytest.raises(GuruSpeechError) as exc_info:
+                    engine.initialize()
+                
+                assert "Initialization failed" in str(exc_info.value)
+                assert engine.get_state() == EngineState.ERROR
+    
+    def test_wake_word_detection_with_result(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
+        """ZERO COMPROMISE: Test wake word detection returns personality."""
+        import asyncio
+        from Agent_Guru.speech.models import WakeWordDetection
+        
+        # Create a proper WakeWordDetection result with correct parameters
+        mock_result = WakeWordDetection(
+            wake_word="maya",
+            personality=PersonalityType.MAYA,
+            confidence=0.95,
+            timestamp=0.0,
+            audio_chunk=sample_audio
+        )
+        
+        # Create an async mock function
+        async def mock_detect(audio):
+            return mock_result
+        
+        # Mock the detect method to return Maya personality
+        original_detect = initialized_engine.wake_word_detector.detect
+        initialized_engine.wake_word_detector.detect = mock_detect
+        
+        try:
+            result = asyncio.run(initialized_engine.process_voice_input(
+                audio=sample_audio,
+                personality=None  # Auto-detect
+            ))
+            
+            # Should use detected personality
+            assert result.personality == PersonalityType.MAYA
+        finally:
+            # Restore original method
+            initialized_engine.wake_word_detector.detect = original_detect
+    
+    def test_command_none_when_transcription_empty(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
+        """ZERO COMPROMISE: Test command is None when transcription is empty."""
+        import asyncio
+        import unittest.mock as mock
+        
+        # Mock transcriber to return empty text
+        mock_transcription = mock.MagicMock()
+        mock_transcription.text = ""
+        mock_transcription.language = "en"
+        
+        with mock.patch.object(initialized_engine.stt_transcriber, 'transcribe', return_value=mock_transcription):
+            result = asyncio.run(initialized_engine.process_voice_input(
+                audio=sample_audio,
+                personality=PersonalityType.GURU
+            ))
+            
+            # Command should be None for empty transcription
+            assert result.command is None
+    
+    def test_context_preservation_error_handling(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
+        """ZERO COMPROMISE: Test error in context preservation is handled gracefully."""
+        import asyncio
+        import unittest.mock as mock
+        
+        # Create initial context
+        result1 = asyncio.run(initialized_engine.process_voice_input(
+            audio=sample_audio,
+            personality=PersonalityType.GURU
+        ))
+        
+        # Mock context manager to fail on add_turn
+        with mock.patch.object(initialized_engine.context_manager, 'add_turn', side_effect=Exception("Context error")):
+            # Force an error by passing invalid audio
+            with pytest.raises(GuruSpeechError):
+                asyncio.run(initialized_engine.process_voice_input(
+                    audio=np.array([]),  # Empty audio will cause error
+                    personality=PersonalityType.GURU
+                ))
+            
+            # Context ID should still be preserved
+            assert initialized_engine._current_context_id == result1.context_id
+    
+    def test_shutdown_error_handling(self, initialized_engine: SpeechEngine):
+        """ZERO COMPROMISE: Test shutdown handles errors gracefully."""
+        import unittest.mock as mock
+        
+        # Mock background_service.stop to raise exception
+        with mock.patch.object(initialized_engine.background_service, 'stop', side_effect=Exception("Stop error")):
+            # Should not raise exception - shutdown handles errors gracefully
+            initialized_engine.shutdown()
+            
+            # Should ALWAYS set state to UNINITIALIZED, even on error (ZERO COMPROMISE)
+            assert initialized_engine.get_state() == EngineState.UNINITIALIZED
+
+
+    # ========================================================================
+    # ZERO COMPROMISE - FINAL 100% COVERAGE TESTS
+    # ========================================================================
+    
+    def test_coverage_wake_word_result_personality_assignment(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
+        """ZERO COMPROMISE: Ensure line 236 is covered - wake_word_result.personality assignment."""
+        import asyncio
+        from Agent_Guru.speech.models import WakeWordDetection
+        
+        # Create a real WakeWordDetection result
+        wake_word_result = WakeWordDetection(
+            wake_word="maya",
+            personality=PersonalityType.MAYA,
+            confidence=0.95,
+            timestamp=0.0,
+            audio_chunk=sample_audio
+        )
+        
+        # Create an async function that returns the result
+        async def mock_detect(audio):
+            return wake_word_result
+        
+        # Replace the detect method
+        original_detect = initialized_engine.wake_word_detector.detect
+        initialized_engine.wake_word_detector.detect = mock_detect
+        
+        try:
+            # Process without personality to trigger auto-detection
+            result = asyncio.run(initialized_engine.process_voice_input(
+                audio=sample_audio,
+                personality=None
+            ))
+            
+            # Verify the personality was assigned from wake_word_result (line 236)
+            assert result.personality == PersonalityType.MAYA
+            assert initialized_engine._current_personality == PersonalityType.MAYA
+        finally:
+            initialized_engine.wake_word_detector.detect = original_detect
+    
+    def test_coverage_command_interpret_call(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
+        """ZERO COMPROMISE: Ensure line 251 is covered - command_parser.interpret() call."""
+        import asyncio
+        from Agent_Guru.speech.models import TranscriptionResult, CommandResult
+        
+        # Mock transcriber to return non-empty text
+        mock_transcription = TranscriptionResult(
+            text="turn on the lights",
+            language="en",
+            confidence=0.95,
+            segments=[],
+            duration=1.0
+        )
+        
+        # Mock command parser to return a command
+        mock_command = CommandResult(
+            is_command=True,
+            action_id="turn_on_lights",
+            parameters={"device": "lights"},
+            confidence=0.9,
+            raw_text="turn on the lights"
+        )
+        
+        original_transcribe = initialized_engine.stt_transcriber.transcribe
+        original_interpret = initialized_engine.command_parser.interpret
+        
+        initialized_engine.stt_transcriber.transcribe = lambda x, sr: mock_transcription
+        initialized_engine.command_parser.interpret = lambda text: mock_command
+        
+        try:
+            result = asyncio.run(initialized_engine.process_voice_input(
+                audio=sample_audio,
+                personality=PersonalityType.GURU
+            ))
+            
+            # Verify command was interpreted
+            assert result.command is not None
+            assert result.command.is_command is True
+            assert result.command.action_id == "turn_on_lights"
+        finally:
+            initialized_engine.stt_transcriber.transcribe = original_transcribe
+            initialized_engine.command_parser.interpret = original_interpret
+
+
+    def test_final_coverage_wake_word_personality_path(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
+        """ZERO COMPROMISE: Final test to ensure 100% coverage of wake word personality assignment path."""
+        import asyncio
+        from Agent_Guru.speech.models import WakeWordDetection
+        from unittest.mock import AsyncMock
+        
+        # Create wake word result
+        wake_word_result = WakeWordDetection(
+            wake_word="maya",
+            personality=PersonalityType.MAYA,
+            confidence=0.95,
+            timestamp=0.0,
+            audio_chunk=sample_audio
+        )
+        
+        # Use AsyncMock to properly mock async method
+        mock_detect = AsyncMock(return_value=wake_word_result)
+        original_detect = initialized_engine.wake_word_detector.detect
+        initialized_engine.wake_word_detector.detect = mock_detect
+        
+        try:
+            result = asyncio.run(initialized_engine.process_voice_input(
+                audio=sample_audio,
+                personality=None  # Trigger auto-detection
+            ))
+            
+            # Verify wake word detection was called
+            assert mock_detect.called
+            # Verify personality was set from wake word result
+            assert result.personality == PersonalityType.MAYA
+            assert initialized_engine._current_personality == PersonalityType.MAYA
+        finally:
+            initialized_engine.wake_word_detector.detect = original_detect
+
+
+    def test_final_coverage_wake_word_exception_handling(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
+        """ZERO COMPROMISE: Test wake word detector exception handling (lines 236-237)."""
+        import asyncio
+        from unittest.mock import AsyncMock
+        
+        # Mock detect to raise an exception
+        mock_detect = AsyncMock(side_effect=Exception("Wake word detection failed"))
+        original_detect = initialized_engine.wake_word_detector.detect
+        initialized_engine.wake_word_detector.detect = mock_detect
+        
+        try:
+            result = asyncio.run(initialized_engine.process_voice_input(
+                audio=sample_audio,
+                personality=None  # Trigger auto-detection
+            ))
+            
+            # Should default to GURU on exception
+            assert result.personality == PersonalityType.GURU
+            assert initialized_engine._current_personality == PersonalityType.GURU
+        finally:
+            initialized_engine.wake_word_detector.detect = original_detect
