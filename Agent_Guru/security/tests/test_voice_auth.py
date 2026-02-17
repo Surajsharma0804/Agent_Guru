@@ -274,3 +274,299 @@ class TestVoiceAuthenticator:
         similarity = authenticator._compute_similarity(features1, features2)
         
         assert similarity == 0.0
+
+    # ========================================================================
+    # EDGE CASE AND BOUNDARY TESTS - ZERO COMPROMISE
+    # ========================================================================
+    
+    def test_invalid_similarity_threshold_negative(self):
+        """Test initialization with negative similarity threshold."""
+        # Should allow but will cause issues - test the behavior
+        authenticator = VoiceAuthenticator(similarity_threshold=-0.5)
+        assert authenticator.similarity_threshold == -0.5
+    
+    def test_invalid_similarity_threshold_above_one(self):
+        """Test initialization with similarity threshold > 1.0."""
+        # Should allow but will never authenticate - test the behavior
+        authenticator = VoiceAuthenticator(similarity_threshold=1.5)
+        assert authenticator.similarity_threshold == 1.5
+    
+    def test_boundary_similarity_threshold_zero(self):
+        """Test authentication with similarity threshold of 0.0 (always passes)."""
+        authenticator = VoiceAuthenticator(similarity_threshold=0.0)
+        voice_features = VoiceFeatures(
+            feature_vector=np.random.randn(128).astype(np.float32),
+            sample_rate=16000,
+            duration=3.0,
+            quality_score=0.9
+        )
+        
+        # Enroll user
+        authenticator.enroll_user("user1", voice_features)
+        
+        # Any features should authenticate with threshold 0.0
+        different_features = VoiceFeatures(
+            feature_vector=np.random.randn(128).astype(np.float32),
+            sample_rate=16000,
+            duration=3.0,
+            quality_score=0.9
+        )
+        
+        authenticated, user_id, similarity = authenticator.authenticate(
+            different_features,
+            user_id="user1"
+        )
+        
+        # Should authenticate because threshold is 0.0
+        assert authenticated == True
+    
+    def test_boundary_similarity_threshold_one(self):
+        """Test authentication with similarity threshold of 1.0 (only identical passes)."""
+        authenticator = VoiceAuthenticator(similarity_threshold=1.0)
+        voice_features = VoiceFeatures(
+            feature_vector=np.random.randn(128).astype(np.float32),
+            sample_rate=16000,
+            duration=3.0,
+            quality_score=0.9
+        )
+        
+        # Enroll user
+        authenticator.enroll_user("user1", voice_features)
+        
+        # Same features should authenticate
+        authenticated, user_id, similarity = authenticator.authenticate(
+            voice_features,
+            user_id="user1"
+        )
+        
+        # Should authenticate because features are identical
+        assert authenticated == True
+        assert similarity == pytest.approx(1.0, abs=0.01)
+    
+    def test_boundary_quality_threshold_exact(self):
+        """Test enrollment with quality score exactly at threshold."""
+        authenticator = VoiceAuthenticator()
+        
+        # Quality score exactly at threshold (0.5)
+        boundary_features = VoiceFeatures(
+            feature_vector=np.random.randn(128).astype(np.float32),
+            sample_rate=16000,
+            duration=3.0,
+            quality_score=0.5
+        )
+        
+        # Should succeed because >= threshold
+        profile = authenticator.enroll_user("user1", boundary_features)
+        assert profile.quality_score == 0.5
+    
+    def test_empty_user_id(self):
+        """Test enrollment with empty user ID."""
+        authenticator = VoiceAuthenticator()
+        voice_features = VoiceFeatures(
+            feature_vector=np.random.randn(128).astype(np.float32),
+            sample_rate=16000,
+            duration=3.0,
+            quality_score=0.9
+        )
+        
+        # Empty string should be allowed (edge case)
+        profile = authenticator.enroll_user("", voice_features)
+        assert profile.user_id == ""
+    
+    def test_special_characters_user_id(self):
+        """Test enrollment with special characters in user ID."""
+        authenticator = VoiceAuthenticator()
+        voice_features = VoiceFeatures(
+            feature_vector=np.random.randn(128).astype(np.float32),
+            sample_rate=16000,
+            duration=3.0,
+            quality_score=0.9
+        )
+        
+        # Special characters should be allowed
+        special_id = "user@#$%^&*()_+-=[]{}|;':\",./<>?"
+        profile = authenticator.enroll_user(special_id, voice_features)
+        assert profile.user_id == special_id
+    
+    def test_very_long_user_id(self):
+        """Test enrollment with very long user ID."""
+        authenticator = VoiceAuthenticator()
+        voice_features = VoiceFeatures(
+            feature_vector=np.random.randn(128).astype(np.float32),
+            sample_rate=16000,
+            duration=3.0,
+            quality_score=0.9
+        )
+        
+        # Very long user ID (1000 characters)
+        long_id = "a" * 1000
+        profile = authenticator.enroll_user(long_id, voice_features)
+        assert profile.user_id == long_id
+        assert len(profile.user_id) == 1000
+    
+    def test_unicode_user_id(self):
+        """Test enrollment with Unicode characters in user ID."""
+        authenticator = VoiceAuthenticator()
+        voice_features = VoiceFeatures(
+            feature_vector=np.random.randn(128).astype(np.float32),
+            sample_rate=16000,
+            duration=3.0,
+            quality_score=0.9
+        )
+        
+        # Unicode characters
+        unicode_id = "用户名_مستخدم_пользователь_🎤🔊"
+        profile = authenticator.enroll_user(unicode_id, voice_features)
+        assert profile.user_id == unicode_id
+    
+    def test_multiple_updates_profile_convergence(self):
+        """Test that multiple profile updates converge properly."""
+        authenticator = VoiceAuthenticator()
+        
+        # Initial enrollment
+        initial_features = VoiceFeatures(
+            feature_vector=np.ones(128, dtype=np.float32),
+            sample_rate=16000,
+            duration=3.0,
+            quality_score=0.8
+        )
+        authenticator.enroll_user("user1", initial_features)
+        
+        # Update 10 times with different features
+        for i in range(10):
+            update_features = VoiceFeatures(
+                feature_vector=np.random.randn(128).astype(np.float32),
+                sample_rate=16000,
+                duration=3.0,
+                quality_score=0.7 + i * 0.01
+            )
+            profile = authenticator.update_profile("user1", update_features)
+        
+        # Verify sample count
+        assert profile.sample_count == 11  # 1 initial + 10 updates
+        
+        # Verify quality score is averaged
+        assert 0.7 < profile.quality_score < 0.9
+    
+    def test_identification_with_single_user(self):
+        """Test identification mode with only one enrolled user."""
+        authenticator = VoiceAuthenticator()
+        voice_features = VoiceFeatures(
+            feature_vector=np.random.randn(128).astype(np.float32),
+            sample_rate=16000,
+            duration=3.0,
+            quality_score=0.9
+        )
+        
+        # Enroll single user
+        authenticator.enroll_user("user1", voice_features)
+        
+        # Identify with same features
+        authenticated, user_id, similarity = authenticator.authenticate(voice_features)
+        
+        assert authenticated == True
+        assert user_id == "user1"
+    
+    def test_identification_with_many_users(self):
+        """Test identification mode with many enrolled users."""
+        authenticator = VoiceAuthenticator()
+        
+        # Enroll 100 users
+        target_features = None
+        for i in range(100):
+            features = VoiceFeatures(
+                feature_vector=np.random.randn(128).astype(np.float32),
+                sample_rate=16000,
+                duration=3.0,
+                quality_score=0.9
+            )
+            authenticator.enroll_user(f"user{i}", features)
+            
+            if i == 50:
+                target_features = features
+        
+        # Identify user50
+        authenticated, user_id, similarity = authenticator.authenticate(target_features)
+        
+        assert authenticated == True
+        assert user_id == "user50"
+    
+    def test_similarity_with_negative_features(self):
+        """Test similarity computation with negative feature values."""
+        authenticator = VoiceAuthenticator()
+        
+        # All negative features
+        features1 = -np.ones(128, dtype=np.float32)
+        features2 = -np.ones(128, dtype=np.float32)
+        
+        similarity = authenticator._compute_similarity(features1, features2)
+        
+        # Should be 1.0 (identical)
+        assert similarity == pytest.approx(1.0, abs=0.01)
+    
+    def test_similarity_with_mixed_sign_features(self):
+        """Test similarity with mixed positive/negative features."""
+        authenticator = VoiceAuthenticator()
+        
+        # Mixed signs
+        features1 = np.array([1.0, -1.0, 1.0, -1.0] * 32, dtype=np.float32)
+        features2 = np.array([-1.0, 1.0, -1.0, 1.0] * 32, dtype=np.float32)
+        
+        similarity = authenticator._compute_similarity(features1, features2)
+        
+        # Should be 0.0 (opposite)
+        assert similarity == pytest.approx(0.0, abs=0.01)
+    
+    def test_similarity_with_very_large_values(self):
+        """Test similarity with very large feature values."""
+        authenticator = VoiceAuthenticator()
+        
+        # Very large values
+        features1 = np.ones(128, dtype=np.float32) * 1e6
+        features2 = np.ones(128, dtype=np.float32) * 1e6
+        
+        similarity = authenticator._compute_similarity(features1, features2)
+        
+        # Should still be 1.0 (cosine similarity is scale-invariant)
+        assert similarity == pytest.approx(1.0, abs=0.01)
+    
+    def test_similarity_with_very_small_values(self):
+        """Test similarity with very small feature values."""
+        authenticator = VoiceAuthenticator()
+        
+        # Very small values
+        features1 = np.ones(128, dtype=np.float32) * 1e-6
+        features2 = np.ones(128, dtype=np.float32) * 1e-6
+        
+        similarity = authenticator._compute_similarity(features1, features2)
+        
+        # Should still be 1.0 (cosine similarity is scale-invariant)
+        assert similarity == pytest.approx(1.0, abs=0.01)
+    
+    def test_profile_timestamps_update(self):
+        """Test that profile timestamps are updated correctly."""
+        authenticator = VoiceAuthenticator()
+        
+        # Enroll user
+        features = VoiceFeatures(
+            feature_vector=np.random.randn(128).astype(np.float32),
+            sample_rate=16000,
+            duration=3.0,
+            quality_score=0.9
+        )
+        profile = authenticator.enroll_user("user1", features)
+        
+        enrollment_time = profile.enrollment_date
+        initial_update_time = profile.last_updated
+        
+        # Wait a tiny bit and update
+        import time
+        time.sleep(0.01)
+        
+        updated_profile = authenticator.update_profile("user1", features)
+        
+        # Enrollment date should not change
+        assert updated_profile.enrollment_date == enrollment_time
+        
+        # Last updated should change
+        assert updated_profile.last_updated > initial_update_time

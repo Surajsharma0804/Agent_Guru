@@ -531,11 +531,11 @@ After completing EACH task:
   - _Requirements: 21.1 (Integration with Agent_Guru Components)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate with security system for voice biometric authentication"
 
-  - [ ] 20.1 Write property test for component integration
+  - [x] 20.1 Write property test for component integration
     - **Property 25: Component Integration Completeness**
     - **Validates: Requirements 21.1, 21.7**
 
-  - [ ] 20.2 Write integration tests with Security_System
+  - [x] 20.2 Write integration tests with Security_System
     - Test voice profile storage
     - Test authentication flow
     - _Requirements: 3 (Voice Biometrics)_
