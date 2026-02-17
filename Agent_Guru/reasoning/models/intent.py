@@ -69,7 +69,7 @@ class Entity(BaseModel):
     entity_type: str = Field(..., description="Type of entity (person, location, time, etc.)")
     value: Any = Field(..., description="Extracted entity value")
     raw_text: str = Field(..., description="Original text span")
-    confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Confidence score")
+    confidence: float = Field(default=1.0, description="Confidence score")
     start_pos: Optional[int] = Field(default=None, description="Start position in input text")
     end_pos: Optional[int] = Field(default=None, description="End position in input text")
     normalized_value: Optional[Any] = Field(default=None, description="Normalized entity value")
@@ -127,7 +127,7 @@ class Intent(BaseModel):
         default_factory=dict,
         description="Extracted entities keyed by parameter name",
     )
-    confidence: float = Field(..., ge=0.0, le=1.0, description="Intent detection confidence")
+    confidence: float = Field(..., description="Intent detection confidence")
     requires_reasoning: bool = Field(
         default=False,
         description="Whether this intent requires LLM reasoning",

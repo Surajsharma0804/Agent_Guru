@@ -78,7 +78,6 @@ class Tool(BaseModel):
     )
     estimated_latency: float = Field(
         default=0.1,
-        ge=0.0,
         description="Estimated execution latency in seconds",
     )
     requires_permission: bool = Field(
@@ -210,7 +209,6 @@ class Action(BaseModel):
     )
     estimated_duration: float = Field(
         default=0.1,
-        ge=0.0,
         description="Estimated execution duration in seconds",
     )
     requires_confirmation: bool = Field(
@@ -240,7 +238,7 @@ class Action(BaseModel):
     
     @field_validator("estimated_duration")
     @classmethod
-    def validate_duration(cls, v: float) -> str:
+    def validate_duration(cls, v: float) -> float:
         """Validate duration is non-negative."""
         if v < 0:
             raise ValueError("Estimated duration must be non-negative")

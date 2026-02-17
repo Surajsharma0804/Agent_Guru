@@ -31,7 +31,6 @@ class ExecutionResult(BaseModel):
     )
     execution_time: float = Field(
         ...,
-        ge=0.0,
         description="Actual execution time in seconds",
     )
     action_id: str = Field(..., description="ID of executed action")

@@ -287,3 +287,14 @@ class TestResponse:
         assert ResponseModality.BOTH == "both"
         assert ResponseModality.VISUAL == "visual"
         assert ResponseModality.MULTIMODAL == "multimodal"
+
+
+    def test_execution_time_validation_valid(self):
+        """Test execution time validation passes for valid positive value."""
+        result = ExecutionResult(
+            success=True,
+            execution_time=0.5,
+            action_id="action_123",
+            tool_id="test",
+        )
+        assert result.execution_time == 0.5

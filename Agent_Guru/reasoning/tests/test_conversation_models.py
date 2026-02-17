@@ -447,3 +447,34 @@ class TestConversationState:
         state2 = ConversationState(conversation_id="conv_123", user_id="user_456")
         
         assert hash(state1) == hash(state2)
+
+
+    def test_tracked_entity_validate_confidence_valid(self):
+        """Test confidence validation passes for valid value."""
+        entity = TrackedEntity(
+            entity_type="location",
+            value="New York",
+            first_mentioned=0,
+            last_mentioned=0,
+            confidence=0.95,
+        )
+        assert entity.confidence == 0.95
+    
+    def test_conversation_turn_validate_turn_number_valid(self):
+        """Test turn number validation passes for valid positive value."""
+        turn = ConversationTurn(
+            turn_id="turn_123",
+            turn_number=5,
+            user_input="test",
+        )
+        assert turn.turn_number == 5
+    
+    def test_conversation_turn_validate_execution_time_valid(self):
+        """Test execution time validation passes for valid positive value."""
+        turn = ConversationTurn(
+            turn_id="turn_123",
+            turn_number=0,
+            user_input="test",
+            execution_time=0.5,
+        )
+        assert turn.execution_time == 0.5

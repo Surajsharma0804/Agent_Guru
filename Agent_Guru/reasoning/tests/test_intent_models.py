@@ -246,3 +246,24 @@ class TestIntent:
         assert IntentType.QUERY_WEATHER == "query_weather"
         assert IntentType.SEND_MESSAGE == "send_message"
         assert IntentType.UNKNOWN == "unknown"
+
+
+    def test_entity_validate_confidence_valid(self):
+        """Test confidence validation passes for valid value."""
+        entity = Entity(
+            entity_type="duration",
+            value=300,
+            raw_text="5 minutes",
+            confidence=0.95,
+        )
+        assert entity.confidence == 0.95
+    
+    def test_intent_validate_confidence_valid(self):
+        """Test confidence validation passes for valid value."""
+        intent = Intent(
+            intent_type=IntentType.SET_TIMER,
+            entities={},
+            confidence=0.95,
+            original_input="test",
+        )
+        assert intent.confidence == 0.95

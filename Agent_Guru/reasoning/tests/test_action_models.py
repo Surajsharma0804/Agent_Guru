@@ -300,3 +300,23 @@ class TestAction:
         assert ActionSensitivity.SAFE == "safe"
         assert ActionSensitivity.SENSITIVE == "sensitive"
         assert ActionSensitivity.DANGEROUS == "dangerous"
+
+
+    def test_tool_validate_latency_valid(self):
+        """Test latency validation passes for valid positive value."""
+        tool = Tool(
+            tool_id="test",
+            name="Test",
+            description="Test",
+            estimated_latency=0.5,
+        )
+        assert tool.estimated_latency == 0.5
+    
+    def test_action_validate_duration_valid(self):
+        """Test duration validation passes for valid positive value."""
+        action = Action(
+            action_id="action_123",
+            tool_id="test",
+            estimated_duration=0.5,
+        )
+        assert action.estimated_duration == 0.5

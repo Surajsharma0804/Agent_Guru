@@ -14,10 +14,10 @@ class TrackedEntity(BaseModel):
     
     entity_type: str = Field(..., description="Type of entity")
     value: Any = Field(..., description="Entity value")
-    first_mentioned: int = Field(..., ge=0, description="Turn number when first mentioned")
-    last_mentioned: int = Field(..., ge=0, description="Turn number when last mentioned")
-    mention_count: int = Field(default=1, ge=1, description="Number of times mentioned")
-    confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Confidence score")
+    first_mentioned: int = Field(..., description="Turn number when first mentioned")
+    last_mentioned: int = Field(..., description="Turn number when last mentioned")
+    mention_count: int = Field(default=1, description="Number of times mentioned")
+    confidence: float = Field(default=1.0, description="Confidence score")
     
     @field_validator("confidence")
     @classmethod
@@ -65,7 +65,7 @@ class ConversationTurn(BaseModel):
     """Represents a single turn in a conversation."""
     
     turn_id: str = Field(..., description="Unique turn identifier")
-    turn_number: int = Field(..., ge=0, description="Turn number in conversation")
+    turn_number: int = Field(..., description="Turn number in conversation")
     user_input: str = Field(..., description="User input text")
     intent: Optional[Intent] = Field(default=None, description="Detected intent")
     action_taken: Optional[Action] = Field(default=None, description="Action executed")
@@ -80,7 +80,6 @@ class ConversationTurn(BaseModel):
     )
     execution_time: float = Field(
         default=0.0,
-        ge=0.0,
         description="Total execution time for turn",
     )
     metadata: Dict[str, Any] = Field(
