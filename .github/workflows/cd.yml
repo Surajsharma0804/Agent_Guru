@@ -1,0 +1,264 @@
+name: Agent Guru CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract Metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=sha,prefix={{branch}}-
+    
+    - name: Build and Push Docker Image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          BUILD_DATE=${{ github.event.head_commit.timestamp }}
+          VCS_REF=${{ github.sha }}
+          VERSION=${{ steps.meta.outputs.version }}
+    
+    - name: Generate SBOM
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ steps.meta.outputs.tags }}
+        format: spdx-json
+        output-file: sbom.spdx.json
+    
+    - name: Upload SBOM
+      uses: actions/upload-artifact@v4
+      with:
+        name: sbom
+        path: sbom.spdx.json
+        retention-days: 90
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-docker
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://staging.agent-guru.example.com
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+    
+    - name: Configure Kubernetes Context
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > $HOME/.kube/config
+        chmod 600 $HOME/.kube/config
+    
+    - name: Deploy to Staging
+      run: |
+        kubectl set image deployment/agent-guru-reasoning \
+          reasoning=${{ needs.build-docker.outputs.image-tag }} \
+          -n agent-guru-staging
+        
+        kubectl rollout status deployment/agent-guru-reasoning \
+          -n agent-guru-staging \
+          --timeout=5m
+    
+    - name: Verify Deployment
+      run: |
+        kubectl get pods -n agent-guru-staging -l app=agent-guru-reasoning
+        kubectl get services -n agent-guru-staging -l app=agent-guru-reasoning
+    
+    - name: Run Smoke Tests
+      run: |
+        echo "Running smoke tests against staging environment..."
+        # Add smoke test commands here
+        curl -f https://staging.agent-guru.example.com/health || exit 1
+        echo "✅ Smoke tests passed"
+    
+    - name: Rollback on Failure
+      if: failure()
+      run: |
+        echo "❌ Deployment failed, rolling back..."
+        kubectl rollout undo deployment/agent-guru-reasoning -n agent-guru-staging
+        kubectl rollout status deployment/agent-guru-reasoning -n agent-guru-staging
+        exit 1
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-docker
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+      url: https://agent-guru.example.com
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+    
+    - name: Configure Kubernetes Context
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > $HOME/.kube/config
+        chmod 600 $HOME/.kube/config
+    
+    - name: Create Deployment Backup
+      run: |
+        kubectl get deployment agent-guru-reasoning -n agent-guru-production -o yaml > deployment-backup.yaml
+    
+    - name: Deploy to Production
+      run: |
+        kubectl set image deployment/agent-guru-reasoning \
+          reasoning=${{ needs.build-docker.outputs.image-tag }} \
+          -n agent-guru-production
+        
+        kubectl rollout status deployment/agent-guru-reasoning \
+          -n agent-guru-production \
+          --timeout=10m
+    
+    - name: Verify Deployment
+      run: |
+        kubectl get pods -n agent-guru-production -l app=agent-guru-reasoning
+        kubectl get services -n agent-guru-production -l app=agent-guru-reasoning
+    
+    - name: Run Health Checks
+      run: |
+        echo "Running health checks against production environment..."
+        for i in {1..5}; do
+          if curl -f https://agent-guru.example.com/health; then
+            echo "✅ Health check $i passed"
+          else
+            echo "❌ Health check $i failed"
+            exit 1
+          fi
+          sleep 10
+        done
+        echo "✅ All health checks passed"
+    
+    - name: Run Production Smoke Tests
+      run: |
+        echo "Running production smoke tests..."
+        # Add production smoke test commands here
+        curl -f https://agent-guru.example.com/metrics || exit 1
+        echo "✅ Production smoke tests passed"
+    
+    - name: Rollback on Failure
+      if: failure()
+      run: |
+        echo "❌ Production deployment failed, rolling back..."
+        kubectl rollout undo deployment/agent-guru-reasoning -n agent-guru-production
+        kubectl rollout status deployment/agent-guru-reasoning -n agent-guru-production
+        
+        # Restore from backup if needed
+        kubectl apply -f deployment-backup.yaml
+        
+        echo "❌ Rollback completed"
+        exit 1
+    
+    - name: Create GitHub Release
+      if: success()
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
+        body: |
+          ## Agent Guru Release ${{ github.ref_name }}
+          
+          ### Deployment Information
+          - Docker Image: ${{ needs.build-docker.outputs.image-tag }}
+          - Digest: ${{ needs.build-docker.outputs.image-digest }}
+          - Deployed to Production: ${{ github.event.head_commit.timestamp }}
+          
+          ### Changes
+          ${{ github.event.head_commit.message }}
+        draft: false
+        prerelease: false
+
+  notify:
+    name: Deployment Notification
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    
+    steps:
+    - name: Send Notification
+      run: |
+        if [ "${{ needs.deploy-staging.result }}" == "success" ]; then
+          echo "✅ Staging deployment successful"
+        elif [ "${{ needs.deploy-staging.result }}" == "failure" ]; then
+          echo "❌ Staging deployment failed"
+        fi
+        
+        if [ "${{ needs.deploy-production.result }}" == "success" ]; then
+          echo "✅ Production deployment successful"
+        elif [ "${{ needs.deploy-production.result }}" == "failure" ]; then
+          echo "❌ Production deployment failed"
+        fi
+        
+        # Add notification integrations here (Slack, email, etc.)
+        echo "Deployment notifications sent"
