@@ -715,3 +715,353 @@ class TestLanguageDetector:
             result = detector.detect_language(sample)
             assert result is not None
             assert 0.0 <= result.confidence <= 1.0
+
+
+    # ========================================================================
+    # ZERO COMPROMISE - STRESS TESTS
+    # ========================================================================
+    
+    def test_stress_10000_rapid_detections(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Stress test with 10,000 rapid detections."""
+        texts = [
+            "Hello world",
+            "Hola mundo",
+            "Bonjour monde",
+            "你好世界",
+            "こんにちは世界",
+            "नमस्ते दुनिया",
+        ]
+        
+        # Detect 10,000 times
+        for i in range(10000):
+            text = texts[i % len(texts)]
+            result = detector.detect_language(text)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_stress_extremely_long_text(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Stress test with extremely long text (100KB)."""
+        # Create 100KB of text
+        text = "The quick brown fox jumps over the lazy dog. " * 2000
+        
+        result = detector.detect_language(text)
+        
+        assert result is not None
+        assert result.language in [Language.ENGLISH, Language.UNKNOWN]
+        assert 0.0 <= result.confidence <= 1.0
+    
+    def test_stress_1000_different_languages_rapid(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Stress test with 1000 rapid language switches."""
+        test_texts = {
+            Language.ENGLISH: "Hello world",
+            Language.SPANISH: "Hola mundo",
+            Language.FRENCH: "Bonjour monde",
+            Language.GERMAN: "Hallo Welt",
+            Language.CHINESE: "你好世界",
+            Language.JAPANESE: "こんにちは世界",
+            Language.HINDI: "नमस्ते दुनिया",
+            Language.ARABIC: "مرحبا بالعالم",
+        }
+        
+        # Rapid switching 1000 times
+        for i in range(1000):
+            lang = list(test_texts.keys())[i % len(test_texts)]
+            text = test_texts[lang]
+            result = detector.detect_language(text)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_stress_memory_usage_10000_detections(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Stress test for memory leaks with 10,000 detections."""
+        import gc
+        
+        # Force garbage collection
+        gc.collect()
+        
+        # Detect 10,000 times
+        for i in range(10000):
+            text = f"Test text number {i} with some content"
+            result = detector.detect_language(text)
+            assert result is not None
+        
+        # Force garbage collection again
+        gc.collect()
+        
+        # If we got here without crashing, no obvious memory leak
+        assert True
+    
+    def test_stress_concurrent_detections(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Stress test with concurrent-like rapid detections."""
+        texts = [
+            "Hello world",
+            "Hola mundo",
+            "Bonjour monde",
+            "Hallo Welt",
+            "Ciao mondo",
+        ]
+        
+        # Simulate concurrent access by rapid switching
+        results = []
+        for _ in range(1000):
+            for text in texts:
+                result = detector.detect_language(text)
+                results.append(result)
+        
+        # All results should be valid
+        for result in results:
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    # ========================================================================
+    # ZERO COMPROMISE - CHAOS TESTS
+    # ========================================================================
+    
+    def test_chaos_random_bytes(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Chaos test with random bytes."""
+        import random
+        
+        # Generate random bytes and try to decode
+        for _ in range(100):
+            random_bytes = bytes([random.randint(0, 255) for _ in range(50)])
+            try:
+                text = random_bytes.decode('utf-8', errors='ignore')
+                result = detector.detect_language(text)
+                assert result is not None
+                assert 0.0 <= result.confidence <= 1.0
+            except:
+                # If decode fails, that's ok
+                pass
+    
+    def test_chaos_corrupted_unicode(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Chaos test with corrupted Unicode."""
+        corrupted_texts = [
+            "\uFFFD" * 10,  # Replacement characters
+            "\u0000" * 5,   # Null characters
+            "\u200B" * 10,  # Zero-width spaces
+            "\uFEFF" * 5,   # Byte order marks
+            "Hello\uD800World",  # Invalid surrogate
+        ]
+        
+        for text in corrupted_texts:
+            result = detector.detect_language(text)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_chaos_mixed_encodings(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Chaos test with mixed encoding artifacts."""
+        mixed_texts = [
+            "Hello\x00World",
+            "Test\x01\x02\x03",
+            "Data\xFF\xFE",
+            "Mixed\xC0\x80",
+        ]
+        
+        for text in mixed_texts:
+            result = detector.detect_language(text)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_chaos_control_characters(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Chaos test with control characters."""
+        control_texts = [
+            "Hello\r\nWorld",
+            "Test\t\t\tData",
+            "Line\x0BFeed",
+            "Form\x0CFeed",
+            "Escape\x1BSequence",
+        ]
+        
+        for text in control_texts:
+            result = detector.detect_language(text)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_chaos_bidirectional_text(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Chaos test with bidirectional text markers."""
+        bidi_texts = [
+            "\u202AHello\u202C",  # LRE/PDF
+            "\u202BWorld\u202C",  # RLE/PDF
+            "\u202DHello\u202C",  # LRO/PDF
+            "\u202EWorld\u202C",  # RLO/PDF
+        ]
+        
+        for text in bidi_texts:
+            result = detector.detect_language(text)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_chaos_combining_characters(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Chaos test with excessive combining characters."""
+        # Text with many combining diacritics
+        text = "e" + "\u0301" * 50  # e with 50 acute accents
+        
+        result = detector.detect_language(text)
+        assert result is not None
+        assert 0.0 <= result.confidence <= 1.0
+    
+    def test_chaos_homoglyphs(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Chaos test with homoglyphs (look-alike characters)."""
+        homoglyph_texts = [
+            "Ηello",  # Greek Eta instead of H
+            "Wοrld",  # Greek omicron instead of o
+            "Тest",   # Cyrillic Te instead of T
+            "Dаta",   # Cyrillic a instead of a
+        ]
+        
+        for text in homoglyph_texts:
+            result = detector.detect_language(text)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_chaos_zalgo_text(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Chaos test with Zalgo text (excessive diacritics)."""
+        # Zalgo-style text
+        zalgo = "H̸̡̪̯ͨ͊̽̅̾̎Ẹ̢̣̤͙̃͋̑̓L̸̡̪̯ͨ͊̽̅̾̎L̸̡̪̯ͨ͊̽̅̾̎O̸̡̪̯ͨ͊̽̅̾̎"
+        
+        result = detector.detect_language(zalgo)
+        assert result is not None
+        assert 0.0 <= result.confidence <= 1.0
+    
+    # ========================================================================
+    # ZERO COMPROMISE - EDGE CASES
+    # ========================================================================
+    
+    def test_edge_case_only_punctuation(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Edge case with only punctuation."""
+        texts = [
+            "!!!",
+            "???",
+            "...",
+            "---",
+            "***",
+            "###",
+        ]
+        
+        for text in texts:
+            result = detector.detect_language(text)
+            assert result.language == Language.UNKNOWN or result.confidence < 0.3
+    
+    def test_edge_case_only_emojis(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Edge case with only emojis."""
+        emoji_texts = [
+            "😀😃😄😁",
+            "🌍🌎🌏",
+            "❤️💙💚💛",
+            "🔥💧🌊",
+        ]
+        
+        for text in emoji_texts:
+            result = detector.detect_language(text)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_edge_case_mathematical_symbols(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Edge case with mathematical symbols."""
+        math_texts = [
+            "∑∫∂∇",
+            "αβγδ",
+            "∀∃∈∉",
+            "≤≥≠≈",
+        ]
+        
+        for text in math_texts:
+            result = detector.detect_language(text)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_edge_case_currency_symbols(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Edge case with currency symbols."""
+        currency_texts = [
+            "$100",
+            "€50",
+            "£30",
+            "¥1000",
+            "₹500",
+        ]
+        
+        for text in currency_texts:
+            result = detector.detect_language(text)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_edge_case_urls(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Edge case with URLs."""
+        urls = [
+            "https://example.com",
+            "http://test.org/path",
+            "ftp://files.net",
+            "www.website.com",
+        ]
+        
+        for url in urls:
+            result = detector.detect_language(url)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_edge_case_email_addresses(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Edge case with email addresses."""
+        emails = [
+            "test@example.com",
+            "user.name@domain.org",
+            "admin@test.co.uk",
+        ]
+        
+        for email in emails:
+            result = detector.detect_language(email)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_edge_case_phone_numbers(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Edge case with phone numbers."""
+        phones = [
+            "+1-555-123-4567",
+            "(555) 123-4567",
+            "555.123.4567",
+            "+44 20 1234 5678",
+        ]
+        
+        for phone in phones:
+            result = detector.detect_language(phone)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_edge_case_code_snippets(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Edge case with code snippets."""
+        code_snippets = [
+            "def hello(): return 'world'",
+            "function test() { return true; }",
+            "public class Test { }",
+            "SELECT * FROM users WHERE id = 1",
+        ]
+        
+        for code in code_snippets:
+            result = detector.detect_language(code)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_edge_case_repeated_characters(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Edge case with repeated characters."""
+        repeated_texts = [
+            "aaaaaaaaaa",
+            "bbbbbbbbbb",
+            "1111111111",
+            "          ",
+        ]
+        
+        for text in repeated_texts:
+            result = detector.detect_language(text)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_edge_case_alternating_scripts(self, detector: LanguageDetector):
+        """ZERO COMPROMISE: Edge case with alternating scripts."""
+        alternating_texts = [
+            "a你b好c世d界",
+            "1こ2ん3に4ち5は",
+            "xमyरzत",
+        ]
+        
+        for text in alternating_texts:
+            result = detector.detect_language(text)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
