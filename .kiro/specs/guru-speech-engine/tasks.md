@@ -299,7 +299,7 @@ After completing EACH task:
   - _Requirements: 4 (Gender-Specific TTS - Mobile)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add mobile TTS integration with gender-specific voice selection"
 
-  - [ ] 11.1 Write unit tests for Android TTS
+  - [-] 11.1 Write unit tests for Android TTS
     - Test male voice synthesis
     - Test female voice synthesis
     - _Requirements: 4 (Android)_
