@@ -1,0 +1,661 @@
+# Intent Detection Training Dataset
+# This file defines the intent taxonomy and example utterances for training
+
+intents:
+  # Time & Scheduling Intents
+  set_timer:
+    description: "Set a countdown timer"
+    examples:
+      - "set a timer for 5 minutes"
+      - "timer for 10 seconds"
+      - "start a 30 minute timer"
+      - "set timer 2 hours"
+      - "can you set a timer for 45 minutes"
+      - "I need a timer for 1 hour and 30 minutes"
+      - "create a 20 second timer"
+      - "put on a timer for 15 minutes"
+      - "set a cooking timer for 25 minutes"
+      - "start countdown for 3 minutes"
+    entities:
+      - duration
+
+  set_alarm:
+    description: "Set an alarm for a specific time"
+    examples:
+      - "set an alarm for 7am"
+      - "wake me up at 6:30"
+      - "alarm for 8 o'clock tomorrow"
+      - "set alarm 9:15 PM"
+      - "create an alarm for 5:45 in the morning"
+      - "I need an alarm at 7:30 tomorrow"
+      - "wake me at 6am on Monday"
+      - "set my alarm for 8:00"
+      - "alarm at noon"
+      - "set alarm for 10:30 tonight"
+    entities:
+      - time
+      - date
+
+  set_reminder:
+    description: "Set a reminder for a task or event"
+    examples:
+      - "remind me to call mom at 3pm"
+      - "set a reminder to buy milk"
+      - "reminder for dentist appointment tomorrow"
+      - "remind me about the meeting in 2 hours"
+      - "create reminder to take medicine at 8pm"
+      - "I need a reminder to water plants"
+      - "remind me to submit report by Friday"
+      - "set reminder for grocery shopping"
+      - "reminder to pick up kids at 4pm"
+      - "remind me about dinner reservation at 7"
+    entities:
+      - task
+      - time
+      - date
+
+  cancel_timer:
+    description: "Cancel or stop an active timer"
+    examples:
+      - "cancel the timer"
+      - "stop timer"
+      - "turn off the timer"
+      - "delete my timer"
+      - "cancel all timers"
+      - "stop the countdown"
+      - "remove the timer"
+      - "turn timer off"
+      - "cancel that timer"
+      - "stop the cooking timer"
+    entities: []
+
+  # Information Query Intents
+  query_weather:
+    description: "Ask about weather conditions"
+    examples:
+      - "what's the weather like"
+      - "weather in New York"
+      - "will it rain today"
+      - "temperature outside"
+      - "weather forecast for tomorrow"
+      - "is it going to snow this weekend"
+      - "what's the weather in London"
+      - "how hot is it today"
+      - "weather for next week"
+      - "do I need an umbrella"
+    entities:
+      - location
+      - date
+      - time
+
+  query_time:
+    description: "Ask for current time"
+    examples:
+      - "what time is it"
+      - "current time"
+      - "tell me the time"
+      - "what's the time"
+      - "time please"
+      - "what time is it in Tokyo"
+      - "current time in Paris"
+      - "what's the time right now"
+      - "can you tell me the time"
+      - "time in New York"
+    entities:
+      - location
+
+  query_date:
+    description: "Ask for current date"
+    examples:
+      - "what's today's date"
+      - "what day is it"
+      - "current date"
+      - "tell me the date"
+      - "what's the date today"
+      - "what day of the week is it"
+      - "is today Monday"
+      - "what month is it"
+      - "what's tomorrow's date"
+      - "date please"
+    entities: []
+
+  query_fact:
+    description: "Ask for factual information"
+    examples:
+      - "who is the president"
+      - "what is the capital of France"
+      - "how tall is Mount Everest"
+      - "when was Einstein born"
+      - "what is the speed of light"
+      - "who invented the telephone"
+      - "what is the population of China"
+      - "how far is the moon"
+      - "what is the largest ocean"
+      - "who wrote Romeo and Juliet"
+    entities:
+      - query_subject
+
+  search_web:
+    description: "Search the internet for information"
+    examples:
+      - "search for pizza recipes"
+      - "look up best laptops 2026"
+      - "google python tutorials"
+      - "search the web for news"
+      - "find information about AI"
+      - "search for nearby restaurants"
+      - "look up movie reviews"
+      - "search for flight deals"
+      - "find hotels in Miami"
+      - "search for job openings"
+    entities:
+      - search_query
+
+  # Communication Intents
+  send_message:
+    description: "Send a text message"
+    examples:
+      - "send a message to John"
+      - "text mom I'll be late"
+      - "message Sarah about the meeting"
+      - "send text to dad"
+      - "text my wife I'm on my way"
+      - "message the team about the update"
+      - "send a text saying I'm here"
+      - "text John to call me"
+      - "message Lisa happy birthday"
+      - "send text to boss about the report"
+    entities:
+      - recipient
+      - message_content
+
+  send_email:
+    description: "Send an email"
+    examples:
+      - "send an email to john@example.com"
+      - "email my boss about the project"
+      - "compose email to the team"
+      - "send email with the report"
+      - "email Sarah the meeting notes"
+      - "send an email to support"
+      - "email the invoice to accounting"
+      - "compose message to hr@company.com"
+      - "send email about vacation request"
+      - "email the presentation to clients"
+    entities:
+      - recipient
+      - subject
+      - message_content
+
+  make_call:
+    description: "Make a phone call"
+    examples:
+      - "call mom"
+      - "phone John"
+      - "dial 555-1234"
+      - "call my wife"
+      - "make a call to the office"
+      - "phone the restaurant"
+      - "call customer service"
+      - "dial emergency"
+      - "call back the last number"
+      - "phone Sarah's mobile"
+    entities:
+      - recipient
+      - phone_number
+
+  # Media & Entertainment Intents
+  play_music:
+    description: "Play music or audio"
+    examples:
+      - "play some music"
+      - "play Bohemian Rhapsody"
+      - "play jazz music"
+      - "play songs by Taylor Swift"
+      - "play my workout playlist"
+      - "play relaxing music"
+      - "play the Beatles"
+      - "play top hits"
+      - "play classical music"
+      - "play my favorite songs"
+    entities:
+      - song_name
+      - artist
+      - genre
+      - playlist
+
+  play_video:
+    description: "Play a video"
+    examples:
+      - "play a video"
+      - "play cat videos"
+      - "play the latest news"
+      - "play cooking tutorials"
+      - "play funny videos"
+      - "play movie trailers"
+      - "play workout videos"
+      - "play music videos"
+      - "play documentaries"
+      - "play sports highlights"
+    entities:
+      - video_query
+      - video_type
+
+  pause_media:
+    description: "Pause currently playing media"
+    examples:
+      - "pause"
+      - "pause the music"
+      - "pause playback"
+      - "stop playing"
+      - "pause this"
+      - "pause the video"
+      - "pause the song"
+      - "hold on pause"
+      - "pause what's playing"
+      - "stop the music"
+    entities: []
+
+  stop_media:
+    description: "Stop media playback completely"
+    examples:
+      - "stop"
+      - "stop the music"
+      - "stop playing"
+      - "turn off the music"
+      - "stop playback"
+      - "stop this song"
+      - "stop the video"
+      - "end playback"
+      - "stop what's playing"
+      - "turn music off"
+    entities: []
+
+  next_track:
+    description: "Skip to next track"
+    examples:
+      - "next song"
+      - "skip this"
+      - "next track"
+      - "play next"
+      - "skip to next"
+      - "next"
+      - "skip this song"
+      - "play the next one"
+      - "go to next track"
+      - "skip forward"
+    entities: []
+
+  previous_track:
+    description: "Go back to previous track"
+    examples:
+      - "previous song"
+      - "go back"
+      - "previous track"
+      - "play previous"
+      - "last song"
+      - "previous"
+      - "go to previous track"
+      - "play the last one"
+      - "back to previous"
+      - "skip backward"
+    entities: []
+
+  # Smart Home Intents
+  control_lights:
+    description: "Control smart lights"
+    examples:
+      - "turn on the lights"
+      - "turn off bedroom lights"
+      - "dim the lights"
+      - "brighten living room lights"
+      - "set lights to 50%"
+      - "turn on kitchen lights"
+      - "lights off"
+      - "make it brighter"
+      - "turn off all lights"
+      - "set lights to blue"
+    entities:
+      - device_name
+      - action
+      - brightness
+      - color
+
+  control_thermostat:
+    description: "Control temperature settings"
+    examples:
+      - "set temperature to 72"
+      - "make it warmer"
+      - "turn up the heat"
+      - "set thermostat to 68 degrees"
+      - "make it cooler"
+      - "turn on AC"
+      - "increase temperature"
+      - "set heating to 70"
+      - "turn off heating"
+      - "what's the temperature"
+    entities:
+      - temperature
+      - action
+      - mode
+
+  control_device:
+    description: "Control other smart home devices"
+    examples:
+      - "turn on the TV"
+      - "turn off the fan"
+      - "start the coffee maker"
+      - "lock the door"
+      - "unlock front door"
+      - "open the garage"
+      - "close the blinds"
+      - "turn on the vacuum"
+      - "start the dishwasher"
+      - "turn off all devices"
+    entities:
+      - device_name
+      - action
+
+  # Calendar & Events Intents
+  create_event:
+    description: "Create a calendar event"
+    examples:
+      - "create an event for tomorrow"
+      - "schedule a meeting at 3pm"
+      - "add dentist appointment to calendar"
+      - "create event for team lunch"
+      - "schedule dinner on Friday"
+      - "add birthday party to calendar"
+      - "create meeting for next Monday"
+      - "schedule conference call at 2pm"
+      - "add gym session to calendar"
+      - "create event called project review"
+    entities:
+      - event_name
+      - date
+      - time
+      - duration
+
+  update_event:
+    description: "Update an existing calendar event"
+    examples:
+      - "move meeting to 4pm"
+      - "reschedule dentist appointment"
+      - "change event time"
+      - "update meeting location"
+      - "move tomorrow's meeting to Friday"
+      - "change event to next week"
+      - "reschedule to 3pm"
+      - "update event details"
+      - "change meeting time to 5pm"
+      - "move event to Monday"
+    entities:
+      - event_name
+      - date
+      - time
+
+  delete_event:
+    description: "Delete a calendar event"
+    examples:
+      - "delete meeting"
+      - "cancel dentist appointment"
+      - "remove event from calendar"
+      - "delete tomorrow's meeting"
+      - "cancel the party"
+      - "remove gym session"
+      - "delete all events today"
+      - "cancel meeting at 3pm"
+      - "remove birthday event"
+      - "delete next week's appointment"
+    entities:
+      - event_name
+      - date
+      - time
+
+  query_events:
+    description: "Query calendar events"
+    examples:
+      - "what's on my calendar"
+      - "do I have any meetings today"
+      - "what's my schedule tomorrow"
+      - "show me next week's events"
+      - "what meetings do I have"
+      - "check my calendar for Friday"
+      - "any appointments today"
+      - "what's scheduled for Monday"
+      - "show my events"
+      - "what's coming up"
+    entities:
+      - date
+      - time
+
+  # System & Control Intents
+  open_app:
+    description: "Open an application"
+    examples:
+      - "open Spotify"
+      - "launch Chrome"
+      - "open email"
+      - "start Netflix"
+      - "open calculator"
+      - "launch maps"
+      - "open camera"
+      - "start YouTube"
+      - "open settings"
+      - "launch calendar"
+    entities:
+      - app_name
+
+  close_app:
+    description: "Close an application"
+    examples:
+      - "close Spotify"
+      - "quit Chrome"
+      - "close email"
+      - "exit Netflix"
+      - "close calculator"
+      - "quit maps"
+      - "close camera"
+      - "exit YouTube"
+      - "close settings"
+      - "quit calendar"
+    entities:
+      - app_name
+
+  system_command:
+    description: "Execute system commands"
+    examples:
+      - "increase volume"
+      - "turn down volume"
+      - "mute"
+      - "unmute"
+      - "take a screenshot"
+      - "lock screen"
+      - "restart device"
+      - "turn off wifi"
+      - "enable bluetooth"
+      - "adjust brightness"
+    entities:
+      - command_type
+      - value
+
+  # Conversation Management Intents
+  clarification_request:
+    description: "Request clarification from user"
+    examples:
+      - "what do you mean"
+      - "can you clarify"
+      - "I don't understand"
+      - "please explain"
+      - "what did you say"
+      - "come again"
+      - "repeat that"
+      - "say that again"
+      - "I didn't catch that"
+      - "could you rephrase"
+    entities: []
+
+  confirmation:
+    description: "Confirm an action"
+    examples:
+      - "yes"
+      - "yeah"
+      - "sure"
+      - "okay"
+      - "correct"
+      - "that's right"
+      - "affirmative"
+      - "yep"
+      - "absolutely"
+      - "go ahead"
+    entities: []
+
+  cancellation:
+    description: "Cancel or deny an action"
+    examples:
+      - "no"
+      - "nope"
+      - "cancel"
+      - "never mind"
+      - "stop"
+      - "don't do that"
+      - "negative"
+      - "not now"
+      - "forget it"
+      - "cancel that"
+    entities: []
+
+  help_request:
+    description: "Request help or assistance"
+    examples:
+      - "help"
+      - "what can you do"
+      - "how do I"
+      - "I need help"
+      - "assist me"
+      - "show me how"
+      - "what are your capabilities"
+      - "help me with"
+      - "I'm stuck"
+      - "guide me"
+    entities:
+      - help_topic
+
+  # Special Intents
+  unknown:
+    description: "Intent cannot be determined"
+    examples:
+      - "asdfghjkl"
+      - "blah blah blah"
+      - "random gibberish"
+      - "xyz abc 123"
+      - "nonsense words"
+    entities: []
+
+  multi_intent:
+    description: "Multiple intents in one utterance"
+    examples:
+      - "set a timer for 10 minutes and play music"
+      - "what's the weather and time"
+      - "turn on lights and set temperature to 72"
+      - "send message to John and call mom"
+      - "create event tomorrow and set reminder"
+    entities:
+      - multiple
+
+# Entity Type Definitions
+entity_types:
+  duration:
+    description: "Time duration (seconds, minutes, hours)"
+    examples: ["5 minutes", "2 hours", "30 seconds", "1 hour 30 minutes"]
+  
+  time:
+    description: "Specific time of day"
+    examples: ["3pm", "7:30", "noon", "midnight", "8 o'clock"]
+  
+  date:
+    description: "Specific date or day"
+    examples: ["tomorrow", "Monday", "next week", "January 15", "today"]
+  
+  task:
+    description: "Task or action to remember"
+    examples: ["call mom", "buy milk", "submit report", "water plants"]
+  
+  location:
+    description: "Geographic location"
+    examples: ["New York", "London", "Paris", "Tokyo", "home"]
+  
+  recipient:
+    description: "Person or contact to communicate with"
+    examples: ["John", "mom", "boss", "Sarah", "the team"]
+  
+  message_content:
+    description: "Content of message or email"
+    examples: ["I'll be late", "meeting at 3", "happy birthday"]
+  
+  phone_number:
+    description: "Phone number"
+    examples: ["555-1234", "123-456-7890", "emergency"]
+  
+  song_name:
+    description: "Name of a song"
+    examples: ["Bohemian Rhapsody", "Imagine", "Yesterday"]
+  
+  artist:
+    description: "Music artist or band"
+    examples: ["Taylor Swift", "The Beatles", "Queen"]
+  
+  genre:
+    description: "Music genre"
+    examples: ["jazz", "rock", "classical", "pop"]
+  
+  playlist:
+    description: "Music playlist name"
+    examples: ["workout playlist", "favorites", "chill vibes"]
+  
+  device_name:
+    description: "Smart home device name"
+    examples: ["bedroom lights", "living room", "thermostat", "TV"]
+  
+  action:
+    description: "Action to perform on device"
+    examples: ["turn on", "turn off", "dim", "brighten", "lock", "unlock"]
+  
+  temperature:
+    description: "Temperature value"
+    examples: ["72", "68 degrees", "70 fahrenheit"]
+  
+  event_name:
+    description: "Name of calendar event"
+    examples: ["meeting", "dentist appointment", "team lunch"]
+  
+  app_name:
+    description: "Application name"
+    examples: ["Spotify", "Chrome", "Netflix", "Maps"]
+  
+  command_type:
+    description: "System command type"
+    examples: ["volume", "brightness", "wifi", "bluetooth"]
+  
+  value:
+    description: "Numeric or setting value"
+    examples: ["50%", "high", "low", "10"]
+  
+  query_subject:
+    description: "Subject of factual query"
+    examples: ["president", "capital of France", "Mount Everest"]
+  
+  search_query:
+    description: "Web search query"
+    examples: ["pizza recipes", "best laptops", "news"]
+  
+  help_topic:
+    description: "Topic needing help"
+    examples: ["timers", "music", "calendar"]
+
+# Dataset Statistics
+statistics:
+  total_intents: 30
+  total_examples: 300
+  avg_examples_per_intent: 10
+  total_entity_types: 25
