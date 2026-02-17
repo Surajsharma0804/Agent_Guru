@@ -331,7 +331,7 @@ After completing EACH task:
 
 ### Phase 6: Streaming Audio and Command Recognition
 
-- [ ] 13. Streaming Audio Manager
+- [x] 13. Streaming Audio Manager
   - Implement `Agent_Guru/speech/audio/streaming.py`:
     - `StreamingAudioManager` class
     - `stream_input()` method for input streaming
@@ -341,13 +341,13 @@ After completing EACH task:
     - Support for PCM, Opus, AAC codecs
     - Target <500ms end-to-end latency
   - _Requirements: 16 (Streaming Audio Processing)_
-  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add streaming audio manager with low-latency processing"
+  - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Added streaming audio manager with low-latency processing"
 
-  - [ ] 13.1 Write property test for streaming latency
+  - [x] 13.1 Write property test for streaming latency
     - **Property 19: Streaming Audio Latency**
     - **Validates: Requirements 16.1, 16.2, 16.3**
 
-  - [ ] 13.2 Write unit tests for codec support
+  - [x] 13.2 Write unit tests for codec support
     - Test PCM encoding/decoding
     - Test Opus encoding/decoding
     - Test AAC encoding/decoding

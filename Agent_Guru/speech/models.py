@@ -108,6 +108,8 @@ class StreamMetrics:
     jitter_ms: float
     packet_loss_percent: float
     buffer_size: int
+    buffer_underruns: int = 0
+    buffer_overruns: int = 0
 
 
 @dataclass
