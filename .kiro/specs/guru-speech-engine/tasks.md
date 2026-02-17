@@ -419,7 +419,7 @@ After completing EACH task:
 
 ### Phase 8: Multi-Language Support and Model Router Integration
 
-- [ ] 16. Multi-Language Support
+- [x] 16. Multi-Language Support
   - Implement `Agent_Guru/speech/stt/language_detector.py`:
     - `LanguageDetector` class
     - `detect_language()` method for automatic detection
@@ -429,11 +429,11 @@ After completing EACH task:
   - _Requirements: 19 (Multi-Language Support)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add multi-language support with automatic language detection"
 
-  - [ ] 16.1 Write property test for language detection and switching
+  - [x] 16.1 Write property test for language detection and switching
     - **Property 23: Language Detection and Switching**
     - **Validates: Requirements 19.2, 19.3, 19.4**
 
-  - [ ] 16.2 Write unit tests for code-switching
+  - [x] 16.2 Write unit tests for code-switching
     - Test mixed-language audio
     - Test language transitions
     - _Requirements: 19.4_
