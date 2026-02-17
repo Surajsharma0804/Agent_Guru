@@ -12,6 +12,17 @@ This implementation plan creates a production-ready, market-competitive reasonin
 
 **Technology Stack**: Python 3.11+ with Rust for performance-critical components, hybrid LLM (local Llama 3.2 + cloud GPT-4), fine-tuned neural models, Kubernetes deployment.
 
+## Testing & Coverage Requirements
+
+**CRITICAL**: Every task must include comprehensive test coverage:
+- **Unit Tests**: Test individual functions and methods
+- **Property-Based Tests**: Test invariants and edge cases with Hypothesis
+- **Integration Tests**: Test component interactions
+- **Target Coverage**: Aim for 80%+ coverage for all new code
+- **Coverage Tracking**: Run `pytest --cov` after each task to verify coverage
+
+Current coverage status will be tracked and reported for each completed task.
+
 ## Phase 1: Foundation & Infrastructure (Weeks 1-2)
 
 - [x] 1. Set up project structure and development environment
@@ -95,7 +106,7 @@ This implementation plan creates a production-ready, market-competitive reasonin
   - Commit: "feat: implement core data models with validation"
   - Push: git push origin main
 
-- [x] 4.1 Write property tests for data model serialization
+- [ ] 4.1 Write property tests for data model serialization
   - **Property 7: Conversation state round-trip**
   - **Validates: Requirements 3.5**
   - Test that for any valid ConversationState, serializing to JSON and deserializing produces equivalent object
