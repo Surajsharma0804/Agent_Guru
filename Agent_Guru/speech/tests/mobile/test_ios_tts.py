@@ -76,24 +76,23 @@ class MockAVSpeechSynthesizer:
 @pytest.fixture
 def mock_ios_modules():
     """Mock iOS modules for testing."""
-    with patch('Agent_Guru.speech.mobile.ios_tts.autoclass') as mock_autoclass:
-        # Setup mocks
-        mock_autoclass.side_effect = lambda name: {
+    def mock_autoclass(name):
+        return {
             'AVSpeechSynthesizer': MockAVSpeechSynthesizer,
             'AVSpeechUtterance': MockAVSpeechUtterance,
             'AVSpeechSynthesisVoice': MockAVSpeechSynthesisVoice,
             'AVAudioFile': Mock,
             'AVAudioSession': Mock(sharedInstance=Mock(return_value=Mock()))
         }.get(name, Mock)
-        
-        yield mock_autoclass
+    
+    return mock_autoclass
 
 
 @pytest.fixture
 def ios_tts(mock_ios_modules):
     """Create iOS TTS instance with mocks."""
     from Agent_Guru.speech.mobile.ios_tts import IOSTTS
-    return IOSTTS()
+    return IOSTTS(autoclass_override=mock_ios_modules)
 
 
 # Unit Tests

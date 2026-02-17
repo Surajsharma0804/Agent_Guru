@@ -287,7 +287,7 @@ After completing EACH task:
     - **Property 11: TTS Output Format**
     - **Validates: Requirements 4.7, 4.24**
 
-- [-] 11. Mobile TTS Integration
+- [x] 11. Mobile TTS Integration
   - Implement `Agent_Guru/speech/mobile/android_tts.py`:
     - `AndroidTTS` class using pyjnius
     - Android TextToSpeech integration
@@ -299,12 +299,12 @@ After completing EACH task:
   - _Requirements: 4 (Gender-Specific TTS - Mobile)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Add mobile TTS integration with gender-specific voice selection"
 
-  - [-] 11.1 Write unit tests for Android TTS
+  - [x] 11.1 Write unit tests for Android TTS
     - Test male voice synthesis
     - Test female voice synthesis
     - _Requirements: 4 (Android)_
 
-  - [ ] 11.2 Write unit tests for iOS TTS
+  - [x] 11.2 Write unit tests for iOS TTS
     - Test male voice synthesis
     - Test female voice synthesis
     - _Requirements: 4 (iOS)_

@@ -81,23 +81,22 @@ class MockTextToSpeech:
 @pytest.fixture
 def mock_android_modules():
     """Mock Android modules for testing."""
-    with patch('Agent_Guru.speech.mobile.android_tts.autoclass') as mock_autoclass:
-        # Setup mocks
-        mock_autoclass.side_effect = lambda name: {
+    def mock_autoclass(name):
+        return {
             'android.speech.tts.TextToSpeech': MockTextToSpeech,
             'java.util.Locale': Mock,
             'org.kivy.android.PythonActivity': Mock(mActivity=Mock()),
             'android.speech.tts.Voice': MockVoice
         }.get(name, Mock)
-        
-        yield mock_autoclass
+    
+    return mock_autoclass
 
 
 @pytest.fixture
 def android_tts(mock_android_modules):
     """Create Android TTS instance with mocks."""
     from Agent_Guru.speech.mobile.android_tts import AndroidTTS
-    return AndroidTTS()
+    return AndroidTTS(autoclass_override=mock_android_modules)
 
 
 # Unit Tests

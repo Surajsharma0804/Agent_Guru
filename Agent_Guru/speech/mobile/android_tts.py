@@ -14,6 +14,14 @@ from enum import Enum
 from Agent_Guru.speech.models import PersonalityType, EmotionType
 from Agent_Guru.speech.exceptions import GuruSpeechError
 
+# Try to import Android modules, set to None if not available (for testing on desktop)
+try:
+    from jnius import autoclass
+    ANDROID_AVAILABLE = True
+except ImportError:
+    autoclass = None
+    ANDROID_AVAILABLE = False
+
 
 class AndroidTTSError(GuruSpeechError):
     """Android TTS-specific errors."""
@@ -57,29 +65,35 @@ class AndroidTTS:
         EmotionType.DISGUSTED: {"pitch_mult": 0.85, "rate_mult": 0.9}
     }
     
-    def __init__(self):
-        """Initialize Android TTS."""
+    def __init__(self, autoclass_override=None):
+        """Initialize Android TTS.
+        
+        Args:
+            autoclass_override: For testing only - override autoclass function
+        """
         self._tts = None
         self._initialized = False
         self._male_voice = None
         self._female_voice = None
         
+        # Use override for testing, otherwise use global autoclass
+        _autoclass = autoclass_override if autoclass_override is not None else autoclass
+        
+        if _autoclass is None:
+            raise AndroidTTSError(
+                "Android TTS requires pyjnius. Install with: pip install pyjnius"
+            )
+        
         try:
             # Import Android-specific modules
-            from jnius import autoclass
-            self.TextToSpeech = autoclass('android.speech.tts.TextToSpeech')
-            self.Locale = autoclass('java.util.Locale')
-            self.PythonActivity = autoclass('org.kivy.android.PythonActivity')
-            self.Voice = autoclass('android.speech.tts.Voice')
+            self.TextToSpeech = _autoclass('android.speech.tts.TextToSpeech')
+            self.Locale = _autoclass('java.util.Locale')
+            self.PythonActivity = _autoclass('org.kivy.android.PythonActivity')
+            self.Voice = _autoclass('android.speech.tts.Voice')
             
             # Initialize TTS engine
             self._init_tts()
             
-        except ImportError as e:
-            raise AndroidTTSError(
-                "Android TTS requires pyjnius. Install with: pip install pyjnius",
-                e
-            )
         except Exception as e:
             raise AndroidTTSError(f"Failed to initialize Android TTS: {e}", e)
     

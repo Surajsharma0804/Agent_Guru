@@ -13,6 +13,14 @@ from typing import Optional, Dict
 from Agent_Guru.speech.models import PersonalityType, EmotionType
 from Agent_Guru.speech.exceptions import GuruSpeechError
 
+# Try to import iOS modules, set to None if not available (for testing on desktop)
+try:
+    from pyobjus import autoclass
+    IOS_AVAILABLE = True
+except ImportError:
+    autoclass = None
+    IOS_AVAILABLE = False
+
 
 class IOSTTSError(GuruSpeechError):
     """iOS TTS-specific errors."""
@@ -56,28 +64,34 @@ class IOSTTS:
         EmotionType.DISGUSTED: {"pitch_mult": 0.85, "rate_mult": 0.9}
     }
     
-    def __init__(self):
-        """Initialize iOS TTS."""
+    def __init__(self, autoclass_override=None):
+        """Initialize iOS TTS.
+        
+        Args:
+            autoclass_override: For testing only - override autoclass function
+        """
         self._synthesizer = None
         self._initialized = False
         self._male_voice = None
         self._female_voice = None
         
+        # Use override for testing, otherwise use global autoclass
+        _autoclass = autoclass_override if autoclass_override is not None else autoclass
+        
+        if _autoclass is None:
+            raise IOSTTSError(
+                "iOS TTS requires pyobjus. Install with: pip install pyobjus"
+            )
+        
         try:
             # Import iOS-specific modules
-            from pyobjus import autoclass
-            self.AVSpeechSynthesizer = autoclass('AVSpeechSynthesizer')
-            self.AVSpeechUtterance = autoclass('AVSpeechUtterance')
-            self.AVSpeechSynthesisVoice = autoclass('AVSpeechSynthesisVoice')
+            self.AVSpeechSynthesizer = _autoclass('AVSpeechSynthesizer')
+            self.AVSpeechUtterance = _autoclass('AVSpeechUtterance')
+            self.AVSpeechSynthesisVoice = _autoclass('AVSpeechSynthesisVoice')
             
             # Initialize synthesizer
             self._init_synthesizer()
             
-        except ImportError as e:
-            raise IOSTTSError(
-                "iOS TTS requires pyobjus. Install with: pip install pyobjus",
-                e
-            )
         except Exception as e:
             raise IOSTTSError(f"Failed to initialize iOS TTS: {e}", e)
     
@@ -198,14 +212,14 @@ class IOSTTS:
             try:
                 # Write to file using AVAudioFile
                 # Note: iOS doesn't have direct synthesizeToFile, so we use audio session
-                from pyobjus import autoclass
-                AVAudioFile = autoclass('AVAudioFile')
-                AVAudioSession = autoclass('AVAudioSession')
+                AVAudioFile = _autoclass('AVAudioFile') if hasattr(self, '_autoclass_func') else None
+                AVAudioSession = _autoclass('AVAudioSession') if hasattr(self, '_autoclass_func') else None
                 
-                # Configure audio session
-                audio_session = AVAudioSession.sharedInstance()
-                audio_session.setCategory_error_('AVAudioSessionCategoryPlayback', None)
-                audio_session.setActive_error_(True, None)
+                if AVAudioSession:
+                    # Configure audio session
+                    audio_session = AVAudioSession.sharedInstance()
+                    audio_session.setCategory_error_('AVAudioSessionCategoryPlayback', None)
+                    audio_session.setActive_error_(True, None)
                 
                 # Speak utterance
                 self._synthesizer.speakUtterance_(utterance)
