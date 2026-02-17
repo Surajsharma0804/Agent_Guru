@@ -549,3 +549,445 @@ def test_voice_cloner_memory_efficiency(voice_cloner, sample_audio):
     
     # Should be empty
     assert len(voice_cloner.list_voices()) == 0
+
+
+
+# EXTREME STRESS TESTS - ZERO COMPROMISE - PRODUCTION GRADE
+
+def test_voice_cloner_extreme_enrollment_1000_samples(voice_cloner):
+    """EXTREME TEST: Enroll voice with 1000 audio samples - ZERO COMPROMISE."""
+    import gc
+    
+    duration = 10.0
+    sample_rate = 16000
+    num_samples = int(duration * sample_rate)
+    
+    # Generate 1000 samples (10,000 seconds = 2.78 hours of audio)
+    print("\n[EXTREME TEST] Enrolling 1000 samples (2.78 hours of audio)")
+    
+    audio_samples = []
+    for i in range(1000):
+        t = np.linspace(0, duration, num_samples)
+        audio = np.sin(2 * np.pi * 150 * t)
+        audio += 0.3 * np.sin(2 * np.pi * 300 * t)
+        audio += 0.1 * np.random.randn(num_samples)
+        audio = audio / np.max(np.abs(audio)) * 0.8
+        audio_samples.append(audio.astype(np.float32))
+        
+        if (i + 1) % 100 == 0:
+            print(f"  Generated {i + 1}/1000 samples")
+            gc.collect()
+    
+    # Enroll
+    import time
+    start = time.time()
+    voice_model = voice_cloner.enroll_voice(
+        audio_samples=audio_samples,
+        voice_id="extreme_test_1000",
+        sample_rate=sample_rate
+    )
+    elapsed = time.time() - start
+    
+    print(f"  [OK] Enrollment completed in {elapsed:.2f}s")
+    print(f"  [OK] Quality score: {voice_model.voice_characteristics['quality_score']:.3f}")
+    
+    assert voice_model is not None
+    assert voice_model.voice_characteristics["sample_count"] == 1000
+    assert voice_model.training_duration_seconds >= 10000.0
+    
+    # Cleanup
+    voice_cloner.delete_voice("extreme_test_1000")
+    gc.collect()
+
+
+def test_voice_cloner_extreme_incremental_updates_500_times(voice_cloner, sample_audio):
+    """EXTREME TEST: 500 incremental updates - ZERO COMPROMISE."""
+    import gc
+    
+    print("\n[EXTREME TEST] 500 incremental updates")
+    
+    # Initial enrollment
+    audio_samples = [sample_audio for _ in range(30)]
+    voice_model = voice_cloner.enroll_voice(
+        audio_samples=audio_samples,
+        voice_id="extreme_incremental",
+        sample_rate=16000
+    )
+    
+    initial_quality = voice_model.voice_characteristics["quality_score"]
+    
+    # Perform 500 updates
+    import time
+    start = time.time()
+    for i in range(500):
+        voice_cloner.update_voice_model(
+            voice_id="extreme_incremental",
+            new_audio_samples=[sample_audio],
+            sample_rate=16000
+        )
+        
+        if (i + 1) % 100 == 0:
+            print(f"  Completed {i + 1}/500 updates")
+            gc.collect()
+    
+    elapsed = time.time() - start
+    
+    final_model = voice_cloner.get_voice_model("extreme_incremental")
+    final_quality = final_model.voice_characteristics["quality_score"]
+    
+    print(f"  [OK] 500 updates completed in {elapsed:.2f}s")
+    print(f"  [OK] Quality: {initial_quality:.3f} → {final_quality:.3f}")
+    print(f"  [OK] Total samples: {final_model.voice_characteristics['sample_count']}")
+    
+    assert final_model.voice_characteristics["sample_count"] == 30 + 500
+    assert abs(final_quality - initial_quality) < 0.3  # Quality should remain stable
+    
+    # Cleanup
+    voice_cloner.delete_voice("extreme_incremental")
+    gc.collect()
+
+
+def test_voice_cloner_extreme_concurrent_enrollments(voice_cloner, sample_audio):
+    """EXTREME TEST: Enroll 100 voices concurrently - ZERO COMPROMISE."""
+    import concurrent.futures
+    import gc
+    
+    print("\n[EXTREME TEST] 100 concurrent voice enrollments")
+    
+    audio_samples = [sample_audio for _ in range(30)]
+    
+    def enroll_voice(idx):
+        try:
+            voice_model = voice_cloner.enroll_voice(
+                audio_samples=audio_samples,
+                voice_id=f"concurrent_voice_{idx}",
+                sample_rate=16000
+            )
+            return True, voice_model.model_id
+        except Exception as e:
+            return False, str(e)
+    
+    # Enroll 100 voices with 20 threads
+    import time
+    start = time.time()
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        futures = [executor.submit(enroll_voice, i) for i in range(100)]
+        results = [f.result() for f in concurrent.futures.as_completed(futures)]
+    
+    elapsed = time.time() - start
+    
+    successes = sum(1 for success, _ in results if success)
+    
+    print(f"  [OK] {successes}/100 enrollments succeeded in {elapsed:.2f}s")
+    print(f"  [OK] Average time per enrollment: {elapsed/100:.2f}s")
+    
+    assert successes == 100, f"Expected 100 successes, got {successes}"
+    assert len(voice_cloner.list_voices()) == 100
+    
+    # Cleanup
+    for i in range(100):
+        voice_cloner.delete_voice(f"concurrent_voice_{i}")
+    gc.collect()
+
+
+def test_voice_cloner_extreme_similarity_matrix_1000_comparisons(voice_cloner):
+    """EXTREME TEST: Compute 1000 similarity comparisons - ZERO COMPROMISE."""
+    import gc
+    
+    print("\n[EXTREME TEST] 1000 voice similarity comparisons")
+    
+    # Generate 50 different voices
+    voices = []
+    for i in range(50):
+        duration = 10.0
+        sample_rate = 16000
+        num_samples = int(duration * sample_rate)
+        
+        # Each voice has different frequency
+        base_freq = 100 + i * 4
+        t = np.linspace(0, duration, num_samples)
+        audio = np.sin(2 * np.pi * base_freq * t)
+        audio += 0.3 * np.sin(2 * np.pi * base_freq * 2 * t)
+        audio += 0.1 * np.random.randn(num_samples)
+        audio = audio / np.max(np.abs(audio)) * 0.8
+        voices.append(audio.astype(np.float32))
+    
+    # Compute similarity matrix (50x50 = 2500 comparisons, we'll do 1000)
+    import time
+    start = time.time()
+    
+    similarities = []
+    comparisons = 0
+    for i in range(50):
+        for j in range(i, min(i + 20, 50)):  # Compare each voice with 20 others
+            sim = voice_cloner.compute_similarity(voices[i], voices[j], 16000)
+            similarities.append(sim)
+            comparisons += 1
+            
+            if comparisons >= 1000:
+                break
+        if comparisons >= 1000:
+            break
+    
+    elapsed = time.time() - start
+    
+    print(f"  [OK] {comparisons} similarity comparisons in {elapsed:.2f}s")
+    print(f"  [OK] Average time per comparison: {elapsed/comparisons*1000:.2f}ms")
+    print(f"  [OK] Mean similarity: {np.mean(similarities):.3f}")
+    print(f"  [OK] Std similarity: {np.std(similarities):.3f}")
+    
+    assert len(similarities) >= 1000
+    assert all(0.0 <= s <= 1.0 for s in similarities)
+    
+    gc.collect()
+
+
+def test_voice_cloner_extreme_memory_stress_10000_features(voice_cloner):
+    """EXTREME TEST: Extract features from 10,000 audio samples - ZERO COMPROMISE."""
+    import gc
+    import psutil
+    import os
+    
+    print("\n[EXTREME TEST] Feature extraction from 10,000 samples")
+    
+    process = psutil.Process(os.getpid())
+    
+    # Baseline memory
+    gc.collect()
+    mem_before = process.memory_info().rss / 1024 / 1024  # MB
+    
+    # Generate and process 10,000 samples
+    duration = 5.0  # Shorter samples for speed
+    sample_rate = 16000
+    num_samples = int(duration * sample_rate)
+    
+    import time
+    start = time.time()
+    
+    for i in range(10000):
+        t = np.linspace(0, duration, num_samples)
+        audio = np.sin(2 * np.pi * 150 * t)
+        audio += 0.1 * np.random.randn(num_samples)
+        audio = audio / np.max(np.abs(audio)) * 0.8
+        audio = audio.astype(np.float32)
+        
+        # Extract features
+        features = voice_cloner._extract_voice_features(audio, sample_rate)
+        
+        if (i + 1) % 1000 == 0:
+            print(f"  Processed {i + 1}/10,000 samples")
+            gc.collect()
+    
+    elapsed = time.time() - start
+    
+    # Final memory
+    gc.collect()
+    mem_after = process.memory_info().rss / 1024 / 1024  # MB
+    mem_increase = mem_after - mem_before
+    
+    print(f"  [OK] 10,000 feature extractions in {elapsed:.2f}s")
+    print(f"  [OK] Average time per extraction: {elapsed/10000*1000:.2f}ms")
+    print(f"  [OK] Memory increase: {mem_increase:.2f}MB")
+    
+    assert mem_increase < 500, f"Memory leak detected: {mem_increase:.2f}MB increase"
+
+
+def test_voice_cloner_extreme_quality_all_edge_cases(voice_cloner):
+    """EXTREME TEST: Test quality computation on ALL edge cases - ZERO COMPROMISE."""
+    print("\n[EXTREME TEST] Quality computation on all edge cases")
+    
+    sample_rate = 16000
+    test_cases = []
+    
+    # 1. Perfect sine wave
+    duration = 10.0
+    num_samples = int(duration * sample_rate)
+    t = np.linspace(0, duration, num_samples)
+    test_cases.append(("Perfect sine", np.sin(2 * np.pi * 150 * t).astype(np.float32)))
+    
+    # 2. Pure silence
+    test_cases.append(("Silence", np.zeros(num_samples, dtype=np.float32)))
+    
+    # 3. Maximum clipping
+    test_cases.append(("Clipped", np.ones(num_samples, dtype=np.float32)))
+    
+    # 4. Pure noise
+    test_cases.append(("Noise", np.random.randn(num_samples).astype(np.float32)))
+    
+    # 5. Very short (0.01s)
+    test_cases.append(("Very short", np.random.randn(160).astype(np.float32)))
+    
+    # 6. Very long (60s)
+    test_cases.append(("Very long", np.random.randn(sample_rate * 60).astype(np.float32) * 0.5))
+    
+    # 7. Extremely quiet
+    test_cases.append(("Quiet", np.random.randn(num_samples).astype(np.float32) * 0.001))
+    
+    # 8. Extremely loud
+    test_cases.append(("Loud", np.random.randn(num_samples).astype(np.float32) * 10.0))
+    
+    # 9. DC offset
+    test_cases.append(("DC offset", np.ones(num_samples, dtype=np.float32) * 0.5 + np.random.randn(num_samples).astype(np.float32) * 0.1))
+    
+    # 10. Impulse train
+    impulse = np.zeros(num_samples, dtype=np.float32)
+    impulse[::1000] = 1.0
+    test_cases.append(("Impulse train", impulse))
+    
+    results = []
+    for name, audio in test_cases:
+        quality = voice_cloner._compute_audio_quality(audio, sample_rate)
+        results.append((name, quality))
+        print(f"  {name:20s}: quality = {quality:.3f}")
+    
+    # All quality scores should be in valid range
+    for name, quality in results:
+        assert 0.0 <= quality <= 1.0, f"{name} quality {quality} out of range"
+    
+    print(f"  [OK] All {len(test_cases)} edge cases handled correctly")
+
+
+def test_voice_cloner_extreme_save_load_100_profiles(voice_cloner, sample_audio):
+    """EXTREME TEST: Save and load 100 voice profiles - ZERO COMPROMISE."""
+    import tempfile
+    import shutil
+    import gc
+    
+    print("\n[EXTREME TEST] Save/load 100 voice profiles")
+    
+    # Create temp directory
+    temp_dir = tempfile.mkdtemp()
+    
+    try:
+        # Enroll 100 voices
+        audio_samples = [sample_audio for _ in range(30)]
+        
+        import time
+        start = time.time()
+        
+        for i in range(100):
+            voice_cloner.enroll_voice(
+                audio_samples=audio_samples,
+                voice_id=f"profile_{i}",
+                sample_rate=16000
+            )
+            
+            if (i + 1) % 20 == 0:
+                print(f"  Enrolled {i + 1}/100 voices")
+        
+        enroll_time = time.time() - start
+        
+        # Save all profiles
+        start = time.time()
+        for i in range(100):
+            filepath = os.path.join(temp_dir, f"profile_{i}.pkl")
+            voice_cloner.save_voice_profile(f"profile_{i}", filepath)
+        
+        save_time = time.time() - start
+        
+        # Clear all voices
+        for i in range(100):
+            voice_cloner.delete_voice(f"profile_{i}")
+        
+        assert len(voice_cloner.list_voices()) == 0
+        
+        # Load all profiles
+        start = time.time()
+        for i in range(100):
+            filepath = os.path.join(temp_dir, f"profile_{i}.pkl")
+            voice_cloner.load_voice_profile(filepath)
+        
+        load_time = time.time() - start
+        
+        print(f"  [OK] Enrollment: {enroll_time:.2f}s")
+        print(f"  [OK] Save: {save_time:.2f}s ({save_time/100*1000:.2f}ms per profile)")
+        print(f"  [OK] Load: {load_time:.2f}s ({load_time/100*1000:.2f}ms per profile)")
+        
+        assert len(voice_cloner.list_voices()) == 100
+        
+        # Cleanup
+        for i in range(100):
+            voice_cloner.delete_voice(f"profile_{i}")
+        
+    finally:
+        shutil.rmtree(temp_dir)
+        gc.collect()
+
+
+def test_voice_cloner_extreme_synthesis_1000_texts(voice_cloner, sample_audio):
+    """EXTREME TEST: Synthesize 1000 different texts - ZERO COMPROMISE."""
+    import gc
+    
+    print("\n[EXTREME TEST] Synthesize 1000 different texts")
+    
+    # Enroll voice
+    audio_samples = [sample_audio for _ in range(30)]
+    voice_cloner.enroll_voice(
+        audio_samples=audio_samples,
+        voice_id="synthesis_test",
+        sample_rate=16000
+    )
+    
+    # Generate 1000 different texts
+    texts = [f"This is test number {i} for voice synthesis quality." for i in range(1000)]
+    
+    import time
+    start = time.time()
+    
+    for i, text in enumerate(texts):
+        synthesized = voice_cloner.synthesize_with_cloned_voice(
+            text=text,
+            voice_id="synthesis_test"
+        )
+        
+        assert len(synthesized) > 0
+        assert synthesized.dtype == np.float32
+        
+        if (i + 1) % 200 == 0:
+            print(f"  Synthesized {i + 1}/1000 texts")
+            gc.collect()
+    
+    elapsed = time.time() - start
+    
+    print(f"  [OK] 1000 syntheses in {elapsed:.2f}s")
+    print(f"  [OK] Average time per synthesis: {elapsed/1000*1000:.2f}ms")
+    
+    # Cleanup
+    voice_cloner.delete_voice("synthesis_test")
+    gc.collect()
+
+
+def test_voice_cloner_extreme_all_sample_rates(voice_cloner):
+    """EXTREME TEST: Test with ALL common sample rates - ZERO COMPROMISE."""
+    print("\n[EXTREME TEST] All sample rates")
+    
+    sample_rates = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 96000]
+    
+    for sr in sample_rates:
+        duration = 5.0
+        num_samples = int(duration * sr)
+        
+        t = np.linspace(0, duration, num_samples)
+        audio = np.sin(2 * np.pi * 150 * t)
+        audio += 0.1 * np.random.randn(num_samples)
+        audio = audio / np.max(np.abs(audio)) * 0.8
+        audio = audio.astype(np.float32)
+        
+        # Extract features
+        features = voice_cloner._extract_voice_features(audio, sr)
+        assert features is not None
+        assert len(features) > 0
+        
+        # Compute quality
+        quality = voice_cloner._compute_audio_quality(audio, sr)
+        assert 0.0 <= quality <= 1.0
+        
+        # Compute similarity
+        similarity = voice_cloner.compute_similarity(audio, audio, sr)
+        assert similarity > 0.95
+        
+        print(f"  [OK] {sr:6d} Hz: features={len(features)}, quality={quality:.3f}, similarity={similarity:.3f}")
+    
+    print(f"  [OK] All {len(sample_rates)} sample rates tested successfully")
+

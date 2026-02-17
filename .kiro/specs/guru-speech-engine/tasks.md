@@ -309,7 +309,7 @@ After completing EACH task:
     - Test female voice synthesis
     - _Requirements: 4 (iOS)_
 
-- [-] 12. Voice Cloning and Personalization
+- [ ] 12. Voice Cloning and Personalization
   - Implement `Agent_Guru/speech/tts/voice_cloner.py`:
     - `VoiceCloner` class
     - `enroll_voice()` method for training (5+ minutes of audio)
@@ -320,11 +320,11 @@ After completing EACH task:
   - _Requirements: 14 (Voice Cloning and Personalization)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement voice cloning with personalized voice synthesis"
 
-  - [ ] 12.1 Write property test for voice cloning quality
+  - [x] 12.1 Write property test for voice cloning quality
     - **Property 17: Voice Cloning Quality**
     - **Validates: Requirements 14.2, 14.3, 14.5**
 
-  - [ ] 12.2 Write unit tests for voice enrollment
+  - [x] 12.2 Write unit tests for voice enrollment
     - Test with various voice types
     - Test incremental learning
     - _Requirements: 14.1, 14.5_
