@@ -304,13 +304,34 @@ class EmotionDetector:
             
             # 1. Pitch (F0) features
             try:
-                # Use librosa's piptrack for pitch detection
-                pitches, magnitudes = librosa.piptrack(
-                    y=audio,
-                    sr=sample_rate,
-                    fmin=50,
-                    fmax=400
-                )
+                # Adjust n_fft for short audio to prevent warnings
+                audio_length = len(audio)
+                n_fft_pitch = min(2048, audio_length)
+                if n_fft_pitch < 2:
+                    n_fft_pitch = 2
+                else:
+                    # Round down to nearest power of 2
+                    n_fft_pitch = 2 ** int(np.log2(n_fft_pitch))
+                
+                hop_length_pitch = min(512, n_fft_pitch // 4)
+                if hop_length_pitch < 1:
+                    hop_length_pitch = 1
+                
+                # Suppress librosa warnings for short audio
+                import warnings
+                with warnings.catch_warnings():
+                    warnings.filterwarnings('ignore', message='n_fft=.*is too large')
+                    warnings.filterwarnings('ignore', category=UserWarning, module='librosa')
+                    
+                    # Use librosa's piptrack for pitch detection
+                    pitches, magnitudes = librosa.piptrack(
+                        y=audio,
+                        sr=sample_rate,
+                        fmin=50,
+                        fmax=400,
+                        n_fft=n_fft_pitch,
+                        hop_length=hop_length_pitch
+                    )
                 
                 # Extract pitch values where magnitude is highest
                 pitch_values = []
@@ -345,7 +366,23 @@ class EmotionDetector:
             
             # 3. Tempo (speaking rate)
             try:
-                tempo, _ = librosa.beat.beat_track(y=audio, sr=sample_rate)
+                # Adjust hop_length for short audio
+                audio_length = len(audio)
+                hop_length_tempo = min(512, audio_length // 4)
+                if hop_length_tempo < 1:
+                    hop_length_tempo = 1
+                
+                # Suppress warnings
+                import warnings
+                with warnings.catch_warnings():
+                    warnings.filterwarnings('ignore', message='n_fft=.*is too large')
+                    warnings.filterwarnings('ignore', category=UserWarning, module='librosa')
+                    
+                    tempo, _ = librosa.beat.beat_track(
+                        y=audio,
+                        sr=sample_rate,
+                        hop_length=hop_length_tempo
+                    )
                 # Ensure tempo is a scalar
                 if isinstance(tempo, np.ndarray):
                     tempo = float(tempo.item()) if tempo.size == 1 else float(tempo[0])
@@ -360,26 +397,99 @@ class EmotionDetector:
                 features['tempo'] = 100.0
             
             # 4. MFCC features (first 13 coefficients)
-            mfccs = librosa.feature.mfcc(y=audio, sr=sample_rate, n_mfcc=13)
+            # Adjust n_fft for short audio
+            audio_length = len(audio)
+            n_fft_mfcc = min(2048, audio_length)
+            if n_fft_mfcc < 2:
+                n_fft_mfcc = 2
+            else:
+                n_fft_mfcc = 2 ** int(np.log2(n_fft_mfcc))
+            
+            hop_length_mfcc = min(512, n_fft_mfcc // 4)
+            if hop_length_mfcc < 1:
+                hop_length_mfcc = 1
+            
+            # Suppress warnings
+            import warnings
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore', message='n_fft=.*is too large')
+                warnings.filterwarnings('ignore', category=UserWarning, module='librosa')
+                
+                mfccs = librosa.feature.mfcc(
+                    y=audio,
+                    sr=sample_rate,
+                    n_mfcc=13,
+                    n_fft=n_fft_mfcc,
+                    hop_length=hop_length_mfcc
+                )
             for i in range(min(13, mfccs.shape[0])):
                 features[f'mfcc_{i}_mean'] = float(np.mean(mfccs[i]))
                 features[f'mfcc_{i}_std'] = float(np.std(mfccs[i]))
             
             # 5. Zero Crossing Rate
-            zcr = librosa.feature.zero_crossing_rate(audio)[0]
+            # Adjust frame_length for short audio
+            frame_length_zcr = min(2048, len(audio))
+            if frame_length_zcr < 2:
+                frame_length_zcr = 2
+            
+            hop_length_zcr = min(512, frame_length_zcr // 4)
+            if hop_length_zcr < 1:
+                hop_length_zcr = 1
+            
+            import warnings
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore', category=UserWarning, module='librosa')
+                
+                zcr = librosa.feature.zero_crossing_rate(
+                    audio,
+                    frame_length=frame_length_zcr,
+                    hop_length=hop_length_zcr
+                )[0]
             features['zcr_mean'] = float(np.mean(zcr))
             features['zcr_std'] = float(np.std(zcr))
             
             # 6. Spectral features
-            spectral_centroids = librosa.feature.spectral_centroid(y=audio, sr=sample_rate)[0]
-            features['spectral_centroid_mean'] = float(np.mean(spectral_centroids))
-            features['spectral_centroid_std'] = float(np.std(spectral_centroids))
+            # Adjust n_fft for short audio
+            audio_length = len(audio)
+            n_fft_spectral = min(2048, audio_length)
+            if n_fft_spectral < 2:
+                n_fft_spectral = 2
+            else:
+                n_fft_spectral = 2 ** int(np.log2(n_fft_spectral))
             
-            spectral_rolloff = librosa.feature.spectral_rolloff(y=audio, sr=sample_rate)[0]
-            features['spectral_rolloff_mean'] = float(np.mean(spectral_rolloff))
+            hop_length_spectral = min(512, n_fft_spectral // 4)
+            if hop_length_spectral < 1:
+                hop_length_spectral = 1
             
-            spectral_bandwidth = librosa.feature.spectral_bandwidth(y=audio, sr=sample_rate)[0]
-            features['spectral_bandwidth_mean'] = float(np.mean(spectral_bandwidth))
+            import warnings
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore', message='n_fft=.*is too large')
+                warnings.filterwarnings('ignore', category=UserWarning, module='librosa')
+                
+                spectral_centroids = librosa.feature.spectral_centroid(
+                    y=audio,
+                    sr=sample_rate,
+                    n_fft=n_fft_spectral,
+                    hop_length=hop_length_spectral
+                )[0]
+                features['spectral_centroid_mean'] = float(np.mean(spectral_centroids))
+                features['spectral_centroid_std'] = float(np.std(spectral_centroids))
+                
+                spectral_rolloff = librosa.feature.spectral_rolloff(
+                    y=audio,
+                    sr=sample_rate,
+                    n_fft=n_fft_spectral,
+                    hop_length=hop_length_spectral
+                )[0]
+                features['spectral_rolloff_mean'] = float(np.mean(spectral_rolloff))
+                
+                spectral_bandwidth = librosa.feature.spectral_bandwidth(
+                    y=audio,
+                    sr=sample_rate,
+                    n_fft=n_fft_spectral,
+                    hop_length=hop_length_spectral
+                )[0]
+                features['spectral_bandwidth_mean'] = float(np.mean(spectral_bandwidth))
             
             return features
             

@@ -93,14 +93,35 @@ class WakeWordDetector:
         if np.max(np.abs(audio)) > 0:
             audio = audio / np.max(np.abs(audio))
         
-        # Extract MFCC features
-        mfcc = librosa.feature.mfcc(
-            y=audio,
-            sr=self.config.sample_rate,
-            n_mfcc=self.config.n_mfcc,
-            hop_length=self.config.hop_length,
-            n_fft=self.config.n_fft
-        )
+        # Adjust n_fft for short audio to prevent warnings
+        # n_fft should not exceed audio length
+        n_fft = min(self.config.n_fft, len(audio))
+        # Ensure n_fft is at least 2 and a power of 2 for efficiency
+        if n_fft < 2:
+            n_fft = 2
+        else:
+            # Round down to nearest power of 2
+            n_fft = 2 ** int(np.log2(n_fft))
+        
+        # Adjust hop_length proportionally
+        hop_length = min(self.config.hop_length, n_fft // 4)
+        if hop_length < 1:
+            hop_length = 1
+        
+        # Suppress librosa warnings for short audio
+        import warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', message='n_fft=.*is too large')
+            warnings.filterwarnings('ignore', category=UserWarning, module='librosa')
+            
+            # Extract MFCC features
+            mfcc = librosa.feature.mfcc(
+                y=audio,
+                sr=self.config.sample_rate,
+                n_mfcc=self.config.n_mfcc,
+                hop_length=hop_length,
+                n_fft=n_fft
+            )
         
         return mfcc
     

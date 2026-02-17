@@ -79,14 +79,33 @@ class VoiceFeatureExtractor:
             # Extract features
             features = []
             
-            # 1. MFCC features (primary biometric features)
-            mfcc = librosa.feature.mfcc(
-                y=audio,
-                sr=sample_rate,
-                n_mfcc=self.n_mfcc,
-                n_fft=self.n_fft,
-                hop_length=self.hop_length
-            )
+            # Adjust n_fft and hop_length for short audio to prevent warnings
+            audio_length = len(audio)
+            n_fft_adjusted = min(self.n_fft, audio_length)
+            if n_fft_adjusted < 2:
+                n_fft_adjusted = 2
+            else:
+                # Round down to nearest power of 2
+                n_fft_adjusted = 2 ** int(np.log2(n_fft_adjusted))
+            
+            hop_length_adjusted = min(self.hop_length, n_fft_adjusted // 4)
+            if hop_length_adjusted < 1:
+                hop_length_adjusted = 1
+            
+            # Suppress librosa warnings for short audio
+            import warnings
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore', message='n_fft=.*is too large')
+                warnings.filterwarnings('ignore', category=UserWarning, module='librosa')
+                
+                # 1. MFCC features (primary biometric features)
+                mfcc = librosa.feature.mfcc(
+                    y=audio,
+                    sr=sample_rate,
+                    n_mfcc=self.n_mfcc,
+                    n_fft=n_fft_adjusted,
+                    hop_length=hop_length_adjusted
+                )
             # Use mean and std of MFCCs
             mfcc_mean = np.mean(mfcc, axis=1)
             mfcc_std = np.std(mfcc, axis=1)
@@ -97,8 +116,8 @@ class VoiceFeatureExtractor:
             pitches, magnitudes = librosa.piptrack(
                 y=audio,
                 sr=sample_rate,
-                n_fft=self.n_fft,
-                hop_length=self.hop_length
+                n_fft=n_fft_adjusted,
+                hop_length=hop_length_adjusted
             )
             # Extract pitch statistics
             pitch_values = []
@@ -122,14 +141,14 @@ class VoiceFeatureExtractor:
             spectral_centroid = librosa.feature.spectral_centroid(
                 y=audio,
                 sr=sample_rate,
-                n_fft=self.n_fft,
-                hop_length=self.hop_length
+                n_fft=n_fft_adjusted,
+                hop_length=hop_length_adjusted
             )
             spectral_rolloff = librosa.feature.spectral_rolloff(
                 y=audio,
                 sr=sample_rate,
-                n_fft=self.n_fft,
-                hop_length=self.hop_length
+                n_fft=n_fft_adjusted,
+                hop_length=hop_length_adjusted
             )
             
             features.append(np.mean(spectral_centroid))
@@ -140,8 +159,8 @@ class VoiceFeatureExtractor:
             # 4. Zero crossing rate (speaking style)
             zcr = librosa.feature.zero_crossing_rate(
                 audio,
-                frame_length=self.n_fft,
-                hop_length=self.hop_length
+                frame_length=n_fft_adjusted,
+                hop_length=hop_length_adjusted
             )
             features.append(np.mean(zcr))
             features.append(np.std(zcr))
@@ -149,12 +168,13 @@ class VoiceFeatureExtractor:
             # 5. Energy features
             rms = librosa.feature.rms(
                 y=audio,
-                frame_length=self.n_fft,
-                hop_length=self.hop_length
+                frame_length=n_fft_adjusted,
+                hop_length=hop_length_adjusted
             )
             features.append(np.mean(rms))
             features.append(np.std(rms))
             
+            # End of warnings suppression context
             # Convert to numpy array
             feature_vector = np.array(features, dtype=np.float32)
             
@@ -322,7 +342,24 @@ class VoiceFeatureExtractor:
             
             # 2. Spectral flux (naturalness of transitions)
             # Synthesized speech has more uniform transitions
-            spec = np.abs(librosa.stft(audio, n_fft=self.n_fft, hop_length=self.hop_length))
+            # Adjust n_fft for short audio
+            audio_length = len(audio)
+            n_fft_flux = min(self.n_fft, audio_length)
+            if n_fft_flux < 2:
+                n_fft_flux = 2
+            else:
+                n_fft_flux = 2 ** int(np.log2(n_fft_flux))
+            
+            hop_length_flux = min(self.hop_length, n_fft_flux // 4)
+            if hop_length_flux < 1:
+                hop_length_flux = 1
+            
+            import warnings
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore', message='n_fft=.*is too large')
+                warnings.filterwarnings('ignore', category=UserWarning, module='librosa')
+                
+                spec = np.abs(librosa.stft(audio, n_fft=n_fft_flux, hop_length=hop_length_flux))
             spectral_flux = np.sum(np.diff(spec, axis=1) ** 2, axis=0)
             flux_variance = np.var(spectral_flux)
             
@@ -340,8 +377,8 @@ class VoiceFeatureExtractor:
             pitches, magnitudes = librosa.piptrack(
                 y=audio,
                 sr=sample_rate,
-                n_fft=self.n_fft,
-                hop_length=self.hop_length
+                n_fft=n_fft_flux,
+                hop_length=hop_length_flux
             )
             
             pitch_values = []

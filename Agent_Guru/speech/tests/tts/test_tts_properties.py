@@ -40,70 +40,80 @@ def analyze_voice_gender(audio_bytes: bytes) -> str:
     Returns:
         "male" or "female"
     """
-    with wave.open(io.BytesIO(audio_bytes), 'rb') as wav_file:
-        sample_rate = wav_file.getframerate()
-        frames = wav_file.readframes(wav_file.getnframes())
-        sample_width = wav_file.getsampwidth()
+    # Suppress numpy warnings for edge cases
+    import warnings
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', category=RuntimeWarning, module='numpy')
         
-        # Convert to numpy array
-        if sample_width == 2:
-            audio_array = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
-        else:
-            audio_array = np.frombuffer(frames, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
-    
-    if len(audio_array) < sample_rate:
-        return "male"
-    
-    segment = audio_array[:sample_rate]
-    autocorr = np.correlate(segment, segment, mode='full')
-    autocorr = autocorr[len(autocorr)//2:]
-    
-    min_lag = int(sample_rate / 400)
-    max_lag = int(sample_rate / 50)
-    
-    if max_lag >= len(autocorr):
-        return "male"
-    
-    peak_lag = np.argmax(autocorr[min_lag:max_lag]) + min_lag
-    
-    if peak_lag == 0:
-        return "male"
-    
-    f0 = sample_rate / peak_lag
-    
-    return "male" if f0 < 150 else "female"
+        with wave.open(io.BytesIO(audio_bytes), 'rb') as wav_file:
+            sample_rate = wav_file.getframerate()
+            frames = wav_file.readframes(wav_file.getnframes())
+            sample_width = wav_file.getsampwidth()
+            
+            # Convert to numpy array
+            if sample_width == 2:
+                audio_array = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+            else:
+                audio_array = np.frombuffer(frames, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
+        
+        if len(audio_array) < sample_rate:
+            return "male"
+        
+        segment = audio_array[:sample_rate]
+        autocorr = np.correlate(segment, segment, mode='full')
+        autocorr = autocorr[len(autocorr)//2:]
+        
+        min_lag = int(sample_rate / 400)
+        max_lag = int(sample_rate / 50)
+        
+        if max_lag >= len(autocorr):
+            return "male"
+        
+        peak_lag = np.argmax(autocorr[min_lag:max_lag]) + min_lag
+        
+        if peak_lag == 0:
+            return "male"
+        
+        f0 = sample_rate / peak_lag
+        
+        return "male" if f0 < 150 else "female"
 
 
 def compute_audio_similarity(audio1: bytes, audio2: bytes) -> float:
     """Compute similarity between two audio samples."""
-    with wave.open(io.BytesIO(audio1), 'rb') as wav1:
-        frames1 = wav1.readframes(wav1.getnframes())
-        width1 = wav1.getsampwidth()
-    
-    with wave.open(io.BytesIO(audio2), 'rb') as wav2:
-        frames2 = wav2.readframes(wav2.getnframes())
-        width2 = wav2.getsampwidth()
-    
-    if width1 == 2:
-        arr1 = np.frombuffer(frames1, dtype=np.int16).astype(np.float32) / 32768.0
-    else:
-        arr1 = np.frombuffer(frames1, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
-    
-    if width2 == 2:
-        arr2 = np.frombuffer(frames2, dtype=np.int16).astype(np.float32) / 32768.0
-    else:
-        arr2 = np.frombuffer(frames2, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
-    
-    max_len = max(len(arr1), len(arr2))
-    arr1_padded = np.pad(arr1, (0, max_len - len(arr1)))
-    arr2_padded = np.pad(arr2, (0, max_len - len(arr2)))
-    
-    correlation = np.corrcoef(arr1_padded, arr2_padded)[0, 1]
-    
-    if np.isnan(correlation):
-        return 1.0
-    
-    return (correlation + 1.0) / 2.0
+    # Suppress numpy warnings for edge cases
+    import warnings
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', category=RuntimeWarning, module='numpy')
+        
+        with wave.open(io.BytesIO(audio1), 'rb') as wav1:
+            frames1 = wav1.readframes(wav1.getnframes())
+            width1 = wav1.getsampwidth()
+        
+        with wave.open(io.BytesIO(audio2), 'rb') as wav2:
+            frames2 = wav2.readframes(wav2.getnframes())
+            width2 = wav2.getsampwidth()
+        
+        if width1 == 2:
+            arr1 = np.frombuffer(frames1, dtype=np.int16).astype(np.float32) / 32768.0
+        else:
+            arr1 = np.frombuffer(frames1, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
+        
+        if width2 == 2:
+            arr2 = np.frombuffer(frames2, dtype=np.int16).astype(np.float32) / 32768.0
+        else:
+            arr2 = np.frombuffer(frames2, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
+        
+        max_len = max(len(arr1), len(arr2))
+        arr1_padded = np.pad(arr1, (0, max_len - len(arr1)))
+        arr2_padded = np.pad(arr2, (0, max_len - len(arr2)))
+        
+        correlation = np.corrcoef(arr1_padded, arr2_padded)[0, 1]
+        
+        if np.isnan(correlation):
+            return 1.0
+        
+        return (correlation + 1.0) / 2.0
 
 
 def get_audio_duration(audio_bytes: bytes) -> float:
@@ -499,38 +509,45 @@ def test_tts_audio_quality_metrics(tts_engine):
     """Test audio quality metrics - PRODUCTION GRADE."""
     text = "This is a comprehensive audio quality test for production deployment."
     
-    for personality in [PersonalityType.GURU, PersonalityType.MAYA]:
-        audio = tts_engine.synthesize(text, personality=personality)
+    # Suppress numpy warnings for edge cases
+    import warnings
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', category=RuntimeWarning, module='numpy')
         
-        # Parse audio
-        with wave.open(io.BytesIO(audio), 'rb') as wav:
-            sample_rate = wav.getframerate()
-            n_channels = wav.getnchannels()
-            sample_width = wav.getsampwidth()
-            frames = wav.readframes(wav.getnframes())
-        
-        # Quality checks
-        assert sample_rate >= 16000, f"Sample rate {sample_rate} too low for production"
-        assert sample_width >= 2, f"Sample width {sample_width} too low (need 16-bit minimum)"
-        assert n_channels >= 1, "Must have at least 1 channel"
-        
-        # Convert to array for analysis
-        if sample_width == 2:
-            audio_array = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
-        else:
-            audio_array = np.frombuffer(frames, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
-        
-        # Check for clipping (should be minimal)
-        clipping_ratio = np.sum(np.abs(audio_array) > 0.99) / len(audio_array)
-        assert clipping_ratio < 0.01, f"Too much clipping: {clipping_ratio*100:.2f}%"
-        
-        # Check for silence (should not be all silent)
-        rms = np.sqrt(np.mean(audio_array**2))
-        assert rms > 0.01, f"Audio too quiet (RMS={rms:.4f})"
-        
-        # Check dynamic range
-        dynamic_range = 20 * np.log10(np.max(np.abs(audio_array)) / (rms + 1e-10))
-        assert dynamic_range > 6, f"Dynamic range too low: {dynamic_range:.2f} dB"
+        for personality in [PersonalityType.GURU, PersonalityType.MAYA]:
+            audio = tts_engine.synthesize(text, personality=personality)
+            
+            # Parse audio
+            with wave.open(io.BytesIO(audio), 'rb') as wav:
+                sample_rate = wav.getframerate()
+                n_channels = wav.getnchannels()
+                sample_width = wav.getsampwidth()
+                frames = wav.readframes(wav.getnframes())
+            
+            # Quality checks
+            assert sample_rate >= 16000, f"Sample rate {sample_rate} too low for production"
+            assert sample_width >= 2, f"Sample width {sample_width} too low (need 16-bit minimum)"
+            assert n_channels >= 1, "Must have at least 1 channel"
+            
+            # Convert to array for analysis
+            if sample_width == 2:
+                audio_array = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+            else:
+                audio_array = np.frombuffer(frames, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
+            
+            # Check for clipping (should be minimal)
+            clipping_ratio = np.sum(np.abs(audio_array) > 0.99) / len(audio_array)
+            assert clipping_ratio < 0.01, f"Too much clipping: {clipping_ratio*100:.2f}%"
+            
+            # Check for silence (should not be all silent)
+            rms = np.sqrt(np.mean(audio_array**2))
+            assert rms > 0.01, f"Audio too quiet (RMS={rms:.4f})"
+            
+            # Check dynamic range
+            max_abs = np.max(np.abs(audio_array))
+            if max_abs > 0 and rms > 0:
+                dynamic_range = 20 * np.log10(max_abs / (rms + 1e-10))
+                assert dynamic_range > 6, f"Dynamic range too low: {dynamic_range:.2f} dB"
 
 
 def test_tts_error_recovery(tts_engine):
