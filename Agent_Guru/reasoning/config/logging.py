@@ -49,6 +49,7 @@ def configure_logging(
         format="%(message)s",
         stream=sys.stdout,
         level=numeric_level,
+        force=True,  # Force reconfiguration even if already configured
     )
     
     # Build processor chain

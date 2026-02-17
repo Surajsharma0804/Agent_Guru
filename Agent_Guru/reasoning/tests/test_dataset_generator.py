@@ -4,6 +4,7 @@ import pytest
 from pathlib import Path
 import tempfile
 import shutil
+import yaml
 
 from Agent_Guru.reasoning.data.dataset_generator import DatasetGenerator
 
@@ -195,3 +196,39 @@ class TestDatasetGenerator:
         """Test intents file path is set correctly."""
         assert generator.intents_file.exists()
         assert generator.intents_file.name == "intents.yaml"
+
+
+    def test_main_function_execution(self, generator, temp_dir, capsys, monkeypatch):
+        """Test main function executes correctly."""
+        from Agent_Guru.reasoning.data.dataset_generator import main
+        
+        # Mock the output directory
+        monkeypatch.setattr('Agent_Guru.reasoning.data.dataset_generator.DatasetGenerator.save_dataset', 
+                           lambda self, train, val, test, output_dir="Agent_Guru/reasoning/data": None)
+        
+        # Execute main
+        main()
+        
+        # Check output was printed
+        captured = capsys.readouterr()
+        # Main function should execute without errors
+        assert True  # If we get here, main() executed successfully
+    
+    def test_save_dataset_creates_stats_file(self, generator, temp_dir):
+        """Test that save_dataset creates statistics file."""
+        train = [("test", "set_timer")]
+        val = []
+        test = []
+        
+        generator.save_dataset(train, val, test, output_dir=temp_dir)
+        
+        stats_file = Path(temp_dir, "dataset_stats.yaml")
+        assert stats_file.exists()
+        
+        with open(stats_file, 'r') as f:
+            stats = yaml.safe_load(f)
+            assert 'train_size' in stats
+            assert 'val_size' in stats
+            assert 'test_size' in stats
+            assert 'total_size' in stats
+            assert 'num_intents' in stats

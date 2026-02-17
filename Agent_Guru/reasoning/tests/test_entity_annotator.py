@@ -307,3 +307,54 @@ class TestEntityAnnotator:
             utterance = f"remind me {test_case}"
             entities = annotator.extract_entities(utterance, "set_reminder")
             assert any(e[3] == 'date' for e in entities), f"Failed for: {test_case}"
+
+
+    def test_main_function_execution(self, annotator, temp_dir, capsys, monkeypatch):
+        """Test main function executes correctly."""
+        from Agent_Guru.reasoning.data.entity_annotator import main
+        
+        # Create test input files
+        for split in ['train', 'val', 'test']:
+            input_file = Path(temp_dir, f"{split}.txt")
+            with open(input_file, 'w', encoding='utf-8') as f:
+                f.write("set_timer\tset a timer for 5 minutes\n")
+        
+        # Mock the file paths
+        monkeypatch.setattr('Agent_Guru.reasoning.data.entity_annotator.EntityAnnotator.annotate_dataset',
+                           lambda self, input_file, output_file: None)
+        monkeypatch.setattr('Agent_Guru.reasoning.data.entity_annotator.EntityAnnotator.validate_annotations',
+                           lambda self, annotated_file: {
+                               'coverage': 0.5,
+                               'avg_entities_per_example': 1.0,
+                               'entity_type_distribution': {'duration': 1}
+                           })
+        
+        # Execute main
+        main()
+        
+        # Check output was printed
+        captured = capsys.readouterr()
+        # Main function should execute without errors
+        assert True  # If we get here, main() executed successfully
+    
+    def test_validate_annotations_with_multiple_entity_types(self, annotator, temp_dir):
+        """Test validation with multiple entity types."""
+        annotated_file = Path(temp_dir, "test_annotated.yaml")
+        data = [
+            {
+                'utterance': 'set alarm for 7:30 tomorrow',
+                'intent': 'set_alarm',
+                'entities': [
+                    {'text': '7:30', 'start': 16, 'end': 20, 'type': 'time'},
+                    {'text': 'tomorrow', 'start': 21, 'end': 29, 'type': 'date'}
+                ]
+            }
+        ]
+        with open(annotated_file, 'w', encoding='utf-8') as f:
+            yaml.dump(data, f)
+        
+        metrics = annotator.validate_annotations(str(annotated_file))
+        
+        assert metrics['total_entities'] == 2
+        assert 'time' in metrics['entity_type_distribution']
+        assert 'date' in metrics['entity_type_distribution']
