@@ -15,7 +15,7 @@ This implementation plan creates a production-ready, market-competitive reasonin
 ## Phase 1: Foundation & Infrastructure (Weeks 1-2)
 
 - [x] 1. Set up project structure and development environment
-  - Create Python package structure with reasoning/, state/, tools/, models/, config/, tests/ directories
+  - Create Python package structure with Agent_Guru/reasoning/ containing models/, state/, tools/, config/, tests/ subdirectories
   - Set up pyproject.toml with dependencies (Python 3.11+, asyncio, pydantic, structlog, prometheus-client, hypothesis, pytest)
   - Configure mypy for type checking with strict mode
   - Set up pre-commit hooks for code quality (black, ruff, mypy)
@@ -83,11 +83,11 @@ This implementation plan creates a production-ready, market-competitive reasonin
   - Push: git push origin main
 
 - [ ] 4. Implement core data models with Pydantic
-  - Create models/intent.py with Intent, IntentType, Entity classes
-  - Create models/action.py with Action, ActionSensitivity, Tool, Parameter classes
-  - Create models/result.py with ExecutionResult, Response, ResponseModality classes
-  - Create models/error.py with Error, ErrorType, FallbackStrategy classes
-  - Create models/conversation.py with ConversationState, ConversationTurn, TrackedEntity classes
+  - Create Agent_Guru/reasoning/models/intent.py with Intent, IntentType, Entity classes
+  - Create Agent_Guru/reasoning/models/action.py with Action, ActionSensitivity, Tool, Parameter classes
+  - Create Agent_Guru/reasoning/models/result.py with ExecutionResult, Response, ResponseModality classes
+  - Create Agent_Guru/reasoning/models/error.py with Error, ErrorType, FallbackStrategy classes
+  - Create Agent_Guru/reasoning/models/conversation.py with ConversationState, ConversationTurn, TrackedEntity classes
   - Add Pydantic validators for all fields with business logic constraints
   - Add JSON serialization/deserialization methods
   - Add __eq__ and __hash__ methods for proper equality checking
@@ -108,7 +108,7 @@ This implementation plan creates a production-ready, market-competitive reasonin
 - [ ] 5. Prepare intent detection training dataset
   - [ ] 5.1 Create dataset collection pipeline
     - Define intent taxonomy with 50+ common intents (set_timer, query_weather, send_message, play_music, etc.)
-    - Create data/intents.yaml with intent definitions and example utterances
+    - Create Agent_Guru/reasoning/data/intents.yaml with intent definitions and example utterances
     - Implement data augmentation pipeline for paraphrasing and variation generation
     - Generate 10,000+ training examples across all intent types
     - Split dataset into train (80%), validation (10%), test (10%)
@@ -158,7 +158,7 @@ This implementation plan creates a production-ready, market-competitive reasonin
 - [ ] 7. Implement Intent Detection Engine with hybrid approach
   - [ ] 7.1 Create rule-based fast-path intent detector
     - Implement trie-based pattern matching for common commands
-    - Create intent_patterns.yaml with 100+ high-frequency patterns
+    - Create Agent_Guru/reasoning/data/intent_patterns.yaml with 100+ high-frequency patterns
     - Build trie index from patterns for O(n) matching
     - Implement pattern matching with entity extraction using regex
     - Add caching layer with 5-minute TTL for identical inputs
