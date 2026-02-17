@@ -16,20 +16,17 @@ This module provides the main facade for the speech engine, integrating all comp
 
 import logging
 import numpy as np
-import asyncio
-from typing import Optional, Dict, Any, List
+from typing import Optional, List
 from dataclasses import dataclass
 from enum import Enum
 
 from Agent_Guru.speech.models import (
     PersonalityType,
     EmotionType,
-    WakeWordDetection,
     TranscriptionResult,
     VoiceFeatures,
     EmotionResult,
-    CommandResult,
-    TTSConfig
+    CommandResult
 )
 from Agent_Guru.speech.exceptions import GuruSpeechError
 from Agent_Guru.speech.config import SpeechEngineConfig
@@ -251,7 +248,7 @@ class SpeechEngine:
             
             # Step 6: Context management
             if self._current_context_id is None:
-                context_id, context = self.context_manager.create_context(
+                context_id, _ = self.context_manager.create_context(
                     user_id="default_user",
                     personality=personality
                 )
@@ -348,7 +345,7 @@ class SpeechEngine:
             Audio data as numpy array
         """
         # Synthesize speech with personality and emotion
-        audio, sample_rate = self.tts_engine.synthesize_to_array(
+        audio, _ = self.tts_engine.synthesize_to_array(
             text=text,
             personality=personality,
             emotion=emotion

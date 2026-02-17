@@ -606,12 +606,13 @@ class TestSpeechEngine:
                 assert engine.get_state() == EngineState.ERROR
     
     def test_wake_word_detection_with_result(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
-        """ZERO COMPROMISE: Test wake word detection returns personality."""
+        """ZERO COMPROMISE: Test wake word detection returns personality - COMPREHENSIVE."""
         import asyncio
         from Agent_Guru.speech.models import WakeWordDetection
+        from unittest.mock import AsyncMock
         
-        # Create a proper WakeWordDetection result with correct parameters
-        mock_result = WakeWordDetection(
+        # Create wake word result
+        wake_word_result = WakeWordDetection(
             wake_word="maya",
             personality=PersonalityType.MAYA,
             confidence=0.95,
@@ -619,24 +620,23 @@ class TestSpeechEngine:
             audio_chunk=sample_audio
         )
         
-        # Create an async mock function
-        async def mock_detect(audio):
-            return mock_result
-        
-        # Mock the detect method to return Maya personality
+        # Use AsyncMock to properly mock async method (BEST practice)
+        mock_detect = AsyncMock(return_value=wake_word_result)
         original_detect = initialized_engine.wake_word_detector.detect
         initialized_engine.wake_word_detector.detect = mock_detect
         
         try:
             result = asyncio.run(initialized_engine.process_voice_input(
                 audio=sample_audio,
-                personality=None  # Auto-detect
+                personality=None  # Trigger auto-detection
             ))
             
-            # Should use detected personality
+            # Verify wake word detection was called
+            assert mock_detect.called
+            # Verify personality was set from wake word result (covers line 234)
             assert result.personality == PersonalityType.MAYA
+            assert initialized_engine._current_personality == PersonalityType.MAYA
         finally:
-            # Restore original method
             initialized_engine.wake_word_detector.detect = original_detect
     
     def test_command_none_when_transcription_empty(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
@@ -698,41 +698,6 @@ class TestSpeechEngine:
     # ZERO COMPROMISE - FINAL 100% COVERAGE TESTS
     # ========================================================================
     
-    def test_coverage_wake_word_result_personality_assignment(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
-        """ZERO COMPROMISE: Ensure line 236 is covered - wake_word_result.personality assignment."""
-        import asyncio
-        from Agent_Guru.speech.models import WakeWordDetection
-        
-        # Create a real WakeWordDetection result
-        wake_word_result = WakeWordDetection(
-            wake_word="maya",
-            personality=PersonalityType.MAYA,
-            confidence=0.95,
-            timestamp=0.0,
-            audio_chunk=sample_audio
-        )
-        
-        # Create an async function that returns the result
-        async def mock_detect(audio):
-            return wake_word_result
-        
-        # Replace the detect method
-        original_detect = initialized_engine.wake_word_detector.detect
-        initialized_engine.wake_word_detector.detect = mock_detect
-        
-        try:
-            # Process without personality to trigger auto-detection
-            result = asyncio.run(initialized_engine.process_voice_input(
-                audio=sample_audio,
-                personality=None
-            ))
-            
-            # Verify the personality was assigned from wake_word_result (line 236)
-            assert result.personality == PersonalityType.MAYA
-            assert initialized_engine._current_personality == PersonalityType.MAYA
-        finally:
-            initialized_engine.wake_word_detector.detect = original_detect
-    
     def test_coverage_command_interpret_call(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
         """ZERO COMPROMISE: Ensure line 251 is covered - command_parser.interpret() call."""
         import asyncio
@@ -775,41 +740,6 @@ class TestSpeechEngine:
         finally:
             initialized_engine.stt_transcriber.transcribe = original_transcribe
             initialized_engine.command_parser.interpret = original_interpret
-
-
-    def test_final_coverage_wake_word_personality_path(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
-        """ZERO COMPROMISE: Final test to ensure 100% coverage of wake word personality assignment path."""
-        import asyncio
-        from Agent_Guru.speech.models import WakeWordDetection
-        from unittest.mock import AsyncMock
-        
-        # Create wake word result
-        wake_word_result = WakeWordDetection(
-            wake_word="maya",
-            personality=PersonalityType.MAYA,
-            confidence=0.95,
-            timestamp=0.0,
-            audio_chunk=sample_audio
-        )
-        
-        # Use AsyncMock to properly mock async method
-        mock_detect = AsyncMock(return_value=wake_word_result)
-        original_detect = initialized_engine.wake_word_detector.detect
-        initialized_engine.wake_word_detector.detect = mock_detect
-        
-        try:
-            result = asyncio.run(initialized_engine.process_voice_input(
-                audio=sample_audio,
-                personality=None  # Trigger auto-detection
-            ))
-            
-            # Verify wake word detection was called
-            assert mock_detect.called
-            # Verify personality was set from wake word result
-            assert result.personality == PersonalityType.MAYA
-            assert initialized_engine._current_personality == PersonalityType.MAYA
-        finally:
-            initialized_engine.wake_word_detector.detect = original_detect
 
 
     def test_final_coverage_wake_word_exception_handling(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
