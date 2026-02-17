@@ -438,7 +438,7 @@ After completing EACH task:
     - Test language transitions
     - _Requirements: 19.4_
 
-- [-] 17. Model Router Integration
+- [x] 17. Model Router Integration
   - Implement `Agent_Guru/speech/model_router_client.py`:
     - `ModelRouterClient` class
     - `select_stt_model()` method
@@ -448,11 +448,11 @@ After completing EACH task:
   - _Requirements: 20 (Model Router Integration)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Integrate model router for intelligent local/cloud model selection"
 
-  - [ ] 17.1 Write property test for model router fallback
+  - [x] 17.1 Write property test for model router fallback
     - **Property 24: Model Router Fallback**
     - **Validates: Requirements 20.2, 20.3, 20.5**
 
-  - [ ] 17.2 Write unit tests for model selection
+  - [x] 17.2 Write unit tests for model selection
     - Test online model selection
     - Test offline model selection
     - Test fallback scenarios
@@ -460,7 +460,7 @@ After completing EACH task:
 
 ### Phase 9: Background Service and Main Engine
 
-- [ ] 18. Background Service Manager
+- [x] 18. Background Service Manager
   - Implement `Agent_Guru/speech/background_service.py`:
     - `BackgroundServiceManager` class
     - Sleep/wake cycle management
