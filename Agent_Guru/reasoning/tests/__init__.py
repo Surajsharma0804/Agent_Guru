@@ -1,1 +1,1 @@
-"""Test suite for Core Reasoning Engine."""
+"""Tests for the reasoning engine."""
