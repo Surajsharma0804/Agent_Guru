@@ -185,8 +185,6 @@ def verify_documentation() -> bool:
     
     doc_files = [
         "Agent_Guru/reasoning/README.md",
-        "Agent_Guru/reasoning/STRUCTURE.md",
-        "Agent_Guru/reasoning/SETUP_COMPLETE.md",
     ]
     
     all_exist = True
