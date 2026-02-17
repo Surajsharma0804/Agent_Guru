@@ -1,0 +1,121 @@
+{
+  "dashboard": {
+    "title": "Reasoning Engine - Safety Metrics",
+    "tags": ["reasoning-engine", "safety", "security"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Blocked Actions by Reason",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(reasoning_engine_safety_blocks_total[5m])",
+            "legendFormat": "{{reason}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Blocks/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Total Blocked Actions (24h)",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(reasoning_engine_safety_blocks_total[24h]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 100},
+                {"color": "red", "value": 1000}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Block Rate Trend",
+        "type": "graph",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(rate(reasoning_engine_safety_blocks_total[5m]))",
+            "legendFormat": "Block Rate",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Blocks/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Confirmations Required",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 4, "w": 12, "h": 4},
+        "targets": [
+          {
+            "expr": "rate(reasoning_engine_safety_blocks_total{reason=\"confirmation_required\"}[5m])",
+            "legendFormat": "Confirmations/sec",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Confirmations/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Permission Denials by Type",
+        "type": "piechart",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (reason) (increase(reasoning_engine_safety_blocks_total{reason=~\"permission.*\"}[1h]))",
+            "legendFormat": "{{reason}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Sensitive Action Attempts",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(reasoning_engine_safety_blocks_total{reason=\"sensitive_action\"}[5m])",
+            "legendFormat": "Sensitive Actions/sec",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Actions/sec"},
+          {"format": "short"}
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "dashboard": {
+    "title": "Reasoning Engine - Latency Metrics",
+    "tags": ["reasoning-engine", "latency", "performance"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Pipeline Stage Latency (P50, P95, P99)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(reasoning_engine_input_normalization_duration_seconds_bucket[5m]))",
+            "legendFormat": "Input Normalization P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_input_normalization_duration_seconds_bucket[5m]))",
+            "legendFormat": "Input Normalization P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(reasoning_engine_input_normalization_duration_seconds_bucket[5m]))",
+            "legendFormat": "Input Normalization P99",
+            "refId": "C"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(reasoning_engine_intent_detection_duration_seconds_bucket[5m]))",
+            "legendFormat": "Intent Detection P50",
+            "refId": "D"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_intent_detection_duration_seconds_bucket[5m]))",
+            "legendFormat": "Intent Detection P95",
+            "refId": "E"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(reasoning_engine_intent_detection_duration_seconds_bucket[5m]))",
+            "legendFormat": "Intent Detection P99",
+            "refId": "F"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duration"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Reasoning Stage Latency",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 6},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(reasoning_engine_reasoning_duration_seconds_bucket[5m]))",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_reasoning_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(reasoning_engine_reasoning_duration_seconds_bucket[5m]))",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duration"},
+          {"format": "short"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [0.8], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["B", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "60s",
+          "handler": 1,
+          "name": "Reasoning P95 Latency Alert",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 3,
+        "title": "Execution Stage Latency",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 6},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(reasoning_engine_execution_duration_seconds_bucket[5m]))",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_execution_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(reasoning_engine_execution_duration_seconds_bucket[5m]))",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duration"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "End-to-End Latency Budget Compliance",
+        "type": "gauge",
+        "gridPos": {"x": 0, "y": 14, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(reasoning_engine_*_duration_seconds_bucket[5m])) by (le))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 1.5},
+                {"color": "red", "value": 2.0}
+              ]
+            },
+            "unit": "s",
+            "max": 3.0,
+            "min": 0
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "dashboard": {
+    "title": "Reasoning Engine - Resource Utilization",
+    "tags": ["reasoning-engine", "resources", "capacity"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "CPU Usage",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 6},
+        "targets": [
+          {
+            "expr": "reasoning_engine_cpu_usage_percent",
+            "legendFormat": "CPU Usage %",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "CPU %", "max": 100, "min": 0},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Memory Usage",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 6},
+        "targets": [
+          {
+            "expr": "reasoning_engine_memory_usage_bytes",
+            "legendFormat": "Memory Usage",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "bytes", "label": "Memory"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Active Conversations",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 6, "w": 12, "h": 6},
+        "targets": [
+          {
+            "expr": "reasoning_engine_active_conversations",
+            "legendFormat": "Active Conversations",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Count"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Queue Depth",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 6, "w": 12, "h": 6},
+        "targets": [
+          {
+            "expr": "reasoning_engine_queue_depth",
+            "legendFormat": "{{queue_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Queue Depth"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 5,
+        "title": "LLM Token Usage",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 12, "w": 12, "h": 6},
+        "targets": [
+          {
+            "expr": "rate(reasoning_engine_llm_tokens_used_total[5m])",
+            "legendFormat": "{{backend}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Tokens/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Cache Hit Rate",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 12, "w": 12, "h": 6},
+        "targets": [
+          {
+            "expr": "rate(reasoning_engine_cache_hits_total[5m]) / (rate(reasoning_engine_cache_hits_total[5m]) + rate(reasoning_engine_cache_misses_total[5m])) * 100",
+            "legendFormat": "{{cache_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Hit Rate %", "max": 100, "min": 0},
+          {"format": "short"}
+        ]
+      }
+    ]
+  }
+}

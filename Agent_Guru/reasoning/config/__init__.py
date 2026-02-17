@@ -1,1 +1,1 @@
-"""Configuration management."""
+"""Configuration module for the reasoning engine."""
