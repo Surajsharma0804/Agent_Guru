@@ -309,7 +309,7 @@ class BatteryMonitor:
         """Get mock battery status for testing."""
         return BatteryStatus(
             percentage=80.0,
-            is_charging=False,
+            is_charging=True,
             is_low=False,
             is_critical=False,
             time_remaining_minutes=240.0

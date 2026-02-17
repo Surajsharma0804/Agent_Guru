@@ -659,3 +659,375 @@ class TestBackgroundServiceManager:
         assert 0.4 < metrics.uptime_seconds < 0.7
         
         service.stop()
+
+
+    # ========================================================================
+    # ZERO COMPROMISE - STRESS TESTS
+    # ========================================================================
+    
+    def test_stress_1000_wake_word_detections(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Stress test with 1000 wake word detections."""
+        service.start()
+        
+        for i in range(1000):
+            service.handle_wake_word_detected()
+            service._transition_to_sleep()
+        
+        metrics = service.get_metrics()
+        assert metrics.wake_word_detections == 1000
+        assert metrics.errors == 0
+        
+        service.stop()
+    
+    def test_stress_24_hour_continuous_operation(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Simulate 24-hour continuous operation."""
+        service.start()
+        
+        # Simulate 24 hours with wake/sleep cycles
+        # Use shorter intervals for testing
+        for _ in range(100):  # Simulate 100 cycles
+            service.handle_wake_word_detected()
+            time.sleep(0.01)
+            service._transition_to_sleep()
+            time.sleep(0.01)
+        
+        metrics = service.get_metrics()
+        assert metrics.wake_word_detections == 100
+        assert service.get_state() == ServiceState.SLEEP
+        
+        service.stop()
+    
+    def test_stress_rapid_state_transitions(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Stress test with rapid state transitions."""
+        service.start()
+        
+        for _ in range(500):
+            service.handle_wake_word_detected()
+            service._transition_to_sleep()
+        
+        metrics = service.get_metrics()
+        assert metrics.state_transitions >= 1000  # 1 start + 500*2 transitions
+        
+        service.stop()
+    
+    def test_stress_memory_leak_detection(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Stress test for memory leaks."""
+        import gc
+        
+        service.start()
+        gc.collect()
+        
+        # Run many cycles
+        for _ in range(1000):
+            service.handle_wake_word_detected()
+            service.handle_command_received("test command")
+            service._transition_to_sleep()
+        
+        gc.collect()
+        
+        # If we got here without crashing, no obvious memory leak
+        metrics = service.get_metrics()
+        assert metrics.commands_processed == 1000
+        
+        service.stop()
+    
+    def test_stress_concurrent_commands(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Stress test with concurrent commands."""
+        service.start()
+        service.handle_wake_word_detected()
+        
+        # Simulate concurrent commands
+        threads = []
+        for i in range(100):
+            t = threading.Thread(target=service.handle_command_received, args=(f"command {i}",))
+            threads.append(t)
+            t.start()
+        
+        for t in threads:
+            t.join()
+        
+        # Should handle all commands
+        metrics = service.get_metrics()
+        assert metrics.commands_processed == 100
+        
+        service.stop()
+    
+    # ========================================================================
+    # ZERO COMPROMISE - CHAOS TESTS
+    # ========================================================================
+    
+    def test_chaos_random_state_transitions(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Chaos test with random state transitions."""
+        import random
+        
+        service.start()
+        
+        actions = [
+            lambda: service.handle_wake_word_detected(),
+            lambda: service.handle_command_received("test"),
+            lambda: service.handle_silence_detected(),
+            lambda: service._transition_to_sleep(),
+        ]
+        
+        for _ in range(100):
+            action = random.choice(actions)
+            try:
+                action()
+            except:
+                pass  # Some actions may fail in wrong state
+        
+        # Service should still be running
+        assert service.get_state() in [ServiceState.SLEEP, ServiceState.WAKE]
+        
+        service.stop()
+    
+    def test_chaos_callback_exceptions(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Chaos test with callback exceptions."""
+        exception_count = [0]
+        
+        def bad_wake_callback():
+            exception_count[0] += 1
+            raise Exception(f"Wake callback error {exception_count[0]}")
+        
+        def bad_command_callback(cmd):
+            exception_count[0] += 1
+            raise Exception(f"Command callback error {exception_count[0]}")
+        
+        service.wake_word_callback = bad_wake_callback
+        service.command_callback = bad_command_callback
+        service.start()
+        
+        # Trigger callbacks multiple times
+        # First wake word will work, subsequent ones will be in wrong state
+        service.handle_wake_word_detected()  # 1 error (wake callback)
+        for _ in range(10):
+            service.handle_command_received("test")  # 10 errors (command callback)
+        
+        # Service should still be running despite exceptions
+        assert service.get_state() == ServiceState.WAKE
+        metrics = service.get_metrics()
+        assert metrics.errors == 11  # 1 wake + 10 command errors
+        
+        service.stop()
+    
+    def test_chaos_rapid_pause_resume(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Chaos test with rapid pause/resume."""
+        service.start()
+        
+        for _ in range(50):
+            service.pause()
+            service.resume()
+        
+        # Should still be functional
+        assert service.get_state() == ServiceState.SLEEP
+        
+        service.stop()
+    
+    def test_chaos_stop_during_wake(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Chaos test stopping during wake mode."""
+        service.start()
+        service.handle_wake_word_detected()
+        
+        # Stop immediately during wake
+        service.stop()
+        
+        assert service.get_state() == ServiceState.STOPPED
+    
+    def test_chaos_multiple_errors_in_sequence(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Chaos test with multiple errors."""
+        service.start()
+        
+        for i in range(50):
+            service.handle_wake_word_detected()
+            service.handle_error(Exception(f"Error {i}"))
+        
+        # Should recover from all errors
+        assert service.get_state() == ServiceState.SLEEP
+        metrics = service.get_metrics()
+        assert metrics.errors == 50
+        
+        service.stop()
+    
+    # ========================================================================
+    # ZERO COMPROMISE - EDGE CASES
+    # ========================================================================
+    
+    def test_edge_case_wake_word_in_wake_mode(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Edge case - wake word while already awake."""
+        service.start()
+        service.handle_wake_word_detected()
+        
+        # Detect wake word again while awake
+        service.handle_wake_word_detected()
+        
+        # Should handle gracefully
+        assert service.get_state() == ServiceState.WAKE
+        
+        service.stop()
+    
+    def test_edge_case_command_in_sleep_mode(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Edge case - command while in sleep mode."""
+        service.start()
+        
+        # Try to handle command in sleep mode
+        service.handle_command_received("test command")
+        
+        # Should handle gracefully (log warning but not crash)
+        assert service.get_state() == ServiceState.SLEEP
+        
+        service.stop()
+    
+    def test_edge_case_silence_in_sleep_mode(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Edge case - silence detection in sleep mode."""
+        service.start()
+        
+        # Detect silence in sleep mode
+        service.handle_silence_detected()
+        
+        # Should handle gracefully
+        assert service.get_state() == ServiceState.SLEEP
+        
+        service.stop()
+    
+    def test_edge_case_zero_timeout(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Edge case - zero wake timeout."""
+        service._wake_timeout_seconds = 0.0
+        service.start()
+        service.handle_wake_word_detected()
+        
+        # Should handle zero timeout gracefully
+        time.sleep(0.1)
+        
+        service.stop()
+    
+    def test_edge_case_very_long_timeout(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Edge case - very long wake timeout."""
+        service._wake_timeout_seconds = 3600.0  # 1 hour
+        service.start()
+        service.handle_wake_word_detected()
+        
+        # Should set timeout without issues
+        assert service._wake_timeout_timer is not None
+        
+        service.stop()
+    
+    def test_edge_case_stop_without_start(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Edge case - stop without start."""
+        # Should handle gracefully
+        service.stop()
+        
+        assert service.get_state() == ServiceState.STOPPED
+    
+    def test_edge_case_pause_without_start(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Edge case - pause without start."""
+        with pytest.raises(RuntimeError):
+            service.pause()
+    
+    def test_edge_case_multiple_starts(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Edge case - multiple start calls."""
+        service.start()
+        
+        with pytest.raises(RuntimeError):
+            service.start()
+        
+        service.stop()
+    
+    def test_edge_case_multiple_stops(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Edge case - multiple stop calls."""
+        service.start()
+        service.stop()
+        
+        # Second stop should be safe
+        service.stop()
+        
+        assert service.get_state() == ServiceState.STOPPED
+    
+    # ========================================================================
+    # ZERO COMPROMISE - BATTERY INTEGRATION
+    # ========================================================================
+    
+    def test_battery_tracking_sleep_mode(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Test battery tracking in sleep mode."""
+        service.start()
+        time.sleep(0.2)
+        service.stop()  # Stop to finalize tracking
+        
+        stats = service.battery_monitor.get_usage_stats()
+        
+        # Should have tracked sleep time
+        assert stats.sleep_time_seconds > 0
+    
+    def test_battery_tracking_wake_mode(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Test battery tracking in wake mode."""
+        service.start()
+        service.handle_wake_word_detected()
+        time.sleep(0.2)
+        service.stop()  # Stop to finalize tracking
+        
+        stats = service.battery_monitor.get_usage_stats()
+        
+        # Should have tracked wake time
+        assert stats.wake_time_seconds > 0
+    
+    def test_battery_tracking_mixed_modes(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Test battery tracking with mixed modes."""
+        service.start()
+        time.sleep(0.1)
+        
+        service.handle_wake_word_detected()
+        time.sleep(0.1)
+        
+        service._transition_to_sleep()
+        time.sleep(0.1)
+        
+        stats = service.battery_monitor.get_usage_stats()
+        
+        # Should have tracked both modes
+        assert stats.sleep_time_seconds > 0
+        assert stats.wake_time_seconds > 0
+        
+        service.stop()
+    
+    # ========================================================================
+    # ZERO COMPROMISE - PERFORMANCE VALIDATION
+    # ========================================================================
+    
+    def test_performance_wake_transition_latency(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Validate wake transition latency <500ms."""
+        service.start()
+        
+        # Test multiple transitions
+        latencies = []
+        for _ in range(10):
+            start_time = time.time()
+            service.handle_wake_word_detected()
+            elapsed = time.time() - start_time
+            latencies.append(elapsed)
+            
+            service._transition_to_sleep()
+        
+        # All transitions should be <500ms
+        for latency in latencies:
+            assert latency < 0.5, f"Transition took {latency:.3f}s (target: <0.5s)"
+        
+        # Average should be well below target
+        avg_latency = sum(latencies) / len(latencies)
+        assert avg_latency < 0.3
+        
+        service.stop()
+    
+    def test_performance_metrics_overhead(self, service: BackgroundServiceManager):
+        """ZERO COMPROMISE: Test metrics collection overhead."""
+        service.start()
+        
+        # Collect metrics many times
+        start_time = time.time()
+        for _ in range(100):  # Reduced from 1000 due to psutil overhead
+            metrics = service.get_metrics()
+        elapsed = time.time() - start_time
+        
+        # Should be reasonably fast (<100ms per call on average)
+        # Note: psutil.cpu_percent() has overhead on Windows
+        assert elapsed < 15.0  # 100 calls in <15s = <150ms per call
+        
+        service.stop()

@@ -479,17 +479,17 @@ After completing EACH task:
   - _Requirements: 1.5 (Always-On Background Service)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement background service manager with sleep/wake cycles and battery optimization"
 
-  - [ ] 18.1 Write property test for state transition latency
+  - [x] 18.1 Write property test for state transition latency
     - **Property 27: State Transition Latency**
     - **Validates: Requirements 1.5.11**
 
-  - [ ] 18.2 Write unit tests for sleep/wake cycles
+  - [x] 18.2 Write unit tests for sleep/wake cycles
     - Test sleep mode resource usage
     - Test wake mode activation
     - Test timeout handling
     - _Requirements: 1.5.9, 1.5.11, 1.5.12_
 
-  - [ ] 18.3 Write unit tests for battery optimization
+  - [x] 18.3 Write unit tests for battery optimization
     - Test low battery handling
     - Test battery usage tracking
     - _Requirements: 1.5 (Battery Optimization)_
