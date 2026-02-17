@@ -1,1 +1,1 @@
-"""Tests for text-to-speech components."""
+"""TTS tests package."""

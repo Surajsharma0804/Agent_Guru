@@ -262,7 +262,7 @@ After completing EACH task:
 
 ### Phase 5: Text-to-Speech with Emotion and Voice Cloning
 
-- [~] 10. Gender-Specific TTS Engine (Desktop)
+- [x] 10. Gender-Specific TTS Engine (Desktop)
   - Implement `Agent_Guru/speech/tts/tts_engine.py`:
     - `TTSEngine` class
     - `synthesize()` method with gender and emotion parameters
@@ -275,15 +275,15 @@ After completing EACH task:
   - _Requirements: 4 (Gender-Specific TTS - Desktop)_
   - **GitHub Push**: ✅ MANDATORY after completion with message: "feat(speech): Implement gender-specific TTS engine with emotion support for Guru and Maya"
 
-  - [~] 10.1 Write property test for personality-voice mapping
+  - [x] 10.1 Write property test for personality-voice mapping
     - **Property 9: TTS Personality-Voice Mapping**
     - **Validates: Requirements 4.1, 4.2, 4.8**
 
-  - [~] 10.2 Write property test for TTS performance
+  - [x] 10.2 Write property test for TTS performance
     - **Property 10: TTS Real-Time Performance**
     - **Validates: Requirements 4.3, 4.19**
 
-  - [~] 10.3 Write property test for TTS output format
+  - [x] 10.3 Write property test for TTS output format
     - **Property 11: TTS Output Format**
     - **Validates: Requirements 4.7, 4.24**
 
