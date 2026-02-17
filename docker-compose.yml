@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  reasoning-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent-guru-reasoning-dev
+    volumes:
+      # Mount source code for hot reload
+      - ./Agent_Guru:/app/Agent_Guru
+      # Preserve Python cache
+      - python-cache:/root/.cache/pip
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - LOG_LEVEL=DEBUG
+    ports:
+      - "8000:8000"
+      - "9090:9090"  # Prometheus metrics
+    command: >
+      sh -c "
+        echo 'Starting development environment with hot reload...' &&
+        python -m pytest --cov -v -s
+      "
+    stdin_open: true
+    tty: true
+
+  redis:
+    image: redis:7-alpine
+    container_name: agent-guru-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: agent-guru-postgres
+    environment:
+      POSTGRES_DB: agent_guru
+      POSTGRES_USER: agent_guru
+      POSTGRES_PASSWORD: dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  python-cache:
+  redis-data:
+  postgres-data:
