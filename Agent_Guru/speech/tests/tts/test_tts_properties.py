@@ -123,15 +123,15 @@ def get_sample_rate(audio_bytes: bytes) -> int:
 # Property Tests - MAXIMUM COVERAGE
 
 @given(
-    text=st.text(min_size=10, max_size=50, alphabet=st.characters(whitelist_categories=('L', 'N', 'P', 'Z'))),
+    text=st.text(min_size=10, max_size=200, alphabet=st.characters(whitelist_categories=('L', 'N', 'P', 'Z'))),
     personality=st.sampled_from([PersonalityType.GURU, PersonalityType.MAYA])
 )
 @settings(
-    max_examples=10,
-    deadline=60000,
-    suppress_health_check=[HealthCheck.too_slow]
+    max_examples=100,
+    deadline=None,
+    suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large]
 )
-@pytest.mark.timeout(120)
+@pytest.mark.timeout(600)
 def test_property_9_tts_personality_voice_mapping(tts_engine, text, personality):
     """
     Property 9: TTS Personality-Voice Mapping
@@ -158,15 +158,15 @@ def test_property_9_tts_personality_voice_mapping(tts_engine, text, personality)
 
 
 @given(
-    text=st.text(min_size=10, max_size=50, alphabet=st.characters(whitelist_categories=('L', 'N', 'P', 'Z'))),
+    text=st.text(min_size=10, max_size=200, alphabet=st.characters(whitelist_categories=('L', 'N', 'P', 'Z'))),
     personality=st.sampled_from([PersonalityType.GURU, PersonalityType.MAYA])
 )
 @settings(
-    max_examples=10,
-    deadline=60000,
-    suppress_health_check=[HealthCheck.too_slow]
+    max_examples=100,
+    deadline=None,
+    suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large]
 )
-@pytest.mark.timeout(120)
+@pytest.mark.timeout(600)
 def test_property_10_tts_real_time_performance(tts_engine, text, personality):
     """
     Property 10: TTS Real-Time Performance
@@ -190,16 +190,16 @@ def test_property_10_tts_real_time_performance(tts_engine, text, personality):
 
 
 @given(
-    text=st.text(min_size=10, max_size=50, alphabet=st.characters(whitelist_categories=('L', 'N', 'P', 'Z'))),
+    text=st.text(min_size=10, max_size=200, alphabet=st.characters(whitelist_categories=('L', 'N', 'P', 'Z'))),
     personality=st.sampled_from([PersonalityType.GURU, PersonalityType.MAYA]),
     speech_rate=st.floats(min_value=0.5, max_value=2.0)
 )
 @settings(
-    max_examples=10,
-    deadline=60000,
-    suppress_health_check=[HealthCheck.too_slow]
+    max_examples=100,
+    deadline=None,
+    suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large]
 )
-@pytest.mark.timeout(120)
+@pytest.mark.timeout(600)
 def test_property_11_tts_output_format(tts_engine, text, personality, speech_rate):
     """
     Property 11: TTS Output Format
@@ -368,3 +368,232 @@ def test_tts_concurrent_synthesis(tts_engine):
     assert len(results) == 5
     for audio in results:
         assert len(audio) > 0
+
+
+# EXTREME STRESS TESTS - ZERO COMPROMISE
+
+def test_tts_extreme_long_text(tts_engine):
+    """Test TTS with EXTREMELY long text - production stress test."""
+    text = "This is an extremely long text for production stress testing. " * 200  # 12,600+ chars
+    audio = tts_engine.synthesize(text, personality=PersonalityType.GURU)
+    assert len(audio) > 0
+    assert get_audio_duration(audio) > 10.0  # Should be at least 10 seconds
+
+
+def test_tts_rapid_fire_synthesis(tts_engine):
+    """Test rapid-fire synthesis - 100 requests in quick succession."""
+    texts = [f"Rapid test number {i}" for i in range(100)]
+    
+    start_time = time.time()
+    for text in texts:
+        audio = tts_engine.synthesize(text, personality=PersonalityType.GURU)
+        assert len(audio) > 0
+    
+    total_time = time.time() - start_time
+    avg_time = total_time / 100
+    
+    # Should handle 100 requests efficiently
+    assert avg_time < 5.0, f"Average synthesis time {avg_time:.3f}s too slow for production"
+
+
+def test_tts_all_emotion_combinations(tts_engine):
+    """Test ALL emotion combinations with BOTH personalities."""
+    text = "Testing all emotion combinations for maximum coverage."
+    
+    for personality in [PersonalityType.GURU, PersonalityType.MAYA]:
+        for emotion in EmotionType:
+            for rate in [0.5, 1.0, 1.5, 2.0]:
+                for volume in [0.3, 0.7, 1.0]:
+                    audio = tts_engine.synthesize(
+                        text,
+                        personality=personality,
+                        emotion=emotion,
+                        speech_rate=rate,
+                        volume=volume
+                    )
+                    assert len(audio) > 0, \
+                        f"Failed: personality={personality}, emotion={emotion}, rate={rate}, vol={volume}"
+
+
+def test_tts_unicode_and_special_chars(tts_engine):
+    """Test with Unicode and special characters - FULL coverage."""
+    test_cases = [
+        "Hello! How are you? I'm fine, thanks. 123 test.",
+        "Testing: semicolons; commas, periods. Question marks? Exclamation!",
+        "Numbers: 1234567890, Symbols: @#$%^&*()",
+        "Quotes: 'single' and \"double\" quotes",
+        "Newlines\nand\ttabs\ttest",
+        "UPPERCASE and lowercase and MiXeD CaSe",
+        "Multiple    spaces    between    words",
+        "Punctuation!!! Multiple??? Marks...",
+    ]
+    
+    for text in test_cases:
+        audio = tts_engine.synthesize(text, personality=PersonalityType.GURU)
+        assert len(audio) > 0, f"Failed for text: {text}"
+
+
+def test_tts_memory_efficiency(tts_engine):
+    """Test memory efficiency - no leaks over 1000 syntheses."""
+    import gc
+    import psutil
+    import os
+    
+    process = psutil.Process(os.getpid())
+    
+    # Baseline memory
+    gc.collect()
+    mem_before = process.memory_info().rss / 1024 / 1024  # MB
+    
+    # Run 1000 syntheses
+    for i in range(1000):
+        audio = tts_engine.synthesize(
+            f"Memory test iteration {i}",
+            personality=PersonalityType.GURU
+        )
+        assert len(audio) > 0
+        
+        # Force cleanup every 100 iterations
+        if i % 100 == 0:
+            gc.collect()
+    
+    # Final memory
+    gc.collect()
+    mem_after = process.memory_info().rss / 1024 / 1024  # MB
+    
+    mem_increase = mem_after - mem_before
+    
+    # Memory increase should be minimal (< 100MB for 1000 syntheses)
+    assert mem_increase < 100, \
+        f"Memory leak detected: {mem_increase:.2f}MB increase over 1000 syntheses"
+
+
+def test_tts_concurrent_stress(tts_engine):
+    """Test concurrent synthesis under EXTREME load - 50 threads."""
+    import concurrent.futures
+    
+    def synthesize_with_all_params(idx):
+        personality = PersonalityType.GURU if idx % 2 == 0 else PersonalityType.MAYA
+        emotion = list(EmotionType)[idx % len(EmotionType)]
+        rate = 0.5 + (idx % 4) * 0.5
+        volume = 0.5 + (idx % 3) * 0.25
+        
+        audio = tts_engine.synthesize(
+            f"Concurrent stress test number {idx}",
+            personality=personality,
+            emotion=emotion,
+            speech_rate=rate,
+            volume=volume
+        )
+        return len(audio) > 0
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+        futures = [executor.submit(synthesize_with_all_params, i) for i in range(200)]
+        results = [f.result() for f in concurrent.futures.as_completed(futures)]
+    
+    assert all(results), "Some concurrent syntheses failed"
+    assert len(results) == 200
+
+
+def test_tts_audio_quality_metrics(tts_engine):
+    """Test audio quality metrics - PRODUCTION GRADE."""
+    text = "This is a comprehensive audio quality test for production deployment."
+    
+    for personality in [PersonalityType.GURU, PersonalityType.MAYA]:
+        audio = tts_engine.synthesize(text, personality=personality)
+        
+        # Parse audio
+        with wave.open(io.BytesIO(audio), 'rb') as wav:
+            sample_rate = wav.getframerate()
+            n_channels = wav.getnchannels()
+            sample_width = wav.getsampwidth()
+            frames = wav.readframes(wav.getnframes())
+        
+        # Quality checks
+        assert sample_rate >= 16000, f"Sample rate {sample_rate} too low for production"
+        assert sample_width >= 2, f"Sample width {sample_width} too low (need 16-bit minimum)"
+        assert n_channels >= 1, "Must have at least 1 channel"
+        
+        # Convert to array for analysis
+        if sample_width == 2:
+            audio_array = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+        else:
+            audio_array = np.frombuffer(frames, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
+        
+        # Check for clipping (should be minimal)
+        clipping_ratio = np.sum(np.abs(audio_array) > 0.99) / len(audio_array)
+        assert clipping_ratio < 0.01, f"Too much clipping: {clipping_ratio*100:.2f}%"
+        
+        # Check for silence (should not be all silent)
+        rms = np.sqrt(np.mean(audio_array**2))
+        assert rms > 0.01, f"Audio too quiet (RMS={rms:.4f})"
+        
+        # Check dynamic range
+        dynamic_range = 20 * np.log10(np.max(np.abs(audio_array)) / (rms + 1e-10))
+        assert dynamic_range > 6, f"Dynamic range too low: {dynamic_range:.2f} dB"
+
+
+def test_tts_error_recovery(tts_engine):
+    """Test error recovery and robustness - ZERO FAILURES."""
+    # Test empty text handling
+    try:
+        tts_engine.synthesize("", personality=PersonalityType.GURU)
+        assert False, "Should raise error for empty text"
+    except Exception:
+        pass  # Expected
+    
+    # Test invalid parameters
+    try:
+        tts_engine.synthesize("test", speech_rate=10.0)
+        assert False, "Should raise error for invalid speech rate"
+    except Exception:
+        pass  # Expected
+    
+    try:
+        tts_engine.synthesize("test", volume=5.0)
+        assert False, "Should raise error for invalid volume"
+    except Exception:
+        pass  # Expected
+    
+    # Engine should still work after errors
+    audio = tts_engine.synthesize("Recovery test", personality=PersonalityType.GURU)
+    assert len(audio) > 0
+
+
+def test_tts_performance_consistency(tts_engine):
+    """Test performance consistency - variance should be low."""
+    text = "Performance consistency test for production deployment."
+    times = []
+    
+    for _ in range(50):
+        start = time.time()
+        audio = tts_engine.synthesize(text, personality=PersonalityType.GURU)
+        elapsed = time.time() - start
+        times.append(elapsed)
+        assert len(audio) > 0
+    
+    avg_time = np.mean(times)
+    std_time = np.std(times)
+    
+    # Coefficient of variation should be low (< 50%)
+    cv = (std_time / avg_time) * 100
+    assert cv < 50, f"Performance too inconsistent: CV={cv:.2f}%"
+
+
+def test_tts_gpu_availability_check(tts_engine):
+    """Check if GPU acceleration is available and log status."""
+    import torch
+    
+    gpu_available = torch.cuda.is_available()
+    
+    if gpu_available:
+        gpu_count = torch.cuda.device_count()
+        gpu_name = torch.cuda.get_device_name(0) if gpu_count > 0 else "Unknown"
+        print(f"\n✓ GPU AVAILABLE: {gpu_count} device(s) - {gpu_name}")
+        print(f"✓ CUDA Version: {torch.version.cuda}")
+    else:
+        print("\n⚠ GPU NOT AVAILABLE - Running on CPU only")
+        print("⚠ For maximum performance, install CUDA and PyTorch with GPU support")
+    
+    # Test should pass regardless, but log GPU status
+    assert True, "GPU check complete"

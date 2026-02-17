@@ -283,7 +283,7 @@ After completing EACH task:
     - **Property 10: TTS Real-Time Performance**
     - **Validates: Requirements 4.3, 4.19**
 
-  - [ ] 10.3 Write property test for TTS output format
+  - [x] 10.3 Write property test for TTS output format
     - **Property 11: TTS Output Format**
     - **Validates: Requirements 4.7, 4.24**
 
