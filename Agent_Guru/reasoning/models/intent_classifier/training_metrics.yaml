@@ -1,0 +1,7 @@
+model_name: distilroberta-base
+num_epochs: 5
+test_accuracy: 0.8333333333333334
+test_f1: 0.8191061463788735
+test_precision: 0.8639339826839827
+test_recall: 0.8333333333333334
+training_time_seconds: 1031.825192451477

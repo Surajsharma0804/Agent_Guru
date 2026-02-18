@@ -103,6 +103,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+agent_gpu/
 
 # Spyder project settings
 .spyderproject
@@ -167,3 +168,18 @@ Thumbs.db
 # Model checkpoints
 checkpoints/
 *.ckpt
+
+# Trained models and large files
+Agent_Guru/reasoning/models/intent_classifier/checkpoint-*/
+Agent_Guru/reasoning/models/intent_classifier/final_model/
+Agent_Guru/reasoning/models/intent_classifier/logs/
+Agent_Guru/reasoning/models/intent_classifier/*.json
+Agent_Guru/reasoning/models/intent_classifier/*.txt
+Agent_Guru/reasoning/models/intent_classifier/*.safetensors
+
+# GPU setup verification scripts (temporary)
+check_cuda_detailed.py
+test_gpu_setup.py
+verify_gpu_final.py
+GPU_SETUP_COMPLETE.txt
+SETUP_SUMMARY.txt
