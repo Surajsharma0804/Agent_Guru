@@ -4,6 +4,19 @@
 
 This implementation plan breaks down the Model Router system into incremental, testable components. We'll build the system in layers: core data models and registry, task analysis, model selection logic, monitoring and tracking, fallback management, and finally the learning engine. Each major component includes property-based tests to verify correctness properties from the design document.
 
+**🚀 GPU ACCELERATION FOR MODEL INFERENCE**: Routes to GPU-accelerated models for optimal performance.
+
+**GPU Performance**:
+- Local model inference: GPU-accelerated when available - **GPU accelerated**
+- Model selection considers GPU availability
+- Automatic routing to GPU models for speed-critical tasks
+- Fallback to CPU models when GPU unavailable
+
+**GPU Requirements** (Optional):
+- CUDA 11.8+ for local GPU models
+- Automatically detects and uses GPU when available
+- Gracefully falls back to CPU/cloud when GPU unavailable
+
 The implementation uses Python with type hints, dataclasses for models, and the `hypothesis` library for property-based testing. We'll use SQLite for persistent storage and an in-memory cache for performance.
 
 ## Tasks

@@ -1,5 +1,19 @@
 # Implementation Tasks: Self-Improvement Engine
 
+**🚀 GPU ACCELERATION FOR ML PATTERN RECOGNITION**: Pattern detection and strategy optimization use GPU for faster learning.
+
+**GPU Performance**:
+- Pattern recognition: GPU-accelerated similarity search - **GPU accelerated**
+- Embedding generation for failure analysis: GPU batch processing - **GPU accelerated**
+- Strategy optimization: GPU-accelerated ML models - **GPU accelerated**
+
+**GPU Requirements** (Optional but recommended):
+- CUDA 11.8+ for pattern recognition speedup
+- PyTorch with CUDA for embedding models
+- Minimum 2GB VRAM for pattern analysis
+
+**Note**: GPU is optional for this module but provides 5-10x speedup for pattern recognition.
+
 ## Phase 1: Core Infrastructure and Storage
 
 ### 1. Database Schema and Storage Layer

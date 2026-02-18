@@ -4,6 +4,21 @@
 
 This implementation plan breaks down the GuruVision facial recognition system into discrete, incremental coding tasks. The system will be built in Python 3.10 using PyTorch for training, ONNX Runtime for inference, and InsightFace for core face recognition components.
 
+**🚀 GPU ACCELERATION CRITICAL**: This module REQUIRES GPU for real-time face recognition at 30-60 FPS.
+
+**GPU Performance Targets**:
+- Face detection: 30-60 FPS real-time - **GPU required**
+- Face recognition: <50ms latency - **GPU required**
+- Emotion detection: <50ms latency - **GPU required**
+- Liveness detection: Real-time anti-spoofing - **GPU required**
+- Training: 10-100x faster than CPU - **GPU required**
+
+**GPU Requirements**:
+- CUDA 11.8+ or CUDA 12.1+ for NVIDIA GPUs
+- PyTorch with CUDA support
+- ONNX Runtime GPU (onnxruntime-gpu) for optimized inference
+- Minimum 4GB VRAM for inference, 8GB+ for training
+
 The implementation follows a bottom-up approach: first establishing core utilities and data structures, then building individual modules (detection, alignment, recognition, etc.), followed by the training pipeline, and finally the main recognition engine that orchestrates all components.
 
 ## Task Completion Protocol
@@ -20,9 +35,16 @@ After completing EACH task:
 - [ ] 1. Set up project structure and dependencies
   - Create directory structure: Agent_Guru/vision/{detection,alignment,recognition,liveness,emotion,tracking,database,training,utils}
   - Create data directories: Agent_Guru/vision/data/{model,database,logs}
-  - Create requirements.txt with core dependencies: torch, torchvision, onnx, onnxruntime-gpu, opencv-python, insightface, numpy, scikit-learn
+  - Create requirements.txt with core dependencies:
+    - torch (with CUDA support) - **GPU required**
+    - torchvision - **GPU accelerated**
+    - onnx, onnxruntime-gpu - **GPU optimized inference**
+    - opencv-python - **GPU accelerated operations**
+    - insightface - **GPU accelerated**
+    - numpy, scikit-learn
   - Create setup.py or pyproject.toml for package installation
   - Create .gitignore for Python projects
+  - **GPU Setup**: Verify CUDA installation and GPU availability
   - _Requirements: 30.3, 30.4_
 
 - [ ] 2. Implement configuration management module
@@ -30,12 +52,12 @@ After completing EACH task:
     - Define all configuration parameters (model paths, thresholds, feature toggles, logging settings)
     - Implement default values for all parameters
     - _Requirements: 18.1, 18.2_
-  
+
   - [ ] 2.2 Implement configuration loading from YAML/JSON files
     - Load configuration from file path
     - Parse and validate configuration values
     - _Requirements: 18.1_
-  
+
   - [ ] 2.3 Implement configuration validation
     - Validate value ranges (e.g., threshold between 0.4 and 0.9)
     - Use default values for invalid configurations
@@ -52,7 +74,7 @@ After completing EACH task:
     - Support both console and file output
     - Implement log rotation (max 100MB)
     - _Requirements: 17.1, 17.5, 17.6, 17.7_
-  
+
   - [ ] 3.2 Write property test for error log structure
     - **Property 21: Error Log Structure**
     - **Validates: Requirements 17.1**
@@ -62,36 +84,36 @@ After completing EACH task:
     - Define Identity dataclass with name, embeddings, permission_level, metadata
     - Define Embedding dataclass with vector, timestamp, angle_category, lighting_condition
     - _Requirements: 6.3, 9.1_
-  
+
   - [ ] 4.2 Implement FaceDatabase class with in-memory storage
     - Initialize with database path
     - Implement add_identity() method
     - Implement add_embedding() method for existing identities
     - Implement get_identity() and get_all_identities() methods
     - _Requirements: 12.1, 12.4, 6.1, 6.2_
-  
+
   - [ ] 4.3 Implement database persistence (save/load to JSON)
     - Implement save() method with base64 encoding for embeddings
     - Implement load() method with base64 decoding
     - Auto-save on modifications
     - _Requirements: 6.6, 12.5, 12.6_
-  
+
   - [ ] 4.4 Implement identity search and matching
     - Implement search() method with cosine similarity
     - Compare against all embeddings for each identity
     - Return best match above threshold
     - _Requirements: 5.2, 5.3, 5.4, 5.7_
-  
+
   - [ ] 4.5 Implement update and delete operations
     - Implement update_permission() method
     - Implement remove_identity() method
     - _Requirements: 12.2, 12.3_
-  
+
   - [ ] 4.6 Implement database export/import
     - Implement export_json() method
     - Implement import_json() method
     - _Requirements: 12.7_
-  
+
   - [ ] 4.7 Write property tests for database operations
     - **Property 7: Database Multi-Embedding Storage**
     - **Property 8: Database Embedding Retrieval Completeness**
@@ -109,14 +131,14 @@ After completing EACH task:
     - Support CPU and GPU modes
     - Define Detection dataclass with bbox, landmarks, confidence
     - _Requirements: 3.5, 26.4_
-  
+
   - [ ] 6.2 Implement detect() method
     - Process frame with RetinaFace
     - Return list of Detection objects
     - Filter by confidence threshold
     - Return empty list if no faces detected
     - _Requirements: 3.1, 3.3, 3.4_
-  
+
   - [ ] 6.3 Write property test for face detection completeness
     - **Property 27: Face Detection Completeness**
     - **Validates: Requirements 3.1, 3.3**
@@ -126,14 +148,14 @@ After completing EACH task:
     - Initialize with output size (112x112)
     - Use InsightFace alignment utilities
     - _Requirements: 4.2, 26.5_
-  
+
   - [ ] 7.2 Implement align() method
     - Extract landmarks from Detection
     - Compute similarity transform to standard face template
     - Apply affine transformation
     - Resize to 112x112
     - _Requirements: 4.1, 4.3, 4.4_
-  
+
   - [ ] 7.3 Write property test for aligned face dimensions
     - **Property 2: Aligned Face Dimensions**
     - **Validates: Requirements 4.2**
@@ -144,20 +166,20 @@ After completing EACH task:
     - Support CPU and GPU execution providers
     - Load ONNX model from path
     - _Requirements: 11.2, 11.3, 11.4, 11.5_
-  
+
   - [ ] 8.2 Implement extract_embedding() method
     - Preprocess aligned face: normalize to [-1, 1], convert to CHW format
     - Run ONNX inference
     - Return 512-dimensional embedding vector
     - L2-normalize the embedding
     - _Requirements: 5.1_
-  
+
   - [ ] 8.3 Implement match_identity() method
     - Accept embedding and FaceDatabase
     - Call database.search() with threshold
     - Return MatchResult with identity, confidence, permission_level
     - _Requirements: 5.3, 5.4, 5.5, 5.6_
-  
+
   - [ ] 8.4 Write property tests for recognition
     - **Property 3: Embedding Vector Dimensions**
     - **Property 4: Cosine Similarity Range**
@@ -171,13 +193,13 @@ After completing EACH task:
     - Support CPU and GPU modes
     - Define LivenessResult dataclass
     - _Requirements: 7.1, 24.1_
-  
+
   - [ ] 9.2 Implement detect() method
     - Preprocess aligned face for liveness model
     - Run inference
     - Return LivenessResult with is_live, confidence, attack_type
     - _Requirements: 7.1, 7.2, 7.3, 7.5, 24.2, 24.3, 24.4, 24.6_
-  
+
   - [ ] 9.3 Write property tests for liveness detection
     - **Property 9: Liveness Binary Classification**
     - **Property 10: Liveness-Based Recognition Rejection**
@@ -189,13 +211,13 @@ After completing EACH task:
     - Support CPU and GPU modes
     - Define EmotionResult dataclass
     - _Requirements: 8.1_
-  
+
   - [ ] 10.2 Implement recognize() method
     - Preprocess aligned face for emotion model
     - Run inference
     - Return EmotionResult with dominant_emotion, confidence, all_scores
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
-  
+
   - [ ] 10.3 Write property tests for emotion recognition
     - **Property 11: Emotion Classification Categories**
     - **Property 12: Emotion Confidence Completeness**
@@ -210,7 +232,7 @@ After completing EACH task:
     - Configure max_age parameter (default 30 frames)
     - Define Track dataclass
     - _Requirements: 10.1, 23.1_
-  
+
   - [ ] 12.2 Implement update() method
     - Predict track positions using motion model (Kalman filter)
     - Associate detections with existing tracks (Hungarian algorithm)
@@ -218,7 +240,7 @@ After completing EACH task:
     - Create new tracks for unmatched detections
     - Delete tracks exceeding max_age
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 23.2, 23.3, 23.4, 23.5, 23.6_
-  
+
   - [ ] 12.3 Write property test for tracking ID consistency
     - **Property 14: Tracking ID Consistency**
     - **Validates: Requirements 10.1, 10.3, 23.2**
@@ -229,7 +251,7 @@ After completing EACH task:
     - Check mean brightness threshold (< 50)
     - Apply adaptive histogram equalization
     - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5_
-  
+
   - [ ] 13.2 Write property test for low-light enhancement trigger
     - **Property 24: Low-Light Enhancement Trigger**
     - **Validates: Requirements 22.1**
@@ -239,7 +261,7 @@ After completing EACH task:
     - Implement validate_dataset_structure() to check dataset/{IdentityName}/*.jpg format
     - Implement check_minimum_images() to validate 50+ images per identity
     - _Requirements: 2.1, 2.7, 29.1_
-  
+
   - [ ] 14.2 Implement preprocess_dataset() function
     - Load images from dataset directory
     - For each image: detect face, align, save to aligned_dataset/
@@ -247,7 +269,7 @@ After completing EACH task:
     - Handle multiple-face images: extract largest by area
     - Generate preprocessing report with statistics
     - _Requirements: 1.2, 2.2, 2.3, 2.4, 2.5, 2.6_
-  
+
   - [ ] 14.3 Write property tests for dataset preprocessing
     - **Property 1: Dataset Preprocessing Completeness**
     - **Property 26: Minimum Dataset Size Validation**
@@ -262,7 +284,7 @@ After completing EACH task:
     - Implement setup_arcface_training() to initialize ResNet-50 with ArcFace loss
     - Define TrainingConfig dataclass
     - _Requirements: 1.1, 1.7, 26.1, 26.2, 26.3, 28.3, 28.4, 28.5_
-  
+
   - [ ] 15.2 Implement train_arcface_model() function
     - Create PyTorch DataLoader from aligned dataset
     - Configure training hyperparameters (batch_size=32, lr=0.1, epochs=20)
@@ -277,13 +299,13 @@ After completing EACH task:
     - Export using torch.onnx.export() with opset_version=11
     - Save as guru_face_model.onnx
     - _Requirements: 1.3, 11.1, 28.1_
-  
+
   - [ ] 16.2 Implement ONNX model validation
     - Load ONNX model with ONNX Runtime
     - Run same inputs through PyTorch and ONNX
     - Assert embeddings match within 0.001 tolerance
     - _Requirements: 11.6, 28.7_
-  
+
   - [ ] 16.3 Write property test for ONNX-PyTorch equivalence
     - **Property 15: ONNX-PyTorch Embedding Equivalence**
     - **Validates: Requirements 11.6, 28.7**
@@ -304,7 +326,7 @@ After completing EACH task:
     - Define RecognitionResult and FaceResult dataclasses
     - Initialize with config_path parameter
     - _Requirements: 13.1, 13.2, 31.1, 31.2_
-  
+
   - [ ] 19.2 Implement initialize() method
     - Load configuration
     - Initialize logging
@@ -313,26 +335,26 @@ After completing EACH task:
     - Load face database
     - Emit "system_ready" event
     - _Requirements: 20.1, 20.2, 14.4_
-  
+
   - [ ] 19.3 Implement process_frame() method - detection and tracking
     - Check frame brightness and apply low-light enhancement if needed
     - Run face detection
     - Update tracker with detections
     - _Requirements: 3.1, 10.1, 22.1_
-  
+
   - [ ] 19.4 Implement process_frame() method - per-face processing
     - For each detected face: align, extract embedding, match identity
     - Run liveness detection if enabled
     - Run emotion recognition if enabled
     - Reject recognition if liveness fails
     - _Requirements: 4.1, 5.1, 5.3, 7.1, 7.4, 8.1_
-  
+
   - [ ] 19.5 Implement process_frame() method - result aggregation
     - Combine all per-face results into RecognitionResult
     - Add frame metadata (timestamp, processing time)
     - Emit recognition events
     - _Requirements: 13.2, 31.3_
-  
+
   - [ ] 19.6 Write property test for recognition result completeness
     - **Property 19: Recognition Result Completeness**
     - **Validates: Requirements 13.2, 31.3**
@@ -344,22 +366,22 @@ After completing EACH task:
     - Store embeddings in database
     - Save database to disk
     - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5_
-  
+
   - [ ] 20.2 Implement remove_identity() method
     - Call database.remove_identity()
     - Save database to disk
     - _Requirements: 12.3_
-  
+
   - [ ] 20.3 Implement get_identities() method
     - Call database.get_all_identities()
     - Return list of IdentityInfo objects
     - _Requirements: 12.4_
-  
+
   - [ ] 20.4 Implement update_permission() method
     - Call database.update_permission()
     - Save database to disk
     - _Requirements: 9.5, 12.2_
-  
+
   - [ ] 20.5 Write property tests for identity management
     - **Property 13: Permission Level Association**
     - **Property 20: Incremental Identity Recognition**
@@ -371,7 +393,7 @@ After completing EACH task:
     - Store callbacks by event type
     - Support event types: identity_recognized, new_identity, permission_changed, error
     - _Requirements: 13.3, 13.5_
-  
+
   - [ ] 21.2 Implement event emission in process_frame()
     - Trigger callbacks for recognition events
     - Pass event data to callbacks
@@ -384,12 +406,12 @@ After completing EACH task:
     - Close ONNX Runtime sessions
     - Complete within 3 seconds
     - _Requirements: 20.3, 20.4, 20.5, 20.7_
-  
+
   - [ ] 22.2 Implement graceful shutdown on signals
     - Handle SIGINT and SIGTERM
     - Call shutdown() method
     - _Requirements: 20.6_
-  
+
   - [ ] 22.3 Write property test for resource cleanup
     - **Property 23: Resource Cleanup on Shutdown**
     - **Validates: Requirements 20.3, 20.4**
@@ -399,13 +421,13 @@ After completing EACH task:
     - Create GuruVisionError base class
     - Create InitializationError, DetectionError, RecognitionError, DatabaseError, ConfigurationError
     - _Requirements: 17.1_
-  
+
   - [ ] 23.2 Implement error handling in all modules
     - Catch and log errors with context
     - Attempt recovery for transient errors
     - Return partial results when possible
     - _Requirements: 17.2, 17.3, 32.1_
-  
+
   - [ ] 23.3 Implement graceful degradation
     - Continue without liveness if liveness module fails
     - Return "neutral" emotion if emotion module fails
@@ -418,7 +440,7 @@ After completing EACH task:
     - Support video file paths (MP4, AVI, MOV)
     - Support image files and directories
     - _Requirements: 19.1, 19.2, 19.3, 19.4_
-  
+
   - [ ] 24.2 Implement video source error handling
     - Return clear error if source unavailable
     - Auto-detect resolution and frame rate
@@ -433,17 +455,17 @@ After completing EACH task:
     - Example script showing how to train a custom model
     - Include dataset preparation steps
     - _Requirements: 1.1, 28.1_
-  
+
   - [ ] 26.2 Create examples/recognize_webcam.py
     - Example script for real-time webcam recognition
     - Show how to initialize engine and process frames
     - _Requirements: 19.1, 31.2_
-  
+
   - [ ] 26.3 Create examples/add_identity.py
     - Example script for adding identities incrementally
     - Show how to use add_identity() method
     - _Requirements: 16.1, 16.2_
-  
+
   - [ ] 26.4 Create README.md with installation and usage instructions
     - Document installation steps
     - Document configuration options
@@ -456,7 +478,7 @@ After completing EACH task:
     - Verify GPU availability
     - Test basic functionality
     - _Requirements: 30.7_
-  
+
   - [ ] 27.2 Create performance benchmarking script
     - Measure FPS on CPU and GPU
     - Measure memory usage
@@ -469,13 +491,13 @@ After completing EACH task:
     - Verify ONNX export
     - Validate model accuracy
     - _Requirements: 1.1, 1.2, 1.3, 28.1_
-  
+
   - [ ] 28.2 Test complete recognition pipeline end-to-end
     - Process video with known identities
     - Verify recognition accuracy
     - Test multi-face scenarios
     - _Requirements: 3.1, 5.3, 10.1_
-  
+
   - [ ] 28.3 Test incremental identity addition
     - Add new identity without retraining
     - Verify immediate recognition

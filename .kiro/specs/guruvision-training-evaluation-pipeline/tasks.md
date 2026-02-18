@@ -4,6 +4,21 @@
 
 This implementation plan breaks down the GuruVision Training Evaluation Pipeline into discrete, incremental coding tasks. The pipeline will be built in stages: configuration and dataset management, training infrastructure, model export, evaluation engine, failure analysis, improvement strategies, stress testing, and reporting. Each stage builds on previous work and includes property-based tests to validate correctness.
 
+**🚀 GPU ACCELERATION CRITICAL FOR TRAINING**: Training pipeline REQUIRES GPU for 10-100x speedup.
+
+**GPU Performance Targets**:
+- Model training: 10-100x faster than CPU - **GPU REQUIRED**
+- Batch inference: GPU batch processing - **GPU REQUIRED**
+- Data augmentation: GPU-accelerated transforms - **GPU accelerated**
+- Evaluation: GPU-accelerated metrics - **GPU accelerated**
+
+**GPU Requirements**:
+- CUDA 11.8+ or CUDA 12.1+ REQUIRED
+- PyTorch with CUDA support REQUIRED
+- ONNX Runtime GPU for inference
+- Minimum 8GB VRAM for training, 16GB+ recommended
+- Multi-GPU support for distributed training
+
 The implementation uses Python with PyTorch for training, ONNX Runtime for inference, InsightFace for face detection/alignment, and Hypothesis for property-based testing.
 
 ## Task Completion Protocol
@@ -603,4 +618,3 @@ git push origin main
 - Configuration management is central to reproducibility - all runs should be fully specified by config files
 - The improvement loop enables iterative refinement until performance targets are met
 - **ZERO COMPROMISE**: Every line of code must be production-grade, fully tested, and documented
-

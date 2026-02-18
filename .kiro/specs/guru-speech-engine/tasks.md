@@ -4,18 +4,26 @@
 
 This implementation plan breaks down the Speech Engine into discrete coding tasks for implementing a comprehensive voice-controlled AI assistant with dual personalities (Guru - male, Maya - female). The system includes emotion detection, voice cloning, advanced noise cancellation, streaming audio, conversation context management, and complete system integration.
 
+**🚀 GPU ACCELERATION REQUIRED**: This module uses GPU for 10-50x faster speech recognition and emotion detection.
+
 **Key Features**:
-- Dual wake word detection ("Hey Guru" / "Hey Maya")
+- Dual wake word detection ("Hey Guru" / "Hey Maya") - **GPU: 30-60 FPS real-time**
 - Gender-specific text-to-speech with emotion support
-- Voice biometric authentication
-- Emotion detection from voice (7 emotion types)
-- Voice cloning for personalized responses
+- Voice biometric authentication - **GPU: <50ms latency**
+- Emotion detection from voice (7 emotion types) - **GPU: <50ms latency**
+- Voice cloning for personalized responses - **GPU accelerated**
 - Advanced noise cancellation (>20dB reduction)
 - Streaming audio with <500ms latency
 - Conversation context management
 - Complete system control through voice commands
 - Multi-language support (8+ languages)
 - Model router integration (local/cloud)
+
+**GPU Requirements**:
+- CUDA 11.8+ or CUDA 12.1+ for NVIDIA GPUs
+- PyTorch with CUDA support
+- ONNX Runtime GPU for optimized inference
+- Whisper with GPU acceleration (10-50x faster than CPU)
 
 ## Task Completion Protocol
 
@@ -35,13 +43,15 @@ After completing EACH task:
   - Create core modules in `Agent_Guru/speech/`: `models.py`, `exceptions.py`, `config.py`
   - Create `tests/` directory structure in `Agent_Guru/speech/tests/`
   - Create `requirements.txt` with dependencies:
-    - faster-whisper (STT)
+    - faster-whisper (STT) - **GPU accelerated**
     - noisereduce, librosa (audio processing)
     - sounddevice, soundfile (audio I/O)
     - TTS library (pyttsx3, coqui-tts, or cloud TTS)
     - numpy, scipy (audio processing)
     - hypothesis, pytest, pytest-cov, pytest-asyncio (testing)
-    - transformers (for emotion detection models)
+    - transformers (for emotion detection models) - **GPU accelerated**
+    - torch with CUDA support - **GPU required**
+    - onnxruntime-gpu - **GPU optimized inference**
   - Create subdirectories in `Agent_Guru/speech/`: `audio/`, `stt/`, `tts/`, `emotion/`, `biometric/`, `commands/`, `context/`, `mobile/`
   - Create core modules in `Agent_Guru/speech/`: `models.py`, `exceptions.py`, `config.py`
   - Create `tests/` directory structure in `Agent_Guru/speech/tests/`

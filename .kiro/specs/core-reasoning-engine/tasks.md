@@ -4,11 +4,28 @@
 
 This implementation plan creates a production-ready, market-competitive reasoning engine for Agent_Guru that rivals Alexa/Siri in 2026. The plan focuses on achieving <1.0s response times, 95%+ intent accuracy, and comprehensive ML-powered intelligence with full observability, CI/CD, and competitive benchmarking.
 
+**🚀 GPU ACCELERATION FOR ML MODELS**: Neural intent detection and LLM reasoning use GPU for 10-50x speedup.
+
 **Target Performance**:
 - Average response time: <1.0s (vs 1.3-1.5s for competitors)
 - P95 latency: <1.5s
 - Intent detection accuracy: >95%
 - Uptime: 99.9%
+
+**GPU Performance Targets**:
+- Intent classification: <50ms with GPU (vs 200ms CPU) - **GPU accelerated**
+- Entity extraction (NER): <100ms with GPU - **GPU accelerated**
+- LLM reasoning: <400ms with GPU (vs 2-5s CPU) - **GPU accelerated**
+- Embedding generation: Batch on GPU - **GPU accelerated**
+
+**GPU Requirements** (Desktop):
+- CUDA 11.8+ or CUDA 12.1+
+- PyTorch with CUDA support
+- ONNX Runtime GPU for optimized inference
+- Transformers with GPU acceleration
+- Minimum 4GB VRAM for inference, 8GB+ for training
+
+**Mobile**: Cloud API only (resource constraints)
 
 **Technology Stack**: Python 3.11+ with Rust for performance-critical components, hybrid LLM (local Llama 3.2 + cloud GPT-4), fine-tuned neural models, Kubernetes deployment.
 
@@ -35,7 +52,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: initialize project structure and dev environment"
   - Push: git push origin main
 
-- [ ] 2. Implement CI/CD pipeline with GitHub Actions
+- [x] 2. Implement CI/CD pipeline with GitHub Actions
   - Create .github/workflows/ci.yml for automated testing on PR
   - Add linting stage (black, ruff, mypy) with failure on violations
   - Add unit test stage with pytest and coverage reporting (80% minimum)
@@ -51,15 +68,15 @@ Current coverage status will be tracked and reported for each completed task.
   - Push: git push origin main
 
 
-- [ ] 3. Set up monitoring and observability infrastructure
-  - [ ] 3.1 Implement structured logging with structlog
+- [x] 3. Set up monitoring and observability infrastructure
+  - [x] 3.1 Implement structured logging with structlog
     - Create logging configuration with JSON formatter
     - Add context injection (user_id, conversation_id, turn_id, trace_id)
     - Configure log levels (DEBUG, INFO, WARN, ERROR) with environment-based defaults
     - Set up log rotation with max 100MB per file
     - _Requirements: 12.1, 12.5_
 
-  - [ ] 3.2 Set up Prometheus metrics collection
+  - [x] 3.2 Set up Prometheus metrics collection
     - Create metrics registry with custom collectors
     - Implement latency histograms for each pipeline stage (input_normalization, intent_detection, reasoning, tool_selection, safety_validation, execution, response_generation)
     - Add counter metrics for requests, errors, timeouts, fallbacks
@@ -67,7 +84,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Expose /metrics endpoint for Prometheus scraping
     - _Requirements: 12.2_
 
-  - [ ] 3.3 Configure Grafana dashboards
+  - [x] 3.3 Configure Grafana dashboards
     - Create dashboard for latency metrics (P50, P95, P99 per stage)
     - Create dashboard for success rates and error rates by intent type
     - Create dashboard for resource utilization (CPU, memory, queue depth)
@@ -75,7 +92,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Add alerting rules for P95 latency >2x target, error rate >5%, degraded mode >10%
     - _Requirements: 12.2, 10.3_
 
-  - [ ] 3.4 Implement distributed tracing with OpenTelemetry
+  - [x] 3.4 Implement distributed tracing with OpenTelemetry
     - Add OpenTelemetry SDK and configure exporters
     - Create trace context propagation across async operations
     - Add span creation for each pipeline stage with tags
@@ -83,7 +100,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Integrate with Jaeger or Zipkin for trace visualization
     - _Requirements: 12.4_
 
-  - [ ] 3.5 Set up error tracking with Sentry
+  - [x] 3.5 Set up error tracking with Sentry
     - Configure Sentry SDK with environment-specific DSN
     - Add error context capture (user_id, conversation_id, input, intent)
     - Configure error grouping and deduplication
@@ -155,20 +172,21 @@ Current coverage status will be tracked and reported for each completed task.
   - **Entities: 25 entity types with automated annotation pipeline**
 
 - [ ] 6. Train neural intent classification model
-  - [ ] 6.1 Fine-tune RoBERTa-base for intent classification
+  - [ ] 6.1 Fine-tune RoBERTa-base for intent classification - **GPU REQUIRED**
     - Load pre-trained RoBERTa-base model from HuggingFace
-    - Create training script with PyTorch Lightning
+    - Create training script with PyTorch Lightning - **GPU accelerated**
     - Configure hyperparameters (learning rate 2e-5, batch size 32, epochs 10)
     - Implement early stopping based on validation accuracy
-    - Train model on intent classification task with cross-entropy loss
+    - Train model on intent classification task with cross-entropy loss - **GPU: 10-50x faster**
     - Achieve >95% accuracy on test set (requirement for production)
     - Save model checkpoints and training metrics
+    - **GPU Setup**: Use CUDA for training, mixed precision for 2x speedup
     - _Requirements: 2.1, 2.5_
 
-  - [ ] 6.2 Train custom NER model for entity extraction
-    - Fine-tune spaCy transformer model on entity extraction task
+  - [ ] 6.2 Train custom NER model for entity extraction - **GPU REQUIRED**
+    - Fine-tune spaCy transformer model on entity extraction task - **GPU accelerated**
     - Configure entity types and training parameters
-    - Train model with 10 epochs and early stopping
+    - Train model with 10 epochs and early stopping - **GPU: 10x faster**
     - Achieve >90% F1 score on entity extraction
     - Save trained model and evaluation metrics
     - _Requirements: 2.2_
@@ -176,12 +194,12 @@ Current coverage status will be tracked and reported for each completed task.
   - [ ] 6.3 Create model evaluation and benchmarking suite
     - Implement confusion matrix analysis for intent classification
     - Calculate precision, recall, F1 per intent type
-    - Measure inference latency (target <200ms P95)
+    - Measure inference latency (target <200ms P95) - **GPU: <50ms achievable**
     - Create benchmark comparison vs baseline (rule-based) system
     - Generate evaluation report with visualizations
     - _Requirements: 2.5, 10.1_
 
-  - Commit: "feat: train neural intent detection models"
+  - Commit: "feat: train neural intent detection models with GPU acceleration"
   - Push: git push origin main
 
 
@@ -198,9 +216,9 @@ Current coverage status will be tracked and reported for each completed task.
     - Track fast-path vs slow-path usage metrics (target 80% fast-path)
     - _Requirements: 2.1, 2.5, 10.1, 18.1, 18.2, 18.3, 18.4, 18.5, 18.6_
 
-  - [ ] 7.2 Integrate neural intent classifier
-    - Load fine-tuned RoBERTa model with ONNX Runtime for faster inference
-    - Implement async inference with batching support
+  - [ ] 7.2 Integrate neural intent classifier - **GPU ACCELERATED**
+    - Load fine-tuned RoBERTa model with ONNX Runtime GPU for faster inference
+    - Implement async inference with batching support - **GPU batch processing**
     - Add model warm-up on startup to avoid cold start latency
     - Configure confidence threshold (0.8) for accepting predictions
     - Implement fallback to LLM when confidence <0.8

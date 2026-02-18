@@ -4,6 +4,8 @@
 
 This implementation plan integrates ALL AGENT_GURU components into a production-ready voice-controlled AI operating system that works on ALL platforms: Windows, macOS, Linux, Android, and iOS.
 
+**🚀 GPU ACCELERATION FOR DESKTOP**: Desktop platforms use GPU for 10-50x faster performance.
+
 **Key Features**:
 - Voice interaction on ALL platforms (desktop and mobile)
 - Dual personalities (Guru - male, Maya - female)
@@ -11,10 +13,20 @@ This implementation plan integrates ALL AGENT_GURU components into a production-
 - Multi-platform installers and app store deployment
 - Professional onboarding experience
 
+**GPU Performance by Platform**:
+- **Desktop (Windows/macOS/Linux)**: Full GPU acceleration
+  - Speech recognition: 10-50x faster with GPU
+  - Face recognition: 30-60 FPS real-time
+  - LLM inference: <400ms with local GPU
+  - Emotion detection: <50ms with GPU
+- **Mobile (Android/iOS)**: Cloud API only (resource constraints)
+  - No local GPU processing
+  - All ML tasks use cloud APIs
+
 **Target Platforms**:
-- **Desktop**: Windows 10/11, macOS 12+, Linux (Ubuntu, Fedora, Arch)
-- **Mobile**: Android 10+, iOS 14+
-- **Tablets**: iPad OS 14+, Android tablets
+- **Desktop**: Windows 10/11, macOS 12+, Linux (Ubuntu, Fedora, Arch) - **GPU ACCELERATED**
+- **Mobile**: Android 10+, iOS 14+ - **Cloud API only**
+- **Tablets**: iPad OS 14+, Android tablets - **Cloud API only**
 
 ## Task Completion Protocol
 
