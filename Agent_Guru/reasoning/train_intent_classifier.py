@@ -24,47 +24,46 @@ Author: Agent Guru Team
 Date: 2026
 """
 
-import os
-import yaml
+import json
+import random
+from collections import Counter
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+
+import nlpaug.augmenter.sentence as nas
+import nlpaug.augmenter.word as naw
+import numpy as np
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import pytorch_lightning as pl
+import yaml
 from pytorch_lightning.callbacks import (
-    ModelCheckpoint,
     EarlyStopping,
     LearningRateMonitor,
+    ModelCheckpoint,
     StochasticWeightAveraging,
 )
 from pytorch_lightning.loggers import TensorBoardLogger
-from torch.utils.data import Dataset, DataLoader
-from transformers import (
-    DebertaV2Tokenizer,
-    DebertaV2ForSequenceClassification,
-    DebertaV2Config,
-    get_cosine_schedule_with_warmup,
-    get_cosine_with_hard_restarts_schedule_with_warmup,
-)
-from typing import Dict, List, Tuple, Optional
-from dataclasses import dataclass
-import numpy as np
 from sklearn.metrics import (
     accuracy_score,
-    precision_recall_fscore_support,
     confusion_matrix,
+    precision_recall_fscore_support,
 )
-import json
-from pathlib import Path
-import random
-import nlpaug.augmenter.word as naw
-import nlpaug.augmenter.sentence as nas
-from collections import Counter
+from torch.utils.data import DataLoader, Dataset
+from transformers import (
+    DebertaV2Config,
+    DebertaV2ForSequenceClassification,
+    DebertaV2Tokenizer,
+    get_cosine_with_hard_restarts_schedule_with_warmup,
+)
 
 
 @dataclass
 class TrainingConfig:
     """Training configuration based on DeBERTa-v3 best practices.
-    
+
     Research-backed hyperparameters from Microsoft DeBERTa-v3 paper.
     """
 
@@ -78,30 +77,30 @@ class TrainingConfig:
     num_epochs: int = 10  # DeBERTa converges faster
     warmup_ratio: float = 0.1  # 10% warmup
     weight_decay: float = 0.01
-    
+
     # Optimization
     gradient_clip_val: float = 1.0
     label_smoothing: float = 0.1
-    
+
     # GPU optimization
     mixed_precision: bool = True
     gradient_accumulation_steps: int = 16  # Effective batch 32 (2*16)
     num_workers: int = 2  # Reduced for memory
-    
+
     # Data augmentation (research-backed)
     use_augmentation: bool = True
     augmentation_factor: int = 2  # Conservative, quality over quantity
-    
+
     # Advanced techniques (proven effective)
     use_adversarial_training: bool = True  # FGM
     use_focal_loss: bool = False  # Cross-entropy works better for balanced data
     use_rdrop: bool = True  # R-Drop regularization (SOTA technique)
     rdrop_alpha: float = 5.0
-    
+
     # Learning rate scheduling
     scheduler_type: str = "cosine_with_restarts"  # Better than linear
     num_cycles: float = 0.5
-    
+
     # Paths
     data_dir: str = "Agent_Guru/reasoning/data"
     output_dir: str = "Agent_Guru/reasoning/models/intent_classifier"
@@ -114,52 +113,49 @@ class TrainingConfig:
 
 class DataAugmenter:
     """Advanced data augmentation for intent classification.
-    
+
     Techniques:
     - Synonym replacement
     - Back translation
     - Random insertion/deletion
     - Contextual word embeddings
-    
+
     Increases training data by 3x for better generalization.
     """
-    
+
     def __init__(self):
         """Initialize augmenters."""
         # Synonym replacement
-        self.synonym_aug = naw.SynonymAug(aug_src='wordnet', aug_max=3)
-        
+        self.synonym_aug = naw.SynonymAug(aug_src="wordnet", aug_max=3)
+
         # Contextual word embeddings (BERT-based)
         self.context_aug = naw.ContextualWordEmbsAug(
-            model_path='roberta-base',
-            action="substitute",
-            aug_max=3
+            model_path="roberta-base", action="substitute", aug_max=3
         )
-        
+
         # Back translation (if available)
         try:
             self.back_translation_aug = nas.BackTranslationAug(
-                from_model_name='facebook/wmt19-en-de',
-                to_model_name='facebook/wmt19-de-en'
+                from_model_name="facebook/wmt19-en-de", to_model_name="facebook/wmt19-de-en"
             )
         except:
             self.back_translation_aug = None
-    
-    def augment(self, text: str, num_augmentations: int = 2) -> List[str]:
+
+    def augment(self, text: str, num_augmentations: int = 2) -> list[str]:
         """Augment text with multiple techniques.
-        
+
         Args:
             text: Original text
             num_augmentations: Number of augmented versions to generate
-            
+
         Returns:
             List of augmented texts
         """
         augmented = []
-        
+
         # Original
         augmented.append(text)
-        
+
         # Synonym replacement
         try:
             aug_text = self.synonym_aug.augment(text)
@@ -169,7 +165,7 @@ class DataAugmenter:
                 augmented.append(aug_text)
         except:
             pass
-        
+
         # Contextual embeddings
         try:
             aug_text = self.context_aug.augment(text)
@@ -179,7 +175,7 @@ class DataAugmenter:
                 augmented.append(aug_text)
         except:
             pass
-        
+
         # Back translation (slower but high quality)
         if self.back_translation_aug and len(augmented) < num_augmentations + 1:
             try:
@@ -190,21 +186,21 @@ class DataAugmenter:
                     augmented.append(aug_text)
             except:
                 pass
-        
-        return augmented[:num_augmentations + 1]
+
+        return augmented[: num_augmentations + 1]
 
 
 class FocalLoss(nn.Module):
     """Focal Loss for handling class imbalance and hard examples.
-    
+
     Focal Loss = -alpha * (1 - p_t)^gamma * log(p_t)
-    
+
     Focuses training on hard examples by down-weighting easy examples.
     """
-    
-    def __init__(self, alpha: float = 1.0, gamma: float = 2.0, reduction: str = 'mean'):
+
+    def __init__(self, alpha: float = 1.0, gamma: float = 2.0, reduction: str = "mean"):
         """Initialize focal loss.
-        
+
         Args:
             alpha: Weighting factor
             gamma: Focusing parameter (higher = more focus on hard examples)
@@ -214,43 +210,41 @@ class FocalLoss(nn.Module):
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
-    
+
     def forward(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         """Compute focal loss.
-        
+
         Args:
             inputs: Logits [batch_size, num_classes]
             targets: Labels [batch_size]
-            
+
         Returns:
             Loss value
         """
-        ce_loss = F.cross_entropy(inputs, targets, reduction='none')
+        ce_loss = F.cross_entropy(inputs, targets, reduction="none")
         p_t = torch.exp(-ce_loss)
         focal_loss = self.alpha * (1 - p_t) ** self.gamma * ce_loss
-        
-        if self.reduction == 'mean':
+
+        if self.reduction == "mean":
             return focal_loss.mean()
-        elif self.reduction == 'sum':
+        elif self.reduction == "sum":
             return focal_loss.sum()
         else:
             return focal_loss
 
 
 def mixup_data(
-    x: torch.Tensor,
-    y: torch.Tensor,
-    alpha: float = 0.2
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, float]:
+    x: torch.Tensor, y: torch.Tensor, alpha: float = 0.2
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, float]:
     """Apply mixup augmentation.
-    
+
     Mixup: x_mixed = lambda * x_i + (1 - lambda) * x_j
-    
+
     Args:
         x: Input features
         y: Labels
         alpha: Mixup parameter
-        
+
     Returns:
         Tuple of (mixed_x, y_a, y_b, lambda)
     """
@@ -258,32 +252,28 @@ def mixup_data(
         lam = np.random.beta(alpha, alpha)
     else:
         lam = 1
-    
+
     batch_size = x.size(0)
     index = torch.randperm(batch_size).to(x.device)
-    
+
     mixed_x = lam * x + (1 - lam) * x[index, :]
     y_a, y_b = y, y[index]
-    
+
     return mixed_x, y_a, y_b, lam
 
 
 def mixup_criterion(
-    criterion: nn.Module,
-    pred: torch.Tensor,
-    y_a: torch.Tensor,
-    y_b: torch.Tensor,
-    lam: float
+    criterion: nn.Module, pred: torch.Tensor, y_a: torch.Tensor, y_b: torch.Tensor, lam: float
 ) -> torch.Tensor:
     """Compute mixup loss.
-    
+
     Args:
         criterion: Loss function
         pred: Predictions
         y_a: First set of labels
         y_b: Second set of labels
         lam: Mixup parameter
-        
+
     Returns:
         Mixed loss
     """
@@ -292,27 +282,19 @@ def mixup_criterion(
 
 def compute_kl_loss(p: torch.Tensor, q: torch.Tensor) -> torch.Tensor:
     """Compute KL divergence loss for R-Drop.
-    
+
     R-Drop: Regularized Dropout for Neural Networks
     Paper: https://arxiv.org/abs/2106.14448
-    
+
     Args:
         p: First distribution (logits)
         q: Second distribution (logits)
-        
+
     Returns:
         KL divergence loss
     """
-    p_loss = F.kl_div(
-        F.log_softmax(p, dim=-1),
-        F.softmax(q, dim=-1),
-        reduction='batchmean'
-    )
-    q_loss = F.kl_div(
-        F.log_softmax(q, dim=-1),
-        F.softmax(p, dim=-1),
-        reduction='batchmean'
-    )
+    p_loss = F.kl_div(F.log_softmax(p, dim=-1), F.softmax(q, dim=-1), reduction="batchmean")
+    q_loss = F.kl_div(F.log_softmax(q, dim=-1), F.softmax(p, dim=-1), reduction="batchmean")
     return (p_loss + q_loss) / 2
 
 
@@ -327,7 +309,7 @@ class IntentDataset(Dataset):
         self,
         data_path: str,
         tokenizer: RobertaTokenizer,
-        intent_to_id: Dict[str, int],
+        intent_to_id: dict[str, int],
         max_length: int = 256,
         use_augmentation: bool = False,
         augmentation_factor: int = 3,
@@ -348,41 +330,40 @@ class IntentDataset(Dataset):
         self.use_augmentation = use_augmentation
 
         # Load data
-        with open(data_path, "r") as f:
+        with open(data_path) as f:
             self.data = yaml.safe_load(f)
 
         # Filter out unknown intents for training (keep for validation/test)
         if "train" in data_path:
-            self.data = [
-                item for item in self.data if item["intent"] != "unknown"
-            ]
-            
+            self.data = [item for item in self.data if item["intent"] != "unknown"]
+
             # Apply data augmentation for training
             if use_augmentation:
                 print(f"Applying data augmentation (factor={augmentation_factor})...")
                 augmenter = DataAugmenter()
                 augmented_data = []
-                
+
                 for item in self.data:
                     # Original
                     augmented_data.append(item)
-                    
+
                     # Augmented versions
                     augmented_texts = augmenter.augment(
-                        item["utterance"],
-                        num_augmentations=augmentation_factor - 1
+                        item["utterance"], num_augmentations=augmentation_factor - 1
                     )
-                    
+
                     for aug_text in augmented_texts[1:]:  # Skip original
-                        augmented_data.append({
-                            "utterance": aug_text,
-                            "intent": item["intent"],
-                            "entities": item["entities"]
-                        })
-                
+                        augmented_data.append(
+                            {
+                                "utterance": aug_text,
+                                "intent": item["intent"],
+                                "entities": item["entities"],
+                            }
+                        )
+
                 self.data = augmented_data
                 print(f"Dataset size after augmentation: {len(self.data)}")
-        
+
         # Compute class weights for handling imbalance
         intent_counts = Counter([item["intent"] for item in self.data])
         total = len(self.data)
@@ -394,7 +375,7 @@ class IntentDataset(Dataset):
     def __len__(self) -> int:
         return len(self.data)
 
-    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
         """Get item with tokenization.
 
         Time Complexity: O(n) where n is utterance length
@@ -435,7 +416,7 @@ class IntentClassifierModule(pl.LightningModule):
         self,
         config: TrainingConfig,
         num_labels: int,
-        id_to_intent: Dict[int, str],
+        id_to_intent: dict[int, str],
         class_weights: Optional[torch.Tensor] = None,
     ):
         """Initialize module.
@@ -447,7 +428,7 @@ class IntentClassifierModule(pl.LightningModule):
             class_weights: Class weights for imbalanced data
         """
         super().__init__()
-        self.save_hyperparameters(ignore=['class_weights'])
+        self.save_hyperparameters(ignore=["class_weights"])
         self.config = config
         self.id_to_intent = id_to_intent
         self.class_weights = class_weights
@@ -457,29 +438,25 @@ class IntentClassifierModule(pl.LightningModule):
             config.model_name,
             num_labels=num_labels,
         )
-        
+
         self.model = DebertaV2ForSequenceClassification.from_pretrained(
-            config.model_name,
-            config=model_config
+            config.model_name, config=model_config
         )
 
         # Loss function
         self.criterion = nn.CrossEntropyLoss(
-            weight=class_weights,
-            label_smoothing=config.label_smoothing
+            weight=class_weights, label_smoothing=config.label_smoothing
         )
 
         # Metrics storage
         self.validation_step_outputs = []
         self.test_step_outputs = []
-        
+
         # Adversarial training
         self.use_adversarial = config.use_adversarial_training
         self.use_rdrop = config.use_rdrop
 
-    def forward(
-        self, input_ids: torch.Tensor, attention_mask: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
         """Forward pass.
 
         Args:
@@ -491,57 +468,49 @@ class IntentClassifierModule(pl.LightningModule):
         """
         outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
         return outputs.logits
-    
+
     def adversarial_perturbation(
         self,
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor,
         labels: torch.Tensor,
-        epsilon: float = 1.0
+        epsilon: float = 1.0,
     ) -> torch.Tensor:
         """Generate adversarial perturbation using FGM.
-        
+
         Args:
             input_ids: Token IDs
             attention_mask: Attention mask
             labels: Labels
             epsilon: Perturbation magnitude
-            
+
         Returns:
             Adversarial loss
         """
         # Get embeddings
         embeddings = self.model.deberta.embeddings.word_embeddings(input_ids)
         embeddings.retain_grad()
-        
+
         # Forward pass
-        outputs = self.model(
-            inputs_embeds=embeddings,
-            attention_mask=attention_mask,
-            labels=labels
-        )
+        outputs = self.model(inputs_embeds=embeddings, attention_mask=attention_mask, labels=labels)
         loss = outputs.loss
-        
+
         # Compute gradients
         loss.backward(retain_graph=True)
-        
+
         # Generate perturbation
         grad = embeddings.grad
         perturbation = epsilon * grad / (torch.norm(grad, p=2, dim=-1, keepdim=True) + 1e-8)
-        
+
         # Adversarial forward pass
         adv_embeddings = embeddings + perturbation
         adv_outputs = self.model(
-            inputs_embeds=adv_embeddings.detach(),
-            attention_mask=attention_mask,
-            labels=labels
+            inputs_embeds=adv_embeddings.detach(), attention_mask=attention_mask, labels=labels
         )
-        
+
         return adv_outputs.loss
 
-    def training_step(
-        self, batch: Dict[str, torch.Tensor], batch_idx: int
-    ) -> torch.Tensor:
+    def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
         """Training step with R-Drop and adversarial training.
 
         Args:
@@ -554,15 +523,11 @@ class IntentClassifierModule(pl.LightningModule):
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
         labels = batch["labels"]
-        
+
         # Standard forward pass
-        outputs = self.model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            labels=labels
-        )
+        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
         ce_loss = outputs.loss
-        
+
         # R-Drop: consistency regularization
         if self.use_rdrop and self.training:
             # Second forward pass with different dropout
@@ -570,30 +535,28 @@ class IntentClassifierModule(pl.LightningModule):
                 input_ids=input_ids,
                 attention_mask=attention_mask,
             )
-            
+
             # KL divergence between two predictions
             kl_loss = compute_kl_loss(outputs.logits, outputs2.logits)
             loss = ce_loss + self.config.rdrop_alpha * kl_loss
         else:
             loss = ce_loss
-        
+
         # Adversarial training
         if self.use_adversarial and random.random() < 0.5:
-            adv_loss = self.adversarial_perturbation(
-                input_ids, attention_mask, labels, epsilon=1.0
-            )
+            adv_loss = self.adversarial_perturbation(input_ids, attention_mask, labels, epsilon=1.0)
             loss = 0.5 * loss + 0.5 * adv_loss
 
         self.log("train_loss", loss, prog_bar=True, sync_dist=True)
         if self.use_rdrop and self.training:
             self.log("train_ce_loss", ce_loss, prog_bar=False)
             self.log("train_kl_loss", kl_loss, prog_bar=False)
-        
+
         return loss
 
     def validation_step(
-        self, batch: Dict[str, torch.Tensor], batch_idx: int
-    ) -> Dict[str, torch.Tensor]:
+        self, batch: dict[str, torch.Tensor], batch_idx: int
+    ) -> dict[str, torch.Tensor]:
         """Validation step.
 
         Args:
@@ -622,15 +585,9 @@ class IntentClassifierModule(pl.LightningModule):
     def on_validation_epoch_end(self):
         """Compute validation metrics at epoch end."""
         # Gather all predictions and labels
-        all_preds = torch.cat(
-            [x["preds"] for x in self.validation_step_outputs]
-        ).cpu().numpy()
-        all_labels = torch.cat(
-            [x["labels"] for x in self.validation_step_outputs]
-        ).cpu().numpy()
-        avg_loss = torch.stack(
-            [x["loss"] for x in self.validation_step_outputs]
-        ).mean()
+        all_preds = torch.cat([x["preds"] for x in self.validation_step_outputs]).cpu().numpy()
+        all_labels = torch.cat([x["labels"] for x in self.validation_step_outputs]).cpu().numpy()
+        avg_loss = torch.stack([x["loss"] for x in self.validation_step_outputs]).mean()
 
         # Compute metrics
         accuracy = accuracy_score(all_labels, all_preds)
@@ -648,9 +605,7 @@ class IntentClassifierModule(pl.LightningModule):
         # Clear outputs
         self.validation_step_outputs.clear()
 
-    def test_step(
-        self, batch: Dict[str, torch.Tensor], batch_idx: int
-    ) -> Dict[str, torch.Tensor]:
+    def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> dict[str, torch.Tensor]:
         """Test step.
 
         Args:
@@ -669,21 +624,15 @@ class IntentClassifierModule(pl.LightningModule):
         logits = outputs.logits
         preds = torch.argmax(logits, dim=1)
 
-        self.test_step_outputs.append(
-            {"preds": preds, "labels": batch["labels"]}
-        )
+        self.test_step_outputs.append({"preds": preds, "labels": batch["labels"]})
 
         return {"preds": preds, "labels": batch["labels"]}
 
     def on_test_epoch_end(self):
         """Compute test metrics and generate report."""
         # Gather all predictions and labels
-        all_preds = torch.cat(
-            [x["preds"] for x in self.test_step_outputs]
-        ).cpu().numpy()
-        all_labels = torch.cat(
-            [x["labels"] for x in self.test_step_outputs]
-        ).cpu().numpy()
+        all_preds = torch.cat([x["preds"] for x in self.test_step_outputs]).cpu().numpy()
+        all_labels = torch.cat([x["labels"] for x in self.test_step_outputs]).cpu().numpy()
 
         # Compute metrics
         accuracy = accuracy_score(all_labels, all_preds)
@@ -727,7 +676,7 @@ class IntentClassifierModule(pl.LightningModule):
             json.dump(results, f, indent=2)
 
         print(f"\n{'='*60}")
-        print(f"Test Results:")
+        print("Test Results:")
         print(f"{'='*60}")
         print(f"Overall Accuracy: {accuracy:.4f}")
         print(f"Overall Precision: {precision.mean():.4f}")
@@ -745,15 +694,15 @@ class IntentClassifierModule(pl.LightningModule):
         optimizer_grouped_parameters = [
             {
                 "params": [
-                    p for n, p in self.model.named_parameters()
+                    p
+                    for n, p in self.model.named_parameters()
                     if not any(nd in n for nd in no_decay)
                 ],
                 "weight_decay": self.config.weight_decay,
             },
             {
                 "params": [
-                    p for n, p in self.model.named_parameters()
-                    if any(nd in n for nd in no_decay)
+                    p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)
                 ],
                 "weight_decay": 0.0,
             },
@@ -770,7 +719,7 @@ class IntentClassifierModule(pl.LightningModule):
         # Cosine schedule with restarts (better than linear)
         num_training_steps = self.trainer.estimated_stepping_batches
         num_warmup_steps = int(num_training_steps * self.config.warmup_ratio)
-        
+
         scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
             optimizer,
             num_warmup_steps=num_warmup_steps,
@@ -788,7 +737,7 @@ class IntentClassifierModule(pl.LightningModule):
         }
 
 
-def load_intent_mapping(data_dir: str) -> Tuple[Dict[str, int], Dict[int, str]]:
+def load_intent_mapping(data_dir: str) -> tuple[dict[str, int], dict[int, str]]:
     """Load intent to ID mapping from intents.yaml.
 
     Args:
@@ -798,7 +747,7 @@ def load_intent_mapping(data_dir: str) -> Tuple[Dict[str, int], Dict[int, str]]:
         Tuple of (intent_to_id, id_to_intent) mappings
     """
     intents_path = Path(data_dir) / "intents.yaml"
-    with open(intents_path, "r") as f:
+    with open(intents_path) as f:
         intents_data = yaml.safe_load(f)
 
     # Create mappings
@@ -811,9 +760,9 @@ def load_intent_mapping(data_dir: str) -> Tuple[Dict[str, int], Dict[int, str]]:
 
 def load_data_from_txt(
     data_dir: str,
-) -> Tuple[List[str], List[str], List[str], List[str], List[str], List[str]]:
+) -> tuple[list[str], list[str], list[str], list[str], list[str], list[str]]:
     """Load training, validation, and test data from .txt files.
-    
+
     Alternative data loader for tab-separated .txt format.
     Format: intent\tutterance
 
@@ -824,7 +773,7 @@ def load_data_from_txt(
         Tuple of (train_texts, train_labels, val_texts, val_labels, test_texts, test_labels)
     """
 
-    def read_file(filepath: str) -> Tuple[List[str], List[str]]:
+    def read_file(filepath: str) -> tuple[list[str], list[str]]:
         texts = []
         labels = []
         with open(filepath, encoding="utf-8") as f:
@@ -845,10 +794,10 @@ def load_data_from_txt(
 
 
 def create_label_mappings_from_data(
-    train_labels: List[str], val_labels: List[str], test_labels: List[str]
-) -> Tuple[Dict[str, int], Dict[int, str]]:
+    train_labels: list[str], val_labels: list[str], test_labels: list[str]
+) -> tuple[dict[str, int], dict[int, str]]:
     """Create label to ID and ID to label mappings from data.
-    
+
     Alternative to loading from intents.yaml - creates mappings directly from data.
 
     Args:
@@ -871,9 +820,9 @@ def create_label_mappings_from_data(
 
 def train_intent_classifier(config: TrainingConfig):
     """Train RoBERTa-LARGE intent classifier with RUTHLESS optimization.
-    
+
     ZERO COMPROMISE - MAXIMUM PERFORMANCE
-    
+
     Features:
     - RoBERTa-LARGE (355M parameters)
     - Extensive data augmentation (3x data)
@@ -893,7 +842,7 @@ def train_intent_classifier(config: TrainingConfig):
     - Accuracy: >99% on test set
     - Robustness: >95% on adversarial examples
     - Inference: <50ms per batch with GPU
-    
+
     Training Time: 6-12 hours with GPU (WORTH IT)
     """
     print(f"\n{'='*80}")
@@ -961,15 +910,14 @@ def train_intent_classifier(config: TrainingConfig):
         use_augmentation=False,
     )
 
-    print(f"\nDataset sizes:")
+    print("\nDataset sizes:")
     print(f"  Train: {len(train_dataset)} (with augmentation)")
     print(f"  Validation: {len(val_dataset)}")
     print(f"  Test: {len(test_dataset)}\n")
 
     # Get class weights for balanced training
     class_weights = torch.tensor(
-        [train_dataset.class_weights.get(i, 1.0) for i in range(num_labels)],
-        dtype=torch.float32
+        [train_dataset.class_weights.get(i, 1.0) for i in range(num_labels)], dtype=torch.float32
     )
     if torch.cuda.is_available():
         class_weights = class_weights.cuda()
@@ -1031,7 +979,7 @@ def train_intent_classifier(config: TrainingConfig):
     )
 
     lr_monitor = LearningRateMonitor(logging_interval="step")
-    
+
     # Stochastic Weight Averaging for better generalization
     swa_callback = StochasticWeightAveraging(
         swa_lrs=1e-6,
@@ -1068,9 +1016,9 @@ def train_intent_classifier(config: TrainingConfig):
     print(f"\n{'='*80}")
     print("Starting training with DeBERTa-v3...")
     print(f"{'='*80}\n")
-    print(f"Estimated training time: 8-12 hours")
-    print(f"Target accuracy: >99%\n")
-    
+    print("Estimated training time: 8-12 hours")
+    print("Target accuracy: >99%\n")
+
     trainer.fit(model, train_loader, val_loader)
 
     # Test
@@ -1114,8 +1062,8 @@ def train_intent_classifier(config: TrainingConfig):
     print(f"✓ Model saved to: {final_model_path}")
     print(f"✓ Best checkpoint: {checkpoint_callback.best_model_path}")
     print(f"✓ Best validation accuracy: {checkpoint_callback.best_model_score:.4f}")
-    print(f"✓ Training complete!")
-    print(f"\nThis is the BEST intent classifier - ZERO COMPROMISE!")
+    print("✓ Training complete!")
+    print("\nThis is the BEST intent classifier - ZERO COMPROMISE!")
     print(f"{'='*80}\n")
 
 
