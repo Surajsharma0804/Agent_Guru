@@ -293,9 +293,8 @@ class TestIntentClassifier:
         mock_accuracy.assert_called_once()
         mock_prf.assert_called_once()
 
-    @patch("Agent_Guru.reasoning.intent_classifier.RobertaForSequenceClassification")
     @patch("Agent_Guru.reasoning.intent_classifier.get_linear_schedule_with_warmup")
-    def test_configure_optimizers(self, mock_scheduler, mock_model_class, config, label_mappings):
+    def test_configure_optimizers(self, mock_scheduler, config, label_mappings):
         """Test optimizer configuration."""
         label_to_id, id_to_label = label_mappings
         classifier = IntentClassifier(config, 3, label_to_id, id_to_label)
@@ -311,6 +310,7 @@ class TestIntentClassifier:
         assert "optimizer" in optimizer_config
         assert "lr_scheduler" in optimizer_config
         assert optimizer_config["lr_scheduler"]["interval"] == "step"
+        mock_scheduler.assert_called_once()
 
 
 class TestDataLoading:
@@ -451,6 +451,53 @@ class TestTrainingPipeline:
         # Mock trainer
         mock_trainer = Mock()
         mock_trainer.callback_metrics = {"test_accuracy": torch.tensor(0.96)}
+        mock_trainer_class.return_value = mock_trainer
+
+        # Create config
+        config = TrainingConfig(
+            data_dir=temp_data_dir, output_dir=temp_output_dir, num_epochs=1, batch_size=2
+        )
+
+        # Run training
+        train_intent_classifier(config)
+
+        # Verify trainer was called
+        mock_trainer.fit.assert_called_once()
+        mock_trainer.test.assert_called_once()
+
+        # Verify model was saved
+        mock_classifier.model.save_pretrained.assert_called_once()
+
+        # Verify label mappings were saved
+        assert os.path.exists(os.path.join(temp_output_dir, "label_mappings.yaml"))
+
+        # Verify training config was saved
+        assert os.path.exists(os.path.join(temp_output_dir, "training_config.yaml"))
+
+    @patch("Agent_Guru.reasoning.intent_classifier.pl.Trainer")
+    @patch("Agent_Guru.reasoning.intent_classifier.RobertaTokenizer")
+    @patch("Agent_Guru.reasoning.intent_classifier.IntentClassifier")
+    def test_train_intent_classifier_below_threshold(
+        self,
+        mock_classifier_class,
+        mock_tokenizer_class,
+        mock_trainer_class,
+        temp_data_dir,
+        temp_output_dir,
+    ):
+        """Test train_intent_classifier function with accuracy below threshold."""
+        # Mock tokenizer
+        mock_tokenizer = Mock()
+        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
+
+        # Mock classifier
+        mock_classifier = Mock()
+        mock_classifier.model = Mock()
+        mock_classifier_class.return_value = mock_classifier
+
+        # Mock trainer with accuracy below 95%
+        mock_trainer = Mock()
+        mock_trainer.callback_metrics = {"test_accuracy": torch.tensor(0.90)}
         mock_trainer_class.return_value = mock_trainer
 
         # Create config

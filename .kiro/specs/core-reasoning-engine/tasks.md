@@ -117,7 +117,7 @@ Current coverage status will be tracked and reported for each completed task.
   - **Quality: Best-in-class code with no dead code, no duplication**
   - **Bug Fixed**: logging.py force=True added for proper level configuration
 
-- [ ] 4. Implement core data models with Pydantic
+- [x] 4. Implement core data models with Pydantic
   - Create Agent_Guru/reasoning/models/intent.py with Intent, IntentType, Entity classes
   - Create Agent_Guru/reasoning/models/action.py with Action, ActionSensitivity, Tool, Parameter classes
   - Create Agent_Guru/reasoning/models/result.py with ExecutionResult, Response, ResponseModality classes
@@ -138,7 +138,7 @@ Current coverage status will be tracked and reported for each completed task.
   - **Quality: Best-in-class code with no dead code, no duplication**
   - **Bug Fixed**: validate_duration return type corrected from str to float
 
-- [ ] 4.1 Write property tests for data model serialization
+- [x] 4.1 Write property tests for data model serialization
   - **Property 7: Conversation state round-trip**
   - **Validates: Requirements 3.5**
   - Test that for any valid ConversationState, serializing to JSON and deserializing produces equivalent object
@@ -149,8 +149,8 @@ Current coverage status will be tracked and reported for each completed task.
 
 ## Phase 2: Core Intelligence - Intent Detection (Weeks 3-4)
 
-- [ ] 5. Prepare intent detection training dataset
-  - [ ] 5.1 Create dataset collection pipeline
+- [x] 5. Prepare intent detection training dataset
+  - [x] 5.1 Create dataset collection pipeline
     - Define intent taxonomy with 50+ common intents (set_timer, query_weather, send_message, play_music, etc.)
     - Create Agent_Guru/reasoning/data/intents.yaml with intent definitions and example utterances
     - Implement data augmentation pipeline for paraphrasing and variation generation
@@ -158,7 +158,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Split dataset into train (80%), validation (10%), test (10%)
     - _Requirements: 2.1, 2.5_
 
-  - [ ] 5.2 Annotate dataset with entities
+  - [x] 5.2 Annotate dataset with entities
     - Define entity types (person, location, time, duration, quantity, etc.)
     - Create annotation guidelines for consistent labeling
     - Annotate training data with entity spans and types
@@ -171,8 +171,8 @@ Current coverage status will be tracked and reported for each completed task.
   - **Dataset: 1320 examples (1056 train, 132 val, 132 test) across 34 intents**
   - **Entities: 25 entity types with automated annotation pipeline**
 
-- [ ] 6. Train neural intent classification model
-  - [ ] 6.1 Fine-tune RoBERTa-base for intent classification - **GPU REQUIRED**
+- [x] 6. Train neural intent classification model
+  - [x] 6.1 Fine-tune RoBERTa-base for intent classification - **GPU REQUIRED**
     - Load pre-trained RoBERTa-base model from HuggingFace
     - Create training script with PyTorch Lightning - **GPU accelerated**
     - Configure hyperparameters (learning rate 2e-5, batch size 32, epochs 10)
@@ -183,7 +183,7 @@ Current coverage status will be tracked and reported for each completed task.
     - **GPU Setup**: Use CUDA for training, mixed precision for 2x speedup
     - _Requirements: 2.1, 2.5_
 
-  - [ ] 6.2 Train custom NER model for entity extraction - **GPU REQUIRED**
+  - [x] 6.2 Train custom NER model for entity extraction - **GPU REQUIRED**
     - Fine-tune spaCy transformer model on entity extraction task - **GPU accelerated**
     - Configure entity types and training parameters
     - Train model with 10 epochs and early stopping - **GPU: 10x faster**
@@ -191,7 +191,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Save trained model and evaluation metrics
     - _Requirements: 2.2_
 
-  - [ ] 6.3 Create model evaluation and benchmarking suite
+  - [x] 6.3 Create model evaluation and benchmarking suite
     - Implement confusion matrix analysis for intent classification
     - Calculate precision, recall, F1 per intent type
     - Measure inference latency (target <200ms P95) - **GPU: <50ms achievable**
