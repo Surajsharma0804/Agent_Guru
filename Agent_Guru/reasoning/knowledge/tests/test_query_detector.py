@@ -11,11 +11,12 @@ Tests cover:
 Target: 80%+ coverage
 """
 
+from datetime import datetime
+
 import pytest
-from datetime import datetime, timedelta
 
 from Agent_Guru.reasoning.knowledge.query_detector import KnowledgeQueryDetector
-from Agent_Guru.reasoning.models.knowledge import KnowledgeQueryType, TimeRange
+from Agent_Guru.reasoning.models.knowledge import KnowledgeQueryType
 
 
 class TestKnowledgeQueryDetector:
@@ -412,7 +413,10 @@ class TestKnowledgeQueryDetector:
 
     def test_detect_very_long_query(self, detector):
         """Test detection with very long query."""
-        long_query = "when did I last call John and what did we talk about and how long was the call and " * 10
+        long_query = (
+            "when did I last call John and what did we talk about and how long was the call and "
+            * 10
+        )
         query = detector.detect_knowledge_query(long_query)
 
         assert query is not None

@@ -10,7 +10,8 @@ import uuid
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 
-from hypothesis import given, settings, strategies as st, HealthCheck
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 from Agent_Guru.reasoning.knowledge.synthesizer import KnowledgeSynthesizer
 from Agent_Guru.reasoning.models.knowledge import (
@@ -33,12 +34,20 @@ def memory_strategy(draw):
     return Memory(
         memory_id=uuid.uuid4(),
         memory_type=draw(st.sampled_from(list(MemoryType))),
-        content=draw(st.text(min_size=5, max_size=200, alphabet=st.characters(blacklist_categories=('Cs',)))),  # Valid content
+        content=draw(
+            st.text(min_size=5, max_size=200, alphabet=st.characters(blacklist_categories=("Cs",)))
+        ),  # Valid content
         embedding=[0.1] * 768,
-        metadata=draw(st.dictionaries(
-            st.text(min_size=1, max_size=20, alphabet=st.characters(blacklist_categories=('Cs',))),
-            st.text(min_size=1, max_size=50, alphabet=st.characters(blacklist_categories=('Cs',)))
-        )),
+        metadata=draw(
+            st.dictionaries(
+                st.text(
+                    min_size=1, max_size=20, alphabet=st.characters(blacklist_categories=("Cs",))
+                ),
+                st.text(
+                    min_size=1, max_size=50, alphabet=st.characters(blacklist_categories=("Cs",))
+                ),
+            )
+        ),
         relevance_score=draw(st.floats(min_value=0.0, max_value=1.0)),
         timestamp=now - timedelta(days=days_ago),
         user_id="user_123",
@@ -51,10 +60,20 @@ def pattern_strategy(draw):
     """Generate valid Pattern objects."""
     return Pattern(
         pattern_type=draw(st.sampled_from(["daily", "weekly", "monthly"])),
-        description=draw(st.text(min_size=5, max_size=100, alphabet=st.characters(blacklist_categories=('Cs',)))),
+        description=draw(
+            st.text(min_size=5, max_size=100, alphabet=st.characters(blacklist_categories=("Cs",)))
+        ),
         frequency=draw(st.floats(min_value=0.0, max_value=1.0)),
         confidence=draw(st.floats(min_value=0.0, max_value=1.0)),
-        examples=draw(st.lists(st.text(min_size=5, max_size=50, alphabet=st.characters(blacklist_categories=('Cs',))), min_size=0, max_size=5)),
+        examples=draw(
+            st.lists(
+                st.text(
+                    min_size=5, max_size=50, alphabet=st.characters(blacklist_categories=("Cs",))
+                ),
+                min_size=0,
+                max_size=5,
+            )
+        ),
     )
 
 
@@ -66,13 +85,21 @@ def query_strategy(draw, query_type=None):
         query_type = draw(st.sampled_from(list(KnowledgeQueryType)))
 
     return KnowledgeQuery(
-        query_text=draw(st.text(min_size=5, max_size=200, alphabet=st.characters(blacklist_categories=('Cs',)))),
+        query_text=draw(
+            st.text(min_size=5, max_size=200, alphabet=st.characters(blacklist_categories=("Cs",)))
+        ),
         query_type=query_type,
         time_range=draw(st.one_of(st.none(), st.just(TimeRange.last_week()))),
-        entities=draw(st.dictionaries(
-            st.text(min_size=1, max_size=20, alphabet=st.characters(blacklist_categories=('Cs',))),
-            st.text(min_size=1, max_size=50, alphabet=st.characters(blacklist_categories=('Cs',)))
-        )),
+        entities=draw(
+            st.dictionaries(
+                st.text(
+                    min_size=1, max_size=20, alphabet=st.characters(blacklist_categories=("Cs",))
+                ),
+                st.text(
+                    min_size=1, max_size=50, alphabet=st.characters(blacklist_categories=("Cs",))
+                ),
+            )
+        ),
         confidence=draw(st.floats(min_value=0.0, max_value=1.0)),
     )
 
@@ -456,9 +483,7 @@ class TestConfidenceInvariants:
         if query.query_type == KnowledgeQueryType.TEMPORAL:
             confidence = synthesizer._calculate_temporal_confidence(query, memories, statistics)
         elif query.query_type == KnowledgeQueryType.AGGREGATION:
-            confidence = synthesizer._calculate_aggregation_confidence(
-                query, memories, statistics
-            )
+            confidence = synthesizer._calculate_aggregation_confidence(query, memories, statistics)
         elif query.query_type == KnowledgeQueryType.PATTERN:
             confidence = synthesizer._calculate_pattern_confidence(
                 query, memories, patterns, statistics
@@ -488,9 +513,7 @@ class TestConfidenceInvariants:
         if query.query_type == KnowledgeQueryType.TEMPORAL:
             confidence = synthesizer._calculate_temporal_confidence(query, memories, statistics)
         elif query.query_type == KnowledgeQueryType.AGGREGATION:
-            confidence = synthesizer._calculate_aggregation_confidence(
-                query, memories, statistics
-            )
+            confidence = synthesizer._calculate_aggregation_confidence(query, memories, statistics)
         elif query.query_type == KnowledgeQueryType.PATTERN:
             confidence = synthesizer._calculate_pattern_confidence(
                 query, memories, patterns, statistics

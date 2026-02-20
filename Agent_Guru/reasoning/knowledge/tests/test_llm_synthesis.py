@@ -18,7 +18,7 @@ import asyncio
 import json
 import uuid
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from pydantic import ValidationError
@@ -38,7 +38,9 @@ from Agent_Guru.reasoning.models.knowledge import (
 from Agent_Guru.reasoning.models.memory import Memory, MemoryType
 
 
-def create_test_memory(content: str, memory_type: MemoryType = MemoryType.SEMANTIC, **kwargs) -> Memory:
+def create_test_memory(
+    content: str, memory_type: MemoryType = MemoryType.SEMANTIC, **kwargs
+) -> Memory:
     """Helper to create test Memory with valid UUID."""
     defaults = {
         "memory_id": str(uuid.uuid4()),
@@ -388,9 +390,9 @@ class TestLLMSynthesis:
         # Mock the _call_llm_for_synthesis method to raise TimeoutError directly
         async def timeout_llm_call(prompt):
             raise asyncio.TimeoutError("Simulated timeout")
-        
+
         synthesizer._call_llm_for_synthesis = timeout_llm_call
-        
+
         # Mock generate_answer to avoid recursion issue
         def mock_generate_answer(query, memories, patterns, statistics):
             return KnowledgeAnswer(
@@ -400,7 +402,7 @@ class TestLLMSynthesis:
                 patterns=[],
                 statistics={},
             )
-        
+
         synthesizer.generate_answer = mock_generate_answer
 
         query = KnowledgeQuery(
@@ -444,7 +446,7 @@ class TestLLMSynthesis:
             llm_max_retries=1,  # Only 1 retry to speed up test
             use_llm_synthesis=True,
         )
-        
+
         # Mock generate_answer to avoid recursion issue
         def mock_generate_answer(query, memories, patterns, statistics):
             return KnowledgeAnswer(
@@ -454,7 +456,7 @@ class TestLLMSynthesis:
                 patterns=[],
                 statistics={},
             )
-        
+
         synthesizer.generate_answer = mock_generate_answer
 
         query = KnowledgeQuery(
@@ -510,9 +512,7 @@ class TestSupportingMemories:
             for i in range(10)
         ]
 
-        answer = synthesizer._create_answer_from_llm_response(
-            llm_response, query, memories, [], {}
-        )
+        answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
         assert len(answer.supporting_memories) == 5  # Top 5
         assert answer.supporting_memories[0] == memory_ids[0]  # Most relevant first
@@ -573,9 +573,7 @@ class TestSupportingMemories:
             ),
         ]
 
-        answer = synthesizer._create_answer_from_llm_response(
-            llm_response, query, memories, [], {}
-        )
+        answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
         # Confidence should be reduced (0.9 * 0.8 = 0.72)
         assert answer.confidence < 0.9
@@ -611,9 +609,7 @@ class TestConfidenceIndicator:
             )
         ]
 
-        answer = synthesizer._create_answer_from_llm_response(
-            llm_response, query, memories, [], {}
-        )
+        answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
         assert "I'm not very confident" in answer.summary
         assert "you called john yesterday" in answer.summary.lower()
@@ -644,9 +640,7 @@ class TestConfidenceIndicator:
             )
         ]
 
-        answer = synthesizer._create_answer_from_llm_response(
-            llm_response, query, memories, [], {}
-        )
+        answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
         assert "I'm not very confident" not in answer.summary
         assert answer.summary == "You called John yesterday"

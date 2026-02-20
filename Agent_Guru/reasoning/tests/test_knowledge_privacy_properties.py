@@ -17,12 +17,13 @@ Date: 2024
 Version: 1.0.0
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from Agent_Guru.reasoning.knowledge.synthesizer import (
     KnowledgeSynthesizer,
@@ -87,7 +88,11 @@ class TestPIIRedactionProperties:
         assert len(redacted) <= len(text) * 2, "Redaction made text too long"
 
     @given(
-        text=st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Zs")), min_size=0, max_size=100),
+        text=st.text(
+            alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Zs")),
+            min_size=0,
+            max_size=100,
+        ),
     )
     def test_redaction_never_crashes(self, text: str):
         """Property: Redaction never raises exceptions.
@@ -105,7 +110,9 @@ class TestUserDataIsolationProperties:
     """Property-based tests for user data isolation."""
 
     @given(
-        user_id=st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))),
+        user_id=st.text(
+            min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))
+        ),
         query_text=st.text(min_size=1, max_size=100),
     )
     def test_user_id_always_validated(self, user_id: str, query_text: str):
@@ -137,8 +144,12 @@ class TestUserDataIsolationProperties:
             assert not user_id.strip(), f"Valid user_id {user_id} was rejected"
 
     @given(
-        requested_user=st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))),
-        memory_user=st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))),
+        requested_user=st.text(
+            min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))
+        ),
+        memory_user=st.text(
+            min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))
+        ),
     )
     def test_cross_user_data_always_filtered(self, requested_user: str, memory_user: str):
         """Property: Cross-user data is always filtered out.
@@ -186,7 +197,9 @@ class TestUserDataIsolationProperties:
 
             # Should not contain memory from different user
             for mem in memories:
-                assert mem.user_id == requested_user, f"Cross-user data leaked: {mem.user_id} != {requested_user}"
+                assert (
+                    mem.user_id == requested_user
+                ), f"Cross-user data leaked: {mem.user_id} != {requested_user}"
 
 
 class TestConfidenceThresholdProperties:
@@ -237,9 +250,9 @@ class TestConfidenceThresholdProperties:
 
         # If confidence < threshold, uncertainty indicator should be present
         if answer.confidence < threshold:
-            assert answer.summary.lower().startswith("i'm not very confident"), (
-                f"Uncertainty indicator missing for confidence {answer.confidence} < threshold {threshold}"
-            )
+            assert answer.summary.lower().startswith(
+                "i'm not very confident"
+            ), f"Uncertainty indicator missing for confidence {answer.confidence} < threshold {threshold}"
 
     @given(
         confidence=st.floats(min_value=0.0, max_value=1.0),
@@ -282,14 +295,18 @@ class TestConfidenceThresholdProperties:
         answer = synthesizer.synthesize_answer(query, "user_1")
 
         # Confidence must be in valid range
-        assert 0.0 <= answer.confidence <= 1.0, f"Confidence {answer.confidence} out of range [0.0, 1.0]"
+        assert (
+            0.0 <= answer.confidence <= 1.0
+        ), f"Confidence {answer.confidence} out of range [0.0, 1.0]"
 
 
 class TestAuditLoggingProperties:
     """Property-based tests for audit logging."""
 
     @given(
-        user_id=st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))),
+        user_id=st.text(
+            min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))
+        ),
         query_text=st.text(min_size=1, max_size=100),
     )
     def test_all_queries_logged(self, user_id: str, query_text: str):

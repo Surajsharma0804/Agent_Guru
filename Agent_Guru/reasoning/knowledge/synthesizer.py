@@ -49,7 +49,7 @@ import logging
 import re
 import time
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field, ValidationError
@@ -60,7 +60,6 @@ from Agent_Guru.reasoning.models.knowledge import (
     KnowledgeQuery,
     KnowledgeQueryType,
     Pattern,
-    TimeRange,
 )
 from Agent_Guru.reasoning.models.memory import Memory, MemoryType
 
@@ -218,9 +217,7 @@ class KnowledgeSynthesizer:
         if max_memories < 1:
             raise ValueError(f"max_memories must be >= 1, got {max_memories}")
         if not 0.0 <= pattern_min_frequency <= 1.0:
-            raise ValueError(
-                f"pattern_min_frequency must be 0.0-1.0, got {pattern_min_frequency}"
-            )
+            raise ValueError(f"pattern_min_frequency must be 0.0-1.0, got {pattern_min_frequency}")
         if not 0.0 <= confidence_threshold <= 1.0:
             raise ValueError(f"confidence_threshold must be 0.0-1.0, got {confidence_threshold}")
 
@@ -242,9 +239,7 @@ class KnowledgeSynthesizer:
         if self.use_llm_synthesis:
             self._initialize_llm_client()
 
-    def synthesize_answer(
-        self, query: KnowledgeQuery, user_id: str
-    ) -> KnowledgeAnswer:
+    def synthesize_answer(self, query: KnowledgeQuery, user_id: str) -> KnowledgeAnswer:
         """Synthesize comprehensive answer to knowledge query.
 
         Time Complexity: O(n log n) where n=retrieved memories
@@ -346,9 +341,7 @@ class KnowledgeSynthesizer:
 
         return answer
 
-    def retrieve_relevant_data(
-        self, query: KnowledgeQuery, user_id: str
-    ) -> list[Memory]:
+    def retrieve_relevant_data(self, query: KnowledgeQuery, user_id: str) -> list[Memory]:
         """Retrieve relevant data from multiple sources.
 
         Time Complexity: O(log n) with semantic search
@@ -426,9 +419,7 @@ class KnowledgeSynthesizer:
 
         return validated_memories
 
-    def detect_patterns(
-        self, memories: list[Memory], query: KnowledgeQuery
-    ) -> list[Pattern]:
+    def detect_patterns(self, memories: list[Memory], query: KnowledgeQuery) -> list[Pattern]:
         """Detect behavioral patterns from memories.
 
         Time Complexity: O(n log n) for sorting and grouping
@@ -473,9 +464,7 @@ class KnowledgeSynthesizer:
 
         return patterns
 
-    def aggregate_statistics(
-        self, memories: list[Memory], query: KnowledgeQuery
-    ) -> dict[str, Any]:
+    def aggregate_statistics(self, memories: list[Memory], query: KnowledgeQuery) -> dict[str, Any]:
         """Aggregate statistical data from memories.
 
         Time Complexity: O(n) for counting and averaging
@@ -932,8 +921,10 @@ class KnowledgeSynthesizer:
         ][:3]
 
         # Format day with ordinal suffix
-        suffix = "th" if 11 <= most_common_day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(
-            most_common_day % 10, "th"
+        suffix = (
+            "th"
+            if 11 <= most_common_day <= 13
+            else {1: "st", 2: "nd", 3: "rd"}.get(most_common_day % 10, "th")
         )
 
         return Pattern(
@@ -1280,8 +1271,10 @@ class KnowledgeSynthesizer:
 
         # Extract action and entity from query
         action = query.entities.get("action", "did that")
-        entity = query.entities.get("person") or query.entities.get("app") or query.entities.get(
-            "location"
+        entity = (
+            query.entities.get("person")
+            or query.entities.get("app")
+            or query.entities.get("location")
         )
 
         if entity:
@@ -1474,14 +1467,14 @@ class KnowledgeSynthesizer:
                 # Exponential backoff
                 await asyncio.sleep(0.1 * (2**attempt))
 
-            except (ValidationError, json.JSONDecodeError, KeyError) as e:
+            except (ValidationError, json.JSONDecodeError, KeyError):
                 if attempt == self.llm_max_retries - 1:
                     # Final attempt failed, fall back to template-based generation
                     return self.generate_answer(query, memories, patterns, statistics)
                 # Exponential backoff
                 await asyncio.sleep(0.1 * (2**attempt))
 
-            except Exception as e:
+            except Exception:
                 if attempt == self.llm_max_retries - 1:
                     # Final attempt failed, fall back to template-based generation
                     return self.generate_answer(query, memories, patterns, statistics)
@@ -1551,7 +1544,9 @@ Output format (JSON):
                 {
                     "content": m.content,
                     "timestamp": m.timestamp.isoformat(),
-                    "type": m.memory_type.value if hasattr(m.memory_type, 'value') else m.memory_type,
+                    "type": m.memory_type.value
+                    if hasattr(m.memory_type, "value")
+                    else m.memory_type,
                     "relevance": m.relevance_score,
                 }
                 for m in memories[:10]  # Limit to top 10 for prompt size

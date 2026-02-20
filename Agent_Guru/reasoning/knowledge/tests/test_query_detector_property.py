@@ -7,7 +7,8 @@ Validates Requirements: 38.1, 38.5, 38.6, 38.7
 Target: 100 iterations per property
 """
 
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from Agent_Guru.reasoning.knowledge.query_detector import KnowledgeQueryDetector
 from Agent_Guru.reasoning.models.knowledge import KnowledgeQueryType

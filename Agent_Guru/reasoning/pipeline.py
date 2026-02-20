@@ -50,7 +50,7 @@ from typing import Any, Optional
 from Agent_Guru.reasoning.knowledge.query_detector import KnowledgeQueryDetector
 from Agent_Guru.reasoning.knowledge.synthesizer import KnowledgeSynthesizer
 from Agent_Guru.reasoning.memory_retriever import MemoryRetriever
-from Agent_Guru.reasoning.models.knowledge import KnowledgeAnswer, KnowledgeQuery
+from Agent_Guru.reasoning.models.knowledge import KnowledgeAnswer
 
 
 class PipelineStage(str, Enum):
@@ -256,9 +256,7 @@ class ReasoningPipeline:
             # Stage 3: Knowledge Query Detection
             if self.enable_knowledge_synthesis and self.knowledge_detector:
                 stage_start = time.perf_counter()
-                knowledge_query = self.knowledge_detector.detect_knowledge_query(
-                    normalized_input
-                )
+                knowledge_query = self.knowledge_detector.detect_knowledge_query(normalized_input)
                 metrics.add_stage_latency(
                     PipelineStage.KNOWLEDGE_DETECTION,
                     (time.perf_counter() - stage_start) * 1000,
@@ -283,9 +281,7 @@ class ReasoningPipeline:
 
                     # Stage 5: Response Generation (from KnowledgeAnswer)
                     stage_start = time.perf_counter()
-                    response = self._generate_response_from_knowledge_answer(
-                        knowledge_answer
-                    )
+                    response = self._generate_response_from_knowledge_answer(knowledge_answer)
                     metrics.add_stage_latency(
                         PipelineStage.RESPONSE_GENERATION,
                         (time.perf_counter() - stage_start) * 1000,
@@ -359,9 +355,7 @@ class ReasoningPipeline:
 
         return normalized
 
-    def _generate_response_from_knowledge_answer(
-        self, knowledge_answer: KnowledgeAnswer
-    ) -> str:
+    def _generate_response_from_knowledge_answer(self, knowledge_answer: KnowledgeAnswer) -> str:
         """Generate response text from KnowledgeAnswer.
 
         Time Complexity: O(1)

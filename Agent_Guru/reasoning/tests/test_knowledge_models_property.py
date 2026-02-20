@@ -11,7 +11,8 @@ Coverage target: 80%+
 from datetime import datetime, timedelta
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from Agent_Guru.reasoning.models.knowledge import (
     KnowledgeAnswer,

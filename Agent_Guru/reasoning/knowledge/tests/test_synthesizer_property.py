@@ -13,17 +13,18 @@ Uses Hypothesis for property-based testing with 100 iterations.
 Coverage Target: Additional coverage for edge cases
 """
 
-import pytest
 from datetime import datetime, timedelta
-from hypothesis import given, strategies as st, settings
 from unittest.mock import Mock
+
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from Agent_Guru.reasoning.knowledge.synthesizer import KnowledgeSynthesizer
 from Agent_Guru.reasoning.memory_retriever import MemoryRetriever
 from Agent_Guru.reasoning.models.knowledge import (
+    KnowledgeAnswer,
     KnowledgeQuery,
     KnowledgeQueryType,
-    KnowledgeAnswer,
     TimeRange,
 )
 from Agent_Guru.reasoning.models.memory import EpisodicMemory, SemanticMemory
@@ -34,9 +35,15 @@ from Agent_Guru.reasoning.models.memory import EpisodicMemory, SemanticMemory
 def knowledge_query_strategy(draw):
     """Generate valid KnowledgeQuery objects."""
     query_type = draw(st.sampled_from(list(KnowledgeQueryType)))
-    query_text = draw(st.text(min_size=5, max_size=100, alphabet=st.characters(
-        whitelist_categories=("Lu", "Ll", "Nd", "Zs"), whitelist_characters="?!."
-    )))
+    query_text = draw(
+        st.text(
+            min_size=5,
+            max_size=100,
+            alphabet=st.characters(
+                whitelist_categories=("Lu", "Ll", "Nd", "Zs"), whitelist_characters="?!."
+            ),
+        )
+    )
     confidence = draw(st.floats(min_value=0.0, max_value=1.0))
 
     # Generate time range for temporal queries
@@ -49,9 +56,11 @@ def knowledge_query_strategy(draw):
     entities = {}
     if draw(st.booleans()):
         entity_type = draw(st.sampled_from(["person", "action", "app", "location"]))
-        entity_value = draw(st.text(min_size=3, max_size=20, alphabet=st.characters(
-            whitelist_categories=("Lu", "Ll")
-        )))
+        entity_value = draw(
+            st.text(
+                min_size=3, max_size=20, alphabet=st.characters(whitelist_categories=("Lu", "Ll"))
+            )
+        )
         entities[entity_type] = entity_value
 
     return KnowledgeQuery(
@@ -68,9 +77,13 @@ def knowledge_query_strategy(draw):
 def memory_strategy(draw):
     """Generate valid Memory objects."""
     memory_type = draw(st.sampled_from(["episodic", "semantic"]))
-    content = draw(st.text(min_size=10, max_size=200, alphabet=st.characters(
-        whitelist_categories=("Lu", "Ll", "Nd", "Zs")
-    )))
+    content = draw(
+        st.text(
+            min_size=10,
+            max_size=200,
+            alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Zs")),
+        )
+    )
     user_id = "user_123"
 
     # Generate timestamp within last year
@@ -289,9 +302,17 @@ class TestKnowledgeSynthesizerProperties:
         assert isinstance(answer, KnowledgeAnswer)
         assert len(answer.summary) > 0
         # Check for various "no data" messages depending on query type
-        assert any(phrase in answer.summary.lower() for phrase in [
-            "don't have", "haven't", "not", "no information", "no data", "insufficient"
-        ])
+        assert any(
+            phrase in answer.summary.lower()
+            for phrase in [
+                "don't have",
+                "haven't",
+                "not",
+                "no information",
+                "no data",
+                "insufficient",
+            ]
+        )
         assert answer.statistics["total_count"] == 0
 
     @given(
@@ -315,7 +336,7 @@ class TestKnowledgeSynthesizerProperties:
 
         # Verify results are identical
         assert len(patterns1) == len(patterns2)
-        for p1, p2 in zip(patterns1, patterns2):
+        for p1, p2 in zip(patterns1, patterns2, strict=False):
             assert p1.pattern_type == p2.pattern_type
             assert p1.frequency == p2.frequency
             assert p1.confidence == p2.confidence

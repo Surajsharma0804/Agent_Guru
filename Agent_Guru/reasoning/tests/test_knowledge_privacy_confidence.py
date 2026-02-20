@@ -15,7 +15,6 @@ Date: 2024
 Version: 1.0.0
 """
 
-import logging
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -27,15 +26,12 @@ from Agent_Guru.reasoning.knowledge.synthesizer import (
     redact_pii,
 )
 from Agent_Guru.reasoning.models.knowledge import (
-    KnowledgeAnswer,
     KnowledgeQuery,
     KnowledgeQueryType,
     TimeRange,
 )
 from Agent_Guru.reasoning.models.memory import (
     EpisodicMemory,
-    Memory,
-    MemoryType,
     SemanticMemory,
 )
 

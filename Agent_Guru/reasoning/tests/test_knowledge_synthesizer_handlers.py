@@ -274,7 +274,7 @@ class TestHandleAggregationQuery:
             memory = Memory(
                 memory_id=uuid.uuid4(),
                 memory_type=MemoryType.EPISODIC,
-                content=f"Called John",
+                content="Called John",
                 embedding=[0.1] * 768,
                 metadata={"person": "John"},
                 relevance_score=0.8,
@@ -317,7 +317,7 @@ class TestHandlePatternQuery:
             memory = Memory(
                 memory_id=uuid.uuid4(),
                 memory_type=MemoryType.EPISODIC,
-                content=f"Morning coffee",
+                content="Morning coffee",
                 embedding=[0.1] * 768,
                 metadata={"action": "coffee"},
                 relevance_score=0.8,
@@ -363,7 +363,7 @@ class TestHandlePatternQuery:
             memory = Memory(
                 memory_id=uuid.uuid4(),
                 memory_type=MemoryType.EPISODIC,
-                content=f"Exercise",
+                content="Exercise",
                 embedding=[0.1] * 768,
                 metadata={"action": "exercise"},
                 relevance_score=0.8,
@@ -415,7 +415,7 @@ class TestHandlePatternQuery:
             memory = Memory(
                 memory_id=uuid.uuid4(),
                 memory_type=MemoryType.EPISODIC,
-                content=f"Random activity",
+                content="Random activity",
                 embedding=[0.1] * 768,
                 metadata={},
                 relevance_score=0.8,

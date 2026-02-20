@@ -17,25 +17,24 @@ Date: 2024
 Version: 1.0.0
 """
 
-import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock
+from datetime import datetime
+from unittest.mock import Mock
 
-from Agent_Guru.reasoning.pipeline import (
-    ReasoningPipeline,
-    PipelineStage,
-    PipelineMetrics,
-    PipelineResult,
-)
+import pytest
+
 from Agent_Guru.reasoning.models.knowledge import (
+    KnowledgeAnswer,
     KnowledgeQuery,
     KnowledgeQueryType,
-    KnowledgeAnswer,
-    TimeRange,
     Pattern,
+    TimeRange,
 )
-from Agent_Guru.reasoning.models.memory import Memory, MemoryType
-from Agent_Guru.reasoning.memory_retriever import MemoryRetriever
+from Agent_Guru.reasoning.pipeline import (
+    PipelineMetrics,
+    PipelineResult,
+    PipelineStage,
+    ReasoningPipeline,
+)
 
 
 class TestPipelineMetrics:
@@ -266,9 +265,7 @@ class TestReasoningPipelineKnowledgeQueryRouting:
 
         # Verify calls
         knowledge_detector.detect_knowledge_query.assert_called_once()
-        knowledge_synthesizer.synthesize_answer.assert_called_once_with(
-            knowledge_query, "user_123"
-        )
+        knowledge_synthesizer.synthesize_answer.assert_called_once_with(knowledge_query, "user_123")
 
     def test_process_knowledge_query_aggregation(self):
         """Test processing aggregation knowledge query."""
@@ -426,9 +423,7 @@ class TestReasoningPipelineErrorHandling:
         knowledge_detector = Mock()
 
         # Mock detector error
-        knowledge_detector.detect_knowledge_query.side_effect = Exception(
-            "Detector error"
-        )
+        knowledge_detector.detect_knowledge_query.side_effect = Exception("Detector error")
 
         # Create pipeline
         pipeline = ReasoningPipeline(
@@ -464,9 +459,7 @@ class TestReasoningPipelineErrorHandling:
         knowledge_detector.detect_knowledge_query.return_value = knowledge_query
 
         # Mock synthesizer error
-        knowledge_synthesizer.synthesize_answer.side_effect = Exception(
-            "Synthesis error"
-        )
+        knowledge_synthesizer.synthesize_answer.side_effect = Exception("Synthesis error")
 
         # Create pipeline
         pipeline = ReasoningPipeline(

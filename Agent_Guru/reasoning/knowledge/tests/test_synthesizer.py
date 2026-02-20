@@ -14,22 +14,22 @@ Tests cover:
 Coverage Target: 80%+
 """
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
+
+import pytest
 
 from Agent_Guru.reasoning.knowledge.synthesizer import KnowledgeSynthesizer
 from Agent_Guru.reasoning.memory_retriever import MemoryRetriever
 from Agent_Guru.reasoning.models.knowledge import (
     KnowledgeQuery,
     KnowledgeQueryType,
-    TimeRange,
     Pattern,
+    TimeRange,
 )
 from Agent_Guru.reasoning.models.memory import (
-    Memory,
-    MemoryType,
     EpisodicMemory,
+    MemoryType,
     SemanticMemory,
 )
 
@@ -93,11 +93,7 @@ class TestRetrieveRelevantData:
 
         # Create test query
         now = datetime.utcnow()
-        time_range = TimeRange(
-            start=now - timedelta(days=30),
-            end=now,
-            description="last month"
-        )
+        time_range = TimeRange(start=now - timedelta(days=30), end=now, description="last month")
         query = KnowledgeQuery(
             query_text="when did I last call John?",
             query_type=KnowledgeQueryType.TEMPORAL,
@@ -360,7 +356,9 @@ class TestDetectPatterns:
     def test_no_pattern_low_frequency(self):
         """Test no pattern detection with low frequency."""
         memory_retriever = Mock(spec=MemoryRetriever)
-        synthesizer = KnowledgeSynthesizer(memory_retriever, pattern_min_frequency=0.7)  # Higher threshold
+        synthesizer = KnowledgeSynthesizer(
+            memory_retriever, pattern_min_frequency=0.7
+        )  # Higher threshold
 
         # Create memories with low frequency pattern (only 2 out of 5 at same hour)
         now = datetime.utcnow()

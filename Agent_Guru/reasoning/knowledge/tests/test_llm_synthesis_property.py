@@ -18,7 +18,8 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock
 
 import pytest
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from pydantic import ValidationError
 
 from Agent_Guru.reasoning.knowledge.synthesizer import (
@@ -31,7 +32,6 @@ from Agent_Guru.reasoning.models.knowledge import (
     KnowledgeQuery,
     KnowledgeQueryType,
     Pattern,
-    TimeRange,
 )
 from Agent_Guru.reasoning.models.memory import Memory, MemoryType
 
@@ -44,9 +44,7 @@ def knowledge_query_strategy(draw):
     query_type = draw(st.sampled_from(list(KnowledgeQueryType)))
     confidence = draw(st.floats(min_value=0.0, max_value=1.0))
 
-    return KnowledgeQuery(
-        query_text=query_text, query_type=query_type, confidence=confidence
-    )
+    return KnowledgeQuery(query_text=query_text, query_type=query_type, confidence=confidence)
 
 
 @st.composite
@@ -259,9 +257,7 @@ class TestAnswerCreationProperties:
             query_text="test", query_type=KnowledgeQueryType.FACTUAL, confidence=0.9
         )
 
-        answer = synthesizer._create_answer_from_llm_response(
-            llm_response, query, memories, [], {}
-        )
+        answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
         assert isinstance(answer, KnowledgeAnswer)
         assert 0.0 <= answer.confidence <= 1.0
@@ -272,9 +268,7 @@ class TestAnswerCreationProperties:
         memories=st.lists(memory_strategy(), min_size=0, max_size=50),
     )
     @settings(max_examples=100)
-    def test_create_answer_supporting_memories_limited(
-        self, summary, llm_confidence, memories
-    ):
+    def test_create_answer_supporting_memories_limited(self, summary, llm_confidence, memories):
         """Property: Supporting memories always limited to 5."""
         memory_retriever = Mock(spec=MemoryRetriever)
         synthesizer = KnowledgeSynthesizer(
@@ -289,9 +283,7 @@ class TestAnswerCreationProperties:
             query_text="test", query_type=KnowledgeQueryType.FACTUAL, confidence=0.9
         )
 
-        answer = synthesizer._create_answer_from_llm_response(
-            llm_response, query, memories, [], {}
-        )
+        answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
         assert len(answer.supporting_memories) <= 5
 
@@ -356,9 +348,7 @@ class TestAnswerCreationProperties:
             for i in range(num_memories)
         ]
 
-        answer = synthesizer._create_answer_from_llm_response(
-            llm_response, query, memories, [], {}
-        )
+        answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
         # Confidence should be reduced (multiplied by 0.8)
         expected_confidence = max(0.0, min(1.0, llm_confidence * 0.8))
@@ -402,9 +392,7 @@ class TestConfidenceIndicatorProperties:
             )
         ]
 
-        answer = synthesizer._create_answer_from_llm_response(
-            llm_response, query, memories, [], {}
-        )
+        answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
         # Should add confidence indicator
         assert "I'm not very confident" in answer.summary
@@ -443,9 +431,7 @@ class TestConfidenceIndicatorProperties:
             )
         ]
 
-        answer = synthesizer._create_answer_from_llm_response(
-            llm_response, query, memories, [], {}
-        )
+        answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
         # Should NOT add confidence indicator
         assert "I'm not very confident" not in answer.summary

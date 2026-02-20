@@ -25,7 +25,6 @@ Version: 1.0.0
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Optional
-from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -70,7 +69,10 @@ class TimeRange(BaseModel):
     start: datetime = Field(..., description="Start of time range (inclusive)")
     end: datetime = Field(..., description="End of time range (inclusive)")
     description: str = Field(
-        ..., min_length=1, max_length=255, description="Human-readable description of the time range"
+        ...,
+        min_length=1,
+        max_length=255,
+        description="Human-readable description of the time range",
     )
 
     @field_validator("description")
@@ -85,7 +87,9 @@ class TimeRange(BaseModel):
     def validate_time_range(self) -> "TimeRange":
         """Validate that start is before or equal to end."""
         if self.start > self.end:
-            raise ValueError(f"Start time {self.start} must be before or equal to end time {self.end}")
+            raise ValueError(
+                f"Start time {self.start} must be before or equal to end time {self.end}"
+            )
         return self
 
     @classmethod
