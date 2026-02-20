@@ -15,13 +15,14 @@ Date: 2024
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Optional
+
 from pydantic import BaseModel, Field, field_validator
 
 
 class FeedbackType(str, Enum):
     """Type of feedback provided by user."""
-    
+
     INTENT_CORRECTION = "intent_correction"  # User corrected the intent
     ENTITY_CORRECTION = "entity_correction"  # User corrected entities
     POSITIVE = "positive"  # User confirmed prediction was correct
@@ -31,7 +32,7 @@ class FeedbackType(str, Enum):
 class IntentFeedback(BaseModel):
     """
     Feedback on intent detection for online learning.
-    
+
     Attributes:
         feedback_id: Unique identifier for feedback entry
         user_id: User who provided feedback
@@ -46,26 +47,30 @@ class IntentFeedback(BaseModel):
         model_version: Version of model that made prediction
         metadata: Additional context
     """
-    
+
     feedback_id: str = Field(..., description="Unique feedback identifier")
     user_id: str = Field(..., description="User identifier")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Feedback timestamp")
-    
+
     # Original prediction
     original_input: str = Field(..., min_length=1, description="Original user input")
     predicted_intent: str = Field(..., description="Predicted intent type")
-    predicted_entities: Dict[str, Any] = Field(default_factory=dict, description="Predicted entities")
+    predicted_entities: dict[str, Any] = Field(
+        default_factory=dict, description="Predicted entities"
+    )
     predicted_confidence: float = Field(..., ge=0.0, le=1.0, description="Prediction confidence")
-    
+
     # Corrections
     correct_intent: Optional[str] = Field(None, description="Correct intent (if different)")
-    correct_entities: Optional[Dict[str, Any]] = Field(None, description="Correct entities (if different)")
-    
+    correct_entities: Optional[dict[str, Any]] = Field(
+        None, description="Correct entities (if different)"
+    )
+
     # Metadata
     feedback_type: FeedbackType = Field(..., description="Type of feedback")
     model_version: str = Field(..., description="Model version that made prediction")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional context")
-    
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional context")
+
     @field_validator("original_input")
     @classmethod
     def validate_input(cls, v: str) -> str:
@@ -73,7 +78,7 @@ class IntentFeedback(BaseModel):
         if not v or not v.strip():
             raise ValueError("Original input cannot be empty")
         return v.strip()
-    
+
     @field_validator("predicted_intent")
     @classmethod
     def validate_predicted_intent(cls, v: str) -> str:
@@ -81,19 +86,19 @@ class IntentFeedback(BaseModel):
         if not v or not v.strip():
             raise ValueError("Predicted intent cannot be empty")
         return v.strip()
-    
+
     def is_correction(self) -> bool:
         """Check if feedback contains a correction."""
         return self.feedback_type in (
             FeedbackType.INTENT_CORRECTION,
             FeedbackType.ENTITY_CORRECTION,
-            FeedbackType.NEGATIVE
+            FeedbackType.NEGATIVE,
         )
-    
+
     def was_correct(self) -> bool:
         """Check if prediction was correct."""
         return self.feedback_type == FeedbackType.POSITIVE
-    
+
     def get_training_label(self) -> str:
         """Get the correct label for training."""
         if self.correct_intent:
@@ -104,7 +109,7 @@ class IntentFeedback(BaseModel):
 class ModelPerformanceMetrics(BaseModel):
     """
     Performance metrics for tracking model drift.
-    
+
     Attributes:
         metric_id: Unique identifier
         model_version: Model version being tracked
@@ -118,24 +123,26 @@ class ModelPerformanceMetrics(BaseModel):
         correction_rate: Rate of user corrections
         metadata: Additional metrics
     """
-    
+
     metric_id: str = Field(..., description="Unique metric identifier")
     model_version: str = Field(..., description="Model version")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Metric timestamp")
-    
+
     # Performance metrics
     total_predictions: int = Field(..., ge=0, description="Total predictions")
     correct_predictions: int = Field(..., ge=0, description="Correct predictions")
     accuracy: float = Field(..., ge=0.0, le=1.0, description="Overall accuracy")
-    
+
     # Detailed metrics
-    intent_accuracies: Dict[str, float] = Field(default_factory=dict, description="Per-intent accuracy")
+    intent_accuracies: dict[str, float] = Field(
+        default_factory=dict, description="Per-intent accuracy"
+    )
     avg_confidence: float = Field(..., ge=0.0, le=1.0, description="Average confidence")
     low_confidence_rate: float = Field(..., ge=0.0, le=1.0, description="Low confidence rate")
     correction_rate: float = Field(..., ge=0.0, le=1.0, description="Correction rate")
-    
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metrics")
-    
+
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metrics")
+
     @field_validator("correct_predictions")
     @classmethod
     def validate_correct_predictions(cls, v: int, info) -> int:
@@ -143,15 +150,15 @@ class ModelPerformanceMetrics(BaseModel):
         if "total_predictions" in info.data and v > info.data["total_predictions"]:
             raise ValueError("Correct predictions cannot exceed total predictions")
         return v
-    
+
     def has_drift(self, baseline_accuracy: float, threshold: float = 0.05) -> bool:
         """
         Check if model has drifted from baseline.
-        
+
         Args:
             baseline_accuracy: Baseline accuracy to compare against
             threshold: Drift threshold (default 5%)
-            
+
         Returns:
             True if accuracy dropped by more than threshold
         """

@@ -22,35 +22,35 @@ patterns:
     intent: "set_timer"
     entities:
       duration: "DURATION"
-    
+
   - pattern: "set {duration} timer"
     intent: "set_timer"
     entities:
       duration: "DURATION"
-  
+
   - pattern: "timer for {duration}"
     intent: "set_timer"
     entities:
       duration: "DURATION"
-  
+
   - pattern: "set alarm for {time}"
     intent: "set_alarm"
     entities:
       time: "TIME"
-  
+
   - pattern: "wake me up at {time}"
     intent: "set_alarm"
     entities:
       time: "TIME"
-  
+
   - pattern: "cancel timer"
     intent: "cancel_timer"
     entities: {}
-  
+
   - pattern: "stop timer"
     intent: "cancel_timer"
     entities: {}
-  
+
   - pattern: "cancel alarm"
     intent: "cancel_alarm"
     entities: {}
@@ -59,21 +59,21 @@ patterns:
   - pattern: "what's the weather"
     intent: "query_weather"
     entities: {}
-  
+
   - pattern: "weather in {location}"
     intent: "query_weather"
     entities:
       location: "LOCATION"
-  
+
   - pattern: "how's the weather"
     intent: "query_weather"
     entities: {}
-  
+
   - pattern: "will it rain"
     intent: "query_weather"
     entities:
       condition: "rain"
-  
+
   - pattern: "temperature in {location}"
     intent: "query_weather"
     entities:
@@ -84,31 +84,31 @@ patterns:
     intent: "play_music"
     entities:
       song: "SONG"
-  
+
   - pattern: "play music"
     intent: "play_music"
     entities: {}
-  
+
   - pattern: "pause music"
     intent: "pause_music"
     entities: {}
-  
+
   - pattern: "stop music"
     intent: "stop_music"
     entities: {}
-  
+
   - pattern: "next song"
     intent: "next_track"
     entities: {}
-  
+
   - pattern: "previous song"
     intent: "previous_track"
     entities: {}
-  
+
   - pattern: "volume up"
     intent: "volume_up"
     entities: {}
-  
+
   - pattern: "volume down"
     intent: "volume_down"
     entities: {}
@@ -118,12 +118,12 @@ patterns:
     intent: "send_message"
     entities:
       contact: "PERSON"
-  
+
   - pattern: "text {contact}"
     intent: "send_message"
     entities:
       contact: "PERSON"
-  
+
   - pattern: "call {contact}"
     intent: "make_call"
     entities:
@@ -134,17 +134,17 @@ patterns:
     intent: "device_on"
     entities:
       device: "DEVICE"
-  
+
   - pattern: "turn off {device}"
     intent: "device_off"
     entities:
       device: "DEVICE"
-  
+
   - pattern: "dim {device}"
     intent: "device_dim"
     entities:
       device: "DEVICE"
-  
+
   - pattern: "brighten {device}"
     intent: "device_brighten"
     entities:
@@ -155,12 +155,12 @@ patterns:
     intent: "navigate"
     entities:
       location: "LOCATION"
-  
+
   - pattern: "directions to {location}"
     intent: "navigate"
     entities:
       location: "LOCATION"
-  
+
   - pattern: "how do i get to {location}"
     intent: "navigate"
     entities:
@@ -171,12 +171,12 @@ patterns:
     intent: "set_reminder"
     entities:
       task: "TASK"
-  
+
   - pattern: "reminder to {task}"
     intent: "set_reminder"
     entities:
       task: "TASK"
-  
+
   - pattern: "remind me at {time} to {task}"
     intent: "set_reminder"
     entities:
@@ -187,11 +187,11 @@ patterns:
   - pattern: "what's on my calendar"
     intent: "query_calendar"
     entities: {}
-  
+
   - pattern: "schedule meeting"
     intent: "create_event"
     entities: {}
-  
+
   - pattern: "add event"
     intent: "create_event"
     entities: {}
@@ -200,11 +200,11 @@ patterns:
   - pattern: "what time is it"
     intent: "query_time"
     entities: {}
-  
+
   - pattern: "what's the date"
     intent: "query_date"
     entities: {}
-  
+
   - pattern: "what day is it"
     intent: "query_date"
     entities: {}
@@ -214,12 +214,12 @@ patterns:
     intent: "open_app"
     entities:
       app: "APP"
-  
+
   - pattern: "launch {app}"
     intent: "open_app"
     entities:
       app: "APP"
-  
+
   - pattern: "close {app}"
     intent: "close_app"
     entities:
@@ -229,15 +229,15 @@ patterns:
   - pattern: "help"
     intent: "help"
     entities: {}
-  
+
   - pattern: "what can you do"
     intent: "capabilities"
     entities: {}
-  
+
   - pattern: "cancel"
     intent: "cancel"
     entities: {}
-  
+
   - pattern: "stop"
     intent: "stop"
     entities: {}
@@ -254,7 +254,7 @@ entity_patterns:
       unit: "hours"
     - pattern: '(\d+):(\d+)'  # MM:SS format
       unit: "time_format"
-  
+
   TIME:
     - pattern: '(\d{1,2}):(\d{2})\s*(am|pm|AM|PM)?'
       format: "12hour"
@@ -262,27 +262,27 @@ entity_patterns:
       format: "12hour_simple"
     - pattern: '(\d{2}):(\d{2})'
       format: "24hour"
-  
+
   LOCATION:
     - pattern: '([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'  # Capitalized words
       type: "place_name"
-  
+
   PERSON:
     - pattern: '([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'  # Capitalized words
       type: "contact_name"
-  
+
   DEVICE:
     - pattern: '(light|lights|lamp|fan|tv|television|thermostat|ac|air conditioner)'
       type: "smart_device"
-  
+
   APP:
     - pattern: '([a-zA-Z]+(?:\s+[a-zA-Z]+)*)'  # Any word sequence
       type: "application_name"
-  
+
   SONG:
     - pattern: '(.+)'  # Capture everything
       type: "song_title"
-  
+
   TASK:
     - pattern: '(.+)'  # Capture everything
       type: "task_description"

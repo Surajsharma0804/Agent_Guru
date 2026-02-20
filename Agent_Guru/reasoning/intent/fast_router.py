@@ -25,13 +25,12 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import yaml
 
-from Agent_Guru.reasoning.models.intent import Entity, EntityType, Intent, IntentType
+from Agent_Guru.reasoning.models.intent import Entity, EntityType
 
 
 class MatchQuality(Enum):
@@ -57,7 +56,7 @@ class PatternMatch:
     """
 
     intent_type: str
-    entities: Dict[str, Entity]
+    entities: dict[str, Entity]
     confidence: float
     quality: MatchQuality
     pattern: str
@@ -80,10 +79,10 @@ class TrieNode:
         entity_positions: Positions of entities in the pattern
     """
 
-    children: Dict[str, "TrieNode"] = field(default_factory=dict)
+    children: dict[str, "TrieNode"] = field(default_factory=dict)
     is_end: bool = False
     intent_type: Optional[str] = None
-    entity_positions: Dict[int, str] = field(default_factory=dict)
+    entity_positions: dict[int, str] = field(default_factory=dict)
 
 
 class FastIntentRouter:
@@ -116,9 +115,9 @@ class FastIntentRouter:
         Time Complexity: O(1)
         """
         self._trie_root = TrieNode()
-        self._patterns: List[Dict[str, Any]] = []
-        self._entity_patterns: Dict[str, List[Dict[str, Any]]] = {}
-        self._compiled_entity_regex: Dict[str, List[Tuple[re.Pattern, Dict[str, Any]]]] = {}
+        self._patterns: list[dict[str, Any]] = []
+        self._entity_patterns: dict[str, list[dict[str, Any]]] = {}
+        self._compiled_entity_regex: dict[str, list[tuple[re.Pattern, dict[str, Any]]]] = {}
 
         # Performance tracking
         self._total_matches = 0
@@ -129,7 +128,7 @@ class FastIntentRouter:
         # Cache configuration
         self._cache_size = cache_size
         self._cache_ttl = timedelta(seconds=cache_ttl_seconds)
-        self._cache: Dict[str, Tuple[PatternMatch, datetime]] = {}
+        self._cache: dict[str, tuple[PatternMatch, datetime]] = {}
 
     def load_patterns(self, patterns_file: str | Path) -> None:
         """Load intent patterns from YAML file and build trie index.
@@ -177,7 +176,7 @@ class FastIntentRouter:
             # Split pattern into words and track entity positions
             words = pattern.split()
             current = self._trie_root
-            entity_positions: Dict[int, str] = {}
+            entity_positions: dict[int, str] = {}
 
             for i, word in enumerate(words):
                 # Check if word is an entity placeholder
@@ -279,7 +278,7 @@ class FastIntentRouter:
 
         return pattern_match
 
-    def _traverse_trie(self, words: List[str]) -> Optional[Tuple[str, Dict[int, str]]]:
+    def _traverse_trie(self, words: list[str]) -> Optional[tuple[str, dict[int, str]]]:
         """Traverse trie to find matching pattern.
 
         Args:
@@ -289,7 +288,7 @@ class FastIntentRouter:
             Tuple of (intent_type, entity_positions) if match found, None otherwise
 
         Time Complexity: O(n) where n = number of words
-        
+
         Note: Entities can span multiple words. When we hit an entity placeholder,
         we use greedy matching to consume words until we find the next pattern word
         or reach the end of input.
@@ -299,7 +298,7 @@ class FastIntentRouter:
 
         while word_index < len(words):
             word = words[word_index]
-            
+
             # Try exact match first
             if word in current.children:
                 current = current.children[word]
@@ -307,14 +306,14 @@ class FastIntentRouter:
             # Try entity placeholder match
             elif "<ENTITY>" in current.children:
                 current = current.children["<ENTITY>"]
-                
+
                 # If this is the last node (end of pattern), entity consumes all remaining words
                 if current.is_end:
                     # Entity spans from current position to end
                     # Consume all remaining words
                     word_index = len(words)
                     break
-                
+
                 # Otherwise, entity consumes words until we find the next pattern word
                 # Use greedy matching: consume words until we can match the next pattern node
                 entity_consumed = False
@@ -327,7 +326,7 @@ class FastIntentRouter:
                             word_index = lookahead
                             entity_consumed = True
                             break
-                
+
                 # If we couldn't find next pattern word, entity consumes all remaining words
                 if not entity_consumed:
                     word_index = len(words)
@@ -345,8 +344,8 @@ class FastIntentRouter:
         return None
 
     def _extract_entities(
-        self, words: List[str], entity_positions: Dict[int, str]
-    ) -> Dict[str, Entity]:
+        self, words: list[str], entity_positions: dict[int, str]
+    ) -> dict[str, Entity]:
         """Extract entity values from input using compiled regex.
 
         Args:
@@ -357,12 +356,12 @@ class FastIntentRouter:
             Dictionary of entity name to Entity object
 
         Time Complexity: O(e * p) where e = entities, p = patterns per entity
-        
+
         Note: This method needs to determine entity boundaries. For now, we use
         a simple heuristic: extract from entity position to end of input, then
         use regex patterns to find the actual entity value within that span.
         """
-        entities: Dict[str, Entity] = {}
+        entities: dict[str, Entity] = {}
 
         for position, entity_name in entity_positions.items():
             if position >= len(words):
@@ -384,7 +383,7 @@ class FastIntentRouter:
                 raw_text = potential_value
             else:
                 # No regex match - use heuristic (first 1-3 words)
-                entity_words = words[position:min(position + 3, len(words))]
+                entity_words = words[position : min(position + 3, len(words))]
                 raw_text = " ".join(entity_words)
                 structured_value = raw_text
 
@@ -448,9 +447,7 @@ class FastIntentRouter:
 
         return None
 
-    def _format_entity_value(
-        self, match: re.Match, pattern_data: Dict[str, Any]
-    ) -> Any:
+    def _format_entity_value(self, match: re.Match, pattern_data: dict[str, Any]) -> Any:
         """Format extracted entity value based on pattern metadata.
 
         Args:
@@ -467,7 +464,11 @@ class FastIntentRouter:
             if pattern_data["unit"] == "time_format":
                 # MM:SS format
                 minutes, seconds = int(groups[0]), int(groups[1])
-                return {"minutes": minutes, "seconds": seconds, "total_seconds": minutes * 60 + seconds}
+                return {
+                    "minutes": minutes,
+                    "seconds": seconds,
+                    "total_seconds": minutes * 60 + seconds,
+                }
             else:
                 # Single value with unit
                 value = int(groups[0])
@@ -559,7 +560,7 @@ class FastIntentRouter:
         self._total_matches += 1
         self._total_latency_ms += latency_ms
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get performance metrics for monitoring.
 
         Returns:

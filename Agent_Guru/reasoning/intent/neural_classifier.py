@@ -37,14 +37,11 @@ import asyncio
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import numpy as np
-import torch
 import yaml
 from transformers import DebertaV2Tokenizer
-
-from Agent_Guru.reasoning.models.intent import EntityType, Intent
 
 # Try to import ONNX Runtime with GPU support
 try:
@@ -73,9 +70,7 @@ class ClassifierConfig:
 
     model_path: str = "Agent_Guru/reasoning/models/intent_classifier/final_model/model.onnx"
     tokenizer_path: str = "Agent_Guru/reasoning/models/intent_classifier"
-    label_mappings_path: str = (
-        "Agent_Guru/reasoning/models/intent_classifier/label_mappings.yaml"
-    )
+    label_mappings_path: str = "Agent_Guru/reasoning/models/intent_classifier/label_mappings.yaml"
     confidence_threshold: float = 0.8
     max_length: int = 256
     batch_size: int = 32
@@ -97,7 +92,7 @@ class ClassificationResult:
 
     intent_type: str
     confidence: float
-    alternative_intents: List[Tuple[str, float]]
+    alternative_intents: list[tuple[str, float]]
     inference_time_ms: float
     used_gpu: bool
 
@@ -113,7 +108,7 @@ class NeuralIntentClassifier:
         >>> classifier.load_model()
         >>> result = await classifier.classify_async("set timer for 5 minutes")
         >>> print(f"Intent: {result.intent_type}, Confidence: {result.confidence}")
-    
+
     Note:
         Uses DeBERTa-v3-large (435M parameters) - SOTA for text classification
         Achieves 91.37% on GLUE benchmark, superior to RoBERTa and BERT
@@ -136,8 +131,8 @@ class NeuralIntentClassifier:
         self.config = config or ClassifierConfig()
         self.session: Optional[ort.InferenceSession] = None
         self.tokenizer: Optional[DebertaV2Tokenizer] = None
-        self.id_to_label: Dict[int, str] = {}
-        self.label_to_id: Dict[str, int] = {}
+        self.id_to_label: dict[int, str] = {}
+        self.label_to_id: dict[str, int] = {}
 
         # Metrics
         self.total_inferences = 0
@@ -146,7 +141,7 @@ class NeuralIntentClassifier:
         self.high_confidence_count = 0
 
         # Batch processing
-        self._batch_queue: List[Tuple[str, asyncio.Future]] = []
+        self._batch_queue: list[tuple[str, asyncio.Future]] = []
         self._batch_lock = asyncio.Lock()
         self._batch_task: Optional[asyncio.Task] = None
 
@@ -171,24 +166,20 @@ class NeuralIntentClassifier:
 
         label_mappings_path = Path(self.config.label_mappings_path)
         if not label_mappings_path.exists():
-            raise FileNotFoundError(
-                f"Label mappings not found at: {label_mappings_path}"
-            )
+            raise FileNotFoundError(f"Label mappings not found at: {label_mappings_path}")
 
         # Load tokenizer (DeBERTa-v3)
         self.tokenizer = DebertaV2Tokenizer.from_pretrained(str(tokenizer_path))
 
         # Load label mappings
-        with open(label_mappings_path, "r") as f:
+        with open(label_mappings_path) as f:
             mappings = yaml.safe_load(f)
             self.label_to_id = mappings["label_to_id"]
             self.id_to_label = {int(k): v for k, v in mappings["id_to_label"].items()}
 
         # Configure ONNX Runtime session
         sess_options = ort.SessionOptions()
-        sess_options.graph_optimization_level = (
-            ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        )
+        sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 
         # Set execution providers (GPU or CPU)
         providers = self._get_execution_providers()
@@ -205,7 +196,7 @@ class NeuralIntentClassifier:
         # Warm up model
         self._warmup()
 
-    def _get_execution_providers(self) -> List[str]:
+    def _get_execution_providers(self) -> list[str]:
         """Get execution providers based on configuration and availability.
 
         Returns:
@@ -291,9 +282,7 @@ class NeuralIntentClassifier:
 
         # Get top 3 predictions
         top_indices = np.argsort(probs)[-3:][::-1]
-        top_intents = [
-            (self.id_to_label[int(idx)], float(probs[idx])) for idx in top_indices
-        ]
+        top_intents = [(self.id_to_label[int(idx)], float(probs[idx])) for idx in top_indices]
 
         # Get best prediction
         best_intent, best_confidence = top_intents[0]
@@ -379,7 +368,7 @@ class NeuralIntentClassifier:
         if result.confidence >= self.config.confidence_threshold:
             self.high_confidence_count += 1
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get classification metrics.
 
         Returns:
@@ -397,10 +386,7 @@ class NeuralIntentClassifier:
             "total_inferences": self.total_inferences,
             "average_latency_ms": self.total_latency_ms / self.total_inferences,
             "gpu_usage_percent": (self.gpu_inferences / self.total_inferences) * 100,
-            "high_confidence_percent": (
-                self.high_confidence_count / self.total_inferences
-            )
-            * 100,
+            "high_confidence_percent": (self.high_confidence_count / self.total_inferences) * 100,
         }
 
     def should_fallback_to_llm(self, result: ClassificationResult) -> bool:

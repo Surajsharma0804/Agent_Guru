@@ -9,19 +9,18 @@ Author: Agent Guru Team
 Date: 2026
 """
 
-import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 
 def run_training_script(script_name: str, description: str) -> bool:
     """Run a training script and return success status.
-    
+
     Args:
         script_name: Name of the training script
         description: Description of what's being trained
-        
+
     Returns:
         True if successful, False otherwise
     """
@@ -29,9 +28,9 @@ def run_training_script(script_name: str, description: str) -> bool:
     print(f"STARTING: {description}")
     print(f"Script: {script_name}")
     print(f"{'='*80}\n")
-    
+
     script_path = Path(__file__).parent / script_name
-    
+
     try:
         # Run the training script
         result = subprocess.run(
@@ -39,12 +38,12 @@ def run_training_script(script_name: str, description: str) -> bool:
             check=True,
             cwd=Path(__file__).parent.parent.parent,  # Run from project root
         )
-        
+
         print(f"\n{'='*80}")
         print(f"✓ COMPLETED: {description}")
         print(f"{'='*80}\n")
         return True
-        
+
     except subprocess.CalledProcessError as e:
         print(f"\n{'='*80}")
         print(f"✗ FAILED: {description}")
@@ -64,9 +63,10 @@ def main():
     print("AGENT GURU - MASTER TRAINING PIPELINE")
     print("Training Intent Classifier + NER Model")
     print(f"{'='*80}\n")
-    
+
     # Check GPU
     import torch
+
     if not torch.cuda.is_available():
         print("⚠ WARNING: GPU not available!")
         print("⚠ Training will take MUCH longer on CPU")
@@ -78,35 +78,35 @@ def main():
         print(f"✓ GPU available: {torch.cuda.get_device_name(0)}")
         print(f"✓ CUDA version: {torch.version.cuda}")
         print(f"✓ GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB\n")
-    
+
     # Training sequence
     training_steps = [
         ("train_intent_classifier.py", "Intent Classifier (DeBERTa-v3-large, 30 epochs)"),
         ("train_ner_model.py", "NER Model (Entity Recognition)"),
     ]
-    
+
     results = {}
-    
+
     for script_name, description in training_steps:
         success = run_training_script(script_name, description)
         results[description] = success
-        
+
         if not success:
             print(f"\n⚠ Training failed at: {description}")
             print("Stopping pipeline...")
             break
-    
+
     # Final summary
     print(f"\n{'='*80}")
     print("TRAINING PIPELINE SUMMARY")
     print(f"{'='*80}")
-    
+
     for description, success in results.items():
         status = "✓ SUCCESS" if success else "✗ FAILED"
         print(f"{status}: {description}")
-    
+
     print(f"{'='*80}\n")
-    
+
     # Check if all succeeded
     if all(results.values()):
         print("🎉 ALL TRAINING COMPLETED SUCCESSFULLY!")

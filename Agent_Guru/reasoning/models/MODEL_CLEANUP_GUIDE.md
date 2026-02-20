@@ -180,19 +180,19 @@ logs/
 
 ## FAQ
 
-**Q: Will this break anything?**  
+**Q: Will this break anything?**
 A: No. Production code only uses the ONNX model and tokenizer files, which are preserved.
 
-**Q: Can I recover deleted checkpoints?**  
+**Q: Can I recover deleted checkpoints?**
 A: No, deletion is permanent. Run in dry-run mode first to verify.
 
-**Q: Should I keep the best checkpoint?**  
+**Q: Should I keep the best checkpoint?**
 A: Not necessary. The `final_model/` directory contains the trained model in a more efficient format.
 
-**Q: What if I need to fine-tune the model later?**  
+**Q: What if I need to fine-tune the model later?**
 A: You can fine-tune from the `final_model/` directory or retrain from scratch. Checkpoints are not required.
 
-**Q: How often should I run cleanup?**  
+**Q: How often should I run cleanup?**
 A: After each training session, or when disk space is low.
 
 ## Summary
@@ -205,6 +205,6 @@ A: After each training session, or when disk space is low.
 
 ---
 
-**Status**: Ready to Execute ✅  
-**Risk Level**: Low (production files preserved) ✅  
+**Status**: Ready to Execute ✅
+**Risk Level**: Low (production files preserved) ✅
 **Space Savings**: 38.50 GB ✅

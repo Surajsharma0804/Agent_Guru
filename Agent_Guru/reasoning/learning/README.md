@@ -144,10 +144,10 @@ should_retrain, reason = await learner.should_retrain()
 
 if should_retrain:
     print(f"Retraining recommended: {reason}")
-    
+
     # Get training data from corrections
     training_data = await learner.get_training_data(limit=1000)
-    
+
     # Retrain model with new data
     # ... retraining logic ...
 ```
@@ -217,16 +217,16 @@ async def check_retraining_periodically():
     """Check if retraining is needed (run weekly)."""
     while True:
         should_retrain, reason = await learner.should_retrain()
-        
+
         if should_retrain:
             print(f"Triggering retraining: {reason}")
-            
+
             # Get training data
             training_data = await learner.get_training_data()
-            
+
             # Trigger retraining pipeline
             await trigger_model_retraining(training_data)
-        
+
         # Wait 7 days
         await asyncio.sleep(7 * 24 * 60 * 60)
 

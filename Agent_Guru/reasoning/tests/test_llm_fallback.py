@@ -10,8 +10,7 @@ Date: 2026-02-19
 
 import asyncio
 import json
-from typing import Any, Dict
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from hypothesis import given, settings
@@ -19,13 +18,11 @@ from hypothesis import strategies as st
 from pydantic import ValidationError
 
 from Agent_Guru.reasoning.intent.llm_fallback import (
-    LLMClassificationResult,
     LLMFallbackClassifier,
     LLMFallbackConfig,
     LLMIntentResponse,
 )
 from Agent_Guru.reasoning.models.intent import Entity
-
 
 # ============================================================================
 # UNIT TESTS - Configuration and Initialization
@@ -95,21 +92,15 @@ class TestLLMIntentResponse:
 
         # Invalid confidence (too low)
         with pytest.raises(ValidationError):
-            LLMIntentResponse(
-                intent_type="set_timer", confidence=-0.1, entities={}, reasoning=""
-            )
+            LLMIntentResponse(intent_type="set_timer", confidence=-0.1, entities={}, reasoning="")
 
         # Invalid confidence (too high)
         with pytest.raises(ValidationError):
-            LLMIntentResponse(
-                intent_type="set_timer", confidence=1.5, entities={}, reasoning=""
-            )
+            LLMIntentResponse(intent_type="set_timer", confidence=1.5, entities={}, reasoning="")
 
     def test_default_values(self):
         """Test default values for optional fields."""
-        response = LLMIntentResponse(
-            intent_type="set_timer", confidence=0.95, reasoning="test"
-        )
+        response = LLMIntentResponse(intent_type="set_timer", confidence=0.95, reasoning="test")
 
         assert response.entities == {}
         assert response.reasoning == "test"
@@ -599,9 +590,7 @@ class TestPropertyBased:
     @settings(max_examples=50, deadline=None)
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.intent.llm_fallback.openai")
-    def test_parse_entities_always_returns_dict(
-        self, mock_openai, text: str, confidence: float
-    ):
+    def test_parse_entities_always_returns_dict(self, mock_openai, text: str, confidence: float):
         """Property: _parse_entities always returns a dict."""
         mock_openai.OpenAI = Mock()
         classifier = LLMFallbackClassifier()
@@ -621,9 +610,7 @@ class TestPropertyBased:
     @settings(max_examples=50, deadline=None)
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.intent.llm_fallback.openai")
-    def test_unknown_result_always_valid(
-        self, mock_openai, inference_time: float, retries: int
-    ):
+    def test_unknown_result_always_valid(self, mock_openai, inference_time: float, retries: int):
         """Property: _create_unknown_result always produces valid result."""
         mock_openai.OpenAI = Mock()
         classifier = LLMFallbackClassifier()
@@ -667,7 +654,6 @@ class TestPerformance:
 
         # Verify latency is reasonable (mocked, so should be very fast)
         assert result.inference_time_ms < 1000.0  # Generous for mocked call
-
 
 
 # ============================================================================
@@ -835,7 +821,6 @@ class TestLLMAPICalls:
             await classifier._call_llm_async("test input")
 
 
-
 # ============================================================================
 # EDGE CASE TESTS - Import Errors and Error Handling
 # ============================================================================
@@ -849,8 +834,8 @@ class TestImportErrors:
         # This is tested by the module-level import
         # We verify the flag exists
         from Agent_Guru.reasoning.intent import llm_fallback
-        
-        assert hasattr(llm_fallback, 'OPENAI_AVAILABLE')
+
+        assert hasattr(llm_fallback, "OPENAI_AVAILABLE")
         assert isinstance(llm_fallback.OPENAI_AVAILABLE, bool)
 
     def test_anthropic_import_error_handling(self):
@@ -858,8 +843,8 @@ class TestImportErrors:
         # This is tested by the module-level import
         # We verify the flag exists
         from Agent_Guru.reasoning.intent import llm_fallback
-        
-        assert hasattr(llm_fallback, 'ANTHROPIC_AVAILABLE')
+
+        assert hasattr(llm_fallback, "ANTHROPIC_AVAILABLE")
         assert isinstance(llm_fallback.ANTHROPIC_AVAILABLE, bool)
 
 
@@ -897,9 +882,7 @@ class TestEdgeCases:
         classifier = LLMFallbackClassifier(config)
 
         # Mock LLM call that raises exception
-        classifier._call_llm_async = AsyncMock(
-            side_effect=Exception("Network error")
-        )
+        classifier._call_llm_async = AsyncMock(side_effect=Exception("Network error"))
 
         result = await classifier.classify_async("test input")
 
@@ -1036,9 +1019,7 @@ class TestEndToEndIntegration:
 
         classifier = LLMFallbackClassifier()
 
-        result = await classifier.classify_async(
-            "remind me to call mom tomorrow at 3pm"
-        )
+        result = await classifier.classify_async("remind me to call mom tomorrow at 3pm")
 
         # Verify result
         assert result.intent_type == "set_reminder"
@@ -1100,7 +1081,6 @@ class TestEndToEndIntegration:
         assert metrics["success_rate"] == 1.0
 
 
-
 # ============================================================================
 # COVERAGE COMPLETION - Edge Cases
 # ============================================================================
@@ -1119,9 +1099,7 @@ class TestCoverageCompletion:
         classifier = LLMFallbackClassifier(config)
 
         # Mock to ensure we don't enter the retry loop
-        classifier._call_llm_async = AsyncMock(
-            side_effect=Exception("Test error")
-        )
+        classifier._call_llm_async = AsyncMock(side_effect=Exception("Test error"))
 
         result = await classifier.classify_async("test input")
 
@@ -1135,10 +1113,10 @@ class TestCoverageCompletion:
         import Agent_Guru.reasoning.intent.llm_fallback as llm_fallback
 
         # Verify flags exist
-        assert hasattr(llm_fallback, 'OPENAI_AVAILABLE')
-        assert hasattr(llm_fallback, 'ANTHROPIC_AVAILABLE')
-        assert hasattr(llm_fallback, 'openai')
-        assert hasattr(llm_fallback, 'anthropic')
+        assert hasattr(llm_fallback, "OPENAI_AVAILABLE")
+        assert hasattr(llm_fallback, "ANTHROPIC_AVAILABLE")
+        assert hasattr(llm_fallback, "openai")
+        assert hasattr(llm_fallback, "anthropic")
 
         # Verify they are boolean or None
         assert isinstance(llm_fallback.OPENAI_AVAILABLE, bool)

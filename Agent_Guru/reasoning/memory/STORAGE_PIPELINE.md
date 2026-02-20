@@ -157,7 +157,7 @@ print(f"Episodic memories: {stats['episodic']}")
 async def execute_task(user_id: str, action: Action) -> ExecutionResult:
     # Execute the action
     result = await action_executor.execute(action)
-    
+
     # Store episodic memory
     await memory_pipeline.store_episodic(
         user_id=user_id,
@@ -167,7 +167,7 @@ async def execute_task(user_id: str, action: Action) -> ExecutionResult:
         success=result.success,
         context=action.parameters
     )
-    
+
     return result
 ```
 

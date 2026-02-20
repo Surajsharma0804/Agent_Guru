@@ -35,11 +35,11 @@ import asyncio
 import json
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
-from Agent_Guru.reasoning.models.intent import Entity, Intent, IntentType
+from Agent_Guru.reasoning.models.intent import Entity
 
 # Try to import LLM clients
 try:
@@ -94,9 +94,7 @@ class LLMIntentResponse(BaseModel):
 
     intent_type: str = Field(..., description="Predicted intent type")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score")
-    entities: Dict[str, Any] = Field(
-        default_factory=dict, description="Extracted entities"
-    )
+    entities: dict[str, Any] = Field(default_factory=dict, description="Extracted entities")
     reasoning: str = Field(default="", description="Classification reasoning")
 
 
@@ -116,7 +114,7 @@ class LLMClassificationResult:
 
     intent_type: str
     confidence: float
-    entities: Dict[str, Entity]
+    entities: dict[str, Entity]
     reasoning: str
     inference_time_ms: float
     retries: int
@@ -203,9 +201,7 @@ Classify the following input:"""
 
         # Validate provider availability
         if self.config.provider == "openai" and not OPENAI_AVAILABLE:
-            raise RuntimeError(
-                "OpenAI client not available. Install with: pip install openai"
-            )
+            raise RuntimeError("OpenAI client not available. Install with: pip install openai")
         elif self.config.provider == "anthropic" and not ANTHROPIC_AVAILABLE:
             raise RuntimeError(
                 "Anthropic client not available. Install with: pip install anthropic"
@@ -230,12 +226,11 @@ Classify the following input:"""
             self.client = anthropic.Anthropic(api_key=self.config.api_key)
         else:
             raise ValueError(
-                f"Unsupported provider: {self.config.provider}. "
-                "Supported: openai, anthropic"
+                f"Unsupported provider: {self.config.provider}. " "Supported: openai, anthropic"
             )
 
     async def classify_async(
-        self, text: str, context: Optional[Dict[str, Any]] = None
+        self, text: str, context: Optional[dict[str, Any]] = None
     ) -> LLMClassificationResult:
         """Asynchronous classification with retry logic.
 
@@ -310,7 +305,7 @@ Classify the following input:"""
         return self._create_unknown_result(text, inference_time_ms, retries)
 
     async def _call_llm_async(
-        self, text: str, context: Optional[Dict[str, Any]] = None
+        self, text: str, context: Optional[dict[str, Any]] = None
     ) -> LLMIntentResponse:
         """Call LLM API asynchronously.
 
@@ -405,7 +400,7 @@ Classify the following input:"""
         # Validate with Pydantic
         return LLMIntentResponse(**response_data)
 
-    def _parse_entities(self, entities_dict: Dict[str, Any]) -> Dict[str, Entity]:
+    def _parse_entities(self, entities_dict: dict[str, Any]) -> dict[str, Entity]:
         """Parse entities from LLM response into Entity objects.
 
         Args:
@@ -468,9 +463,7 @@ Classify the following input:"""
             provider=self.config.provider,
         )
 
-    def _update_metrics(
-        self, inference_time_ms: float, retries: int, success: bool
-    ) -> None:
+    def _update_metrics(self, inference_time_ms: float, retries: int, success: bool) -> None:
         """Update classification metrics.
 
         Args:
@@ -487,7 +480,7 @@ Classify the following input:"""
         else:
             self.failed_inferences += 1
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get classification metrics.
 
         Returns:

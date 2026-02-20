@@ -1,7 +1,7 @@
 """
 Convert PyTorch DeBERTa-v3 model to ONNX format for optimized inference.
 
-This script converts the trained PyTorch DeBERTa-v3-large model to ONNX format 
+This script converts the trained PyTorch DeBERTa-v3-large model to ONNX format
 with optimizations for GPU inference using ONNX Runtime.
 
 Performance Benefits:
@@ -21,7 +21,6 @@ import argparse
 from pathlib import Path
 
 import torch
-import yaml
 from transformers import DebertaV2ForSequenceClassification, DebertaV2Tokenizer
 
 
@@ -112,7 +111,7 @@ def convert_to_onnx(
             # Save optimized model
             optimized_model.save_model_to_file(output_path)
 
-            print(f"✓ ONNX model optimized")
+            print("✓ ONNX model optimized")
 
         except ImportError:
             print("⚠ ONNX optimizer not available, skipping optimization")
@@ -131,8 +130,8 @@ def verify_onnx_model(onnx_path: str, tokenizer: DebertaV2Tokenizer) -> None:
         tokenizer: DeBERTa-v3 tokenizer for preprocessing
     """
     try:
-        import onnxruntime as ort
         import numpy as np
+        import onnxruntime as ort
 
         # Create inference session
         session = ort.InferenceSession(onnx_path)
@@ -157,7 +156,7 @@ def verify_onnx_model(onnx_path: str, tokenizer: DebertaV2Tokenizer) -> None:
         ort_outputs = session.run(None, ort_inputs)
         logits = ort_outputs[0]
 
-        print(f"✓ ONNX model verification passed")
+        print("✓ ONNX model verification passed")
         print(f"  Input: {test_text}")
         print(f"  Output shape: {logits.shape}")
         print(f"  Execution providers: {session.get_providers()}")
@@ -169,9 +168,7 @@ def verify_onnx_model(onnx_path: str, tokenizer: DebertaV2Tokenizer) -> None:
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Convert PyTorch model to ONNX format"
-    )
+    parser = argparse.ArgumentParser(description="Convert PyTorch model to ONNX format")
     parser.add_argument(
         "--model-path",
         type=str,
@@ -211,11 +208,11 @@ def main():
     )
 
     print("\n✓ Conversion complete!")
-    print(f"\nTo use the ONNX model:")
-    print(f"  from Agent_Guru.reasoning.intent.neural_classifier import NeuralIntentClassifier")
-    print(f"  classifier = NeuralIntentClassifier()")
-    print(f"  classifier.load_model()")
-    print(f"  result = classifier.classify('set timer for 5 minutes')")
+    print("\nTo use the ONNX model:")
+    print("  from Agent_Guru.reasoning.intent.neural_classifier import NeuralIntentClassifier")
+    print("  classifier = NeuralIntentClassifier()")
+    print("  classifier.load_model()")
+    print("  result = classifier.classify('set timer for 5 minutes')")
 
 
 if __name__ == "__main__":

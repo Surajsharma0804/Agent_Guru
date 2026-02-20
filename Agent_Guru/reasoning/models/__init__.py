@@ -1,18 +1,25 @@
 """Core data models for the reasoning engine."""
 
-from .intent import Intent, IntentType, Entity
-from .action import Action, ActionSensitivity, Tool, Parameter
-from .result import ExecutionResult, Response, ResponseModality
-from .error import Error, ErrorType, FallbackStrategy
+from .action import Action, ActionSensitivity, Parameter, Tool
 from .conversation import ConversationState, ConversationTurn, TrackedEntity
+from .error import Error, ErrorType, FallbackStrategy
+from .intent import Entity, Intent, IntentType
+from .knowledge import (
+    KnowledgeAnswer,
+    KnowledgeQuery,
+    KnowledgeQueryType,
+    Pattern,
+    TimeRange,
+)
 from .memory import (
+    EpisodicMemory,
     Memory,
     MemoryType,
-    EpisodicMemory,
-    SemanticMemory,
     PreferenceMemory,
+    SemanticMemory,
     TaskMemory,
 )
+from .result import ExecutionResult, Response, ResponseModality
 
 __all__ = [
     "Intent",
@@ -37,4 +44,9 @@ __all__ = [
     "SemanticMemory",
     "PreferenceMemory",
     "TaskMemory",
+    "KnowledgeQuery",
+    "KnowledgeQueryType",
+    "KnowledgeAnswer",
+    "Pattern",
+    "TimeRange",
 ]

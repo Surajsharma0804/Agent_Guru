@@ -24,7 +24,7 @@ if checkpoint_callback.best_model_score is not None:
 
 ### 2. Optimized `test_embedding.py` Property Tests
 **File**: `Agent_Guru/reasoning/tests/test_embedding.py`
-**Issues**: 
+**Issues**:
 - Property tests loading 384-dim model repeatedly
 - System overload from too many examples
 **Fixes**:
@@ -49,7 +49,7 @@ if checkpoint_callback.best_model_score is not None:
 
 ### 4. Fixed `test_vector_db.py` Windows Issues
 **File**: `Agent_Guru/reasoning/tests/test_vector_db.py`
-**Issues**: 
+**Issues**:
 - ChromaDB file locking on Windows (23 errors)
 - Property tests using function-scoped fixtures (4 failures)
 **Fixes**:

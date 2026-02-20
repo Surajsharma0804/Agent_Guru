@@ -21,9 +21,9 @@ Date: 2024
 Version: 1.0.0
 """
 
-from Agent_Guru.reasoning.memory.vector_db import VectorDatabase
 from Agent_Guru.reasoning.memory.embedding import EmbeddingGenerator
 from Agent_Guru.reasoning.memory.storage_pipeline import MemoryStoragePipeline
+from Agent_Guru.reasoning.memory.vector_db import VectorDatabase
 
 __all__ = [
     "VectorDatabase",

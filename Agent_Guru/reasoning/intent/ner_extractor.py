@@ -32,7 +32,7 @@ import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from Agent_Guru.reasoning.models.intent import Entity, EntityType
 
@@ -80,7 +80,7 @@ class ExtractionResult:
         entity_count: Number of entities extracted
     """
 
-    entities: List[Entity]
+    entities: list[Entity]
     extraction_time_ms: float
     used_gpu: bool
     entity_count: int
@@ -97,7 +97,7 @@ class NEREntityExtractor:
         >>> extractor.load_model()
         >>> result = extractor.extract("set timer for 5 minutes")
         >>> print(f"Entities: {result.entities}")
-    
+
     Note:
         Uses spaCy transformer model fine-tuned on voice assistant data
         Achieves >90% F1 score on entity extraction
@@ -113,9 +113,7 @@ class NEREntityExtractor:
             RuntimeError: If spaCy is not available
         """
         if not SPACY_AVAILABLE:
-            raise RuntimeError(
-                "spaCy not available. Install with: pip install spacy[cuda]"
-            )
+            raise RuntimeError("spaCy not available. Install with: pip install spacy[cuda]")
 
         self.config = config or NERConfig()
         self.nlp: Optional[spacy.Language] = None
@@ -151,10 +149,10 @@ class NEREntityExtractor:
         if self.config.use_gpu:
             try:
                 spacy.require_gpu()
-                print(f"✓ NER extractor using GPU")
+                print("✓ NER extractor using GPU")
             except Exception as e:
                 print(f"⚠ GPU requested but not available: {e}")
-                print(f"⚠ Falling back to CPU")
+                print("⚠ Falling back to CPU")
 
         print(f"✓ NER model loaded: {model_path}")
         print(f"✓ Entity types: {len(self.nlp.get_pipe('ner').labels)}")
@@ -384,13 +382,36 @@ class NEREntityExtractor:
         """
         # Word to number mapping
         word_to_num = {
-            "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4,
-            "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
-            "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
-            "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17,
-            "eighteen": 18, "nineteen": 19, "twenty": 20, "thirty": 30,
-            "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70,
-            "eighty": 80, "ninety": 90, "hundred": 100, "thousand": 1000,
+            "zero": 0,
+            "one": 1,
+            "two": 2,
+            "three": 3,
+            "four": 4,
+            "five": 5,
+            "six": 6,
+            "seven": 7,
+            "eight": 8,
+            "nine": 9,
+            "ten": 10,
+            "eleven": 11,
+            "twelve": 12,
+            "thirteen": 13,
+            "fourteen": 14,
+            "fifteen": 15,
+            "sixteen": 16,
+            "seventeen": 17,
+            "eighteen": 18,
+            "nineteen": 19,
+            "twenty": 20,
+            "thirty": 30,
+            "forty": 40,
+            "fifty": 50,
+            "sixty": 60,
+            "seventy": 70,
+            "eighty": 80,
+            "ninety": 90,
+            "hundred": 100,
+            "thousand": 1000,
         }
 
         text = text.lower().strip()
@@ -407,7 +428,7 @@ class NEREntityExtractor:
 
         return None
 
-    def _resolve_overlaps(self, entities: List[Entity]) -> List[Entity]:
+    def _resolve_overlaps(self, entities: list[Entity]) -> list[Entity]:
         """Resolve overlapping entities using priority rules.
 
         Args:
@@ -450,13 +471,15 @@ class NEREntityExtractor:
                 last_end = end
             else:
                 # Overlap detected - keep higher priority entity
-                if result and priority.get(entity.entity_type, 10) < priority.get(result[-1].entity_type, 10):
+                if result and priority.get(entity.entity_type, 10) < priority.get(
+                    result[-1].entity_type, 10
+                ):
                     result[-1] = entity
                     last_end = end
 
         return result
 
-    def _compile_duration_patterns(self) -> List[Tuple[re.Pattern, int]]:
+    def _compile_duration_patterns(self) -> list[tuple[re.Pattern, int]]:
         """Compile duration normalization patterns.
 
         Returns:
@@ -469,12 +492,13 @@ class NEREntityExtractor:
             (re.compile(r"(\d+(?:\.\d+)?)\s*(?:day|d)s?"), 86400),
         ]
 
-    def _compile_time_patterns(self) -> List[Tuple[re.Pattern, Any]]:
+    def _compile_time_patterns(self) -> list[tuple[re.Pattern, Any]]:
         """Compile time normalization patterns.
 
         Returns:
             List of (pattern, formatter) tuples
         """
+
         def format_12h(match):
             hour = int(match.group(1))
             minute = int(match.group(2)) if match.group(2) else 0
@@ -492,7 +516,22 @@ class NEREntityExtractor:
 
         return [
             (re.compile(r"(\d{1,2}):(\d{2})\s*(am|pm)", re.I), format_12h),
-            (re.compile(r"(\d{1,2})\s*(am|pm)", re.I), lambda m: format_12h(type('obj', (object,), {'group': lambda s: m.group(1) if s == 1 else "0" if s == 2 else m.group(2)})())),
+            (
+                re.compile(r"(\d{1,2})\s*(am|pm)", re.I),
+                lambda m: format_12h(
+                    type(
+                        "obj",
+                        (object,),
+                        {
+                            "group": lambda s: m.group(1)
+                            if s == 1
+                            else "0"
+                            if s == 2
+                            else m.group(2)
+                        },
+                    )()
+                ),
+            ),
             (re.compile(r"(\d{1,2}):(\d{2})"), format_24h),
         ]
 
@@ -509,7 +548,7 @@ class NEREntityExtractor:
         if result.used_gpu:
             self.gpu_extractions += 1
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get extraction metrics.
 
         Returns:
@@ -527,5 +566,6 @@ class NEREntityExtractor:
             "total_extractions": self.total_extractions,
             "average_latency_ms": self.total_latency_ms / self.total_extractions,
             "gpu_usage_percent": (self.gpu_extractions / self.total_extractions) * 100,
-            "average_entities_per_extraction": self.total_entities_extracted / self.total_extractions,
+            "average_entities_per_extraction": self.total_entities_extracted
+            / self.total_extractions,
         }
