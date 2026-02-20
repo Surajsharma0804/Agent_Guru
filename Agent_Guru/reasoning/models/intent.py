@@ -63,6 +63,38 @@ class IntentType(str, Enum):
     MULTI_INTENT = "multi_intent"
 
 
+class EntityType(str, Enum):
+    """Enumeration of entity types for extraction."""
+    
+    # Temporal
+    DURATION = "duration"
+    TIME = "time"
+    DATE = "date"
+    DATETIME = "datetime"
+    
+    # People & Places
+    PERSON = "person"
+    LOCATION = "location"
+    ORGANIZATION = "organization"
+    
+    # Objects & Devices
+    DEVICE = "device"
+    APP = "app"
+    MEDIA = "media"
+    
+    # Tasks & Actions
+    TASK = "task"
+    EVENT = "event"
+    
+    # Quantities
+    NUMBER = "number"
+    MONEY = "money"
+    PERCENTAGE = "percentage"
+    
+    # Other
+    UNKNOWN = "unknown"
+
+
 class Entity(BaseModel):
     """Represents an extracted entity from user input."""
     

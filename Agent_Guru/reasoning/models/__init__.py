@@ -5,6 +5,14 @@ from .action import Action, ActionSensitivity, Tool, Parameter
 from .result import ExecutionResult, Response, ResponseModality
 from .error import Error, ErrorType, FallbackStrategy
 from .conversation import ConversationState, ConversationTurn, TrackedEntity
+from .memory import (
+    Memory,
+    MemoryType,
+    EpisodicMemory,
+    SemanticMemory,
+    PreferenceMemory,
+    TaskMemory,
+)
 
 __all__ = [
     "Intent",
@@ -23,4 +31,10 @@ __all__ = [
     "ConversationState",
     "ConversationTurn",
     "TrackedEntity",
+    "Memory",
+    "MemoryType",
+    "EpisodicMemory",
+    "SemanticMemory",
+    "PreferenceMemory",
+    "TaskMemory",
 ]

@@ -50,6 +50,10 @@ faster-whisper>=0.9.0
 transformers>=4.30.0
 tokenizers>=0.13.0
 sentencepiece>=0.1.99
+sentence-transformers>=2.2.0
+
+# Vector Database for Memory System
+chromadb>=0.4.0
 
 # API Clients for LLM Providers
 openai>=1.0.0

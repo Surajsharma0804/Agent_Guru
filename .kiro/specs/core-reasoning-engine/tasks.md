@@ -203,8 +203,8 @@ Current coverage status will be tracked and reported for each completed task.
   - Push: git push origin main
 
 
-- [ ] 7. Implement Intent Detection Engine with hybrid approach (includes Fast Intent Router)
-  - [ ] 7.1 Create rule-based fast-path intent detector (Fast Intent Router - 80% of commands)
+- [-] 7. Implement Intent Detection Engine with hybrid approach (includes Fast Intent Router)
+  - [x] 7.1 Create rule-based fast-path intent detector (Fast Intent Router - 80% of commands)
     - Implement trie-based pattern matching for common commands
     - Create Agent_Guru/reasoning/data/intent_patterns.yaml with 100+ high-frequency patterns
     - Build trie index from patterns for O(n) matching
@@ -216,7 +216,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Track fast-path vs slow-path usage metrics (target 80% fast-path)
     - _Requirements: 2.1, 2.5, 10.1, 18.1, 18.2, 18.3, 18.4, 18.5, 18.6_
 
-  - [ ] 7.2 Integrate neural intent classifier - **GPU ACCELERATED**
+  - [x] 7.2 Integrate neural intent classifier - **GPU ACCELERATED**
     - Load fine-tuned RoBERTa model with ONNX Runtime GPU for faster inference
     - Implement async inference with batching support - **GPU batch processing**
     - Add model warm-up on startup to avoid cold start latency
@@ -224,14 +224,14 @@ Current coverage status will be tracked and reported for each completed task.
     - Implement fallback to LLM when confidence <0.8
     - _Requirements: 2.1, 2.3_
 
-  - [ ] 7.3 Integrate NER model for entity extraction
+  - [x] 7.3 Integrate NER model for entity extraction
     - Load fine-tuned spaCy model
     - Implement entity extraction with confidence scores
     - Add entity normalization (e.g., "5 mins" → "5 minutes")
     - Handle overlapping entities with priority rules
     - _Requirements: 2.2_
 
-  - [ ] 7.4 Implement LLM-based fallback for unknown intents
+  - [x] 7.4 Implement LLM-based fallback for unknown intents
     - Create prompt template for intent classification with few-shot examples
     - Integrate with LLM backend (GPT-4 Turbo or Claude 3.5)
     - Parse LLM response into structured Intent object with validation
@@ -239,7 +239,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Implement timeout (300ms) with graceful degradation
     - _Requirements: 2.4, 4.5_
 
-  - [ ] 7.5 Implement online learning from user feedback
+  - [x] 7.5 Implement online learning from user feedback
     - Create feedback collection API for intent corrections
     - Store feedback in database with original input, predicted intent, correct intent
     - Implement periodic model retraining pipeline (weekly)
@@ -249,7 +249,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement hybrid intent detection engine with fast-path router"
   - Push: git push origin main
 
-- [ ] 7.6 Write property tests for intent detection
+- [x] 7.6 Write property tests for intent detection
   - **Property 4: Intent detection produces valid intent objects**
   - **Validates: Requirements 2.1, 2.2**
   - Test that for any normalized input, detect_intent returns Intent with all required fields
@@ -260,7 +260,7 @@ Current coverage status will be tracked and reported for each completed task.
 ## Phase 3: Core Intelligence - LLM Reasoning & Memory Retrieval (Weeks 4-5)
 
 - [ ] 7.7 Implement Memory Retrieval Layer (NEW SUBSYSTEM - V1 UPGRADE)
-  - [ ] 7.7.1 Create Memory data models
+  - [x] 7.7.1 Create Memory data models
     - Implement Memory base class with memory_id, memory_type, content, embedding, metadata, relevance_score, timestamp, user_id
     - Implement MemoryType enum (episodic, semantic, preference, task)
     - Implement EpisodicMemory class (action_taken, result, success, context)
@@ -270,7 +270,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Add Pydantic validators for all fields
     - _Requirements: 33.2_
 
-  - [ ] 7.7.2 Set up vector database for semantic search
+  - [x] 7.7.2 Set up vector database for semantic search
     - Choose vector database (ChromaDB or FAISS)
     - Set up database with collections per memory type
     - Configure embedding model (sentence-transformers)
@@ -278,7 +278,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Add database persistence and backup
     - _Requirements: 33.7_
 
-  - [ ] 7.7.3 Implement MemoryRetriever with semantic search
+  - [x] 7.7.3 Implement MemoryRetriever with semantic search
     - Create MemoryRetriever class with retrieve, store, update_relevance, semantic_search, rank_memories methods
     - Implement semantic search using query embeddings
     - Add memory ranking by relevance (semantic similarity), recency, and importance
@@ -286,7 +286,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Complete retrieval within 100ms latency budget
     - _Requirements: 33.1, 33.3, 33.4, 33.5, 33.6_
 
-  - [ ] 7.7.4 Implement memory storage pipeline
+  - [x] 7.7.4 Implement memory storage pipeline
     - Store episodic memories after each task execution
     - Store semantic memories from user corrections and feedback
     - Store preference memories from behavioral learning
@@ -294,7 +294,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Add memory deduplication logic
     - _Requirements: 33.2_
 
-  - [ ] 7.7.5 Integrate Memory Retrieval with LLM reasoning
+  - [x] 7.7.5 Integrate Memory Retrieval with LLM reasoning
     - Retrieve relevant memories before LLM reasoning
     - Format memories for LLM prompt injection
     - Inject top 5 memories into Semantic LLM Interpreter prompts
@@ -302,7 +302,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Update memory relevance based on usage
     - _Requirements: 33.1, 33.3_
 
-  - [ ] 7.7.6 Add memory pruning and retention policy
+  - [x] 7.7.6 Add memory pruning and retention policy
     - Implement memory importance scoring
     - Prune old low-relevance memories (retention policy)
     - Keep high-importance memories indefinitely
@@ -313,7 +313,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Push: git push origin main
 
 - [ ] 7.8 Implement Knowledge Synthesis Engine (NEW SUBSYSTEM - V1 UPGRADE)
-  - [ ] 7.8.1 Create Knowledge Query data models
+  - [~] 7.8.1 Create Knowledge Query data models
     - Implement KnowledgeQueryType enum (temporal, aggregation, pattern, factual)
     - Implement KnowledgeQuery class (query_text, query_type, time_range, entities, confidence)
     - Implement KnowledgeAnswer class (summary, confidence, supporting_memories, patterns, statistics, visualization_data)
@@ -322,7 +322,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Add Pydantic validators for all fields
     - _Requirements: 38.4, 38.11_
 
-  - [ ] 7.8.2 Implement KnowledgeQueryDetector
+  - [~] 7.8.2 Implement KnowledgeQueryDetector
     - Create KnowledgeQueryDetector class with detect_knowledge_query, classify_query_type, extract_time_range methods
     - Implement pattern matching for knowledge query detection (temporal: "when was", "how often"; aggregation: "who most", "what most"; pattern: "usually", "typically")
     - Use LLM fallback for ambiguous queries
@@ -331,7 +331,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Complete detection within 50ms latency budget
     - _Requirements: 38.1, 38.5, 38.6, 38.7_
 
-  - [ ] 7.8.3 Implement KnowledgeSynthesizer core logic
+  - [~] 7.8.3 Implement KnowledgeSynthesizer core logic
     - Create KnowledgeSynthesizer class with synthesize_answer, retrieve_relevant_data, detect_patterns, aggregate_statistics, generate_answer methods
     - Implement data retrieval from Memory Retrieval Layer, World State, Behavioral Learning Engine, Task History
     - Implement pattern detection algorithms for daily/weekly/monthly routines
@@ -339,7 +339,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Complete synthesis within 1.5s latency budget
     - _Requirements: 38.2, 38.3, 38.8_
 
-  - [ ] 7.8.4 Implement query type handlers
+  - [~] 7.8.4 Implement query type handlers
     - Implement handle_temporal_query (retrieve memories, sort by timestamp, format answer)
     - Implement handle_aggregation_query (retrieve memories, count/aggregate entities, rank results)
     - Implement handle_pattern_query (retrieve memories by time pattern, detect routines, format patterns)
@@ -347,7 +347,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Add confidence scoring for each query type
     - _Requirements: 38.5, 38.6, 38.7_
 
-  - [ ] 7.8.5 Implement LLM-based answer synthesis
+  - [~] 7.8.5 Implement LLM-based answer synthesis
     - Create synthesis prompt template with retrieved data, patterns, statistics
     - Use LLM to generate natural language answer
     - Parse LLM response into KnowledgeAnswer structure
@@ -355,14 +355,14 @@ Current coverage status will be tracked and reported for each completed task.
     - Include supporting memories as evidence
     - _Requirements: 38.3, 38.4_
 
-  - [ ] 7.8.6 Integrate Knowledge Synthesis with pipeline
+  - [~] 7.8.6 Integrate Knowledge Synthesis with pipeline
     - Add Knowledge Query Detector after Memory Retrieval in pipeline
     - Route knowledge queries to Knowledge Synthesizer (bypass normal reasoning)
     - Generate response directly from KnowledgeAnswer
     - Track knowledge query metrics (query type distribution, confidence, latency)
     - _Requirements: 38.9_
 
-  - [ ] 7.8.7 Add privacy and confidence handling
+  - [~] 7.8.7 Add privacy and confidence handling
     - Ensure only user's own data is accessed (user_id filtering)
     - Implement confidence thresholds (indicate uncertainty if <0.6)
     - Add privacy-preserving aggregation (no PII in responses)
@@ -373,7 +373,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Push: git push origin main
 
 - [ ] 8. Set up hybrid LLM infrastructure
-  - [ ] 8.1 Deploy local LLM with llama.cpp
+  - [~] 8.1 Deploy local LLM with llama.cpp
     - Download and quantize Llama 3.2 8B model (Q4_K_M quantization)
     - Set up llama.cpp server with GPU acceleration (CUDA or Metal)
     - Configure model parameters (temperature 0.7, top_p 0.9, max_tokens 512)
@@ -381,7 +381,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Measure inference latency (target <400ms for 512 tokens)
     - _Requirements: 4.2, 4.5_
 
-  - [ ] 8.2 Integrate cloud LLM providers
+  - [~] 8.2 Integrate cloud LLM providers
     - Add OpenAI SDK for GPT-4 Turbo integration
     - Add Anthropic SDK for Claude 3.5 Sonnet integration
     - Implement API key management with environment variables
@@ -389,14 +389,14 @@ Current coverage status will be tracked and reported for each completed task.
     - Implement circuit breaker pattern for API failures
     - _Requirements: 4.2, 4.5_
 
-  - [ ] 8.3 Implement hybrid LLM router
+  - [~] 8.3 Implement hybrid LLM router
     - Create routing logic: local for simple tasks (<3 steps), cloud for complex
     - Implement complexity scoring based on intent type and entity count
     - Add automatic fallback from local to cloud on timeout or error
     - Track routing decisions and latency per backend
     - _Requirements: 4.2, 4.5_
 
-  - [ ] 8.4 Implement prompt caching for 80% token reduction
+  - [~] 8.4 Implement prompt caching for 80% token reduction
     - Create prompt template cache with LRU eviction
     - Implement cache key generation from intent type and context
     - Add cache hit/miss tracking metrics
@@ -407,7 +407,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Push: git push origin main
 
 - [ ] 9. Implement LLM Reasoning Core
-  - [ ] 9.1 Create reasoning prompt templates
+  - [~] 9.1 Create reasoning prompt templates
     - Design system prompt for Agent_Guru reasoning engine
     - Create prompt template for single-step reasoning
     - Create prompt template for multi-step task decomposition (1-5 steps)
@@ -415,7 +415,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Implement prompt formatting with conversation context injection
     - _Requirements: 4.1, 4.4_
 
-  - [ ] 9.2 Implement reasoning plan generation
+  - [~] 9.2 Implement reasoning plan generation
     - Create ReasoningPlan and ReasoningStep data structures
     - Implement LLM call with streaming support for responsiveness
     - Parse LLM response into structured ReasoningPlan with JSON schema validation
@@ -423,14 +423,14 @@ Current coverage status will be tracked and reported for each completed task.
     - Implement step limit enforcement (max 5 steps)
     - _Requirements: 4.1, 4.3, 11.4_
 
-  - [ ] 9.3 Implement reasoning plan validation
+  - [~] 9.3 Implement reasoning plan validation
     - Validate that each step references a valid tool from registry
     - Validate that all required parameters are present or can be inferred
     - Check for circular dependencies in multi-step plans
     - Validate estimated duration is within timeout limits
     - _Requirements: 4.1, 5.4_
 
-  - [ ] 9.4 Add conversation context to reasoning prompts
+  - [~] 9.4 Add conversation context to reasoning prompts
     - Extract relevant turns from conversation history (last 5 turns)
     - Include tracked entities in prompt context
     - Add user preferences and past actions to context

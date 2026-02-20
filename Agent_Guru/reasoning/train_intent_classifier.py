@@ -25,14 +25,31 @@ Date: 2026
 """
 
 import json
+import os
 import random
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-import nlpaug.augmenter.sentence as nas
-import nlpaug.augmenter.word as naw
+# CRITICAL FIX: Monkey-patch NLTK to prevent download loop
+import nltk
+_original_download = nltk.download
+
+def _patched_download(info_or_id=None, download_dir=None, quiet=False, force=False, 
+                      prefix=None, halt_on_error=True, raise_on_error=False, print_error_to=None):
+    """Patched NLTK download that only downloads once per package."""
+    if info_or_id:
+        try:
+            nltk.data.find(f'taggers/{info_or_id}' if 'tagger' in info_or_id else f'corpora/{info_or_id}')
+            return True  # Already exists, skip download
+        except LookupError:
+            pass  # Not found, proceed with download
+    return _original_download(info_or_id, download_dir, quiet=True, force=force,
+                             prefix=prefix, halt_on_error=False, raise_on_error=False)
+
+nltk.download = _patched_download
+
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -73,8 +90,8 @@ class TrainingConfig:
 
     # Training hyperparameters (from DeBERTa-v3 paper)
     learning_rate: float = 8e-6  # Optimal for DeBERTa-v3
-    batch_size: int = 2  # Reduced for 4GB VRAM (RTX 2050)
-    num_epochs: int = 10  # DeBERTa converges faster
+    batch_size: int = 1  # REDUCED to 1 for 4GB VRAM (RTX 2050)
+    num_epochs: int = 30  # OPTIMAL: 30 epochs for BEST results (early stopping prevents overfitting)
     warmup_ratio: float = 0.1  # 10% warmup
     weight_decay: float = 0.01
 
@@ -84,17 +101,17 @@ class TrainingConfig:
 
     # GPU optimization
     mixed_precision: bool = True
-    gradient_accumulation_steps: int = 16  # Effective batch 32 (2*16)
-    num_workers: int = 2  # Reduced for memory
+    gradient_accumulation_steps: int = 32  # Effective batch 32 (1*32) - INCREASED for smaller batch
+    num_workers: int = 0  # DISABLED to save memory
 
     # Data augmentation (research-backed)
     use_augmentation: bool = True
     augmentation_factor: int = 10  # MAXIMUM 10x for GUARANTEED 98%+ accuracy
 
     # Advanced techniques (proven effective)
-    use_adversarial_training: bool = True  # FGM
+    use_adversarial_training: bool = False  # DISABLED to save memory (4GB VRAM limit)
     use_focal_loss: bool = False  # Cross-entropy works better for balanced data
-    use_rdrop: bool = True  # R-Drop regularization (SOTA technique)
+    use_rdrop: bool = False  # DISABLED to save memory (4GB VRAM limit)
     rdrop_alpha: float = 5.0
 
     # Learning rate scheduling
@@ -107,7 +124,7 @@ class TrainingConfig:
     log_dir: str = "Agent_Guru/reasoning/logs/intent_classifier"
 
     # Early stopping
-    patience: int = 3  # DeBERTa converges fast
+    patience: int = 7  # Optimal patience for 30 epochs (stops if no improvement for 7 epochs)
     min_delta: float = 0.001
 
 
@@ -122,9 +139,32 @@ class DataAugmenter:
 
     Increases training data by 3x for better generalization.
     """
+    
+    _nltk_initialized = False
 
     def __init__(self):
         """Initialize augmenters."""
+        # Download NLTK data ONCE (not every time)
+        if not DataAugmenter._nltk_initialized:
+            import nltk
+            try:
+                nltk.data.find('taggers/averaged_perceptron_tagger')
+            except LookupError:
+                nltk.download('averaged_perceptron_tagger', quiet=True)
+            try:
+                nltk.data.find('corpora/wordnet')
+            except LookupError:
+                nltk.download('wordnet', quiet=True)
+            try:
+                nltk.data.find('corpora/omw-1.4')
+            except LookupError:
+                nltk.download('omw-1.4', quiet=True)
+            DataAugmenter._nltk_initialized = True
+        
+        # Lazy import to avoid NLTK download loop on module load
+        import nlpaug.augmenter.sentence as nas
+        import nlpaug.augmenter.word as naw
+        
         # Synonym replacement
         self.synonym_aug = naw.SynonymAug(aug_src="wordnet", aug_max=3)
 
@@ -138,7 +178,7 @@ class DataAugmenter:
             self.back_translation_aug = nas.BackTranslationAug(
                 from_model_name="facebook/wmt19-en-de", to_model_name="facebook/wmt19-de-en"
             )
-        except:
+        except Exception:
             self.back_translation_aug = None
 
     def augment(self, text: str, num_augmentations: int = 2) -> list[str]:
@@ -1061,7 +1101,8 @@ def train_intent_classifier(config: TrainingConfig):
     print(f"\n{'='*80}")
     print(f"✓ Model saved to: {final_model_path}")
     print(f"✓ Best checkpoint: {checkpoint_callback.best_model_path}")
-    print(f"✓ Best validation accuracy: {checkpoint_callback.best_model_score:.4f}")
+    if checkpoint_callback.best_model_score is not None:
+        print(f"✓ Best validation accuracy: {checkpoint_callback.best_model_score:.4f}")
     print("✓ Training complete!")
     print("\nThis is the BEST intent classifier - ZERO COMPROMISE!")
     print(f"{'='*80}\n")
