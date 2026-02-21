@@ -627,7 +627,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement tool registry and selection"
   - Push: git push origin main
 
-- [ ] 12.5 Write property tests for tool selection
+- [x] 12.5 Write property tests for tool selection
   - **Property 12: Selected tools have required parameters**
   - **Validates: Requirements 5.4**
   - Test that for any selected tool, all required parameters are present
