@@ -601,7 +601,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Build tool capability index for fast matching
     - _Requirements: 5.1, 13.2, 13.3_
 
-  - [ ] 12.2 Implement example tools
+  - [x] 12.2 Implement example tools
     - Create TimerTool for setting/canceling timers
     - Create WeatherTool for querying weather information
     - Create MessagingTool for sending messages

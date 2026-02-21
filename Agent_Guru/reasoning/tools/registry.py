@@ -275,10 +275,21 @@ def tool(
         @wraps(original_init)
         def new_init(self: Tool, *args: Any, **kwargs: Any) -> None:
             original_init(self, *args, **kwargs)
-            # Register with global registry
-            asyncio.create_task(_global_registry.register(self, metadata))
+            # Store metadata on instance
+            self._metadata = metadata
+            # Mark for lazy registration (will be registered when needed)
+            self._registered = False
 
         cls.__init__ = new_init  # type: ignore
+
+        # Add method to ensure registration
+        async def ensure_registered(self: Tool) -> None:
+            """Ensure tool is registered with global registry."""
+            if not self._registered:
+                await _global_registry.register(self, metadata)
+                self._registered = True
+
+        cls.ensure_registered = ensure_registered  # type: ignore
 
         return cls
 
