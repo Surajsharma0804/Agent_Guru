@@ -640,14 +640,14 @@ Current coverage status will be tracked and reported for each completed task.
     - Implement statistics calculation methods
     - _Requirements: 34.1_
 
-  - [ ] 12.6.2 Implement ToolIntelligenceEngine with tracking
+  - [x] 12.6.2 Implement ToolIntelligenceEngine with tracking
     - Create ToolIntelligenceEngine class with record_execution, record_user_feedback, get_tool_stats, rank_tools, detect_degraded_tools, get_user_tool_preferences, learn_tool_preference methods
     - Track success rate, latency, failures, user satisfaction for each tool
     - Update statistics after every tool execution
     - Persist tool statistics across system restarts
     - _Requirements: 34.1, 34.2, 34.6_
 
-  - [ ] 12.6.3 Implement tool ranking algorithm
+  - [x] 12.6.3 Implement tool ranking algorithm
     - Implement ranking formula: relevance (50%) + reliability (20%) + speed (20%) + user_preference (10%)
     - Calculate relevance score based on intent matching
     - Calculate reliability score from success rate

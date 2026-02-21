@@ -9,8 +9,11 @@ This module implements intelligent tool tracking, ranking, and learning based on
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Set
 from enum import Enum
+import asyncio
+import json
+from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -274,3 +277,501 @@ class ToolStats(BaseModel):
                 "consecutive_failures": 0,
             }
         }
+
+
+
+class UserToolPreference(BaseModel):
+    """User preference for a specific tool.
+
+    Tracks user's preference score for a tool based on selections and feedback.
+
+    Attributes:
+        user_id: User identifier
+        tool_id: Tool identifier
+        preference_score: Preference score (0.0-1.0)
+        selection_count: Number of times user selected this tool
+        feedback_count: Number of feedback entries
+        last_selected: Timestamp of last selection
+        created_at: Timestamp when preference was created
+        updated_at: Timestamp when preference was last updated
+    """
+
+    user_id: str = Field(..., description="User identifier")
+    tool_id: str = Field(..., description="Tool identifier")
+    preference_score: float = Field(
+        default=0.5, description="Preference score (0.0-1.0)", ge=0.0, le=1.0
+    )
+    selection_count: int = Field(
+        default=0, description="Number of times user selected this tool", ge=0
+    )
+    feedback_count: int = Field(default=0, description="Number of feedback entries", ge=0)
+    last_selected: Optional[datetime] = Field(
+        default=None, description="Timestamp of last selection"
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow, description="Timestamp when preference was created"
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="Timestamp when preference was last updated",
+    )
+
+    def record_selection(self) -> None:
+        """Record that user selected this tool."""
+        self.selection_count += 1
+        self.last_selected = datetime.utcnow()
+        self.updated_at = datetime.utcnow()
+
+        # Increase preference score slightly (EMA with alpha=0.1)
+        self.preference_score = 0.9 * self.preference_score + 0.1 * 1.0
+
+    def record_feedback(self, positive: bool) -> None:
+        """Record user feedback for this tool.
+
+        Args:
+            positive: True for positive feedback, False for negative
+        """
+        self.feedback_count += 1
+        self.updated_at = datetime.utcnow()
+
+        # Update preference score based on feedback (EMA with alpha=0.2)
+        feedback_value = 1.0 if positive else 0.0
+        self.preference_score = 0.8 * self.preference_score + 0.2 * feedback_value
+
+
+class ToolIntelligenceEngine:
+    """Tool Intelligence Engine for tracking and learning tool performance.
+
+    Tracks tool execution statistics, user preferences, and provides
+    intelligent tool ranking and selection recommendations.
+
+    Attributes:
+        _tool_stats: Dictionary of tool_id → ToolStats
+        _user_preferences: Dictionary of (user_id, tool_id) → UserToolPreference
+        _stats_file: Path to stats persistence file
+        _preferences_file: Path to preferences persistence file
+        _lock: Async lock for thread-safe operations
+    """
+
+    def __init__(
+        self, stats_file: Optional[Path] = None, preferences_file: Optional[Path] = None
+    ) -> None:
+        """Initialize Tool Intelligence Engine.
+
+        Args:
+            stats_file: Path to stats persistence file (optional)
+            preferences_file: Path to preferences persistence file (optional)
+        """
+        self._tool_stats: Dict[str, ToolStats] = {}
+        self._user_preferences: Dict[tuple[str, str], UserToolPreference] = {}
+        self._stats_file = stats_file
+        self._preferences_file = preferences_file
+        self._lock = asyncio.Lock()
+
+        # Load persisted data if files exist
+        if self._stats_file and self._stats_file.exists():
+            self._load_stats()
+        if self._preferences_file and self._preferences_file.exists():
+            self._load_preferences()
+
+    async def record_execution(
+        self,
+        tool_id: str,
+        success: bool,
+        latency_ms: float,
+        failure_pattern: Optional[FailurePattern] = None,
+    ) -> None:
+        """Record a tool execution.
+
+        Args:
+            tool_id: Tool identifier
+            success: Whether execution succeeded
+            latency_ms: Execution latency in milliseconds
+            failure_pattern: Failure pattern if execution failed
+        """
+        async with self._lock:
+            # Get or create tool stats
+            if tool_id not in self._tool_stats:
+                self._tool_stats[tool_id] = ToolStats(tool_id=tool_id)
+
+            stats = self._tool_stats[tool_id]
+
+            # Record execution
+            if success:
+                stats.record_success(latency_ms)
+            else:
+                if failure_pattern is None:
+                    failure_pattern = FailurePattern.UNKNOWN
+                stats.record_failure(failure_pattern)
+
+            # Persist stats
+            if self._stats_file:
+                self._save_stats()
+
+    async def record_user_feedback(
+        self, tool_id: str, user_id: str, rating: Optional[float] = None, positive: Optional[bool] = None
+    ) -> None:
+        """Record user feedback for a tool.
+
+        Args:
+            tool_id: Tool identifier
+            user_id: User identifier
+            rating: User rating (0.0-5.0) if provided
+            positive: Positive/negative feedback if provided
+        """
+        async with self._lock:
+            # Record rating in tool stats
+            if rating is not None:
+                if tool_id not in self._tool_stats:
+                    self._tool_stats[tool_id] = ToolStats(tool_id=tool_id)
+                self._tool_stats[tool_id].record_user_feedback(rating)
+
+            # Record preference
+            if positive is not None:
+                pref_key = (user_id, tool_id)
+                if pref_key not in self._user_preferences:
+                    self._user_preferences[pref_key] = UserToolPreference(
+                        user_id=user_id, tool_id=tool_id
+                    )
+                self._user_preferences[pref_key].record_feedback(positive)
+
+            # Persist data
+            if self._stats_file:
+                self._save_stats()
+            if self._preferences_file:
+                self._save_preferences()
+
+    async def get_tool_stats(self, tool_id: str) -> Optional[ToolStats]:
+        """Get statistics for a tool.
+
+        Args:
+            tool_id: Tool identifier
+
+        Returns:
+            ToolStats if available, None otherwise
+        """
+        async with self._lock:
+            return self._tool_stats.get(tool_id)
+
+    async def get_all_stats(self) -> Dict[str, ToolStats]:
+        """Get statistics for all tools.
+
+        Returns:
+            Dictionary of tool_id → ToolStats
+        """
+        async with self._lock:
+            return self._tool_stats.copy()
+
+    async def rank_tools(
+        self,
+        tool_ids: List[str],
+        user_id: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> List[tuple[str, float]]:
+        """Rank tools by combined score.
+
+        Ranking formula: relevance (50%) + reliability (20%) + speed (20%) + user_preference (10%)
+
+        Time Complexity: O(n) where n = number of tools
+        Target Latency: <50ms
+
+        Args:
+            tool_ids: List of tool IDs to rank
+            user_id: User identifier for personalization (optional)
+            context: Additional context for ranking (optional)
+                - intent: Intent object for relevance calculation
+                - tool_registry: ToolRegistry for metadata lookup
+                - relevance_scores: Pre-calculated relevance scores (dict)
+
+        Returns:
+            List of (tool_id, score) tuples sorted by score (descending)
+        """
+        async with self._lock:
+            ranked = []
+
+            for tool_id in tool_ids:
+                score = await self._calculate_tool_score(tool_id, user_id, context)
+                ranked.append((tool_id, score))
+
+            # Sort by score (descending)
+            ranked.sort(key=lambda x: x[1], reverse=True)
+            return ranked
+
+    async def _calculate_tool_score(
+        self, tool_id: str, user_id: Optional[str], context: Optional[Dict[str, Any]]
+    ) -> float:
+        """Calculate combined score for a tool.
+
+        Scoring formula:
+        - Relevance (50%): How well tool matches intent
+        - Reliability (20%): Success rate and degradation status
+        - Speed (20%): Execution latency
+        - User Preference (10%): Learned user preferences
+
+        Args:
+            tool_id: Tool identifier
+            user_id: User identifier (optional)
+            context: Additional context (optional)
+                - intent: Intent object for relevance calculation
+                - tool_registry: ToolRegistry for metadata lookup
+                - relevance_scores: Pre-calculated relevance scores (dict)
+
+        Returns:
+            Combined score (0.0-1.0)
+        """
+        # Get tool stats
+        stats = self._tool_stats.get(tool_id)
+
+        # Relevance score (50%)
+        relevance_score = self._calculate_relevance_score(tool_id, context)
+
+        # Reliability score (20%)
+        reliability_score = 1.0
+        if stats:
+            reliability_score = stats.get_reliability_score()
+
+        # Speed score (20%)
+        speed_score = 1.0
+        if stats:
+            speed_score = stats.get_speed_score()
+
+        # User preference score (10%)
+        preference_score = 0.5  # Default neutral
+        if user_id:
+            pref_key = (user_id, tool_id)
+            if pref_key in self._user_preferences:
+                preference_score = self._user_preferences[pref_key].preference_score
+
+        # Combined score
+        score = (
+            0.5 * relevance_score
+            + 0.2 * reliability_score
+            + 0.2 * speed_score
+            + 0.1 * preference_score
+        )
+
+        return score
+
+    def _calculate_relevance_score(
+        self, tool_id: str, context: Optional[Dict[str, Any]]
+    ) -> float:
+        """Calculate relevance score for a tool based on intent matching.
+
+        Args:
+            tool_id: Tool identifier
+            context: Context containing intent and/or tool_registry
+
+        Returns:
+            Relevance score (0.0-1.0)
+        """
+        if not context:
+            return 1.0  # No context, assume relevant
+
+        # Check for pre-calculated relevance scores
+        if "relevance_scores" in context and tool_id in context["relevance_scores"]:
+            return context["relevance_scores"][tool_id]
+
+        # Check for explicit relevance score
+        if "relevance" in context:
+            return context["relevance"]
+
+        # Calculate relevance from intent and tool metadata
+        if "intent" in context and "tool_registry" in context:
+            intent = context["intent"]
+            tool_registry = context["tool_registry"]
+
+            # Get tool metadata
+            tool_metadata = tool_registry.get_tool_metadata(tool_id)
+            if not tool_metadata:
+                return 0.5  # Unknown tool, neutral score
+
+            # Calculate relevance based on intent matching
+            return self._calculate_intent_match_score(intent, tool_metadata)
+
+        # Default to fully relevant if no intent information
+        return 1.0
+
+    def _calculate_intent_match_score(
+        self, intent: Any, tool_metadata: Any
+    ) -> float:
+        """Calculate how well a tool matches an intent.
+
+        Scoring factors:
+        - Capability overlap: 40%
+        - Parameter coverage: 30%
+        - Description similarity: 30%
+
+        Args:
+            intent: Intent object
+            tool_metadata: ToolMetadata object
+
+        Returns:
+            Match score (0.0-1.0)
+        """
+        score = 0.0
+
+        # Extract intent keywords
+        intent_keywords = set(intent.original_input.lower().split())
+
+        # Factor 1: Capability overlap (40%)
+        capability_keywords = set()
+        for cap in tool_metadata.capabilities:
+            capability_keywords.update(cap.lower().split("_"))
+
+        if capability_keywords:
+            overlap = len(intent_keywords & capability_keywords)
+            if overlap > 0:
+                capability_score = min(overlap / max(len(capability_keywords), 1), 1.0)
+                score += capability_score * 0.4
+            # Bonus for substring matches
+            for cap_word in capability_keywords:
+                for intent_word in intent_keywords:
+                    if cap_word in intent_word or intent_word in cap_word:
+                        score += 0.1
+                        break
+
+        # Factor 2: Parameter coverage (30%)
+        available_params = set(intent.entities.keys())
+        required_params = {p.name for p in tool_metadata.parameters if p.required}
+
+        if required_params:
+            coverage = len(available_params & required_params) / len(required_params)
+            score += coverage * 0.3
+        else:
+            # No required parameters, full score
+            score += 0.3
+
+        # Factor 3: Description similarity (30%)
+        description_keywords = set(tool_metadata.description.lower().split())
+        if description_keywords:
+            overlap = len(intent_keywords & description_keywords)
+            if overlap > 0:
+                description_score = min(overlap / max(len(description_keywords), 1), 1.0)
+                score += description_score * 0.3
+
+        return min(score, 1.0)
+
+    async def detect_degraded_tools(self) -> List[str]:
+        """Detect tools that are currently degraded.
+
+        Returns:
+            List of degraded tool IDs
+        """
+        async with self._lock:
+            degraded = []
+            for tool_id, stats in self._tool_stats.items():
+                if stats.is_degraded:
+                    degraded.append(tool_id)
+            return degraded
+
+    async def get_user_tool_preferences(self, user_id: str) -> Dict[str, float]:
+        """Get user's tool preferences.
+
+        Args:
+            user_id: User identifier
+
+        Returns:
+            Dictionary of tool_id → preference_score
+        """
+        async with self._lock:
+            preferences = {}
+            for (uid, tool_id), pref in self._user_preferences.items():
+                if uid == user_id:
+                    preferences[tool_id] = pref.preference_score
+            return preferences
+
+    async def learn_tool_preference(
+        self, user_id: str, tool_id: str, selected: bool
+    ) -> None:
+        """Learn user's tool preference from selection.
+
+        Args:
+            user_id: User identifier
+            tool_id: Tool identifier
+            selected: Whether user selected this tool
+        """
+        async with self._lock:
+            pref_key = (user_id, tool_id)
+
+            # Get or create preference
+            if pref_key not in self._user_preferences:
+                self._user_preferences[pref_key] = UserToolPreference(
+                    user_id=user_id, tool_id=tool_id
+                )
+
+            # Record selection
+            if selected:
+                self._user_preferences[pref_key].record_selection()
+
+            # Persist preferences
+            if self._preferences_file:
+                self._save_preferences()
+
+    def _save_stats(self) -> None:
+        """Save tool stats to file."""
+        if not self._stats_file:
+            return
+
+        # Convert to JSON-serializable format
+        stats_data = {
+            tool_id: stats.model_dump(mode="json")
+            for tool_id, stats in self._tool_stats.items()
+        }
+
+        # Write to file
+        self._stats_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(self._stats_file, "w") as f:
+            json.dump(stats_data, f, indent=2, default=str)
+
+    def _load_stats(self) -> None:
+        """Load tool stats from file."""
+        if not self._stats_file or not self._stats_file.exists():
+            return
+
+        try:
+            with open(self._stats_file, "r") as f:
+                stats_data = json.load(f)
+
+            # Convert from JSON to ToolStats objects
+            self._tool_stats = {
+                tool_id: ToolStats.model_validate(data)
+                for tool_id, data in stats_data.items()
+            }
+        except Exception:
+            # If loading fails, start fresh
+            self._tool_stats = {}
+
+    def _save_preferences(self) -> None:
+        """Save user preferences to file."""
+        if not self._preferences_file:
+            return
+
+        # Convert to JSON-serializable format
+        prefs_data = {
+            f"{user_id}:{tool_id}": pref.model_dump(mode="json")
+            for (user_id, tool_id), pref in self._user_preferences.items()
+        }
+
+        # Write to file
+        self._preferences_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(self._preferences_file, "w") as f:
+            json.dump(prefs_data, f, indent=2, default=str)
+
+    def _load_preferences(self) -> None:
+        """Load user preferences from file."""
+        if not self._preferences_file or not self._preferences_file.exists():
+            return
+
+        try:
+            with open(self._preferences_file, "r") as f:
+                prefs_data = json.load(f)
+
+            # Convert from JSON to UserToolPreference objects
+            self._user_preferences = {}
+            for key, data in prefs_data.items():
+                user_id, tool_id = key.split(":", 1)
+                pref = UserToolPreference.model_validate(data)
+                self._user_preferences[(user_id, tool_id)] = pref
+        except Exception:
+            # If loading fails, start fresh
+            self._user_preferences = {}
