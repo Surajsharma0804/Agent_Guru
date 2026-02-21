@@ -1,0 +1,285 @@
+"""
+Tool registry for managing and discovering tools.
+
+This module provides a centralized registry for all tools with automatic discovery
+and capability-based matching.
+"""
+
+import asyncio
+import time
+from typing import Any, Callable, Dict, List, Optional, Set, Type
+from functools import wraps
+
+from Agent_Guru.reasoning.tools.base import Tool, ToolMetadata, ToolSensitivity
+
+
+class ToolRegistry:
+    """Registry for managing tools with plugin architecture.
+
+    Provides automatic tool discovery, registration, and capability-based matching.
+    Thread-safe for concurrent access.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the tool registry."""
+        self._tools: Dict[str, Tool] = {}
+        self._metadata: Dict[str, ToolMetadata] = {}
+        self._capability_index: Dict[str, Set[str]] = {}  # capability -> tool_ids
+        self._lock = asyncio.Lock()
+
+    async def register(self, tool: Tool, metadata: ToolMetadata) -> None:
+        """Register a tool with the registry.
+
+        Args:
+            tool: Tool instance to register
+            metadata: Tool metadata
+
+        Raises:
+            ValueError: If tool_id already registered
+        """
+        async with self._lock:
+            if metadata.tool_id in self._tools:
+                raise ValueError(f"Tool '{metadata.tool_id}' already registered")
+
+            # Set metadata on tool
+            tool._metadata = metadata
+
+            # Register tool
+            self._tools[metadata.tool_id] = tool
+            self._metadata[metadata.tool_id] = metadata
+
+            # Build capability index
+            for capability in metadata.capabilities:
+                if capability not in self._capability_index:
+                    self._capability_index[capability] = set()
+                self._capability_index[capability].add(metadata.tool_id)
+
+    async def unregister(self, tool_id: str) -> None:
+        """Unregister a tool from the registry.
+
+        Args:
+            tool_id: Tool ID to unregister
+        """
+        async with self._lock:
+            if tool_id not in self._tools:
+                return
+
+            metadata = self._metadata[tool_id]
+
+            # Remove from capability index
+            for capability in metadata.capabilities:
+                if capability in self._capability_index:
+                    self._capability_index[capability].discard(tool_id)
+                    if not self._capability_index[capability]:
+                        del self._capability_index[capability]
+
+            # Remove tool
+            del self._tools[tool_id]
+            del self._metadata[tool_id]
+
+    def get_tool(self, tool_id: str) -> Optional[Tool]:
+        """Get a tool by ID.
+
+        Args:
+            tool_id: Tool ID to retrieve
+
+        Returns:
+            Tool instance or None if not found
+        """
+        return self._tools.get(tool_id)
+
+    def get_metadata(self, tool_id: str) -> Optional[ToolMetadata]:
+        """Get tool metadata by ID.
+
+        Args:
+            tool_id: Tool ID to retrieve metadata for
+
+        Returns:
+            Tool metadata or None if not found
+        """
+        return self._metadata.get(tool_id)
+
+    def list_tools(self) -> List[ToolMetadata]:
+        """List all registered tools.
+
+        Returns:
+            List of tool metadata for all registered tools
+        """
+        return list(self._metadata.values())
+
+    def find_by_capability(self, capability: str) -> List[ToolMetadata]:
+        """Find tools by capability.
+
+        Args:
+            capability: Capability to search for
+
+        Returns:
+            List of tool metadata matching the capability
+        """
+        tool_ids = self._capability_index.get(capability, set())
+        return [self._metadata[tool_id] for tool_id in tool_ids if tool_id in self._metadata]
+
+    def find_by_capabilities(self, capabilities: List[str]) -> List[ToolMetadata]:
+        """Find tools matching any of the given capabilities.
+
+        Args:
+            capabilities: List of capabilities to search for
+
+        Returns:
+            List of tool metadata matching any capability, sorted by match count
+        """
+        # Count matches per tool
+        match_counts: Dict[str, int] = {}
+        for capability in capabilities:
+            tool_ids = self._capability_index.get(capability, set())
+            for tool_id in tool_ids:
+                match_counts[tool_id] = match_counts.get(tool_id, 0) + 1
+
+        # Sort by match count (descending)
+        sorted_tool_ids = sorted(match_counts.keys(), key=lambda x: match_counts[x], reverse=True)
+
+        return [self._metadata[tool_id] for tool_id in sorted_tool_ids if tool_id in self._metadata]
+
+    async def execute(
+        self, tool_id: str, timeout_ms: Optional[int] = None, **kwargs: Any
+    ) -> Dict[str, Any]:
+        """Execute a tool with given parameters.
+
+        Args:
+            tool_id: Tool ID to execute
+            timeout_ms: Optional timeout in milliseconds
+            **kwargs: Tool parameters
+
+        Returns:
+            Execution result dictionary
+
+        Raises:
+            ValueError: If tool not found or parameters invalid
+            asyncio.TimeoutError: If execution exceeds timeout
+        """
+        tool = self.get_tool(tool_id)
+        if tool is None:
+            raise ValueError(f"Tool '{tool_id}' not found")
+
+        # Validate parameters
+        tool.validate_parameters(**kwargs)
+
+        # Execute with timeout
+        start_time = time.perf_counter()
+        try:
+            if timeout_ms is not None:
+                result = await asyncio.wait_for(
+                    tool.execute(**kwargs), timeout=timeout_ms / 1000.0
+                )
+            else:
+                result = await tool.execute(**kwargs)
+
+            execution_time_ms = int((time.perf_counter() - start_time) * 1000)
+            result["execution_time_ms"] = execution_time_ms
+            return result
+
+        except asyncio.TimeoutError:
+            execution_time_ms = int((time.perf_counter() - start_time) * 1000)
+            return {
+                "success": False,
+                "error": f"Tool execution timed out after {timeout_ms}ms",
+                "execution_time_ms": execution_time_ms,
+            }
+        except Exception as e:
+            execution_time_ms = int((time.perf_counter() - start_time) * 1000)
+            return {
+                "success": False,
+                "error": f"Tool execution failed: {str(e)}",
+                "execution_time_ms": execution_time_ms,
+            }
+
+
+# Global registry instance
+_global_registry = ToolRegistry()
+
+
+def get_registry() -> ToolRegistry:
+    """Get the global tool registry instance.
+
+    Returns:
+        Global ToolRegistry instance
+    """
+    return _global_registry
+
+
+def tool(
+    tool_id: str,
+    name: str,
+    description: str,
+    parameters: Optional[List[Any]] = None,
+    sensitivity: ToolSensitivity = ToolSensitivity.SAFE,
+    estimated_latency_ms: int = 1000,
+    capabilities: Optional[List[str]] = None,
+    examples: Optional[List[str]] = None,
+) -> Callable[[Type[Tool]], Type[Tool]]:
+    """Decorator for automatic tool registration.
+
+    Args:
+        tool_id: Unique tool identifier
+        name: Human-readable tool name
+        description: Tool description
+        parameters: List of ToolParameter instances
+        sensitivity: Tool sensitivity level
+        estimated_latency_ms: Estimated execution latency
+        capabilities: List of capabilities
+        examples: List of example usage scenarios
+
+    Returns:
+        Decorator function
+
+    Example:
+        @tool(
+            tool_id="timer.set",
+            name="Set Timer",
+            description="Set a timer for a specified duration",
+            parameters=[
+                ToolParameter(
+                    name="duration_seconds",
+                    type=ToolParameterType.INTEGER,
+                    description="Timer duration in seconds",
+                    required=True
+                )
+            ],
+            capabilities=["timer", "time_management"]
+        )
+        class SetTimerTool(Tool):
+            async def execute(self, **kwargs):
+                # Implementation
+                pass
+    """
+
+    def decorator(cls: Type[Tool]) -> Type[Tool]:
+        # Create metadata
+        metadata = ToolMetadata(
+            tool_id=tool_id,
+            name=name,
+            description=description,
+            parameters=parameters or [],
+            sensitivity=sensitivity,
+            estimated_latency_ms=estimated_latency_ms,
+            capabilities=capabilities or [],
+            examples=examples or [],
+        )
+
+        # Store metadata on class
+        cls._tool_metadata = metadata
+
+        # Register tool instance on first instantiation
+        original_init = cls.__init__
+
+        @wraps(original_init)
+        def new_init(self: Tool, *args: Any, **kwargs: Any) -> None:
+            original_init(self, *args, **kwargs)
+            # Register with global registry
+            asyncio.create_task(_global_registry.register(self, metadata))
+
+        cls.__init__ = new_init  # type: ignore
+
+        return cls
+
+    return decorator
