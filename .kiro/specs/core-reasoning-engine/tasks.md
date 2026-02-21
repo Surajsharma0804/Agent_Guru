@@ -715,19 +715,19 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement safety gate and permissions"
   - Push: git push origin main
 
-- [ ] 13.5 Write property tests for safety gate
+- [x] 13.5 Write property tests for safety gate
   - **Property 14: Sensitive actions require confirmation**
   - **Validates: Requirements 7.1**
   - Test that for any sensitive action, requires_confirmation is true
   - Configure test to run 100 iterations
 
-- [ ] 13.6 Write property tests for permission enforcement
+- [x] 13.6 Write property tests for permission enforcement
   - **Property 15: Insufficient permissions block actions**
   - **Validates: Requirements 7.2**
   - Test that actions without required permissions are blocked
   - Configure test to run 100 iterations
 
-- [ ] 13.7 Write property tests for audit logging
+- [x] 13.7 Write property tests for audit logging
   - **Property 16: All blocked actions are logged**
   - **Validates: Requirements 7.4**
   - Test that every blocked action creates an audit log entry
