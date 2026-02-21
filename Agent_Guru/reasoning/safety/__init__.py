@@ -1,5 +1,6 @@
 """Safety gate and permission system for action validation."""
 
+from Agent_Guru.reasoning.safety.audit import AuditLogEntry, AuditLogger
 from Agent_Guru.reasoning.safety.classifier import (
     ActionSensitivityClassifier,
     SensitivityRule,
@@ -26,4 +27,6 @@ __all__ = [
     "ConfirmationStatus",
     "ConfirmationManager",
     "ConfirmationMetrics",
+    "AuditLogEntry",
+    "AuditLogger",
 ]
