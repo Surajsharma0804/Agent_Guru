@@ -5,9 +5,9 @@ Defines request/response structures for local and cloud LLM interactions.
 """
 
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from enum import Enum
+from typing import Any, Optional
 
 
 class LLMProvider(str, Enum):
@@ -17,6 +17,7 @@ class LLMProvider(str, Enum):
     OPENAI = "openai"  # OpenAI GPT-4
     ANTHROPIC = "anthropic"  # Claude 3.5
     GEMINI = "gemini"  # Google Gemini
+    DEEPSEEK = "deepseek"  # DeepSeek
 
 
 class GPUBackend(str, Enum):
@@ -35,9 +36,9 @@ class LLMRequest:
     temperature: float = 0.7
     top_p: float = 0.9
     max_tokens: int = 512
-    stop_sequences: List[str] = field(default_factory=list)
+    stop_sequences: list[str] = field(default_factory=list)
     stream: bool = False
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Validate request parameters."""
@@ -58,7 +59,7 @@ class LLMResponse:
     latency_ms: float
     tokens_generated: int
     finish_reason: str  # "stop", "length", "error"
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
 
     def __post_init__(self):
@@ -66,9 +67,7 @@ class LLMResponse:
         if self.latency_ms < 0:
             raise ValueError(f"latency_ms must be non-negative, got {self.latency_ms}")
         if self.tokens_generated < 0:
-            raise ValueError(
-                f"tokens_generated must be non-negative, got {self.tokens_generated}"
-            )
+            raise ValueError(f"tokens_generated must be non-negative, got {self.tokens_generated}")
         if self.finish_reason not in ["stop", "length", "error"]:
             raise ValueError(
                 f"finish_reason must be 'stop', 'length', or 'error', got {self.finish_reason}"

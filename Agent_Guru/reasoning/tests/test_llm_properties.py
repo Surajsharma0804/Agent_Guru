@@ -5,13 +5,14 @@ Tests invariants and edge cases using Hypothesis.
 """
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
+
 from Agent_Guru.reasoning.llm.models import (
+    LLMProvider,
     LLMRequest,
     LLMResponse,
     LocalLLMConfig,
-    LLMProvider,
-    GPUBackend,
 )
 
 
@@ -24,9 +25,7 @@ class TestLLMRequestProperties:
         top_p=st.floats(min_value=0.0, max_value=1.0),
         max_tokens=st.integers(min_value=1, max_value=4096),
     )
-    def test_valid_request_always_succeeds(
-        self, prompt, temperature, top_p, max_tokens
-    ):
+    def test_valid_request_always_succeeds(self, prompt, temperature, top_p, max_tokens):
         """Property: Valid parameters always create valid request."""
         request = LLMRequest(
             prompt=prompt,
@@ -110,7 +109,6 @@ class TestLLMResponseProperties:
             )
 
 
-
 class TestLocalLLMConfigProperties:
     """Property-based tests for LocalLLMConfig."""
 
@@ -171,11 +169,7 @@ class TestLocalLLMConfigProperties:
         with pytest.raises(ValueError):
             LocalLLMConfig(model_path="test.gguf", n_threads=n_threads)
 
-    @given(
-        port=st.one_of(
-            st.integers(max_value=1023), st.integers(min_value=65536)
-        )
-    )
+    @given(port=st.one_of(st.integers(max_value=1023), st.integers(min_value=65536)))
     def test_invalid_port_always_fails(self, port):
         """Property: Port outside 1024-65535 always raises error."""
         with pytest.raises(ValueError):

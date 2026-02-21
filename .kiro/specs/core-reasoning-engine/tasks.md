@@ -372,7 +372,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement Knowledge Synthesis Engine for personal knowledge reasoning"
   - Push: git push origin main
 
-- [ ] 8. Set up hybrid LLM infrastructure
+- [x] 8. Set up hybrid LLM infrastructure
   - [x] 8.1 Deploy local LLM with llama.cpp
     - Download and quantize Llama 3.2 8B model (Q4_K_M quantization)
     - Set up llama.cpp server with GPU acceleration (CUDA or Metal)
@@ -381,7 +381,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Measure inference latency (target <400ms for 512 tokens)
     - _Requirements: 4.2, 4.5_
 
-  - [-] 8.2 Integrate cloud LLM providers
+  - [x] 8.2 Integrate cloud LLM providers
     - Add OpenAI SDK for GPT-4 Turbo integration
     - Add Anthropic SDK for Claude 3.5 Sonnet integration
     - Implement API key management with environment variables
@@ -389,14 +389,14 @@ Current coverage status will be tracked and reported for each completed task.
     - Implement circuit breaker pattern for API failures
     - _Requirements: 4.2, 4.5_
 
-  - [~] 8.3 Implement hybrid LLM router
+  - [x] 8.3 Implement hybrid LLM router
     - Create routing logic: local for simple tasks (<3 steps), cloud for complex
     - Implement complexity scoring based on intent type and entity count
     - Add automatic fallback from local to cloud on timeout or error
     - Track routing decisions and latency per backend
     - _Requirements: 4.2, 4.5_
 
-  - [~] 8.4 Implement prompt caching for 80% token reduction
+  - [x] 8.4 Implement prompt caching for 80% token reduction
     - Create prompt template cache with LRU eviction
     - Implement cache key generation from intent type and context
     - Add cache hit/miss tracking metrics
@@ -407,7 +407,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Push: git push origin main
 
 - [ ] 9. Implement LLM Reasoning Core
-  - [~] 9.1 Create reasoning prompt templates
+  - [x] 9.1 Create reasoning prompt templates
     - Design system prompt for Agent_Guru reasoning engine
     - Create prompt template for single-step reasoning
     - Create prompt template for multi-step task decomposition (1-5 steps)
@@ -415,7 +415,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Implement prompt formatting with conversation context injection
     - _Requirements: 4.1, 4.4_
 
-  - [~] 9.2 Implement reasoning plan generation
+  - [x] 9.2 Implement reasoning plan generation
     - Create ReasoningPlan and ReasoningStep data structures
     - Implement LLM call with streaming support for responsiveness
     - Parse LLM response into structured ReasoningPlan with JSON schema validation
@@ -423,14 +423,14 @@ Current coverage status will be tracked and reported for each completed task.
     - Implement step limit enforcement (max 5 steps)
     - _Requirements: 4.1, 4.3, 11.4_
 
-  - [~] 9.3 Implement reasoning plan validation
+  - [x] 9.3 Implement reasoning plan validation
     - Validate that each step references a valid tool from registry
     - Validate that all required parameters are present or can be inferred
     - Check for circular dependencies in multi-step plans
     - Validate estimated duration is within timeout limits
     - _Requirements: 4.1, 5.4_
 
-  - [~] 9.4 Add conversation context to reasoning prompts
+  - [x] 9.4 Add conversation context to reasoning prompts
     - Extract relevant turns from conversation history (last 5 turns)
     - Include tracked entities in prompt context
     - Add user preferences and past actions to context
@@ -440,13 +440,13 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement LLM reasoning core"
   - Push: git push origin main
 
-- [ ] 9.5 Write property tests for reasoning
+- [x] 9.5 Write property tests for reasoning
   - **Property 9: Reasoning plans respect step limits**
   - **Validates: Requirements 4.3, 11.4**
   - Test that for any reasoning plan, number of steps ≤ MAX_STEPS (5)
   - Configure test to run 100 iterations with various intent complexities
 
-- [ ] 9.6 Write property tests for reasoning plan validation
+- [x] 9.6 Write property tests for reasoning plan validation
   - **Property 11: Reasoning plans are executable**
   - **Validates: Requirements 4.1**
   - Test that for any generated plan, each step has valid tool_id and required parameters

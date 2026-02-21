@@ -5,15 +5,14 @@ Defines the common interface and utilities for all LLM providers.
 Includes circuit breaker, rate limiting, and retry logic.
 """
 
+import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Optional, Dict, Any
-import asyncio
-import time
+from typing import Any, Optional
 
-from Agent_Guru.reasoning.llm.models import LLMRequest, LLMResponse, LLMProvider
+from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 
 
 class CircuitState(str, Enum):
@@ -35,7 +34,7 @@ class ProviderConfig:
     rate_limit_tpm: int = 90000  # Tokens per minute
     circuit_breaker_threshold: int = 5  # Failures before opening
     circuit_breaker_timeout: float = 60.0  # Seconds before half-open
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Validate configuration."""
@@ -44,9 +43,7 @@ class ProviderConfig:
         if self.max_retries < 0:
             raise ValueError(f"max_retries must be non-negative, got {self.max_retries}")
         if self.timeout_seconds <= 0:
-            raise ValueError(
-                f"timeout_seconds must be positive, got {self.timeout_seconds}"
-            )
+            raise ValueError(f"timeout_seconds must be positive, got {self.timeout_seconds}")
         if self.rate_limit_rpm <= 0:
             raise ValueError(f"rate_limit_rpm must be positive, got {self.rate_limit_rpm}")
         if self.rate_limit_tpm <= 0:
@@ -246,7 +243,7 @@ class BaseLLMProvider(ABC):
         # All retries failed
         raise last_exception or RuntimeError("All retries failed")
 
-    def get_health(self) -> Dict[str, Any]:
+    def get_health(self) -> dict[str, Any]:
         """Get provider health status.
 
         Returns:

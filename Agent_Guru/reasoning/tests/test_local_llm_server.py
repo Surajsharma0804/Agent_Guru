@@ -4,17 +4,16 @@ Tests for LocalLLMServer.
 Tests server lifecycle, health checks, and inference.
 """
 
-import pytest
-import asyncio
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
-from pathlib import Path
 import subprocess
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 from Agent_Guru.reasoning.llm.local_server import LocalLLMServer
 from Agent_Guru.reasoning.llm.models import (
-    LocalLLMConfig,
-    LLMRequest,
     GPUBackend,
+    LLMRequest,
+    LocalLLMConfig,
 )
 
 
@@ -47,9 +46,7 @@ class TestLocalLLMServerInit:
         model_file = tmp_path / "model.gguf"
         model_file.touch()
 
-        config = LocalLLMConfig(
-            model_path=str(model_file), host="0.0.0.0", port=9000
-        )
+        config = LocalLLMConfig(model_path=str(model_file), host="0.0.0.0", port=9000)
         server = LocalLLMServer(config)
 
         assert server._base_url == "http://0.0.0.0:9000"
@@ -66,9 +63,7 @@ class TestServerBinaryDetection:
         config = LocalLLMConfig(model_path=str(model_file))
         server = LocalLLMServer(config)
 
-        with patch.object(
-            server, "_is_command_available", return_value=True
-        ):
+        with patch.object(server, "_is_command_available", return_value=True):
             binary = server._detect_server_binary()
             assert binary in ["llama-server", "server", "llama.cpp-server"]
 
@@ -82,9 +77,7 @@ class TestServerBinaryDetection:
 
         with patch.object(server, "_is_command_available", return_value=False):
             with patch("pathlib.Path.exists", return_value=False):
-                with pytest.raises(
-                    FileNotFoundError, match="llama.cpp server binary not found"
-                ):
+                with pytest.raises(FileNotFoundError, match="llama.cpp server binary not found"):
                     server._detect_server_binary()
 
     def test_is_command_available_success(self):
@@ -99,7 +92,6 @@ class TestServerBinaryDetection:
         with patch("subprocess.run", side_effect=FileNotFoundError):
             result = LocalLLMServer._is_command_available("nonexistent")
             assert result is False
-
 
 
 class TestServerCommandBuilding:
@@ -120,9 +112,7 @@ class TestServerCommandBuilding:
         )
         server = LocalLLMServer(config)
 
-        with patch.object(
-            server, "_detect_server_binary", return_value="llama-server"
-        ):
+        with patch.object(server, "_detect_server_binary", return_value="llama-server"):
             cmd = server._build_server_command()
 
             assert "llama-server" in cmd
@@ -151,9 +141,7 @@ class TestServerCommandBuilding:
         )
         server = LocalLLMServer(config)
 
-        with patch.object(
-            server, "_detect_server_binary", return_value="llama-server"
-        ):
+        with patch.object(server, "_detect_server_binary", return_value="llama-server"):
             cmd = server._build_server_command()
 
             assert "-ngl" in cmd
@@ -164,14 +152,10 @@ class TestServerCommandBuilding:
         model_file = tmp_path / "model.gguf"
         model_file.touch()
 
-        config = LocalLLMConfig(
-            model_path=str(model_file), gpu_backend=GPUBackend.CPU
-        )
+        config = LocalLLMConfig(model_path=str(model_file), gpu_backend=GPUBackend.CPU)
         server = LocalLLMServer(config)
 
-        with patch.object(
-            server, "_detect_server_binary", return_value="llama-server"
-        ):
+        with patch.object(server, "_detect_server_binary", return_value="llama-server"):
             cmd = server._build_server_command()
 
             # CPU mode should not have -ngl flag
@@ -197,9 +181,7 @@ class TestServerLifecycle:
             with patch.object(
                 server,
                 "health_check",
-                return_value=AsyncMock(
-                    is_healthy=True, model_loaded=True
-                )(),
+                return_value=AsyncMock(is_healthy=True, model_loaded=True)(),
             ):
                 await server.start(timeout=1.0)
 
@@ -221,13 +203,9 @@ class TestServerLifecycle:
             with patch.object(
                 server,
                 "health_check",
-                return_value=AsyncMock(
-                    is_healthy=False, model_loaded=False
-                )(),
+                return_value=AsyncMock(is_healthy=False, model_loaded=False)(),
             ):
-                with pytest.raises(
-                    TimeoutError, match="Server failed to start"
-                ):
+                with pytest.raises(TimeoutError, match="Server failed to start"):
                     await server.start(timeout=0.5)
 
                 mock_process.kill.assert_called_once()
@@ -244,7 +222,6 @@ class TestServerLifecycle:
         await server.start()  # Should return immediately
 
         assert server._is_running is True
-
 
     async def test_stop_server(self, tmp_path):
         """Test stopping server."""
@@ -366,14 +343,11 @@ class TestHealthCheck:
         mock_process.poll.return_value = None
         server.process = mock_process
 
-        with patch(
-            "requests.get", side_effect=Exception("Connection refused")
-        ):
+        with patch("requests.get", side_effect=Exception("Connection refused")):
             health = await server.health_check()
 
             assert health.is_healthy is False
             assert "Health check error" in health.error_message
-
 
 
 @pytest.mark.asyncio

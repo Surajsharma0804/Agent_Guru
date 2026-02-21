@@ -15,12 +15,9 @@ Requirements:
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional
 
 
-def download_model(
-    output_dir: Path, model_name: str = "llama-3.2-8b-q4_k_m"
-) -> Path:
+def download_model(output_dir: Path, model_name: str = "llama-3.2-8b-q4_k_m") -> Path:
     """Download Llama 3.2 8B model with Q4_K_M quantization.
 
     Args:
@@ -38,8 +35,7 @@ def download_model(
         from huggingface_hub import hf_hub_download
     except ImportError:
         raise ImportError(
-            "huggingface_hub not installed. "
-            "Install with: pip install huggingface-hub"
+            "huggingface_hub not installed. " "Install with: pip install huggingface-hub"
         )
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -66,9 +62,7 @@ def download_model(
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Download Llama 3.2 8B model for local inference"
-    )
+    parser = argparse.ArgumentParser(description="Download Llama 3.2 8B model for local inference")
     parser.add_argument(
         "--output-dir",
         type=Path,

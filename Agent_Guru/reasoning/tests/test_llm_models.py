@@ -4,15 +4,17 @@ Tests for LLM data models.
 Tests LLMRequest, LLMResponse, LocalLLMConfig, and ServerHealth models.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
+
 from Agent_Guru.reasoning.llm.models import (
+    GPUBackend,
+    LLMProvider,
     LLMRequest,
     LLMResponse,
     LocalLLMConfig,
     ServerHealth,
-    LLMProvider,
-    GPUBackend,
 )
 
 
@@ -62,21 +64,16 @@ class TestLLMRequest:
 
     def test_with_stop_sequences(self):
         """Test request with stop sequences."""
-        request = LLMRequest(
-            prompt="test", stop_sequences=["\\n", "END"]
-        )
+        request = LLMRequest(prompt="test", stop_sequences=["\\n", "END"])
 
         assert request.stop_sequences == ["\\n", "END"]
 
     def test_with_metadata(self):
         """Test request with metadata."""
-        request = LLMRequest(
-            prompt="test", metadata={"user_id": "123", "session": "abc"}
-        )
+        request = LLMRequest(prompt="test", metadata={"user_id": "123", "session": "abc"})
 
         assert request.metadata["user_id"] == "123"
         assert request.metadata["session"] == "abc"
-
 
 
 class TestLLMResponse:
@@ -159,7 +156,6 @@ class TestLLMResponse:
         assert response.metadata["gpu"] == "cuda"
 
 
-
 class TestLocalLLMConfig:
     """Test LocalLLMConfig model."""
 
@@ -230,11 +226,8 @@ class TestLocalLLMConfig:
     def test_gpu_backends(self):
         """Test all GPU backend options."""
         for backend in [GPUBackend.CUDA, GPUBackend.METAL, GPUBackend.CPU]:
-            config = LocalLLMConfig(
-                model_path="test.gguf", gpu_backend=backend
-            )
+            config = LocalLLMConfig(model_path="test.gguf", gpu_backend=backend)
             assert config.gpu_backend == backend
-
 
 
 class TestServerHealth:

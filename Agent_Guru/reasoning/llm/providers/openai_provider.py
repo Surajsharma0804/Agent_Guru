@@ -14,10 +14,9 @@ import os
 import time
 from typing import Optional
 
-from openai import AsyncOpenAI
-from openai import APIError, RateLimitError, APIConnectionError, Timeout
+from openai import APIConnectionError, APIError, APITimeoutError, AsyncOpenAI, RateLimitError
 
-from Agent_Guru.reasoning.llm.models import LLMRequest, LLMResponse, LLMProvider
+from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider, ProviderConfig
 
 
@@ -126,9 +125,7 @@ class OpenAIProvider(BaseLLMProvider):
                 finish_reason=finish_reason,
                 metadata={
                     "model": self.model,
-                    "prompt_tokens": completion.usage.prompt_tokens
-                    if completion.usage
-                    else 0,
+                    "prompt_tokens": completion.usage.prompt_tokens if completion.usage else 0,
                     "total_tokens": completion.usage.total_tokens if completion.usage else 0,
                 },
             )
@@ -137,13 +134,13 @@ class OpenAIProvider(BaseLLMProvider):
             # Rate limit exceeded - will be retried by base class
             raise RuntimeError(f"OpenAI rate limit exceeded: {e}") from e
 
+        except APITimeoutError as e:
+            # Timeout - will be retried by base class (must be before APIConnectionError)
+            raise TimeoutError(f"OpenAI request timeout: {e}") from e
+
         except APIConnectionError as e:
             # Connection error - will be retried by base class
             raise RuntimeError(f"OpenAI connection error: {e}") from e
-
-        except Timeout as e:
-            # Timeout - will be retried by base class
-            raise TimeoutError(f"OpenAI request timeout: {e}") from e
 
         except APIError as e:
             # API error - will be retried by base class

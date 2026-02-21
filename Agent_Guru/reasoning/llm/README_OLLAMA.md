@@ -74,22 +74,22 @@ async def main():
         port=11434,
         default_model="mistral:7b-instruct",
     )
-    
+
     # Start and check availability
     await server.start()
-    
+
     # Create request
     request = LLMRequest(
         prompt="What is the capital of France?",
         temperature=0.7,
         max_tokens=100,
     )
-    
+
     # Generate response
     response = await server.generate(request)
     print(f"Response: {response.text}")
     print(f"Latency: {response.latency_ms:.2f}ms")
-    
+
     # Stop server
     await server.stop()
 

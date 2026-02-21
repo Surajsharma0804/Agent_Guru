@@ -16,20 +16,18 @@ Requirements: 4.2, 4.5
 import asyncio
 import subprocess
 import time
-import os
-import platform
-import requests
 from pathlib import Path
-from typing import Optional, Dict, Any
-from dataclasses import dataclass
+from typing import Optional
+
+import requests
 
 from Agent_Guru.reasoning.llm.models import (
-    LocalLLMConfig,
-    ServerHealth,
     GPUBackend,
+    LLMProvider,
     LLMRequest,
     LLMResponse,
-    LLMProvider,
+    LocalLLMConfig,
+    ServerHealth,
 )
 
 
@@ -221,9 +219,7 @@ class LocalLLMServer:
                 )
 
             # Check health endpoint
-            response = requests.get(
-                f"{self._base_url}/health", timeout=1.0
-            )
+            response = requests.get(f"{self._base_url}/health", timeout=1.0)
 
             latency_ms = (time.time() - start_time) * 1000
 
@@ -233,9 +229,7 @@ class LocalLLMServer:
                     is_healthy=True,
                     model_loaded=data.get("model_loaded", False),
                     gpu_available=data.get("gpu", False),
-                    gpu_backend=self.config.gpu_backend
-                    if data.get("gpu", False)
-                    else None,
+                    gpu_backend=self.config.gpu_backend if data.get("gpu", False) else None,
                     latency_ms=latency_ms,
                 )
             else:
@@ -314,9 +308,7 @@ class LocalLLMServer:
                     },
                 )
             else:
-                raise RuntimeError(
-                    f"Generation failed: {response.status_code} - {response.text}"
-                )
+                raise RuntimeError(f"Generation failed: {response.status_code} - {response.text}")
 
         except requests.RequestException as e:
             raise RuntimeError(f"Generation error: {str(e)}")

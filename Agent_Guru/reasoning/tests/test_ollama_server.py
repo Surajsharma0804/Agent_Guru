@@ -12,22 +12,20 @@ Tests cover:
 Coverage target: 80%+
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
-import asyncio
-from unittest.mock import Mock, patch, MagicMock
 import requests
 
-from Agent_Guru.reasoning.llm.ollama_server import (
-    OllamaServer,
-    OllamaModelConfig,
-    OLLAMA_MODELS,
-)
 from Agent_Guru.reasoning.llm.models import (
+    GPUBackend,
+    LLMProvider,
     LLMRequest,
     LLMResponse,
-    LLMProvider,
-    ServerHealth,
-    GPUBackend,
+)
+from Agent_Guru.reasoning.llm.ollama_server import (
+    OLLAMA_MODELS,
+    OllamaServer,
 )
 
 
@@ -102,15 +100,15 @@ class TestOllamaServerHealthCheck:
     async def test_health_check_success(self):
         """Test successful health check."""
         server = OllamaServer()
-        
+
         # Mock successful response
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"models": []}
-        
+
         with patch("requests.get", return_value=mock_response):
             health = await server.health_check()
-        
+
         assert health.is_healthy
         assert health.gpu_available
         assert health.gpu_backend == GPUBackend.CUDA
@@ -121,14 +119,14 @@ class TestOllamaServerHealthCheck:
     async def test_health_check_server_error(self):
         """Test health check with server error."""
         server = OllamaServer()
-        
+
         # Mock error response
         mock_response = Mock()
         mock_response.status_code = 500
-        
+
         with patch("requests.get", return_value=mock_response):
             health = await server.health_check()
-        
+
         assert not health.is_healthy
         assert not health.model_loaded
         assert not health.gpu_available
@@ -138,11 +136,11 @@ class TestOllamaServerHealthCheck:
     async def test_health_check_connection_error(self):
         """Test health check with connection error."""
         server = OllamaServer()
-        
+
         # Mock connection error
         with patch("requests.get", side_effect=requests.ConnectionError("Connection refused")):
             health = await server.health_check()
-        
+
         assert not health.is_healthy
         assert not health.model_loaded
         assert health.error_message is not None
@@ -152,11 +150,11 @@ class TestOllamaServerHealthCheck:
     async def test_health_check_timeout(self):
         """Test health check with timeout."""
         server = OllamaServer()
-        
+
         # Mock timeout
         with patch("requests.get", side_effect=requests.Timeout("Timeout")):
             health = await server.health_check()
-        
+
         assert not health.is_healthy
         assert health.latency_ms is None
 
@@ -168,12 +166,12 @@ class TestOllamaServerStart:
     async def test_start_success(self):
         """Test successful server start."""
         server = OllamaServer()
-        
+
         # Mock successful responses
         mock_health_response = Mock()
         mock_health_response.status_code = 200
         mock_health_response.json.return_value = {"models": []}
-        
+
         mock_list_response = Mock()
         mock_list_response.status_code = 200
         mock_list_response.json.return_value = {
@@ -182,10 +180,10 @@ class TestOllamaServerStart:
                 {"name": "mistral:7b-instruct"},
             ]
         }
-        
+
         with patch("requests.get", return_value=mock_list_response):
             await server.start()
-        
+
         assert server.is_running()
         assert "qwen2.5:14b-instruct" in server.get_available_models()
         assert "mistral:7b-instruct" in server.get_available_models()
@@ -194,14 +192,12 @@ class TestOllamaServerStart:
     async def test_start_missing_models(self):
         """Test start fails when required models missing."""
         server = OllamaServer()
-        
+
         # Mock response with missing models
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "models": [{"name": "other-model"}]
-        }
-        
+        mock_response.json.return_value = {"models": [{"name": "other-model"}]}
+
         with patch("requests.get", return_value=mock_response):
             with pytest.raises(RuntimeError, match="Required models not found"):
                 await server.start()
@@ -210,7 +206,7 @@ class TestOllamaServerStart:
     async def test_start_timeout(self):
         """Test start timeout when server not available."""
         server = OllamaServer()
-        
+
         # Mock connection error
         with patch("requests.get", side_effect=requests.ConnectionError()):
             with pytest.raises(TimeoutError, match="not available"):
@@ -226,14 +222,14 @@ class TestOllamaServerGeneration:
         server = OllamaServer()
         server._is_running = True
         server._available_models = ["mistral:7b-instruct"]
-        
+
         request = LLMRequest(
             prompt="Hello, world!",
             temperature=0.7,
             top_p=0.9,
             max_tokens=100,
         )
-        
+
         # Mock successful response
         mock_response = Mock()
         mock_response.status_code = 200
@@ -246,10 +242,10 @@ class TestOllamaServerGeneration:
             "load_duration": 100000000,
             "prompt_eval_count": 3,
         }
-        
+
         with patch("requests.post", return_value=mock_response):
             response = await server.generate(request)
-        
+
         assert isinstance(response, LLMResponse)
         assert response.text == "Hello! How can I help you today?"
         assert response.provider == LLMProvider.LOCAL
@@ -264,9 +260,9 @@ class TestOllamaServerGeneration:
         server = OllamaServer()
         server._is_running = True
         server._available_models = ["qwen2.5:14b-instruct"]
-        
+
         request = LLMRequest(prompt="Test prompt")
-        
+
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -274,10 +270,10 @@ class TestOllamaServerGeneration:
             "done": True,
             "eval_count": 2,
         }
-        
+
         with patch("requests.post", return_value=mock_response) as mock_post:
             response = await server.generate(request, model="qwen2.5:14b-instruct")
-        
+
         # Verify correct model was used
         call_args = mock_post.call_args
         assert call_args[1]["json"]["model"] == "qwen2.5:14b-instruct"
@@ -288,7 +284,7 @@ class TestOllamaServerGeneration:
         """Test generation fails when server not running."""
         server = OllamaServer()
         request = LLMRequest(prompt="Test")
-        
+
         with pytest.raises(RuntimeError, match="Server not running"):
             await server.generate(request)
 
@@ -298,9 +294,9 @@ class TestOllamaServerGeneration:
         server = OllamaServer()
         server._is_running = True
         server._available_models = ["mistral:7b-instruct"]
-        
+
         request = LLMRequest(prompt="Test")
-        
+
         with pytest.raises(RuntimeError, match="Model not available"):
             await server.generate(request, model="unknown-model")
 
@@ -310,14 +306,14 @@ class TestOllamaServerGeneration:
         server = OllamaServer()
         server._is_running = True
         server._available_models = ["mistral:7b-instruct"]
-        
+
         request = LLMRequest(prompt="Test")
-        
+
         # Mock error response
         mock_response = Mock()
         mock_response.status_code = 500
         mock_response.text = "Internal server error"
-        
+
         with patch("requests.post", return_value=mock_response):
             with pytest.raises(RuntimeError, match="Generation failed"):
                 await server.generate(request)
@@ -328,12 +324,12 @@ class TestOllamaServerGeneration:
         server = OllamaServer()
         server._is_running = True
         server._available_models = ["mistral:7b-instruct"]
-        
+
         request = LLMRequest(
             prompt="Count to 5:",
             stop_sequences=["3", "4"],
         )
-        
+
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -341,10 +337,10 @@ class TestOllamaServerGeneration:
             "done": True,
             "eval_count": 5,
         }
-        
+
         with patch("requests.post", return_value=mock_response) as mock_post:
             await server.generate(request)
-        
+
         # Verify stop sequences were passed
         call_args = mock_post.call_args
         assert "stop" in call_args[1]["json"]["options"]
@@ -368,16 +364,16 @@ class TestOllamaServerModelSelection:
     def test_get_model_config(self):
         """Test getting model configuration."""
         server = OllamaServer()
-        
+
         config = server.get_model_config("mistral:7b-instruct")
         assert config is not None
         assert config.name == "mistral:7b-instruct"
         assert config.use_case == "simple"
-        
+
         config = server.get_model_config("qwen2.5:14b-instruct")
         assert config is not None
         assert config.use_case == "complex"
-        
+
         config = server.get_model_config("unknown")
         assert config is None
 
@@ -391,7 +387,7 @@ class TestOllamaServerLatencyMeasurement:
         server = OllamaServer()
         server._is_running = True
         server._available_models = ["mistral:7b-instruct"]
-        
+
         # Mock responses with varying latencies
         mock_response = Mock()
         mock_response.status_code = 200
@@ -400,10 +396,10 @@ class TestOllamaServerLatencyMeasurement:
             "done": True,
             "eval_count": 1,
         }
-        
+
         with patch("requests.post", return_value=mock_response):
             stats = await server.measure_latency("mistral:7b-instruct", num_samples=5)
-        
+
         assert "mean" in stats
         assert "p50" in stats
         assert "p95" in stats
@@ -419,11 +415,11 @@ class TestOllamaServerLatencyMeasurement:
         server = OllamaServer()
         server._is_running = True
         server._available_models = ["mistral:7b-instruct"]
-        
+
         # Mock failures
         with patch("requests.post", side_effect=requests.RequestException()):
             stats = await server.measure_latency("mistral:7b-instruct", num_samples=3)
-        
+
         # Should return zeros when all fail
         assert stats["mean"] == 0.0
         assert stats["p50"] == 0.0
@@ -440,9 +436,9 @@ class TestOllamaServerStop:
         server = OllamaServer()
         server._is_running = True
         server._available_models = ["model1", "model2"]
-        
+
         await server.stop()
-        
+
         assert not server.is_running()
         assert len(server.get_available_models()) == 0
 
@@ -456,9 +452,9 @@ class TestOllamaServerEdgeCases:
         server = OllamaServer()
         server._is_running = True
         server._available_models = ["mistral:7b-instruct"]
-        
+
         request = LLMRequest(prompt="Test", max_tokens=10)
-        
+
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -467,10 +463,10 @@ class TestOllamaServerEdgeCases:
             "done_reason": "length",
             "eval_count": 10,
         }
-        
+
         with patch("requests.post", return_value=mock_response):
             response = await server.generate(request)
-        
+
         assert response.finish_reason == "length"
 
     @pytest.mark.asyncio
@@ -479,9 +475,9 @@ class TestOllamaServerEdgeCases:
         server = OllamaServer()
         server._is_running = True
         server._available_models = ["mistral:7b-instruct"]
-        
+
         request = LLMRequest(prompt="Test")
-        
+
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -489,19 +485,19 @@ class TestOllamaServerEdgeCases:
             "done": False,  # Not done
             "eval_count": 2,
         }
-        
+
         with patch("requests.post", return_value=mock_response):
             response = await server.generate(request)
-        
+
         assert response.finish_reason == "error"
 
     def test_get_available_models_returns_copy(self):
         """Test that get_available_models returns a copy."""
         server = OllamaServer()
         server._available_models = ["model1", "model2"]
-        
+
         models = server.get_available_models()
         models.append("model3")
-        
+
         # Original should not be modified
         assert len(server.get_available_models()) == 2

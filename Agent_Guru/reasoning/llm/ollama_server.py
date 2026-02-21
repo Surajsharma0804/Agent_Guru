@@ -19,16 +19,17 @@ Requirements: 4.2, 4.5
 
 import asyncio
 import time
-import requests
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
+from typing import Optional
+
+import requests
 
 from Agent_Guru.reasoning.llm.models import (
-    ServerHealth,
     GPUBackend,
+    LLMProvider,
     LLMRequest,
     LLMResponse,
-    LLMProvider,
+    ServerHealth,
 )
 
 
@@ -103,16 +104,15 @@ class OllamaServer:
         self.host = host
         self.port = port
         self._base_url = f"http://{host}:{port}"
-        
+
         if default_model not in OLLAMA_MODELS:
             raise ValueError(
-                f"Unknown model: {default_model}. "
-                f"Available: {list(OLLAMA_MODELS.keys())}"
+                f"Unknown model: {default_model}. " f"Available: {list(OLLAMA_MODELS.keys())}"
             )
-        
+
         self.default_model = default_model
         self._is_running = False
-        self._available_models: List[str] = []
+        self._available_models: list[str] = []
 
     async def start(self, timeout: float = 10.0) -> None:
         """Check Ollama server availability and list models.
@@ -128,33 +128,31 @@ class OllamaServer:
             TimeoutError: If check exceeds timeout
         """
         start_time = time.time()
-        
+
         while time.time() - start_time < timeout:
             health = await self.health_check()
             if health.is_healthy:
                 # List available models
                 self._available_models = await self._list_models()
-                
+
                 # Verify required models are available
                 required_models = ["qwen2.5:14b-instruct", "mistral:7b-instruct"]
-                missing_models = [
-                    m for m in required_models if m not in self._available_models
-                ]
-                
+                missing_models = [m for m in required_models if m not in self._available_models]
+
                 if missing_models:
                     raise RuntimeError(
                         f"Required models not found: {missing_models}. "
                         f"Available models: {self._available_models}"
                     )
-                
+
                 self._is_running = True
                 return
-            
+
             await asyncio.sleep(0.5)
-        
+
         raise TimeoutError(f"Ollama server not available within {timeout}s")
 
-    async def _list_models(self) -> List[str]:
+    async def _list_models(self) -> list[str]:
         """List available models from Ollama.
 
         Returns:
@@ -165,14 +163,14 @@ class OllamaServer:
         """
         try:
             response = requests.get(f"{self._base_url}/api/tags", timeout=2.0)
-            
+
             if response.status_code == 200:
                 data = response.json()
                 models = data.get("models", [])
                 return [model.get("name", "") for model in models]
             else:
                 raise RuntimeError(f"Failed to list models: {response.status_code}")
-        
+
         except requests.RequestException as e:
             raise RuntimeError(f"Error listing models: {str(e)}")
 
@@ -192,7 +190,7 @@ class OllamaServer:
         try:
             # Check if Ollama is running
             response = requests.get(f"{self._base_url}/api/tags", timeout=1.0)
-            
+
             latency_ms = (time.time() - start_time) * 1000
 
             if response.status_code == 200:
@@ -251,12 +249,11 @@ class OllamaServer:
 
         # Use default model if not specified
         model_name = model or self.default_model
-        
+
         # Verify model is available
         if model_name not in self._available_models:
             raise RuntimeError(
-                f"Model not available: {model_name}. "
-                f"Available: {self._available_models}"
+                f"Model not available: {model_name}. " f"Available: {self._available_models}"
             )
 
         start_time = time.time()
@@ -273,7 +270,7 @@ class OllamaServer:
                     "num_predict": request.max_tokens,
                 },
             }
-            
+
             # Add stop sequences if provided
             if request.stop_sequences:
                 payload["options"]["stop"] = request.stop_sequences
@@ -289,20 +286,20 @@ class OllamaServer:
 
             if response.status_code == 200:
                 data = response.json()
-                
+
                 # Extract response text
                 text = data.get("response", "")
-                
+
                 # Determine finish reason
                 finish_reason = "stop"
                 if data.get("done_reason") == "length":
                     finish_reason = "length"
                 elif not data.get("done", False):
                     finish_reason = "error"
-                
+
                 # Count tokens (approximate from eval_count)
                 tokens_generated = data.get("eval_count", len(text.split()))
-                
+
                 return LLMResponse(
                     text=text,
                     provider=LLMProvider.LOCAL,
@@ -318,9 +315,7 @@ class OllamaServer:
                     },
                 )
             else:
-                raise RuntimeError(
-                    f"Generation failed: {response.status_code} - {response.text}"
-                )
+                raise RuntimeError(f"Generation failed: {response.status_code} - {response.text}")
 
         except requests.RequestException as e:
             raise RuntimeError(f"Generation error: {str(e)}")
@@ -349,7 +344,7 @@ class OllamaServer:
         self,
         model: str,
         num_samples: int = 10,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Measure inference latency for a model.
 
         Args:
@@ -362,21 +357,21 @@ class OllamaServer:
         Requirements: 10.1
         """
         latencies = []
-        
+
         test_prompt = "Hello, how are you today?"
         request = LLMRequest(
             prompt=test_prompt,
             max_tokens=50,
             temperature=0.7,
         )
-        
+
         for _ in range(num_samples):
             try:
                 response = await self.generate(request, model=model)
                 latencies.append(response.latency_ms)
             except Exception:
                 continue
-        
+
         if not latencies:
             return {
                 "mean": 0.0,
@@ -384,10 +379,10 @@ class OllamaServer:
                 "p95": 0.0,
                 "p99": 0.0,
             }
-        
+
         latencies.sort()
         n = len(latencies)
-        
+
         return {
             "mean": sum(latencies) / n,
             "p50": latencies[int(n * 0.50)],
@@ -408,7 +403,7 @@ class OllamaServer:
         """Check if server client is active."""
         return self._is_running
 
-    def get_available_models(self) -> List[str]:
+    def get_available_models(self) -> list[str]:
         """Get list of available models."""
         return self._available_models.copy()
 
