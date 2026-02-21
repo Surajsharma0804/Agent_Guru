@@ -2,15 +2,15 @@
 Tests for Tool Intelligence Engine.
 """
 
-import pytest
 import asyncio
-from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from Agent_Guru.reasoning.tools.intelligence import (
-    ToolStats,
     FailurePattern,
+    ToolStats,
     UserToolPreference,
 )
 
@@ -411,7 +411,6 @@ class TestFailurePattern:
         assert FailurePattern.UNKNOWN.value == "unknown"
 
 
-
 class TestUserToolPreference:
     """Tests for UserToolPreference model."""
 
@@ -482,13 +481,9 @@ class TestToolIntelligenceEngine:
         assert stats == {}
 
     @pytest.mark.asyncio
-    async def test_record_successful_execution(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_record_successful_execution(self, engine: "ToolIntelligenceEngine") -> None:
         """Test recording successful execution."""
-        await engine.record_execution(
-            tool_id="test.tool", success=True, latency_ms=100.0
-        )
+        await engine.record_execution(tool_id="test.tool", success=True, latency_ms=100.0)
 
         stats = await engine.get_tool_stats("test.tool")
         assert stats is not None
@@ -497,9 +492,7 @@ class TestToolIntelligenceEngine:
         assert stats.success_rate == 1.0
 
     @pytest.mark.asyncio
-    async def test_record_failed_execution(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_record_failed_execution(self, engine: "ToolIntelligenceEngine") -> None:
         """Test recording failed execution."""
         await engine.record_execution(
             tool_id="test.tool",
@@ -515,15 +508,11 @@ class TestToolIntelligenceEngine:
         assert stats.failure_patterns["timeout"] == 1
 
     @pytest.mark.asyncio
-    async def test_record_multiple_executions(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_record_multiple_executions(self, engine: "ToolIntelligenceEngine") -> None:
         """Test recording multiple executions."""
         # Record 10 successful, 2 failed
         for _ in range(10):
-            await engine.record_execution(
-                tool_id="test.tool", success=True, latency_ms=100.0
-            )
+            await engine.record_execution(tool_id="test.tool", success=True, latency_ms=100.0)
 
         for _ in range(2):
             await engine.record_execution(
@@ -541,13 +530,9 @@ class TestToolIntelligenceEngine:
         assert abs(stats.success_rate - 10 / 12) < 0.01
 
     @pytest.mark.asyncio
-    async def test_record_user_feedback_rating(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_record_user_feedback_rating(self, engine: "ToolIntelligenceEngine") -> None:
         """Test recording user feedback rating."""
-        await engine.record_user_feedback(
-            tool_id="test.tool", user_id="user1", rating=4.5
-        )
+        await engine.record_user_feedback(tool_id="test.tool", user_id="user1", rating=4.5)
 
         stats = await engine.get_tool_stats("test.tool")
         assert stats is not None
@@ -555,35 +540,25 @@ class TestToolIntelligenceEngine:
         assert stats.user_feedback_count == 1
 
     @pytest.mark.asyncio
-    async def test_record_user_feedback_positive(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_record_user_feedback_positive(self, engine: "ToolIntelligenceEngine") -> None:
         """Test recording positive user feedback."""
-        await engine.record_user_feedback(
-            tool_id="test.tool", user_id="user1", positive=True
-        )
+        await engine.record_user_feedback(tool_id="test.tool", user_id="user1", positive=True)
 
         prefs = await engine.get_user_tool_preferences("user1")
         assert "test.tool" in prefs
         assert prefs["test.tool"] > 0.5
 
     @pytest.mark.asyncio
-    async def test_record_user_feedback_negative(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_record_user_feedback_negative(self, engine: "ToolIntelligenceEngine") -> None:
         """Test recording negative user feedback."""
-        await engine.record_user_feedback(
-            tool_id="test.tool", user_id="user1", positive=False
-        )
+        await engine.record_user_feedback(tool_id="test.tool", user_id="user1", positive=False)
 
         prefs = await engine.get_user_tool_preferences("user1")
         assert "test.tool" in prefs
         assert prefs["test.tool"] < 0.5
 
     @pytest.mark.asyncio
-    async def test_get_tool_stats_nonexistent(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_get_tool_stats_nonexistent(self, engine: "ToolIntelligenceEngine") -> None:
         """Test getting stats for nonexistent tool."""
         stats = await engine.get_tool_stats("nonexistent.tool")
         assert stats is None
@@ -591,12 +566,8 @@ class TestToolIntelligenceEngine:
     @pytest.mark.asyncio
     async def test_get_all_stats(self, engine: "ToolIntelligenceEngine") -> None:
         """Test getting all tool stats."""
-        await engine.record_execution(
-            tool_id="tool1", success=True, latency_ms=100.0
-        )
-        await engine.record_execution(
-            tool_id="tool2", success=True, latency_ms=200.0
-        )
+        await engine.record_execution(tool_id="tool1", success=True, latency_ms=100.0)
+        await engine.record_execution(tool_id="tool2", success=True, latency_ms=200.0)
 
         all_stats = await engine.get_all_stats()
         assert len(all_stats) == 2
@@ -614,21 +585,15 @@ class TestToolIntelligenceEngine:
         assert all(abs(s - scores[0]) < 0.01 for s in scores)
 
     @pytest.mark.asyncio
-    async def test_rank_tools_with_stats(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_rank_tools_with_stats(self, engine: "ToolIntelligenceEngine") -> None:
         """Test ranking tools with execution stats."""
         # Tool1: high success rate, fast
         for _ in range(10):
-            await engine.record_execution(
-                tool_id="tool1", success=True, latency_ms=50.0
-            )
+            await engine.record_execution(tool_id="tool1", success=True, latency_ms=50.0)
 
         # Tool2: low success rate, slow
         for _ in range(5):
-            await engine.record_execution(
-                tool_id="tool2", success=True, latency_ms=500.0
-            )
+            await engine.record_execution(tool_id="tool2", success=True, latency_ms=500.0)
         for _ in range(5):
             await engine.record_execution(
                 tool_id="tool2",
@@ -644,17 +609,11 @@ class TestToolIntelligenceEngine:
         assert ranked[0][1] > ranked[1][1]
 
     @pytest.mark.asyncio
-    async def test_rank_tools_with_user_preference(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_rank_tools_with_user_preference(self, engine: "ToolIntelligenceEngine") -> None:
         """Test ranking tools with user preferences."""
         # Record user preference for tool2
-        await engine.learn_tool_preference(
-            user_id="user1", tool_id="tool2", selected=True
-        )
-        await engine.learn_tool_preference(
-            user_id="user1", tool_id="tool2", selected=True
-        )
+        await engine.learn_tool_preference(user_id="user1", tool_id="tool2", selected=True)
+        await engine.learn_tool_preference(user_id="user1", tool_id="tool2", selected=True)
 
         ranked = await engine.rank_tools(["tool1", "tool2"], user_id="user1")
 
@@ -664,9 +623,7 @@ class TestToolIntelligenceEngine:
         assert tool2_score > tool1_score
 
     @pytest.mark.asyncio
-    async def test_detect_degraded_tools_none(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_detect_degraded_tools_none(self, engine: "ToolIntelligenceEngine") -> None:
         """Test detecting degraded tools when none exist."""
         degraded = await engine.detect_degraded_tools()
         assert degraded == []
@@ -678,9 +635,7 @@ class TestToolIntelligenceEngine:
         """Test detecting degraded tools."""
         # Create degraded tool (low success rate)
         for _ in range(5):
-            await engine.record_execution(
-                tool_id="bad.tool", success=True, latency_ms=100.0
-            )
+            await engine.record_execution(tool_id="bad.tool", success=True, latency_ms=100.0)
         for _ in range(5):
             await engine.record_execution(
                 tool_id="bad.tool",
@@ -693,9 +648,7 @@ class TestToolIntelligenceEngine:
         assert "bad.tool" in degraded
 
     @pytest.mark.asyncio
-    async def test_get_user_tool_preferences_empty(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_get_user_tool_preferences_empty(self, engine: "ToolIntelligenceEngine") -> None:
         """Test getting user preferences when none exist."""
         prefs = await engine.get_user_tool_preferences("user1")
         assert prefs == {}
@@ -705,12 +658,8 @@ class TestToolIntelligenceEngine:
         self, engine: "ToolIntelligenceEngine"
     ) -> None:
         """Test getting user preferences with data."""
-        await engine.learn_tool_preference(
-            user_id="user1", tool_id="tool1", selected=True
-        )
-        await engine.learn_tool_preference(
-            user_id="user1", tool_id="tool2", selected=True
-        )
+        await engine.learn_tool_preference(user_id="user1", tool_id="tool1", selected=True)
+        await engine.learn_tool_preference(user_id="user1", tool_id="tool2", selected=True)
 
         prefs = await engine.get_user_tool_preferences("user1")
         assert len(prefs) == 2
@@ -718,13 +667,9 @@ class TestToolIntelligenceEngine:
         assert "tool2" in prefs
 
     @pytest.mark.asyncio
-    async def test_learn_tool_preference_selected(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_learn_tool_preference_selected(self, engine: "ToolIntelligenceEngine") -> None:
         """Test learning tool preference from selection."""
-        await engine.learn_tool_preference(
-            user_id="user1", tool_id="tool1", selected=True
-        )
+        await engine.learn_tool_preference(user_id="user1", tool_id="tool1", selected=True)
 
         prefs = await engine.get_user_tool_preferences("user1")
         assert prefs["tool1"] > 0.5
@@ -734,9 +679,7 @@ class TestToolIntelligenceEngine:
         self, engine: "ToolIntelligenceEngine"
     ) -> None:
         """Test learning tool preference when not selected."""
-        await engine.learn_tool_preference(
-            user_id="user1", tool_id="tool1", selected=False
-        )
+        await engine.learn_tool_preference(user_id="user1", tool_id="tool1", selected=False)
 
         prefs = await engine.get_user_tool_preferences("user1")
         # Should still create preference entry but not increase score
@@ -751,9 +694,7 @@ class TestToolIntelligenceEngine:
 
         # Create engine and record data
         engine1 = ToolIntelligenceEngine(stats_file=stats_file)
-        await engine1.record_execution(
-            tool_id="test.tool", success=True, latency_ms=100.0
-        )
+        await engine1.record_execution(tool_id="test.tool", success=True, latency_ms=100.0)
 
         # Create new engine and verify data loaded
         engine2 = ToolIntelligenceEngine(stats_file=stats_file)
@@ -770,9 +711,7 @@ class TestToolIntelligenceEngine:
 
         # Create engine and record data
         engine1 = ToolIntelligenceEngine(preferences_file=prefs_file)
-        await engine1.learn_tool_preference(
-            user_id="user1", tool_id="tool1", selected=True
-        )
+        await engine1.learn_tool_preference(user_id="user1", tool_id="tool1", selected=True)
 
         # Create new engine and verify data loaded
         engine2 = ToolIntelligenceEngine(preferences_file=prefs_file)
@@ -786,9 +725,7 @@ class TestToolIntelligenceEngine:
 
         # Record executions concurrently
         tasks = [
-            engine.record_execution(
-                tool_id="test.tool", success=True, latency_ms=100.0
-            )
+            engine.record_execution(tool_id="test.tool", success=True, latency_ms=100.0)
             for _ in range(10)
         ]
 
@@ -797,7 +734,6 @@ class TestToolIntelligenceEngine:
         stats = await engine.get_tool_stats("test.tool")
         assert stats is not None
         assert stats.total_executions == 10
-
 
 
 class TestToolRankingAlgorithm:
@@ -813,7 +749,7 @@ class TestToolRankingAlgorithm:
     @pytest.fixture
     def mock_intent(self) -> Any:
         """Create mock intent for testing."""
-        from Agent_Guru.reasoning.models.intent import Intent, IntentType, Entity
+        from Agent_Guru.reasoning.models.intent import Entity, Intent, IntentType
 
         return Intent(
             intent_type=IntentType.SET_TIMER,
@@ -866,17 +802,13 @@ class TestToolRankingAlgorithm:
         return MockRegistry()
 
     @pytest.mark.asyncio
-    async def test_ranking_formula_weights(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_ranking_formula_weights(self, engine: "ToolIntelligenceEngine") -> None:
         """Test that ranking formula uses correct weights.
 
         Formula: relevance (50%) + reliability (20%) + speed (20%) + user_preference (10%)
         """
         # Create tool with known stats
-        await engine.record_execution(
-            tool_id="test.tool", success=True, latency_ms=100.0
-        )
+        await engine.record_execution(tool_id="test.tool", success=True, latency_ms=100.0)
 
         # Rank with explicit scores
         context = {
@@ -908,15 +840,11 @@ class TestToolRankingAlgorithm:
         assert ranked[0][1] > 0.7  # High score
 
     @pytest.mark.asyncio
-    async def test_reliability_score_impact(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_reliability_score_impact(self, engine: "ToolIntelligenceEngine") -> None:
         """Test that reliability score impacts ranking."""
         # Tool1: high reliability (95% success)
         for _ in range(19):
-            await engine.record_execution(
-                tool_id="tool1", success=True, latency_ms=100.0
-            )
+            await engine.record_execution(tool_id="tool1", success=True, latency_ms=100.0)
         await engine.record_execution(
             tool_id="tool1",
             success=False,
@@ -926,9 +854,7 @@ class TestToolRankingAlgorithm:
 
         # Tool2: low reliability (50% success)
         for _ in range(5):
-            await engine.record_execution(
-                tool_id="tool2", success=True, latency_ms=100.0
-            )
+            await engine.record_execution(tool_id="tool2", success=True, latency_ms=100.0)
         for _ in range(5):
             await engine.record_execution(
                 tool_id="tool2",
@@ -944,21 +870,15 @@ class TestToolRankingAlgorithm:
         assert ranked[0][1] > ranked[1][1]
 
     @pytest.mark.asyncio
-    async def test_speed_score_impact(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_speed_score_impact(self, engine: "ToolIntelligenceEngine") -> None:
         """Test that speed score impacts ranking."""
         # Tool1: fast (100ms)
         for _ in range(10):
-            await engine.record_execution(
-                tool_id="tool1", success=True, latency_ms=100.0
-            )
+            await engine.record_execution(tool_id="tool1", success=True, latency_ms=100.0)
 
         # Tool2: slow (2000ms)
         for _ in range(10):
-            await engine.record_execution(
-                tool_id="tool2", success=True, latency_ms=2000.0
-            )
+            await engine.record_execution(tool_id="tool2", success=True, latency_ms=2000.0)
 
         ranked = await engine.rank_tools(["tool1", "tool2"])
 
@@ -967,15 +887,11 @@ class TestToolRankingAlgorithm:
         assert ranked[0][1] > ranked[1][1]
 
     @pytest.mark.asyncio
-    async def test_user_preference_impact(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_user_preference_impact(self, engine: "ToolIntelligenceEngine") -> None:
         """Test that user preference impacts ranking."""
         # Record strong preference for tool2
         for _ in range(10):
-            await engine.learn_tool_preference(
-                user_id="user1", tool_id="tool2", selected=True
-            )
+            await engine.learn_tool_preference(user_id="user1", tool_id="tool2", selected=True)
 
         ranked = await engine.rank_tools(["tool1", "tool2"], user_id="user1")
 
@@ -985,17 +901,13 @@ class TestToolRankingAlgorithm:
         assert tool2_score > tool1_score
 
     @pytest.mark.asyncio
-    async def test_ranking_latency_budget(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_ranking_latency_budget(self, engine: "ToolIntelligenceEngine") -> None:
         """Test that ranking completes within 50ms latency budget."""
         import time
 
         # Create 100 tools with stats
         for i in range(100):
-            await engine.record_execution(
-                tool_id=f"tool{i}", success=True, latency_ms=100.0
-            )
+            await engine.record_execution(tool_id=f"tool{i}", success=True, latency_ms=100.0)
 
         tool_ids = [f"tool{i}" for i in range(100)]
 
@@ -1009,9 +921,7 @@ class TestToolRankingAlgorithm:
         assert len(ranked) == 100
 
     @pytest.mark.asyncio
-    async def test_pre_calculated_relevance_scores(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_pre_calculated_relevance_scores(self, engine: "ToolIntelligenceEngine") -> None:
         """Test using pre-calculated relevance scores."""
         context = {
             "relevance_scores": {
@@ -1045,11 +955,9 @@ class TestToolRankingAlgorithm:
         assert relevance > 0.5
 
     @pytest.mark.asyncio
-    async def test_intent_match_parameter_coverage(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_intent_match_parameter_coverage(self, engine: "ToolIntelligenceEngine") -> None:
         """Test intent matching based on parameter coverage."""
-        from Agent_Guru.reasoning.models.intent import Intent, IntentType, Entity
+        from Agent_Guru.reasoning.models.intent import Entity, Intent, IntentType
         from Agent_Guru.reasoning.tools.base import (
             ToolMetadata,
             ToolParameter,
@@ -1133,21 +1041,15 @@ class TestToolRankingAlgorithm:
         assert relevance > 0.0
 
     @pytest.mark.asyncio
-    async def test_ranking_with_degraded_tools(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_ranking_with_degraded_tools(self, engine: "ToolIntelligenceEngine") -> None:
         """Test that degraded tools are deprioritized in ranking."""
         # Tool1: normal (high success rate)
         for _ in range(10):
-            await engine.record_execution(
-                tool_id="tool1", success=True, latency_ms=100.0
-            )
+            await engine.record_execution(tool_id="tool1", success=True, latency_ms=100.0)
 
         # Tool2: degraded (low success rate)
         for _ in range(5):
-            await engine.record_execution(
-                tool_id="tool2", success=True, latency_ms=100.0
-            )
+            await engine.record_execution(tool_id="tool2", success=True, latency_ms=100.0)
         for _ in range(5):
             await engine.record_execution(
                 tool_id="tool2",
@@ -1167,17 +1069,13 @@ class TestToolRankingAlgorithm:
         assert stats2.is_degraded is True
 
     @pytest.mark.asyncio
-    async def test_ranking_empty_list(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_ranking_empty_list(self, engine: "ToolIntelligenceEngine") -> None:
         """Test ranking with empty tool list."""
         ranked = await engine.rank_tools([])
         assert ranked == []
 
     @pytest.mark.asyncio
-    async def test_ranking_single_tool(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_ranking_single_tool(self, engine: "ToolIntelligenceEngine") -> None:
         """Test ranking with single tool."""
         ranked = await engine.rank_tools(["tool1"])
 
@@ -1186,9 +1084,7 @@ class TestToolRankingAlgorithm:
         assert 0.0 <= ranked[0][1] <= 1.0
 
     @pytest.mark.asyncio
-    async def test_ranking_score_range(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_ranking_score_range(self, engine: "ToolIntelligenceEngine") -> None:
         """Test that all ranking scores are in valid range [0.0, 1.0]."""
         # Create tools with various stats
         for i in range(10):
@@ -1214,15 +1110,11 @@ class TestToolRankingAlgorithm:
             assert 0.0 <= score <= 1.0
 
     @pytest.mark.asyncio
-    async def test_ranking_deterministic(
-        self, engine: "ToolIntelligenceEngine"
-    ) -> None:
+    async def test_ranking_deterministic(self, engine: "ToolIntelligenceEngine") -> None:
         """Test that ranking is deterministic for same input."""
         # Create tools with stats
         for i in range(5):
-            await engine.record_execution(
-                tool_id=f"tool{i}", success=True, latency_ms=100.0
-            )
+            await engine.record_execution(tool_id=f"tool{i}", success=True, latency_ms=100.0)
 
         tool_ids = [f"tool{i}" for i in range(5)]
 
@@ -1235,7 +1127,6 @@ class TestToolRankingAlgorithm:
         assert ranked1 == ranked2 == ranked3
 
 
-
 class TestDegradedToolDetection:
     """Tests for degraded tool detection (Task 12.6.4) - Production Grade."""
 
@@ -1243,7 +1134,6 @@ class TestDegradedToolDetection:
     async def test_degradation_alert_severity_levels(self) -> None:
         """Test that degradation alerts use appropriate severity levels."""
         from Agent_Guru.reasoning.tools.intelligence import (
-            AlertSeverity,
             _alert_manager,
         )
 
@@ -1296,8 +1186,8 @@ class TestDegradedToolDetection:
     async def test_alert_deduplication(self) -> None:
         """Test that duplicate alerts are deduplicated within time window."""
         from Agent_Guru.reasoning.tools.intelligence import (
-            DegradationAlert,
             AlertSeverity,
+            DegradationAlert,
             _alert_manager,
         )
 
@@ -1328,9 +1218,9 @@ class TestDegradedToolDetection:
     async def test_alert_throttling(self) -> None:
         """Test that alerts are throttled to prevent alert fatigue."""
         from Agent_Guru.reasoning.tools.intelligence import (
-            DegradationAlert,
-            AlertSeverity,
             AlertManager,
+            AlertSeverity,
+            DegradationAlert,
         )
 
         # Create alert manager with low throttle limit
@@ -1361,9 +1251,9 @@ class TestDegradedToolDetection:
     async def test_custom_alert_handlers(self) -> None:
         """Test that custom alert handlers are executed."""
         from Agent_Guru.reasoning.tools.intelligence import (
-            DegradationAlert,
-            AlertSeverity,
             AlertManager,
+            AlertSeverity,
+            DegradationAlert,
         )
 
         # Track handler executions
@@ -1459,9 +1349,7 @@ class TestDegradedToolDetection:
         await asyncio.sleep(0.1)
 
         # Verify recovery alert sent
-        recovery_alerts = [
-            a for a in alerts_received if a.severity == AlertSeverity.INFO
-        ]
+        recovery_alerts = [a for a in alerts_received if a.severity == AlertSeverity.INFO]
         assert len(recovery_alerts) > 0
         assert "recovered" in recovery_alerts[0].reason.lower()
 
@@ -1516,15 +1404,11 @@ class TestDegradedToolDetection:
 
         # Create normal tool
         for _ in range(10):
-            await engine.record_execution(
-                tool_id="normal.tool", success=True, latency_ms=100.0
-            )
+            await engine.record_execution(tool_id="normal.tool", success=True, latency_ms=100.0)
 
         # Create degraded tool
         for _ in range(5):
-            await engine.record_execution(
-                tool_id="degraded.tool", success=True, latency_ms=100.0
-            )
+            await engine.record_execution(tool_id="degraded.tool", success=True, latency_ms=100.0)
         for _ in range(5):
             await engine.record_execution(
                 tool_id="degraded.tool",
@@ -1544,9 +1428,9 @@ class TestDegradedToolDetection:
     async def test_alert_manager_cleanup(self) -> None:
         """Test that alert manager cleans up old alerts."""
         from Agent_Guru.reasoning.tools.intelligence import (
-            DegradationAlert,
-            AlertSeverity,
             AlertManager,
+            AlertSeverity,
+            DegradationAlert,
         )
 
         mgr = AlertManager(dedup_window_seconds=1)  # 1 second window

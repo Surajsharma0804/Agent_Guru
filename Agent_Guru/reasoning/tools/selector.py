@@ -8,8 +8,8 @@ This module implements intelligent tool selection using:
 """
 
 import time
-from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
+from typing import Any, Optional
 
 from Agent_Guru.reasoning.models.intent import Intent
 from Agent_Guru.reasoning.tools.base import Tool, ToolMetadata
@@ -29,14 +29,14 @@ class SelectedTool:
     """
 
     tool: Tool
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
     confidence: float
     tier: int
     selection_time_ms: int
 
 
 # Tier 1: Direct intent→tool mappings for common intents
-DIRECT_MAPPINGS: Dict[str, str] = {
+DIRECT_MAPPINGS: dict[str, str] = {
     "set_timer": "timer.set",
     "cancel_timer": "timer.cancel",
     "query_weather": "weather.query",
@@ -118,9 +118,7 @@ class ToolSelector:
         # No suitable tool found
         return None
 
-    async def _tier1_direct_mapping(
-        self, intent: Intent
-    ) -> Optional[Tuple[Tool, Dict[str, Any]]]:
+    async def _tier1_direct_mapping(self, intent: Intent) -> Optional[tuple[Tool, dict[str, Any]]]:
         """Tier 1: Direct intent→tool mapping.
 
         Time Complexity: O(1) - hash table lookup
@@ -153,7 +151,7 @@ class ToolSelector:
 
     async def _tier2_capability_matching(
         self, intent: Intent
-    ) -> Optional[Tuple[Tool, Dict[str, Any], float]]:
+    ) -> Optional[tuple[Tool, dict[str, Any], float]]:
         """Tier 2: Capability-based matching with intelligent ranking.
 
         Uses Tool Intelligence Engine for intelligent ranking based on:
@@ -178,7 +176,7 @@ class ToolSelector:
             return None
 
         # Score each tool for basic capability matching
-        candidates: List[Tuple[ToolMetadata, float]] = []
+        candidates: list[tuple[ToolMetadata, float]] = []
         for metadata in all_tools:
             score = self._calculate_match_score(metadata, intent)
             if score > 0.5:  # Minimum threshold
@@ -191,7 +189,7 @@ class ToolSelector:
         from Agent_Guru.reasoning.tools.intelligence import ToolIntelligenceEngine
 
         # Get or create intelligence engine instance
-        if not hasattr(self, '_intelligence_engine'):
+        if not hasattr(self, "_intelligence_engine"):
             self._intelligence_engine = ToolIntelligenceEngine()
 
         # Extract candidate tool IDs
@@ -238,7 +236,7 @@ class ToolSelector:
 
     async def _tier3_llm_assisted(
         self, intent: Intent
-    ) -> Optional[Tuple[Tool, Dict[str, Any], float]]:
+    ) -> Optional[tuple[Tool, dict[str, Any], float]]:
         """Tier 3: LLM-assisted selection for ambiguous cases.
 
         Time Complexity: O(1) - single LLM call
@@ -311,9 +309,7 @@ class ToolSelector:
 
         return min(score, 1.0)
 
-    def _extract_parameters_from_entities(
-        self, tool: Tool, intent: Intent
-    ) -> Dict[str, Any]:
+    def _extract_parameters_from_entities(self, tool: Tool, intent: Intent) -> dict[str, Any]:
         """Extract tool parameters from intent entities.
 
         Args:
@@ -323,7 +319,7 @@ class ToolSelector:
         Returns:
             Dictionary of parameter name → value (extracted from Entity.value)
         """
-        parameters: Dict[str, Any] = {}
+        parameters: dict[str, Any] = {}
         metadata = tool.metadata
 
         # Map entity names to parameter names
@@ -332,22 +328,20 @@ class ToolSelector:
             if param.name in intent.entities:
                 entity = intent.entities[param.name]
                 # Extract value from Entity object
-                parameters[param.name] = entity.value if hasattr(entity, 'value') else entity
+                parameters[param.name] = entity.value if hasattr(entity, "value") else entity
             # Try fuzzy match (e.g., "duration" matches "duration_seconds")
             else:
                 for entity_name, entity_value in intent.entities.items():
-                    if param.name.startswith(entity_name) or entity_name.startswith(
-                        param.name
-                    ):
+                    if param.name.startswith(entity_name) or entity_name.startswith(param.name):
                         # Extract value from Entity object
-                        parameters[param.name] = entity_value.value if hasattr(entity_value, 'value') else entity_value
+                        parameters[param.name] = (
+                            entity_value.value if hasattr(entity_value, "value") else entity_value
+                        )
                         break
 
         return parameters
 
-    def _validate_required_parameters(
-        self, tool: Tool, parameters: Dict[str, Any]
-    ) -> bool:
+    def _validate_required_parameters(self, tool: Tool, parameters: dict[str, Any]) -> bool:
         """Validate that all required parameters are present.
 
         Args:
@@ -382,8 +376,9 @@ class ToolSelector:
             failure_pattern: Failure pattern if execution failed (optional)
         """
         # Get or create intelligence engine
-        if not hasattr(self, '_intelligence_engine'):
+        if not hasattr(self, "_intelligence_engine"):
             from Agent_Guru.reasoning.tools.intelligence import ToolIntelligenceEngine
+
             self._intelligence_engine = ToolIntelligenceEngine()
 
         # Record execution
@@ -410,8 +405,9 @@ class ToolSelector:
             positive: Positive/negative feedback if provided
         """
         # Get or create intelligence engine
-        if not hasattr(self, '_intelligence_engine'):
+        if not hasattr(self, "_intelligence_engine"):
             from Agent_Guru.reasoning.tools.intelligence import ToolIntelligenceEngine
+
             self._intelligence_engine = ToolIntelligenceEngine()
 
         # Record feedback
@@ -422,7 +418,7 @@ class ToolSelector:
             positive=positive,
         )
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Get tool selection statistics.
 
         Returns:

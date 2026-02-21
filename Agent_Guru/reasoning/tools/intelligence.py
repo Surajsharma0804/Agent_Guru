@@ -15,17 +15,17 @@ Production-grade features:
 - Configurable thresholds and policies
 """
 
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Set, Callable
-from enum import Enum
 import asyncio
 import json
 import logging
-from pathlib import Path
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from pathlib import Path
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-
 
 # Configure structured logger for production observability
 logger = logging.getLogger(__name__)
@@ -56,7 +56,7 @@ class DegradationAlert:
     tool_id: str
     severity: AlertSeverity
     reason: str
-    metrics: Dict[str, Any]
+    metrics: dict[str, Any]
     timestamp: datetime = field(default_factory=datetime.utcnow)
     alert_id: str = field(default="")
 
@@ -65,7 +65,7 @@ class DegradationAlert:
         if not self.alert_id:
             self.alert_id = f"{self.tool_id}_{self.timestamp.isoformat()}"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert alert to dictionary for logging/monitoring."""
         return {
             "alert_id": self.alert_id,
@@ -98,11 +98,11 @@ class AlertManager:
             dedup_window_seconds: Time window for alert deduplication
             max_alerts_per_tool_per_hour: Maximum alerts per tool per hour
         """
-        self._recent_alerts: Dict[str, DegradationAlert] = {}
-        self._alert_counts: Dict[str, List[datetime]] = {}
+        self._recent_alerts: dict[str, DegradationAlert] = {}
+        self._alert_counts: dict[str, list[datetime]] = {}
         self._dedup_window = timedelta(seconds=dedup_window_seconds)
         self._max_alerts_per_hour = max_alerts_per_tool_per_hour
-        self._alert_handlers: List[Callable[[DegradationAlert], None]] = []
+        self._alert_handlers: list[Callable[[DegradationAlert], None]] = []
         self._lock = asyncio.Lock()
 
     def register_handler(self, handler: Callable[[DegradationAlert], None]) -> None:
@@ -176,9 +176,7 @@ class AlertManager:
 
         # Count alerts in last hour
         one_hour_ago = datetime.utcnow() - timedelta(hours=1)
-        recent_count = sum(
-            1 for ts in self._alert_counts[tool_id] if ts > one_hour_ago
-        )
+        recent_count = sum(1 for ts in self._alert_counts[tool_id] if ts > one_hour_ago)
 
         return recent_count >= self._max_alerts_per_hour
 
@@ -219,9 +217,7 @@ class AlertManager:
 
         # Cleanup recent alerts
         to_remove = [
-            tool_id
-            for tool_id, alert in self._recent_alerts.items()
-            if alert.timestamp < cutoff
+            tool_id for tool_id, alert in self._recent_alerts.items() if alert.timestamp < cutoff
         ]
         for tool_id in to_remove:
             del self._recent_alerts[tool_id]
@@ -277,39 +273,27 @@ class ToolStats(BaseModel):
     """
 
     tool_id: str = Field(..., description="Unique tool identifier")
-    success_rate: float = Field(
-        default=1.0, description="Success rate (0.0-1.0)", ge=0.0, le=1.0
-    )
+    success_rate: float = Field(default=1.0, description="Success rate (0.0-1.0)", ge=0.0, le=1.0)
     avg_latency: float = Field(
         default=0.0, description="Average execution latency in milliseconds", ge=0.0
     )
-    total_executions: int = Field(
-        default=0, description="Total number of executions", ge=0
-    )
+    total_executions: int = Field(default=0, description="Total number of executions", ge=0)
     successful_executions: int = Field(
         default=0, description="Number of successful executions", ge=0
     )
-    failed_executions: int = Field(
-        default=0, description="Number of failed executions", ge=0
-    )
-    failure_patterns: Dict[str, int] = Field(
+    failed_executions: int = Field(default=0, description="Number of failed executions", ge=0)
+    failure_patterns: dict[str, int] = Field(
         default_factory=dict, description="Dictionary of failure pattern → count"
     )
     user_rating: float = Field(
         default=0.0, description="Average user rating (0.0-5.0)", ge=0.0, le=5.0
     )
-    user_feedback_count: int = Field(
-        default=0, description="Number of user feedback entries", ge=0
-    )
-    is_degraded: bool = Field(
-        default=False, description="Whether tool is currently degraded"
-    )
+    user_feedback_count: int = Field(default=0, description="Number of user feedback entries", ge=0)
+    is_degraded: bool = Field(default=False, description="Whether tool is currently degraded")
     degradation_reason: Optional[str] = Field(
         default=None, description="Reason for degradation if applicable"
     )
-    consecutive_failures: int = Field(
-        default=0, description="Number of consecutive failures", ge=0
-    )
+    consecutive_failures: int = Field(default=0, description="Number of consecutive failures", ge=0)
     last_execution_time: Optional[datetime] = Field(
         default=None, description="Timestamp of last execution"
     )
@@ -394,7 +378,7 @@ class ToolStats(BaseModel):
             alert = DegradationAlert(
                 tool_id=self.tool_id,
                 severity=AlertSeverity.INFO,
-                reason=f"Tool recovered after successful execution",
+                reason="Tool recovered after successful execution",
                 metrics={
                     "success_rate": self.success_rate,
                     "consecutive_failures": self.consecutive_failures,
@@ -454,11 +438,7 @@ class ToolStats(BaseModel):
                 self.is_degraded = True
                 reason = f"Success rate below threshold: {self.success_rate:.2%}"
                 # Error if < 0.5, Warning if < 0.7
-                severity = (
-                    AlertSeverity.ERROR
-                    if self.success_rate < 0.5
-                    else AlertSeverity.WARNING
-                )
+                severity = AlertSeverity.ERROR if self.success_rate < 0.5 else AlertSeverity.WARNING
 
             # Send production-grade alert
             if severity and reason:
@@ -564,7 +544,6 @@ class ToolStats(BaseModel):
         }
 
 
-
 class UserToolPreference(BaseModel):
     """User preference for a specific tool.
 
@@ -654,8 +633,8 @@ class ToolIntelligenceEngine:
             stats_file: Path to stats persistence file (optional)
             preferences_file: Path to preferences persistence file (optional)
         """
-        self._tool_stats: Dict[str, ToolStats] = {}
-        self._user_preferences: Dict[tuple[str, str], UserToolPreference] = {}
+        self._tool_stats: dict[str, ToolStats] = {}
+        self._user_preferences: dict[tuple[str, str], UserToolPreference] = {}
         self._stats_file = stats_file
         self._preferences_file = preferences_file
         self._lock = asyncio.Lock()
@@ -716,7 +695,11 @@ class ToolIntelligenceEngine:
                 self._save_stats()
 
     async def record_user_feedback(
-        self, tool_id: str, user_id: str, rating: Optional[float] = None, positive: Optional[bool] = None
+        self,
+        tool_id: str,
+        user_id: str,
+        rating: Optional[float] = None,
+        positive: Optional[bool] = None,
     ) -> None:
         """Record user feedback for a tool.
 
@@ -760,7 +743,7 @@ class ToolIntelligenceEngine:
         async with self._lock:
             return self._tool_stats.get(tool_id)
 
-    async def get_all_stats(self) -> Dict[str, ToolStats]:
+    async def get_all_stats(self) -> dict[str, ToolStats]:
         """Get statistics for all tools.
 
         Returns:
@@ -771,10 +754,10 @@ class ToolIntelligenceEngine:
 
     async def rank_tools(
         self,
-        tool_ids: List[str],
+        tool_ids: list[str],
         user_id: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> List[tuple[str, float]]:
+        context: Optional[dict[str, Any]] = None,
+    ) -> list[tuple[str, float]]:
         """Rank tools by combined score.
 
         Ranking formula: relevance (50%) + reliability (20%) + speed (20%) + user_preference (10%)
@@ -805,7 +788,7 @@ class ToolIntelligenceEngine:
             return ranked
 
     async def _calculate_tool_score(
-        self, tool_id: str, user_id: Optional[str], context: Optional[Dict[str, Any]]
+        self, tool_id: str, user_id: Optional[str], context: Optional[dict[str, Any]]
     ) -> float:
         """Calculate combined score for a tool.
 
@@ -859,9 +842,7 @@ class ToolIntelligenceEngine:
 
         return score
 
-    def _calculate_relevance_score(
-        self, tool_id: str, context: Optional[Dict[str, Any]]
-    ) -> float:
+    def _calculate_relevance_score(self, tool_id: str, context: Optional[dict[str, Any]]) -> float:
         """Calculate relevance score for a tool based on intent matching.
 
         Args:
@@ -898,9 +879,7 @@ class ToolIntelligenceEngine:
         # Default to fully relevant if no intent information
         return 1.0
 
-    def _calculate_intent_match_score(
-        self, intent: Any, tool_metadata: Any
-    ) -> float:
+    def _calculate_intent_match_score(self, intent: Any, tool_metadata: Any) -> float:
         """Calculate how well a tool matches an intent.
 
         Scoring factors:
@@ -958,7 +937,7 @@ class ToolIntelligenceEngine:
 
         return min(score, 1.0)
 
-    async def detect_degraded_tools(self) -> List[str]:
+    async def detect_degraded_tools(self) -> list[str]:
         """Detect tools that are currently degraded.
 
         Returns:
@@ -971,7 +950,7 @@ class ToolIntelligenceEngine:
                     degraded.append(tool_id)
             return degraded
 
-    async def get_user_tool_preferences(self, user_id: str) -> Dict[str, float]:
+    async def get_user_tool_preferences(self, user_id: str) -> dict[str, float]:
         """Get user's tool preferences.
 
         Args:
@@ -987,9 +966,7 @@ class ToolIntelligenceEngine:
                     preferences[tool_id] = pref.preference_score
             return preferences
 
-    async def learn_tool_preference(
-        self, user_id: str, tool_id: str, selected: bool
-    ) -> None:
+    async def learn_tool_preference(self, user_id: str, tool_id: str, selected: bool) -> None:
         """Learn user's tool preference from selection.
 
         Args:
@@ -1021,8 +998,7 @@ class ToolIntelligenceEngine:
 
         # Convert to JSON-serializable format
         stats_data = {
-            tool_id: stats.model_dump(mode="json")
-            for tool_id, stats in self._tool_stats.items()
+            tool_id: stats.model_dump(mode="json") for tool_id, stats in self._tool_stats.items()
         }
 
         # Write to file
@@ -1036,13 +1012,12 @@ class ToolIntelligenceEngine:
             return
 
         try:
-            with open(self._stats_file, "r") as f:
+            with open(self._stats_file) as f:
                 stats_data = json.load(f)
 
             # Convert from JSON to ToolStats objects
             self._tool_stats = {
-                tool_id: ToolStats.model_validate(data)
-                for tool_id, data in stats_data.items()
+                tool_id: ToolStats.model_validate(data) for tool_id, data in stats_data.items()
             }
         except Exception:
             # If loading fails, start fresh
@@ -1070,7 +1045,7 @@ class ToolIntelligenceEngine:
             return
 
         try:
-            with open(self._preferences_file, "r") as f:
+            with open(self._preferences_file) as f:
                 prefs_data = json.load(f)
 
             # Convert from JSON to UserToolPreference objects

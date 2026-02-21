@@ -672,7 +672,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Store user preferences per user_id
     - _Requirements: 34.5_
 
-  - [ ] 12.6.6 Integrate Tool Intelligence with Tool Selection Engine
+  - [x] 12.6.6 Integrate Tool Intelligence with Tool Selection Engine
     - Use Tool Intelligence for ranking candidate tools
     - Pass context (user_id, intent, world_state) to ranking
     - Select highest-ranked available tool
@@ -683,7 +683,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Push: git push origin main
 
 - [ ] 13. Implement Safety Gate and Permission System
-  - [ ] 13.1 Create action sensitivity classifier
+  - [x] 13.1 Create action sensitivity classifier
     - Define sensitivity rules for all tool types (safe/sensitive/dangerous)
     - Implement rule-based classification with configurable rules
     - Add ML-based risk assessment for unknown actions (optional for V1)

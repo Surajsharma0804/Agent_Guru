@@ -2,15 +2,16 @@
 Tests for tool selector.
 """
 
-import pytest
-from typing import Any, Dict
+from typing import Any
 
-from Agent_Guru.reasoning.models.intent import Intent, Entity
-from Agent_Guru.reasoning.tools.selector import ToolSelector, SelectedTool, DIRECT_MAPPINGS
-from Agent_Guru.reasoning.tools.registry import ToolRegistry
-from Agent_Guru.reasoning.tools.examples.timer_tool import SetTimerTool, CancelTimerTool
-from Agent_Guru.reasoning.tools.examples.weather_tool import WeatherTool
+import pytest
+
+from Agent_Guru.reasoning.models.intent import Entity, Intent
 from Agent_Guru.reasoning.tools.examples.messaging_tool import MessagingTool
+from Agent_Guru.reasoning.tools.examples.timer_tool import CancelTimerTool, SetTimerTool
+from Agent_Guru.reasoning.tools.examples.weather_tool import WeatherTool
+from Agent_Guru.reasoning.tools.registry import ToolRegistry
+from Agent_Guru.reasoning.tools.selector import DIRECT_MAPPINGS, ToolSelector
 
 
 class TestToolSelector:
@@ -91,9 +92,7 @@ class TestToolSelector:
         assert result.tool.metadata.tool_id == "weather.query"
         assert result.parameters["location"] == "New York"
 
-    async def test_tier1_missing_required_parameter(
-        self, selector: ToolSelector
-    ) -> None:
+    async def test_tier1_missing_required_parameter(self, selector: ToolSelector) -> None:
         """Test Tier 1 fails when required parameter missing."""
         intent = Intent(
             intent_type="set_timer",
@@ -147,9 +146,7 @@ class TestToolSelector:
         # Should match timer tool based on keywords
         assert "timer" in result.tool.metadata.tool_id
 
-    async def test_tier2_no_match_below_threshold(
-        self, selector: ToolSelector
-    ) -> None:
+    async def test_tier2_no_match_below_threshold(self, selector: ToolSelector) -> None:
         """Test Tier 2 returns None when score below threshold."""
         intent = Intent(
             intent_type="unknown",  # Valid enum value
@@ -177,15 +174,15 @@ class TestToolSelector:
         # Tier 3 not implemented yet
         assert result is None
 
-    async def test_parameter_extraction_exact_match(
-        self, selector: ToolSelector
-    ) -> None:
+    async def test_parameter_extraction_exact_match(self, selector: ToolSelector) -> None:
         """Test parameter extraction with exact entity name match."""
         intent = Intent(
             intent_type="set_timer",
             original_input="Set timer for 10 minutes",
             entities={
-                "duration_seconds": Entity(entity_type="duration", value=600, raw_text="10 minutes"),
+                "duration_seconds": Entity(
+                    entity_type="duration", value=600, raw_text="10 minutes"
+                ),
                 "label": Entity(entity_type="text", value="Cooking", raw_text="Cooking"),
             },
             confidence=0.95,
@@ -197,16 +194,12 @@ class TestToolSelector:
         assert result.parameters["duration_seconds"] == 600
         assert result.parameters["label"] == "Cooking"
 
-    async def test_parameter_extraction_fuzzy_match(
-        self, selector: ToolSelector
-    ) -> None:
+    async def test_parameter_extraction_fuzzy_match(self, selector: ToolSelector) -> None:
         """Test parameter extraction with fuzzy entity name match."""
         intent = Intent(
             intent_type="set_timer",
             original_input="Set timer for 5 minutes",
-            entities={
-                "duration": Entity(entity_type="duration", value=300, raw_text="5 minutes")
-            },
+            entities={"duration": Entity(entity_type="duration", value=300, raw_text="5 minutes")},
             confidence=0.95,
         )
 
@@ -266,9 +259,7 @@ class TestToolSelector:
         intent2 = Intent(
             intent_type="query_weather",
             original_input="Weather?",
-            entities={
-                "location": Entity(entity_type="location", value="NYC", raw_text="NYC")
-            },
+            entities={"location": Entity(entity_type="location", value="NYC", raw_text="NYC")},
             confidence=0.95,
         )
         await selector.select_tool(intent2)
@@ -404,9 +395,7 @@ class TestToolIntelligenceIntegration:
         """Create tool selector."""
         return ToolSelector(registry)
 
-    async def test_intelligence_engine_used_in_tier2(
-        self, selector: ToolSelector
-    ) -> None:
+    async def test_intelligence_engine_used_in_tier2(self, selector: ToolSelector) -> None:
         """Test that intelligence engine is used for Tier 2 ranking."""
         # Use unknown intent to force Tier 2
         intent = Intent(
@@ -423,7 +412,7 @@ class TestToolIntelligenceIntegration:
 
         assert result is not None
         # Should have intelligence engine instance
-        assert hasattr(selector, '_intelligence_engine')
+        assert hasattr(selector, "_intelligence_engine")
         # Should select messaging tool
         assert result.tool.metadata.tool_id == "messaging.send"
 
@@ -437,7 +426,7 @@ class TestToolIntelligenceIntegration:
         )
 
         # Check that intelligence engine was created
-        assert hasattr(selector, '_intelligence_engine')
+        assert hasattr(selector, "_intelligence_engine")
 
         # Get tool stats
         stats = await selector._intelligence_engine.get_tool_stats("timer.set")
@@ -605,11 +594,9 @@ class TestToolIntelligenceIntegration:
 
         assert result is not None
         # Intelligence engine should have been used with context
-        assert hasattr(selector, '_intelligence_engine')
+        assert hasattr(selector, "_intelligence_engine")
 
-    async def test_multiple_executions_improve_ranking(
-        self, selector: ToolSelector
-    ) -> None:
+    async def test_multiple_executions_improve_ranking(self, selector: ToolSelector) -> None:
         """Test that multiple successful executions improve tool ranking."""
         # Execute messaging tool multiple times successfully
         for _ in range(10):
@@ -658,12 +645,11 @@ class TestToolIntelligenceIntegration:
         assert not stats.is_degraded
         assert stats.consecutive_failures == 0
 
-    async def test_user_preference_affects_ranking(
-        self, selector: ToolSelector
-    ) -> None:
+    async def test_user_preference_affects_ranking(self, selector: ToolSelector) -> None:
         """Test that user preferences affect tool ranking."""
         # Initialize intelligence engine first
         from Agent_Guru.reasoning.tools.intelligence import ToolIntelligenceEngine
+
         selector._intelligence_engine = ToolIntelligenceEngine()
 
         # Learn strong preference for messaging tool
@@ -683,7 +669,6 @@ class TestToolIntelligenceIntegration:
         self, selector: ToolSelector, tmp_path: Any
     ) -> None:
         """Test that intelligence engine can persist and load data."""
-        from pathlib import Path
         from Agent_Guru.reasoning.tools.intelligence import ToolIntelligenceEngine
 
         stats_file = tmp_path / "tool_stats.json"
@@ -725,4 +710,3 @@ class TestToolIntelligenceIntegration:
 
         preferences = await engine2.get_user_tool_preferences("user123")
         assert "timer.set" in preferences
-
