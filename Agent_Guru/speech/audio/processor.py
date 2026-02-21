@@ -1,7 +1,6 @@
 """Audio processing with VAD, noise reduction, and AGC."""
 
 import numpy as np
-import noisereduce as nr
 from typing import Optional
 import logging
 
@@ -9,6 +8,21 @@ from ..config import AudioProcessingConfig
 from ..exceptions import AudioProcessingError
 
 logger = logging.getLogger(__name__)
+
+# Lazy import to avoid loading torch unnecessarily
+_noisereduce = None
+
+def _get_noisereduce():
+    """Lazy import of noisereduce to avoid torch loading issues."""
+    global _noisereduce
+    if _noisereduce is None:
+        try:
+            import noisereduce as nr
+            _noisereduce = nr
+        except Exception as e:
+            logger.warning(f"Failed to import noisereduce: {e}")
+            _noisereduce = False
+    return _noisereduce if _noisereduce is not False else None
 
 
 class AudioProcessor:
@@ -120,6 +134,11 @@ class AudioProcessor:
             Noise-reduced audio
         """
         try:
+            nr = _get_noisereduce()
+            if nr is None:
+                logger.warning("noisereduce not available, returning original audio")
+                return audio
+            
             # Ensure audio is float32 for noisereduce
             audio_float = audio.astype(np.float32)
             

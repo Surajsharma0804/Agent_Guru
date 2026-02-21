@@ -1,7 +1,6 @@
 """Advanced noise cancellation with adaptive filtering and noise type detection."""
 
 import numpy as np
-import noisereduce as nr
 from typing import Optional, Tuple
 from enum import Enum
 import logging
@@ -9,6 +8,21 @@ import logging
 from ..exceptions import AudioProcessingError
 
 logger = logging.getLogger(__name__)
+
+# Lazy import to avoid loading torch unnecessarily
+_noisereduce = None
+
+def _get_noisereduce():
+    """Lazy import of noisereduce to avoid torch loading issues."""
+    global _noisereduce
+    if _noisereduce is None:
+        try:
+            import noisereduce as nr
+            _noisereduce = nr
+        except Exception as e:
+            logger.warning(f"Failed to import noisereduce: {e}")
+            _noisereduce = False
+    return _noisereduce if _noisereduce is not False else None
 
 
 class NoiseType(Enum):
@@ -65,6 +79,11 @@ class AdvancedNoiseCancellation:
             AudioProcessingError: If noise reduction fails
         """
         try:
+            nr = _get_noisereduce()
+            if nr is None:
+                logger.warning("noisereduce not available, returning original audio")
+                return audio
+            
             # Validate input
             if len(audio) == 0:
                 raise AudioProcessingError("Cannot reduce noise on empty audio")

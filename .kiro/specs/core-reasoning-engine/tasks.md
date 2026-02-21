@@ -373,7 +373,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Push: git push origin main
 
 - [ ] 8. Set up hybrid LLM infrastructure
-  - [ ] 8.1 Deploy local LLM with llama.cpp
+  - [x] 8.1 Deploy local LLM with llama.cpp
     - Download and quantize Llama 3.2 8B model (Q4_K_M quantization)
     - Set up llama.cpp server with GPU acceleration (CUDA or Metal)
     - Configure model parameters (temperature 0.7, top_p 0.9, max_tokens 512)
@@ -381,7 +381,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Measure inference latency (target <400ms for 512 tokens)
     - _Requirements: 4.2, 4.5_
 
-  - [~] 8.2 Integrate cloud LLM providers
+  - [-] 8.2 Integrate cloud LLM providers
     - Add OpenAI SDK for GPT-4 Turbo integration
     - Add Anthropic SDK for Claude 3.5 Sonnet integration
     - Implement API key management with environment variables
