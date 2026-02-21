@@ -5,10 +5,13 @@ from Agent_Guru.reasoning.safety.classifier import (
     SensitivityRule,
 )
 from Agent_Guru.reasoning.safety.gate import SafetyDecision, SafetyGate
+from Agent_Guru.reasoning.safety.permissions import Permission, PermissionManager
 
 __all__ = [
     "ActionSensitivityClassifier",
     "SensitivityRule",
     "SafetyDecision",
     "SafetyGate",
+    "Permission",
+    "PermissionManager",
 ]

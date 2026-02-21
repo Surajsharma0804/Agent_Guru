@@ -8,6 +8,7 @@ import structlog
 
 from Agent_Guru.reasoning.models.action import ActionSensitivity, Tool
 from Agent_Guru.reasoning.safety.classifier import ActionSensitivityClassifier
+from Agent_Guru.reasoning.safety.permissions import PermissionManager
 
 logger = structlog.get_logger(__name__)
 
@@ -44,17 +45,17 @@ class SafetyGate:
     def __init__(
         self,
         classifier: Optional[ActionSensitivityClassifier] = None,
+        permission_manager: Optional[PermissionManager] = None,
     ) -> None:
         """
         Initialize safety gate.
 
         Args:
             classifier: Action sensitivity classifier (creates default if None)
+            permission_manager: Permission manager (creates default if None)
         """
         self._classifier = classifier or ActionSensitivityClassifier()
-
-        # User permissions: user_id -> set of permission scopes
-        self._user_permissions: dict[str, set[str]] = {}
+        self._permission_manager = permission_manager or PermissionManager()
 
         # Blocked actions log: list of (timestamp, user_id, tool_id, reason)
         self._blocked_actions: list[tuple[float, str, str, str]] = []
@@ -202,7 +203,7 @@ class SafetyGate:
         """
         Check if user has required permissions for tool.
 
-        Time Complexity: O(1) average case (set lookup)
+        Time Complexity: O(1) average case (cached lookup)
         Space Complexity: O(1)
 
         Args:
@@ -216,11 +217,17 @@ class SafetyGate:
         if not tool.requires_permission or not tool.permission_scope:
             return True
 
-        # Check if user has the required permission scope
-        user_perms = self._user_permissions.get(user_id, set())
-        return tool.permission_scope in user_perms
+        # Check if user has the required permission scope using PermissionManager
+        return self._permission_manager.check_permission(user_id, tool.permission_scope)
 
-    def grant_permission(self, user_id: str, permission_scope: str) -> None:
+    def grant_permission(
+        self,
+        user_id: str,
+        permission_scope: str,
+        granted_by: str = "system",
+        expires_at: Optional[float] = None,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> None:
         """
         Grant permission to user.
 
@@ -230,16 +237,23 @@ class SafetyGate:
         Args:
             user_id: User identifier
             permission_scope: Permission scope to grant
+            granted_by: Who granted the permission
+            expires_at: Optional expiration timestamp (Unix timestamp)
+            metadata: Optional metadata dictionary
         """
-        if user_id not in self._user_permissions:
-            self._user_permissions[user_id] = set()
-
-        self._user_permissions[user_id].add(permission_scope)
+        self._permission_manager.grant_permission(
+            user_id=user_id,
+            permission_scope=permission_scope,
+            granted_by=granted_by,
+            expires_at=expires_at,
+            metadata=metadata,
+        )
 
         logger.info(
             "permission_granted",
             user_id=user_id,
             permission_scope=permission_scope,
+            granted_by=granted_by,
         )
 
     def revoke_permission(self, user_id: str, permission_scope: str) -> bool:
@@ -256,21 +270,16 @@ class SafetyGate:
         Returns:
             True if permission was revoked, False if user didn't have it
         """
-        if user_id not in self._user_permissions:
-            return False
+        result = self._permission_manager.revoke_permission(user_id, permission_scope)
 
-        if permission_scope in self._user_permissions[user_id]:
-            self._user_permissions[user_id].remove(permission_scope)
-
+        if result:
             logger.info(
                 "permission_revoked",
                 user_id=user_id,
                 permission_scope=permission_scope,
             )
 
-            return True
-
-        return False
+        return result
 
     def get_user_permissions(self, user_id: str) -> set[str]:
         """
@@ -282,7 +291,8 @@ class SafetyGate:
         Returns:
             Set of permission scopes
         """
-        return self._user_permissions.get(user_id, set()).copy()
+        permissions = self._permission_manager.get_user_permissions(user_id)
+        return {perm.permission_scope for perm in permissions}
 
     def add_sensitive_category(self, category: str) -> None:
         """
