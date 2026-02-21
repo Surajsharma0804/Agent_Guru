@@ -374,3 +374,355 @@ class TestDirectMappings:
 
         for intent_type in common_intents:
             assert intent_type in DIRECT_MAPPINGS
+
+
+class TestToolIntelligenceIntegration:
+    """Tests for Tool Intelligence Engine integration with Tool Selector."""
+
+    @pytest.fixture
+    async def registry(self) -> ToolRegistry:
+        """Create tool registry with example tools."""
+        registry = ToolRegistry()
+
+        # Register example tools
+        timer_tool = SetTimerTool()
+        await registry.register(timer_tool, timer_tool._tool_metadata)
+
+        cancel_tool = CancelTimerTool()
+        await registry.register(cancel_tool, cancel_tool._tool_metadata)
+
+        weather_tool = WeatherTool()
+        await registry.register(weather_tool, weather_tool._tool_metadata)
+
+        messaging_tool = MessagingTool()
+        await registry.register(messaging_tool, messaging_tool._tool_metadata)
+
+        return registry
+
+    @pytest.fixture
+    def selector(self, registry: ToolRegistry) -> ToolSelector:
+        """Create tool selector."""
+        return ToolSelector(registry)
+
+    async def test_intelligence_engine_used_in_tier2(
+        self, selector: ToolSelector
+    ) -> None:
+        """Test that intelligence engine is used for Tier 2 ranking."""
+        # Use unknown intent to force Tier 2
+        intent = Intent(
+            intent_type="unknown",
+            original_input="send a message to John saying hello",
+            entities={
+                "recipient": Entity(entity_type="person", value="John", raw_text="John"),
+                "message": Entity(entity_type="text", value="hello", raw_text="hello"),
+            },
+            confidence=0.8,
+        )
+
+        result = await selector.select_tool(intent)
+
+        assert result is not None
+        # Should have intelligence engine instance
+        assert hasattr(selector, '_intelligence_engine')
+        # Should select messaging tool
+        assert result.tool.metadata.tool_id == "messaging.send"
+
+    async def test_tool_execution_tracking(self, selector: ToolSelector) -> None:
+        """Test that tool execution results are tracked."""
+        # Record successful execution
+        await selector.record_tool_execution(
+            tool_id="timer.set",
+            success=True,
+            latency_ms=150.0,
+        )
+
+        # Check that intelligence engine was created
+        assert hasattr(selector, '_intelligence_engine')
+
+        # Get tool stats
+        stats = await selector._intelligence_engine.get_tool_stats("timer.set")
+        assert stats is not None
+        assert stats.total_executions == 1
+        assert stats.successful_executions == 1
+        assert stats.success_rate == 1.0
+
+    async def test_tool_failure_tracking(self, selector: ToolSelector) -> None:
+        """Test that tool failures are tracked."""
+        from Agent_Guru.reasoning.tools.intelligence import FailurePattern
+
+        # Record failed execution
+        await selector.record_tool_execution(
+            tool_id="weather.query",
+            success=False,
+            latency_ms=5000.0,
+            failure_pattern=FailurePattern.TIMEOUT,
+        )
+
+        # Get tool stats
+        stats = await selector._intelligence_engine.get_tool_stats("weather.query")
+        assert stats is not None
+        assert stats.total_executions == 1
+        assert stats.failed_executions == 1
+        assert stats.success_rate == 0.0
+        assert "timeout" in stats.failure_patterns
+
+    async def test_user_feedback_tracking(self, selector: ToolSelector) -> None:
+        """Test that user feedback is tracked."""
+        # Record positive feedback
+        await selector.record_user_feedback(
+            tool_id="timer.set",
+            user_id="user123",
+            rating=5.0,
+            positive=True,
+        )
+
+        # Get tool stats
+        stats = await selector._intelligence_engine.get_tool_stats("timer.set")
+        assert stats is not None
+        assert stats.user_feedback_count == 1
+        assert stats.user_rating == 5.0
+
+    async def test_tool_preference_learning(self, selector: ToolSelector) -> None:
+        """Test that tool preferences are learned from selections."""
+        # Make a selection (Tier 2 will track preference)
+        intent = Intent(
+            intent_type="unknown",
+            original_input="send a message to Alice",
+            entities={
+                "recipient": Entity(entity_type="person", value="Alice", raw_text="Alice"),
+                "message": Entity(entity_type="text", value="hi", raw_text="hi"),
+            },
+            confidence=0.8,
+        )
+
+        result = await selector.select_tool(intent)
+        assert result is not None
+
+        # Check that preference was learned
+        preferences = await selector._intelligence_engine.get_user_tool_preferences("default")
+        assert "messaging.send" in preferences
+        assert preferences["messaging.send"] > 0.5  # Should have increased
+
+    async def test_degraded_tool_detection(self, selector: ToolSelector) -> None:
+        """Test that degraded tools are detected and avoided."""
+        from Agent_Guru.reasoning.tools.intelligence import FailurePattern
+
+        # Record multiple failures to degrade tool
+        for _ in range(5):
+            await selector.record_tool_execution(
+                tool_id="weather.query",
+                success=False,
+                latency_ms=5000.0,
+                failure_pattern=FailurePattern.TIMEOUT,
+            )
+
+        # Check that tool is degraded
+        stats = await selector._intelligence_engine.get_tool_stats("weather.query")
+        assert stats is not None
+        assert stats.is_degraded
+        assert stats.consecutive_failures == 5
+
+        # Get degraded tools
+        degraded = await selector._intelligence_engine.detect_degraded_tools()
+        assert "weather.query" in degraded
+
+    async def test_ranking_with_reliability(self, selector: ToolSelector) -> None:
+        """Test that tool ranking considers reliability."""
+        from Agent_Guru.reasoning.tools.intelligence import FailurePattern
+
+        # Make timer tool unreliable
+        for _ in range(3):
+            await selector.record_tool_execution(
+                tool_id="timer.set",
+                success=False,
+                latency_ms=1000.0,
+                failure_pattern=FailurePattern.UNKNOWN,
+            )
+
+        # Make cancel tool reliable
+        for _ in range(5):
+            await selector.record_tool_execution(
+                tool_id="timer.cancel",
+                success=True,
+                latency_ms=100.0,
+            )
+
+        # Use a more specific intent that matches timer tools
+        intent = Intent(
+            intent_type="unknown",
+            original_input="set a timer for 5 minutes",
+            entities={
+                "duration_seconds": Entity(entity_type="duration", value=300, raw_text="5 minutes")
+            },
+            confidence=0.8,
+        )
+
+        result = await selector.select_tool(intent)
+
+        # Should match a timer tool
+        assert result is not None
+        assert "timer" in result.tool.metadata.tool_id
+
+    async def test_ranking_with_speed(self, selector: ToolSelector) -> None:
+        """Test that tool ranking considers speed."""
+        # Make timer tool slow
+        for _ in range(3):
+            await selector.record_tool_execution(
+                tool_id="timer.set",
+                success=True,
+                latency_ms=5000.0,  # Very slow
+            )
+
+        # Make cancel tool fast
+        for _ in range(3):
+            await selector.record_tool_execution(
+                tool_id="timer.cancel",
+                success=True,
+                latency_ms=50.0,  # Very fast
+            )
+
+        # Get stats to verify
+        timer_stats = await selector._intelligence_engine.get_tool_stats("timer.set")
+        cancel_stats = await selector._intelligence_engine.get_tool_stats("timer.cancel")
+
+        assert timer_stats is not None
+        assert cancel_stats is not None
+        assert timer_stats.avg_latency > cancel_stats.avg_latency
+
+    async def test_context_passed_to_ranking(self, selector: ToolSelector) -> None:
+        """Test that intent context is passed to ranking engine."""
+        intent = Intent(
+            intent_type="unknown",
+            original_input="send a message to Bob",
+            entities={
+                "recipient": Entity(entity_type="person", value="Bob", raw_text="Bob"),
+                "message": Entity(entity_type="text", value="test", raw_text="test"),
+            },
+            confidence=0.8,
+        )
+
+        result = await selector.select_tool(intent)
+
+        assert result is not None
+        # Intelligence engine should have been used with context
+        assert hasattr(selector, '_intelligence_engine')
+
+    async def test_multiple_executions_improve_ranking(
+        self, selector: ToolSelector
+    ) -> None:
+        """Test that multiple successful executions improve tool ranking."""
+        # Execute messaging tool multiple times successfully
+        for _ in range(10):
+            await selector.record_tool_execution(
+                tool_id="messaging.send",
+                success=True,
+                latency_ms=100.0,
+            )
+
+        # Get stats
+        stats = await selector._intelligence_engine.get_tool_stats("messaging.send")
+        assert stats is not None
+        assert stats.total_executions == 10
+        assert stats.success_rate == 1.0
+        assert stats.get_reliability_score() == 1.0
+
+    async def test_recovery_from_degradation(self, selector: ToolSelector) -> None:
+        """Test that tools can recover from degradation."""
+        from Agent_Guru.reasoning.tools.intelligence import FailurePattern
+
+        # Degrade tool
+        for _ in range(5):
+            await selector.record_tool_execution(
+                tool_id="timer.set",
+                success=False,
+                latency_ms=1000.0,
+                failure_pattern=FailurePattern.TIMEOUT,
+            )
+
+        # Verify degraded
+        stats = await selector._intelligence_engine.get_tool_stats("timer.set")
+        assert stats is not None
+        assert stats.is_degraded
+
+        # Recover with successful executions
+        for _ in range(3):
+            await selector.record_tool_execution(
+                tool_id="timer.set",
+                success=True,
+                latency_ms=100.0,
+            )
+
+        # Check recovery
+        stats = await selector._intelligence_engine.get_tool_stats("timer.set")
+        assert stats is not None
+        assert not stats.is_degraded
+        assert stats.consecutive_failures == 0
+
+    async def test_user_preference_affects_ranking(
+        self, selector: ToolSelector
+    ) -> None:
+        """Test that user preferences affect tool ranking."""
+        # Initialize intelligence engine first
+        from Agent_Guru.reasoning.tools.intelligence import ToolIntelligenceEngine
+        selector._intelligence_engine = ToolIntelligenceEngine()
+
+        # Learn strong preference for messaging tool
+        for _ in range(5):
+            await selector._intelligence_engine.learn_tool_preference(
+                user_id="user123",
+                tool_id="messaging.send",
+                selected=True,
+            )
+
+        # Get preferences
+        preferences = await selector._intelligence_engine.get_user_tool_preferences("user123")
+        assert "messaging.send" in preferences
+        assert preferences["messaging.send"] > 0.5
+
+    async def test_intelligence_engine_persistence(
+        self, selector: ToolSelector, tmp_path: Any
+    ) -> None:
+        """Test that intelligence engine can persist and load data."""
+        from pathlib import Path
+        from Agent_Guru.reasoning.tools.intelligence import ToolIntelligenceEngine
+
+        stats_file = tmp_path / "tool_stats.json"
+        prefs_file = tmp_path / "tool_prefs.json"
+
+        # Create engine with persistence
+        engine = ToolIntelligenceEngine(
+            stats_file=stats_file,
+            preferences_file=prefs_file,
+        )
+
+        # Record some data
+        await engine.record_execution(
+            tool_id="timer.set",
+            success=True,
+            latency_ms=150.0,
+        )
+
+        await engine.learn_tool_preference(
+            user_id="user123",
+            tool_id="timer.set",
+            selected=True,
+        )
+
+        # Verify files were created
+        assert stats_file.exists()
+        assert prefs_file.exists()
+
+        # Create new engine and load data
+        engine2 = ToolIntelligenceEngine(
+            stats_file=stats_file,
+            preferences_file=prefs_file,
+        )
+
+        # Verify data was loaded
+        stats = await engine2.get_tool_stats("timer.set")
+        assert stats is not None
+        assert stats.total_executions == 1
+
+        preferences = await engine2.get_user_tool_preferences("user123")
+        assert "timer.set" in preferences
+

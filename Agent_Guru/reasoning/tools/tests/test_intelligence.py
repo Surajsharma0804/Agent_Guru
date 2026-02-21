@@ -858,7 +858,7 @@ class TestToolRankingAlgorithm:
         """Create mock tool registry."""
 
         class MockRegistry:
-            def get_tool_metadata(self, tool_id: str) -> Any:
+            def get_metadata(self, tool_id: str) -> Any:
                 if tool_id == "timer.set":
                     return mock_tool_metadata
                 return None
@@ -1087,7 +1087,7 @@ class TestToolRankingAlgorithm:
         )
 
         class MockRegistry:
-            def get_tool_metadata(self, tool_id: str) -> Any:
+            def get_metadata(self, tool_id: str) -> Any:
                 return metadata
 
         context = {"intent": intent, "tool_registry": MockRegistry()}
@@ -1122,7 +1122,7 @@ class TestToolRankingAlgorithm:
         )
 
         class MockRegistry:
-            def get_tool_metadata(self, tool_id: str) -> Any:
+            def get_metadata(self, tool_id: str) -> Any:
                 return metadata
 
         context = {"intent": intent, "tool_registry": MockRegistry()}

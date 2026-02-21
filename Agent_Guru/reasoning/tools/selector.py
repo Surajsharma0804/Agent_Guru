@@ -154,7 +154,13 @@ class ToolSelector:
     async def _tier2_capability_matching(
         self, intent: Intent
     ) -> Optional[Tuple[Tool, Dict[str, Any], float]]:
-        """Tier 2: Capability-based matching with scoring.
+        """Tier 2: Capability-based matching with intelligent ranking.
+
+        Uses Tool Intelligence Engine for intelligent ranking based on:
+        - Relevance to intent (50%)
+        - Tool reliability (20%)
+        - Tool speed (20%)
+        - User preferences (10%)
 
         Time Complexity: O(n) where n = number of tools
         Target Latency: <50ms
@@ -171,7 +177,7 @@ class ToolSelector:
         if not all_tools:
             return None
 
-        # Score each tool
+        # Score each tool for basic capability matching
         candidates: List[Tuple[ToolMetadata, float]] = []
         for metadata in all_tools:
             score = self._calculate_match_score(metadata, intent)
@@ -181,12 +187,35 @@ class ToolSelector:
         if not candidates:
             return None
 
-        # Sort by score (descending)
-        candidates.sort(key=lambda x: x[1], reverse=True)
+        # Use Tool Intelligence Engine for intelligent ranking
+        from Agent_Guru.reasoning.tools.intelligence import ToolIntelligenceEngine
 
-        # Get best candidate
-        best_metadata, best_score = candidates[0]
-        best_tool = self.registry.get_tool(best_metadata.tool_id)
+        # Get or create intelligence engine instance
+        if not hasattr(self, '_intelligence_engine'):
+            self._intelligence_engine = ToolIntelligenceEngine()
+
+        # Extract candidate tool IDs
+        candidate_tool_ids = [metadata.tool_id for metadata, _ in candidates]
+
+        # Rank tools using intelligence engine
+        # Pass intent and tool_registry in context for relevance calculation
+        context = {
+            "intent": intent,
+            "tool_registry": self.registry,
+        }
+
+        ranked_tools = await self._intelligence_engine.rank_tools(
+            tool_ids=candidate_tool_ids,
+            user_id=None,  # TODO: Get user_id from context when available
+            context=context,
+        )
+
+        if not ranked_tools:
+            return None
+
+        # Get best ranked tool
+        best_tool_id, best_score = ranked_tools[0]
+        best_tool = self.registry.get_tool(best_tool_id)
 
         if best_tool is None:
             return None
@@ -195,8 +224,15 @@ class ToolSelector:
         parameters = self._extract_parameters_from_entities(best_tool, intent)
 
         # Only accept if score is high enough
-        if best_score < 0.5:  # Lower threshold from 0.8 to 0.5
+        if best_score < 0.5:
             return None
+
+        # Track selection decision for learning
+        await self._intelligence_engine.learn_tool_preference(
+            user_id="default",  # TODO: Get user_id from context when available
+            tool_id=best_tool_id,
+            selected=True,
+        )
 
         return (best_tool, parameters, best_score)
 
@@ -326,6 +362,65 @@ class ToolSelector:
         available_params = set(parameters.keys())
 
         return required_params.issubset(available_params)
+
+    async def record_tool_execution(
+        self,
+        tool_id: str,
+        success: bool,
+        latency_ms: float,
+        failure_pattern: Optional[Any] = None,
+    ) -> None:
+        """Record tool execution result for learning.
+
+        This method should be called after executing a tool to track performance
+        and enable the intelligence engine to learn from execution results.
+
+        Args:
+            tool_id: Tool identifier
+            success: Whether execution succeeded
+            latency_ms: Execution latency in milliseconds
+            failure_pattern: Failure pattern if execution failed (optional)
+        """
+        # Get or create intelligence engine
+        if not hasattr(self, '_intelligence_engine'):
+            from Agent_Guru.reasoning.tools.intelligence import ToolIntelligenceEngine
+            self._intelligence_engine = ToolIntelligenceEngine()
+
+        # Record execution
+        await self._intelligence_engine.record_execution(
+            tool_id=tool_id,
+            success=success,
+            latency_ms=latency_ms,
+            failure_pattern=failure_pattern,
+        )
+
+    async def record_user_feedback(
+        self,
+        tool_id: str,
+        user_id: str,
+        rating: Optional[float] = None,
+        positive: Optional[bool] = None,
+    ) -> None:
+        """Record user feedback for a tool.
+
+        Args:
+            tool_id: Tool identifier
+            user_id: User identifier
+            rating: User rating (0.0-5.0) if provided
+            positive: Positive/negative feedback if provided
+        """
+        # Get or create intelligence engine
+        if not hasattr(self, '_intelligence_engine'):
+            from Agent_Guru.reasoning.tools.intelligence import ToolIntelligenceEngine
+            self._intelligence_engine = ToolIntelligenceEngine()
+
+        # Record feedback
+        await self._intelligence_engine.record_user_feedback(
+            tool_id=tool_id,
+            user_id=user_id,
+            rating=rating,
+            positive=positive,
+        )
 
     def get_statistics(self) -> Dict[str, Any]:
         """Get tool selection statistics.

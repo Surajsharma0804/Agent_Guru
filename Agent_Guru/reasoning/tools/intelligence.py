@@ -887,8 +887,8 @@ class ToolIntelligenceEngine:
             intent = context["intent"]
             tool_registry = context["tool_registry"]
 
-            # Get tool metadata
-            tool_metadata = tool_registry.get_tool_metadata(tool_id)
+            # Get tool metadata (use get_metadata method)
+            tool_metadata = tool_registry.get_metadata(tool_id)
             if not tool_metadata:
                 return 0.5  # Unknown tool, neutral score
 
