@@ -16,7 +16,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
-from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
+from Agent_Guru.reasoning.llm.models import LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider
 
 
@@ -85,14 +85,10 @@ class RoutingMetrics:
             "cloud_requests": self.cloud_requests,
             "fallback_requests": self.fallback_requests,
             "local_percentage": (
-                self.local_requests / self.total_requests * 100
-                if self.total_requests > 0
-                else 0.0
+                self.local_requests / self.total_requests * 100 if self.total_requests > 0 else 0.0
             ),
             "cloud_percentage": (
-                self.cloud_requests / self.total_requests * 100
-                if self.total_requests > 0
-                else 0.0
+                self.cloud_requests / self.total_requests * 100 if self.total_requests > 0 else 0.0
             ),
             "local_avg_latency_ms": (
                 sum(self.local_latency_ms) / len(self.local_latency_ms)
@@ -330,7 +326,9 @@ class HybridLLMRouter:
                     response = await self.local_provider.generate(request)
 
                 routing_latency_ms = (time.perf_counter() - start_time) * 1000
-                self.metrics.record_request(RoutingDecision.FALLBACK, routing_latency_ms, error=False)
+                self.metrics.record_request(
+                    RoutingDecision.FALLBACK, routing_latency_ms, error=False
+                )
                 return response
 
         except Exception as primary_error:
@@ -344,13 +342,17 @@ class HybridLLMRouter:
                     if decision == RoutingDecision.LOCAL and self.cloud_provider:
                         # Fallback to cloud
                         response = await self.cloud_provider.generate(request)
-                        self.metrics.record_request(RoutingDecision.FALLBACK, routing_latency_ms, error=False)
+                        self.metrics.record_request(
+                            RoutingDecision.FALLBACK, routing_latency_ms, error=False
+                        )
                         return response
 
                     elif decision == RoutingDecision.CLOUD and self.local_provider:
                         # Fallback to local
                         response = await self.local_provider.generate(request)
-                        self.metrics.record_request(RoutingDecision.FALLBACK, routing_latency_ms, error=False)
+                        self.metrics.record_request(
+                            RoutingDecision.FALLBACK, routing_latency_ms, error=False
+                        )
                         return response
 
                 except Exception as fallback_error:

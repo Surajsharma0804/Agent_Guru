@@ -12,7 +12,6 @@ Tests cover:
 Coverage Target: 80%+
 """
 
-import asyncio
 import os
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
@@ -23,7 +22,6 @@ from anthropic import APIConnectionError, APIError, APIStatusError, RateLimitErr
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.anthropic_provider import AnthropicProvider
 from Agent_Guru.reasoning.llm.providers.base import CircuitState, ProviderConfig
-
 
 # ============================================================================
 # FIXTURES
@@ -269,9 +267,7 @@ class TestErrorHandling:
         """Test connection error handling."""
         # Mock the messages.create method
         provider.client.messages = Mock()
-        provider.client.messages.create = AsyncMock(
-            side_effect=APIConnectionError(request=Mock())
-        )
+        provider.client.messages.create = AsyncMock(side_effect=APIConnectionError(request=Mock()))
 
         with pytest.raises(RuntimeError, match="Anthropic connection error"):
             await provider.generate(llm_request)
@@ -285,9 +281,7 @@ class TestErrorHandling:
         # Mock the messages.create method
         provider.client.messages = Mock()
         provider.client.messages.create = AsyncMock(
-            side_effect=APIStatusError(
-                "Internal server error", response=mock_response, body=None
-            )
+            side_effect=APIStatusError("Internal server error", response=mock_response, body=None)
         )
 
         with pytest.raises(RuntimeError, match="Anthropic status error"):
@@ -358,9 +352,7 @@ class TestCircuitBreaker:
         # Cause failures
         # Mock the messages.create method
         provider.client.messages = Mock()
-        provider.client.messages.create = AsyncMock(
-            side_effect=APIConnectionError(request=Mock())
-        )
+        provider.client.messages.create = AsyncMock(side_effect=APIConnectionError(request=Mock()))
 
         # First failure
         with pytest.raises(RuntimeError):

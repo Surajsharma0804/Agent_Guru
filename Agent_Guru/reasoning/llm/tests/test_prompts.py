@@ -5,7 +5,8 @@ Coverage Target: >80% (enforced by CI/CD)
 """
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from Agent_Guru.reasoning.llm.prompts import (
     ConversationContext,
@@ -37,9 +38,7 @@ class TestConversationContext:
 
     def test_recent_turns_max_limit(self):
         """Test that only last N turns are included."""
-        context = ConversationContext(
-            recent_turns=[f"Turn {i}" for i in range(10)]
-        )
+        context = ConversationContext(recent_turns=[f"Turn {i}" for i in range(10)])
         formatted = context.format_for_prompt(max_turns=3)
 
         # Should only include last 3 turns
@@ -50,9 +49,7 @@ class TestConversationContext:
 
     def test_tracked_entities_formatting(self):
         """Test formatting with tracked entities."""
-        context = ConversationContext(
-            tracked_entities={"person": "John", "location": "New York"}
-        )
+        context = ConversationContext(tracked_entities={"person": "John", "location": "New York"})
         formatted = context.format_for_prompt()
 
         assert "Tracked entities:" in formatted
@@ -61,9 +58,7 @@ class TestConversationContext:
 
     def test_user_preferences_formatting(self):
         """Test formatting with user preferences."""
-        context = ConversationContext(
-            user_preferences={"language": "English", "timezone": "UTC"}
-        )
+        context = ConversationContext(user_preferences={"language": "English", "timezone": "UTC"})
         formatted = context.format_for_prompt()
 
         assert "User preferences:" in formatted
@@ -384,7 +379,9 @@ class TestReasoningPromptsProperties:
         num_turns=st.integers(min_value=1, max_value=20),
         num_entities=st.integers(min_value=1, max_value=10),
         num_actions=st.integers(min_value=1, max_value=10),
-        max_length=st.integers(min_value=200, max_value=1000),  # Increased minimum to be more realistic
+        max_length=st.integers(
+            min_value=200, max_value=1000
+        ),  # Increased minimum to be more realistic
     )
     def test_compression_reduces_size(
         self, num_turns: int, num_entities: int, num_actions: int, max_length: int
@@ -415,7 +412,9 @@ class TestReasoningPromptsProperties:
     def test_format_respects_max_turns(self, num_turns: int, max_turns: int):
         """Property: format_for_prompt respects max_turns parameter."""
         context = ConversationContext(
-            recent_turns=[f"Turn_{i:03d}" for i in range(num_turns)]  # Use zero-padded numbers to avoid substring matches
+            recent_turns=[
+                f"Turn_{i:03d}" for i in range(num_turns)
+            ]  # Use zero-padded numbers to avoid substring matches
         )
 
         formatted = context.format_for_prompt(max_turns=max_turns)
@@ -527,7 +526,10 @@ class TestReasoningPromptsIntegration:
         assert len(compressed.past_actions) == 0  # Removed first in compression
 
         # Verify most recent data is preserved
-        assert "User: Play music" in compressed.recent_turns or "Assistant: Playing music" in compressed.recent_turns
+        assert (
+            "User: Play music" in compressed.recent_turns
+            or "Assistant: Playing music" in compressed.recent_turns
+        )
 
         # Format compressed context
         formatted = compressed.format_for_prompt()

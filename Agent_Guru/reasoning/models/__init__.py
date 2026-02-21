@@ -20,6 +20,16 @@ from .memory import (
     TaskMemory,
 )
 from .result import ExecutionResult, Response, ResponseModality
+from .world_state import (
+    Activity,
+    AppState,
+    CalendarEvent,
+    Contact,
+    DeviceStatus,
+    LocationState,
+    SystemResources,
+    WorldState,
+)
 
 __all__ = [
     "Intent",
@@ -49,4 +59,12 @@ __all__ = [
     "KnowledgeAnswer",
     "Pattern",
     "TimeRange",
+    "WorldState",
+    "DeviceStatus",
+    "SystemResources",
+    "AppState",
+    "CalendarEvent",
+    "Contact",
+    "LocationState",
+    "Activity",
 ]

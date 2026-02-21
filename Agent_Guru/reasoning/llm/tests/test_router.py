@@ -6,8 +6,9 @@ Tests routing logic, complexity scoring, fallback behavior, and metrics tracking
 Coverage Target: 80%+
 """
 
-import pytest
 from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider, ProviderConfig
@@ -17,7 +18,6 @@ from Agent_Guru.reasoning.llm.router import (
     RoutingDecision,
     RoutingMetrics,
 )
-
 
 # ============================================================================
 # Fixtures
@@ -259,9 +259,7 @@ class TestRoutingDecision:
         complexity = ComplexityScore(score=0.5, factors={}, reasoning="Test")
 
         with pytest.raises(RuntimeError, match="No LLM providers available"):
-            router.make_routing_decision(
-                complexity, local_available=False, cloud_available=False
-            )
+            router.make_routing_decision(complexity, local_available=False, cloud_available=False)
 
 
 # ============================================================================
@@ -315,9 +313,7 @@ class TestGeneration:
         mock_cloud_provider.generate.side_effect = RuntimeError("Cloud failed")
 
         request = LLMRequest(prompt="A" * 300)
-        response = await router.generate(
-            request, intent_type="multi_step_task", entity_count=5
-        )
+        response = await router.generate(request, intent_type="multi_step_task", entity_count=5)
 
         # Should fallback to local
         assert response.text == "Local response"

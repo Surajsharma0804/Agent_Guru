@@ -12,7 +12,6 @@ Tests cover:
 Coverage Target: 80%+
 """
 
-import asyncio
 import os
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
@@ -23,7 +22,6 @@ from openai import APIConnectionError, APIError, APITimeoutError, RateLimitError
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import CircuitState, ProviderConfig
 from Agent_Guru.reasoning.llm.providers.openai_provider import OpenAIProvider
-
 
 # ============================================================================
 # FIXTURES
@@ -256,7 +254,9 @@ class TestErrorHandling:
         # Mock the chat.completions.create method
         provider.client.chat = Mock()
         provider.client.chat.completions = Mock()
-        provider.client.chat.completions.create = AsyncMock(side_effect=APITimeoutError(request=Mock()))
+        provider.client.chat.completions.create = AsyncMock(
+            side_effect=APITimeoutError(request=Mock())
+        )
 
         with pytest.raises(TimeoutError, match="OpenAI request timeout"):
             await provider.generate(llm_request)

@@ -4,20 +4,20 @@ Tests for LLM reasoning core.
 Coverage Target: >80% (enforced by CI/CD)
 """
 
-import pytest
-import asyncio
 import json
-from unittest.mock import Mock, AsyncMock, patch
-from hypothesis import given, strategies as st
-from datetime import datetime
+from unittest.mock import AsyncMock, Mock
 
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
+
+from Agent_Guru.reasoning.llm.models import LLMProvider, LLMResponse
+from Agent_Guru.reasoning.llm.prompts import ConversationContext
 from Agent_Guru.reasoning.llm.reasoning import (
-    ReasoningStep,
     ReasoningPlan,
     ReasoningPlanGenerator,
+    ReasoningStep,
 )
-from Agent_Guru.reasoning.llm.prompts import ConversationContext
-from Agent_Guru.reasoning.llm.models import LLMResponse, LLMProvider
 
 
 class TestReasoningStep:
@@ -292,21 +292,23 @@ class TestReasoningPlanGenerator:
         """Test generating a single-step plan."""
         # Mock LLM response
         mock_response = LLMResponse(
-            text=json.dumps({
-                "goal": "Set a timer for 5 minutes",
-                "steps": [
-                    {
-                        "step_id": 1,
-                        "description": "Create timer for 5 minutes",
-                        "tool_id": "timer_tool",
-                        "parameters": {"duration_seconds": 300},
-                        "estimated_duration_seconds": 1.0,
-                        "requires_confirmation": False,
-                    }
-                ],
-                "reasoning": "Simple timer creation",
-                "confidence": 0.98,
-            }),
+            text=json.dumps(
+                {
+                    "goal": "Set a timer for 5 minutes",
+                    "steps": [
+                        {
+                            "step_id": 1,
+                            "description": "Create timer for 5 minutes",
+                            "tool_id": "timer_tool",
+                            "parameters": {"duration_seconds": 300},
+                            "estimated_duration_seconds": 1.0,
+                            "requires_confirmation": False,
+                        }
+                    ],
+                    "reasoning": "Simple timer creation",
+                    "confidence": 0.98,
+                }
+            ),
             provider=LLMProvider.OPENAI,
             latency_ms=150.0,
             tokens_generated=100,
@@ -333,29 +335,31 @@ class TestReasoningPlanGenerator:
         """Test generating a multi-step plan."""
         # Mock LLM response
         mock_response = LLMResponse(
-            text=json.dumps({
-                "goal": "Start workout session",
-                "steps": [
-                    {
-                        "step_id": 1,
-                        "description": "Play workout playlist",
-                        "tool_id": "music_tool",
-                        "parameters": {"playlist": "workout"},
-                        "estimated_duration_seconds": 2.0,
-                        "requires_confirmation": False,
-                    },
-                    {
-                        "step_id": 2,
-                        "description": "Set 30-minute timer",
-                        "tool_id": "timer_tool",
-                        "parameters": {"duration_seconds": 1800},
-                        "estimated_duration_seconds": 1.0,
-                        "requires_confirmation": False,
-                    },
-                ],
-                "reasoning": "Two independent actions",
-                "confidence": 0.96,
-            }),
+            text=json.dumps(
+                {
+                    "goal": "Start workout session",
+                    "steps": [
+                        {
+                            "step_id": 1,
+                            "description": "Play workout playlist",
+                            "tool_id": "music_tool",
+                            "parameters": {"playlist": "workout"},
+                            "estimated_duration_seconds": 2.0,
+                            "requires_confirmation": False,
+                        },
+                        {
+                            "step_id": 2,
+                            "description": "Set 30-minute timer",
+                            "tool_id": "timer_tool",
+                            "parameters": {"duration_seconds": 1800},
+                            "estimated_duration_seconds": 1.0,
+                            "requires_confirmation": False,
+                        },
+                    ],
+                    "reasoning": "Two independent actions",
+                    "confidence": 0.96,
+                }
+            ),
             provider=LLMProvider.OPENAI,
             latency_ms=200.0,
             tokens_generated=150,
@@ -382,21 +386,23 @@ class TestReasoningPlanGenerator:
         """Test generating plan with conversation context."""
         # Mock LLM response
         mock_response = LLMResponse(
-            text=json.dumps({
-                "goal": "Send message to John",
-                "steps": [
-                    {
-                        "step_id": 1,
-                        "description": "Send message",
-                        "tool_id": "messaging_tool",
-                        "parameters": {"recipient": "John", "message": "Hello"},
-                        "estimated_duration_seconds": 2.0,
-                        "requires_confirmation": True,
-                    }
-                ],
-                "reasoning": "Messaging requires confirmation",
-                "confidence": 0.95,
-            }),
+            text=json.dumps(
+                {
+                    "goal": "Send message to John",
+                    "steps": [
+                        {
+                            "step_id": 1,
+                            "description": "Send message",
+                            "tool_id": "messaging_tool",
+                            "parameters": {"recipient": "John", "message": "Hello"},
+                            "estimated_duration_seconds": 2.0,
+                            "requires_confirmation": True,
+                        }
+                    ],
+                    "reasoning": "Messaging requires confirmation",
+                    "confidence": 0.95,
+                }
+            ),
             provider=LLMProvider.OPENAI,
             latency_ms=180.0,
             tokens_generated=120,
@@ -437,20 +443,22 @@ class TestReasoningPlanGenerator:
 
         # Second attempt: valid JSON
         valid_response = LLMResponse(
-            text=json.dumps({
-                "goal": "Test",
-                "steps": [
-                    {
-                        "step_id": 1,
-                        "description": "Test step",
-                        "tool_id": "test_tool",
-                        "parameters": {},
-                        "estimated_duration_seconds": 1.0,
-                    }
-                ],
-                "reasoning": "Test",
-                "confidence": 0.9,
-            }),
+            text=json.dumps(
+                {
+                    "goal": "Test",
+                    "steps": [
+                        {
+                            "step_id": 1,
+                            "description": "Test step",
+                            "tool_id": "test_tool",
+                            "parameters": {},
+                            "estimated_duration_seconds": 1.0,
+                        }
+                    ],
+                    "reasoning": "Test",
+                    "confidence": 0.9,
+                }
+            ),
             provider=LLMProvider.OPENAI,
             latency_ms=150.0,
             tokens_generated=100,
@@ -499,21 +507,23 @@ class TestReasoningPlanGenerator:
         """Test that step limit is enforced."""
         # Mock response with 6 steps (exceeds limit)
         mock_response = LLMResponse(
-            text=json.dumps({
-                "goal": "Too many steps",
-                "steps": [
-                    {
-                        "step_id": i,
-                        "description": f"Step {i}",
-                        "tool_id": f"tool{i}",
-                        "parameters": {},
-                        "estimated_duration_seconds": 1.0,
-                    }
-                    for i in range(1, 7)
-                ],
-                "reasoning": "Test",
-                "confidence": 0.9,
-            }),
+            text=json.dumps(
+                {
+                    "goal": "Too many steps",
+                    "steps": [
+                        {
+                            "step_id": i,
+                            "description": f"Step {i}",
+                            "tool_id": f"tool{i}",
+                            "parameters": {},
+                            "estimated_duration_seconds": 1.0,
+                        }
+                        for i in range(1, 7)
+                    ],
+                    "reasoning": "Test",
+                    "confidence": 0.9,
+                }
+            ),
             provider=LLMProvider.OPENAI,
             latency_ms=200.0,
             tokens_generated=200,
@@ -554,7 +564,9 @@ class TestReasoningPlanGenerator:
         assert generator._is_multi_step_task("multi_step_task", {}) is True
 
         # Multiple actions indicated by "and"
-        assert generator._is_multi_step_task("test", {"actions": "play music and set timer"}) is True
+        assert (
+            generator._is_multi_step_task("test", {"actions": "play music and set timer"}) is True
+        )
 
         # Single action
         assert generator._is_multi_step_task("set_timer", {"duration": "5 minutes"}) is False
@@ -580,29 +592,31 @@ class TestReasoningPlanGeneratorIntegration:
         """Test complete plan generation workflow."""
         # Mock LLM response
         mock_response = LLMResponse(
-            text=json.dumps({
-                "goal": "Complete workout session",
-                "steps": [
-                    {
-                        "step_id": 1,
-                        "description": "Play workout playlist",
-                        "tool_id": "music_tool",
-                        "parameters": {"playlist": "workout", "action": "play"},
-                        "estimated_duration_seconds": 2.0,
-                        "requires_confirmation": False,
-                    },
-                    {
-                        "step_id": 2,
-                        "description": "Set 30-minute timer",
-                        "tool_id": "timer_tool",
-                        "parameters": {"duration_seconds": 1800, "label": "Workout"},
-                        "estimated_duration_seconds": 1.0,
-                        "requires_confirmation": False,
-                    },
-                ],
-                "reasoning": "Start workout with music and timer",
-                "confidence": 0.96,
-            }),
+            text=json.dumps(
+                {
+                    "goal": "Complete workout session",
+                    "steps": [
+                        {
+                            "step_id": 1,
+                            "description": "Play workout playlist",
+                            "tool_id": "music_tool",
+                            "parameters": {"playlist": "workout", "action": "play"},
+                            "estimated_duration_seconds": 2.0,
+                            "requires_confirmation": False,
+                        },
+                        {
+                            "step_id": 2,
+                            "description": "Set 30-minute timer",
+                            "tool_id": "timer_tool",
+                            "parameters": {"duration_seconds": 1800, "label": "Workout"},
+                            "estimated_duration_seconds": 1.0,
+                            "requires_confirmation": False,
+                        },
+                    ],
+                    "reasoning": "Start workout with music and timer",
+                    "confidence": 0.96,
+                }
+            ),
             provider=LLMProvider.OPENAI,
             latency_ms=250.0,
             tokens_generated=180,
@@ -636,7 +650,6 @@ class TestReasoningPlanGeneratorIntegration:
         assert plan.confidence == 0.96
 
 
-
 class TestReasoningPlanValidator:
     """Unit tests for ReasoningPlanValidator."""
 
@@ -662,6 +675,7 @@ class TestReasoningPlanValidator:
     def validator(self, tool_registry):
         """Create plan validator."""
         from Agent_Guru.reasoning.llm.reasoning import ReasoningPlanValidator
+
         return ReasoningPlanValidator(tool_registry, max_duration_seconds=30.0)
 
     def test_validate_valid_plan(self, validator):
@@ -759,7 +773,6 @@ class TestReasoningPlanValidator:
 
     def test_validate_circular_dependencies(self, validator):
         """Test validation fails for circular dependencies."""
-        from Agent_Guru.reasoning.llm.reasoning import ReasoningPlanValidator
 
         # Create steps that form a cycle: 1 -> 2 -> 3 -> 1
         # We'll bypass the validation by creating steps first, then modifying depends_on
@@ -770,7 +783,7 @@ class TestReasoningPlanValidator:
             parameters={"duration_seconds": 300},
             estimated_duration_seconds=1.0,
         )
-        
+
         step2 = ReasoningStep(
             step_id=2,
             description="Step 2",
@@ -779,7 +792,7 @@ class TestReasoningPlanValidator:
             estimated_duration_seconds=1.0,
             depends_on=[1],  # Valid: depends on earlier step
         )
-        
+
         step3 = ReasoningStep(
             step_id=3,
             description="Step 3",
@@ -937,7 +950,6 @@ class TestReasoningPlanValidatorIntegration:
         assert "Missing required parameter" in error
 
 
-
 class TestReasoningProperties:
     """Property-based tests for reasoning."""
 
@@ -1018,7 +1030,7 @@ class TestReasoningProperties:
     def test_plan_duration_is_sum_of_steps(self, num_steps: int):
         """Property: Plan duration equals sum of step durations."""
         step_durations = [float(i) for i in range(1, num_steps + 1)]
-        
+
         steps = [
             ReasoningStep(
                 step_id=i,
@@ -1067,7 +1079,6 @@ class TestReasoningProperties:
         assert plan.confidence == confidence
 
 
-
 class TestReasoningPlanValidationProperties:
     """Property-based tests for reasoning plan validation."""
 
@@ -1078,10 +1089,8 @@ class TestReasoningPlanValidationProperties:
         """Property 11: Plans with valid tools always pass validation."""
         # Create tool registry and validator inside test (no fixtures with @given)
         from Agent_Guru.reasoning.llm.reasoning import ReasoningPlanValidator
-        tool_registry = {
-            f"tool_{i}": {"required_parameters": []}
-            for i in range(10)
-        }
+
+        tool_registry = {f"tool_{i}": {"required_parameters": []} for i in range(10)}
         validator = ReasoningPlanValidator(tool_registry, max_duration_seconds=100.0)
 
         steps = [
@@ -1113,10 +1122,8 @@ class TestReasoningPlanValidationProperties:
         """Property: Plans with invalid tools always fail validation."""
         # Create tool registry and validator inside test (no fixtures with @given)
         from Agent_Guru.reasoning.llm.reasoning import ReasoningPlanValidator
-        tool_registry = {
-            f"tool_{i}": {"required_parameters": []}
-            for i in range(10)
-        }
+
+        tool_registry = {f"tool_{i}": {"required_parameters": []} for i in range(10)}
         validator = ReasoningPlanValidator(tool_registry, max_duration_seconds=100.0)
 
         steps = [
@@ -1149,10 +1156,8 @@ class TestReasoningPlanValidationProperties:
         """Property: Plans exceeding max duration always fail validation."""
         # Create tool registry and validator inside test (no fixtures with @given)
         from Agent_Guru.reasoning.llm.reasoning import ReasoningPlanValidator
-        tool_registry = {
-            f"tool_{i}": {"required_parameters": []}
-            for i in range(10)
-        }
+
+        tool_registry = {f"tool_{i}": {"required_parameters": []} for i in range(10)}
         validator = ReasoningPlanValidator(tool_registry, max_duration_seconds=100.0)
 
         steps = [
@@ -1185,10 +1190,8 @@ class TestReasoningPlanValidationProperties:
         """Property: Valid plans always pass validation."""
         # Create tool registry and validator inside test (no fixtures with @given)
         from Agent_Guru.reasoning.llm.reasoning import ReasoningPlanValidator
-        tool_registry = {
-            f"tool_{i}": {"required_parameters": []}
-            for i in range(10)
-        }
+
+        tool_registry = {f"tool_{i}": {"required_parameters": []} for i in range(10)}
         validator = ReasoningPlanValidator(tool_registry, max_duration_seconds=100.0)
 
         steps = [

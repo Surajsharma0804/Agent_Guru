@@ -11,13 +11,14 @@ Implements reasoning plan generation with:
 Performance Target: <2s end-to-end reasoning (95th percentile)
 """
 
-import json
 import asyncio
+import json
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Dict, List, Optional
 from datetime import datetime
+from typing import Any, Optional
 
-from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
+from Agent_Guru.reasoning.llm.models import LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.prompts import ConversationContext, ReasoningPrompts
 
 
@@ -28,10 +29,10 @@ class ReasoningStep:
     step_id: int
     description: str
     tool_id: str
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
     estimated_duration_seconds: float
     requires_confirmation: bool = False
-    depends_on: List[int] = field(default_factory=list)  # For parallel execution
+    depends_on: list[int] = field(default_factory=list)  # For parallel execution
 
     def __post_init__(self):
         """Validate step fields."""
@@ -58,7 +59,7 @@ class ReasoningPlan:
     """Complete reasoning plan with multiple steps."""
 
     goal: str
-    steps: List[ReasoningStep]
+    steps: list[ReasoningStep]
     reasoning: str
     confidence: float
     requires_confirmation: bool = False
@@ -86,9 +87,7 @@ class ReasoningPlan:
 
         # Check if any step requires confirmation
         if not self.requires_confirmation:
-            self.requires_confirmation = any(
-                step.requires_confirmation for step in self.steps
-            )
+            self.requires_confirmation = any(step.requires_confirmation for step in self.steps)
 
 
 class ReasoningPlanGenerator:
@@ -120,8 +119,8 @@ class ReasoningPlanGenerator:
         self,
         user_input: str,
         intent_type: str,
-        entities: Dict[str, Any],
-        available_tools: List[str],
+        entities: dict[str, Any],
+        available_tools: list[str],
         context: Optional[ConversationContext] = None,
     ) -> ReasoningPlan:
         """
@@ -199,8 +198,8 @@ class ReasoningPlanGenerator:
         self,
         user_input: str,
         intent_type: str,
-        entities: Dict[str, Any],
-        available_tools: List[str],
+        entities: dict[str, Any],
+        available_tools: list[str],
         context: Optional[ConversationContext] = None,
     ) -> AsyncIterator[ReasoningStep]:
         """
@@ -218,9 +217,7 @@ class ReasoningPlanGenerator:
         """
         # For now, generate full plan and yield steps
         # TODO: Implement true streaming with LLM streaming API
-        plan = await self.generate_plan(
-            user_input, intent_type, entities, available_tools, context
-        )
+        plan = await self.generate_plan(user_input, intent_type, entities, available_tools, context)
 
         for step in plan.steps:
             yield step
@@ -323,7 +320,7 @@ class ReasoningPlanGenerator:
 
         return text.strip()
 
-    def _is_multi_step_task(self, intent_type: str, entities: Dict[str, Any]) -> bool:
+    def _is_multi_step_task(self, intent_type: str, entities: dict[str, Any]) -> bool:
         """
         Determine if task requires multiple steps.
 
@@ -343,7 +340,6 @@ class ReasoningPlanGenerator:
         return any(indicator in str(entities).lower() for indicator in action_indicators)
 
 
-
 class ReasoningPlanValidator:
     """
     Validates reasoning plans before execution.
@@ -355,7 +351,7 @@ class ReasoningPlanValidator:
     - Duration within timeout limits
     """
 
-    def __init__(self, tool_registry: Dict[str, Any], max_duration_seconds: float = 30.0):
+    def __init__(self, tool_registry: dict[str, Any], max_duration_seconds: float = 30.0):
         """
         Initialize plan validator.
 
@@ -378,7 +374,10 @@ class ReasoningPlanValidator:
         """
         # Check duration limit
         if plan.estimated_duration_seconds > self.max_duration_seconds:
-            return False, f"Plan duration {plan.estimated_duration_seconds}s exceeds limit {self.max_duration_seconds}s"
+            return (
+                False,
+                f"Plan duration {plan.estimated_duration_seconds}s exceeds limit {self.max_duration_seconds}s",
+            )
 
         # Validate each step
         for step in plan.steps:
@@ -399,7 +398,7 @@ class ReasoningPlanValidator:
 
         return True, None
 
-    def _has_circular_dependencies(self, steps: List[ReasoningStep]) -> bool:
+    def _has_circular_dependencies(self, steps: list[ReasoningStep]) -> bool:
         """
         Check if steps have circular dependencies.
 
@@ -410,7 +409,7 @@ class ReasoningPlanValidator:
             True if circular dependencies exist
         """
         # Build dependency graph
-        graph: Dict[int, List[int]] = {}
+        graph: dict[int, list[int]] = {}
         for step in steps:
             graph[step.step_id] = step.depends_on
 

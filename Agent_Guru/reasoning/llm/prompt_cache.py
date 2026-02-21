@@ -9,10 +9,9 @@ Token Reduction Target: 80% for cached prompts
 """
 
 import hashlib
-import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Optional
 
 
@@ -161,17 +160,13 @@ class PromptCache:
         if self.ttl_seconds is None:
             return
 
-        expired_keys = [
-            key for key, entry in self._cache.items() if self._is_expired(entry)
-        ]
+        expired_keys = [key for key, entry in self._cache.items() if self._is_expired(entry)]
 
         for key in expired_keys:
             del self._cache[key]
             self.stats.record_eviction()
 
-    def get(
-        self, intent_type: str, context: str = ""
-    ) -> Optional[str]:
+    def get(self, intent_type: str, context: str = "") -> Optional[str]:
         """
         Get cached prompt.
 

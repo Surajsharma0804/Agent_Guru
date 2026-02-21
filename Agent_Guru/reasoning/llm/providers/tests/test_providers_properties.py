@@ -16,7 +16,8 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from hypothesis import HealthCheck, given, settings, strategies as st
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.anthropic_provider import AnthropicProvider
@@ -27,7 +28,6 @@ from Agent_Guru.reasoning.llm.providers.base import (
     RateLimitState,
 )
 from Agent_Guru.reasoning.llm.providers.openai_provider import OpenAIProvider
-
 
 # ============================================================================
 # PROPERTY: Configuration Validation
@@ -124,9 +124,7 @@ class TestRateLimitingProperties:
         requests=st.integers(min_value=0, max_value=150),
     )
     @settings(max_examples=100)
-    def test_rate_limit_enforcement(
-        self, rpm_limit: int, tpm_limit: int, requests: int
-    ):
+    def test_rate_limit_enforcement(self, rpm_limit: int, tpm_limit: int, requests: int):
         """Property: Rate limits are enforced correctly."""
         config = ProviderConfig(
             api_key="test-key",
@@ -279,8 +277,7 @@ class TestRequestResponseProperties:
             )
 
     @given(
-        top_p=st.floats(min_value=1.1, max_value=10.0)
-        | st.floats(min_value=-10.0, max_value=-0.1),
+        top_p=st.floats(min_value=1.1, max_value=10.0) | st.floats(min_value=-10.0, max_value=-0.1),
     )
     @settings(max_examples=100)
     def test_invalid_top_p_fails(self, top_p: float):
@@ -356,9 +353,7 @@ class TestProviderBehaviorProperties:
             # Mock the chat.completions.create method
             provider.client.chat = Mock()
             provider.client.chat.completions = Mock()
-            provider.client.chat.completions.create = AsyncMock(
-                return_value=mock_completion
-            )
+            provider.client.chat.completions.create = AsyncMock(return_value=mock_completion)
         else:  # AnthropicProvider
             mock_content = Mock()
             mock_content.type = "text"

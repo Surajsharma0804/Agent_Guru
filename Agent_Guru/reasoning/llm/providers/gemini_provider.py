@@ -64,7 +64,7 @@ class GeminiProvider(BaseLLMProvider):
 
         super().__init__(config)
         self.model_name = model
-        
+
         # Configure Gemini API
         genai.configure(api_key=config.api_key)
         self.model = genai.GenerativeModel(model)
@@ -112,13 +112,13 @@ class GeminiProvider(BaseLLMProvider):
 
             # Determine finish reason
             finish_reason = "stop"
-            if hasattr(response, 'prompt_feedback') and response.prompt_feedback:
+            if hasattr(response, "prompt_feedback") and response.prompt_feedback:
                 if response.prompt_feedback.block_reason:
                     finish_reason = "error"
-            
+
             # Estimate tokens (Gemini doesn't always provide token counts)
             tokens_generated = len(text.split())  # Rough estimate
-            if hasattr(response, 'usage_metadata') and response.usage_metadata:
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
                 tokens_generated = response.usage_metadata.candidates_token_count
 
             return LLMResponse(
@@ -129,8 +129,12 @@ class GeminiProvider(BaseLLMProvider):
                 finish_reason=finish_reason,
                 metadata={
                     "model": self.model_name,
-                    "prompt_tokens": response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') and response.usage_metadata else len(request.prompt.split()),
-                    "total_tokens": response.usage_metadata.total_token_count if hasattr(response, 'usage_metadata') and response.usage_metadata else len(request.prompt.split()) + tokens_generated,
+                    "prompt_tokens": response.usage_metadata.prompt_token_count
+                    if hasattr(response, "usage_metadata") and response.usage_metadata
+                    else len(request.prompt.split()),
+                    "total_tokens": response.usage_metadata.total_token_count
+                    if hasattr(response, "usage_metadata") and response.usage_metadata
+                    else len(request.prompt.split()) + tokens_generated,
                 },
             )
 

@@ -7,11 +7,10 @@ Coverage Target: 80%+
 """
 
 import time
+
 import pytest
-from datetime import datetime, timedelta
 
-from Agent_Guru.reasoning.llm.prompt_cache import CachedPrompt, CacheStats, PromptCache
-
+from Agent_Guru.reasoning.llm.prompt_cache import CacheStats, PromptCache
 
 # ============================================================================
 # Initialization Tests

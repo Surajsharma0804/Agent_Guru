@@ -31,7 +31,11 @@ class ConversationContext:
         # Recent conversation - respect max_turns limit
         if self.recent_turns:
             # Take only the last max_turns turns
-            turns = self.recent_turns[-max_turns:] if len(self.recent_turns) > max_turns else self.recent_turns
+            turns = (
+                self.recent_turns[-max_turns:]
+                if len(self.recent_turns) > max_turns
+                else self.recent_turns
+            )
             if turns:
                 parts.append("Recent conversation:")
                 for i, turn in enumerate(turns, 1):
@@ -303,7 +307,9 @@ Consider the order of operations and any dependencies between steps."""
         return "\n\n".join(examples[:count])
 
     @staticmethod
-    def compress_context(context: ConversationContext, max_length: int = 500) -> ConversationContext:
+    def compress_context(
+        context: ConversationContext, max_length: int = 500
+    ) -> ConversationContext:
         """
         Compress conversation context to fit within token limits.
 
@@ -317,7 +323,9 @@ Consider the order of operations and any dependencies between steps."""
         # Start with aggressive compression
         compressed = ConversationContext(
             recent_turns=context.recent_turns[-2:],  # Keep only last 2 turns
-            tracked_entities=dict(list(context.tracked_entities.items())[:3]),  # Keep only 3 entities
+            tracked_entities=dict(
+                list(context.tracked_entities.items())[:3]
+            ),  # Keep only 3 entities
             user_preferences=context.user_preferences,
             past_actions=[],  # Remove past actions first
         )
