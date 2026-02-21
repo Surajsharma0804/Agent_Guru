@@ -656,7 +656,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Complete ranking within 50ms latency budget
     - _Requirements: 34.3, 34.7_
 
-  - [ ] 12.6.4 Implement degraded tool detection
+  - [x] 12.6.4 Implement degraded tool detection
     - Mark tool as degraded if success_rate < 0.7
     - Mark tool as degraded if consecutive_failures >= 3
     - Deprioritize degraded tools in ranking
@@ -664,7 +664,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Automatically re-enable after successful executions
     - _Requirements: 34.4_
 
-  - [ ] 12.6.5 Implement user tool preference learning
+  - [x] 12.6.5 Implement user tool preference learning
     - Track which tools user selects when multiple options available
     - Track user feedback (thumbs up/down, ratings)
     - Track task completion satisfaction

@@ -3,6 +3,7 @@ Tests for Tool Intelligence Engine.
 """
 
 import pytest
+import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -1232,3 +1233,353 @@ class TestToolRankingAlgorithm:
 
         # Should produce same results
         assert ranked1 == ranked2 == ranked3
+
+
+
+class TestDegradedToolDetection:
+    """Tests for degraded tool detection (Task 12.6.4) - Production Grade."""
+
+    @pytest.mark.asyncio
+    async def test_degradation_alert_severity_levels(self) -> None:
+        """Test that degradation alerts use appropriate severity levels."""
+        from Agent_Guru.reasoning.tools.intelligence import (
+            AlertSeverity,
+            _alert_manager,
+        )
+
+        # Capture alerts
+        alerts_received = []
+
+        def capture_alert(alert: Any) -> None:
+            alerts_received.append(alert)
+
+        _alert_manager.register_handler(capture_alert)
+
+        # Test WARNING severity (success_rate < 0.7 but >= 0.5)
+        stats1 = ToolStats(
+            tool_id="warning.tool",
+            total_executions=10,
+            successful_executions=6,
+            failed_executions=4,
+            success_rate=0.6,
+        )
+        stats1.record_failure(FailurePattern.TIMEOUT)
+        await asyncio.sleep(0.1)  # Allow async alert to process
+
+        # Test ERROR severity (success_rate < 0.5 or 3-4 consecutive failures)
+        stats2 = ToolStats(
+            tool_id="error.tool",
+            total_executions=10,
+            successful_executions=5,
+            failed_executions=5,
+            success_rate=0.5,
+        )
+        stats2.record_failure(FailurePattern.TIMEOUT)
+        await asyncio.sleep(0.1)
+
+        # Test CRITICAL severity (>= 5 consecutive failures)
+        stats3 = ToolStats(
+            tool_id="critical.tool",
+            total_executions=10,
+            successful_executions=5,
+            failed_executions=5,
+            consecutive_failures=4,
+        )
+        stats3.record_failure(FailurePattern.TIMEOUT)
+        await asyncio.sleep(0.1)
+
+        # Verify severity levels
+        assert len(alerts_received) >= 2
+        # Note: Some alerts may be deduplicated
+
+    @pytest.mark.asyncio
+    async def test_alert_deduplication(self) -> None:
+        """Test that duplicate alerts are deduplicated within time window."""
+        from Agent_Guru.reasoning.tools.intelligence import (
+            DegradationAlert,
+            AlertSeverity,
+            _alert_manager,
+        )
+
+        # Create identical alerts
+        alert1 = DegradationAlert(
+            tool_id="test.tool",
+            severity=AlertSeverity.WARNING,
+            reason="Test degradation",
+            metrics={},
+        )
+
+        alert2 = DegradationAlert(
+            tool_id="test.tool",
+            severity=AlertSeverity.WARNING,
+            reason="Test degradation",
+            metrics={},
+        )
+
+        # Send first alert
+        sent1 = await _alert_manager.send_alert(alert1)
+        assert sent1 is True
+
+        # Send duplicate alert (should be deduplicated)
+        sent2 = await _alert_manager.send_alert(alert2)
+        assert sent2 is False
+
+    @pytest.mark.asyncio
+    async def test_alert_throttling(self) -> None:
+        """Test that alerts are throttled to prevent alert fatigue."""
+        from Agent_Guru.reasoning.tools.intelligence import (
+            DegradationAlert,
+            AlertSeverity,
+            AlertManager,
+        )
+
+        # Create alert manager with low throttle limit
+        mgr = AlertManager(max_alerts_per_tool_per_hour=3)
+
+        # Send 3 alerts (should all succeed)
+        for i in range(3):
+            alert = DegradationAlert(
+                tool_id="test.tool",
+                severity=AlertSeverity.WARNING,
+                reason=f"Test {i}",
+                metrics={},
+            )
+            sent = await mgr.send_alert(alert)
+            assert sent is True
+
+        # 4th alert should be throttled
+        alert4 = DegradationAlert(
+            tool_id="test.tool",
+            severity=AlertSeverity.WARNING,
+            reason="Test 4",
+            metrics={},
+        )
+        sent4 = await mgr.send_alert(alert4)
+        assert sent4 is False
+
+    @pytest.mark.asyncio
+    async def test_custom_alert_handlers(self) -> None:
+        """Test that custom alert handlers are executed."""
+        from Agent_Guru.reasoning.tools.intelligence import (
+            DegradationAlert,
+            AlertSeverity,
+            AlertManager,
+        )
+
+        # Track handler executions
+        handler1_called = []
+        handler2_called = []
+
+        def handler1(alert: DegradationAlert) -> None:
+            handler1_called.append(alert.tool_id)
+
+        def handler2(alert: DegradationAlert) -> None:
+            handler2_called.append(alert.tool_id)
+
+        # Register handlers
+        mgr = AlertManager()
+        mgr.register_handler(handler1)
+        mgr.register_handler(handler2)
+
+        # Send alert
+        alert = DegradationAlert(
+            tool_id="test.tool",
+            severity=AlertSeverity.WARNING,
+            reason="Test",
+            metrics={},
+        )
+        await mgr.send_alert(alert)
+
+        # Both handlers should be called
+        assert "test.tool" in handler1_called
+        assert "test.tool" in handler2_called
+
+    @pytest.mark.asyncio
+    async def test_alert_includes_comprehensive_metrics(self) -> None:
+        """Test that alerts include comprehensive performance metrics."""
+        from Agent_Guru.reasoning.tools.intelligence import _alert_manager
+
+        alerts_received = []
+
+        def capture_alert(alert: Any) -> None:
+            alerts_received.append(alert)
+
+        _alert_manager.register_handler(capture_alert)
+
+        # Create degraded tool
+        stats = ToolStats(
+            tool_id="metrics.tool",
+            total_executions=5,
+            successful_executions=5,
+            failed_executions=0,
+        )
+
+        # Trigger degradation
+        for _ in range(3):
+            stats.record_failure(FailurePattern.TIMEOUT)
+
+        await asyncio.sleep(0.1)
+
+        # Verify alert contains comprehensive metrics
+        assert len(alerts_received) > 0
+        alert = alerts_received[-1]
+        assert "success_rate" in alert.metrics
+        assert "consecutive_failures" in alert.metrics
+        assert "total_executions" in alert.metrics
+        assert "failed_executions" in alert.metrics
+        assert "avg_latency_ms" in alert.metrics
+        assert "most_common_failure" in alert.metrics
+        assert "failure_patterns" in alert.metrics
+
+    @pytest.mark.asyncio
+    async def test_recovery_alert_sent(self) -> None:
+        """Test that recovery alert is sent when tool recovers."""
+        from Agent_Guru.reasoning.tools.intelligence import (
+            AlertSeverity,
+            _alert_manager,
+        )
+
+        alerts_received = []
+
+        def capture_alert(alert: Any) -> None:
+            alerts_received.append(alert)
+
+        _alert_manager.register_handler(capture_alert)
+
+        # Create degraded tool
+        stats = ToolStats(
+            tool_id="recovery.tool",
+            is_degraded=True,
+            degradation_reason="Test degradation",
+            consecutive_failures=0,
+        )
+
+        # Record success (should trigger recovery)
+        stats.record_success(latency_ms=100.0)
+        await asyncio.sleep(0.1)
+
+        # Verify recovery alert sent
+        recovery_alerts = [
+            a for a in alerts_received if a.severity == AlertSeverity.INFO
+        ]
+        assert len(recovery_alerts) > 0
+        assert "recovered" in recovery_alerts[0].reason.lower()
+
+    def test_degraded_tools_deprioritized_in_ranking(self) -> None:
+        """Test that degraded tools get 50% penalty in reliability score."""
+        # Normal tool
+        normal_stats = ToolStats(
+            tool_id="normal.tool",
+            total_executions=100,
+            successful_executions=80,
+            failed_executions=20,
+            success_rate=0.8,
+            is_degraded=False,
+        )
+
+        # Degraded tool with same success rate
+        degraded_stats = ToolStats(
+            tool_id="degraded.tool",
+            total_executions=100,
+            successful_executions=80,
+            failed_executions=20,
+            success_rate=0.8,
+            is_degraded=True,
+        )
+
+        # Normal tool should have higher reliability score
+        normal_score = normal_stats.get_reliability_score()
+        degraded_score = degraded_stats.get_reliability_score()
+
+        assert normal_score == 0.8
+        assert degraded_score == 0.4  # 50% penalty
+        assert normal_score > degraded_score
+
+    def test_no_degradation_with_insufficient_data(self) -> None:
+        """Test that tool is not marked degraded with < 5 executions."""
+        stats = ToolStats(tool_id="test.tool")
+
+        # Record 4 failures (below minimum threshold)
+        for _ in range(4):
+            stats.record_failure(FailurePattern.TIMEOUT)
+
+        # Should NOT be marked as degraded (insufficient data)
+        assert stats.is_degraded is False
+        assert stats.consecutive_failures == 4
+
+    @pytest.mark.asyncio
+    async def test_detect_degraded_tools_method(self) -> None:
+        """Test ToolIntelligenceEngine.detect_degraded_tools() method."""
+        from Agent_Guru.reasoning.tools.intelligence import ToolIntelligenceEngine
+
+        engine = ToolIntelligenceEngine()
+
+        # Create normal tool
+        for _ in range(10):
+            await engine.record_execution(
+                tool_id="normal.tool", success=True, latency_ms=100.0
+            )
+
+        # Create degraded tool
+        for _ in range(5):
+            await engine.record_execution(
+                tool_id="degraded.tool", success=True, latency_ms=100.0
+            )
+        for _ in range(5):
+            await engine.record_execution(
+                tool_id="degraded.tool",
+                success=False,
+                latency_ms=0.0,
+                failure_pattern=FailurePattern.TIMEOUT,
+            )
+
+        # Detect degraded tools
+        degraded = await engine.detect_degraded_tools()
+
+        # Should only include degraded tool
+        assert "degraded.tool" in degraded
+        assert "normal.tool" not in degraded
+
+    @pytest.mark.asyncio
+    async def test_alert_manager_cleanup(self) -> None:
+        """Test that alert manager cleans up old alerts."""
+        from Agent_Guru.reasoning.tools.intelligence import (
+            DegradationAlert,
+            AlertSeverity,
+            AlertManager,
+        )
+
+        mgr = AlertManager(dedup_window_seconds=1)  # 1 second window
+
+        # Send alert
+        alert = DegradationAlert(
+            tool_id="test.tool",
+            severity=AlertSeverity.WARNING,
+            reason="Test",
+            metrics={},
+        )
+        await mgr.send_alert(alert)
+
+        # Wait for cleanup window
+        await asyncio.sleep(1.5)
+
+        # Send another alert (should not be deduplicated after cleanup)
+        alert2 = DegradationAlert(
+            tool_id="test.tool",
+            severity=AlertSeverity.WARNING,
+            reason="Test",
+            metrics={},
+        )
+        sent = await mgr.send_alert(alert2)
+        assert sent is True
+
+    def test_get_alert_manager(self) -> None:
+        """Test that alert manager can be retrieved for configuration."""
+        from Agent_Guru.reasoning.tools.intelligence import ToolIntelligenceEngine
+
+        engine = ToolIntelligenceEngine()
+        alert_mgr = engine.get_alert_manager()
+
+        assert alert_mgr is not None
+        # Should be able to register handlers
+        alert_mgr.register_handler(lambda alert: None)

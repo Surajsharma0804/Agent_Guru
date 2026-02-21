@@ -6,16 +6,238 @@ This module implements intelligent tool tracking, ranking, and learning based on
 - Execution latency and performance
 - User preferences and feedback
 - Degradation detection and recovery
+
+Production-grade features:
+- Comprehensive alerting with severity levels
+- Structured logging for observability
+- Metrics tracking for monitoring
+- Alert deduplication to prevent alert fatigue
+- Configurable thresholds and policies
 """
 
-from datetime import datetime
-from typing import Dict, List, Optional, Any, Set
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any, Set, Callable
 from enum import Enum
 import asyncio
 import json
+import logging
 from pathlib import Path
+from dataclasses import dataclass, field
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+# Configure structured logger for production observability
+logger = logging.getLogger(__name__)
+
+
+class AlertSeverity(str, Enum):
+    """Alert severity levels for tool degradation."""
+
+    INFO = "info"  # Tool recovered, informational
+    WARNING = "warning"  # Tool degraded but operational
+    ERROR = "error"  # Tool severely degraded
+    CRITICAL = "critical"  # Tool completely failed
+
+
+@dataclass
+class DegradationAlert:
+    """Structured alert for tool degradation.
+
+    Attributes:
+        tool_id: Tool identifier
+        severity: Alert severity level
+        reason: Degradation reason
+        metrics: Performance metrics at time of alert
+        timestamp: When alert was generated
+        alert_id: Unique alert identifier
+    """
+
+    tool_id: str
+    severity: AlertSeverity
+    reason: str
+    metrics: Dict[str, Any]
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+    alert_id: str = field(default="")
+
+    def __post_init__(self) -> None:
+        """Generate unique alert ID."""
+        if not self.alert_id:
+            self.alert_id = f"{self.tool_id}_{self.timestamp.isoformat()}"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert alert to dictionary for logging/monitoring."""
+        return {
+            "alert_id": self.alert_id,
+            "tool_id": self.tool_id,
+            "severity": self.severity.value,
+            "reason": self.reason,
+            "metrics": self.metrics,
+            "timestamp": self.timestamp.isoformat(),
+        }
+
+
+class AlertManager:
+    """Production-grade alert manager with deduplication and throttling.
+
+    Prevents alert fatigue by:
+    - Deduplicating identical alerts within time window
+    - Throttling alerts per tool
+    - Aggregating multiple alerts
+    - Supporting custom alert handlers (email, Slack, PagerDuty, etc.)
+    """
+
+    def __init__(
+        self,
+        dedup_window_seconds: int = 300,  # 5 minutes
+        max_alerts_per_tool_per_hour: int = 10,
+    ) -> None:
+        """Initialize alert manager.
+
+        Args:
+            dedup_window_seconds: Time window for alert deduplication
+            max_alerts_per_tool_per_hour: Maximum alerts per tool per hour
+        """
+        self._recent_alerts: Dict[str, DegradationAlert] = {}
+        self._alert_counts: Dict[str, List[datetime]] = {}
+        self._dedup_window = timedelta(seconds=dedup_window_seconds)
+        self._max_alerts_per_hour = max_alerts_per_tool_per_hour
+        self._alert_handlers: List[Callable[[DegradationAlert], None]] = []
+        self._lock = asyncio.Lock()
+
+    def register_handler(self, handler: Callable[[DegradationAlert], None]) -> None:
+        """Register custom alert handler.
+
+        Args:
+            handler: Callable that receives DegradationAlert
+        """
+        self._alert_handlers.append(handler)
+
+    async def send_alert(self, alert: DegradationAlert) -> bool:
+        """Send alert with deduplication and throttling.
+
+        Args:
+            alert: Alert to send
+
+        Returns:
+            True if alert was sent, False if deduplicated/throttled
+        """
+        async with self._lock:
+            # Check deduplication
+            if self._is_duplicate(alert):
+                logger.debug(
+                    f"Alert deduplicated for {alert.tool_id}",
+                    extra={"alert_id": alert.alert_id},
+                )
+                return False
+
+            # Check throttling
+            if self._is_throttled(alert.tool_id):
+                logger.warning(
+                    f"Alert throttled for {alert.tool_id} (too many alerts)",
+                    extra={"alert_id": alert.alert_id},
+                )
+                return False
+
+            # Send alert
+            self._log_alert(alert)
+            self._execute_handlers(alert)
+
+            # Track alert
+            self._recent_alerts[alert.tool_id] = alert
+            if alert.tool_id not in self._alert_counts:
+                self._alert_counts[alert.tool_id] = []
+            self._alert_counts[alert.tool_id].append(alert.timestamp)
+
+            # Cleanup old alerts
+            self._cleanup_old_alerts()
+
+            return True
+
+    def _is_duplicate(self, alert: DegradationAlert) -> bool:
+        """Check if alert is duplicate within dedup window."""
+        if alert.tool_id not in self._recent_alerts:
+            return False
+
+        recent = self._recent_alerts[alert.tool_id]
+        time_diff = alert.timestamp - recent.timestamp
+
+        # Duplicate if same tool, same severity, within window
+        return (
+            time_diff < self._dedup_window
+            and alert.severity == recent.severity
+            and alert.reason == recent.reason
+        )
+
+    def _is_throttled(self, tool_id: str) -> bool:
+        """Check if alerts for tool are throttled."""
+        if tool_id not in self._alert_counts:
+            return False
+
+        # Count alerts in last hour
+        one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+        recent_count = sum(
+            1 for ts in self._alert_counts[tool_id] if ts > one_hour_ago
+        )
+
+        return recent_count >= self._max_alerts_per_hour
+
+    def _log_alert(self, alert: DegradationAlert) -> None:
+        """Log alert with structured logging."""
+        log_level = {
+            AlertSeverity.INFO: logging.INFO,
+            AlertSeverity.WARNING: logging.WARNING,
+            AlertSeverity.ERROR: logging.ERROR,
+            AlertSeverity.CRITICAL: logging.CRITICAL,
+        }[alert.severity]
+
+        logger.log(
+            log_level,
+            f"TOOL ALERT [{alert.severity.value.upper()}]: {alert.tool_id} - {alert.reason}",
+            extra={
+                "alert": alert.to_dict(),
+                "tool_id": alert.tool_id,
+                "severity": alert.severity.value,
+                "metrics": alert.metrics,
+            },
+        )
+
+    def _execute_handlers(self, alert: DegradationAlert) -> None:
+        """Execute all registered alert handlers."""
+        for handler in self._alert_handlers:
+            try:
+                handler(alert)
+            except Exception as e:
+                logger.error(
+                    f"Alert handler failed: {e}",
+                    extra={"alert_id": alert.alert_id, "error": str(e)},
+                )
+
+    def _cleanup_old_alerts(self) -> None:
+        """Remove alerts older than dedup window."""
+        cutoff = datetime.utcnow() - self._dedup_window
+
+        # Cleanup recent alerts
+        to_remove = [
+            tool_id
+            for tool_id, alert in self._recent_alerts.items()
+            if alert.timestamp < cutoff
+        ]
+        for tool_id in to_remove:
+            del self._recent_alerts[tool_id]
+
+        # Cleanup alert counts (keep last 24 hours)
+        one_day_ago = datetime.utcnow() - timedelta(days=1)
+        for tool_id in list(self._alert_counts.keys()):
+            self._alert_counts[tool_id] = [
+                ts for ts in self._alert_counts[tool_id] if ts > one_day_ago
+            ]
+            if not self._alert_counts[tool_id]:
+                del self._alert_counts[tool_id]
+
+
+# Global alert manager instance
+_alert_manager = AlertManager()
 
 
 class FailurePattern(str, Enum):
@@ -168,6 +390,28 @@ class ToolStats(BaseModel):
 
         # Check if tool should be re-enabled after degradation
         if self.is_degraded and self.consecutive_failures == 0:
+            # Send recovery alert
+            alert = DegradationAlert(
+                tool_id=self.tool_id,
+                severity=AlertSeverity.INFO,
+                reason=f"Tool recovered after successful execution",
+                metrics={
+                    "success_rate": self.success_rate,
+                    "consecutive_failures": self.consecutive_failures,
+                    "total_executions": self.total_executions,
+                    "successful_executions": self.successful_executions,
+                    "avg_latency_ms": self.avg_latency,
+                    "previous_degradation_reason": self.degradation_reason,
+                },
+            )
+            # Send alert (works in both sync and async contexts)
+            try:
+                loop = asyncio.get_running_loop()
+                asyncio.create_task(_alert_manager.send_alert(alert))
+            except RuntimeError:
+                # No event loop running, send synchronously
+                asyncio.run(_alert_manager.send_alert(alert))
+
             self.is_degraded = False
             self.degradation_reason = None
 
@@ -192,13 +436,54 @@ class ToolStats(BaseModel):
         # Check if tool should be marked as degraded
         # Only mark as degraded if we have enough data (at least 5 executions)
         if not self.is_degraded and self.total_executions >= 5:
+            # Determine severity and send alert
+            severity = None
+            reason = None
+
             # Check consecutive failures first (higher priority)
             if self.consecutive_failures >= 3:
                 self.is_degraded = True
-                self.degradation_reason = f"Consecutive failures: {self.consecutive_failures}"
+                reason = f"Consecutive failures: {self.consecutive_failures}"
+                # Critical if >= 5 consecutive failures
+                severity = (
+                    AlertSeverity.CRITICAL
+                    if self.consecutive_failures >= 5
+                    else AlertSeverity.ERROR
+                )
             elif self.success_rate < 0.7:
                 self.is_degraded = True
-                self.degradation_reason = f"Success rate below threshold: {self.success_rate:.2%}"
+                reason = f"Success rate below threshold: {self.success_rate:.2%}"
+                # Error if < 0.5, Warning if < 0.7
+                severity = (
+                    AlertSeverity.ERROR
+                    if self.success_rate < 0.5
+                    else AlertSeverity.WARNING
+                )
+
+            # Send production-grade alert
+            if severity and reason:
+                self.degradation_reason = reason
+                alert = DegradationAlert(
+                    tool_id=self.tool_id,
+                    severity=severity,
+                    reason=reason,
+                    metrics={
+                        "success_rate": self.success_rate,
+                        "consecutive_failures": self.consecutive_failures,
+                        "total_executions": self.total_executions,
+                        "failed_executions": self.failed_executions,
+                        "avg_latency_ms": self.avg_latency,
+                        "most_common_failure": self.get_most_common_failure(),
+                        "failure_patterns": self.failure_patterns,
+                    },
+                )
+                # Send alert (works in both sync and async contexts)
+                try:
+                    loop = asyncio.get_running_loop()
+                    asyncio.create_task(_alert_manager.send_alert(alert))
+                except RuntimeError:
+                    # No event loop running, send synchronously
+                    asyncio.run(_alert_manager.send_alert(alert))
 
     def record_user_feedback(self, rating: float) -> None:
         """Record user feedback rating.
@@ -345,6 +630,13 @@ class ToolIntelligenceEngine:
     Tracks tool execution statistics, user preferences, and provides
     intelligent tool ranking and selection recommendations.
 
+    Production features:
+    - Real-time degradation detection with alerts
+    - Configurable alert handlers (email, Slack, PagerDuty, etc.)
+    - Alert deduplication and throttling
+    - Comprehensive metrics tracking
+    - Thread-safe async operations
+
     Attributes:
         _tool_stats: Dictionary of tool_id → ToolStats
         _user_preferences: Dictionary of (user_id, tool_id) → UserToolPreference
@@ -373,6 +665,21 @@ class ToolIntelligenceEngine:
             self._load_stats()
         if self._preferences_file and self._preferences_file.exists():
             self._load_preferences()
+
+    @staticmethod
+    def get_alert_manager() -> AlertManager:
+        """Get global alert manager for configuration.
+
+        Returns:
+            Global AlertManager instance
+
+        Example:
+            >>> engine = ToolIntelligenceEngine()
+            >>> alert_mgr = engine.get_alert_manager()
+            >>> alert_mgr.register_handler(send_to_slack)
+            >>> alert_mgr.register_handler(send_to_pagerduty)
+        """
+        return _alert_manager
 
     async def record_execution(
         self,
