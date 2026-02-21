@@ -93,9 +93,9 @@ class IntentEngineConfig:
     """
 
     patterns_file: str = "Agent_Guru/reasoning/data/intent_patterns.yaml"
-    neural_config: Optional[ClassifierConfig] = None
-    ner_config: Optional[NERConfig] = None
-    llm_config: Optional[LLMFallbackConfig] = None
+    neural_config: ClassifierConfig | None = None
+    ner_config: NERConfig | None = None
+    llm_config: LLMFallbackConfig | None = None
     enable_fast_path: bool = True
     enable_neural: bool = True
     enable_llm_fallback: bool = True
@@ -146,7 +146,7 @@ class IntentDetectionEngine:
         3. LLM Fallback (5% coverage, <300ms)
     """
 
-    def __init__(self, config: Optional[IntentEngineConfig] = None) -> None:
+    def __init__(self, config: IntentEngineConfig | None = None) -> None:
         """Initialize Intent Detection Engine.
 
         Args:
@@ -155,12 +155,12 @@ class IntentDetectionEngine:
         self.config = config or IntentEngineConfig()
 
         # Components (initialized lazily)
-        self.fast_router: Optional[FastIntentRouter] = None
-        self.neural_classifier: Optional[NeuralIntentClassifier] = None
-        self.ner_extractor: Optional[NEREntityExtractor] = None
-        self.llm_fallback: Optional[LLMFallbackClassifier] = None
-        self.feedback_store: Optional[FeedbackStore] = None
-        self.online_learner: Optional[OnlineLearner] = None
+        self.fast_router: FastIntentRouter | None = None
+        self.neural_classifier: NeuralIntentClassifier | None = None
+        self.ner_extractor: NEREntityExtractor | None = None
+        self.llm_fallback: LLMFallbackClassifier | None = None
+        self.feedback_store: FeedbackStore | None = None
+        self.online_learner: OnlineLearner | None = None
 
         # Metrics
         self.total_detections = 0
@@ -250,8 +250,8 @@ class IntentDetectionEngine:
     async def detect_intent_async(
         self,
         text: str,
-        context: Optional[dict[str, Any]] = None,
-        user_id: Optional[str] = None,
+        context: dict[str, Any] | None = None,
+        user_id: str | None = None,
     ) -> DetectionResult:
         """Detect intent asynchronously with hybrid routing.
 
@@ -378,8 +378,8 @@ class IntentDetectionEngine:
     def detect_intent(
         self,
         text: str,
-        context: Optional[dict[str, Any]] = None,
-        user_id: Optional[str] = None,
+        context: dict[str, Any] | None = None,
+        user_id: str | None = None,
     ) -> DetectionResult:
         """Detect intent synchronously (wrapper for async method).
 
@@ -507,7 +507,7 @@ class IntentDetectionEngine:
         text: str,
         predicted_intent: str,
         correct_intent: str,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> None:
         """Record user feedback for online learning.
 

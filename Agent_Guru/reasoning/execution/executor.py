@@ -332,24 +332,40 @@ class ExecutionController:
     Example:
         >>> controller = ExecutionController()
         >>> action = Action(action_id="1", tool_id="test", parameters={})
+        >>> # Sync execution
         >>> result = controller.execute_sync(action, tool_function)
+        >>> # Async execution
+        >>> async_result = controller.execute_async(action, "module", "function")
     """
 
     def __init__(
         self,
         default_timeout: float = 3.0,
         max_retries: int = 3,
+        enable_async: bool = True,
     ) -> None:
         """Initialize execution controller.
 
         Args:
             default_timeout: Default timeout in seconds
             max_retries: Maximum retry attempts
+            enable_async: Whether to enable async execution (requires Celery)
         """
         self.sync_executor = SyncExecutor(
             default_timeout=default_timeout,
             max_retries=max_retries,
         )
+
+        # Initialize async executor if enabled
+        self.async_executor = None
+        if enable_async:
+            try:
+                from Agent_Guru.reasoning.execution.async_executor import AsyncExecutionController
+
+                self.async_executor = AsyncExecutionController()
+            except ImportError:
+                # Celery not available, async execution disabled
+                pass
 
     def execute_sync(
         self,
@@ -368,6 +384,67 @@ class ExecutionController:
             ExecutionResult with success/failure information
         """
         return self.sync_executor.execute(action, tool_function, timeout)
+
+    def execute_async(
+        self,
+        action: Action,
+        tool_module: str,
+        tool_function_name: str,
+    ) -> Any:
+        """Execute action asynchronously.
+
+        Args:
+            action: Action to execute
+            tool_module: Module containing tool function
+            tool_function_name: Name of tool function
+
+        Returns:
+            AsyncExecutionResult with task ID
+
+        Raises:
+            RuntimeError: If async execution not enabled
+        """
+        if self.async_executor is None:
+            raise RuntimeError(
+                "Async execution not enabled. Install Celery and Redis, "
+                "or set enable_async=False"
+            )
+
+        return self.async_executor.execute_async(action, tool_module, tool_function_name)
+
+    def get_async_status(self, task_id: str) -> Any:
+        """Get status of async task.
+
+        Args:
+            task_id: Task identifier
+
+        Returns:
+            AsyncExecutionResult with current status
+
+        Raises:
+            RuntimeError: If async execution not enabled
+        """
+        if self.async_executor is None:
+            raise RuntimeError("Async execution not enabled")
+
+        return self.async_executor.get_status(task_id)
+
+    def cancel_async(self, task_id: str) -> bool:
+        """Cancel async task.
+
+        Args:
+            task_id: Task identifier
+
+        Returns:
+            True if cancellation requested
+
+        Raises:
+            RuntimeError: If async execution not enabled
+        """
+        if self.async_executor is None:
+            raise RuntimeError("Async execution not enabled")
+
+        return self.async_executor.cancel(task_id)
 
     def get_latency_stats(self, tool_id: str) -> dict[str, float]:
         """Get latency statistics for tool.

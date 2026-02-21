@@ -559,7 +559,7 @@ class TestMemoryRetrieval:
         # Measure retrieval time
         start_time = time.perf_counter()
         results = retriever.retrieve("timer", user_id="user_123")
-        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        _ = (time.perf_counter() - start_time) * 1000  # elapsed_ms
 
         # Should complete within 100ms (may log warning but shouldn't fail)
         # Note: This is a soft requirement, actual time depends on hardware

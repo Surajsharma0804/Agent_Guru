@@ -130,7 +130,8 @@ class TestKnowledgeSynthesizerProperties:
             max_memories=max_memories,
             pattern_min_frequency=pattern_min_frequency,
             confidence_threshold=confidence_threshold,
-        , use_llm_synthesis=False)
+            use_llm_synthesis=False
+        )
 
         assert synthesizer.max_memories == max_memories
         assert synthesizer.pattern_min_frequency == pattern_min_frequency
