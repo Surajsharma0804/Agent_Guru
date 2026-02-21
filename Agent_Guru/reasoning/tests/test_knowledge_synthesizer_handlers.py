@@ -38,6 +38,7 @@ def synthesizer(mock_memory_retriever):
         max_memories=50,
         pattern_min_frequency=0.3,
         confidence_threshold=0.6,
+        use_llm_synthesis=False,  # Disable LLM to avoid API key requirement
     )
 
 

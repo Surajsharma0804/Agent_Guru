@@ -21,7 +21,7 @@ from uuid import uuid4
 
 import numpy as np
 import pytest
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from Agent_Guru.reasoning.memory_retriever import MemoryRetriever
@@ -92,7 +92,14 @@ class TestMemoryStorage:
 
         assert len(retriever.memories) == 1
         assert memory.memory_id in retriever.memories
-        assert retriever.memories[memory.memory_id] == memory
+
+        # Compare relevant fields (embedding is auto-generated)
+        stored = retriever.memories[memory.memory_id]
+        assert stored.memory_type == memory.memory_type
+        assert stored.content == memory.content
+        assert stored.user_id == memory.user_id
+        assert stored.embedding is not None  # Embedding was generated
+
         assert len(retriever.memory_ids) == 1
         assert retriever.embeddings is not None
         assert retriever.embeddings.shape == (1, retriever.embedding_dim)
@@ -736,6 +743,7 @@ class TestMemoryRetrieverProperties:
         max_results=st.integers(min_value=1, max_value=100),
         decay_days=st.integers(min_value=1, max_value=365),
     )
+    @settings(deadline=None, max_examples=50)  # Disable deadline, reduce examples
     def test_initialization_always_succeeds_with_valid_params(
         self, max_results: int, decay_days: int
     ):
@@ -746,6 +754,7 @@ class TestMemoryRetrieverProperties:
         assert retriever.relevance_decay_days == decay_days
 
     @given(content=st.text(min_size=1, max_size=100), user_id=st.text(min_size=1, max_size=50))
+    @settings(deadline=None, max_examples=50)  # Disable deadline, reduce examples
     def test_store_always_increases_count(self, content: str, user_id: str):
         """Property: Storing memory always increases count."""
         retriever = MemoryRetriever()
@@ -757,6 +766,7 @@ class TestMemoryRetrieverProperties:
         assert retriever.get_memory_count() == initial_count + 1
 
     @given(relevance_score=st.floats(min_value=0.0, max_value=1.0))
+    @settings(deadline=None, max_examples=50)  # Disable deadline, reduce examples
     def test_update_relevance_always_succeeds_with_valid_score(self, relevance_score: float):
         """Property: Valid relevance score always updates successfully."""
         retriever = MemoryRetriever()

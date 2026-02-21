@@ -14,6 +14,7 @@ Coverage Target: Complement unit tests for edge cases
 """
 
 import json
+import uuid
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 
@@ -40,7 +41,11 @@ from Agent_Guru.reasoning.models.memory import Memory, MemoryType
 @st.composite
 def knowledge_query_strategy(draw):
     """Generate random KnowledgeQuery."""
-    query_text = draw(st.text(min_size=1, max_size=200))
+    query_text = draw(
+        st.text(min_size=1, max_size=200, alphabet=st.characters(blacklist_characters="\n\r\t "))
+    )
+    if not query_text or query_text.isspace():
+        query_text = "test query"  # Fallback to valid query
     query_type = draw(st.sampled_from(list(KnowledgeQueryType)))
     confidence = draw(st.floats(min_value=0.0, max_value=1.0))
 

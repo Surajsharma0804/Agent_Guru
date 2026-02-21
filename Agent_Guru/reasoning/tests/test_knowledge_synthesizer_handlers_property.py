@@ -24,6 +24,12 @@ from Agent_Guru.reasoning.models.knowledge import (
 from Agent_Guru.reasoning.models.memory import Memory, MemoryType
 
 
+def create_test_synthesizer():
+    """Create KnowledgeSynthesizer for testing without LLM."""
+    mock_retriever = Mock()
+    return KnowledgeSynthesizer(mock_retriever, use_llm_synthesis=False)
+
+
 # Strategy for generating valid memories
 @st.composite
 def memory_strategy(draw):
@@ -117,8 +123,7 @@ class TestTemporalQueryProperties:
 
         **Validates: Requirements 38.5**
         """
-        mock_retriever = Mock()
-        synthesizer = KnowledgeSynthesizer(mock_retriever)
+        synthesizer = create_test_synthesizer()
 
         statistics = {
             "total_count": len(memories),
@@ -147,8 +152,7 @@ class TestTemporalQueryProperties:
 
         **Validates: Requirements 38.5**
         """
-        mock_retriever = Mock()
-        synthesizer = KnowledgeSynthesizer(mock_retriever)
+        synthesizer = create_test_synthesizer()
 
         statistics = {"time_span_days": 10}
 
@@ -168,8 +172,7 @@ class TestTemporalQueryProperties:
 
         **Validates: Requirements 38.5**
         """
-        mock_retriever = Mock()
-        synthesizer = KnowledgeSynthesizer(mock_retriever)
+        synthesizer = create_test_synthesizer()
 
         statistics = {"total_count": len(memories)}
 
@@ -192,8 +195,7 @@ class TestAggregationQueryProperties:
 
         **Validates: Requirements 38.6**
         """
-        mock_retriever = Mock()
-        synthesizer = KnowledgeSynthesizer(mock_retriever)
+        synthesizer = create_test_synthesizer()
 
         statistics = {
             "total_count": len(memories),
@@ -219,8 +221,7 @@ class TestAggregationQueryProperties:
 
         **Validates: Requirements 38.6**
         """
-        mock_retriever = Mock()
-        synthesizer = KnowledgeSynthesizer(mock_retriever)
+        synthesizer = create_test_synthesizer()
 
         # Small sample
         small_sample = memories[:3]
@@ -250,8 +251,7 @@ class TestAggregationQueryProperties:
 
         **Validates: Requirements 38.6**
         """
-        mock_retriever = Mock()
-        synthesizer = KnowledgeSynthesizer(mock_retriever)
+        synthesizer = create_test_synthesizer()
 
         statistics = {"top_entities": [{"entity": "test", "count": len(memories)}]}
 
@@ -275,8 +275,7 @@ class TestPatternQueryProperties:
 
         **Validates: Requirements 38.7**
         """
-        mock_retriever = Mock()
-        synthesizer = KnowledgeSynthesizer(mock_retriever)
+        synthesizer = create_test_synthesizer()
 
         statistics = {"total_count": len(memories)}
 
@@ -301,8 +300,7 @@ class TestPatternQueryProperties:
 
         **Validates: Requirements 38.7**
         """
-        mock_retriever = Mock()
-        synthesizer = KnowledgeSynthesizer(mock_retriever)
+        synthesizer = create_test_synthesizer()
 
         statistics = {}
 
@@ -348,8 +346,7 @@ class TestPatternQueryProperties:
 
         **Validates: Requirements 38.7**
         """
-        mock_retriever = Mock()
-        synthesizer = KnowledgeSynthesizer(mock_retriever)
+        synthesizer = create_test_synthesizer()
 
         statistics = {}
 
@@ -374,8 +371,7 @@ class TestFactualQueryProperties:
 
         **Validates: Requirements 38.5, 38.6, 38.7**
         """
-        mock_retriever = Mock()
-        synthesizer = KnowledgeSynthesizer(mock_retriever)
+        synthesizer = create_test_synthesizer()
 
         statistics = {"total_count": len(memories)}
 
@@ -398,8 +394,7 @@ class TestFactualQueryProperties:
 
         **Validates: Requirements 38.5, 38.6, 38.7**
         """
-        mock_retriever = Mock()
-        synthesizer = KnowledgeSynthesizer(mock_retriever)
+        synthesizer = create_test_synthesizer()
 
         statistics = {}
 
@@ -450,8 +445,7 @@ class TestFactualQueryProperties:
 
         **Validates: Requirements 38.5, 38.6, 38.7**
         """
-        mock_retriever = Mock()
-        synthesizer = KnowledgeSynthesizer(mock_retriever)
+        synthesizer = create_test_synthesizer()
 
         statistics = {"total_count": len(memories)}
 
@@ -474,8 +468,7 @@ class TestConfidenceInvariants:
 
         **Validates: Requirements 38.5, 38.6, 38.7**
         """
-        mock_retriever = Mock()
-        synthesizer = KnowledgeSynthesizer(mock_retriever)
+        synthesizer = create_test_synthesizer()
 
         statistics = {"total_count": len(memories)}
         patterns = []
@@ -504,8 +497,7 @@ class TestConfidenceInvariants:
 
         **Validates: Requirements 38.5, 38.6, 38.7**
         """
-        mock_retriever = Mock()
-        synthesizer = KnowledgeSynthesizer(mock_retriever)
+        synthesizer = create_test_synthesizer()
 
         statistics = {"total_count": len(memories)}
         patterns = []

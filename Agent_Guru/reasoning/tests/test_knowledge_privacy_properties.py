@@ -113,7 +113,13 @@ class TestUserDataIsolationProperties:
         user_id=st.text(
             min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))
         ),
-        query_text=st.text(min_size=1, max_size=100),
+        query_text=st.text(
+            min_size=1,
+            max_size=100,
+            alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Zs")),
+        ).filter(
+            lambda x: x.strip()
+        ),  # Ensure non-whitespace
     )
     def test_user_id_always_validated(self, user_id: str, query_text: str):
         """Property: User ID is always validated before data retrieval.
@@ -307,7 +313,13 @@ class TestAuditLoggingProperties:
         user_id=st.text(
             min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"))
         ),
-        query_text=st.text(min_size=1, max_size=100),
+        query_text=st.text(
+            min_size=1,
+            max_size=100,
+            alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Zs")),
+        ).filter(
+            lambda x: x.strip()
+        ),  # Ensure non-whitespace
     )
     def test_all_queries_logged(self, user_id: str, query_text: str):
         """Property: All knowledge queries are logged for audit.

@@ -176,17 +176,19 @@ class TestServerLifecycle:
 
         mock_process = Mock()
         mock_process.poll.return_value = None
+        mock_process.__enter__ = Mock(return_value=mock_process)
+        mock_process.__exit__ = Mock(return_value=False)
+
+        # Create async mock for health_check
+        async_health_mock = AsyncMock(return_value=Mock(is_healthy=True, model_loaded=True))
 
         with patch("subprocess.Popen", return_value=mock_process):
-            with patch.object(
-                server,
-                "health_check",
-                return_value=AsyncMock(is_healthy=True, model_loaded=True)(),
-            ):
-                await server.start(timeout=1.0)
+            with patch.object(server, "_detect_server_binary", return_value="llama-server"):
+                with patch.object(server, "health_check", async_health_mock):
+                    await server.start(timeout=1.0)
 
-                assert server._is_running is True
-                assert server._model_loaded is True
+                    assert server._is_running is True
+                    assert server._model_loaded is True
 
     async def test_start_server_timeout(self, tmp_path):
         """Test server start timeout."""
@@ -198,17 +200,19 @@ class TestServerLifecycle:
 
         mock_process = Mock()
         mock_process.poll.return_value = None
+        mock_process.__enter__ = Mock(return_value=mock_process)
+        mock_process.__exit__ = Mock(return_value=False)
+
+        # Create async mock for health_check
+        async_health_mock = AsyncMock(return_value=Mock(is_healthy=False, model_loaded=False))
 
         with patch("subprocess.Popen", return_value=mock_process):
-            with patch.object(
-                server,
-                "health_check",
-                return_value=AsyncMock(is_healthy=False, model_loaded=False)(),
-            ):
-                with pytest.raises(TimeoutError, match="Server failed to start"):
-                    await server.start(timeout=0.5)
+            with patch.object(server, "_detect_server_binary", return_value="llama-server"):
+                with patch.object(server, "health_check", async_health_mock):
+                    with pytest.raises(TimeoutError, match="Server failed to start"):
+                        await server.start(timeout=0.5)
 
-                mock_process.kill.assert_called_once()
+                    mock_process.kill.assert_called_once()
 
     async def test_start_already_running(self, tmp_path):
         """Test starting already running server."""
@@ -343,7 +347,9 @@ class TestHealthCheck:
         mock_process.poll.return_value = None
         server.process = mock_process
 
-        with patch("requests.get", side_effect=Exception("Connection refused")):
+        import requests
+
+        with patch("requests.get", side_effect=requests.RequestException("Connection refused")):
             health = await server.health_check()
 
             assert health.is_healthy is False
@@ -427,7 +433,9 @@ class TestInference:
 
         request = LLMRequest(prompt="test")
 
-        with patch("requests.post", side_effect=Exception("Timeout")):
+        import requests
+
+        with patch("requests.post", side_effect=requests.RequestException("Timeout")):
             with pytest.raises(RuntimeError, match="Generation error"):
                 await server.generate(request)
 

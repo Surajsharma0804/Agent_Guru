@@ -130,7 +130,7 @@ class TestKnowledgeSynthesizerProperties:
             max_memories=max_memories,
             pattern_min_frequency=pattern_min_frequency,
             confidence_threshold=confidence_threshold,
-        )
+        , use_llm_synthesis=False)
 
         assert synthesizer.max_memories == max_memories
         assert synthesizer.pattern_min_frequency == pattern_min_frequency
@@ -141,7 +141,7 @@ class TestKnowledgeSynthesizerProperties:
     def test_synthesize_answer_always_returns_valid_answer(self, query):
         """Property: synthesize_answer always returns valid KnowledgeAnswer."""
         memory_retriever = Mock(spec=MemoryRetriever)
-        synthesizer = KnowledgeSynthesizer(memory_retriever)
+        synthesizer = KnowledgeSynthesizer(memory_retriever, use_llm_synthesis=False)
 
         # Mock memory retrieval
         memory_retriever.retrieve.return_value = []
@@ -166,7 +166,7 @@ class TestKnowledgeSynthesizerProperties:
     def test_confidence_always_in_valid_range(self, query, memories):
         """Property: Confidence is always between 0.0 and 1.0."""
         memory_retriever = Mock(spec=MemoryRetriever)
-        synthesizer = KnowledgeSynthesizer(memory_retriever)
+        synthesizer = KnowledgeSynthesizer(memory_retriever, use_llm_synthesis=False)
 
         # Mock memory retrieval
         memory_retriever.retrieve.return_value = memories
@@ -185,7 +185,7 @@ class TestKnowledgeSynthesizerProperties:
     def test_statistics_always_non_negative(self, query, memories):
         """Property: Statistics are always non-negative."""
         memory_retriever = Mock(spec=MemoryRetriever)
-        synthesizer = KnowledgeSynthesizer(memory_retriever)
+        synthesizer = KnowledgeSynthesizer(memory_retriever, use_llm_synthesis=False)
 
         # Mock memory retrieval
         memory_retriever.retrieve.return_value = memories
@@ -203,7 +203,7 @@ class TestKnowledgeSynthesizerProperties:
     def test_patterns_have_valid_frequency_and_confidence(self, memories):
         """Property: Detected patterns have valid frequency and confidence."""
         memory_retriever = Mock(spec=MemoryRetriever)
-        synthesizer = KnowledgeSynthesizer(memory_retriever)
+        synthesizer = KnowledgeSynthesizer(memory_retriever, use_llm_synthesis=False)
 
         query = KnowledgeQuery(
             query_text="when do I usually do this?",
@@ -229,7 +229,7 @@ class TestKnowledgeSynthesizerProperties:
         """Property: retrieve_relevant_data never returns more than max_memories."""
         memory_retriever = Mock(spec=MemoryRetriever)
         max_memories = 10
-        synthesizer = KnowledgeSynthesizer(memory_retriever, max_memories=max_memories)
+        synthesizer = KnowledgeSynthesizer(memory_retriever, max_memories=max_memories, use_llm_synthesis=False)
 
         # Mock memory retrieval - return only up to max_memories
         # (simulating what MemoryRetriever.retrieve does with top_k parameter)
@@ -248,7 +248,7 @@ class TestKnowledgeSynthesizerProperties:
     def test_aggregate_statistics_always_returns_dict(self, memories):
         """Property: aggregate_statistics always returns a dictionary."""
         memory_retriever = Mock(spec=MemoryRetriever)
-        synthesizer = KnowledgeSynthesizer(memory_retriever)
+        synthesizer = KnowledgeSynthesizer(memory_retriever, use_llm_synthesis=False)
 
         query = KnowledgeQuery(
             query_text="how many times?",
@@ -272,7 +272,7 @@ class TestKnowledgeSynthesizerProperties:
     def test_supporting_memories_limited_to_top_5(self, query, memories):
         """Property: Supporting memories are limited to top 5."""
         memory_retriever = Mock(spec=MemoryRetriever)
-        synthesizer = KnowledgeSynthesizer(memory_retriever)
+        synthesizer = KnowledgeSynthesizer(memory_retriever, use_llm_synthesis=False)
 
         # Mock memory retrieval
         memory_retriever.retrieve.return_value = memories
@@ -290,7 +290,7 @@ class TestKnowledgeSynthesizerProperties:
     def test_empty_memories_produces_valid_answer(self, query):
         """Property: Empty memories always produces valid answer."""
         memory_retriever = Mock(spec=MemoryRetriever)
-        synthesizer = KnowledgeSynthesizer(memory_retriever)
+        synthesizer = KnowledgeSynthesizer(memory_retriever, use_llm_synthesis=False)
 
         # Mock empty memory retrieval
         memory_retriever.retrieve.return_value = []
@@ -322,7 +322,7 @@ class TestKnowledgeSynthesizerProperties:
     def test_pattern_detection_deterministic(self, memories):
         """Property: Pattern detection is deterministic for same input."""
         memory_retriever = Mock(spec=MemoryRetriever)
-        synthesizer = KnowledgeSynthesizer(memory_retriever)
+        synthesizer = KnowledgeSynthesizer(memory_retriever, use_llm_synthesis=False)
 
         query = KnowledgeQuery(
             query_text="when do I usually do this?",
@@ -349,7 +349,7 @@ class TestKnowledgeSynthesizerProperties:
     def test_answer_summary_never_empty(self, query, memories):
         """Property: Answer summary is never empty."""
         memory_retriever = Mock(spec=MemoryRetriever)
-        synthesizer = KnowledgeSynthesizer(memory_retriever)
+        synthesizer = KnowledgeSynthesizer(memory_retriever, use_llm_synthesis=False)
 
         # Mock memory retrieval
         memory_retriever.retrieve.return_value = memories
@@ -373,7 +373,7 @@ class TestEdgeCases:
     def test_max_memories_enforced(self, max_memories, memories):
         """Property: max_memories limit is always enforced."""
         memory_retriever = Mock(spec=MemoryRetriever)
-        synthesizer = KnowledgeSynthesizer(memory_retriever, max_memories=max_memories)
+        synthesizer = KnowledgeSynthesizer(memory_retriever, max_memories=max_memories, use_llm_synthesis=False)
 
         query = KnowledgeQuery(
             query_text="test query",
@@ -400,7 +400,7 @@ class TestEdgeCases:
         memory_retriever = Mock(spec=MemoryRetriever)
         synthesizer = KnowledgeSynthesizer(
             memory_retriever, pattern_min_frequency=pattern_min_frequency
-        )
+        , use_llm_synthesis=False)
 
         query = KnowledgeQuery(
             query_text="when do I usually do this?",
@@ -424,7 +424,7 @@ class TestEdgeCases:
         memory_retriever = Mock(spec=MemoryRetriever)
         synthesizer = KnowledgeSynthesizer(
             memory_retriever, confidence_threshold=confidence_threshold
-        )
+        , use_llm_synthesis=False)
 
         # Create query with low confidence
         query = KnowledgeQuery(
