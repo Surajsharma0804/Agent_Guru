@@ -633,3 +633,51 @@ class ConversationStateManager:
                     return recent_people
 
         return None
+
+    async def list_conversations(
+        self,
+        user_id: str,
+        limit: int = 10,
+    ) -> list[ConversationState]:
+        """
+        List conversations for a user.
+
+        Args:
+            user_id: User identifier
+            limit: Maximum number of conversations to return
+
+        Returns:
+            List of conversation states for the user
+        """
+        async with self._global_lock:
+            # Filter conversations by user_id
+            user_conversations = [
+                entry.state
+                for entry in self._cache.values()
+                if entry.state.user_id == user_id
+            ]
+            
+            # Sort by most recently updated
+            user_conversations.sort(
+                key=lambda s: s.updated_at,
+                reverse=True,
+            )
+            
+            # Return limited results
+            return user_conversations[:limit]
+
+
+# Global instance
+_manager: Optional[ConversationStateManager] = None
+
+
+def get_conversation_manager() -> ConversationStateManager:
+    """Get global conversation manager instance.
+    
+    Returns:
+        Conversation manager
+    """
+    global _manager
+    if _manager is None:
+        _manager = ConversationStateManager()
+    return _manager

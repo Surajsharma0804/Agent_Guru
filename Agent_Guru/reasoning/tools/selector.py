@@ -63,6 +63,12 @@ class ToolSelector:
         self._tier2_hits = 0
         self._tier3_hits = 0
         self._total_selections = 0
+        
+        # Initialize skill tool registry
+        from Agent_Guru.reasoning.tools.skills.skill_tool_adapter import (
+            get_skill_tool_registry,
+        )
+        self._skill_tool_registry = get_skill_tool_registry()
 
     async def select_tool(self, intent: Intent) -> Optional[SelectedTool]:
         """Select best tool for given intent using three-tier strategy.
@@ -169,15 +175,22 @@ class ToolSelector:
         Returns:
             (tool, parameters, confidence) if match found, None otherwise
         """
-        # Get all tools
+        # Get all core tools
         all_tools = self.registry.list_tools()
+        
+        # Get all skill tools
+        skill_tools = self._skill_tool_registry.list_skill_tools()
+        
+        # Combine core tools and skill tools
+        all_tool_metadata = list(all_tools)
+        all_tool_metadata.extend([tool.metadata for tool in skill_tools])
 
-        if not all_tools:
+        if not all_tool_metadata:
             return None
 
         # Score each tool for basic capability matching
         candidates: list[tuple[ToolMetadata, float]] = []
-        for metadata in all_tools:
+        for metadata in all_tool_metadata:
             score = self._calculate_match_score(metadata, intent)
             if score > 0.5:  # Minimum threshold
                 candidates.append((metadata, score))
@@ -213,7 +226,12 @@ class ToolSelector:
 
         # Get best ranked tool
         best_tool_id, best_score = ranked_tools[0]
-        best_tool = self.registry.get_tool(best_tool_id)
+        
+        # Check if it's a skill tool
+        if best_tool_id.startswith("skill."):
+            best_tool = self._skill_tool_registry.get_skill_tool(best_tool_id)
+        else:
+            best_tool = self.registry.get_tool(best_tool_id)
 
         if best_tool is None:
             return None

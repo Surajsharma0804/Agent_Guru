@@ -360,7 +360,7 @@ class IntentDetectionEngine:
             requires_reasoning=False,
             original_input=text,
             resolved_input=text,
-            detection_method="fallback",
+            detection_method="rule",  # Use 'rule' instead of 'fallback'
         )
 
         latency_ms = (time.perf_counter() - start_time) * 1000
@@ -418,7 +418,7 @@ class IntentDetectionEngine:
             requires_reasoning=False,  # Fast-path intents are simple
             original_input=text,
             resolved_input=text,
-            detection_method="fast_path",
+            detection_method="rule",  # Fast-path uses rule-based matching
         )
 
     def _create_intent_from_neural(
@@ -471,7 +471,7 @@ class IntentDetectionEngine:
             requires_reasoning=requires_reasoning,
             original_input=text,
             resolved_input=text,
-            detection_method="llm_fallback",
+            detection_method="llm",  # LLM fallback uses llm method
         )
 
     def _requires_reasoning(self, intent_type: str) -> bool:

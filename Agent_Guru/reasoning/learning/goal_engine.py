@@ -257,7 +257,9 @@ class GoalEngine:
 
                 values.append(goal_id)
                 # Build query safely - set_clauses are constructed from validated keys
-                query = "UPDATE persistent_goals SET " + ", ".join(set_clauses) + " WHERE goal_id = ?"  # nosec B608
+                query = (
+                    "UPDATE persistent_goals SET " + ", ".join(set_clauses) + " WHERE goal_id = ?"
+                )  # nosec B608
 
                 cursor.execute(query, values)
                 conn.commit()
