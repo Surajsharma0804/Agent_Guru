@@ -1,0 +1,480 @@
+"""
+Tests for resource management components.
+
+Tests cover:
+- Memory monitoring and limits
+- Connection pooling (DB, Redis, HTTP)
+- Request queue management
+"""
+
+import asyncio
+import pytest
+import time
+from unittest.mock import Mock, patch, AsyncMock
+
+from Agent_Guru.reasoning.utils.memory_monitor import (
+    MemoryMonitor,
+    MemorySnapshot,
+    ComponentMemoryStats,
+    get_memory_monitor,
+    track_memory
+)
+from Agent_Guru.reasoning.utils.connection_pool import (
+    DatabasePool,
+    RedisPool,
+    HTTPPool,
+    get_db_pool,
+    get_http_pool
+)
+from Agent_Guru.reasoning.utils.request_queue import (
+    RequestQueue,
+    Priority,
+    QueuedRequest,
+    get_request_queue,
+    enqueue_request
+)
+
+
+class TestMemoryMonitor:
+    """Tests for MemoryMonitor."""
+    
+    def test_initialization(self):
+        """Test monitor initialization."""
+        monitor = MemoryMonitor(max_memory_mb=2048, check_interval=10.0)
+        
+        assert monitor.max_memory_mb == 2048
+        assert monitor.check_interval == 10.0
+        assert monitor.gc_threshold_percent == 0.8
+        assert len(monitor.component_stats) == 0
+    
+    def test_track_component(self):
+        """Test component memory tracking."""
+        monitor = MemoryMonitor()
+        
+        monitor.track_component("test_component", 100.5)
+        monitor.track_component("test_component", 150.0)
+        
+        stats = monitor.get_stats()
+        assert "test_component" in stats
+        assert stats["test_component"].current_mb == 150.0
+        assert stats["test_component"].peak_mb == 150.0
+        assert stats["test_component"].samples == 2
+    
+    def test_get_current_usage(self):
+        """Test getting current memory usage."""
+        monitor = MemoryMonitor()
+        
+        usage = monitor.get_current_usage()
+        assert usage > 0  # Should have some memory usage
+        assert isinstance(usage, float)
+    
+    def test_get_usage_percent(self):
+        """Test getting usage percentage."""
+        monitor = MemoryMonitor(max_memory_mb=1000)
+        
+        percent = monitor.get_usage_percent()
+        assert 0 <= percent <= 100
+    
+    def test_is_over_limit(self):
+        """Test limit checking."""
+        monitor = MemoryMonitor(max_memory_mb=1.0)  # 1MB limit (will be over)
+        
+        # Should be over limit with normal program memory
+        assert monitor.is_over_limit()
+    
+    def test_get_summary(self):
+        """Test getting summary."""
+        monitor = MemoryMonitor()
+        monitor.track_component("comp1", 50.0)
+        monitor.track_component("comp2", 75.0)
+        
+        summary = monitor.get_summary()
+        
+        assert "current_mb" in summary
+        assert "max_mb" in summary
+        assert "percent" in summary
+        assert "components" in summary
+        assert len(summary["components"]) == 2
+    
+    def test_start_stop(self):
+        """Test starting and stopping monitor."""
+        monitor = MemoryMonitor(check_interval=0.1)
+        
+        monitor.start()
+        assert monitor._monitor_thread is not None
+        assert monitor._monitor_thread.is_alive()
+        
+        time.sleep(0.2)  # Let it run a bit
+        
+        monitor.stop()
+        assert not monitor._monitor_thread.is_alive()
+    
+    def test_component_stats_update(self):
+        """Test ComponentMemoryStats update."""
+        stats = ComponentMemoryStats("test")
+        
+        stats.update(100.0)
+        assert stats.current_mb == 100.0
+        assert stats.peak_mb == 100.0
+        assert stats.avg_mb == 100.0
+        assert stats.samples == 1
+        
+        stats.update(150.0)
+        assert stats.current_mb == 150.0
+        assert stats.peak_mb == 150.0
+        assert stats.avg_mb == 125.0
+        assert stats.samples == 2
+
+
+class TestDatabasePool:
+    """Tests for DatabasePool."""
+    
+    @pytest.mark.asyncio
+    async def test_initialization(self):
+        """Test pool initialization."""
+        pool = DatabasePool(":memory:", min_size=2, max_size=5)
+        await pool.initialize()
+        
+        assert pool._initialized
+        assert len(pool._pool) == 2
+        
+        await pool.close()
+    
+    @pytest.mark.asyncio
+    async def test_acquire_release(self):
+        """Test acquiring and releasing connections."""
+        pool = DatabasePool(":memory:", min_size=1, max_size=3)
+        await pool.initialize()
+        
+        async with pool.acquire() as conn:
+            assert conn is not None
+            # Connection should be in use
+            assert conn in pool._in_use
+        
+        # Connection should be back in pool
+        assert conn not in pool._in_use
+        
+        await pool.close()
+    
+    @pytest.mark.asyncio
+    async def test_multiple_acquires(self):
+        """Test multiple concurrent acquires."""
+        pool = DatabasePool(":memory:", min_size=2, max_size=5)
+        await pool.initialize()
+        
+        async def use_connection():
+            async with pool.acquire() as conn:
+                await asyncio.sleep(0.01)
+                return conn
+        
+        # Acquire multiple connections concurrently
+        results = await asyncio.gather(*[use_connection() for _ in range(3)])
+        
+        assert len(results) == 3
+        assert all(r is not None for r in results)
+        
+        await pool.close()
+    
+    @pytest.mark.asyncio
+    async def test_stats(self):
+        """Test pool statistics."""
+        pool = DatabasePool(":memory:", min_size=2, max_size=5)
+        await pool.initialize()
+        
+        stats = pool.stats()
+        
+        assert stats['pool_size'] == 2
+        assert stats['in_use'] == 0
+        assert stats['max_size'] == 5
+        
+        await pool.close()
+
+
+class TestHTTPPool:
+    """Tests for HTTPPool."""
+    
+    @pytest.mark.asyncio
+    async def test_initialization(self):
+        """Test HTTP pool initialization."""
+        pool = HTTPPool(max_connections=50, max_connections_per_host=10)
+        await pool.initialize()
+        
+        assert pool._initialized
+        assert pool._session is not None
+        
+        await pool.close()
+    
+    @pytest.mark.asyncio
+    async def test_stats(self):
+        """Test HTTP pool statistics."""
+        pool = HTTPPool()
+        await pool.initialize()
+        
+        stats = pool.stats()
+        
+        assert 'request_count' in stats
+        assert 'error_count' in stats
+        assert 'max_connections' in stats
+        
+        await pool.close()
+    
+    @pytest.mark.asyncio
+    async def test_get_http_pool(self):
+        """Test getting global HTTP pool."""
+        pool = get_http_pool()
+        await pool.initialize()
+        
+        assert pool is not None
+        assert pool._initialized
+        
+        await pool.close()
+
+
+class TestRequestQueue:
+    """Tests for RequestQueue."""
+    
+    @pytest.mark.asyncio
+    async def test_initialization(self):
+        """Test queue initialization."""
+        queue = RequestQueue(max_depth=100, worker_count=2)
+        
+        assert queue.max_depth == 100
+        assert queue.worker_count == 2
+        assert len(queue._queue) == 0
+    
+    @pytest.mark.asyncio
+    async def test_enqueue_dequeue(self):
+        """Test enqueuing and processing requests."""
+        queue = RequestQueue(max_depth=10, worker_count=2)
+        queue.start()
+        
+        async def test_handler(value):
+            await asyncio.sleep(0.01)
+            return value * 2
+        
+        result = await queue.enqueue(test_handler, Priority.NORMAL, 5)
+        
+        assert result == 10
+        
+        await queue.stop()
+    
+    @pytest.mark.asyncio
+    async def test_priority_ordering(self):
+        """Test that high priority requests are processed first."""
+        queue = RequestQueue(max_depth=100, worker_count=1)
+        queue.start()
+        
+        results = []
+        
+        async def test_handler(value):
+            await asyncio.sleep(0.01)
+            results.append(value)
+            return value
+        
+        # Enqueue in reverse priority order
+        tasks = [
+            queue.enqueue(test_handler, Priority.LOW, 3),
+            queue.enqueue(test_handler, Priority.NORMAL, 2),
+            queue.enqueue(test_handler, Priority.HIGH, 1)
+        ]
+        
+        await asyncio.gather(*tasks)
+        
+        # High priority should be processed first
+        assert results[0] == 1
+        
+        await queue.stop()
+    
+    @pytest.mark.asyncio
+    async def test_queue_full(self):
+        """Test queue overflow handling."""
+        # Create queue with no workers to prevent processing
+        queue = RequestQueue(max_depth=2, worker_count=0)
+        # Don't start workers
+        
+        async def slow_handler():
+            await asyncio.sleep(1.0)
+            return "done"
+        
+        # Manually add requests to queue to fill it
+        async with queue._queue_lock:
+            for i in range(2):
+                request = QueuedRequest(
+                    priority=Priority.NORMAL.value,
+                    timestamp=time.time(),
+                    request_id=f"req_{i}",
+                    handler=slow_handler,
+                    args=(),
+                    kwargs={},
+                    future=asyncio.Future()
+                )
+                queue._queue.append(request)
+        
+        # Now queue should be full
+        assert queue.is_full()
+        
+        # This should fail (queue full)
+        with pytest.raises(RuntimeError, match="queue full"):
+            await queue.enqueue(slow_handler, Priority.NORMAL)
+    
+    @pytest.mark.asyncio
+    async def test_backpressure(self):
+        """Test backpressure on low priority requests."""
+        queue = RequestQueue(max_depth=10, worker_count=1, backpressure_threshold=0.5)
+        queue.start()
+        
+        async def slow_handler():
+            await asyncio.sleep(1.0)
+            return "done"
+        
+        # Fill queue to trigger backpressure (>50%)
+        tasks = []
+        for _ in range(6):
+            task = asyncio.create_task(queue.enqueue(slow_handler, Priority.NORMAL))
+            tasks.append(task)
+        
+        await asyncio.sleep(0.1)  # Let them enqueue
+        
+        # Low priority should be rejected
+        with pytest.raises(RuntimeError, match="backpressure"):
+            await queue.enqueue(slow_handler, Priority.LOW)
+        
+        # High priority should still work
+        high_task = asyncio.create_task(queue.enqueue(slow_handler, Priority.HIGH))
+        
+        # Cancel all tasks
+        for task in tasks + [high_task]:
+            task.cancel()
+        
+        await queue.stop()
+    
+    @pytest.mark.asyncio
+    async def test_timeout(self):
+        """Test request timeout."""
+        queue = RequestQueue(max_depth=10, worker_count=1, timeout=0.1)
+        queue.start()
+        
+        async def slow_handler():
+            await asyncio.sleep(1.0)  # Longer than timeout
+            return "done"
+        
+        with pytest.raises(TimeoutError):
+            await queue.enqueue(slow_handler, Priority.NORMAL)
+        
+        await queue.stop()
+    
+    @pytest.mark.asyncio
+    async def test_get_depth(self):
+        """Test getting queue depth."""
+        queue = RequestQueue(max_depth=10, worker_count=1)
+        
+        assert queue.get_depth() == 0
+        assert not queue.is_full()
+        assert not queue.is_under_pressure()
+    
+    @pytest.mark.asyncio
+    async def test_get_metrics(self):
+        """Test getting queue metrics."""
+        queue = RequestQueue(max_depth=10, worker_count=2)
+        queue.start()
+        
+        async def test_handler(value):
+            await asyncio.sleep(0.01)
+            return value
+        
+        # Process some requests
+        await queue.enqueue(test_handler, Priority.HIGH, 1)
+        await queue.enqueue(test_handler, Priority.NORMAL, 2)
+        await queue.enqueue(test_handler, Priority.LOW, 3)
+        
+        metrics = await queue.get_metrics()
+        
+        assert metrics.total_enqueued == 3
+        assert metrics.total_dequeued == 3
+        assert metrics.high_priority_count == 1
+        assert metrics.normal_priority_count == 1
+        assert metrics.low_priority_count == 1
+        
+        await queue.stop()
+    
+    @pytest.mark.asyncio
+    async def test_get_summary(self):
+        """Test getting queue summary."""
+        queue = RequestQueue(max_depth=100, worker_count=2)
+        queue.start()
+        
+        summary = await queue.get_summary()
+        
+        assert "current_depth" in summary
+        assert "max_depth" in summary
+        assert "utilization_percent" in summary
+        assert "total_enqueued" in summary
+        assert "priority_distribution" in summary
+        
+        await queue.stop()
+
+
+class TestIntegration:
+    """Integration tests for resource management."""
+    
+    @pytest.mark.asyncio
+    async def test_memory_monitor_with_queue(self):
+        """Test memory monitoring with request queue."""
+        monitor = MemoryMonitor(check_interval=0.1)
+        monitor.start()
+        
+        queue = RequestQueue(max_depth=10, worker_count=2)
+        queue.start()
+        
+        async def test_handler(value):
+            # Track memory explicitly
+            current_mb = monitor.get_current_usage()
+            monitor.track_component("test_handler", current_mb)
+            await asyncio.sleep(0.01)
+            return value * 2
+        
+        # Process some requests
+        results = await asyncio.gather(*[
+            queue.enqueue(test_handler, Priority.NORMAL, i)
+            for i in range(5)
+        ])
+        
+        assert len(results) == 5
+        
+        # Check memory was tracked
+        stats = monitor.get_stats()
+        assert "test_handler" in stats
+        assert stats["test_handler"].samples >= 5
+        
+        await queue.stop()
+        monitor.stop()
+    
+    @pytest.mark.asyncio
+    async def test_connection_pool_with_queue(self):
+        """Test connection pooling with request queue."""
+        db_pool = DatabasePool(":memory:", min_size=2, max_size=5)
+        await db_pool.initialize()
+        
+        queue = RequestQueue(max_depth=10, worker_count=2)
+        queue.start()
+        
+        async def db_operation(value):
+            async with db_pool.acquire() as conn:
+                cursor = conn.execute("SELECT ?", (value,))
+                result = cursor.fetchone()
+                return result[0]
+        
+        # Process database operations through queue
+        results = await asyncio.gather(*[
+            queue.enqueue(db_operation, Priority.NORMAL, i)
+            for i in range(5)
+        ])
+        
+        assert results == [0, 1, 2, 3, 4]
+        
+        await queue.stop()
+        await db_pool.close()
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
