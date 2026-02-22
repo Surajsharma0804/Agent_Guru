@@ -23,6 +23,12 @@ from typing import Any
 from Agent_Guru.reasoning.models.action import Action
 
 
+class CancellationError(Exception):
+    """Exception raised when execution is cancelled."""
+
+    pass
+
+
 @dataclass
 class ExecutionResult:
     """Result of action execution.
@@ -34,6 +40,7 @@ class ExecutionResult:
         execution_time: Time taken to execute (seconds)
         action_id: ID of executed action
         retries: Number of retries attempted
+        timed_out: Whether execution timed out
         timestamp: When execution completed
     """
 
@@ -43,6 +50,7 @@ class ExecutionResult:
     execution_time: float = 0.0
     action_id: str = ""
     retries: int = 0
+    timed_out: bool = False
     timestamp: datetime = field(default_factory=datetime.now)
 
     def to_dict(self) -> dict[str, Any]:
@@ -54,6 +62,7 @@ class ExecutionResult:
             "execution_time": self.execution_time,
             "action_id": self.action_id,
             "retries": self.retries,
+            "timed_out": self.timed_out,
             "timestamp": self.timestamp.isoformat(),
         }
 
@@ -106,6 +115,7 @@ class SyncExecutor:
         action: Action,
         tool_function: Callable[[dict[str, Any]], Any],
         timeout: float | None = None,
+        cancellation_token: dict[str, Any] | None = None,
     ) -> ExecutionResult:
         """Execute action synchronously with timeout and retry.
 
@@ -116,6 +126,7 @@ class SyncExecutor:
             action: Action to execute
             tool_function: Function to execute (takes parameters dict)
             timeout: Timeout in seconds (uses default if None)
+            cancellation_token: Optional dict with 'check_fn' callable for cancellation
 
         Returns:
             ExecutionResult with success/failure information
@@ -129,9 +140,29 @@ class SyncExecutor:
 
         # Try execution with retries
         while retries <= self.max_retries:
+            # Check cancellation before execution
+            if cancellation_token:
+                check_fn = cancellation_token.get("check_fn")
+                if check_fn and check_fn():
+                    execution_time = time.perf_counter() - start_time
+                    return ExecutionResult(
+                        success=False,
+                        error={
+                            "error_code": "CANCELLED",
+                            "message": "Execution was cancelled",
+                            "details": {},
+                            "recoverable": False,
+                        },
+                        execution_time=execution_time,
+                        action_id=action.action_id,
+                        retries=retries,
+                    )
+
             try:
                 # Execute with timeout
-                result_data = self._execute_with_timeout(tool_function, action.parameters, timeout)
+                result_data = self._execute_with_timeout(
+                    tool_function, action.parameters, timeout, cancellation_token
+                )
 
                 # Success - record latency and return
                 execution_time = time.perf_counter() - start_time
@@ -145,8 +176,24 @@ class SyncExecutor:
                     retries=retries,
                 )
 
+            except CancellationError:
+                # Cancellation
+                execution_time = time.perf_counter() - start_time
+                return ExecutionResult(
+                    success=False,
+                    error={
+                        "error_code": "CANCELLED",
+                        "message": "Execution was cancelled",
+                        "details": {},
+                        "recoverable": False,
+                    },
+                    execution_time=execution_time,
+                    action_id=action.action_id,
+                    retries=retries,
+                )
+
             except TimeoutError:
-                # Timeout - don't retry
+                # Actual timeout - don't retry
                 execution_time = time.perf_counter() - start_time
                 return ExecutionResult(
                     success=False,
@@ -159,6 +206,7 @@ class SyncExecutor:
                     execution_time=execution_time,
                     action_id=action.action_id,
                     retries=retries,
+                    timed_out=True,
                 )
 
             except Exception as e:
@@ -205,6 +253,7 @@ class SyncExecutor:
         tool_function: Callable[[dict[str, Any]], Any],
         parameters: dict[str, Any],
         timeout: float,
+        cancellation_token: dict[str, Any] | None = None,
     ) -> Any:
         """Execute function with timeout enforcement.
 
@@ -212,6 +261,7 @@ class SyncExecutor:
             tool_function: Function to execute
             parameters: Parameters to pass
             timeout: Timeout in seconds
+            cancellation_token: Optional dict with 'check_fn' callable for cancellation
 
         Returns:
             Function result
@@ -220,18 +270,47 @@ class SyncExecutor:
             TimeoutError: If execution exceeds timeout
             Exception: Any exception from tool_function
         """
-        # Note: For production, use threading.Timer or asyncio.wait_for
-        # For simplicity, we use direct execution here
-        # In real implementation, wrap with timeout mechanism
+        import concurrent.futures
 
-        start = time.perf_counter()
-        result = tool_function(parameters)
-        elapsed = time.perf_counter() - start
+        # Use ThreadPoolExecutor for timeout enforcement
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(tool_function, parameters)
 
-        if elapsed > timeout:
-            raise TimeoutError(f"Execution took {elapsed:.2f}s, exceeded {timeout}s")
+            try:
+                # Wait for result with timeout, checking cancellation periodically
+                if cancellation_token and "check_fn" in cancellation_token:
+                    check_fn = cancellation_token["check_fn"]
+                    # Poll for cancellation while waiting
+                    elapsed = 0.0
+                    poll_interval = 0.1  # Check every 100ms
 
-        return result
+                    while elapsed < timeout:
+                        # Check if cancelled
+                        if check_fn():
+                            future.cancel()
+                            raise CancellationError("Execution was cancelled")
+
+                        # Try to get result with short timeout
+                        try:
+                            result = future.result(timeout=poll_interval)
+                            return result
+                        except concurrent.futures.TimeoutError:
+                            # Not done yet, continue polling
+                            elapsed += poll_interval
+                            continue
+
+                    # Timeout exceeded
+                    future.cancel()
+                    raise TimeoutError(f"Execution exceeded timeout of {timeout}s")
+                else:
+                    # No cancellation token, just wait for result
+                    result = future.result(timeout=timeout)
+                    return result
+
+            except concurrent.futures.TimeoutError:
+                # Cancel the future
+                future.cancel()
+                raise TimeoutError(f"Execution exceeded timeout of {timeout}s")
 
     def _is_transient_error(self, error: Exception) -> bool:
         """Check if error is transient and retryable.

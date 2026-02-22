@@ -138,7 +138,7 @@ Current coverage status will be tracked and reported for each completed task.
   - **Quality: Best-in-class code with no dead code, no duplication**
   - **Bug Fixed**: validate_duration return type corrected from str to float
 
-- [x] 4.1 Write property tests for data model serialization
+- [x]* 4.1 Write property tests for data model serialization
   - **Property 7: Conversation state round-trip**
   - **Validates: Requirements 3.5**
   - Test that for any valid ConversationState, serializing to JSON and deserializing produces equivalent object
@@ -249,7 +249,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement hybrid intent detection engine with fast-path router"
   - Push: git push origin main
 
-- [x] 7.6 Write property tests for intent detection
+- [x]* 7.6 Write property tests for intent detection
   - **Property 4: Intent detection produces valid intent objects**
   - **Validates: Requirements 2.1, 2.2**
   - Test that for any normalized input, detect_intent returns Intent with all required fields
@@ -455,13 +455,13 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement LLM reasoning core"
   - Push: git push origin main
 
-- [x] 9.5 Write property tests for reasoning
+- [x]* 9.5 Write property tests for reasoning
   - **Property 9: Reasoning plans respect step limits**
   - **Validates: Requirements 4.3, 11.4**
   - Test that for any reasoning plan, number of steps ≤ MAX_STEPS (5)
   - Configure test to run 100 iterations with various intent complexities
 
-- [x] 9.6 Write property tests for reasoning plan validation
+- [x]* 9.6 Write property tests for reasoning plan validation
   - **Property 11: Reasoning plans are executable**
   - **Validates: Requirements 4.1**
   - Test that for any generated plan, each step has valid tool_id and required parameters
@@ -527,19 +527,19 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: add state persistence and cloud sync"
   - Push: git push origin main
 
-- [x] 11.4 Write property tests for conversation state
+- [x]* 11.4 Write property tests for conversation state
   - **Property 5: Conversation state accumulates history**
   - **Validates: Requirements 3.2**
   - Test that for any sequence of turns, state contains all turns in chronological order
   - Configure test to run 100 iterations
 
-- [x] 11.5 Write property tests for state size limits
+- [x]* 11.5 Write property tests for state size limits
   - **Property 6: Conversation state maintains size limit**
   - **Validates: Requirements 3.4**
   - Test that after pruning, number of turns ≤ MAX_TURNS (20)
   - Configure test to run 100 iterations
 
-- [x] 11.6 Write property tests for state persistence
+- [x]* 11.6 Write property tests for state persistence
   - **Property 7: Conversation state round-trip**
   - **Validates: Requirements 3.5**
   - Test that persisting and loading state produces equivalent object
@@ -627,7 +627,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement tool registry and selection"
   - Push: git push origin main
 
-- [x] 12.5 Write property tests for tool selection
+- [x]* 12.5 Write property tests for tool selection
   - **Property 12: Selected tools have required parameters**
   - **Validates: Requirements 5.4**
   - Test that for any selected tool, all required parameters are present
@@ -715,19 +715,19 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement safety gate and permissions"
   - Push: git push origin main
 
-- [x] 13.5 Write property tests for safety gate
+- [x]* 13.5 Write property tests for safety gate
   - **Property 14: Sensitive actions require confirmation**
   - **Validates: Requirements 7.1**
   - Test that for any sensitive action, requires_confirmation is true
   - Configure test to run 100 iterations
 
-- [x] 13.6 Write property tests for permission enforcement
+- [x]* 13.6 Write property tests for permission enforcement
   - **Property 15: Insufficient permissions block actions**
   - **Validates: Requirements 7.2**
   - Test that actions without required permissions are blocked
   - Configure test to run 100 iterations
 
-- [x] 13.7 Write property tests for audit logging
+- [x]* 13.7 Write property tests for audit logging
   - **Property 16: All blocked actions are logged**
   - **Validates: Requirements 7.4**
   - Test that every blocked action creates an audit log entry
@@ -758,7 +758,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Handle partial failures in parallel execution
     - _Requirements: 11.1_
 
-  - [ ] 14.4 Implement execution timeout and cancellation
+  - [x] 14.4 Implement execution timeout and cancellation
     - Add per-action timeout configuration
     - Implement timeout enforcement with asyncio.wait_for
     - Add graceful cancellation for in-flight operations
@@ -768,19 +768,19 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement action execution controller"
   - Push: git push origin main
 
-- [ ] 14.5 Write property tests for execution timeouts
+- [x]* 14.5 Write property tests for execution timeouts
   - **Property 17: Synchronous execution respects timeout**
   - **Validates: Requirements 6.2, 10.1**
   - Test that execution exceeding timeout is cancelled and returns timeout error
   - Configure test to run 100 iterations
 
-- [ ] 14.6 Write property tests for execution results
+- [x]* 14.6 Write property tests for execution results
   - **Property 18: Execution results are structured**
   - **Validates: Requirements 6.5**
   - Test that all execution results contain required fields (success, result_data/error, execution_time)
   - Configure test to run 100 iterations
 
-- [ ] 14.7 Write property tests for async execution
+- [x]* 14.7 Write property tests for async execution
   - **Property 19: Async execution returns immediately**
   - **Validates: Requirements 6.4**
   - Test that execute_async returns within 100ms regardless of action duration
@@ -788,20 +788,20 @@ Current coverage status will be tracked and reported for each completed task.
 
 
 - [ ] 15. Implement multi-step task execution
-  - [ ] 15.1 Create multi-step plan executor
+  - [x] 15.1 Create multi-step plan executor
     - Implement sequential execution with state passing between steps
     - Add parameter binding from previous step results
     - Implement fail-fast on step failure with partial results
     - Track progress through multi-step plans
     - _Requirements: 11.1, 11.2_
 
-  - [ ] 15.2 Implement step timeout and plan timeout
+  - [x] 15.2 Implement step timeout and plan timeout
     - Add per-step timeout (5s) and total plan timeout (15s)
     - Implement timeout enforcement at both levels
     - Return partial results on timeout with completed steps
     - _Requirements: 11.5_
 
-  - [ ] 15.3 Add user cancellation support
+  - [x] 15.3 Add user cancellation support
     - Implement cancellation API for in-progress plans
     - Add graceful shutdown of current step
     - Prevent subsequent steps from executing after cancellation
@@ -810,13 +810,13 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement multi-step task execution"
   - Push: git push origin main
 
-- [ ] 15.4 Write property tests for multi-step execution
+- [x]* 15.4 Write property tests for multi-step execution
   - **Property 27: Multi-step plans execute sequentially**
   - **Validates: Requirements 11.1**
   - Test that steps execute in order and outputs are available to subsequent steps
   - Configure test to run 100 iterations
 
-- [ ] 15.5 Write property tests for plan timeout
+- [x]* 15.5 Write property tests for plan timeout
   - **Property 29: Partial results are returned on timeout**
   - **Validates: Requirements 11.3**
   - Test that timeout returns completed steps with indication of incomplete execution
@@ -825,14 +825,14 @@ Current coverage status will be tracked and reported for each completed task.
 ## Phase 7: Response Generation (Week 8)
 
 - [ ] 16. Implement Response Generator
-  - [ ] 16.1 Create template-based response generation
+  - [x] 16.1 Create template-based response generation
     - Define response templates for common success/error scenarios
     - Implement template rendering with result data injection
     - Add response personalization based on user preferences
     - Optimize for low latency (<100ms)
     - _Requirements: 8.1, 8.4_
 
-  - [ ] 16.2 Implement LLM-based response generation
+  - [x] 16.2 Implement LLM-based response generation
     - Create prompt template for natural language response generation
     - Include execution result details in prompt
     - Add conversation context for coherent responses
@@ -840,21 +840,21 @@ Current coverage status will be tracked and reported for each completed task.
     - Add fallback to templates on LLM failure
     - _Requirements: 8.1, 8.2_
 
-  - [ ] 16.3 Implement error response generation
+  - [x] 16.3 Implement error response generation
     - Create user-friendly error messages for each error type
     - Add suggested actions for recoverable errors
     - Include alternative options when available
     - Avoid technical jargon and stack traces in user-facing messages
     - _Requirements: 8.3, 9.2_
 
-  - [ ] 16.4 Add proactive suggestions
+  - [x] 16.4 Add proactive suggestions
     - Implement suggestion generation based on conversation context
     - Add follow-up action recommendations
     - Include related capabilities user might want
     - Track suggestion acceptance rate
     - _Requirements: 8.1_
 
-  - [ ] 16.5 Implement rich content support
+  - [x] 16.5 Implement rich content support
     - Add structured data generation for UI cards
     - Support images, buttons, and interactive elements
     - Adapt content format based on client capabilities
@@ -863,13 +863,13 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement response generator"
   - Push: git push origin main
 
-- [ ] 16.6 Write property tests for response generation
+- [ ]* 16.6 Write property tests for response generation
   - **Property 20: Responses match input modality**
   - **Validates: Requirements 8.4**
   - Test that response modality is compatible with input source
   - Configure test to run 100 iterations
 
-- [ ] 16.7 Write property tests for error responses
+- [ ]* 16.7 Write property tests for error responses
   - **Property 21: Error responses are user-friendly**
   - **Validates: Requirements 8.3**
   - Test that error responses don't contain stack traces or technical codes
@@ -878,7 +878,7 @@ Current coverage status will be tracked and reported for each completed task.
 ## Phase 8: Semantic LLM Interpreter (PRIMARY BRAIN) (Week 6)
 
 - [ ] 18. Implement Semantic LLM Interpreter as PRIMARY reasoning brain
-  - [ ] 18.1 Create LLM prompt templates for semantic interpretation
+  - [x] 18.1 Create LLM prompt templates for semantic interpretation
     - Design system prompt for Agent_Guru semantic interpreter
     - Create prompt template for converting natural language to Task objects
     - Add few-shot examples for common task types
@@ -886,28 +886,28 @@ Current coverage status will be tracked and reported for each completed task.
     - Add user preferences to prompts
     - _Requirements: 16.1, 16.2, 16.3, 16.4_
 
-  - [ ] 18.2 Implement structured output parsing (Task object generation)
+  - [x] 18.2 Implement structured output parsing (Task object generation)
     - Create Task data model with all required fields (goal, task_type, entities, steps, confidence, requires_confirmation, estimated_duration, status, retry_count)
     - Implement JSON schema validation for LLM outputs
     - Add retry logic for malformed responses (max 3 retries)
     - Implement confidence scoring based on LLM output quality
     - _Requirements: 16.2, 17.2, 17.3, 17.5_
 
-  - [ ] 18.3 Add conversation context injection to prompts
+  - [x] 18.3 Add conversation context injection to prompts
     - Extract relevant turns from conversation history (last 5 turns)
     - Include tracked entities in prompt context
     - Add user preferences and past actions to context
     - Implement context compression for long conversations
     - _Requirements: 16.4, 16.7_
 
-  - [ ] 18.4 Implement confidence scoring for LLM outputs
+  - [x] 18.4 Implement confidence scoring for LLM outputs
     - Score based on LLM confidence indicators
     - Score based on output completeness
     - Score based on consistency with context
     - Adjust confidence based on historical accuracy
     - _Requirements: 17.5_
 
-  - [ ] 18.5 Add fallback to rule-based processing when LLM unavailable
+  - [~] 18.5 Add fallback to rule-based processing when LLM unavailable
     - Implement rule-based intent detection as fallback
     - Create simple Task objects from rule-based matches
     - Track fallback usage metrics
@@ -1332,43 +1332,43 @@ Current coverage status will be tracked and reported for each completed task.
 
 ## Phase 15: Core User Scenarios Testing - NEW PHASE
 
-- [ ] 25. Implement and test all 10 core user scenarios
-  - [ ] 25.1 Test: Open an app (<500ms)
+- [ ]* 25. Implement and test all 10 core user scenarios
+  - [ ]* 25.1 Test: Open an app (<500ms)
     - Test "Open Spotify" command
     - Verify fast-path routing
     - Verify latency <500ms
     - Test error handling (app not found)
     - _Requirements: 30.1_
 
-  - [ ] 25.2 Test: Send a message (with confirmation)
+  - [ ]* 25.2 Test: Send a message (with confirmation)
     - Test "Send a message to John saying I'll be late"
     - Verify confirmation request
     - Verify message sent after confirmation
     - Test error handling (contact not found)
     - _Requirements: 30.2_
 
-  - [ ] 25.3 Test: Set a reminder (with time parsing)
+  - [ ]* 25.3 Test: Set a reminder (with time parsing)
     - Test "Remind me to call mom tomorrow at 3pm"
     - Verify time parsing (tomorrow, 3pm)
     - Verify reminder created
     - Test error handling (ambiguous time)
     - _Requirements: 30.3_
 
-  - [ ] 25.4 Test: Ask a knowledge question (with web search)
+  - [ ]* 25.4 Test: Ask a knowledge question (with web search)
     - Test "What's the weather in Seattle?"
     - Verify web search or API call
     - Verify formatted response
     - Test error handling (location not found)
     - _Requirements: 30.4_
 
-  - [ ] 25.5 Test: Control system settings (with permission check)
+  - [ ]* 25.5 Test: Control system settings (with permission check)
     - Test "Set volume to 50%"
     - Verify permission check
     - Verify system setting changed
     - Test error handling (permission denied)
     - _Requirements: 30.5_
 
-  - [ ] 25.6 Test: Multi-step task (weather + reminder)
+  - [ ]* 25.6 Test: Multi-step task (weather + reminder)
     - Test "Check the weather and remind me to bring an umbrella if it's raining"
     - Verify multi-step plan creation
     - Verify conditional logic execution
@@ -1376,28 +1376,28 @@ Current coverage status will be tracked and reported for each completed task.
     - Test error handling (weather API failure)
     - _Requirements: 30.6_
 
-  - [ ] 25.7 Test: Follow-up question (using context)
+  - [ ]* 25.7 Test: Follow-up question (using context)
     - Test "What about tomorrow?" after weather query
     - Verify context resolution
     - Verify correct interpretation
     - Test error handling (unclear context)
     - _Requirements: 30.7_
 
-  - [ ] 25.8 Test: Error recovery (with alternatives)
+  - [ ]* 25.8 Test: Error recovery (with alternatives)
     - Test "Call John" when John not in contacts
     - Verify error detection
     - Verify alternative suggestions
     - Test manual entry fallback
     - _Requirements: 30.8_
 
-  - [ ] 25.9 Test: Proactive suggestion (time-based)
+  - [ ]* 25.9 Test: Proactive suggestion (time-based)
     - Simulate user pattern (open app at 8am daily)
     - Verify pattern detection
     - Verify proactive suggestion generated
     - Test suggestion acceptance/rejection
     - _Requirements: 30.9_
 
-  - [ ] 25.10 Test: Third-party skill invocation (with sandboxing)
+  - [ ]* 25.10 Test: Third-party skill invocation (with sandboxing)
     - Test "Order pizza from Domino's" (example skill)
     - Verify skill discovery and selection
     - Verify sandboxing (resource limits, isolation)
@@ -1456,29 +1456,29 @@ Current coverage status will be tracked and reported for each completed task.
 
 ## Phase 17: Integration and End-to-End Testing - NEW PHASE
 
-- [ ] 27. Complete integration testing
-  - [ ] 27.1 Test fast-path end-to-end (<500ms)
+- [ ]* 27. Complete integration testing
+  - [ ]* 27.1 Test fast-path end-to-end (<500ms)
     - Test 20 common fast-path commands
     - Verify all complete within 500ms
     - Measure P50, P95, P99 latency
     - Identify any bottlenecks
     - _Requirements: 29.9_
 
-  - [ ] 27.2 Test normal path end-to-end (<1.5s)
+  - [ ]* 27.2 Test normal path end-to-end (<1.5s)
     - Test 20 common normal-path commands
     - Verify all complete within 1.5s
     - Measure P50, P95, P99 latency
     - Identify any bottlenecks
     - _Requirements: 29.10_
 
-  - [ ] 27.3 Test multi-step task execution
+  - [ ]* 27.3 Test multi-step task execution
     - Test 10 multi-step scenarios
     - Verify sequential execution
     - Verify state passing between steps
     - Verify error handling and partial results
     - _Requirements: 30.6_
 
-  - [ ] 27.4 Test error recovery and fallback strategies
+  - [ ]* 27.4 Test error recovery and fallback strategies
     - Test LLM unavailable fallback
     - Test tool unavailable fallback
     - Test timeout fallback
@@ -1486,21 +1486,21 @@ Current coverage status will be tracked and reported for each completed task.
     - Verify graceful degradation
     - _Requirements: 30.8_
 
-  - [ ] 27.5 Test behavioral learning over 100 tasks
+  - [ ]* 27.5 Test behavioral learning over 100 tasks
     - Execute 100 varied tasks
     - Verify pattern detection
     - Verify preference learning
     - Verify suggestion accuracy improves by 15%
     - _Requirements: 27.8_
 
-  - [ ] 27.6 Load testing (1000 concurrent requests)
+  - [ ]* 27.6 Load testing (1000 concurrent requests)
     - Run load test with 1000 concurrent users
     - Measure latency under load
     - Verify no crashes or errors
     - Verify resource usage stays within limits
     - _Requirements: 29.9, 29.10_
 
-  - [ ] 27.7 Stress testing (find breaking points)
+  - [ ]* 27.7 Stress testing (find breaking points)
     - Gradually increase load until system breaks
     - Identify breaking point (max RPS)
     - Identify bottlenecks
@@ -1512,8 +1512,8 @@ Current coverage status will be tracked and reported for each completed task.
 
 ## Phase 18: Production Readiness - NEW PHASE
 
-- [ ] 28. Prepare for production deployment
-  - [ ] 28.1 Security audit (penetration testing, vulnerability scanning)
+- [ ]* 28. Prepare for production deployment
+  - [ ]* 28.1 Security audit (penetration testing, vulnerability scanning)
     - Run SAST (static analysis) with Bandit
     - Run dependency scanning with Safety
     - Run container scanning with Trivy
@@ -1521,7 +1521,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Fix all critical and high severity issues
     - _Requirements: 31.1_
 
-  - [ ] 28.2 Performance benchmarking vs Alexa/Siri
+  - [ ]* 28.2 Performance benchmarking vs Alexa/Siri
     - Create benchmark suite with 100 common commands
     - Measure Agent_Guru latency (target <1.0s average)
     - Compare with published Alexa/Siri data (1.3-1.5s average)
@@ -1530,7 +1530,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Compare with published competitor data (~90%)
     - _Requirements: 29.9, 29.10_
 
-  - [ ] 28.3 Documentation (API docs, user guide, deployment guide)
+  - [ ]* 28.3 Documentation (API docs, user guide, deployment guide)
     - Write API documentation with examples
     - Write user guide for common scenarios
     - Write deployment guide for Kubernetes
@@ -1538,7 +1538,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Write troubleshooting guide
     - _Requirements: 31.1_
 
-  - [ ] 28.4 Monitoring and alerting setup
+  - [ ]* 28.4 Monitoring and alerting setup
     - Configure Prometheus alerting rules
     - Create Grafana dashboards
     - Set up log aggregation
@@ -1546,14 +1546,14 @@ Current coverage status will be tracked and reported for each completed task.
     - Create incident response procedures
     - _Requirements: 31.1_
 
-  - [ ] 28.5 Disaster recovery plan
+  - [ ]* 28.5 Disaster recovery plan
     - Document backup procedures
     - Document restore procedures
     - Document failover procedures
     - Test disaster recovery procedures
     - _Requirements: 31.1_
 
-  - [ ] 28.6 Beta testing with 100+ users
+  - [ ]* 28.6 Beta testing with 100+ users
     - Recruit 100+ beta testers
     - Collect feedback and metrics
     - Identify and fix issues
@@ -1597,19 +1597,19 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement error handling and resilience"
   - Push: git push origin main
 
-- [ ] 29.5 Write property tests for error handling
+- [ ]* 29.5 Write property tests for error handling
   - **Property 24: No unhandled exceptions**
   - **Validates: Requirements 9.1**
   - Test that any error in any component is caught and returns structured Error
   - Configure test to run 100 iterations
 
-- [ ] 29.6 Write property tests for fallback strategies
+- [ ]* 29.6 Write property tests for fallback strategies
   - **Property 25: Fallback strategies are applied**
   - **Validates: Requirements 9.2**
   - Test that known error types trigger registered fallback strategies
   - Configure test to run 100 iterations
 
-- [ ] 29.7 Write property tests for graceful degradation
+- [ ]* 29.7 Write property tests for graceful degradation
   - **Property 26: Graceful degradation under component failure**
   - **Validates: Requirements 9.3**
   - Test that component failures trigger fallback to simpler methods
@@ -1649,31 +1649,31 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: integrate components into main pipeline"
   - Push: git push origin main
 
-- [ ] 30.5 Write property tests for input normalization
+- [ ]* 30.5 Write property tests for input normalization
   - **Property 1: Input normalization produces valid output**
   - **Validates: Requirements 1.1, 1.2, 1.3, 1.4**
   - Test that any raw input produces NormalizedInput with all required fields
   - Configure test to run 100 iterations
 
-- [ ] 30.6 Write property tests for metadata preservation
+- [ ]* 30.6 Write property tests for metadata preservation
   - **Property 2: Normalization preserves metadata**
   - **Validates: Requirements 1.4**
   - Test that all metadata fields are preserved after normalization
   - Configure test to run 100 iterations
 
-- [ ] 30.7 Write property tests for invalid input handling
+- [ ]* 30.7 Write property tests for invalid input handling
   - **Property 3: Invalid input produces descriptive errors**
   - **Validates: Requirements 1.5**
   - Test that malformed input returns error without throwing exception
   - Configure test to run 100 iterations
 
-- [ ] 30.8 Write property tests for latency budgets
+- [ ]* 30.8 Write property tests for latency budgets
   - **Property 22: Fast-path operations meet latency budget**
   - **Validates: Requirements 10.1**
   - Test that common commands complete within 1.5s
   - Configure test to run 100 iterations
 
-- [ ] 30.9 Write property tests for stage latency enforcement
+- [ ]* 30.9 Write property tests for stage latency enforcement
   - **Property 23: Each stage respects its latency budget**
   - **Validates: Requirements 10.2**
   - Test that stages exceeding budget are logged/halted
@@ -1796,15 +1796,15 @@ Current coverage status will be tracked and reported for each completed task.
 
 ## Phase 22: Load Testing & Benchmarking (Week 11)
 
-- [ ] 36. Create comprehensive load testing suite
-  - [ ] 36.1 Set up load testing with Locust
+- [ ]* 36. Create comprehensive load testing suite
+  - [ ]* 36.1 Set up load testing with Locust
     - Create Locust test scenarios for common use cases
     - Implement realistic user behavior patterns
     - Add ramp-up and sustained load tests
     - Configure test data generation
     - _Requirements: 10.1_
 
-  - [ ] 36.2 Run load tests at various scales
+  - [ ]* 36.2 Run load tests at various scales
     - Test at 10 RPS (requests per second) - baseline
     - Test at 100 RPS - target production load
     - Test at 500 RPS - peak load
@@ -1813,7 +1813,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Identify breaking points and bottlenecks
     - _Requirements: 10.1, 15.2_
 
-  - [ ] 36.3 Run endurance tests
+  - [ ]* 36.3 Run endurance tests
     - Run 24-hour sustained load test at 100 RPS
     - Monitor for memory leaks and resource exhaustion
     - Check for performance degradation over time
@@ -1823,21 +1823,21 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "test: add comprehensive load testing suite"
   - Push: git push origin main
 
-- [ ] 37. Benchmark against competitors (Alexa/Siri)
-  - [ ] 37.1 Create competitive benchmark suite
+- [ ]* 37. Benchmark against competitors (Alexa/Siri)
+  - [ ]* 37.1 Create competitive benchmark suite
     - Define 100 common commands across categories (timers, weather, music, messaging, etc.)
     - Implement benchmark harness for measuring latency
     - Create test environment matching production
     - _Requirements: 10.1_
 
-  - [ ] 37.2 Run benchmarks against Agent_Guru
+  - [ ]* 37.2 Run benchmarks against Agent_Guru
     - Execute all 100 commands and measure latency
     - Calculate P50, P95, P99 latency
     - Measure intent detection accuracy
     - Track task completion rate
     - _Requirements: 10.1_
 
-  - [ ] 37.3 Compare with Alexa/Siri baseline data
+  - [ ]* 37.3 Compare with Alexa/Siri baseline data
     - Collect published latency data for Alexa/Siri (1.3-1.5s average)
     - Compare Agent_Guru performance vs competitors
     - Identify areas where Agent_Guru is faster/slower
@@ -1845,7 +1845,7 @@ Current coverage status will be tracked and reported for each completed task.
     - Validate that Agent_Guru meets <1.0s target (beats competitors by 300-500ms)
     - _Requirements: 10.1_
 
-  - [ ] 37.4 Benchmark intent detection accuracy
+  - [ ]* 37.4 Benchmark intent detection accuracy
     - Create test dataset with ground truth labels
     - Measure Agent_Guru accuracy vs published competitor data (~90%)
     - Validate >95% accuracy target is met
@@ -1855,15 +1855,15 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "test: add competitive benchmarking suite"
   - Push: git push origin main
 
-- [ ] 38. Performance regression testing
-  - [ ] 38.1 Set up pytest-benchmark for regression tests
+- [ ]* 38. Performance regression testing
+  - [ ]* 38.1 Set up pytest-benchmark for regression tests
     - Create benchmark tests for critical operations
     - Set performance baselines for each operation
     - Configure CI to run benchmarks on every PR
     - Add automatic alerts for performance regressions >10%
     - _Requirements: 10.1_
 
-  - [ ] 38.2 Create performance dashboard
+  - [ ]* 38.2 Create performance dashboard
     - Track latency trends over time
     - Visualize P50/P95/P99 latency per component
     - Show performance comparison vs competitors
@@ -1873,7 +1873,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "test: add performance regression testing"
   - Push: git push origin main
 
-- [ ] 39. Checkpoint - Performance validation
+- [ ]* 39. Checkpoint - Performance validation
   - Verify average latency <1.0s for common commands (beats Alexa/Siri)
   - Verify P95 latency <1.5s
   - Verify intent detection accuracy >95%
