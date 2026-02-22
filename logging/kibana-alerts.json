@@ -1,0 +1,275 @@
+{
+  "alerts": [
+    {
+      "name": "Critical Errors - Immediate Action Required",
+      "type": "logs.alert.document.count",
+      "params": {
+        "criteria": [
+          {
+            "comparator": ">",
+            "threshold": [5],
+            "timeSize": 5,
+            "timeUnit": "m"
+          }
+        ],
+        "index": "reasoning-engine-*",
+        "query": {
+          "query": "log_level:CRITICAL OR log_level:FATAL",
+          "language": "kuery"
+        }
+      },
+      "schedule": {
+        "interval": "1m"
+      },
+      "actions": [
+        {
+          "group": "logs.threshold.fired",
+          "id": "pagerduty-critical",
+          "params": {
+            "severity": "critical",
+            "eventAction": "trigger",
+            "dedupKey": "reasoning-engine-critical-errors",
+            "summary": "{{context.matchingDocuments}} critical errors in last 5 minutes",
+            "source": "Agent Guru Reasoning Engine",
+            "class": "application"
+          }
+        },
+        {
+          "group": "logs.threshold.fired",
+          "id": "slack-critical",
+          "params": {
+            "message": ":fire: *Critical Errors Detected*\n\n{{context.matchingDocuments}} critical errors in last 5 minutes\n\nView in Kibana: {{context.link}}"
+          }
+        }
+      ],
+      "tags": ["reasoning-engine", "critical", "production"]
+    },
+    {
+      "name": "High Error Rate",
+      "type": "logs.alert.document.count",
+      "params": {
+        "criteria": [
+          {
+            "comparator": ">",
+            "threshold": [50],
+            "timeSize": 5,
+            "timeUnit": "m"
+          }
+        ],
+        "index": "reasoning-engine-*",
+        "query": {
+          "query": "log_level:ERROR",
+          "language": "kuery"
+        }
+      },
+      "schedule": {
+        "interval": "5m"
+      },
+      "actions": [
+        {
+          "group": "logs.threshold.fired",
+          "id": "slack-warnings",
+          "params": {
+            "message": ":warning: *High Error Rate*\n\n{{context.matchingDocuments}} errors in last 5 minutes\n\nView in Kibana: {{context.link}}"
+          }
+        }
+      ],
+      "tags": ["reasoning-engine", "error", "production"]
+    },
+    {
+      "name": "LLM Unavailable",
+      "type": "logs.alert.document.count",
+      "params": {
+        "criteria": [
+          {
+            "comparator": ">",
+            "threshold": [10],
+            "timeSize": 5,
+            "timeUnit": "m"
+          }
+        ],
+        "index": "reasoning-engine-*",
+        "query": {
+          "query": "message:\"LLM unavailable\" OR message:\"LLM connection failed\"",
+          "language": "kuery"
+        }
+      },
+      "schedule": {
+        "interval": "2m"
+      },
+      "actions": [
+        {
+          "group": "logs.threshold.fired",
+          "id": "slack-critical",
+          "params": {
+            "message": ":fire: *LLM Backend Unavailable*\n\n{{context.matchingDocuments}} LLM failures in last 5 minutes\n\nService may be in degraded mode\n\nView in Kibana: {{context.link}}"
+          }
+        }
+      ],
+      "tags": ["reasoning-engine", "llm", "critical", "production"]
+    },
+    {
+      "name": "Database Connection Failures",
+      "type": "logs.alert.document.count",
+      "params": {
+        "criteria": [
+          {
+            "comparator": ">",
+            "threshold": [10],
+            "timeSize": 5,
+            "timeUnit": "m"
+          }
+        ],
+        "index": "reasoning-engine-*",
+        "query": {
+          "query": "message:\"database connection\" AND log_level:ERROR",
+          "language": "kuery"
+        }
+      },
+      "schedule": {
+        "interval": "2m"
+      },
+      "actions": [
+        {
+          "group": "logs.threshold.fired",
+          "id": "slack-critical",
+          "params": {
+            "message": ":fire: *Database Connection Failures*\n\n{{context.matchingDocuments}} connection failures in last 5 minutes\n\nView in Kibana: {{context.link}}"
+          }
+        }
+      ],
+      "tags": ["reasoning-engine", "database", "critical", "production"]
+    },
+    {
+      "name": "Unusual Error Pattern",
+      "type": "logs.alert.document.count",
+      "params": {
+        "criteria": [
+          {
+            "comparator": ">",
+            "threshold": [100],
+            "timeSize": 1,
+            "timeUnit": "h"
+          }
+        ],
+        "index": "reasoning-engine-*",
+        "query": {
+          "query": "log_level:ERROR",
+          "language": "kuery"
+        },
+        "groupBy": ["error_type"]
+      },
+      "schedule": {
+        "interval": "15m"
+      },
+      "actions": [
+        {
+          "group": "logs.threshold.fired",
+          "id": "slack-warnings",
+          "params": {
+            "message": ":warning: *Unusual Error Pattern Detected*\n\nError type: {{context.group}}\nCount: {{context.matchingDocuments}} in last hour\n\nView in Kibana: {{context.link}}"
+          }
+        }
+      ],
+      "tags": ["reasoning-engine", "pattern", "warning", "production"]
+    },
+    {
+      "name": "Security Events",
+      "type": "logs.alert.document.count",
+      "params": {
+        "criteria": [
+          {
+            "comparator": ">",
+            "threshold": [1],
+            "timeSize": 5,
+            "timeUnit": "m"
+          }
+        ],
+        "index": "reasoning-engine-*",
+        "query": {
+          "query": "component:audit AND (message:\"permission denied\" OR message:\"unauthorized\" OR message:\"authentication failed\")",
+          "language": "kuery"
+        }
+      },
+      "schedule": {
+        "interval": "1m"
+      },
+      "actions": [
+        {
+          "group": "logs.threshold.fired",
+          "id": "pagerduty-critical",
+          "params": {
+            "severity": "critical",
+            "eventAction": "trigger",
+            "dedupKey": "reasoning-engine-security-events",
+            "summary": "{{context.matchingDocuments}} security events detected",
+            "source": "Agent Guru Reasoning Engine - Security",
+            "class": "security"
+          }
+        },
+        {
+          "group": "logs.threshold.fired",
+          "id": "slack-critical",
+          "params": {
+            "message": ":rotating_light: *Security Events Detected*\n\n{{context.matchingDocuments}} security events in last 5 minutes\n\nImmediate investigation required\n\nView in Kibana: {{context.link}}"
+          }
+        }
+      ],
+      "tags": ["reasoning-engine", "security", "critical", "production"]
+    }
+  ],
+  "saved_searches": [
+    {
+      "title": "Critical Errors - Last 24h",
+      "description": "All critical and fatal errors in the last 24 hours",
+      "query": {
+        "query": "log_level:(CRITICAL OR FATAL)",
+        "language": "kuery"
+      },
+      "timeRange": {
+        "from": "now-24h",
+        "to": "now"
+      },
+      "columns": ["@timestamp", "log_level", "logger", "message", "trace_id"]
+    },
+    {
+      "title": "Errors by Component",
+      "description": "Error distribution across components",
+      "query": {
+        "query": "log_level:ERROR",
+        "language": "kuery"
+      },
+      "timeRange": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "columns": ["@timestamp", "component", "error_type", "message"]
+    },
+    {
+      "title": "Slow Requests (>3s)",
+      "description": "Requests exceeding latency target",
+      "query": {
+        "query": "duration_ms:>3000",
+        "language": "kuery"
+      },
+      "timeRange": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "columns": ["@timestamp", "duration_ms", "intent_type", "tool_id", "trace_id"]
+    },
+    {
+      "title": "Audit Log - Security Events",
+      "description": "All security-related audit events",
+      "query": {
+        "query": "component:audit",
+        "language": "kuery"
+      },
+      "timeRange": {
+        "from": "now-24h",
+        "to": "now"
+      },
+      "columns": ["@timestamp", "user_id", "message", "status"]
+    }
+  ]
+}

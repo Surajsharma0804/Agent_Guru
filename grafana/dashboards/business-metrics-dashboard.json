@@ -1,0 +1,388 @@
+{
+  "dashboard": {
+    "title": "Business Metrics - User Engagement",
+    "tags": ["reasoning-engine", "business", "production", "engagement"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "1m",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Total Requests (24h)",
+        "type": "singlestat",
+        "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(reasoning_engine_requests_total[24h]))",
+            "refId": "A"
+          }
+        ],
+        "format": "short",
+        "valueName": "current",
+        "sparkline": {
+          "show": true,
+          "lineColor": "rgb(31, 120, 193)",
+          "fillColor": "rgba(31, 118, 189, 0.18)"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Unique Users (24h)",
+        "type": "singlestat",
+        "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "count(count by (user_id) (reasoning_engine_requests_total))",
+            "refId": "A"
+          }
+        ],
+        "format": "short",
+        "valueName": "current",
+        "sparkline": {
+          "show": true,
+          "lineColor": "rgb(31, 120, 193)",
+          "fillColor": "rgba(31, 118, 189, 0.18)"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Avg Requests per User",
+        "type": "singlestat",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(reasoning_engine_requests_total[24h])) / count(count by (user_id) (reasoning_engine_requests_total))",
+            "refId": "A"
+          }
+        ],
+        "format": "short",
+        "decimals": 1,
+        "valueName": "current",
+        "sparkline": {
+          "show": true,
+          "lineColor": "rgb(31, 120, 193)",
+          "fillColor": "rgba(31, 118, 189, 0.18)"
+        }
+      },
+      {
+        "id": 4,
+        "title": "User Satisfaction Score",
+        "type": "singlestat",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "100 * (1 - (sum(rate(reasoning_engine_errors_total[24h])) / sum(rate(reasoning_engine_requests_total[24h]))))",
+            "refId": "A"
+          }
+        ],
+        "format": "percent",
+        "valueName": "current",
+        "thresholds": "95,99",
+        "colors": ["#d44a3a", "#e0b400", "#299c46"],
+        "sparkline": {
+          "show": true,
+          "lineColor": "rgb(31, 120, 193)",
+          "fillColor": "rgba(31, 118, 189, 0.18)"
+        }
+      },
+      {
+        "id": 5,
+        "title": "Intent Distribution",
+        "type": "piechart",
+        "gridPos": {"x": 0, "y": 4, "w": 12, "h": 10},
+        "targets": [
+          {
+            "expr": "sum by (intent_type) (increase(reasoning_engine_requests_total[24h]))",
+            "legendFormat": "{{intent_type}}",
+            "refId": "A"
+          }
+        ],
+        "pieType": "donut",
+        "legend": {
+          "show": true,
+          "values": true,
+          "percentage": true
+        }
+      },
+      {
+        "id": 6,
+        "title": "Top 10 Intents by Volume",
+        "type": "bargauge",
+        "gridPos": {"x": 12, "y": 4, "w": 12, "h": 10},
+        "targets": [
+          {
+            "expr": "topk(10, sum by (intent_type) (increase(reasoning_engine_requests_total[24h])))",
+            "legendFormat": "{{intent_type}}",
+            "refId": "A"
+          }
+        ],
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      },
+      {
+        "id": 7,
+        "title": "Request Volume by Hour",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 14, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(reasoning_engine_requests_total[1h]))",
+            "legendFormat": "Requests/s",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Requests/s"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "bars": true,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true,
+          "max": true
+        }
+      },
+      {
+        "id": 8,
+        "title": "User Engagement by Time of Day",
+        "type": "heatmap",
+        "gridPos": {"x": 12, "y": 14, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (hour) (increase(reasoning_engine_requests_total[1h]))",
+            "format": "time_series",
+            "refId": "A"
+          }
+        ],
+        "dataFormat": "timeseries",
+        "yAxis": {
+          "format": "short",
+          "decimals": 0
+        },
+        "color": {
+          "mode": "spectrum",
+          "cardColor": "#b4ff00",
+          "colorScale": "sqrt",
+          "exponent": 0.5,
+          "colorScheme": "interpolateSpectral"
+        }
+      },
+      {
+        "id": 9,
+        "title": "Tool Usage Distribution",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 22, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (tool_id) (rate(reasoning_engine_tool_executions_total[1h]))",
+            "legendFormat": "{{tool_id}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Executions/s"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true,
+          "total": true
+        }
+      },
+      {
+        "id": 10,
+        "title": "Tool Success Rates",
+        "type": "table",
+        "gridPos": {"x": 12, "y": 22, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "100 * (sum by (tool_id) (rate(reasoning_engine_tool_executions_total{status=\"success\"}[1h])) / sum by (tool_id) (rate(reasoning_engine_tool_executions_total[1h])))",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          },
+          {
+            "expr": "sum by (tool_id) (increase(reasoning_engine_tool_executions_total[24h]))",
+            "format": "table",
+            "instant": true,
+            "refId": "B"
+          }
+        ],
+        "styles": [
+          {
+            "pattern": "tool_id",
+            "type": "string",
+            "alias": "Tool"
+          },
+          {
+            "pattern": "Value #A",
+            "type": "number",
+            "alias": "Success Rate",
+            "unit": "percent",
+            "decimals": 1,
+            "colorMode": "cell",
+            "colors": ["rgba(245, 54, 54, 0.9)", "rgba(237, 129, 40, 0.89)", "rgba(50, 172, 45, 0.97)"],
+            "thresholds": ["70", "90"]
+          },
+          {
+            "pattern": "Value #B",
+            "type": "number",
+            "alias": "Total Executions (24h)",
+            "unit": "short",
+            "decimals": 0
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Multi-Step Task Completion Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 30, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "100 * (sum(rate(reasoning_engine_multi_step_completed_total[5m])) / sum(rate(reasoning_engine_multi_step_started_total[5m])))",
+            "legendFormat": "Completion Rate %",
+            "refId": "A"
+          },
+          {
+            "expr": "avg(reasoning_engine_multi_step_duration_seconds)",
+            "legendFormat": "Avg Duration (s)",
+            "refId": "B",
+            "yAxisIndex": 1
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Completion Rate", "min": 0, "max": 100},
+          {"format": "s", "label": "Duration"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true
+        }
+      },
+      {
+        "id": 12,
+        "title": "User Feedback & Ratings",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 30, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "avg(reasoning_engine_user_rating)",
+            "legendFormat": "Average Rating (1-5)",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(reasoning_engine_user_feedback_total{sentiment=\"positive\"}[1h]))",
+            "legendFormat": "Positive Feedback/s",
+            "refId": "B",
+            "yAxisIndex": 1
+          },
+          {
+            "expr": "sum(rate(reasoning_engine_user_feedback_total{sentiment=\"negative\"}[1h]))",
+            "legendFormat": "Negative Feedback/s",
+            "refId": "C",
+            "yAxisIndex": 1
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Rating", "min": 1, "max": 5},
+          {"format": "ops", "label": "Feedback/s"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true
+        }
+      },
+      {
+        "id": 13,
+        "title": "Conversation Metrics",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 38, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "avg(reasoning_engine_conversation_turns)",
+            "legendFormat": "Avg Turns per Conversation",
+            "refId": "A"
+          },
+          {
+            "expr": "avg(reasoning_engine_conversation_duration_seconds)",
+            "legendFormat": "Avg Conversation Duration (s)",
+            "refId": "B",
+            "yAxisIndex": 1
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Turns"},
+          {"format": "s", "label": "Duration"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true
+        }
+      },
+      {
+        "id": 14,
+        "title": "Proactive Suggestions Acceptance Rate",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 38, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "100 * (sum(rate(reasoning_engine_suggestions_accepted_total[5m])) / sum(rate(reasoning_engine_suggestions_generated_total[5m])))",
+            "legendFormat": "Acceptance Rate %",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(reasoning_engine_suggestions_generated_total[5m]))",
+            "legendFormat": "Suggestions Generated/s",
+            "refId": "B",
+            "yAxisIndex": 1
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Acceptance Rate", "min": 0, "max": 100},
+          {"format": "ops", "label": "Suggestions/s"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true
+        }
+      }
+    ]
+  }
+}

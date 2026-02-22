@@ -1,0 +1,263 @@
+groups:
+  - name: reasoning_engine_latency
+    interval: 30s
+    rules:
+      - alert: HighP95Latency
+        expr: histogram_quantile(0.95, sum(rate(reasoning_engine_latency_seconds_bucket[5m])) by (le, stage)) > 3.0
+        for: 5m
+        labels:
+          severity: critical
+          component: reasoning_engine
+        annotations:
+          summary: "High P95 latency detected (>3s)"
+          description: "P95 latency for {{ $labels.stage }} is {{ $value }}s, which exceeds 2x target (3s). This impacts user experience."
+          runbook_url: "https://docs.agent-guru.com/runbooks/high-latency"
+
+      - alert: HighP99Latency
+        expr: histogram_quantile(0.99, sum(rate(reasoning_engine_latency_seconds_bucket[5m])) by (le, stage)) > 5.0
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning_engine
+        annotations:
+          summary: "High P99 latency detected (>5s)"
+          description: "P99 latency for {{ $labels.stage }} is {{ $value }}s. Monitor for potential issues."
+          runbook_url: "https://docs.agent-guru.com/runbooks/high-latency"
+
+  - name: reasoning_engine_errors
+    interval: 30s
+    rules:
+      - alert: HighErrorRate
+        expr: (sum(rate(reasoning_engine_errors_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          component: reasoning_engine
+        annotations:
+          summary: "High error rate detected (>5%)"
+          description: "Error rate is {{ $value | humanizePercentage }}, which exceeds 5% threshold. Immediate investigation required."
+          runbook_url: "https://docs.agent-guru.com/runbooks/high-error-rate"
+
+      - alert: ElevatedErrorRate
+        expr: (sum(rate(reasoning_engine_errors_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))) * 100 > 2
+        for: 10m
+        labels:
+          severity: warning
+          component: reasoning_engine
+        annotations:
+          summary: "Elevated error rate detected (>2%)"
+          description: "Error rate is {{ $value | humanizePercentage }}, which exceeds 2% threshold. Monitor closely."
+          runbook_url: "https://docs.agent-guru.com/runbooks/high-error-rate"
+
+      - alert: HighTimeoutRate
+        expr: (sum(rate(reasoning_engine_timeouts_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))) * 100 > 3
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning_engine
+        annotations:
+          summary: "High timeout rate detected (>3%)"
+          description: "Timeout rate is {{ $value | humanizePercentage }}. Check for slow dependencies or resource constraints."
+          runbook_url: "https://docs.agent-guru.com/runbooks/high-timeout-rate"
+
+  - name: reasoning_engine_degraded_mode
+    interval: 30s
+    rules:
+      - alert: HighDegradedModeRate
+        expr: (sum(rate(reasoning_engine_degraded_mode_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))) * 100 > 10
+        for: 5m
+        labels:
+          severity: critical
+          component: reasoning_engine
+        annotations:
+          summary: "High degraded mode rate (>10%)"
+          description: "{{ $value | humanizePercentage }} of requests are in degraded mode. LLM or other dependencies may be unavailable."
+          runbook_url: "https://docs.agent-guru.com/runbooks/degraded-mode"
+
+      - alert: ElevatedDegradedModeRate
+        expr: (sum(rate(reasoning_engine_degraded_mode_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))) * 100 > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: reasoning_engine
+        annotations:
+          summary: "Elevated degraded mode rate (>5%)"
+          description: "{{ $value | humanizePercentage }} of requests are in degraded mode. Monitor dependencies."
+          runbook_url: "https://docs.agent-guru.com/runbooks/degraded-mode"
+
+  - name: reasoning_engine_availability
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up{job="reasoning-engine"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: reasoning_engine
+        annotations:
+          summary: "Reasoning engine service is down"
+          description: "The reasoning engine service {{ $labels.instance }} is not responding. Immediate action required."
+          runbook_url: "https://docs.agent-guru.com/runbooks/service-down"
+
+      - alert: ServiceFlapping
+        expr: changes(up{job="reasoning-engine"}[10m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning_engine
+        annotations:
+          summary: "Service is flapping"
+          description: "The reasoning engine service {{ $labels.instance }} has restarted {{ $value }} times in 10 minutes."
+          runbook_url: "https://docs.agent-guru.com/runbooks/service-flapping"
+
+      - alert: LowUptime
+        expr: avg_over_time(up{job="reasoning-engine"}[1h]) < 0.999
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning_engine
+        annotations:
+          summary: "Service uptime below SLO (99.9%)"
+          description: "Service uptime is {{ $value | humanizePercentage }} over the last hour, below 99.9% SLO."
+          runbook_url: "https://docs.agent-guru.com/runbooks/low-uptime"
+
+  - name: reasoning_engine_resources
+    interval: 30s
+    rules:
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total{job="reasoning-engine"}[5m]) * 100 > 90
+        for: 10m
+        labels:
+          severity: critical
+          component: reasoning_engine
+        annotations:
+          summary: "High CPU usage (>90%)"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}. Service may be overloaded."
+          runbook_url: "https://docs.agent-guru.com/runbooks/high-cpu"
+
+      - alert: ElevatedCPUUsage
+        expr: rate(process_cpu_seconds_total{job="reasoning-engine"}[5m]) * 100 > 75
+        for: 15m
+        labels:
+          severity: warning
+          component: reasoning_engine
+        annotations:
+          summary: "Elevated CPU usage (>75%)"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}. Monitor for capacity issues."
+          runbook_url: "https://docs.agent-guru.com/runbooks/high-cpu"
+
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes{job="reasoning-engine"} / node_memory_MemTotal_bytes) * 100 > 90
+        for: 10m
+        labels:
+          severity: critical
+          component: reasoning_engine
+        annotations:
+          summary: "High memory usage (>90%)"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}. Risk of OOM."
+          runbook_url: "https://docs.agent-guru.com/runbooks/high-memory"
+
+      - alert: ElevatedMemoryUsage
+        expr: (process_resident_memory_bytes{job="reasoning-engine"} / node_memory_MemTotal_bytes) * 100 > 75
+        for: 15m
+        labels:
+          severity: warning
+          component: reasoning_engine
+        annotations:
+          summary: "Elevated memory usage (>75%)"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}. Monitor for memory leaks."
+          runbook_url: "https://docs.agent-guru.com/runbooks/high-memory"
+
+      - alert: HighDiskUsage
+        expr: (node_filesystem_avail_bytes{job="reasoning-engine",mountpoint="/"} / node_filesystem_size_bytes) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+          component: reasoning_engine
+        annotations:
+          summary: "Low disk space (<10% available)"
+          description: "Only {{ $value }}% disk space available on {{ $labels.instance }}. Clean up or expand storage."
+          runbook_url: "https://docs.agent-guru.com/runbooks/low-disk-space"
+
+      - alert: HighQueueDepth
+        expr: reasoning_engine_queue_depth > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning_engine
+        annotations:
+          summary: "High queue depth (>1000)"
+          description: "Queue depth is {{ $value }} on {{ $labels.instance }}. Service may be overloaded."
+          runbook_url: "https://docs.agent-guru.com/runbooks/high-queue-depth"
+
+  - name: reasoning_engine_dependencies
+    interval: 30s
+    rules:
+      - alert: LLMUnavailable
+        expr: reasoning_engine_llm_available == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: reasoning_engine
+        annotations:
+          summary: "LLM backend unavailable"
+          description: "LLM backend {{ $labels.backend }} is unavailable. Service is in degraded mode."
+          runbook_url: "https://docs.agent-guru.com/runbooks/llm-unavailable"
+
+      - alert: DatabaseConnectionFailure
+        expr: reasoning_engine_db_connection_errors_total > 10
+        for: 5m
+        labels:
+          severity: critical
+          component: reasoning_engine
+        annotations:
+          summary: "Database connection failures"
+          description: "{{ $value }} database connection failures detected. Check database health."
+          runbook_url: "https://docs.agent-guru.com/runbooks/db-connection-failure"
+
+      - alert: RedisConnectionFailure
+        expr: reasoning_engine_redis_connection_errors_total > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning_engine
+        annotations:
+          summary: "Redis connection failures"
+          description: "{{ $value }} Redis connection failures detected. Caching may be impaired."
+          runbook_url: "https://docs.agent-guru.com/runbooks/redis-connection-failure"
+
+  - name: reasoning_engine_business_metrics
+    interval: 1m
+    rules:
+      - alert: LowRequestRate
+        expr: sum(rate(reasoning_engine_requests_total[5m])) < 1
+        for: 15m
+        labels:
+          severity: warning
+          component: reasoning_engine
+        annotations:
+          summary: "Low request rate (<1 req/s)"
+          description: "Request rate is {{ $value }} req/s. Check if service is receiving traffic."
+          runbook_url: "https://docs.agent-guru.com/runbooks/low-request-rate"
+
+      - alert: HighIntentDetectionFailureRate
+        expr: (sum(rate(reasoning_engine_intent_detection_failures_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))) * 100 > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: reasoning_engine
+        annotations:
+          summary: "High intent detection failure rate (>10%)"
+          description: "{{ $value | humanizePercentage }} of requests failed intent detection. Check model health."
+          runbook_url: "https://docs.agent-guru.com/runbooks/intent-detection-failure"
+
+      - alert: HighToolSelectionFailureRate
+        expr: (sum(rate(reasoning_engine_tool_selection_failures_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))) * 100 > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: reasoning_engine
+        annotations:
+          summary: "High tool selection failure rate (>5%)"
+          description: "{{ $value | humanizePercentage }} of requests failed tool selection. Check tool registry."
+          runbook_url: "https://docs.agent-guru.com/runbooks/tool-selection-failure"

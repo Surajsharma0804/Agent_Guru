@@ -1,0 +1,350 @@
+{
+  "dashboard": {
+    "title": "Operational Dashboard - Component Metrics",
+    "tags": ["reasoning-engine", "operational", "production", "components"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "10s",
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Pipeline Stage Latency (P95)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_input_normalization_duration_seconds_bucket[5m]))",
+            "legendFormat": "Input Normalization",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_intent_detection_duration_seconds_bucket[5m]))",
+            "legendFormat": "Intent Detection",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_reasoning_duration_seconds_bucket[5m]))",
+            "legendFormat": "Reasoning",
+            "refId": "C"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_tool_selection_duration_seconds_bucket[5m]))",
+            "legendFormat": "Tool Selection",
+            "refId": "D"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_safety_validation_duration_seconds_bucket[5m]))",
+            "legendFormat": "Safety Validation",
+            "refId": "E"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_execution_duration_seconds_bucket[5m]))",
+            "legendFormat": "Execution",
+            "refId": "F"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_response_generation_duration_seconds_bucket[5m]))",
+            "legendFormat": "Response Generation",
+            "refId": "G"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Latency (P95)"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true,
+          "max": true
+        }
+      },
+      {
+        "id": 2,
+        "title": "Component Error Rates",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "100 * sum(rate(reasoning_engine_intent_detection_failures_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))",
+            "legendFormat": "Intent Detection Failures %",
+            "refId": "A"
+          },
+          {
+            "expr": "100 * sum(rate(reasoning_engine_tool_selection_failures_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))",
+            "legendFormat": "Tool Selection Failures %",
+            "refId": "B"
+          },
+          {
+            "expr": "100 * sum(rate(reasoning_engine_execution_failures_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))",
+            "legendFormat": "Execution Failures %",
+            "refId": "C"
+          },
+          {
+            "expr": "100 * sum(rate(reasoning_engine_safety_blocks_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))",
+            "legendFormat": "Safety Blocks %",
+            "refId": "D"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Failure Rate"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true
+        }
+      },
+      {
+        "id": 3,
+        "title": "LLM Backend Status",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "reasoning_engine_llm_available{backend=\"local\"}",
+            "legendFormat": "Local LLM",
+            "refId": "A"
+          },
+          {
+            "expr": "reasoning_engine_llm_available{backend=\"cloud\"}",
+            "legendFormat": "Cloud LLM",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_llm_latency_seconds_bucket[5m]))",
+            "legendFormat": "LLM Latency P95",
+            "refId": "C",
+            "yAxisIndex": 1
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Available (0/1)", "min": 0, "max": 1},
+          {"format": "s", "label": "Latency"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true
+        }
+      },
+      {
+        "id": 4,
+        "title": "Degraded Mode & Fallbacks",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "100 * sum(rate(reasoning_engine_degraded_mode_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))",
+            "legendFormat": "Degraded Mode %",
+            "refId": "A"
+          },
+          {
+            "expr": "100 * sum(rate(reasoning_engine_fallback_total{type=\"rule_based\"}[5m])) / sum(rate(reasoning_engine_requests_total[5m]))",
+            "legendFormat": "Rule-Based Fallback %",
+            "refId": "B"
+          },
+          {
+            "expr": "100 * sum(rate(reasoning_engine_fallback_total{type=\"local_llm\"}[5m])) / sum(rate(reasoning_engine_requests_total[5m]))",
+            "legendFormat": "Local LLM Fallback %",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Rate"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true
+        },
+        "thresholds": [
+          {
+            "value": 10,
+            "colorMode": "custom",
+            "op": "gt",
+            "fill": false,
+            "line": true,
+            "lineColor": "rgba(244, 67, 54, 0.8)"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Database Operations",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(reasoning_engine_db_queries_total[5m])",
+            "legendFormat": "Queries/s",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_db_query_duration_seconds_bucket[5m]))",
+            "legendFormat": "Query Latency P95",
+            "refId": "B",
+            "yAxisIndex": 1
+          },
+          {
+            "expr": "rate(reasoning_engine_db_connection_errors_total[5m])",
+            "legendFormat": "Connection Errors/s",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Operations/s"},
+          {"format": "s", "label": "Latency"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true
+        }
+      },
+      {
+        "id": 6,
+        "title": "Cache Performance",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "100 * sum(rate(reasoning_engine_cache_hits_total[5m])) / (sum(rate(reasoning_engine_cache_hits_total[5m])) + sum(rate(reasoning_engine_cache_misses_total[5m])))",
+            "legendFormat": "Cache Hit Rate %",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(reasoning_engine_cache_hits_total[5m])",
+            "legendFormat": "Cache Hits/s",
+            "refId": "B",
+            "yAxisIndex": 1
+          },
+          {
+            "expr": "rate(reasoning_engine_cache_misses_total[5m])",
+            "legendFormat": "Cache Misses/s",
+            "refId": "C",
+            "yAxisIndex": 1
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Hit Rate", "min": 0, "max": 100},
+          {"format": "ops", "label": "Operations/s"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true
+        }
+      },
+      {
+        "id": 7,
+        "title": "Queue Depth & Backlog",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "reasoning_engine_queue_depth",
+            "legendFormat": "Queue Depth",
+            "refId": "A"
+          },
+          {
+            "expr": "reasoning_engine_requests_in_progress",
+            "legendFormat": "In Progress",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Count"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true,
+          "max": true
+        },
+        "thresholds": [
+          {
+            "value": 1000,
+            "colorMode": "custom",
+            "op": "gt",
+            "fill": false,
+            "line": true,
+            "lineColor": "rgba(244, 67, 54, 0.8)"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Timeout & Retry Rates",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 24, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "100 * sum(rate(reasoning_engine_timeouts_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))",
+            "legendFormat": "Timeout Rate %",
+            "refId": "A"
+          },
+          {
+            "expr": "100 * sum(rate(reasoning_engine_retries_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))",
+            "legendFormat": "Retry Rate %",
+            "refId": "B"
+          },
+          {
+            "expr": "avg(reasoning_engine_retry_count)",
+            "legendFormat": "Avg Retries per Request",
+            "refId": "C",
+            "yAxisIndex": 1
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Rate"},
+          {"format": "short", "label": "Count"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true
+        }
+      }
+    ]
+  }
+}

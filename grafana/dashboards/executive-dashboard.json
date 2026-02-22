@@ -1,0 +1,307 @@
+{
+  "dashboard": {
+    "title": "Executive Dashboard - Key Metrics",
+    "tags": ["reasoning-engine", "executive", "production", "kpi"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Service Health Score",
+        "type": "singlestat",
+        "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "100 * (1 - (sum(rate(reasoning_engine_errors_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))))",
+            "refId": "A"
+          }
+        ],
+        "format": "percent",
+        "valueName": "current",
+        "thresholds": "95,99",
+        "colors": ["#d44a3a", "#e0b400", "#299c46"],
+        "sparkline": {
+          "show": true,
+          "lineColor": "rgb(31, 120, 193)",
+          "fillColor": "rgba(31, 118, 189, 0.18)"
+        }
+      },
+      {
+        "id": 2,
+        "title": "P95 Latency",
+        "type": "singlestat",
+        "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(reasoning_engine_latency_seconds_bucket[5m])) by (le))",
+            "refId": "A"
+          }
+        ],
+        "format": "s",
+        "valueName": "current",
+        "thresholds": "1.5,3.0",
+        "colors": ["#299c46", "#e0b400", "#d44a3a"],
+        "sparkline": {
+          "show": true,
+          "lineColor": "rgb(31, 120, 193)",
+          "fillColor": "rgba(31, 118, 189, 0.18)"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Success Rate",
+        "type": "singlestat",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "100 * (sum(rate(reasoning_engine_requests_total[5m])) - sum(rate(reasoning_engine_errors_total[5m]))) / sum(rate(reasoning_engine_requests_total[5m]))",
+            "refId": "A"
+          }
+        ],
+        "format": "percent",
+        "valueName": "current",
+        "thresholds": "95,99",
+        "colors": ["#d44a3a", "#e0b400", "#299c46"],
+        "sparkline": {
+          "show": true,
+          "lineColor": "rgb(31, 120, 193)",
+          "fillColor": "rgba(31, 118, 189, 0.18)"
+        }
+      },
+      {
+        "id": 4,
+        "title": "Throughput (req/s)",
+        "type": "singlestat",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(rate(reasoning_engine_requests_total[5m]))",
+            "refId": "A"
+          }
+        ],
+        "format": "reqps",
+        "valueName": "current",
+        "sparkline": {
+          "show": true,
+          "lineColor": "rgb(31, 120, 193)",
+          "fillColor": "rgba(31, 118, 189, 0.18)"
+        }
+      },
+      {
+        "id": 5,
+        "title": "Latency Percentiles Over Time",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(reasoning_engine_latency_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(reasoning_engine_latency_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(reasoning_engine_latency_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Latency"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true,
+          "max": true
+        },
+        "thresholds": [
+          {
+            "value": 1.5,
+            "colorMode": "custom",
+            "op": "gt",
+            "fill": false,
+            "line": true,
+            "lineColor": "rgba(255, 193, 7, 0.8)"
+          },
+          {
+            "value": 3.0,
+            "colorMode": "custom",
+            "op": "gt",
+            "fill": false,
+            "line": true,
+            "lineColor": "rgba(244, 67, 54, 0.8)"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Success Rate & Error Rate",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "100 * (sum(rate(reasoning_engine_requests_total[5m])) - sum(rate(reasoning_engine_errors_total[5m]))) / sum(rate(reasoning_engine_requests_total[5m]))",
+            "legendFormat": "Success Rate %",
+            "refId": "A"
+          },
+          {
+            "expr": "100 * sum(rate(reasoning_engine_errors_total[5m])) / sum(rate(reasoning_engine_requests_total[5m]))",
+            "legendFormat": "Error Rate %",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Rate", "min": 0, "max": 100},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true
+        },
+        "thresholds": [
+          {
+            "value": 95,
+            "colorMode": "custom",
+            "op": "lt",
+            "fill": false,
+            "line": true,
+            "lineColor": "rgba(244, 67, 54, 0.8)"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Request Volume",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(reasoning_engine_requests_total[5m]))",
+            "legendFormat": "Total Requests/s",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(reasoning_engine_requests_total{status=\"success\"}[5m]))",
+            "legendFormat": "Successful Requests/s",
+            "refId": "B"
+          },
+          {
+            "expr": "sum(rate(reasoning_engine_errors_total[5m]))",
+            "legendFormat": "Failed Requests/s",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Requests/s"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true,
+          "total": true
+        }
+      },
+      {
+        "id": 8,
+        "title": "Uptime & Availability",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "100 * avg_over_time(up{job=\"reasoning-engine\"}[5m])",
+            "legendFormat": "Uptime %",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Uptime", "min": 99, "max": 100},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "avg": true,
+          "min": true
+        },
+        "thresholds": [
+          {
+            "value": 99.9,
+            "colorMode": "custom",
+            "op": "lt",
+            "fill": false,
+            "line": true,
+            "lineColor": "rgba(244, 67, 54, 0.8)"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Active Alerts",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 20, "w": 24, "h": 6},
+        "targets": [
+          {
+            "expr": "ALERTS{job=\"reasoning-engine\",alertstate=\"firing\"}",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "styles": [
+          {
+            "pattern": "alertname",
+            "type": "string",
+            "alias": "Alert"
+          },
+          {
+            "pattern": "severity",
+            "type": "string",
+            "alias": "Severity",
+            "colorMode": "cell",
+            "colors": ["rgba(50, 172, 45, 0.97)", "rgba(237, 129, 40, 0.89)", "rgba(245, 54, 54, 0.9)"],
+            "thresholds": ["warning", "critical"]
+          },
+          {
+            "pattern": "instance",
+            "type": "string",
+            "alias": "Instance"
+          },
+          {
+            "pattern": "Time",
+            "type": "date",
+            "alias": "Started"
+          }
+        ]
+      }
+    ]
+  }
+}

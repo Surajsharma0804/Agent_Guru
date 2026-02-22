@@ -1941,7 +1941,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: add Terraform infrastructure configuration"
   - Push: git push origin main
 
-- [-] 42. Implement deployment automation
+- [x] 42. Implement deployment automation
   - [x] 42.1 Create deployment pipeline
     - Add staging deployment on merge to main
     - Add production deployment on release tags
@@ -1965,8 +1965,8 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: add deployment automation"
   - Push: git push origin main
 
-- [ ] 43. Set up production monitoring and alerting
-  - [ ] 43.1 Configure Prometheus alerting rules
+- [x] 43. Set up production monitoring and alerting
+  - [x] 43.1 Configure Prometheus alerting rules
     - Alert on P95 latency >2x target (>3s)
     - Alert on error rate >5%
     - Alert on degraded mode >10% of requests
@@ -1974,21 +1974,21 @@ Current coverage status will be tracked and reported for each completed task.
     - Alert on resource exhaustion (CPU >90%, memory >90%)
     - _Requirements: 12.3_
 
-  - [ ] 43.2 Create Grafana dashboards for production
+  - [x] 43.2 Create Grafana dashboards for production
     - Create executive dashboard with key metrics (latency, success rate, throughput)
     - Create operational dashboard with detailed component metrics
     - Create capacity planning dashboard with resource utilization
     - Create business metrics dashboard (intents per type, user engagement)
     - _Requirements: 12.2, 12.3_
 
-  - [ ] 43.3 Set up log aggregation
+  - [x] 43.3 Set up log aggregation
     - Configure log shipping to centralized logging (ELK/CloudWatch)
     - Set up log-based alerts for critical errors
     - Create log analysis dashboards
     - Configure log retention (30 days for INFO, 90 days for ERROR)
     - _Requirements: 12.1_
 
-  - [ ] 43.4 Configure on-call rotation and incident response
+  - [x] 43.4 Configure on-call rotation and incident response
     - Set up PagerDuty/Opsgenie for on-call management
     - Create runbooks for common incidents
     - Define SLOs (99.9% uptime, <1.5s P95 latency)

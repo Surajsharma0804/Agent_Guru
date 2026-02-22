@@ -1,0 +1,176 @@
+{
+  "log_groups": [
+    {
+      "name": "/aws/agent-guru/reasoning-engine/application",
+      "retention_in_days": 30,
+      "kms_key_id": "${KMS_KEY_ID}",
+      "tags": {
+        "Service": "reasoning-engine",
+        "Environment": "production",
+        "Component": "application"
+      }
+    },
+    {
+      "name": "/aws/agent-guru/reasoning-engine/error",
+      "retention_in_days": 90,
+      "kms_key_id": "${KMS_KEY_ID}",
+      "tags": {
+        "Service": "reasoning-engine",
+        "Environment": "production",
+        "Component": "error"
+      }
+    },
+    {
+      "name": "/aws/agent-guru/reasoning-engine/audit",
+      "retention_in_days": 90,
+      "kms_key_id": "${KMS_KEY_ID}",
+      "tags": {
+        "Service": "reasoning-engine",
+        "Environment": "production",
+        "Component": "audit",
+        "Sensitive": "true"
+      }
+    }
+  ],
+  "metric_filters": [
+    {
+      "log_group_name": "/aws/agent-guru/reasoning-engine/application",
+      "filter_name": "CriticalErrors",
+      "filter_pattern": "[timestamp, level=CRITICAL || level=FATAL, ...]",
+      "metric_transformations": [
+        {
+          "metric_name": "CriticalErrorCount",
+          "metric_namespace": "AgentGuru/ReasoningEngine",
+          "metric_value": "1",
+          "default_value": 0
+        }
+      ]
+    },
+    {
+      "log_group_name": "/aws/agent-guru/reasoning-engine/application",
+      "filter_name": "Errors",
+      "filter_pattern": "[timestamp, level=ERROR, ...]",
+      "metric_transformations": [
+        {
+          "metric_name": "ErrorCount",
+          "metric_namespace": "AgentGuru/ReasoningEngine",
+          "metric_value": "1",
+          "default_value": 0
+        }
+      ]
+    },
+    {
+      "log_group_name": "/aws/agent-guru/reasoning-engine/application",
+      "filter_name": "LLMUnavailable",
+      "filter_pattern": "[timestamp, level, logger, message=\"*LLM unavailable*\"]",
+      "metric_transformations": [
+        {
+          "metric_name": "LLMUnavailableCount",
+          "metric_namespace": "AgentGuru/ReasoningEngine",
+          "metric_value": "1",
+          "default_value": 0
+        }
+      ]
+    },
+    {
+      "log_group_name": "/aws/agent-guru/reasoning-engine/application",
+      "filter_name": "HighLatency",
+      "filter_pattern": "[timestamp, level, logger, message, duration_ms>3000]",
+      "metric_transformations": [
+        {
+          "metric_name": "HighLatencyCount",
+          "metric_namespace": "AgentGuru/ReasoningEngine",
+          "metric_value": "1",
+          "default_value": 0
+        }
+      ]
+    }
+  ],
+  "alarms": [
+    {
+      "alarm_name": "ReasoningEngine-CriticalErrors",
+      "alarm_description": "Alert when critical errors exceed threshold",
+      "metric_name": "CriticalErrorCount",
+      "namespace": "AgentGuru/ReasoningEngine",
+      "statistic": "Sum",
+      "period": 300,
+      "evaluation_periods": 1,
+      "threshold": 5,
+      "comparison_operator": "GreaterThanThreshold",
+      "treat_missing_data": "notBreaching",
+      "actions_enabled": true,
+      "alarm_actions": [
+        "${SNS_TOPIC_ARN_CRITICAL}"
+      ],
+      "ok_actions": [
+        "${SNS_TOPIC_ARN_CRITICAL}"
+      ]
+    },
+    {
+      "alarm_name": "ReasoningEngine-HighErrorRate",
+      "alarm_description": "Alert when error rate is high",
+      "metric_name": "ErrorCount",
+      "namespace": "AgentGuru/ReasoningEngine",
+      "statistic": "Sum",
+      "period": 300,
+      "evaluation_periods": 1,
+      "threshold": 50,
+      "comparison_operator": "GreaterThanThreshold",
+      "treat_missing_data": "notBreaching",
+      "actions_enabled": true,
+      "alarm_actions": [
+        "${SNS_TOPIC_ARN_WARNING}"
+      ]
+    },
+    {
+      "alarm_name": "ReasoningEngine-LLMUnavailable",
+      "alarm_description": "Alert when LLM backend is unavailable",
+      "metric_name": "LLMUnavailableCount",
+      "namespace": "AgentGuru/ReasoningEngine",
+      "statistic": "Sum",
+      "period": 300,
+      "evaluation_periods": 1,
+      "threshold": 10,
+      "comparison_operator": "GreaterThanThreshold",
+      "treat_missing_data": "notBreaching",
+      "actions_enabled": true,
+      "alarm_actions": [
+        "${SNS_TOPIC_ARN_CRITICAL}"
+      ]
+    },
+    {
+      "alarm_name": "ReasoningEngine-HighLatency",
+      "alarm_description": "Alert when high latency requests exceed threshold",
+      "metric_name": "HighLatencyCount",
+      "namespace": "AgentGuru/ReasoningEngine",
+      "statistic": "Sum",
+      "period": 300,
+      "evaluation_periods": 2,
+      "threshold": 20,
+      "comparison_operator": "GreaterThanThreshold",
+      "treat_missing_data": "notBreaching",
+      "actions_enabled": true,
+      "alarm_actions": [
+        "${SNS_TOPIC_ARN_WARNING}"
+      ]
+    }
+  ],
+  "insights_queries": [
+    {
+      "query_name": "Top 10 Error Messages",
+      "query_string": "fields @timestamp, @message | filter level = \"ERROR\" | stats count() by @message | sort count desc | limit 10"
+    },
+    {
+      "query_name": "Latency Distribution",
+      "query_string": "fields @timestamp, duration_ms | filter duration_ms > 0 | stats avg(duration_ms), max(duration_ms), pct(duration_ms, 50), pct(duration_ms, 95), pct(duration_ms, 99)"
+    },
+    {
+      "query_name": "Error Rate by Component",
+      "query_string": "fields @timestamp, component | filter level = \"ERROR\" | stats count() by component | sort count desc"
+    },
+    {
+      "query_name": "Security Events",
+      "query_string": "fields @timestamp, user_id, @message | filter component = \"audit\" and (@message like /permission denied/ or @message like /unauthorized/ or @message like /authentication failed/)"
+    }
+  ]
+}

@@ -1,0 +1,134 @@
+{
+  "index_patterns": ["reasoning-engine-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 1,
+      "index.lifecycle.name": "reasoning-engine-policy",
+      "index.lifecycle.rollover_alias": "reasoning-engine",
+      "index.refresh_interval": "5s",
+      "index.codec": "best_compression"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "message": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "log_level": {
+          "type": "keyword"
+        },
+        "logger": {
+          "type": "keyword"
+        },
+        "service": {
+          "type": "keyword"
+        },
+        "environment": {
+          "type": "keyword"
+        },
+        "component": {
+          "type": "keyword"
+        },
+        "user_id": {
+          "type": "keyword"
+        },
+        "conversation_id": {
+          "type": "keyword"
+        },
+        "turn_id": {
+          "type": "keyword"
+        },
+        "trace_id": {
+          "type": "keyword"
+        },
+        "span_id": {
+          "type": "keyword"
+        },
+        "intent_type": {
+          "type": "keyword"
+        },
+        "tool_id": {
+          "type": "keyword"
+        },
+        "error_type": {
+          "type": "keyword"
+        },
+        "error_message": {
+          "type": "text"
+        },
+        "stack_trace": {
+          "type": "text"
+        },
+        "duration_ms": {
+          "type": "float"
+        },
+        "latency_ms": {
+          "type": "float"
+        },
+        "status": {
+          "type": "keyword"
+        },
+        "event": {
+          "properties": {
+            "severity": {
+              "type": "integer"
+            },
+            "hash": {
+              "type": "keyword"
+            },
+            "ingested": {
+              "type": "date"
+            }
+          }
+        },
+        "host": {
+          "properties": {
+            "name": {
+              "type": "keyword"
+            },
+            "hostname": {
+              "type": "keyword"
+            },
+            "ip": {
+              "type": "ip"
+            }
+          }
+        },
+        "client": {
+          "properties": {
+            "ip": {
+              "type": "ip"
+            },
+            "geo": {
+              "properties": {
+                "country_name": {
+                  "type": "keyword"
+                },
+                "city_name": {
+                  "type": "keyword"
+                },
+                "location": {
+                  "type": "geo_point"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "priority": 500,
+  "version": 1,
+  "_meta": {
+    "description": "Index template for Agent Guru Reasoning Engine logs"
+  }
+}
