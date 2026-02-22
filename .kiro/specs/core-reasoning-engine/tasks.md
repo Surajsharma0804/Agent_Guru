@@ -863,13 +863,13 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement response generator"
   - Push: git push origin main
 
-- [ ]* 16.6 Write property tests for response generation
+- [-]* 16.6 Write property tests for response generation
   - **Property 20: Responses match input modality**
   - **Validates: Requirements 8.4**
   - Test that response modality is compatible with input source
   - Configure test to run 100 iterations
 
-- [ ]* 16.7 Write property tests for error responses
+- [-]* 16.7 Write property tests for error responses
   - **Property 21: Error responses are user-friendly**
   - **Validates: Requirements 8.3**
   - Test that error responses don't contain stack traces or technical codes
@@ -1597,19 +1597,19 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement error handling and resilience"
   - Push: git push origin main
 
-- [ ]* 29.5 Write property tests for error handling
+- [-]* 29.5 Write property tests for error handling
   - **Property 24: No unhandled exceptions**
   - **Validates: Requirements 9.1**
   - Test that any error in any component is caught and returns structured Error
   - Configure test to run 100 iterations
 
-- [ ]* 29.6 Write property tests for fallback strategies
+- [-]* 29.6 Write property tests for fallback strategies
   - **Property 25: Fallback strategies are applied**
   - **Validates: Requirements 9.2**
   - Test that known error types trigger registered fallback strategies
   - Configure test to run 100 iterations
 
-- [ ]* 29.7 Write property tests for graceful degradation
+- [-]* 29.7 Write property tests for graceful degradation
   - **Property 26: Graceful degradation under component failure**
   - **Validates: Requirements 9.3**
   - Test that component failures trigger fallback to simpler methods
@@ -1649,38 +1649,38 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: integrate components into main pipeline"
   - Push: git push origin main
 
-- [ ]* 30.5 Write property tests for input normalization
+- [-]* 30.5 Write property tests for input normalization
   - **Property 1: Input normalization produces valid output**
   - **Validates: Requirements 1.1, 1.2, 1.3, 1.4**
   - Test that any raw input produces NormalizedInput with all required fields
   - Configure test to run 100 iterations
 
-- [ ]* 30.6 Write property tests for metadata preservation
+- [-]* 30.6 Write property tests for metadata preservation
   - **Property 2: Normalization preserves metadata**
   - **Validates: Requirements 1.4**
   - Test that all metadata fields are preserved after normalization
   - Configure test to run 100 iterations
 
-- [ ]* 30.7 Write property tests for invalid input handling
+- [-]* 30.7 Write property tests for invalid input handling
   - **Property 3: Invalid input produces descriptive errors**
   - **Validates: Requirements 1.5**
   - Test that malformed input returns error without throwing exception
   - Configure test to run 100 iterations
 
-- [ ]* 30.8 Write property tests for latency budgets
+- [-]* 30.8 Write property tests for latency budgets
   - **Property 22: Fast-path operations meet latency budget**
   - **Validates: Requirements 10.1**
   - Test that common commands complete within 1.5s
   - Configure test to run 100 iterations
 
-- [ ]* 30.9 Write property tests for stage latency enforcement
+- [x]* 30.9 Write property tests for stage latency enforcement
   - **Property 23: Each stage respects its latency budget**
   - **Validates: Requirements 10.2**
   - Test that stages exceeding budget are logged/halted
   - Configure test to run 100 iterations
 
 
-- [ ] 31. Create API layer and service interfaces
+- [x] 31. Create API layer and service interfaces
   - [x] 31.1 Implement REST API with FastAPI
     - Create /v1/process endpoint for processing requests
     - Create /v1/conversations endpoint for conversation management
@@ -1707,7 +1707,7 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: add API layer and service interfaces"
   - Push: git push origin main
 
-- [ ] 32. Checkpoint - Integration testing and validation
+- [x] 32. Checkpoint - Integration testing and validation
   - Run full integration test suite covering end-to-end flows
   - Verify all components work together correctly
   - Test error handling and fallback paths
@@ -1717,26 +1717,26 @@ Current coverage status will be tracked and reported for each completed task.
 
 ## Phase 21: Performance Optimization (Week 10)
 
-- [ ] 33. Implement caching strategies
-  - [ ] 33.1 Add intent detection caching
+- [x] 33. Implement caching strategies
+  - [x] 33.1 Add intent detection caching
     - Implement cache with 5-minute TTL for identical inputs
     - Add cache invalidation on context changes
     - Track cache hit rate (target >60%)
     - _Requirements: 10.4_
 
-  - [ ] 33.2 Add tool selection caching
+  - [x] 33.2 Add tool selection caching
     - Pre-compute intent→tool mappings for common intents
     - Cache tool availability checks (1-minute TTL)
     - Maintain hot path for frequently used tools
     - _Requirements: 10.4_
 
-  - [ ] 33.3 Add LLM prompt caching
+  - [x] 33.3 Add LLM prompt caching
     - Implement prompt template caching
     - Cache common prompt prefixes for token reduction
     - Track token savings (target 80% reduction)
     - _Requirements: 10.4_
 
-  - [ ] 33.4 Add response caching
+  - [x] 33.4 Add response caching
     - Cache responses for deterministic queries (weather, time, etc.)
     - Implement cache invalidation based on data freshness
     - Track cache hit rate per intent type
@@ -1745,21 +1745,21 @@ Current coverage status will be tracked and reported for each completed task.
   - Commit: "feat: implement caching strategies"
   - Push: git push origin main
 
-- [ ] 34. Optimize critical path performance
-  - [ ] 34.1 Profile pipeline with py-spy
+- [x] 34. Optimize critical path performance
+  - [x] 34.1 Profile pipeline with py-spy
     - Run profiling on representative workload
     - Identify bottlenecks in critical path
     - Generate flame graphs for visualization
     - _Requirements: 10.1_
 
-  - [ ] 34.2 Optimize hot paths identified in profiling
+  - [x] 34.2 Optimize hot paths identified in profiling
     - Optimize data serialization with orjson
     - Add connection pooling for database and Redis
     - Implement batch processing where applicable
     - Use compiled regex for pattern matching
     - _Requirements: 10.1_
 
-  - [ ] 34.3 Implement Rust extensions for performance-critical code
+  - [x] 34.3 Implement Rust extensions for performance-critical code
     - Identify Python bottlenecks suitable for Rust
     - Implement Rust extensions with PyO3
     - Benchmark Rust vs Python performance

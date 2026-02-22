@@ -107,6 +107,10 @@ httpx>=0.24.0
 aiohttp>=3.8.0
 requests>=2.31.0
 
+# Performance Optimization
+orjson>=3.9.0  # Fast JSON serialization (5-10x faster than json)
+py-spy>=0.3.14  # Profiling tool for production
+
 # Platform Integration
 pywin32>=306; sys_platform == 'win32'
 pyobjc-framework-Cocoa>=9.2; sys_platform == 'darwin'

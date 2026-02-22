@@ -57,6 +57,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from Agent_Guru.reasoning.intent.fast_router import FastIntentRouter, PatternMatch
+from Agent_Guru.reasoning.intent.intent_cache import IntentDetectionCache
 from Agent_Guru.reasoning.intent.llm_fallback import (
     LLMClassificationResult,
     LLMFallbackClassifier,
@@ -161,6 +162,9 @@ class IntentDetectionEngine:
         self.llm_fallback: LLMFallbackClassifier | None = None
         self.feedback_store: FeedbackStore | None = None
         self.online_learner: OnlineLearner | None = None
+
+        # Intent detection cache (5-minute TTL, 10000 entries)
+        self.intent_cache = IntentDetectionCache(max_size=10000, ttl_seconds=300)
 
         # Metrics
         self.total_detections = 0
@@ -274,6 +278,22 @@ class IntentDetectionEngine:
 
         start_time = time.perf_counter()
 
+        # Check cache first (O(1) lookup, <1ms overhead)
+        cached_intent = self.intent_cache.get(text, context)
+        if cached_intent:
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            self._update_metrics("cache", latency_ms)
+
+            return DetectionResult(
+                intent=cached_intent,
+                detection_method="cache",
+                latency_ms=latency_ms,
+                fast_path_attempted=False,
+                neural_attempted=False,
+                llm_attempted=False,
+                confidence=cached_intent.confidence,
+            )
+
         # Track which methods were attempted
         fast_path_attempted = False
         neural_attempted = False
@@ -288,6 +308,9 @@ class IntentDetectionEngine:
                 # Fast-path success!
                 intent = self._create_intent_from_fast_path(match, text)
                 latency_ms = (time.perf_counter() - start_time) * 1000
+
+                # Cache the result
+                self.intent_cache.set(text, context, intent)
 
                 self._update_metrics("fast_path", latency_ms)
 
@@ -320,6 +343,9 @@ class IntentDetectionEngine:
                 intent = self._create_intent_from_neural(neural_result, text, entities)
                 latency_ms = (time.perf_counter() - start_time) * 1000
 
+                # Cache the result
+                self.intent_cache.set(text, context, intent)
+
                 self._update_metrics("neural", latency_ms)
 
                 return DetectionResult(
@@ -339,6 +365,9 @@ class IntentDetectionEngine:
 
             intent = self._create_intent_from_llm(llm_result, text)
             latency_ms = (time.perf_counter() - start_time) * 1000
+
+            # Cache the result
+            self.intent_cache.set(text, context, intent)
 
             self._update_metrics("llm_fallback", latency_ms)
 
@@ -365,6 +394,7 @@ class IntentDetectionEngine:
 
         latency_ms = (time.perf_counter() - start_time) * 1000
 
+        # Don't cache unknown intents
         return DetectionResult(
             intent=intent,
             detection_method="fallback",
@@ -564,6 +594,7 @@ class IntentDetectionEngine:
                 "fast_path_percent": 0.0,
                 "neural_percent": 0.0,
                 "llm_percent": 0.0,
+                "intent_cache": self.intent_cache.get_stats(),
             }
 
         metrics = {
@@ -575,6 +606,7 @@ class IntentDetectionEngine:
             "fast_path_percent": (self.fast_path_hits / self.total_detections) * 100,
             "neural_percent": (self.neural_hits / self.total_detections) * 100,
             "llm_percent": (self.llm_hits / self.total_detections) * 100,
+            "intent_cache": self.intent_cache.get_stats(),
         }
 
         # Add component metrics
@@ -620,3 +652,21 @@ class IntentDetectionEngine:
                 else f"⚠ Below target ({fast_path_percent:.1f}% vs {target_percent}%)"
             ),
         }
+
+    def invalidate_cache_by_context(self, context: dict[str, Any]) -> int:
+        """Invalidate cache entries for a specific context.
+
+        This should be called when conversation context changes significantly
+        (e.g., new conversation started, context reset).
+
+        Args:
+            context: Context to invalidate
+
+        Returns:
+            Number of entries invalidated
+        """
+        return self.intent_cache.invalidate_by_context(context)
+
+    def clear_cache(self) -> None:
+        """Clear all cached intent detection results."""
+        self.intent_cache.clear()

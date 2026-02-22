@@ -185,7 +185,31 @@ class TestReasoningEngine:
     @pytest.mark.asyncio
     async def test_process_fast_path(self):
         """Test fast-path processing."""
-        engine = ReasoningEngine()
+        from Agent_Guru.reasoning.tools.models import ToolMetadata, ToolSelection
+        from Agent_Guru.reasoning.tools.selector import ToolSelector
+        from Agent_Guru.reasoning.tools.registry import ToolRegistry
+        
+        # Create mock tool
+        mock_tool = Mock()
+        mock_tool.metadata = ToolMetadata(
+            tool_id="timer.set",
+            name="Set Timer",
+            description="Set a timer",
+            category="timer",
+            parameters=[],
+            latency_ms=100.0
+        )
+        
+        # Create mock tool selector that returns a tool
+        mock_selector = Mock(spec=ToolSelector)
+        mock_selector.select_tool = AsyncMock(return_value=ToolSelection(
+            tool=mock_tool,
+            confidence=0.95,
+            parameters={"duration": "5 minutes"}
+        ))
+        
+        # Create engine with mocked selector
+        engine = ReasoningEngine(tool_selector=mock_selector)
         
         from Agent_Guru.reasoning.input.normalizer import NormalizedInput
         

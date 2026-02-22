@@ -461,7 +461,7 @@ class TemplateGenerator:
             List of suggestion strings
         """
         # Use proactive suggestion generator if available
-        if hasattr(self, "_proactive_generator"):
+        if hasattr(self, "_proactive_generator") and self._proactive_generator is not None:
             return self._proactive_generator.generate_suggestions(
                 intent, result, conversation_state, user_preferences
             )

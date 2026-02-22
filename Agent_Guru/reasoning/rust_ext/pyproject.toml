@@ -1,0 +1,18 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "reasoning-rust"
+version = "0.1.0"
+description = "Rust extensions for Agent Guru reasoning engine"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: 3.11",
+]
+
+[tool.maturin]
+python-source = "python"
+module-name = "reasoning_rust"
