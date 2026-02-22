@@ -3,72 +3,73 @@
 .gitignore
 .gitattributes
 
-# GitHub
-.github
-
 # Python
 __pycache__
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
+dist/
+build/
 *.egg
-MANIFEST
-
-# Testing
 .pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-.tox/
+.mypy_cache/
+.ruff_cache/
 .hypothesis/
-*.cover
-.cache
-nosetests.xml
+htmlcov/
+.coverage
 coverage.xml
-*.coveragerc
 
-# IDEs
+# Virtual environments
+venv/
+env/
+ENV/
+agent_gpu/
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
 
 # Documentation
-docs/
 *.md
-!README.md
+docs/
 
 # CI/CD
 .github/
-k8s/
+.kiro/
 
-# Environment
-.env
-.env.*
-*.env
+# Test files
+tests/
+*_test.py
+test_*.py
+
+# Development
+docker-compose.yml
+Dockerfile
+.dockerignore
 
 # Logs
 *.log
-logs/
 
-# Temporary files
-tmp/
-temp/
-*.tmp
+# Database
+*.db
+*.sqlite
+*.sqlite3
+memory_db/
+
+# Assets
+assets/
+
+# Monitoring
+grafana/
+
+# Kubernetes
+k8s/
+
+# Misc
+.DS_Store
+Thumbs.db

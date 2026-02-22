@@ -1,0 +1,11 @@
+{{- if .Values.config.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "agent-guru.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "agent-guru.labels" . | nindent 4 }}
+data:
+  {{- toYaml .Values.config.data | nindent 2 }}
+{{- end }}

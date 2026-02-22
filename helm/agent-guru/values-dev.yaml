@@ -1,0 +1,52 @@
+# Development environment values
+global:
+  environment: development
+  logLevel: DEBUG
+
+image:
+  tag: "dev"
+  pullPolicy: Always
+
+replicaCount: 1
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "500m"
+
+autoscaling:
+  enabled: false
+
+ingress:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+env:
+  - name: ENVIRONMENT
+    value: "development"
+  - name: LOG_LEVEL
+    value: "DEBUG"
+  - name: PYTHONUNBUFFERED
+    value: "1"
+
+config:
+  data:
+    config.yaml: |
+      environment: development
+      log_level: DEBUG
+      latency_budgets:
+        input_normalization: 100
+        intent_detection: 500
+        reasoning: 1000
+        tool_selection: 200
+        safety_validation: 100
+        execution: 500
+        response_generation: 300
+      max_reasoning_steps: 5
+      enable_async_execution: true
+      enable_caching: false

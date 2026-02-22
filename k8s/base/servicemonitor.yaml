@@ -1,0 +1,78 @@
+# ServiceMonitor for Prometheus Operator to scrape custom metrics
+# This enables custom metrics for HPA (request_queue_depth, request_latency_p95)
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: agent-guru-reasoning
+  labels:
+    app: agent-guru-reasoning
+    prometheus: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      app: agent-guru-reasoning
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+    scheme: http
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      targetLabel: pod
+    - sourceLabels: [__meta_kubernetes_namespace]
+      targetLabel: namespace
+    - sourceLabels: [__meta_kubernetes_pod_label_app]
+      targetLabel: app
+    - sourceLabels: [__meta_kubernetes_pod_label_environment]
+      targetLabel: environment
+
+---
+# PrometheusRule for alerting on HPA metrics
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: agent-guru-reasoning-hpa-alerts
+  labels:
+    app: agent-guru-reasoning
+    prometheus: kube-prometheus
+spec:
+  groups:
+  - name: agent-guru-hpa
+    interval: 30s
+    rules:
+    # Alert when queue depth is high
+    - alert: HighRequestQueueDepth
+      expr: request_queue_depth > 50
+      for: 5m
+      labels:
+        severity: warning
+        component: reasoning-engine
+      annotations:
+        summary: "High request queue depth detected"
+        description: "Request queue depth is {{ $value }} (threshold: 50)"
+    
+    # Alert when latency is high
+    - alert: HighRequestLatency
+      expr: request_latency_p95 > 2000
+      for: 5m
+      labels:
+        severity: warning
+        component: reasoning-engine
+      annotations:
+        summary: "High request latency detected"
+        description: "P95 latency is {{ $value }}ms (threshold: 2000ms)"
+    
+    # Alert when HPA is at max replicas
+    - alert: HPAMaxedOut
+      expr: |
+        kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler="agent-guru-reasoning-hpa"}
+        >= 
+        kube_horizontalpodautoscaler_spec_max_replicas{horizontalpodautoscaler="agent-guru-reasoning-hpa"}
+      for: 10m
+      labels:
+        severity: critical
+        component: reasoning-engine
+      annotations:
+        summary: "HPA has reached maximum replicas"
+        description: "HPA is at max replicas and may not be able to handle additional load"

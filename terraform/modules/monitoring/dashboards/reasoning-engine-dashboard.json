@@ -1,0 +1,73 @@
+{
+  "dashboard": {
+    "title": "Agent Guru - Core Reasoning Engine",
+    "tags": ["agent-guru", "reasoning-engine"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(reasoning_engine_requests_total[5m])",
+            "legendFormat": "{{method}}"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "P95 Latency by Stage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_stage_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{stage}}"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(reasoning_engine_errors_total[5m])",
+            "legendFormat": "{{error_type}}"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Intent Detection Accuracy",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "reasoning_engine_intent_accuracy"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Active Conversations",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "reasoning_engine_active_conversations"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "LLM Response Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_llm_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95"
+          }
+        ]
+      }
+    ]
+  }
+}

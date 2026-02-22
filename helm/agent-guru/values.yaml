@@ -1,0 +1,230 @@
+# Default values for agent-guru-reasoning
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Global settings
+global:
+  environment: production
+  logLevel: INFO
+
+# Image configuration
+image:
+  repository: ghcr.io/agent-guru/agent-guru
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets:
+  - name: ghcr-secret
+
+# Deployment configuration
+replicaCount: 3
+
+# Resource limits and requests
+resources:
+  requests:
+    memory: "2Gi"
+    cpu: "1000m"
+  limits:
+    memory: "4Gi"
+    cpu: "2000m"
+
+# Autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  # Custom metrics
+  customMetrics:
+    - type: Pods
+      pods:
+        metric:
+          name: request_queue_depth
+        target:
+          type: AverageValue
+          averageValue: "10"
+    - type: Pods
+      pods:
+        metric:
+          name: request_latency_p95
+        target:
+          type: AverageValue
+          averageValue: "1500"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 30
+        - type: Pods
+          value: 5
+          periodSeconds: 30
+      selectPolicy: Max
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+  metricsPort: 9090
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+  hosts:
+    - host: api.agent-guru.ai
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: reasoning.agent-guru.ai
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: agent-guru-tls-cert
+      hosts:
+        - api.agent-guru.ai
+        - reasoning.agent-guru.ai
+
+# Probes configuration
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+    scheme: HTTP
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+  successThreshold: 1
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+    scheme: HTTP
+  initialDelaySeconds: 20
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+  successThreshold: 1
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Pod Anti-Affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - agent-guru-reasoning
+          topologyKey: kubernetes.io/hostname
+
+# Environment variables
+env:
+  - name: ENVIRONMENT
+    value: "production"
+  - name: LOG_LEVEL
+    value: "INFO"
+  - name: PYTHONUNBUFFERED
+    value: "1"
+
+# Secrets (from Kubernetes secrets)
+secrets:
+  enabled: true
+  name: agent-guru-secrets
+  keys:
+    - name: SENTRY_DSN
+      key: sentry-dsn
+    - name: OPENAI_API_KEY
+      key: openai-api-key
+    - name: ANTHROPIC_API_KEY
+      key: anthropic-api-key
+
+# ConfigMap
+config:
+  enabled: true
+  data:
+    config.yaml: |
+      environment: production
+      log_level: INFO
+      latency_budgets:
+        input_normalization: 30
+        intent_detection: 200
+        reasoning: 400
+        tool_selection: 50
+        safety_validation: 30
+        execution: 300
+        response_generation: 150
+      max_reasoning_steps: 5
+      enable_async_execution: true
+      enable_caching: true
+      cache_ttl: 300
+
+# Monitoring
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    path: /metrics
+  prometheusRule:
+    enabled: true
+
+# Security Context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  capabilities:
+    drop:
+      - ALL
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Additional labels
+labels: {}
+
+# Additional annotations
+annotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"

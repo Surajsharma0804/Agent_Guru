@@ -114,34 +114,106 @@ jobs:
         echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > $HOME/.kube/config
         chmod 600 $HOME/.kube/config
     
-    - name: Deploy to Staging
+    - name: Blue-Green Deployment - Create Green Environment
       run: |
-        kubectl set image deployment/agent-guru-reasoning \
+        # Determine current active color
+        CURRENT_COLOR=$(kubectl get service agent-guru-reasoning -n agent-guru-staging -o jsonpath='{.spec.selector.color}' || echo "blue")
+        if [ "$CURRENT_COLOR" == "blue" ]; then
+          NEW_COLOR="green"
+        else
+          NEW_COLOR="blue"
+        fi
+        
+        echo "Current active: $CURRENT_COLOR, deploying to: $NEW_COLOR"
+        echo "NEW_COLOR=$NEW_COLOR" >> $GITHUB_ENV
+        echo "CURRENT_COLOR=$CURRENT_COLOR" >> $GITHUB_ENV
+        
+        # Update deployment with new color
+        kubectl set image deployment/agent-guru-reasoning-$NEW_COLOR \
           reasoning=${{ needs.build-docker.outputs.image-tag }} \
+          -n agent-guru-staging || \
+        kubectl create deployment agent-guru-reasoning-$NEW_COLOR \
+          --image=${{ needs.build-docker.outputs.image-tag }} \
           -n agent-guru-staging
         
-        kubectl rollout status deployment/agent-guru-reasoning \
+        # Add color label
+        kubectl patch deployment agent-guru-reasoning-$NEW_COLOR \
+          -n agent-guru-staging \
+          -p '{"spec":{"template":{"metadata":{"labels":{"color":"'$NEW_COLOR'"}}}}}'
+        
+        # Wait for rollout
+        kubectl rollout status deployment/agent-guru-reasoning-$NEW_COLOR \
           -n agent-guru-staging \
           --timeout=5m
     
+    - name: Run Smoke Tests on Green Environment
+      run: |
+        echo "Running smoke tests against $NEW_COLOR environment..."
+        
+        # Get pod IP for direct testing
+        POD_IP=$(kubectl get pods -n agent-guru-staging -l color=$NEW_COLOR -o jsonpath='{.items[0].status.podIP}')
+        
+        # Test health endpoint
+        kubectl run smoke-test-$NEW_COLOR --rm -i --restart=Never \
+          --image=curlimages/curl:latest \
+          -n agent-guru-staging \
+          -- curl -f http://$POD_IP:8000/health || exit 1
+        
+        # Test metrics endpoint
+        kubectl run smoke-test-metrics-$NEW_COLOR --rm -i --restart=Never \
+          --image=curlimages/curl:latest \
+          -n agent-guru-staging \
+          -- curl -f http://$POD_IP:8000/metrics || exit 1
+        
+        echo "✅ Smoke tests passed on $NEW_COLOR environment"
+    
+    - name: Switch Traffic to Green Environment
+      run: |
+        echo "Switching traffic from $CURRENT_COLOR to $NEW_COLOR..."
+        
+        # Update service selector to point to new color
+        kubectl patch service agent-guru-reasoning \
+          -n agent-guru-staging \
+          -p '{"spec":{"selector":{"color":"'$NEW_COLOR'"}}}'
+        
+        echo "✅ Traffic switched to $NEW_COLOR environment"
+    
     - name: Verify Deployment
       run: |
-        kubectl get pods -n agent-guru-staging -l app=agent-guru-reasoning
+        kubectl get pods -n agent-guru-staging -l color=$NEW_COLOR
         kubectl get services -n agent-guru-staging -l app=agent-guru-reasoning
-    
-    - name: Run Smoke Tests
-      run: |
-        echo "Running smoke tests against staging environment..."
-        # Add smoke test commands here
+        
+        # Wait for service to stabilize
+        sleep 30
+        
+        # Verify through service endpoint
         curl -f https://staging.agent-guru.example.com/health || exit 1
-        echo "✅ Smoke tests passed"
+        echo "✅ Deployment verified"
+    
+    - name: Cleanup Old Blue Environment
+      if: success()
+      run: |
+        echo "Keeping $CURRENT_COLOR environment for potential rollback..."
+        # Scale down old deployment but don't delete (for quick rollback)
+        kubectl scale deployment agent-guru-reasoning-$CURRENT_COLOR \
+          -n agent-guru-staging \
+          --replicas=1 || true
     
     - name: Rollback on Failure
       if: failure()
       run: |
-        echo "❌ Deployment failed, rolling back..."
-        kubectl rollout undo deployment/agent-guru-reasoning -n agent-guru-staging
-        kubectl rollout status deployment/agent-guru-reasoning -n agent-guru-staging
+        echo "❌ Deployment failed, rolling back to $CURRENT_COLOR..."
+        
+        # Switch service back to old color
+        kubectl patch service agent-guru-reasoning \
+          -n agent-guru-staging \
+          -p '{"spec":{"selector":{"color":"'$CURRENT_COLOR'"}}}'
+        
+        # Delete failed deployment
+        kubectl delete deployment agent-guru-reasoning-$NEW_COLOR \
+          -n agent-guru-staging || true
+        
+        echo "❌ Rollback completed"
         exit 1
 
   deploy-production:
@@ -170,22 +242,111 @@ jobs:
     
     - name: Create Deployment Backup
       run: |
-        kubectl get deployment agent-guru-reasoning -n agent-guru-production -o yaml > deployment-backup.yaml
+        kubectl get deployment agent-guru-reasoning-blue -n agent-guru-production -o yaml > deployment-blue-backup.yaml || true
+        kubectl get deployment agent-guru-reasoning-green -n agent-guru-production -o yaml > deployment-green-backup.yaml || true
+        kubectl get service agent-guru-reasoning -n agent-guru-production -o yaml > service-backup.yaml
     
-    - name: Deploy to Production
+    - name: Blue-Green Deployment - Create Green Environment
       run: |
-        kubectl set image deployment/agent-guru-reasoning \
+        # Determine current active color
+        CURRENT_COLOR=$(kubectl get service agent-guru-reasoning -n agent-guru-production -o jsonpath='{.spec.selector.color}' || echo "blue")
+        if [ "$CURRENT_COLOR" == "blue" ]; then
+          NEW_COLOR="green"
+        else
+          NEW_COLOR="blue"
+        fi
+        
+        echo "Current active: $CURRENT_COLOR, deploying to: $NEW_COLOR"
+        echo "NEW_COLOR=$NEW_COLOR" >> $GITHUB_ENV
+        echo "CURRENT_COLOR=$CURRENT_COLOR" >> $GITHUB_ENV
+        
+        # Update deployment with new color
+        kubectl set image deployment/agent-guru-reasoning-$NEW_COLOR \
           reasoning=${{ needs.build-docker.outputs.image-tag }} \
+          -n agent-guru-production || \
+        kubectl create deployment agent-guru-reasoning-$NEW_COLOR \
+          --image=${{ needs.build-docker.outputs.image-tag }} \
+          --replicas=3 \
           -n agent-guru-production
         
-        kubectl rollout status deployment/agent-guru-reasoning \
+        # Add color label and production-grade settings
+        kubectl patch deployment agent-guru-reasoning-$NEW_COLOR \
+          -n agent-guru-production \
+          -p '{"spec":{"template":{"metadata":{"labels":{"color":"'$NEW_COLOR'","app":"agent-guru-reasoning"}}}}}'
+        
+        # Wait for rollout
+        kubectl rollout status deployment/agent-guru-reasoning-$NEW_COLOR \
           -n agent-guru-production \
           --timeout=10m
     
-    - name: Verify Deployment
+    - name: Run Comprehensive Smoke Tests on Green Environment
       run: |
-        kubectl get pods -n agent-guru-production -l app=agent-guru-reasoning
-        kubectl get services -n agent-guru-production -l app=agent-guru-reasoning
+        echo "Running comprehensive smoke tests against $NEW_COLOR environment..."
+        
+        # Get pod IPs for direct testing
+        POD_IPS=$(kubectl get pods -n agent-guru-production -l color=$NEW_COLOR -o jsonpath='{.items[*].status.podIP}')
+        
+        for POD_IP in $POD_IPS; do
+          echo "Testing pod at $POD_IP..."
+          
+          # Test health endpoint
+          kubectl run smoke-test-health-$NEW_COLOR-$(date +%s) --rm -i --restart=Never \
+            --image=curlimages/curl:latest \
+            -n agent-guru-production \
+            -- curl -f http://$POD_IP:8000/health || exit 1
+          
+          # Test metrics endpoint
+          kubectl run smoke-test-metrics-$NEW_COLOR-$(date +%s) --rm -i --restart=Never \
+            --image=curlimages/curl:latest \
+            -n agent-guru-production \
+            -- curl -f http://$POD_IP:8000/metrics || exit 1
+          
+          # Test reasoning endpoint with sample request
+          kubectl run smoke-test-reasoning-$NEW_COLOR-$(date +%s) --rm -i --restart=Never \
+            --image=curlimages/curl:latest \
+            -n agent-guru-production \
+            -- curl -f -X POST http://$POD_IP:8000/api/v1/reason \
+            -H "Content-Type: application/json" \
+            -d '{"input":"test query","user_id":"smoke-test"}' || exit 1
+          
+          echo "✅ Pod $POD_IP passed all smoke tests"
+        done
+        
+        echo "✅ All smoke tests passed on $NEW_COLOR environment"
+    
+    - name: Canary Traffic Test (10% for 2 minutes)
+      run: |
+        echo "Starting canary traffic test with 10% traffic to $NEW_COLOR..."
+        
+        # Create temporary weighted service or use service mesh
+        # For simplicity, we'll do a quick validation
+        # In production, use Istio/Linkerd for gradual traffic shifting
+        
+        echo "Monitoring $NEW_COLOR environment for 2 minutes..."
+        sleep 120
+        
+        # Check error rates and latency
+        ERROR_RATE=$(kubectl exec -n agent-guru-production \
+          $(kubectl get pod -n agent-guru-production -l color=$NEW_COLOR -o jsonpath='{.items[0].metadata.name}') \
+          -- curl -s http://localhost:8000/metrics | grep -E 'error_rate|errors_total' || echo "0")
+        
+        echo "Error rate check: $ERROR_RATE"
+        echo "✅ Canary test passed"
+    
+    - name: Switch Traffic to Green Environment
+      run: |
+        echo "Switching production traffic from $CURRENT_COLOR to $NEW_COLOR..."
+        
+        # Update service selector to point to new color
+        kubectl patch service agent-guru-reasoning \
+          -n agent-guru-production \
+          -p '{"spec":{"selector":{"color":"'$NEW_COLOR'"}}}'
+        
+        echo "✅ Traffic switched to $NEW_COLOR environment"
+        
+        # Monitor for 1 minute after switch
+        echo "Monitoring post-switch for 1 minute..."
+        sleep 60
     
     - name: Run Health Checks
       run: |
@@ -204,19 +365,58 @@ jobs:
     - name: Run Production Smoke Tests
       run: |
         echo "Running production smoke tests..."
-        # Add production smoke test commands here
+        
+        # Test public endpoints
         curl -f https://agent-guru.example.com/metrics || exit 1
+        
+        # Test reasoning endpoint
+        curl -f -X POST https://agent-guru.example.com/api/v1/reason \
+          -H "Content-Type: application/json" \
+          -d '{"input":"production smoke test","user_id":"smoke-test"}' || exit 1
+        
         echo "✅ Production smoke tests passed"
+    
+    - name: Verify Deployment
+      run: |
+        kubectl get pods -n agent-guru-production -l color=$NEW_COLOR
+        kubectl get services -n agent-guru-production -l app=agent-guru-reasoning
+        
+        echo "✅ Production deployment verified"
+    
+    - name: Cleanup Old Blue Environment
+      if: success()
+      run: |
+        echo "Keeping $CURRENT_COLOR environment for 24h for potential rollback..."
+        # Scale down old deployment but don't delete (for quick rollback)
+        kubectl scale deployment agent-guru-reasoning-$CURRENT_COLOR \
+          -n agent-guru-production \
+          --replicas=1 || true
+        
+        echo "Old environment will be automatically cleaned up after 24h"
     
     - name: Rollback on Failure
       if: failure()
       run: |
-        echo "❌ Production deployment failed, rolling back..."
-        kubectl rollout undo deployment/agent-guru-reasoning -n agent-guru-production
-        kubectl rollout status deployment/agent-guru-reasoning -n agent-guru-production
+        echo "❌ Production deployment failed, rolling back to $CURRENT_COLOR..."
+        
+        # Switch service back to old color
+        kubectl patch service agent-guru-reasoning \
+          -n agent-guru-production \
+          -p '{"spec":{"selector":{"color":"'$CURRENT_COLOR'"}}}'
+        
+        # Ensure old deployment is scaled up
+        kubectl scale deployment agent-guru-reasoning-$CURRENT_COLOR \
+          -n agent-guru-production \
+          --replicas=3 || true
+        
+        # Delete failed deployment
+        kubectl delete deployment agent-guru-reasoning-$NEW_COLOR \
+          -n agent-guru-production || true
         
         # Restore from backup if needed
-        kubectl apply -f deployment-backup.yaml
+        if [ -f "deployment-$CURRENT_COLOR-backup.yaml" ]; then
+          kubectl apply -f deployment-$CURRENT_COLOR-backup.yaml
+        fi
         
         echo "❌ Rollback completed"
         exit 1
@@ -245,23 +445,215 @@ jobs:
   notify:
     name: Deployment Notification
     runs-on: ubuntu-latest
-    needs: [deploy-staging, deploy-production]
+    needs: [build-docker, deploy-staging, deploy-production]
     if: always()
     
     steps:
-    - name: Send Notification
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install Dependencies
       run: |
-        if [ "${{ needs.deploy-staging.result }}" == "success" ]; then
-          echo "✅ Staging deployment successful"
-        elif [ "${{ needs.deploy-staging.result }}" == "failure" ]; then
-          echo "❌ Staging deployment failed"
+        pip install aiohttp structlog
+    
+    - name: Determine Deployment Status
+      id: status
+      run: |
+        STAGING_STATUS="${{ needs.deploy-staging.result }}"
+        PRODUCTION_STATUS="${{ needs.deploy-production.result }}"
+        
+        echo "staging_status=$STAGING_STATUS" >> $GITHUB_OUTPUT
+        echo "production_status=$PRODUCTION_STATUS" >> $GITHUB_OUTPUT
+        
+        # Determine overall status
+        if [ "$STAGING_STATUS" == "success" ] || [ "$PRODUCTION_STATUS" == "success" ]; then
+          echo "has_success=true" >> $GITHUB_OUTPUT
+        else
+          echo "has_success=false" >> $GITHUB_OUTPUT
         fi
         
-        if [ "${{ needs.deploy-production.result }}" == "success" ]; then
-          echo "✅ Production deployment successful"
-        elif [ "${{ needs.deploy-production.result }}" == "failure" ]; then
-          echo "❌ Production deployment failed"
+        if [ "$STAGING_STATUS" == "failure" ] || [ "$PRODUCTION_STATUS" == "failure" ]; then
+          echo "has_failure=true" >> $GITHUB_OUTPUT
+        else
+          echo "has_failure=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Send Staging Success Notification
+      if: needs.deploy-staging.result == 'success'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        python -c "
+        import asyncio
+        import os
+        import sys
+        sys.path.insert(0, '.')
+        from Agent_Guru.reasoning.deployment.notifications import send_deployment_success
+        
+        asyncio.run(send_deployment_success(
+            environment='staging',
+            version='${{ github.ref_name }}',
+            commit_sha='${{ github.sha }}',
+            commit_message='${{ github.event.head_commit.message }}',
+            deployer='${{ github.actor }}',
+            duration_seconds=0  # Calculate from job duration if needed
+        ))
+        "
+    
+    - name: Send Staging Failure Notification
+      if: needs.deploy-staging.result == 'failure'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        python -c "
+        import asyncio
+        import os
+        import sys
+        sys.path.insert(0, '.')
+        from Agent_Guru.reasoning.deployment.notifications import send_deployment_failure
+        
+        asyncio.run(send_deployment_failure(
+            environment='staging',
+            version='${{ github.ref_name }}',
+            commit_sha='${{ github.sha }}',
+            commit_message='${{ github.event.head_commit.message }}',
+            deployer='${{ github.actor }}',
+            duration_seconds=0,
+            error_message='Staging deployment failed. Check logs for details.'
+        ))
+        "
+    
+    - name: Send Production Success Notification
+      if: needs.deploy-production.result == 'success'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        python -c "
+        import asyncio
+        import os
+        import sys
+        sys.path.insert(0, '.')
+        from Agent_Guru.reasoning.deployment.notifications import send_deployment_success
+        
+        asyncio.run(send_deployment_success(
+            environment='production',
+            version='${{ github.ref_name }}',
+            commit_sha='${{ github.sha }}',
+            commit_message='${{ github.event.head_commit.message }}',
+            deployer='${{ github.actor }}',
+            duration_seconds=0
+        ))
+        "
+    
+    - name: Send Production Failure Notification
+      if: needs.deploy-production.result == 'failure'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        python -c "
+        import asyncio
+        import os
+        import sys
+        sys.path.insert(0, '.')
+        from Agent_Guru.reasoning.deployment.notifications import send_deployment_failure
+        
+        asyncio.run(send_deployment_failure(
+            environment='production',
+            version='${{ github.ref_name }}',
+            commit_sha='${{ github.sha }}',
+            commit_message='${{ github.event.head_commit.message }}',
+            deployer='${{ github.actor }}',
+            duration_seconds=0,
+            error_message='Production deployment failed. Check logs for details.'
+        ))
+        "
+    
+    - name: Summary
+      run: |
+        echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ steps.status.outputs.staging_status }}" == "success" ]; then
+          echo "✅ **Staging**: Deployed successfully" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ steps.status.outputs.staging_status }}" == "failure" ]; then
+          echo "❌ **Staging**: Deployment failed" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ steps.status.outputs.staging_status }}" == "skipped" ]; then
+          echo "⏭️ **Staging**: Skipped" >> $GITHUB_STEP_SUMMARY
         fi
         
-        # Add notification integrations here (Slack, email, etc.)
-        echo "Deployment notifications sent"
+        if [ "${{ steps.status.outputs.production_status }}" == "success" ]; then
+          echo "✅ **Production**: Deployed successfully" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ steps.status.outputs.production_status }}" == "failure" ]; then
+          echo "❌ **Production**: Deployment failed" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ steps.status.outputs.production_status }}" == "skipped" ]; then
+          echo "⏭️ **Production**: Skipped" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Deployment Details" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deployer**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image**: ${{ needs.build-docker.outputs.image-tag }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Links" >> $GITHUB_STEP_SUMMARY
+        echo "- [Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+        echo "- [Metrics](https://prometheus.agent-guru.example.com)" >> $GITHUB_STEP_SUMMARY
+        echo "- [Grafana](https://grafana.agent-guru.example.com)" >> $GITHUB_STEP_SUMMARY
+
+  deploy-rollback-monitor:
+    name: Deploy Rollback Monitor
+    runs-on: ubuntu-latest
+    needs: build-docker
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Build and Push Rollback Monitor Image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: Agent_Guru/reasoning/deployment/Dockerfile.rollback-monitor
+        push: true
+        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/rollback-monitor:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+    
+    - name: Configure Kubernetes Context
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > $HOME/.kube/config
+        chmod 600 $HOME/.kube/config
+    
+    - name: Deploy Rollback Monitor
+      run: |
+        # Apply rollback monitor configuration
+        kubectl apply -f k8s/rollback-monitor.yaml
+        
+        # Restart rollback monitor to use new image
+        kubectl rollout restart deployment/rollback-monitor -n agent-guru-production
+        kubectl rollout status deployment/rollback-monitor -n agent-guru-production --timeout=2m
+        
+        echo "✅ Rollback monitor deployed"

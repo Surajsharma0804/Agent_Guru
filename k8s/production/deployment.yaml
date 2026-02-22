@@ -15,13 +15,14 @@ metadata:
   labels:
     app: agent-guru-reasoning
     environment: production
+    version: v1
 spec:
-  replicas: 5
+  replicas: 3  # High availability with 3 replicas as per requirements
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 2
-      maxUnavailable: 0
+      maxSurge: 1
+      maxUnavailable: 0  # Zero downtime deployments
   selector:
     matchLabels:
       app: agent-guru-reasoning
@@ -30,6 +31,7 @@ spec:
       labels:
         app: agent-guru-reasoning
         environment: production
+        version: v1
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8000"
@@ -55,6 +57,9 @@ spec:
         - containerPort: 8000
           name: http
           protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
         env:
         - name: ENVIRONMENT
           value: "production"
@@ -79,27 +84,31 @@ spec:
               key: anthropic-api-key
         resources:
           requests:
-            memory: "1Gi"
-            cpu: "500m"
+            memory: "2Gi"  # As per requirements
+            cpu: "1000m"   # 1 CPU as per requirements
           limits:
-            memory: "2Gi"
-            cpu: "1000m"
+            memory: "4Gi"  # As per requirements
+            cpu: "2000m"   # 2 CPU as per requirements
         livenessProbe:
           httpGet:
             path: /health
             port: 8000
+            scheme: HTTP
           initialDelaySeconds: 60
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3
+          successThreshold: 1
         readinessProbe:
           httpGet:
             path: /ready
             port: 8000
+            scheme: HTTP
           initialDelaySeconds: 20
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
+          successThreshold: 1
         volumeMounts:
         - name: config
           mountPath: /app/config
@@ -163,43 +172,67 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: agent-guru-reasoning-hpa
   namespace: agent-guru-production
+  labels:
+    app: agent-guru-reasoning
+    environment: production
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: agent-guru-reasoning
-  minReplicas: 5
-  maxReplicas: 50
+  minReplicas: 3   # As per requirements
+  maxReplicas: 20  # As per requirements
   metrics:
+  # CPU-based scaling (target 70%)
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 60
+        averageUtilization: 70  # As per requirements
+  # Memory-based scaling (target 80%)
   - type: Resource
     resource:
       name: memory
       target:
         type: Utilization
-        averageUtilization: 70
+        averageUtilization: 80  # As per requirements
+  # Custom metrics for advanced scaling
+  - type: Pods
+    pods:
+      metric:
+        name: request_queue_depth
+      target:
+        type: AverageValue
+        averageValue: "10"  # Scale up if queue depth > 10
+  - type: Pods
+    pods:
+      metric:
+        name: request_latency_p95
+      target:
+        type: AverageValue
+        averageValue: "1500"  # Scale up if P95 latency > 1.5s
   behavior:
     scaleDown:
-      stabilizationWindowSeconds: 300
+      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down
       policies:
       - type: Percent
-        value: 10
+        value: 10  # Scale down by max 10% at a time
         periodSeconds: 60
+      - type: Pods
+        value: 1  # Or remove 1 pod at a time
+        periodSeconds: 60
+      selectPolicy: Min  # Use the most conservative policy
     scaleUp:
-      stabilizationWindowSeconds: 0
+      stabilizationWindowSeconds: 0  # Scale up immediately
       policies:
       - type: Percent
-        value: 50
+        value: 50  # Scale up by max 50% at a time
         periodSeconds: 30
       - type: Pods
-        value: 5
+        value: 5  # Or add 5 pods at a time
         periodSeconds: 30
-      selectPolicy: Max
+      selectPolicy: Max  # Use the most aggressive policy
 
 ---
 apiVersion: policy/v1
@@ -212,3 +245,50 @@ spec:
   selector:
     matchLabels:
       app: agent-guru-reasoning
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agent-guru-reasoning-ingress
+  namespace: agent-guru-production
+  labels:
+    app: agent-guru-reasoning
+    environment: production
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - api.agent-guru.ai
+    - reasoning.agent-guru.ai
+    secretName: agent-guru-tls-cert
+  rules:
+  - host: api.agent-guru.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: agent-guru-reasoning
+            port:
+              number: 80
+  - host: reasoning.agent-guru.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: agent-guru-reasoning
+            port:
+              number: 80

@@ -1,0 +1,39 @@
+# Staging Environment Configuration Example
+# Copy this file to terraform.tfvars and fill in the values
+
+project_name = "agent-guru"
+environment  = "staging"
+region       = "us-east-1"
+
+availability_zones = ["us-east-1a", "us-east-1b"]
+
+# Kubernetes Configuration
+kubernetes_version  = "1.28"
+node_instance_type  = "t3.medium"
+node_count          = 2
+min_nodes           = 1
+max_nodes           = 5
+enable_autoscaling  = true
+
+# Database Configuration
+db_instance_class    = "db.t3.medium"
+db_allocated_storage = 50
+db_engine_version    = "15.4"
+
+# Redis Configuration
+redis_node_type              = "cache.t3.medium"
+redis_engine_version         = "7.0"
+redis_parameter_group_family = "redis7"
+
+# Monitoring Configuration
+enable_monitoring      = true
+grafana_admin_password = "CHANGE_ME_STRONG_PASSWORD"
+
+# Tags
+tags = {
+  Project     = "Agent Guru"
+  Component   = "Core Reasoning Engine"
+  ManagedBy   = "Terraform"
+  Environment = "Staging"
+  CostCenter  = "Engineering"
+}

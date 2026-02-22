@@ -1,35 +1,45 @@
 # Multi-stage Production Dockerfile for Agent_Guru Core Reasoning Engine
+# Optimized for minimal size with Alpine base and layer caching
+
 # Build stage
-FROM python:3.11-slim as builder
+FROM python:3.11-alpine as builder
 
 # Set working directory
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
+# Install build dependencies (cached layer)
+RUN apk add --no-cache \
     git \
-    build-essential \
+    build-base \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    libffi-dev \
+    openssl-dev \
+    && rm -rf /var/cache/apk/*
 
-# Copy dependency files
+# Copy dependency files first (cached layer if unchanged)
 COPY pyproject.toml ./
-COPY Agent_Guru/ ./Agent_Guru/
+COPY requirements.txt ./
 
-# Install Python dependencies
+# Install Python dependencies (cached layer)
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir build wheel && \
-    python -m build
+    pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
 
-# Production stage
-FROM python:3.11-slim
+# Copy source code
+COPY Agent_Guru/ ./Agent_Guru/
+
+# Build package
+RUN python -m build
+
+# Production stage - Alpine for minimal size
+FROM python:3.11-alpine
 
 # Build arguments
 ARG BUILD_DATE
 ARG VCS_REF
-ARG VERSION
+ARG VERSION=1.0.0
 
-# Labels
+# Labels (OCI standard)
 LABEL org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.authors="Agent_Guru Team" \
       org.opencontainers.image.url="https://github.com/agent-guru/agent-guru" \
@@ -42,26 +52,27 @@ LABEL org.opencontainers.image.created="${BUILD_DATE}" \
 # Set working directory
 WORKDIR /app
 
-# Install runtime dependencies only
-RUN apt-get update && apt-get install -y \
-    libdbus-1-3 \
-    libdbus-glib-1-2 \
-    libgirepository-1.0-1 \
-    portaudio19-dev \
+# Install runtime dependencies only (minimal set)
+RUN apk add --no-cache \
+    libffi \
+    openssl \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    && rm -rf /var/cache/apk/*
 
-# Create non-root user
-RUN useradd -m -u 1000 -s /bin/bash agentguru && \
+# Create non-root user for security
+RUN addgroup -g 1000 agentguru && \
+    adduser -D -u 1000 -G agentguru agentguru && \
     chown -R agentguru:agentguru /app
 
-# Copy built package from builder
+# Copy wheels from builder
+COPY --from=builder /wheels /wheels
 COPY --from=builder /app/dist/*.whl /tmp/
 
-# Install the package
+# Install the package and dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir /tmp/*.whl && \
-    rm -rf /tmp/*.whl
+    pip install --no-cache-dir --find-links=/wheels /tmp/*.whl && \
+    rm -rf /tmp/*.whl /wheels
 
 # Switch to non-root user
 USER agentguru
@@ -69,7 +80,7 @@ USER agentguru
 # Expose port for API/monitoring
 EXPOSE 8000
 
-# Health check
+# Health check endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
@@ -80,4 +91,5 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Default command for production
 CMD ["python", "-m", "Agent_Guru.reasoning"]
+
 

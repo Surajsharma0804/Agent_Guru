@@ -1,0 +1,13 @@
+# Production environment values
+# This file overrides default values.yaml for production
+
+global:
+  environment: production
+  logLevel: INFO
+
+image:
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# All other values use defaults from values.yaml
+# Production uses the most conservative and robust settings

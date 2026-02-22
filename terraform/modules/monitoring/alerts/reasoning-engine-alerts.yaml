@@ -1,0 +1,154 @@
+# Prometheus Alerting Rules for Core Reasoning Engine
+
+groups:
+  - name: reasoning_engine_alerts
+    interval: 30s
+    rules:
+      # Latency Alerts
+      - alert: HighP95Latency
+        expr: histogram_quantile(0.95, rate(reasoning_engine_stage_duration_seconds_bucket[5m])) > 3
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning-engine
+        annotations:
+          summary: "High P95 latency detected"
+          description: "P95 latency is {{ $value }}s, exceeding 3s target for stage {{ $labels.stage }}"
+
+      - alert: CriticalP95Latency
+        expr: histogram_quantile(0.95, rate(reasoning_engine_stage_duration_seconds_bucket[5m])) > 6
+        for: 2m
+        labels:
+          severity: critical
+          component: reasoning-engine
+        annotations:
+          summary: "Critical P95 latency detected"
+          description: "P95 latency is {{ $value }}s, exceeding 6s critical threshold for stage {{ $labels.stage }}"
+
+      # Error Rate Alerts
+      - alert: HighErrorRate
+        expr: rate(reasoning_engine_errors_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning-engine
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }}, exceeding 5% threshold"
+
+      - alert: CriticalErrorRate
+        expr: rate(reasoning_engine_errors_total[5m]) > 0.10
+        for: 2m
+        labels:
+          severity: critical
+          component: reasoning-engine
+        annotations:
+          summary: "Critical error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }}, exceeding 10% critical threshold"
+
+      # Intent Detection Alerts
+      - alert: LowIntentAccuracy
+        expr: reasoning_engine_intent_accuracy < 0.95
+        for: 10m
+        labels:
+          severity: warning
+          component: reasoning-engine
+        annotations:
+          summary: "Low intent detection accuracy"
+          description: "Intent accuracy is {{ $value | humanizePercentage }}, below 95% target"
+
+      # LLM Performance Alerts
+      - alert: SlowLLMResponse
+        expr: histogram_quantile(0.95, rate(reasoning_engine_llm_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning-engine
+        annotations:
+          summary: "Slow LLM response time"
+          description: "LLM P95 response time is {{ $value }}s, exceeding 2s target"
+
+      - alert: LLMUnavailable
+        expr: up{job="reasoning-engine-llm"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: reasoning-engine
+        annotations:
+          summary: "LLM service unavailable"
+          description: "LLM service has been down for more than 1 minute"
+
+      # Resource Alerts
+      - alert: HighMemoryUsage
+        expr: container_memory_usage_bytes{pod=~"reasoning-engine.*"} / container_spec_memory_limit_bytes{pod=~"reasoning-engine.*"} > 0.90
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning-engine
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }} for pod {{ $labels.pod }}"
+
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{pod=~"reasoning-engine.*"}[5m]) > 0.90
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning-engine
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value | humanizePercentage }} for pod {{ $labels.pod }}"
+
+      # Database Alerts
+      - alert: DatabaseConnectionPoolExhausted
+        expr: reasoning_engine_db_connections_active / reasoning_engine_db_connections_max > 0.80
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning-engine
+        annotations:
+          summary: "Database connection pool near exhaustion"
+          description: "Database connections are at {{ $value | humanizePercentage }} of maximum"
+
+      # Redis Alerts
+      - alert: RedisHighMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.90
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning-engine
+        annotations:
+          summary: "Redis memory usage high"
+          description: "Redis memory usage is {{ $value | humanizePercentage }}"
+
+      - alert: RedisHighEvictionRate
+        expr: rate(redis_evicted_keys_total[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning-engine
+        annotations:
+          summary: "High Redis eviction rate"
+          description: "Redis is evicting {{ $value }} keys per second"
+
+      # Degraded Mode Alerts
+      - alert: DegradedModeActive
+        expr: reasoning_engine_degraded_mode_requests_total / reasoning_engine_requests_total > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning-engine
+        annotations:
+          summary: "High degraded mode usage"
+          description: "{{ $value | humanizePercentage }} of requests are in degraded mode"
+
+      # Timeout Alerts
+      - alert: HighTimeoutRate
+        expr: rate(reasoning_engine_timeouts_total[5m]) / rate(reasoning_engine_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: reasoning-engine
+        annotations:
+          summary: "High timeout rate"
+          description: "{{ $value | humanizePercentage }} of requests are timing out"
