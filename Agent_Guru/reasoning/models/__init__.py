@@ -1,8 +1,28 @@
 """Core data models for the reasoning engine."""
 
 from .action import Action, ActionSensitivity, Parameter, Tool
+from .behavioral import (
+    AppUsage,
+    BehavioralStats,
+    CommandFrequency,
+    PatternType,
+    PreferenceType,
+    ProactiveSuggestion,
+    TimePattern,
+    UserPreference,
+)
 from .conversation import ConversationState, ConversationTurn, TrackedEntity
 from .error import Error, ErrorType, FallbackStrategy
+from .goal import (
+    ConditionalTrigger,
+    EventBasedTrigger,
+    GoalExecutionResult,
+    GoalStatus,
+    LocationBasedTrigger,
+    PersistentGoal,
+    TimeBasedTrigger,
+    TriggerType,
+)
 from .intent import Entity, Intent, IntentType
 from .knowledge import (
     KnowledgeAnswer,
@@ -67,4 +87,20 @@ __all__ = [
     "Contact",
     "LocationState",
     "Activity",
+    "CommandFrequency",
+    "TimePattern",
+    "PatternType",
+    "AppUsage",
+    "UserPreference",
+    "PreferenceType",
+    "ProactiveSuggestion",
+    "BehavioralStats",
+    "PersistentGoal",
+    "TriggerType",
+    "GoalStatus",
+    "TimeBasedTrigger",
+    "LocationBasedTrigger",
+    "EventBasedTrigger",
+    "ConditionalTrigger",
+    "GoalExecutionResult",
 ]
