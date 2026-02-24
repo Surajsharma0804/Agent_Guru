@@ -322,7 +322,7 @@ After completing EACH task:
     - Integration tests for settings changes
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 14: Mouse and Keyboard Controller**
+- [x] **Task 14: Mouse and Keyboard Controller**
   - Implement `controllers/input_control.py`:
     - `MouseController` class using pyautogui
     - Move cursor, click, double-click, right-click
@@ -337,7 +337,7 @@ After completing EACH task:
     - Integration tests for input simulation
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 15: Window Management Controller**
+- [x] **Task 15: Window Management Controller**
   - Implement `controllers/window_management.py`:
     - `WindowManager` class
     - Arrange windows (tile, cascade)

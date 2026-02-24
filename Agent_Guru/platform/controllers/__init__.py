@@ -15,6 +15,14 @@ from Agent_Guru.platform.controllers.system_settings import (
     InvalidSettingValueError,
 )
 
+from Agent_Guru.platform.controllers.window_management import (
+    WindowManager,
+    SnapPosition,
+    ArrangementStyle,
+    ScreenInfo,
+    VirtualDesktopInfo,
+)
+
 __all__ = [
     "SystemSettingsController",
     "VolumeInfo",
@@ -24,4 +32,9 @@ __all__ = [
     "SystemSettingsError",
     "UnsupportedOperationError",
     "InvalidSettingValueError",
+    "WindowManager",
+    "SnapPosition",
+    "ArrangementStyle",
+    "ScreenInfo",
+    "VirtualDesktopInfo",
 ]
