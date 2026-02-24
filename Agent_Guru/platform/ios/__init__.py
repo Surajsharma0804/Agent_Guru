@@ -1,7 +1,10 @@
 """
-iOS-specific platform integration.
+iOS Platform Integration Package
 
-This module provides iOS-specific operations using pyobjus and iOS frameworks.
+Provides iOS-specific platform integration for Agent Guru.
 """
 
-__all__ = []
+from Agent_Guru.platform.ios.integration import IOSIntegration
+from Agent_Guru.platform.ios.service import IOSBackgroundService
+
+__all__ = ["IOSIntegration", "IOSBackgroundService"]

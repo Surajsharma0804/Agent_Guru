@@ -103,7 +103,7 @@ After completing EACH task:
     - Integration tests with Linux APIs
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 6: Android Integration** ⚠️ CRITICAL FOR MOBILE
+- [x] **Task 6: Android Integration** ⚠️ CRITICAL FOR MOBILE
   - Implement `android/integration.py`:
     - `AndroidIntegration` class
     - Intent system for app launching (using pyjnius)
@@ -126,7 +126,7 @@ After completing EACH task:
     - Battery usage tests
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 7: iOS Integration** ⚠️ CRITICAL FOR MOBILE
+- [x] **Task 7: iOS Integration** ⚠️ CRITICAL FOR MOBILE
   - Implement `ios/integration.py`:
     - `IOSIntegration` class
     - URL scheme app launching (using pyobjus)
