@@ -45,13 +45,12 @@ Date: 2026-02-24
 Version: 1.0.0
 """
 
-import os
 import sys
 import time
 import logging
 import subprocess
-from pathlib import Path
-from typing import Optional, List, Dict, Any, Tuple
+import math
+from typing import Optional, List, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
 
@@ -78,7 +77,6 @@ class ArrangementStyle(Enum):
     """Window arrangement styles."""
     TILE = "tile"
     CASCADE = "cascade"
-    GRID = "grid"
     HORIZONTAL = "horizontal"
     VERTICAL = "vertical"
 
@@ -386,7 +384,7 @@ class WindowManager:
             True if window snapped successfully
 
         Raises:
-            ValueError: If screen_index is invalid
+            ValueError: If window_identifier is empty or screen_index is invalid
             RuntimeError: If window snap fails
 
         Example:
@@ -394,25 +392,24 @@ class WindowManager:
             >>> manager.snap_window("Chrome", SnapPosition.LEFT_HALF)
             True
         """
+        # Input validation
+        if not window_identifier or not window_identifier.strip():
+            raise ValueError("window_identifier cannot be empty")
+        
         logger.info(f"Snapping window '{window_identifier}' to {position.value}")
 
         # Get screen information
         screens = self.get_screens()
-        if screen_index >= len(screens):
-            raise ValueError(f"Invalid screen index: {screen_index}")
+        if screen_index < 0 or screen_index >= len(screens):
+            raise ValueError(f"Invalid screen index: {screen_index}. Must be between 0 and {len(screens)-1}")
 
         screen = screens[screen_index]
 
         # Calculate target position based on snap position
         x, y, width, height = self._calculate_snap_position(screen, position)
 
-        # Move and resize window
-        if self.platform == "win32":
-            return self._snap_window_windows(window_identifier, x, y, width, height)
-        elif self.platform == "darwin":
-            return self._snap_window_macos(window_identifier, x, y, width, height)
-        else:
-            return self._snap_window_linux(window_identifier, x, y, width, height)
+        # Move and resize window using DRY helper
+        return self._snap_window_platform_specific(window_identifier, x, y, width, height)
 
     def _calculate_snap_position(
         self,
@@ -456,6 +453,36 @@ class WindowManager:
             return (x + (width - w) // 2, y + (height - h) // 2, w, h)
         else:
             return (x, y, width, height)
+
+    def _snap_window_platform_specific(
+        self,
+        window_identifier: str,
+        x: int,
+        y: int,
+        width: int,
+        height: int
+    ) -> bool:
+        """Snap window using platform-specific method (DRY helper).
+        
+        Time Complexity: O(1)
+        Space Complexity: O(1)
+        
+        Args:
+            window_identifier: Window title or handle
+            x: Target X position
+            y: Target Y position
+            width: Target width
+            height: Target height
+            
+        Returns:
+            True if successful
+        """
+        if self.platform == "win32":
+            return self._snap_window_windows(window_identifier, x, y, width, height)
+        elif self.platform == "darwin":
+            return self._snap_window_macos(window_identifier, x, y, width, height)
+        else:
+            return self._snap_window_linux(window_identifier, x, y, width, height)
 
     def _snap_window_windows(
         self,
@@ -710,8 +737,6 @@ class WindowManager:
             return self._arrange_tile(windows, primary_screen)
         elif style == ArrangementStyle.CASCADE:
             return self._arrange_cascade(windows, primary_screen)
-        elif style == ArrangementStyle.GRID:
-            return self._arrange_grid(windows, primary_screen)
         elif style == ArrangementStyle.HORIZONTAL:
             return self._arrange_horizontal(windows, primary_screen)
         elif style == ArrangementStyle.VERTICAL:
@@ -835,8 +860,6 @@ class WindowManager:
         Returns:
             True if successful
         """
-        import math
-
         num_windows = len(windows)
         if num_windows == 0:
             return False
@@ -849,22 +872,14 @@ class WindowManager:
         window_width = screen.width // cols
         window_height = screen.height // rows
 
-        # Position each window
+        # Position each window using DRY helper
         success = True
         for i, window in enumerate(windows):
             row = i // cols
             col = i % cols
-
             x = screen.x + col * window_width
             y = screen.y + row * window_height
-
-            if self.platform == "win32":
-                result = self._snap_window_windows(window, x, y, window_width, window_height)
-            elif self.platform == "darwin":
-                result = self._snap_window_macos(window, x, y, window_width, window_height)
-            else:
-                result = self._snap_window_linux(window, x, y, window_width, window_height)
-
+            result = self._snap_window_platform_specific(window, x, y, window_width, window_height)
             success = success and result
 
         return success
@@ -882,10 +897,9 @@ class WindowManager:
         # Window size (80% of screen)
         window_width = int(screen.width * 0.8)
         window_height = int(screen.height * 0.8)
-
-        # Cascade offset
         offset = 30
 
+        # Position each window using DRY helper
         success = True
         for i, window in enumerate(windows):
             x = screen.x + i * offset
@@ -897,28 +911,10 @@ class WindowManager:
             if y + window_height > screen.y + screen.height:
                 y = screen.y
 
-            if self.platform == "win32":
-                result = self._snap_window_windows(window, x, y, window_width, window_height)
-            elif self.platform == "darwin":
-                result = self._snap_window_macos(window, x, y, window_width, window_height)
-            else:
-                result = self._snap_window_linux(window, x, y, window_width, window_height)
-
+            result = self._snap_window_platform_specific(window, x, y, window_width, window_height)
             success = success and result
 
         return success
-
-    def _arrange_grid(self, windows: List[str], screen: ScreenInfo) -> bool:
-        """Arrange windows in grid layout (same as tile).
-
-        Args:
-            windows: List of window titles
-            screen: Screen information
-
-        Returns:
-            True if successful
-        """
-        return self._arrange_tile(windows, screen)
 
     def _arrange_horizontal(self, windows: List[str], screen: ScreenInfo) -> bool:
         """Arrange windows horizontally.
@@ -937,18 +933,12 @@ class WindowManager:
         window_width = screen.width // num_windows
         window_height = screen.height
 
+        # Position each window using DRY helper
         success = True
         for i, window in enumerate(windows):
             x = screen.x + i * window_width
             y = screen.y
-
-            if self.platform == "win32":
-                result = self._snap_window_windows(window, x, y, window_width, window_height)
-            elif self.platform == "darwin":
-                result = self._snap_window_macos(window, x, y, window_width, window_height)
-            else:
-                result = self._snap_window_linux(window, x, y, window_width, window_height)
-
+            result = self._snap_window_platform_specific(window, x, y, window_width, window_height)
             success = success and result
 
         return success
@@ -970,18 +960,12 @@ class WindowManager:
         window_width = screen.width
         window_height = screen.height // num_windows
 
+        # Position each window using DRY helper
         success = True
         for i, window in enumerate(windows):
             x = screen.x
             y = screen.y + i * window_height
-
-            if self.platform == "win32":
-                result = self._snap_window_windows(window, x, y, window_width, window_height)
-            elif self.platform == "darwin":
-                result = self._snap_window_macos(window, x, y, window_width, window_height)
-            else:
-                result = self._snap_window_linux(window, x, y, window_width, window_height)
-
+            result = self._snap_window_platform_specific(window, x, y, window_width, window_height)
             success = success and result
 
         return success
