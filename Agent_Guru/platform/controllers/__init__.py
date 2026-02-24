@@ -23,6 +23,14 @@ from Agent_Guru.platform.controllers.window_management import (
     VirtualDesktopInfo,
 )
 
+from Agent_Guru.platform.controllers.media_control import (
+    MediaController,
+    MediaState,
+    MediaControlError,
+    UnsupportedMediaOperationError,
+    MediaCommandError,
+)
+
 __all__ = [
     "SystemSettingsController",
     "VolumeInfo",
@@ -37,4 +45,9 @@ __all__ = [
     "ArrangementStyle",
     "ScreenInfo",
     "VirtualDesktopInfo",
+    "MediaController",
+    "MediaState",
+    "MediaControlError",
+    "UnsupportedMediaOperationError",
+    "MediaCommandError",
 ]
