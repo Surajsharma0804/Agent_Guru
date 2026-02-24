@@ -127,9 +127,10 @@ class WindowsIntegration:
             RuntimeError: If not running on Windows
         """
         import platform
-        if platform.system() != "Windows":
+        system_name = platform.system()
+        if system_name != "Windows":
             raise RuntimeError(
-                f"WindowsIntegration requires Windows, but running on {platform.system()}"
+                f"WindowsIntegration requires Windows, but running on {system_name}"
             )
     
     # Registry Operations
@@ -226,9 +227,6 @@ class WindowsIntegration:
             ... )
         """
         try:
-            # Validate permissions before write
-            self._validate_write_permissions()
-            
             # Create or open registry key for writing
             with winreg.CreateKey(hive, key_path) as key:
                 winreg.SetValueEx(key, value_name, 0, value_type, value)
@@ -285,9 +283,6 @@ class WindowsIntegration:
             ... )
         """
         try:
-            # Validate permissions before delete
-            self._validate_write_permissions()
-            
             if value_name is not None:
                 # Delete a specific value
                 with winreg.OpenKey(hive, key_path, 0, winreg.KEY_SET_VALUE) as key:
@@ -646,18 +641,6 @@ class WindowsIntegration:
     
     # Permission Validation
     
-    def _validate_write_permissions(self) -> None:
-        """
-        Validate that current user has write permissions.
-        
-        Raises:
-            PermissionError: If not running with sufficient privileges
-        """
-        # For registry writes to HKLM, we need admin privileges
-        # For HKCU, regular user is fine
-        # This is a simplified check - actual permission depends on the key
-        pass  # Actual permission check happens at registry operation time
-    
     def is_admin(self) -> bool:
         """
         Check if running with administrator privileges.
@@ -671,6 +654,7 @@ class WindowsIntegration:
         """
         try:
             import ctypes
-            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+            result: int = ctypes.windll.shell32.IsUserAnAdmin()
+            return result != 0
         except Exception:
             return False

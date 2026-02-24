@@ -1,49 +1,47 @@
 """
-Agent Guru - Platform Integration (Python)
+Platform Integration System for Agent Guru.
 
-## Status: NOT STARTED - Ready for Implementation
+This package provides comprehensive cross-platform OS control, hardware abstraction,
+and permission management for the AGENT_GURU AI operating system.
 
-## Specification:
-- Location: .kiro/specs/guru-platform-integration/
-- Requirements: 15+ requirements for complete OS control
-- Design: Cross-platform abstraction layer
-- Tasks: 21 implementation tasks
+Modules:
+    windows: Windows-specific integration using pywin32
+    macos: macOS-specific integration using pyobjc
+    linux: Linux-specific integration using dbus-python
+    android: Android-specific integration using pyjnius
+    ios: iOS-specific integration using pyobjus
+    hardware: Cross-platform hardware monitoring using psutil and GPUtil
+    permissions: Permission validation and management
+    controllers: Specialized controllers for various operations
+    mobile: Mobile-specific functionality and background services
 
-## Features to Implement:
-- Platform detection (Windows/macOS/Linux/Android/iOS)
-- Windows integration (pywin32, registry, services)
-- macOS integration (AppleScript, Objective-C)
-- Linux integration (D-Bus, systemd)
-- Hardware abstraction (CPU, memory, disk, GPU)
-- Process management
-- Permission management
-- Complete system control (file ops, app control, text input, messaging, etc.)
+The system abstracts platform-specific operations behind common interfaces,
+allowing AGENT_GURU to control system functions, monitor hardware, and manage
+permissions without needing to understand the underlying OS implementation details.
 
-## Architecture:
-```
-guru_platform/
-├── detector.py            # Platform detection
-├── windows.py             # Windows integration
-├── macos.py               # macOS integration
-├── linux.py               # Linux integration
-├── android.py             # Android integration
-├── ios.py                 # iOS integration
-├── hardware.py            # Hardware abstraction
-├── process.py             # Process management
-├── permissions.py         # Permission management
-├── automation.py          # GUI automation
-└── controller.py          # Main OS controller
-```
+Performance Targets:
+    - Platform detection: <10ms
+    - Hardware queries: <1s
+    - Permission checks: <100ms
+    - Command execution: Platform-dependent
 
-## Next Steps:
-1. Read .kiro/specs/guru-platform-integration/requirements.md
-2. Review design.md
-3. Start Task 1 from tasks.md
-
-## Reference:
-- Spec: .kiro/specs/guru-platform-integration/
-- Language Decision: LANGUAGE_ARCHITECTURE.md
+Architecture:
+    The system uses a strategy pattern where platform-specific implementations
+    are abstracted behind common interfaces, with specialized controllers for
+    each operation category.
 """
 
-__version__ = "0.1.0"
-__status__ = "NOT_STARTED"
+__version__ = "1.0.0"
+
+# Import platform detector for easy access
+from Agent_Guru.platform.platform_detector import (
+    PlatformDetector,
+    PlatformInfo,
+    UnsupportedPlatformError
+)
+
+__all__ = [
+    "PlatformDetector",
+    "PlatformInfo",
+    "UnsupportedPlatformError",
+]
