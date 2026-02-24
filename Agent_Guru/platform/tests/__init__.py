@@ -1,6 +1,5 @@
 """
-Tests for platform integration system.
+Platform Integration Tests
 
-This module contains unit tests, property-based tests, and integration tests
-for the platform integration components.
+This package contains tests for the Platform Integration System.
 """

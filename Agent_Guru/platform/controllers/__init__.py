@@ -1,8 +1,23 @@
 """
-Specialized controllers for platform operations.
+Platform Integration Controllers
 
-This module provides controllers for file operations, application control,
-text input, messaging, system settings, and more.
+This package provides specialized controllers for different types of
+platform operations, enabling complete laptop control through voice commands.
+
+Available Controllers:
+    - FileOperationsController: Complete file and directory operations
 """
 
-__all__ = []
+from Agent_Guru.platform.controllers.file_operations import (
+    FileOperationsController,
+    FileOperationType,
+    FileOperationResult,
+    AuditLogEntry
+)
+
+__all__ = [
+    "FileOperationsController",
+    "FileOperationType",
+    "FileOperationResult",
+    "AuditLogEntry"
+]

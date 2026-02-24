@@ -1,7 +1,19 @@
 """
-Permission management system.
+Platform Integration - Permission Management
 
-This module provides cross-platform permission validation and management.
+This module provides cross-platform permission management and validation.
 """
 
-__all__ = []
+from Agent_Guru.platform.permissions.manager import (
+    PermissionManager,
+    PermissionLevel,
+    PermissionError as PlatformPermissionError,
+    UserInfo,
+)
+
+__all__ = [
+    "PermissionManager",
+    "PermissionLevel",
+    "PlatformPermissionError",
+    "UserInfo",
+]

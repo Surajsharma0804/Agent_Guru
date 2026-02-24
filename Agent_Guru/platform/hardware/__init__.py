@@ -1,7 +1,50 @@
 """
-Hardware abstraction layer.
+Hardware monitoring package for Agent Guru.
 
-This module provides cross-platform hardware monitoring using psutil and GPUtil.
+Provides cross-platform hardware monitoring with mobile-specific extensions.
 """
 
-__all__ = []
+from Agent_Guru.platform.hardware.monitor import (
+    HardwareMonitor,
+    CPUInfo,
+    MemoryInfo,
+    DiskInfo,
+    NetworkInterface,
+    NetworkInterfaceStatus,
+    GPUInfo,
+    BatteryInfo,
+)
+
+from Agent_Guru.platform.hardware.mobile_monitor import (
+    MobileHardwareMonitor,
+    MobileBatteryInfo,
+    CellularInfo,
+    LocationInfo,
+    AccelerometerData,
+    GyroscopeData,
+    DeviceInfo,
+    ThermalState,
+    NetworkType,
+)
+
+__all__ = [
+    # Desktop hardware monitoring
+    "HardwareMonitor",
+    "CPUInfo",
+    "MemoryInfo",
+    "DiskInfo",
+    "NetworkInterface",
+    "NetworkInterfaceStatus",
+    "GPUInfo",
+    "BatteryInfo",
+    # Mobile hardware monitoring
+    "MobileHardwareMonitor",
+    "MobileBatteryInfo",
+    "CellularInfo",
+    "LocationInfo",
+    "AccelerometerData",
+    "GyroscopeData",
+    "DeviceInfo",
+    "ThermalState",
+    "NetworkType",
+]
