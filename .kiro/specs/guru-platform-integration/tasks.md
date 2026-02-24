@@ -260,7 +260,7 @@ After completing EACH task:
     - Integration tests for file lifecycle
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 10: Application Control**
+- [x] **Task 10: Application Control**
   - Implement `controllers/application_control.py`:
     - `ApplicationController` class
     - Open applications by name
@@ -277,7 +277,7 @@ After completing EACH task:
     - Integration tests with real applications
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 11: Text Input Controller**
+- [x] **Task 11: Text Input Controller**
   - Implement `controllers/text_input.py`:
     - `TextInputController` class using pyautogui
     - Type text into active application
