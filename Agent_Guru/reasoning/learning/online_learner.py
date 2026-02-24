@@ -264,15 +264,15 @@ class OnlineLearner:
         # Check for drift
         has_drifted, metrics = await self.detect_drift()
 
-        if has_drifted:
+        if has_drifted and metrics:
             return True, f"Model drift detected (accuracy: {metrics.accuracy:.2%})"
 
         # Check correction rate
-        if metrics.correction_rate > 0.10:  # >10% corrections
+        if metrics and metrics.correction_rate > 0.10:  # >10% corrections
             return True, f"High correction rate ({metrics.correction_rate:.2%})"
 
         # Check low confidence rate
-        if metrics.low_confidence_rate > 0.20:  # >20% low confidence
+        if metrics and metrics.low_confidence_rate > 0.20:  # >20% low confidence
             return True, f"High low-confidence rate ({metrics.low_confidence_rate:.2%})"
 
         return False, "Model performance acceptable"

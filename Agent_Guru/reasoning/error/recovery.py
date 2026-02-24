@@ -144,9 +144,11 @@ class RetryHandler:
             "all_retries_failed",
             operation_id=operation_id,
             max_retries=self.config.max_retries,
-            error=str(last_exception),
+            error=str(last_exception) if last_exception else "Unknown error",
         )
-        raise last_exception
+        if last_exception:
+            raise last_exception
+        raise RuntimeError("All retries failed with unknown error")
 
     def _should_retry(self, exception: Exception, retry_count: int) -> bool:
         """Check if should retry after exception.
@@ -485,9 +487,11 @@ class FailoverManager:
             "failover_all_failed",
             service_type=service_type,
             attempts=attempts,
-            error=str(last_exception),
+            error=str(last_exception) if last_exception else "Unknown error",
         )
-        raise last_exception
+        if last_exception:
+            raise last_exception
+        raise RuntimeError(f"All backends failed for {service_type}")
 
     def get_current_backend(self, service_type: str) -> Optional[str]:
         """Get current backend for a service type.

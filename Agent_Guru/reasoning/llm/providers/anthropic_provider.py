@@ -95,7 +95,7 @@ class AnthropicProvider(BaseLLMProvider):
 
         try:
             # Make API call
-            message = await self.client.messages.create(
+            message = await self.client.messages.create(  # type: ignore[attr-defined]
                 model=self.model,
                 max_tokens=request.max_tokens,
                 temperature=request.temperature,

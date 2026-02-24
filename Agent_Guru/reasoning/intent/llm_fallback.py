@@ -44,19 +44,21 @@ from Agent_Guru.reasoning.models.intent import Entity
 # Try to import LLM clients
 try:
     import openai
-
+    from types import ModuleType
+    openai_module: ModuleType | None = openai
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
-    openai = None
+    openai_module = None
 
 try:
     import anthropic
-
+    from types import ModuleType
+    anthropic_module: ModuleType | None = anthropic
     ANTHROPIC_AVAILABLE = True
 except ImportError:
     ANTHROPIC_AVAILABLE = False
-    anthropic = None
+    anthropic_module = None
 
 
 @dataclass
@@ -64,19 +66,23 @@ class LLMFallbackConfig:
     """Configuration for LLM fallback classifier.
 
     Attributes:
-        provider: LLM provider ("openai" or "anthropic")
-        model: Model name (e.g., "gpt-4-turbo-preview", "claude-3-5-sonnet-20241022")
-        api_key: API key for LLM provider
-        timeout_ms: Timeout in milliseconds (300ms target)
+        provider: LLM provider ("ollama", "openai", or "anthropic")
+        model: Model name (e.g., "qwen2.5:14b-instruct", "gpt-4-turbo-preview", "claude-3-5-sonnet-20241022")
+        api_key: API key for LLM provider (not needed for Ollama)
+        ollama_host: Ollama server host (default: "127.0.0.1")
+        ollama_port: Ollama server port (default: 11434)
+        timeout_ms: Timeout in milliseconds (1000ms for Ollama, 300ms for cloud)
         max_retries: Maximum number of retries (3)
         temperature: Sampling temperature (0.0 for deterministic)
         max_tokens: Maximum tokens in response (512)
     """
 
-    provider: str = "openai"
-    model: str = "gpt-4-turbo-preview"
+    provider: str = "ollama"  # Default to local Ollama
+    model: str = "qwen2.5:14b-instruct"  # Default to Qwen for complex reasoning
     api_key: Optional[str] = None
-    timeout_ms: float = 300.0
+    ollama_host: str = "127.0.0.1"
+    ollama_port: int = 11434
+    timeout_ms: float = 1000.0  # 1 second for local Ollama
     max_retries: int = 3
     temperature: float = 0.0
     max_tokens: int = 512
@@ -200,7 +206,10 @@ Classify the following input:"""
         self.config = config or LLMFallbackConfig()
 
         # Validate provider availability
-        if self.config.provider == "openai" and not OPENAI_AVAILABLE:
+        if self.config.provider == "ollama":
+            # Ollama uses requests library (no special client needed)
+            pass
+        elif self.config.provider == "openai" and not OPENAI_AVAILABLE:
             raise RuntimeError("OpenAI client not available. Install with: pip install openai")
         elif self.config.provider == "anthropic" and not ANTHROPIC_AVAILABLE:
             raise RuntimeError(
@@ -220,13 +229,17 @@ Classify the following input:"""
 
     def _initialize_client(self) -> None:
         """Initialize LLM client based on provider."""
-        if self.config.provider == "openai":
+        if self.config.provider == "ollama":
+            # Ollama doesn't need a client object, we use requests directly
+            self.client = None
+        elif self.config.provider == "openai":
             self.client = openai.OpenAI(api_key=self.config.api_key)
         elif self.config.provider == "anthropic":
             self.client = anthropic.Anthropic(api_key=self.config.api_key)
         else:
             raise ValueError(
-                f"Unsupported provider: {self.config.provider}. " "Supported: openai, anthropic"
+                f"Unsupported provider: {self.config.provider}. "
+                "Supported: ollama, openai, anthropic"
             )
 
     async def classify_async(
@@ -325,7 +338,9 @@ Classify the following input:"""
             user_prompt += f"\nContext: {json.dumps(context)}"
 
         # Call LLM based on provider
-        if self.config.provider == "openai":
+        if self.config.provider == "ollama":
+            response = await self._call_ollama(user_prompt)
+        elif self.config.provider == "openai":
             response = await self._call_openai(user_prompt)
         elif self.config.provider == "anthropic":
             response = await self._call_anthropic(user_prompt)
@@ -334,6 +349,49 @@ Classify the following input:"""
 
         # Parse and validate response
         return self._parse_response(response)
+
+    async def _call_ollama(self, user_prompt: str) -> str:
+        """Call Ollama API.
+
+        Args:
+            user_prompt: User prompt text
+
+        Returns:
+            LLM response text
+        """
+        import requests
+        
+        base_url = f"http://{self.config.ollama_host}:{self.config.ollama_port}"
+        
+        # Build request payload
+        payload = {
+            "model": self.config.model,
+            "prompt": f"{self.SYSTEM_PROMPT}\n\n{user_prompt}",
+            "stream": False,
+            "options": {
+                "temperature": self.config.temperature,
+                "num_predict": self.config.max_tokens,
+            },
+            "format": "json",  # Request JSON output
+        }
+        
+        # Call Ollama generate endpoint (synchronous, run in executor)
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: requests.post(
+                f"{base_url}/api/generate",
+                json=payload,
+                timeout=self.config.timeout_ms / 1000.0,
+            ),
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            result = data.get("response", "")
+            return str(result) if result else ""
+        else:
+            raise RuntimeError(f"Ollama API error: {response.status_code} - {response.text}")
 
     async def _call_openai(self, user_prompt: str) -> str:
         """Call OpenAI API.
@@ -344,10 +402,13 @@ Classify the following input:"""
         Returns:
             LLM response text
         """
+        if self.client is None:
+            raise RuntimeError("OpenAI client not initialized")
+        
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
-            lambda: self.client.chat.completions.create(
+            lambda: self.client.chat.completions.create(  # type: ignore[union-attr]
                 model=self.config.model,
                 messages=[
                     {"role": "system", "content": self.SYSTEM_PROMPT},
@@ -356,9 +417,10 @@ Classify the following input:"""
                 temperature=self.config.temperature,
                 max_tokens=self.config.max_tokens,
                 response_format={"type": "json_object"},
-            ),
+            ) if self.client else None,
         )
-        return response.choices[0].message.content
+        content = response.choices[0].message.content
+        return str(content) if content else ""
 
     async def _call_anthropic(self, user_prompt: str) -> str:
         """Call Anthropic API.
@@ -369,18 +431,22 @@ Classify the following input:"""
         Returns:
             LLM response text
         """
+        if self.client is None:
+            raise RuntimeError("Anthropic client not initialized")
+        
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
-            lambda: self.client.messages.create(
+            lambda: self.client.messages.create(  # type: ignore[union-attr]
                 model=self.config.model,
                 max_tokens=self.config.max_tokens,
                 temperature=self.config.temperature,
                 system=self.SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_prompt}],
-            ),
+            ) if self.client else None,
         )
-        return response.content[0].text
+        text = response.content[0].text if response and response.content else ""
+        return str(text) if text else ""
 
     def _parse_response(self, response_text: str) -> LLMIntentResponse:
         """Parse and validate LLM response.

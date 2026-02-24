@@ -166,7 +166,7 @@ def skill_capability(
         )
 
         # Attach metadata to function
-        func._skill_capability = metadata
+        func._skill_capability = metadata  # type: ignore[attr-defined]
 
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -175,7 +175,7 @@ def skill_capability(
             else:
                 return func(*args, **kwargs)
 
-        wrapper._skill_capability = metadata
+        wrapper._skill_capability = metadata  # type: ignore[attr-defined]
         return wrapper
 
     return decorator

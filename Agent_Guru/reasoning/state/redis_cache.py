@@ -10,7 +10,7 @@ from typing import Optional
 try:
     import redis.asyncio as redis
 except ImportError:
-    redis = None
+    redis: Any = None  # type: ignore[assignment]
 
 from Agent_Guru.reasoning.models.conversation import ConversationState
 

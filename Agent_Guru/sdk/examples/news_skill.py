@@ -5,7 +5,7 @@ This skill demonstrates how to create a skill that fetches
 news articles from external sources.
 """
 
-from typing import Dict, List
+from typing import Dict, List, Any
 from Agent_Guru.sdk import Skill, skill_capability
 
 
@@ -19,7 +19,7 @@ class NewsSkill(Skill):
     @skill_capability("get_headlines", "Get top news headlines")
     async def get_headlines(
         self, category: str = "general", count: int = 5
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """Get top news headlines.
 
         Args:
@@ -51,7 +51,7 @@ class NewsSkill(Skill):
     @skill_capability("search_news", "Search for news articles")
     async def search_news(
         self, query: str, count: int = 10
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """Search for news articles by query.
 
         Args:
@@ -81,7 +81,7 @@ class NewsSkill(Skill):
         }
 
     @skill_capability("get_sources", "Get available news sources")
-    async def get_sources(self, category: str = "all") -> Dict[str, any]:
+    async def get_sources(self, category: str = "all") -> Dict[str, Any]:
         """Get list of available news sources.
 
         Args:

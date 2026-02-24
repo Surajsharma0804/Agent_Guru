@@ -333,12 +333,12 @@ class FastIntentRouter:
                     # Check if this is valid (pattern should end with entity)
                     if not current.is_end:
                         return None
-                    break
+                    # Pattern ends with entity, this is valid
             else:
                 return None
 
         # Check if we reached end of a pattern
-        if current.is_end:
+        if current.is_end and current.intent_type:
             return (current.intent_type, current.entity_positions)
 
         return None

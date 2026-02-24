@@ -74,7 +74,7 @@ from Agent_Guru.reasoning.intent.neural_classifier import (
 )
 from Agent_Guru.reasoning.learning.feedback_store import FeedbackStore
 from Agent_Guru.reasoning.learning.online_learner import OnlineLearner
-from Agent_Guru.reasoning.models.intent import Entity, Intent
+from Agent_Guru.reasoning.models.intent import Entity, Intent, IntentType
 
 
 @dataclass
@@ -194,11 +194,11 @@ class IntentDetectionEngine:
             if patterns_path.exists():
                 self.fast_router.load_patterns(self.config.patterns_file)
                 print(
-                    f"✓ Fast-Path Router initialized ({len(self.fast_router._patterns)} patterns)"
+                    f"[OK] Fast-Path Router initialized ({len(self.fast_router._patterns)} patterns)"
                 )
             else:
-                print(f"⚠ Patterns file not found: {self.config.patterns_file}")
-                print("⚠ Fast-Path Router disabled")
+                print(f"[WARNING] Patterns file not found: {self.config.patterns_file}")
+                print("[WARNING] Fast-Path Router disabled")
                 self.fast_router = None
 
         # Initialize Neural Classifier
@@ -207,10 +207,10 @@ class IntentDetectionEngine:
                 neural_config = self.config.neural_config or ClassifierConfig()
                 self.neural_classifier = NeuralIntentClassifier(neural_config)
                 self.neural_classifier.load_model()
-                print("✓ Neural Classifier initialized")
+                print("[OK] Neural Classifier initialized")
             except Exception as e:
-                print(f"⚠ Neural Classifier initialization failed: {e}")
-                print("⚠ Neural Classifier disabled")
+                print(f"[WARNING] Neural Classifier initialization failed: {e}")
+                print("[WARNING] Neural Classifier disabled")
                 self.neural_classifier = None
 
         # Initialize NER Extractor
@@ -219,21 +219,77 @@ class IntentDetectionEngine:
                 ner_config = self.config.ner_config or NERConfig()
                 self.ner_extractor = NEREntityExtractor(ner_config)
                 self.ner_extractor.load_model()
-                print("✓ NER Extractor initialized")
+                print("[OK] NER Extractor initialized")
             except Exception as e:
-                print(f"⚠ NER Extractor initialization failed: {e}")
-                print("⚠ NER Extractor disabled")
+                print(f"[WARNING] NER Extractor initialization failed: {e}")
+                print("[WARNING] NER Extractor disabled")
                 self.ner_extractor = None
 
-        # Initialize LLM Fallback
+        # Initialize LLM Fallback (prefer cloud APIs for speed, fallback to Ollama)
         if self.config.enable_llm_fallback:
             try:
-                llm_config = self.config.llm_config or LLMFallbackConfig()
-                self.llm_fallback = LLMFallbackClassifier(llm_config)
-                print("✓ LLM Fallback initialized")
+                import os
+                
+                # Try cloud APIs first (MUCH faster: 200-500ms vs Ollama 15-30s)
+                # Priority: DeepSeek (cheapest, fastest) > Gemini (smart) > OpenAI (expensive)
+                
+                # Check which APIs are available
+                deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
+                gemini_key = os.environ.get("GEMINI_API_KEY")
+                openai_key = os.environ.get("OPENAI_API_KEY")
+                
+                # Use DeepSeek as primary (fastest and cheapest)
+                if deepseek_key:
+                    llm_config = LLMFallbackConfig(
+                        provider="openai",  # DeepSeek uses OpenAI-compatible API
+                        model="deepseek-chat",
+                        api_key=deepseek_key,
+                        timeout_ms=2000.0,  # 2 seconds for cloud
+                    )
+                    self.llm_fallback = LLMFallbackClassifier(llm_config)
+                    
+                    if gemini_key:
+                        print("[OK] LLM Fallback initialized (DeepSeek PRIMARY + Gemini BACKUP - MULTI-API)")
+                    else:
+                        print("[OK] LLM Fallback initialized (DeepSeek API - FAST)")
+                    
+                # Use Gemini as primary if no DeepSeek
+                elif gemini_key:
+                    llm_config = LLMFallbackConfig(
+                        provider="openai",  # Will need Gemini provider
+                        model="gemini-2.5-flash",  # Gemini 2.5 Flash (250K tokens)
+                        api_key=gemini_key,
+                        timeout_ms=2000.0,
+                    )
+                    self.llm_fallback = LLMFallbackClassifier(llm_config)
+                    print("[OK] LLM Fallback initialized (Gemini API - FAST)")
+                    
+                # Use OpenAI as fallback
+                elif openai_key:
+                    llm_config = LLMFallbackConfig(
+                        provider="openai",
+                        model="gpt-4-turbo-preview",
+                        api_key=openai_key,
+                        timeout_ms=2000.0,
+                    )
+                    self.llm_fallback = LLMFallbackClassifier(llm_config)
+                    print("[OK] LLM Fallback initialized (OpenAI API - FAST)")
+                    
+                # Fallback to Ollama (slow but free)
+                else:
+                    llm_config = LLMFallbackConfig(
+                        provider="ollama",
+                        model="mistral:7b-instruct",
+                        timeout_ms=20000.0,  # 20 seconds for Ollama (slow)
+                    )
+                    self.llm_fallback = LLMFallbackClassifier(llm_config)
+                    print("[OK] LLM Fallback initialized (Ollama - mistral:7b-instruct)")
+                    print("[WARNING] Ollama is SLOW (15-30s). Use cloud API for fast responses!")
+                    print("[TIP] Set DEEPSEEK_API_KEY or GEMINI_API_KEY environment variable")
+                    
             except Exception as e:
-                print(f"⚠ LLM Fallback initialization failed: {e}")
-                print("⚠ LLM Fallback disabled")
+                print(f"[WARNING] LLM Fallback initialization failed: {e}")
+                print("[WARNING] LLM Fallback disabled")
                 self.llm_fallback = None
 
         # Initialize Online Learning
@@ -241,15 +297,15 @@ class IntentDetectionEngine:
             try:
                 self.feedback_store = FeedbackStore(self.config.feedback_db_path)
                 self.online_learner = OnlineLearner(self.feedback_store)
-                print("✓ Online Learning initialized")
+                print("[OK] Online Learning initialized")
             except Exception as e:
-                print(f"⚠ Online Learning initialization failed: {e}")
-                print("⚠ Online Learning disabled")
+                print(f"[WARNING] Online Learning initialization failed: {e}")
+                print("[WARNING] Online Learning disabled")
                 self.feedback_store = None
                 self.online_learner = None
 
         self._initialized = True
-        print("✓ Intent Detection Engine ready")
+        print("[OK] Intent Detection Engine ready")
 
     async def detect_intent_async(
         self,
@@ -286,7 +342,7 @@ class IntentDetectionEngine:
 
             return DetectionResult(
                 intent=cached_intent,
-                detection_method="cache",
+                detection_method=cached_intent.detection_method,  # Use original detection method
                 latency_ms=latency_ms,
                 fast_path_attempted=False,
                 neural_attempted=False,
@@ -316,7 +372,7 @@ class IntentDetectionEngine:
 
                 return DetectionResult(
                     intent=intent,
-                    detection_method="fast_path",
+                    detection_method="rule",  # Match Intent.detection_method (fast-path uses rule-based)
                     latency_ms=latency_ms,
                     fast_path_attempted=True,
                     neural_attempted=False,
@@ -338,7 +394,8 @@ class IntentDetectionEngine:
                 entities = {}
                 if self.ner_extractor:
                     ner_result = self.ner_extractor.extract(text)
-                    entities = ner_result.entities
+                    # Convert list of entities to dict keyed by entity_type
+                    entities = {entity.entity_type: entity for entity in ner_result.entities}
 
                 intent = self._create_intent_from_neural(neural_result, text, entities)
                 latency_ms = (time.perf_counter() - start_time) * 1000
@@ -373,7 +430,7 @@ class IntentDetectionEngine:
 
             return DetectionResult(
                 intent=intent,
-                detection_method="llm_fallback",
+                detection_method="llm",  # Use 'llm' to match Intent.detection_method
                 latency_ms=latency_ms,
                 fast_path_attempted=fast_path_attempted,
                 neural_attempted=neural_attempted,
@@ -388,8 +445,8 @@ class IntentDetectionEngine:
             confidence=0.0,
             requires_reasoning=False,
             original_input=text,
-            resolved_input=text,
-            detection_method="rule",  # Use 'rule' instead of 'fallback'
+            # resolved_input=text,
+            detection_method="rule",  # Use 'rule' as fallback method
         )
 
         latency_ms = (time.perf_counter() - start_time) * 1000
@@ -397,7 +454,7 @@ class IntentDetectionEngine:
         # Don't cache unknown intents
         return DetectionResult(
             intent=intent,
-            detection_method="fallback",
+            detection_method="rule",  # Match Intent.detection_method
             latency_ms=latency_ms,
             fast_path_attempted=fast_path_attempted,
             neural_attempted=neural_attempted,
@@ -447,7 +504,7 @@ class IntentDetectionEngine:
             confidence=match.confidence,
             requires_reasoning=False,  # Fast-path intents are simple
             original_input=text,
-            resolved_input=text,
+            # resolved_input=text,
             detection_method="rule",  # Fast-path uses rule-based matching
         )
 
@@ -470,15 +527,27 @@ class IntentDetectionEngine:
         # Determine if reasoning is required based on intent type
         requires_reasoning = self._requires_reasoning(result.intent_type)
 
+        # Convert alternative_intents from list of (str, float) to list of (IntentType, float)
+        alternative_intents = []
+        for alt_intent, conf in result.alternative_intents:
+            try:
+                # Convert string to IntentType enum
+                intent_enum = IntentType(alt_intent)
+                alternative_intents.append((intent_enum, conf))
+            except ValueError:
+                # Skip invalid intent types that are not in the enum
+                # This is expected as neural classifier may return intents not in our enum
+                continue
+
         return Intent(
-            intent_type=result.intent_type,
+            intent_type=result.intent_type,  # Pydantic will convert string to IntentType
             entities=entities,
             confidence=result.confidence,
             requires_reasoning=requires_reasoning,
             original_input=text,
-            resolved_input=text,
+            # resolved_input=text,
             detection_method="neural",
-            alternative_intents=result.alternative_intents,
+            alternative_intents=alternative_intents,
         )
 
     def _create_intent_from_llm(self, result: LLMClassificationResult, text: str) -> Intent:
@@ -500,7 +569,7 @@ class IntentDetectionEngine:
             confidence=result.confidence,
             requires_reasoning=requires_reasoning,
             original_input=text,
-            resolved_input=text,
+            # resolved_input=text,
             detection_method="llm",  # LLM fallback uses llm method
         )
 
@@ -647,9 +716,9 @@ class IntentDetectionEngine:
             "target_fast_path_percent": target_percent,
             "actual_fast_path_percent": fast_path_percent,
             "performance_vs_target": (
-                "✓ Meeting target"
+                "[OK] Meeting target"
                 if fast_path_percent >= target_percent
-                else f"⚠ Below target ({fast_path_percent:.1f}% vs {target_percent}%)"
+                else f"[WARNING] Below target ({fast_path_percent:.1f}% vs {target_percent}%)"
             ),
         }
 

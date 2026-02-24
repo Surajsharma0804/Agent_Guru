@@ -20,13 +20,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from Agent_Guru.reasoning.error.error_manager import (
+    ErrorContext,
+    ErrorType,
+    get_error_manager,
+)
 from Agent_Guru.reasoning.models.action import Action
-
-
-class CancellationError(Exception):
-    """Exception raised when execution is cancelled."""
-
-    pass
 
 
 @dataclass
@@ -161,32 +160,16 @@ class SyncExecutor:
             try:
                 # Execute with timeout
                 result_data = self._execute_with_timeout(
-                    tool_function, action.parameters, timeout, cancellation_token
+                    tool_function, step.parameters, timeout, cancellation_token
                 )
 
                 # Success - record latency and return
                 execution_time = time.perf_counter() - start_time
-                self._record_latency(action.tool_id, execution_time)
+                self._record_latency(step.tool_id, execution_time)
 
                 return ExecutionResult(
                     success=True,
                     result_data=result_data,
-                    execution_time=execution_time,
-                    action_id=action.action_id,
-                    retries=retries,
-                )
-
-            except CancellationError:
-                # Cancellation
-                execution_time = time.perf_counter() - start_time
-                return ExecutionResult(
-                    success=False,
-                    error={
-                        "error_code": "CANCELLED",
-                        "message": "Execution was cancelled",
-                        "details": {},
-                        "recoverable": False,
-                    },
                     execution_time=execution_time,
                     action_id=action.action_id,
                     retries=retries,
@@ -207,6 +190,47 @@ class SyncExecutor:
                     action_id=action.action_id,
                     retries=retries,
                     timed_out=True,
+                )
+
+            except ValueError as e:
+                # Check if this is a cancellation error (from ErrorManager)
+                if "cancelled" in str(e).lower():
+                    execution_time = time.perf_counter() - start_time
+                    return ExecutionResult(
+                        success=False,
+                        error={
+                            "error_code": "CANCELLED",
+                            "message": "Execution was cancelled",
+                            "details": {},
+                            "recoverable": False,
+                        },
+                        execution_time=execution_time,
+                        action_id=action.action_id,
+                        retries=retries,
+                    )
+                
+                # Not a cancellation - treat as regular error
+                # Check if error is transient and retryable
+                if retries < self.max_retries and self._is_transient_error(e):
+                    retries += 1
+                    # Exponential backoff
+                    delay = self.retry_delay * (2 ** (retries - 1))
+                    time.sleep(delay)
+                    continue
+
+                # Non-transient error or max retries reached
+                execution_time = time.perf_counter() - start_time
+                return ExecutionResult(
+                    success=False,
+                    error={
+                        "error_code": type(e).__name__,
+                        "message": str(e),
+                        "details": {"exception_type": type(e).__name__},
+                        "recoverable": self._is_transient_error(e),
+                    },
+                    execution_time=execution_time,
+                    action_id=action.action_id,
+                    retries=retries,
                 )
 
             except Exception as e:
@@ -288,7 +312,17 @@ class SyncExecutor:
                         # Check if cancelled
                         if check_fn():
                             future.cancel()
-                            raise CancellationError("Execution was cancelled")
+                            error_manager = get_error_manager()
+                            context = ErrorContext(
+                                action_id=action.action_id,
+                                tool_id=step.tool_id,
+                            )
+                            error = error_manager.create_error(
+                                error_type=ErrorType.TOOL_EXECUTION_FAILED,
+                                message="Execution was cancelled",
+                                context=context,
+                            )
+                            raise ValueError(error.user_message)
 
                         # Try to get result with short timeout
                         try:

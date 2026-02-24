@@ -215,7 +215,7 @@ def create_app(
                 content=request.text,
                 source=InputSource(request.source),
                 user_id=request.user_id,
-                timestamp=None,
+                timestamp=datetime.now(),
                 metadata=request.metadata,
             )
             

@@ -73,7 +73,7 @@ try:
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
-    openai = None
+    openai: Any = None  # type: ignore[assignment]
 
 try:
     import anthropic
@@ -81,7 +81,7 @@ try:
     ANTHROPIC_AVAILABLE = True
 except ImportError:
     ANTHROPIC_AVAILABLE = False
-    anthropic = None
+    anthropic: Any = None  # type: ignore[assignment]
 
 
 class LLMSynthesisResponse(BaseModel):
@@ -1615,7 +1615,7 @@ Generate a natural language answer that directly addresses the query."""
                 response_format={"type": "json_object"},
             ),
         )
-        return response.choices[0].message.content
+        return str(response.choices[0].message.content) if response and response.choices else ""[0].message.content
 
     async def _call_anthropic_synthesis(self, prompt: str) -> str:
         """Call Anthropic API for synthesis.
@@ -1636,7 +1636,7 @@ Generate a natural language answer that directly addresses the query."""
                 messages=[{"role": "user", "content": prompt}],
             ),
         )
-        return response.content[0].text
+        return str(response.content[0].text) if response and response.content else ""[0].text
 
     def _parse_llm_synthesis_response(self, response_text: str) -> LLMSynthesisResponse:
         """Parse and validate LLM synthesis response.

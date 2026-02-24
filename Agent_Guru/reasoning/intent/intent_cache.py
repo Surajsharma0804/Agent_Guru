@@ -182,8 +182,13 @@ class IntentDetectionCache:
 
         # Create key string with context
         if context:
-            # Sort context keys for consistent hashing
-            context_str = str(sorted(context.items()))
+            # Handle both dict and string context (for backward compatibility)
+            if isinstance(context, dict):
+                # Sort context keys for consistent hashing
+                context_str = str(sorted(context.items()))
+            else:
+                # If context is string (e.g., user_id), use it directly
+                context_str = str(context)
             key_string = f"{normalized_text}:{context_str}"
         else:
             key_string = normalized_text
@@ -204,8 +209,14 @@ class IntentDetectionCache:
         if not context:
             return ""
 
-        # Sort context keys for consistent hashing
-        context_str = str(sorted(context.items()))
+        # Handle both dict and string context
+        if isinstance(context, dict):
+            # Sort context keys for consistent hashing
+            context_str = str(sorted(context.items()))
+        else:
+            # If context is string, use it directly
+            context_str = str(context)
+        
         return hashlib.sha256(context_str.encode()).hexdigest()
 
     def _is_expired(self, entry: CachedIntent) -> bool:

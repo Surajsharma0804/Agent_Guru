@@ -10,6 +10,11 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from Agent_Guru.reasoning.error.error_manager import (
+    ErrorContext,
+    ErrorType,
+    get_error_manager,
+)
 from Agent_Guru.reasoning.tools.base import Tool
 from Agent_Guru.reasoning.tools.registry import get_registry
 from Agent_Guru.reasoning.tools.skills.manifest import (
@@ -17,12 +22,6 @@ from Agent_Guru.reasoning.tools.skills.manifest import (
     SkillManifestParser,
     SkillManifestValidator,
 )
-
-
-class SkillLoadError(Exception):
-    """Exception raised when skill loading fails."""
-
-    pass
 
 
 class SkillLoader:
@@ -48,41 +47,92 @@ class SkillLoader:
             Loaded skill manifest
 
         Raises:
-            SkillLoadError: If loading fails
+            ValueError: If loading fails (with user-friendly message)
         """
+        error_manager = get_error_manager()
+        
         # Find manifest file
         manifest_path = skill_dir / "skill.yaml"
         if not manifest_path.exists():
             manifest_path = skill_dir / "skill.yml"
             if not manifest_path.exists():
-                raise SkillLoadError(f"No manifest file found in {skill_dir}")
+                context = ErrorContext(
+                    additional_data={"skill_dir": str(skill_dir)}
+                )
+                error = error_manager.create_error(
+                    error_type=ErrorType.TOOL_UNAVAILABLE,
+                    message=f"No manifest file found in {skill_dir}",
+                    context=context,
+                )
+                raise ValueError(error.user_message)
 
         # Parse manifest
         try:
             manifest = SkillManifestParser.parse_yaml(manifest_path)
         except ValueError as e:
-            raise SkillLoadError(f"Failed to parse manifest: {str(e)}")
+            context = ErrorContext(
+                additional_data={"manifest_path": str(manifest_path)}
+            )
+            error = error_manager.create_error(
+                error_type=ErrorType.MALFORMED_INPUT,
+                message=f"Failed to parse manifest: {str(e)}",
+                context=context,
+            )
+            raise ValueError(error.user_message)
 
         # Validate manifest
         errors = SkillManifestValidator.validate(manifest)
         if errors:
-            raise SkillLoadError(f"Manifest validation failed: {', '.join(errors)}")
+            context = ErrorContext(
+                additional_data={"validation_errors": errors}
+            )
+            error = error_manager.create_error(
+                error_type=ErrorType.PLAN_VALIDATION_FAILED,
+                message=f"Manifest validation failed: {', '.join(errors)}",
+                context=context,
+            )
+            raise ValueError(error.user_message)
 
         # Check if already loaded
         if manifest.skill_id in self.loaded_skills:
-            raise SkillLoadError(f"Skill '{manifest.skill_id}' already loaded")
+            context = ErrorContext(
+                tool_id=manifest.skill_id,
+            )
+            error = error_manager.create_error(
+                error_type=ErrorType.TOOL_UNAVAILABLE,
+                message=f"Skill '{manifest.skill_id}' already loaded",
+                context=context,
+            )
+            raise ValueError(error.user_message)
 
         # Load skill module
         try:
             module = self._load_module(skill_dir, manifest.entry_point)
         except Exception as e:
-            raise SkillLoadError(f"Failed to load skill module: {str(e)}")
+            context = ErrorContext(
+                tool_id=manifest.skill_id,
+                additional_data={"entry_point": manifest.entry_point}
+            )
+            error = error_manager.create_error(
+                error_type=ErrorType.TOOL_UNAVAILABLE,
+                message=f"Failed to load skill module: {str(e)}",
+                context=context,
+            )
+            raise ValueError(error.user_message)
 
         # Register tools
         try:
             await self._register_tools(module, manifest)
         except Exception as e:
-            raise SkillLoadError(f"Failed to register tools: {str(e)}")
+            context = ErrorContext(
+                tool_id=manifest.skill_id,
+            )
+            error = error_manager.create_error(
+                error_type=ErrorType.TOOL_UNAVAILABLE,
+                message=f"Failed to register tools: {str(e)}",
+                context=context,
+            )
+            raise ValueError(error.user_message)
 
         # Mark as loaded
         self.loaded_skills[manifest.skill_id] = manifest
@@ -167,7 +217,7 @@ class SkillLoader:
             try:
                 manifest = await self.load_skill(skill_dir)
                 loaded.append(manifest)
-            except SkillLoadError as e:
+            except ValueError as e:
                 # Log error but continue loading other skills
                 print(f"Failed to load skill from {skill_dir}: {str(e)}")
 

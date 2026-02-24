@@ -19,7 +19,7 @@ from Agent_Guru.reasoning.intent.fast_router import MatchQuality, PatternMatch
 from Agent_Guru.reasoning.intent.llm_fallback import LLMClassificationResult
 from Agent_Guru.reasoning.intent.ner_extractor import ExtractionResult
 from Agent_Guru.reasoning.intent.neural_classifier import ClassificationResult
-from Agent_Guru.reasoning.models.intent import Entity, EntityType, Intent
+from Agent_Guru.reasoning.models.intent import Entity, EntityType, Intent, IntentType
 
 
 class TestIntentDetectionEngine:
@@ -139,7 +139,7 @@ class TestIntentDetectionEngine:
         # Detect intent
         result = await engine.detect_intent_async("set timer for 5 minutes")
 
-        assert result.detection_method == "fast_path"
+        assert result.detection_method == "rule"  # Fast-path uses rule-based matching
         assert result.intent.intent_type == "set_timer"
         assert result.confidence == 0.98
         assert result.fast_path_attempted is True
@@ -253,7 +253,7 @@ class TestIntentDetectionEngine:
         # Detect intent
         result = await engine.detect_intent_async("remind me to call mom")
 
-        assert result.detection_method == "llm_fallback"
+        assert result.detection_method == "llm"  # LLM fallback uses 'llm' method
         assert result.intent.intent_type == "set_reminder"
         assert result.confidence == 0.95
         assert result.fast_path_attempted is True
@@ -274,7 +274,7 @@ class TestIntentDetectionEngine:
         # Detect intent
         result = await engine.detect_intent_async("completely unknown input")
 
-        assert result.detection_method == "fallback"
+        assert result.detection_method == "rule"  # Fallback uses 'rule' method
         assert result.intent.intent_type == "unknown"
         assert result.confidence == 0.0
 
@@ -299,7 +299,7 @@ class TestIntentDetectionEngine:
         # Detect intent synchronously
         result = engine.detect_intent("what time is it")
 
-        assert result.detection_method == "fast_path"
+        assert result.detection_method == "rule"  # Fast-path uses rule-based matching
         assert result.intent.intent_type == "query_time"
 
     def test_create_intent_from_fast_path(self):
@@ -327,7 +327,7 @@ class TestIntentDetectionEngine:
         assert intent.intent_type == "set_timer"
         assert intent.confidence == 0.98
         assert intent.requires_reasoning is False
-        assert intent.detection_method == "fast_path"
+        assert intent.detection_method == "rule"  # Fast-path uses rule-based matching
         assert "duration" in intent.entities
 
     def test_create_intent_from_neural(self):
@@ -337,7 +337,7 @@ class TestIntentDetectionEngine:
         neural_result = ClassificationResult(
             intent_type="query_weather",
             confidence=0.92,
-            alternative_intents=[("query_forecast", 0.05)],
+            alternative_intents=[("query_time", 0.05)],  # Use valid IntentType
             inference_time_ms=45.0,
             used_gpu=True,
         )
@@ -360,6 +360,7 @@ class TestIntentDetectionEngine:
         assert intent.detection_method == "neural"
         assert "location" in intent.entities
         assert len(intent.alternative_intents) == 1
+        assert intent.alternative_intents[0][0] == IntentType.QUERY_TIME
 
     def test_create_intent_from_llm(self):
         """Test creating Intent from LLM fallback result."""
@@ -386,7 +387,7 @@ class TestIntentDetectionEngine:
 
         assert intent.intent_type == "send_message"
         assert intent.confidence == 0.95
-        assert intent.detection_method == "llm_fallback"
+        assert intent.detection_method == "llm"  # LLM fallback uses 'llm' method
         assert "contact" in intent.entities
 
     def test_requires_reasoning_simple_intents(self):
@@ -589,12 +590,12 @@ class TestDetectionResult:
             requires_reasoning=False,
             original_input="set timer",
             resolved_input="set timer",
-            detection_method="fast_path",
+            detection_method="rule",  # Fast-path uses rule-based matching
         )
 
         result = DetectionResult(
             intent=intent,
-            detection_method="fast_path",
+            detection_method="rule",  # Fast-path uses rule-based matching
             latency_ms=15.0,
             fast_path_attempted=True,
             neural_attempted=False,
@@ -603,7 +604,7 @@ class TestDetectionResult:
         )
 
         assert result.intent.intent_type == "set_timer"
-        assert result.detection_method == "fast_path"
+        assert result.detection_method == "rule"  # Fast-path uses rule-based matching
         assert result.latency_ms == 15.0
         assert result.fast_path_attempted is True
         assert result.neural_attempted is False

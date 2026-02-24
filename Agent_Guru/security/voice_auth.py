@@ -260,4 +260,5 @@ class VoiceAuthenticator:
         similarity = dot_product / (norm1 * norm2)
         
         # Normalize to 0-1 range (cosine similarity is -1 to 1)
-        return (similarity + 1) / 2
+        result: float = float((similarity + 1) / 2)
+        return result

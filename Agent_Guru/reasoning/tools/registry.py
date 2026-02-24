@@ -267,7 +267,7 @@ def tool(
         )
 
         # Store metadata on class
-        cls._tool_metadata = metadata
+        cls._tool_metadata = metadata  # type: ignore[attr-defined]
 
         # Register tool instance on first instantiation
         original_init = cls.__init__
@@ -278,16 +278,16 @@ def tool(
             # Store metadata on instance
             self._metadata = metadata
             # Mark for lazy registration (will be registered when needed)
-            self._registered = False
+            self._registered = False  # type: ignore[attr-defined]
 
         cls.__init__ = new_init  # type: ignore
 
         # Add method to ensure registration
         async def ensure_registered(self: Tool) -> None:
             """Ensure tool is registered with global registry."""
-            if not self._registered:
+            if not self._registered:  # type: ignore[attr-defined]
                 await _global_registry.register(self, metadata)
-                self._registered = True
+                self._registered = True  # type: ignore[attr-defined]
 
         cls.ensure_registered = ensure_registered  # type: ignore
 

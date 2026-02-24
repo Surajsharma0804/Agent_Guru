@@ -252,7 +252,7 @@ class RedisPool:
             
             logger.info(f"Initializing Redis pool: {self.host}:{self.port} (min={self.min_size}, max={self.max_size})")
             
-            self._pool = await aioredis.create_redis_pool(
+            self._pool = await aioredis.create_redis_pool(  # type: ignore[attr-defined]
                 f'redis://{self.host}:{self.port}/{self.db}',
                 password=self.password,
                 minsize=self.min_size,
@@ -278,7 +278,8 @@ class RedisPool:
         if self._pool is None:
             return None
         
-        return await self._pool.get(key)
+        result = await self._pool.get(key)
+        return str(result) if result is not None else None
     
     async def set(self, key: str, value: str, expire: Optional[int] = None):
         """Set value in Redis with optional expiration."""
@@ -459,6 +460,9 @@ class HTTPPool:
         if not self._initialized:
             await self.initialize()
         
+        if self._session is None:
+            raise RuntimeError("HTTP session not initialized")
+        
         try:
             self._request_count += 1
             return await self._session.get(url, **kwargs)
@@ -480,6 +484,9 @@ class HTTPPool:
         """
         if not self._initialized:
             await self.initialize()
+        
+        if self._session is None:
+            raise RuntimeError("HTTP session not initialized")
         
         try:
             self._request_count += 1

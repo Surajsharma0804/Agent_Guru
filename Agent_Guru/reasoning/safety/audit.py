@@ -186,6 +186,9 @@ class AuditLogger:
         parameters_encrypted = self._cipher.encrypt(parameters_json.encode())
 
         # Store in database
+        if self._conn is None:
+            raise RuntimeError("Database connection not initialized")
+        
         cursor = self._conn.cursor()
         cursor.execute("""
             INSERT INTO audit_log 
@@ -207,6 +210,8 @@ class AuditLogger:
         self._conn.commit()
 
         entry_id = cursor.lastrowid
+        if entry_id is None:
+            raise RuntimeError("Failed to get entry ID from database")
 
         logger.info(
             "audit_decision_logged",
@@ -244,11 +249,14 @@ class AuditLogger:
         Returns:
             List of AuditLogEntry objects
         """
+        if self._conn is None:
+            raise RuntimeError("Database connection not initialized")
+        
         cursor = self._conn.cursor()
 
         # Build query with filters
         query = "SELECT * FROM audit_log WHERE 1=1"
-        params = []
+        params: list[str | float] = []
 
         if user_id:
             query += " AND user_id = ?"
@@ -264,14 +272,14 @@ class AuditLogger:
 
         if start_time:
             query += " AND timestamp >= ?"
-            params.append(start_time)
+            params.append(str(start_time))
 
         if end_time:
             query += " AND timestamp <= ?"
-            params.append(end_time)
+            params.append(str(end_time))
 
         query += " ORDER BY timestamp DESC LIMIT ?"
-        params.append(limit)
+        params.append(str(limit))
 
         cursor.execute(query, params)
 
@@ -319,11 +327,14 @@ class AuditLogger:
         Returns:
             Dictionary with statistics
         """
+        if self._conn is None:
+            raise RuntimeError("Database connection not initialized")
+        
         cursor = self._conn.cursor()
 
         # Build base query
         where_clause = "WHERE 1=1"
-        params = []
+        params: list[str | float] = []
 
         if user_id:
             where_clause += " AND user_id = ?"
@@ -331,11 +342,11 @@ class AuditLogger:
 
         if start_time:
             where_clause += " AND timestamp >= ?"
-            params.append(start_time)
+            params.append(str(start_time))
 
         if end_time:
             where_clause += " AND timestamp <= ?"
-            params.append(end_time)
+            params.append(str(end_time))
 
         # Get total count
         cursor.execute(f"SELECT COUNT(*) FROM audit_log {where_clause}", params)
@@ -378,6 +389,9 @@ class AuditLogger:
         Returns:
             Number of entries deleted
         """
+        if self._conn is None:
+            raise RuntimeError("Database connection not initialized")
+        
         cutoff_time = time.time() - (self._retention_days * 24 * 60 * 60)
 
         cursor = self._conn.cursor()
@@ -387,7 +401,8 @@ class AuditLogger:
             "SELECT COUNT(*) FROM audit_log WHERE timestamp < ?",
             (cutoff_time,)
         )
-        count = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        count = int(result[0]) if result else 0
 
         if count > 0:
             # Delete old entries

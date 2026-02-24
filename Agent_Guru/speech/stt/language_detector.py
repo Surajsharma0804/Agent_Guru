@@ -12,7 +12,7 @@ This module provides automatic language detection from audio/text including:
 """
 
 import re
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, Union
 from dataclasses import dataclass
 from enum import Enum
 
@@ -73,7 +73,7 @@ class LanguageDetectionResult:
     """Language detection result."""
     language: Language
     confidence: float  # 0.0 to 1.0
-    alternative_languages: List[Tuple[Language, float]] = None  # (language, confidence)
+    alternative_languages: Optional[List[Tuple[Language, float]]] = None  # (language, confidence)
     
     def __post_init__(self):
         if self.alternative_languages is None:
@@ -100,7 +100,8 @@ class LanguageDetector:
     def __init__(self):
         """Initialize language detector."""
         # Character ranges for different scripts
-        self._char_ranges = {
+        # Type: Dict[Language, Union[Tuple[int, int], List[Tuple[int, int]]]]
+        self._char_ranges: Dict[Language, Union[Tuple[int, int], List[Tuple[int, int]]]] = {
             Language.CHINESE: (0x4E00, 0x9FFF),  # CJK Unified Ideographs
             Language.JAPANESE: [(0x3040, 0x309F), (0x30A0, 0x30FF)],  # Hiragana, Katakana
             Language.KOREAN: (0xAC00, 0xD7AF),  # Hangul Syllables
@@ -381,10 +382,14 @@ class LanguageDetector:
             total_chars += 1
             
             for lang, ranges in self._char_ranges.items():
+                # Normalize ranges to list of tuples
+                ranges_list: List[Tuple[int, int]]
                 if isinstance(ranges, tuple):
-                    ranges = [ranges]
+                    ranges_list = [ranges]
+                else:
+                    ranges_list = ranges
                 
-                for start, end in ranges:
+                for start, end in ranges_list:
                     if start <= code_point <= end:
                         char_counts[lang] += 1
                         break

@@ -247,7 +247,8 @@ class GoalEngine:
                         values.append(json.dumps(value))
                     elif key in ["last_evaluated", "last_triggered", "created_at"]:
                         set_clauses.append(f"{key} = ?")
-                        values.append(value.isoformat() if value else None)
+                        iso_value = value.isoformat() if value else None
+                        values.append(str(iso_value) if iso_value is not None else "")
                     else:
                         set_clauses.append(f"{key} = ?")
                         values.append(value)
@@ -798,7 +799,8 @@ class GoalEngine:
                         if type(op) not in safe_operators:
                             raise ValueError(f"Unsafe operator: {type(op)}")
                         right = eval_node(comparator)
-                        if not safe_operators[type(op)](left, right):
+                        op_func = safe_operators[type(op)]
+                        if not op_func(left, right):
                             return False
                         left = right
                     return True
@@ -813,7 +815,8 @@ class GoalEngine:
                 elif isinstance(node, ast.UnaryOp):
                     if type(node.op) not in safe_operators:
                         raise ValueError(f"Unsafe operator: {type(node.op)}")
-                    return safe_operators[type(node.op)](eval_node(node.operand))
+                    op_func = safe_operators[type(node.op)]
+                    return op_func(eval_node(node.operand))
                 elif isinstance(node, ast.Name):
                     if node.id not in context:
                         raise ValueError(f"Unknown variable: {node.id}")
@@ -1150,7 +1153,8 @@ class GoalEngine:
             """,
                 (user_id,),
             )
-            return cursor.fetchone()[0]
+            result = cursor.fetchone()
+            return int(result[0]) if result else 0
         finally:
             conn.close()
 

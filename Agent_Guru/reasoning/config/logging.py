@@ -100,7 +100,7 @@ def configure_logging(
         logging.root.addHandler(file_handler)
 
 
-def get_logger(name: str) -> structlog.stdlib.BoundLogger:
+def get_logger(name: str) -> Any:
     """
     Get a structured logger instance.
     

@@ -20,7 +20,7 @@ Requirements: 4.2, 4.5
 import asyncio
 import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import requests
 
@@ -260,7 +260,7 @@ class OllamaServer:
 
         try:
             # Build request payload for Ollama API
-            payload = {
+            payload: Dict[str, Any] = {
                 "model": model_name,
                 "prompt": request.prompt,
                 "stream": False,  # Non-streaming for now
@@ -273,7 +273,9 @@ class OllamaServer:
 
             # Add stop sequences if provided
             if request.stop_sequences:
-                payload["options"]["stop"] = request.stop_sequences
+                options = payload["options"]
+                if isinstance(options, dict):
+                    options["stop"] = request.stop_sequences
 
             # Call Ollama generate endpoint
             response = requests.post(

@@ -14,6 +14,11 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 from dataclasses import dataclass
 
+from Agent_Guru.reasoning.error.error_manager import (
+    ErrorContext,
+    ErrorType,
+    get_error_manager,
+)
 from Agent_Guru.reasoning.models.skill import Permission, InstalledSkill
 from Agent_Guru.reasoning.tools.skills.sandbox import (
     SkillSandbox,
@@ -33,18 +38,6 @@ class ExecutionResult:
     error: Optional[str] = None
     execution_time_ms: int = 0
     resource_usage: Optional[Dict[str, Any]] = None
-
-
-class SandboxViolationError(Exception):
-    """Raised when a skill violates sandbox constraints."""
-
-    pass
-
-
-class PermissionDeniedError(Exception):
-    """Raised when a skill lacks required permissions."""
-
-    pass
 
 
 class SkillSandboxExecutor:
@@ -76,8 +69,7 @@ class SkillSandboxExecutor:
             Execution result
 
         Raises:
-            PermissionDeniedError: If required permissions not granted
-            SandboxViolationError: If sandbox constraints violated
+            ValueError: If permission denied or sandbox violation (with user-friendly message)
             TimeoutError: If execution exceeds time limit
         """
         start_time = time.perf_counter()
@@ -111,21 +103,19 @@ class SkillSandboxExecutor:
                 resource_usage=result.get("resource_usage"),
             )
 
-        except PermissionDeniedError as e:
+        except ValueError as e:
+            # Handle permission denied and sandbox violations
             execution_time_ms = int((time.perf_counter() - start_time) * 1000)
+            error_msg = str(e)
+            
+            # Track violation if it's a sandbox issue
+            if "sandbox" in error_msg.lower() or "violation" in error_msg.lower():
+                self._violation_count += 1
+                await self._cleanup_sandbox(skill.manifest.skill_id)
+            
             return ExecutionResult(
                 success=False,
-                error=f"Permission denied: {str(e)}",
-                execution_time_ms=execution_time_ms,
-            )
-
-        except SandboxViolationError as e:
-            self._violation_count += 1
-            execution_time_ms = int((time.perf_counter() - start_time) * 1000)
-            await self._cleanup_sandbox(skill.manifest.skill_id)
-            return ExecutionResult(
-                success=False,
-                error=f"Sandbox violation: {str(e)}",
+                error=error_msg,
                 execution_time_ms=execution_time_ms,
             )
 
@@ -157,8 +147,10 @@ class SkillSandboxExecutor:
             user_id: User ID
 
         Raises:
-            PermissionDeniedError: If required permissions not granted
+            ValueError: If required permissions not granted (with user-friendly message)
         """
+        error_manager = get_error_manager()
+        
         # Check each required permission
         for permission in skill.manifest.required_permissions:
             if not self.permission_manager.check_permission(
@@ -173,9 +165,20 @@ class SkillSandboxExecutor:
                 )
 
                 if not granted:
-                    raise PermissionDeniedError(
-                        f"Permission {permission.value} required but not granted"
+                    context = ErrorContext(
+                        user_id=user_id,
+                        tool_id=skill.manifest.skill_id,
+                        additional_data={
+                            "permission": permission.value,
+                            "skill_name": skill.manifest.name,
+                        }
                     )
+                    error = error_manager.create_error(
+                        error_type=ErrorType.PERMISSION_DENIED,
+                        message=f"Permission {permission.value} required but not granted",
+                        context=context,
+                    )
+                    raise ValueError(error.user_message)
 
     async def _create_sandbox(self, skill: InstalledSkill) -> SkillSandbox:
         """Create sandbox environment for skill.
@@ -233,9 +236,11 @@ class SkillSandboxExecutor:
             Execution result
 
         Raises:
-            SandboxViolationError: If sandbox constraints violated
+            ValueError: If sandbox constraints violated (with user-friendly message)
             TimeoutError: If execution exceeds time limit
         """
+        error_manager = get_error_manager()
+        
         # Get entry point command from manifest
         if entry_point not in skill.manifest.entry_points:
             raise ValueError(f"Entry point '{entry_point}' not found in manifest")
@@ -259,12 +264,35 @@ class SkillSandboxExecutor:
             # Check for sandbox violations
             if not result["success"]:
                 stderr = result.get("stderr", "")
+                context = ErrorContext(
+                    tool_id=skill.manifest.skill_id,
+                    additional_data={
+                        "entry_point": entry_point,
+                        "stderr": stderr[:500],
+                    }
+                )
+                
                 if "MemoryError" in stderr or "memory" in stderr.lower():
-                    raise SandboxViolationError("Memory limit exceeded")
+                    error = error_manager.create_error(
+                        error_type=ErrorType.RESOURCE_EXHAUSTED,
+                        message="Memory limit exceeded",
+                        context=context,
+                    )
+                    raise ValueError(error.user_message)
                 elif "timeout" in stderr.lower():
-                    raise SandboxViolationError("Execution time limit exceeded")
+                    error = error_manager.create_error(
+                        error_type=ErrorType.TIMEOUT,
+                        message="Execution time limit exceeded",
+                        context=context,
+                    )
+                    raise ValueError(error.user_message)
                 else:
-                    raise SandboxViolationError(f"Execution failed: {stderr}")
+                    error = error_manager.create_error(
+                        error_type=ErrorType.TOOL_EXECUTION_FAILED,
+                        message=f"Execution failed: {stderr}",
+                        context=context,
+                    )
+                    raise ValueError(error.user_message)
 
             # Parse result
             stdout = result.get("stdout", "")
@@ -287,16 +315,26 @@ class SkillSandboxExecutor:
             result: Result to validate
 
         Raises:
-            SandboxViolationError: If result is invalid
+            ValueError: If result is invalid (with user-friendly message)
         """
+        error_manager = get_error_manager()
+        
         # Check result structure
         if "result" not in result:
-            raise SandboxViolationError("Result missing 'result' field")
+            error = error_manager.create_error(
+                error_type=ErrorType.TOOL_EXECUTION_FAILED,
+                message="Result missing 'result' field",
+            )
+            raise ValueError(error.user_message)
 
         # Check result size (max 1MB)
         result_str = str(result["result"])
         if len(result_str) > 1024 * 1024:
-            raise SandboxViolationError("Result exceeds 1MB size limit")
+            error = error_manager.create_error(
+                error_type=ErrorType.RESOURCE_EXHAUSTED,
+                message="Result exceeds 1MB size limit",
+            )
+            raise ValueError(error.user_message)
 
     async def _cleanup_sandbox(self, skill_id: str) -> None:
         """Cleanup sandbox after execution.

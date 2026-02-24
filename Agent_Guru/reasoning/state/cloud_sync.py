@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 try:
-    import asyncpg
+    import asyncpg  # type: ignore[import-untyped]
 except ImportError:
     asyncpg = None
 

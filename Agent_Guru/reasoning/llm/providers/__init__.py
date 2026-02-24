@@ -25,8 +25,11 @@ from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider, ProviderCon
 from Agent_Guru.reasoning.llm.providers.deepseek_provider import DeepSeekProvider
 from Agent_Guru.reasoning.llm.providers.gemini_provider import GeminiProvider
 from Agent_Guru.reasoning.llm.providers.openai_provider import OpenAIProvider
+from Agent_Guru.reasoning.llm.providers.ollama_provider import OllamaProvider, OllamaProviderConfig
 
 __all__ = [
+    "OllamaProvider",
+    "OllamaProviderConfig",
     "OpenAIProvider",
     "AnthropicProvider",
     "GeminiProvider",

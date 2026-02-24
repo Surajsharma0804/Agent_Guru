@@ -446,7 +446,7 @@ class CommandParser:
                 return 0.0, {}
             
             # Extract parameters
-            parameters = {}
+            parameters: Dict[str, Any] = {}
             for param_name in param_names:
                 try:
                     value = match.group(param_name)
@@ -455,7 +455,7 @@ class CommandParser:
                         try:
                             parameters[param_name] = int(value)
                         except ValueError:
-                            parameters[param_name] = value.strip()
+                            parameters[param_name] = str(value).strip()
                 except IndexError:
                     pass
             

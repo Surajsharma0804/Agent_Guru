@@ -97,8 +97,8 @@ class Tool(BaseModel):
     @classmethod
     def validate_tool_id(cls, v: str) -> str:
         """Validate tool ID format."""
-        if not v or not v.replace("_", "").replace("-", "").isalnum():
-            raise ValueError("Tool ID must be alphanumeric with underscores or hyphens")
+        if not v or not v.replace("_", "").replace("-", "").replace(".", "").isalnum():
+            raise ValueError("Tool ID must be alphanumeric with underscores, hyphens, or dots")
         return v
     
     @field_validator("estimated_latency")
@@ -149,10 +149,7 @@ class Tool(BaseModel):
             param = next((p for p in self.parameters if p.name == name), None)
             if param is None:
                 errors.append(f"Unknown parameter: {name}")
-                continue
-            
-            # Basic type checking
-            if param.param_type == "int" and not isinstance(value, int):
+            elif param.param_type == "int" and not isinstance(value, int):
                 errors.append(f"Parameter {name} must be int, got {type(value).__name__}")
             elif param.param_type == "str" and not isinstance(value, str):
                 errors.append(f"Parameter {name} must be str, got {type(value).__name__}")

@@ -310,12 +310,14 @@ class StreamingAudioManager:
     async def _decode_audio(self, audio_bytes: bytes) -> np.ndarray:
         """Decode audio bytes to numpy array."""
         codec_handler = self._codec_handlers[self.config.codec]()
-        return codec_handler["decode"](audio_bytes)
+        result: np.ndarray = codec_handler["decode"](audio_bytes)
+        return result
     
     async def _encode_audio(self, audio_array: np.ndarray, sample_rate: int) -> bytes:
         """Encode numpy array to audio bytes."""
         codec_handler = self._codec_handlers[self.config.codec]()
-        return codec_handler["encode"](audio_array, sample_rate)
+        result: bytes = codec_handler["encode"](audio_array, sample_rate)
+        return result
     
     def _encode_pcm(self, audio_array: np.ndarray, sample_rate: int) -> bytes:
         """Encode to PCM format."""

@@ -42,10 +42,15 @@ soundfile>=0.12.0
 pyaudio>=0.2.13
 webrtcvad>=2.0.10
 noisereduce>=3.0.0
+vosk>=0.3.45  # FREE offline speech recognition for wake word detection
 
 # Speech Recognition
 openai-whisper>=20230314
 faster-whisper>=0.9.0
+
+# Text-to-Speech (FREE, LOCAL, NATURAL)
+TTS>=0.22.0  # Coqui TTS - Free, natural-sounding voices
+pyttsx3>=2.90  # Fallback TTS (robotic but works offline)
 
 # Natural Language Processing
 transformers>=4.30.0
@@ -78,6 +83,7 @@ pytest>=7.4.0
 pytest-asyncio>=0.21.0
 pytest-cov>=4.1.0
 pytest-timeout>=2.1.0
+hypothesis>=6.92.0  # Property-based testing
 
 # Code Quality
 black>=23.0.0
@@ -116,6 +122,8 @@ pywin32>=306; sys_platform == 'win32'
 pyobjc-framework-Cocoa>=9.2; sys_platform == 'darwin'
 pyobjc-framework-Quartz>=9.2; sys_platform == 'darwin'
 dbus-python>=1.3.2; sys_platform == 'linux'
+pyautogui>=0.9.54  # Mouse/keyboard control
+pynput>=1.7.6  # Keyboard/mouse input monitoring
 
 # Optional: Enhanced Features
 # Uncomment if needed:

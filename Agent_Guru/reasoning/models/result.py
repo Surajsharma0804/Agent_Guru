@@ -75,7 +75,9 @@ class ExecutionResult(BaseModel):
         Returns:
             True if execution timed out
         """
-        return not self.success and self.error and "timeout" in self.error.lower()
+        if not self.success and self.error:
+            return "timeout" in self.error.lower()
+        return False
     
     def __eq__(self, other: object) -> bool:
         """Check equality based on action ID and success status."""

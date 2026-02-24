@@ -658,4 +658,5 @@ class EmotionDetector:
         # Compute overall quality as weighted average
         quality = float(np.mean(quality_factors))
         
-        return np.clip(quality, 0.0, 1.0)
+        result: float = float(np.clip(quality, 0.0, 1.0))
+        return result

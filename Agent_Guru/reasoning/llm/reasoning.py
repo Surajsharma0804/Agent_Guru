@@ -241,7 +241,8 @@ class ReasoningPlanGenerator:
             stop_sequences=["```"],
         )
 
-        return await self.llm_provider.generate(request)
+        response = await self.llm_provider.generate(request)
+        return response  # type: ignore[no-any-return]
 
     def _parse_response(self, response_text: str) -> ReasoningPlan:
         """

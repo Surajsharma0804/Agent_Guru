@@ -305,25 +305,37 @@ class HybridLLMRouter:
         # Try primary provider
         try:
             if decision == RoutingDecision.LOCAL:
-                response = await self.local_provider.generate(request)
-                routing_latency_ms = (time.perf_counter() - start_time) * 1000
-                self.metrics.record_request(decision, routing_latency_ms, error=False)
-                return response
+                if self.local_provider is not None:
+                    response = await self.local_provider.generate(request)
+                    routing_latency_ms = (time.perf_counter() - start_time) * 1000
+                    self.metrics.record_request(decision, routing_latency_ms, error=False)
+                    return response
+                else:
+                    raise RuntimeError("Local provider not available")
 
             elif decision == RoutingDecision.CLOUD:
-                response = await self.cloud_provider.generate(request)
-                routing_latency_ms = (time.perf_counter() - start_time) * 1000
-                self.metrics.record_request(decision, routing_latency_ms, error=False)
-                return response
+                if self.cloud_provider is not None:
+                    response = await self.cloud_provider.generate(request)
+                    routing_latency_ms = (time.perf_counter() - start_time) * 1000
+                    self.metrics.record_request(decision, routing_latency_ms, error=False)
+                    return response
+                else:
+                    raise RuntimeError("Cloud provider not available")
 
             elif decision == RoutingDecision.FALLBACK:
                 # Fallback already determined by routing logic
                 if complexity.score < self.complexity_threshold:
                     # Simple task, fallback to cloud
-                    response = await self.cloud_provider.generate(request)
+                    if self.cloud_provider is not None:
+                        response = await self.cloud_provider.generate(request)
+                    else:
+                        raise RuntimeError("Cloud provider not available")
                 else:
                     # Complex task, fallback to local
-                    response = await self.local_provider.generate(request)
+                    if self.local_provider is not None:
+                        response = await self.local_provider.generate(request)
+                    else:
+                        raise RuntimeError("Local provider not available")
 
                 routing_latency_ms = (time.perf_counter() - start_time) * 1000
                 self.metrics.record_request(

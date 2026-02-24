@@ -45,7 +45,7 @@ from transformers import DebertaV2Tokenizer
 
 # Try to import ONNX Runtime with GPU support
 try:
-    import onnxruntime as ort
+    import onnxruntime as ort  # type: ignore
 
     ONNX_AVAILABLE = True
 except ImportError:

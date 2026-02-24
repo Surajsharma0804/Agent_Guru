@@ -38,7 +38,7 @@ class GeminiProvider(BaseLLMProvider):
     def __init__(
         self,
         config: Optional[ProviderConfig] = None,
-        model: str = "gemini-pro",
+        model: str = "gemini-2.5-flash",  # Gemini 2.5 Flash (250K tokens available)
     ):
         """Initialize Gemini provider.
 

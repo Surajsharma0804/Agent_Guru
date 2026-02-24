@@ -235,7 +235,6 @@ class TemplateGenerator:
 
             if error_template_key in self._templates:
                 return self._templates[error_template_key]
-            return self._templates["generic_error"]
 
     def _create_error_from_result(self, result: ExecutionResult) -> Error:
         """

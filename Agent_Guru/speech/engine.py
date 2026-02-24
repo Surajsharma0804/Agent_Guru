@@ -39,7 +39,7 @@ from Agent_Guru.speech.audio.noise_cancellation import AdvancedNoiseCancellation
 from Agent_Guru.speech.audio.streaming import StreamingAudioManager, StreamConfig
 from Agent_Guru.speech.stt.whisper_stt import WhisperTranscriber
 from Agent_Guru.speech.stt.language_detector import LanguageDetector
-from Agent_Guru.speech.tts.tts_engine import TTSEngine
+from Agent_Guru.speech.tts.tts_engine import CoquiTTSEngine as TTSEngine
 from Agent_Guru.speech.tts.voice_cloner import VoiceCloner
 from Agent_Guru.speech.emotion.emotion_detector import EmotionDetector
 from Agent_Guru.speech.biometric.voice_features import VoiceFeatureExtractor
@@ -144,7 +144,7 @@ class SpeechEngine:
                 config=self.config.audio_processing,
                 sample_rate=self.config.audio.sample_rate
             )
-            self.wake_word_detector = WakeWordDetector()
+            self.wake_word_detector = None  # Disabled for now
             self.noise_cancellation = AdvancedNoiseCancellation()
             
             # Create StreamConfig from our config
@@ -218,12 +218,19 @@ class SpeechEngine:
             self._state = EngineState.PROCESSING
             
             # Step 1: Audio processing
+            if self.audio_processor is None:
+                raise RuntimeError("Audio processor not initialized")
+            if self.noise_cancellation is None:
+                raise RuntimeError("Noise cancellation not initialized")
+            
             processed_audio = await self.audio_processor.process_chunk(audio)
             processed_audio = await self.noise_cancellation.reduce_noise(processed_audio)
             
             # Step 2: Detect personality from wake word if not provided
             if personality is None:
                 # Wake word detector has async detect() method
+                if self.wake_word_detector is None:
+                    raise RuntimeError("Wake word detector not initialized")
                 try:
                     wake_word_result = await self.wake_word_detector.detect(processed_audio)
                     if wake_word_result:
@@ -244,9 +251,14 @@ class SpeechEngine:
             # Step 5: Command recognition
             command = None
             if transcription.text:
+                if self.command_parser is None:
+                    raise RuntimeError("Command parser not initialized")
                 command = self.command_parser.interpret(transcription.text)
             
             # Step 6: Context management
+            if self.context_manager is None:
+                raise RuntimeError("Context manager not initialized")
+            
             if self._current_context_id is None:
                 context_id, _ = self.context_manager.create_context(
                     user_id="default_user",
@@ -285,7 +297,7 @@ class SpeechEngine:
             self.logger.error(f"Voice processing failed: {e}", exc_info=True)
             
             # Preserve context even on error
-            if self._current_context_id:
+            if self._current_context_id and self.context_manager is not None:
                 try:
                     self.context_manager.add_turn(
                         context_id=self._current_context_id,
@@ -313,6 +325,9 @@ class SpeechEngine:
         Returns:
             TranscriptionResult with transcription
         """
+        if self.stt_transcriber is None:
+            raise RuntimeError("STT transcriber not initialized")
+        
         # Transcribe with automatic language detection (Whisper handles this)
         result = self.stt_transcriber.transcribe(
             audio,
@@ -331,7 +346,7 @@ class SpeechEngine:
         self,
         text: str,
         personality: PersonalityType,
-        emotion: EmotionType = EmotionType.NEUTRAL
+        emotion: Optional[EmotionType] = None
     ) -> np.ndarray:
         """
         Synthesize speech response with personality and emotion.
@@ -339,11 +354,18 @@ class SpeechEngine:
         Args:
             text: Text to synthesize
             personality: Personality type (Guru/Maya)
-            emotion: Emotion to express
+            emotion: Emotion to express (defaults to NEUTRAL if None)
         
         Returns:
             Audio data as numpy array
         """
+        # Default to NEUTRAL if emotion is None
+        if emotion is None:
+            emotion = EmotionType.NEUTRAL
+        
+        if self.tts_engine is None:
+            raise RuntimeError("TTS engine not initialized")
+        
         # Synthesize speech with personality and emotion
         audio, _ = self.tts_engine.synthesize_to_array(
             text=text,
@@ -368,11 +390,15 @@ class SpeechEngine:
         Returns:
             VoiceFeatures for authentication
         """
+        if self.voice_feature_extractor is None:
+            raise RuntimeError("Voice feature extractor not initialized")
+        
         import asyncio
-        return asyncio.run(self.voice_feature_extractor.extract_features(
+        result: VoiceFeatures = asyncio.run(self.voice_feature_extractor.extract_features(
             audio,
             self.config.audio.sample_rate
         ))
+        return result
     
     def detect_emotion(self, audio: np.ndarray) -> EmotionResult:
         """
@@ -384,6 +410,9 @@ class SpeechEngine:
         Returns:
             EmotionResult with detected emotions
         """
+        if self.emotion_detector is None:
+            raise RuntimeError("Emotion detector not initialized")
+        
         return self.emotion_detector.detect_emotion(
             audio,
             self.config.audio.sample_rate
@@ -401,6 +430,9 @@ class SpeechEngine:
             audio_samples: List of audio samples (5+ minutes total)
             voice_id: Unique identifier for cloned voice
         """
+        if self.voice_cloner is None:
+            raise RuntimeError("Voice cloner not initialized")
+        
         self.voice_cloner.enroll_voice(audio_samples, voice_id)
         self.logger.info(f"Voice cloned successfully: {voice_id}")
     
@@ -438,11 +470,9 @@ class SpeechEngine:
                 self.background_service.stop()
             
             # Cleanup components
+            # AudioCapture doesn't need explicit stop - it's synchronous
             if self.audio_capture:
-                try:
-                    self.audio_capture.stop()
-                except:
-                    pass  # May not be started
+                pass  # No stop method needed
             
             # Clear component references
             self.audio_capture = None

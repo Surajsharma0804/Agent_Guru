@@ -22,22 +22,15 @@ from typing import Any
 import structlog
 from pydantic import ValidationError
 
+from Agent_Guru.reasoning.error.error_manager import (
+    ErrorContext,
+    ErrorType,
+    get_error_manager,
+)
 from Agent_Guru.reasoning.models.intent import Intent
 from Agent_Guru.reasoning.models.task import Task, TaskStatus, TaskStep, TaskType
 
 logger = structlog.get_logger(__name__)
-
-
-class TaskGenerationError(Exception):
-    """Raised when task generation fails."""
-
-    pass
-
-
-class TaskValidationError(Exception):
-    """Raised when task validation fails."""
-
-    pass
 
 
 class TaskModelGenerator:
@@ -97,6 +90,43 @@ class TaskModelGenerator:
     def __init__(self) -> None:
         """Initialize the Task Model Generator."""
         self.logger = logger.bind(component="TaskModelGenerator")
+        self.error_manager = get_error_manager()
+    
+    def _raise_generation_error(self, message: str, **context_data) -> None:
+        """Helper to raise generation error with ErrorManager.
+        
+        Args:
+            message: Error message
+            **context_data: Additional context data
+            
+        Raises:
+            ValueError: With user-friendly message
+        """
+        context = ErrorContext(additional_data=context_data)
+        error = self.error_manager.create_error(
+            error_type=ErrorType.PLAN_GENERATION_FAILED,
+            message=message,
+            context=context,
+        )
+        raise ValueError(error.user_message)
+    
+    def _raise_validation_error(self, message: str, **context_data) -> None:
+        """Helper to raise validation error with ErrorManager.
+        
+        Args:
+            message: Error message
+            **context_data: Additional context data
+            
+        Raises:
+            ValueError: With user-friendly message
+        """
+        context = ErrorContext(additional_data=context_data)
+        error = self.error_manager.create_error(
+            error_type=ErrorType.PLAN_VALIDATION_FAILED,
+            message=message,
+            context=context,
+        )
+        raise ValueError(error.user_message)
 
     def generate_task(
         self,
@@ -203,11 +233,21 @@ class TaskModelGenerator:
 
         except ValidationError as e:
             self.logger.error("task_validation_failed", error=str(e), llm_output=llm_output)
-            raise TaskValidationError(f"Task validation failed: {e}") from e
+            error_manager = get_error_manager()
+            error = error_manager.create_error(
+                error_type=ErrorType.PLAN_VALIDATION_FAILED,
+                message=f"Task validation failed: {e}",
+            )
+            raise ValueError(error.user_message) from e
 
         except Exception as e:
             self.logger.error("task_generation_failed", error=str(e), llm_output=llm_output)
-            raise TaskGenerationError(f"Failed to generate task: {e}") from e
+            error_manager = get_error_manager()
+            error = error_manager.create_error(
+                error_type=ErrorType.PLAN_GENERATION_FAILED,
+                message=f"Failed to generate task: {e}",
+            )
+            raise ValueError(error.user_message) from e
 
     def _extract_goal(self, llm_output: dict[str, Any]) -> str:
         """
@@ -225,20 +265,20 @@ class TaskModelGenerator:
         goal = llm_output.get("goal")
 
         if not goal:
-            raise TaskGenerationError("Missing required field: goal")
+            self._raise_generation_error("Missing required field: goal")
 
         if not isinstance(goal, str):
-            raise TaskGenerationError(f"Goal must be string, got {type(goal)}")
+            self._raise_generation_error(f"Goal must be string, got {type(goal)}")
 
-        goal = goal.strip()
+        goal_str = goal.strip() if goal else ""
 
-        if not goal:
-            raise TaskGenerationError("Goal cannot be empty")
+        if not goal_str:
+            self._raise_generation_error("Goal cannot be empty")
 
-        if len(goal) > 500:
-            raise TaskGenerationError(f"Goal too long: {len(goal)} chars (max 500)")
+        if len(goal_str) > 500:
+            self._raise_generation_error(f"Goal too long: {len(goal_str)} chars (max 500)")
 
-        return goal
+        return goal_str
 
     def _extract_steps(self, llm_output: dict[str, Any]) -> list[dict[str, Any]]:
         """
@@ -255,19 +295,19 @@ class TaskModelGenerator:
         """
         steps = llm_output.get("steps")
 
-        if not steps:
-            raise TaskGenerationError("Missing required field: steps")
+        if steps is None:
+            self._raise_generation_error("Missing required field: steps")
 
         if not isinstance(steps, list):
-            raise TaskGenerationError(f"Steps must be list, got {type(steps)}")
+            self._raise_generation_error(f"Steps must be list, got {type(steps)}")
 
-        if not steps:
-            raise TaskGenerationError("Steps list cannot be empty")
+        if not steps or len(steps) == 0:
+            self._raise_generation_error("Steps list cannot be empty")
 
-        if len(steps) > self.MAX_STEPS:
-            raise TaskGenerationError(f"Too many steps: {len(steps)} (max {self.MAX_STEPS})")
+        if steps and len(steps) > self.MAX_STEPS:
+            self._raise_generation_error(f"Too many steps: {len(steps)} (max {self.MAX_STEPS})")
 
-        return steps
+        return list(steps) if steps else []
 
     def _generate_steps(self, steps_data: list[dict[str, Any]]) -> list[TaskStep]:
         """
@@ -303,15 +343,15 @@ class TaskModelGenerator:
                 # Extract required fields
                 description = step_data.get("description", "").strip()
                 if not description:
-                    raise TaskGenerationError(f"Step {i}: missing description")
+                    self._raise_generation_error(f"Step {i}: missing description")
 
                 tool_id = step_data.get("tool_id", "").strip()
                 if not tool_id:
-                    raise TaskGenerationError(f"Step {i}: missing tool_id")
+                    self._raise_generation_error(f"Step {i}: missing tool_id")
 
                 parameters = step_data.get("parameters", {})
                 if not isinstance(parameters, dict):
-                    raise TaskGenerationError(
+                    self._raise_generation_error(
                         f"Step {i}: parameters must be dict, got {type(parameters)}"
                     )
 
@@ -338,9 +378,9 @@ class TaskModelGenerator:
                 steps.append(step)
 
             except ValidationError as e:
-                raise TaskGenerationError(f"Step {i} validation failed: {e}") from e
+                self._raise_generation_error(f"Step {i} validation failed: {e}")
 
-        return steps
+        return list(steps) if steps else []
 
     def _classify_task_type(self, steps: list[TaskStep], intent: Intent) -> TaskType:
         """
@@ -370,7 +410,7 @@ class TaskModelGenerator:
             return TaskType.MULTI_STEP
 
         # Should never reach here due to validation
-        raise TaskGenerationError(f"Invalid number of steps: {num_steps}")
+        self._raise_generation_error(f"Invalid number of steps: {num_steps}")
 
     def _calculate_confidence(
         self,
@@ -518,10 +558,10 @@ class TaskModelGenerator:
         num_steps = len(task.steps)
 
         if task.task_type == TaskType.SINGLE_STEP and num_steps != 1:
-            raise TaskValidationError(f"SINGLE_STEP task must have exactly 1 step, got {num_steps}")
+            self._raise_validation_error(f"SINGLE_STEP task must have exactly 1 step, got {num_steps}")
 
         if task.task_type == TaskType.MULTI_STEP and not (2 <= num_steps <= self.MAX_STEPS):
-            raise TaskValidationError(
+            self._raise_validation_error(
                 f"MULTI_STEP task must have 2-{self.MAX_STEPS} steps, got {num_steps}"
             )
 
@@ -530,7 +570,7 @@ class TaskModelGenerator:
         actual_ids = [step.step_id for step in task.steps]
 
         if actual_ids != expected_ids:
-            raise TaskValidationError(
+            self._raise_validation_error(
                 f"Step IDs must be sequential 1-{num_steps}, got {actual_ids}"
             )
 
@@ -540,7 +580,7 @@ class TaskModelGenerator:
         # Validate total duration
         calculated_duration = sum(step.estimated_duration for step in task.steps)
         if abs(task.estimated_duration - calculated_duration) > 0.1:
-            raise TaskValidationError(
+            self._raise_validation_error(
                 f"Total duration mismatch: task={task.estimated_duration}, "
                 f"calculated={calculated_duration}"
             )
@@ -574,13 +614,13 @@ class TaskModelGenerator:
             # Check all dependencies reference valid steps
             for dep_id in step.depends_on:
                 if dep_id not in step_ids:
-                    raise TaskValidationError(
+                    self._raise_validation_error(
                         f"Step {step.step_id} depends on non-existent step {dep_id}"
                     )
 
                 # Check dependencies only reference earlier steps
                 if dep_id >= step.step_id:
-                    raise TaskValidationError(
+                    self._raise_validation_error(
                         f"Step {step.step_id} cannot depend on step {dep_id} "
                         f"(must depend on earlier steps only)"
                     )
@@ -635,6 +675,6 @@ class TaskModelGenerator:
         for step in steps:
             if step.step_id not in visited:
                 if has_cycle(step.step_id):
-                    raise TaskValidationError(
+                    self._raise_validation_error(
                         f"Circular dependency detected involving step {step.step_id}"
                     )

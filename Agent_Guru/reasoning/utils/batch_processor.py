@@ -28,7 +28,7 @@ import logging
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, Optional, TypeVar
+from typing import Any, Callable, Generic, Optional, TypeVar, Awaitable
 
 logger = logging.getLogger(__name__)
 
@@ -101,17 +101,17 @@ class BatchProcessor(Generic[T, R]):
         self.max_queue_size = max_queue_size
         
         self._queue: deque[BatchItem[T, R]] = deque()
-        self._handler: Optional[Callable[[list[T]], list[R]]] = None
+        self._handler: Optional[Callable[[list[T]], Awaitable[list[R]]]] = None
         self._lock = asyncio.Lock()
         self._processing = False
-        self._task: Optional[asyncio.Task] = None
+        self._task: Optional[asyncio.Task[None]] = None
         
         # Metrics
         self._total_items = 0
         self._total_batches = 0
         self._total_time = 0.0
     
-    def set_handler(self, handler: Callable[[list[T]], list[R]]):
+    def set_handler(self, handler: Callable[[list[T]], Awaitable[list[R]]]) -> None:
         """
         Set the batch processing handler.
         
@@ -214,7 +214,10 @@ class BatchProcessor(Generic[T, R]):
             items = [item.data for item in batch]
             
             # Call handler
-            results = await self._handler(items)
+            if self._handler is not None:
+                results = await self._handler(items)
+            else:
+                raise RuntimeError("Handler not set")
             
             # Set results
             if len(results) != len(batch):
@@ -342,7 +345,7 @@ class DatabaseBatchWriter:
             # Build batch INSERT
             columns = list(rows[0].keys())
             placeholders = ', '.join(['?' * len(columns)] * len(rows))
-            values = []
+            values: list[Any] = []
             for row in rows:
                 values.extend(row[col] for col in columns)
             
@@ -394,7 +397,7 @@ if __name__ == "__main__":
         
         # Test with batching
         print("\nWith batching (batch_size=10):")
-        processor = BatchProcessor(batch_size=10, max_wait=0.1)
+        processor: BatchProcessor[int, int] = BatchProcessor(batch_size=10, max_wait=0.1)
         processor.set_handler(process_batch)
         
         start = time.perf_counter()

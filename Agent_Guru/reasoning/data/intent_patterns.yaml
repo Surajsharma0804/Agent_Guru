@@ -201,6 +201,22 @@ patterns:
     intent: "query_time"
     entities: {}
 
+  - pattern: "what's the time"
+    intent: "query_time"
+    entities: {}
+
+  - pattern: "tell me the time"
+    intent: "query_time"
+    entities: {}
+
+  - pattern: "time right now"
+    intent: "query_time"
+    entities: {}
+
+  - pattern: "current time"
+    intent: "query_time"
+    entities: {}
+
   - pattern: "what's the date"
     intent: "query_date"
     entities: {}

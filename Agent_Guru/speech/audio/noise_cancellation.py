@@ -2,7 +2,7 @@
 
 import logging
 from enum import Enum
-from typing import Optional
+from typing import Optional, Any
 
 import numpy as np
 
@@ -11,10 +11,10 @@ from ..exceptions import AudioProcessingError
 logger = logging.getLogger(__name__)
 
 # Lazy import to avoid loading torch unnecessarily
-_noisereduce = None
+_noisereduce: Optional[Any] = None
 
 
-def _get_noisereduce():
+def _get_noisereduce() -> Optional[Any]:
     """Lazy import of noisereduce to avoid torch loading issues."""
     global _noisereduce
     if _noisereduce is None:
@@ -24,6 +24,7 @@ def _get_noisereduce():
             _noisereduce = nr
         except Exception as e:
             logger.warning(f"Failed to import noisereduce: {e}")
+            # Set to False to indicate failed import (not None which means not tried yet)
             _noisereduce = False
     return _noisereduce if _noisereduce is not False else None
 
@@ -97,7 +98,7 @@ class AdvancedNoiseCancellation:
 
             # Apply noise reduction with high prop_decrease for >20dB reduction
             # Use stationary=False for adaptive noise tracking
-            reduced = nr.reduce_noise(
+            reduced: np.ndarray = nr.reduce_noise(
                 y=audio_float,
                 sr=self.sample_rate,
                 prop_decrease=prop_decrease,

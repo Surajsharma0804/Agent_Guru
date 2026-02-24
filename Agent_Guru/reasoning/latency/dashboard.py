@@ -13,7 +13,7 @@ import time
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Deque, Dict, List, Optional
+from typing import Deque, Dict, List, Optional, Any
 
 from Agent_Guru.reasoning.latency.tracker import (
     PipelineStage,
@@ -163,7 +163,7 @@ class LatencyDashboard:
 
         return [(s.timestamp, s.degraded_rate) for s in snapshots]
 
-    def get_budget_comparison(self) -> Dict[str, Dict[str, any]]:
+    def get_budget_comparison(self) -> Dict[str, Dict[str, Any]]:
         """Get comparison of current latency vs budget targets.
 
         Returns:
@@ -205,7 +205,7 @@ class LatencyDashboard:
 
         return comparison
 
-    def get_stage_summary(self, stage: PipelineStage) -> Dict[str, any]:
+    def get_stage_summary(self, stage: PipelineStage) -> Dict[str, Any]:
         """Get comprehensive summary for a stage.
 
         Args:
@@ -262,7 +262,7 @@ class LatencyDashboard:
             },
         }
 
-    def get_overall_summary(self) -> Dict[str, any]:
+    def get_overall_summary(self) -> Dict[str, Any]:
         """Get overall system latency summary.
 
         Returns:
@@ -328,33 +328,39 @@ class LatencyDashboard:
         summary = self.get_overall_summary()
         budget_comparison = self.get_budget_comparison()
 
+        # Type assertions for mypy
+        overall_metrics = summary.get('overall_metrics', {})
+        average_latency = summary.get('average_latency', {})
+        budget_compliance = summary.get('budget_compliance', {})
+        degraded_stages = summary.get('degraded_stages', [])
+
         lines = [
             "=" * 80,
             "LATENCY OPTIMIZATION DASHBOARD",
             "=" * 80,
             "",
-            f"Timestamp: {summary['timestamp']}",
+            f"Timestamp: {summary.get('timestamp', '')}",
             "",
             "OVERALL METRICS:",
-            f"  Total Requests: {summary['overall_metrics']['total_requests']}",
-            f"  Timeout Rate: {summary['overall_metrics']['timeout_rate'] * 100:.2f}%",
-            f"  Degraded Rate: {summary['overall_metrics']['degraded_rate'] * 100:.2f}%",
+            f"  Total Requests: {overall_metrics.get('total_requests', 0)}",
+            f"  Timeout Rate: {overall_metrics.get('timeout_rate', 0) * 100:.2f}%",
+            f"  Degraded Rate: {overall_metrics.get('degraded_rate', 0) * 100:.2f}%",
             "",
             "AVERAGE LATENCY:",
-            f"  P50: {summary['average_latency']['p50']:.1f}ms",
-            f"  P95: {summary['average_latency']['p95']:.1f}ms",
-            f"  P99: {summary['average_latency']['p99']:.1f}ms",
+            f"  P50: {average_latency.get('p50', 0):.1f}ms",
+            f"  P95: {average_latency.get('p95', 0):.1f}ms",
+            f"  P99: {average_latency.get('p99', 0):.1f}ms",
             "",
             "BUDGET COMPLIANCE:",
-            f"  Stages Meeting Target: {summary['budget_compliance']['stages_meeting_target']}/{summary['budget_compliance']['total_stages']}",
-            f"  Stages Meeting Maximum: {summary['budget_compliance']['stages_meeting_maximum']}/{summary['budget_compliance']['total_stages']}",
-            f"  Target Compliance Rate: {summary['budget_compliance']['target_compliance_rate'] * 100:.1f}%",
+            f"  Stages Meeting Target: {budget_compliance.get('stages_meeting_target', 0)}/{budget_compliance.get('total_stages', 0)}",
+            f"  Stages Meeting Maximum: {budget_compliance.get('stages_meeting_maximum', 0)}/{budget_compliance.get('total_stages', 0)}",
+            f"  Target Compliance Rate: {budget_compliance.get('target_compliance_rate', 0) * 100:.1f}%",
             "",
         ]
 
-        if summary['degraded_stages']:
+        if degraded_stages:
             lines.append("DEGRADED STAGES:")
-            for stage in summary['degraded_stages']:
+            for stage in degraded_stages:
                 lines.append(f"  - {stage}")
             lines.append("")
 
@@ -362,13 +368,18 @@ class LatencyDashboard:
         lines.append("")
 
         for stage_name, comparison in budget_comparison.items():
-            status_icon = "✓" if comparison['status']['meets_target'] else "✗"
+            comp_status = comparison.get('status', {})
+            comp_current = comparison.get('current', {})
+            comp_budget = comparison.get('budget', {})
+            comp_performance = comparison.get('performance', {})
+            
+            status_icon = "✓" if comp_status.get('meets_target', False) else "✗"
             lines.extend([
                 f"{status_icon} {stage_name.upper()}:",
-                f"  Current P95: {comparison['current']['p95']:.1f}ms",
-                f"  Target: {comparison['budget']['target']:.1f}ms",
-                f"  Maximum: {comparison['budget']['maximum']:.1f}ms",
-                f"  Performance: {comparison['performance']['vs_target_percent']:.1f}% of target",
+                f"  Current P95: {comp_current.get('p95', 0):.1f}ms",
+                f"  Target: {comp_budget.get('target', 0):.1f}ms",
+                f"  Maximum: {comp_budget.get('maximum', 0):.1f}ms",
+                f"  Performance: {comp_performance.get('vs_target_percent', 0):.1f}% of target",
                 "",
             ])
 

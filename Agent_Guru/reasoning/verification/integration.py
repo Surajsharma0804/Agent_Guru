@@ -261,7 +261,7 @@ class VerificationMetrics:
 
         sorted_latencies = sorted(self.recent_latencies)
         p95_index = int(len(sorted_latencies) * 0.95)
-        return sorted_latencies[p95_index]
+        return float(sorted_latencies[p95_index])
 
     def get_stats(self) -> dict[str, Any]:
         """Get verification statistics.
@@ -482,7 +482,7 @@ class VerificationIntegration:
                 "verification_circuit_breaker_open",
                 user_id=user_id,
                 conversation_id=conversation_id,
-                task_id=task.task_id,
+                task_goal=task.goal,
             )
             return False, None, "Verification service temporarily unavailable"
 
@@ -496,7 +496,7 @@ class VerificationIntegration:
                     result = cached_result
                     cache_hit = True
                     logger.debug(
-                        "verification_cache_hit", cache_key=cache_key, task_id=current_task.task_id
+                        "verification_cache_hit", cache_key=cache_key, task_goal=current_task.goal
                     )
                 else:
                     # Verify the task
@@ -532,7 +532,7 @@ class VerificationIntegration:
                 # Log verification decision
                 logger.info(
                     "verification_complete",
-                    task_id=current_task.task_id,
+                    task_goal=current_task.goal,
                     attempt=attempt,
                     is_valid=result.is_valid,
                     confidence=result.confidence,
@@ -552,7 +552,7 @@ class VerificationIntegration:
                         question = self._generate_clarification_question(result)
                         logger.info(
                             "verification_requesting_clarification",
-                            task_id=current_task.task_id,
+                            task_goal=current_task.goal,
                             question=question,
                         )
 
@@ -563,7 +563,7 @@ class VerificationIntegration:
                             feedback = f"User clarification: {user_response}"
                             logger.info(
                                 "verification_replanning_with_clarification",
-                                task_id=current_task.task_id,
+                                task_goal=current_task.goal,
                                 feedback=feedback,
                             )
                             current_task = await replan_callback(current_task, feedback)
@@ -577,7 +577,7 @@ class VerificationIntegration:
                     # No callback or no response - abort
                     logger.warning(
                         "verification_clarification_failed",
-                        task_id=current_task.task_id,
+                        task_goal=current_task.goal,
                         reason="no_callback_or_response",
                     )
                     return False, None, "Clarification needed but not provided"
@@ -588,7 +588,7 @@ class VerificationIntegration:
                         feedback = self._generate_replan_feedback(result)
                         logger.info(
                             "verification_replanning",
-                            task_id=current_task.task_id,
+                            task_goal=current_task.goal,
                             attempt=attempt,
                             feedback=feedback,
                         )
@@ -603,7 +603,7 @@ class VerificationIntegration:
                         # Max attempts reached or no callback
                         logger.warning(
                             "verification_max_attempts_reached",
-                            task_id=current_task.task_id,
+                            task_goal=current_task.goal,
                             attempt=attempt,
                             max_attempts=self.max_replan_attempts,
                         )
@@ -616,7 +616,7 @@ class VerificationIntegration:
                 elif result.recommendation == VerificationAction.ABORT:
                     error_msg = self._generate_abort_message(result)
                     logger.warning(
-                        "verification_aborted", task_id=current_task.task_id, error=error_msg
+                        "verification_aborted", task_goal=current_task.goal, error=error_msg
                     )
                     return False, None, error_msg
 
@@ -627,7 +627,7 @@ class VerificationIntegration:
 
                 logger.error(
                     "verification_error",
-                    task_id=current_task.task_id,
+                    task_goal=current_task.goal,
                     attempt=attempt,
                     error=str(e),
                     exc_info=True,
@@ -643,7 +643,7 @@ class VerificationIntegration:
                     return False, None, f"Verification failed: {str(e)}"
 
         # Should not reach here
-        logger.error("verification_unexpected_exit", task_id=current_task.task_id, attempt=attempt)
+        logger.error("verification_unexpected_exit", task_goal=current_task.goal, attempt=attempt)
         return False, None, "Verification failed unexpectedly"
 
     def _generate_cache_key(self, task: Task, original_input: str) -> str:

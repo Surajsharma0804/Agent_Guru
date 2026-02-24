@@ -21,6 +21,41 @@ from Agent_Guru.reasoning.input.normalizer import (
 from Agent_Guru.reasoning.models.intent import Intent, IntentType
 
 
+@pytest.fixture(scope="function")
+async def register_example_tools():
+    """Register example tools for testing."""
+    from Agent_Guru.reasoning.tools.registry import get_registry
+    from Agent_Guru.reasoning.tools.examples import (
+        SetTimerTool,
+        CancelTimerTool,
+        WeatherTool,
+        MessagingTool,
+        MusicTool,
+        CalendarTool,
+    )
+    
+    registry = get_registry()
+    
+    # Instantiate and register tools
+    tools = [
+        SetTimerTool(),
+        CancelTimerTool(),
+        WeatherTool(),
+        MessagingTool(),
+        MusicTool(),
+        CalendarTool(),
+    ]
+    
+    for tool in tools:
+        await tool.ensure_registered()
+    
+    yield registry
+    
+    # Cleanup: unregister tools after test
+    for tool in tools:
+        await registry.unregister(tool.metadata.tool_id)
+
+
 class TestReasoningEngine:
     """Unit tests for ReasoningEngine."""
     
@@ -58,7 +93,7 @@ class TestReasoningEngine:
         assert engine.enable_tracing is False
     
     @pytest.mark.asyncio
-    async def test_process_basic(self):
+    async def test_process_basic(self, register_example_tools):
         """Test basic request processing."""
         engine = ReasoningEngine()
         
@@ -185,27 +220,49 @@ class TestReasoningEngine:
     @pytest.mark.asyncio
     async def test_process_fast_path(self):
         """Test fast-path processing."""
-        from Agent_Guru.reasoning.tools.models import ToolMetadata, ToolSelection
-        from Agent_Guru.reasoning.tools.selector import ToolSelector
+        from Agent_Guru.reasoning.tools.base import ToolMetadata
+        from Agent_Guru.reasoning.tools.selector import ToolSelector, SelectedTool
         from Agent_Guru.reasoning.tools.registry import ToolRegistry
+        from Agent_Guru.reasoning.execution.executor import ExecutionResult
+        from Agent_Guru.reasoning.tools.base import ToolMetadata, ToolSensitivity
         
-        # Create mock tool
+        # Create mock tool with proper metadata
         mock_tool = Mock()
         mock_tool.metadata = ToolMetadata(
             tool_id="timer.set",
             name="Set Timer",
             description="Set a timer",
-            category="timer",
             parameters=[],
-            latency_ms=100.0
+            sensitivity=ToolSensitivity.SAFE,
+            estimated_latency_ms=100
         )
+        mock_tool.tool_id = "timer.set"
+        mock_tool.name = "Set Timer"
+        mock_tool.description = "Set a timer"
+        mock_tool.category = "timer"
+        mock_tool.parameters = []
+        mock_tool.requires_permission = False
+        mock_tool.permission_scope = None
+        
+        # Mock execute method to return proper ExecutionResult
+        async def mock_execute(**kwargs):
+            return ExecutionResult(
+                success=True,
+                result_data={"message": "Timer set for 5 minutes"},
+                execution_time=0.1,
+                action_id="test_action",
+                retries=0
+            )
+        mock_tool.execute = mock_execute
         
         # Create mock tool selector that returns a tool
         mock_selector = Mock(spec=ToolSelector)
-        mock_selector.select_tool = AsyncMock(return_value=ToolSelection(
+        mock_selector.select_tool = AsyncMock(return_value=SelectedTool(
             tool=mock_tool,
             confidence=0.95,
-            parameters={"duration": "5 minutes"}
+            parameters={"duration": "5 minutes"},
+            tier=1,
+            selection_time_ms=10
         ))
         
         # Create engine with mocked selector
@@ -237,7 +294,7 @@ class TestReasoningEngine:
         assert "response_generation" in result.stage_latencies
     
     @pytest.mark.asyncio
-    async def test_process_full_pipeline(self):
+    async def test_process_full_pipeline(self, register_example_tools):
         """Test full pipeline processing."""
         engine = ReasoningEngine()
         
@@ -389,7 +446,7 @@ class TestReasoningEngineIntegration:
     """Integration tests for ReasoningEngine."""
     
     @pytest.mark.asyncio
-    async def test_end_to_end_fast_path(self):
+    async def test_end_to_end_fast_path(self, register_example_tools):
         """Test complete fast-path flow."""
         engine = ReasoningEngine()
         
@@ -436,7 +493,7 @@ class TestReasoningEngineIntegration:
         assert stats["failed_requests"] == 1
     
     @pytest.mark.asyncio
-    async def test_concurrent_requests(self):
+    async def test_concurrent_requests(self, register_example_tools):
         """Test handling concurrent requests."""
         engine = ReasoningEngine()
         

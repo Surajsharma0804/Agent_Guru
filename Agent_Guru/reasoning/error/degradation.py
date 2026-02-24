@@ -8,11 +8,12 @@ Provides intelligent degradation when services fail:
 - User notification of degraded functionality
 """
 
-import structlog
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Set
+
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -52,9 +53,20 @@ class DegradationConfig:
     """Configuration for degradation behavior."""
 
     # Features available at each level
-    normal_features: Set[FeatureCategory] = None
-    degraded_features: Set[FeatureCategory] = None
-    minimal_features: Set[FeatureCategory] = None
+    normal_features: Set[FeatureCategory] = field(default_factory=lambda: set(FeatureCategory))
+    degraded_features: Set[FeatureCategory] = field(default_factory=lambda: {
+        FeatureCategory.BASIC_INTENT_DETECTION,
+        FeatureCategory.SIMPLE_COMMANDS,
+        FeatureCategory.ERROR_RESPONSES,
+        FeatureCategory.NEURAL_INTENT_DETECTION,
+        FeatureCategory.TOOL_EXECUTION,
+        FeatureCategory.CONVERSATION_CONTEXT,
+    })
+    minimal_features: Set[FeatureCategory] = field(default_factory=lambda: {
+        FeatureCategory.BASIC_INTENT_DETECTION,
+        FeatureCategory.SIMPLE_COMMANDS,
+        FeatureCategory.ERROR_RESPONSES,
+    })
 
     # Thresholds for automatic degradation
     error_rate_threshold: float = 0.10  # 10% error rate
@@ -64,31 +76,6 @@ class DegradationConfig:
     # Recovery thresholds
     recovery_success_threshold: int = 5  # 5 consecutive successes
     recovery_check_interval: int = 60  # seconds
-
-    def __post_init__(self):
-        """Initialize feature sets if not provided."""
-        if self.normal_features is None:
-            # All features available in normal mode
-            self.normal_features = set(FeatureCategory)
-
-        if self.degraded_features is None:
-            # Disable advanced features in degraded mode
-            self.degraded_features = {
-                FeatureCategory.BASIC_INTENT_DETECTION,
-                FeatureCategory.SIMPLE_COMMANDS,
-                FeatureCategory.ERROR_RESPONSES,
-                FeatureCategory.NEURAL_INTENT_DETECTION,
-                FeatureCategory.TOOL_EXECUTION,
-                FeatureCategory.CONVERSATION_CONTEXT,
-            }
-
-        if self.minimal_features is None:
-            # Only essential features in minimal mode
-            self.minimal_features = {
-                FeatureCategory.BASIC_INTENT_DETECTION,
-                FeatureCategory.SIMPLE_COMMANDS,
-                FeatureCategory.ERROR_RESPONSES,
-            }
 
 
 class DegradationManager:

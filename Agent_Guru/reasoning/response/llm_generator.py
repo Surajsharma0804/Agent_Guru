@@ -325,7 +325,6 @@ Response:"""
             # Create LLM request
             llm_request = LLMRequest(
                 prompt=prompt,
-                system_prompt=self.SYSTEM_PROMPT,
                 max_tokens=200,  # Concise responses
                 temperature=0.7,  # Balanced creativity
                 stream=True,  # Enable streaming
@@ -394,7 +393,6 @@ Response:"""
         # Create LLM request
         llm_request = LLMRequest(
             prompt=prompt,
-            system_prompt=self.SYSTEM_PROMPT,
             max_tokens=200,  # Concise responses
             temperature=0.7,  # Balanced creativity
             stream=False,
@@ -419,8 +417,6 @@ Response:"""
                 "generation_method": "llm",
                 "llm_provider": llm_response.provider.value if llm_response.provider else "unknown",
                 "llm_latency_ms": llm_response.latency_ms,
-                "prompt_tokens": llm_response.prompt_tokens,
-                "completion_tokens": llm_response.completion_tokens,
             },
             suggestions=self._generate_suggestions(
                 intent, result, conversation_state, user_preferences

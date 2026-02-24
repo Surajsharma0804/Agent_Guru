@@ -232,29 +232,18 @@ class ParallelExecutor:
         if fail_fast:
             # Use return_exceptions=False to raise on first exception
             try:
-                results = await asyncio.gather(*tasks, return_exceptions=False)
+                results_raw = await asyncio.gather(*tasks, return_exceptions=False)
+                results = list(results_raw)
             except Exception:
                 # Cancel remaining tasks
-                for task in tasks:
-                    if not task.done():
-                        task.cancel()
+                for task_obj in tasks:
+                    task_obj.cancel()
                 # Collect results from completed tasks
                 results = []
-                for task in tasks:
-                    if task.done() and not task.cancelled():
-                        try:
-                            results.append(task.result())
-                        except Exception as e:
-                            results.append(
-                                ExecutionResult(
-                                    success=False,
-                                    error={
-                                        "error_code": type(e).__name__,
-                                        "message": str(e),
-                                    },
-                                )
-                            )
-                    else:
+                for task_obj in tasks:
+                    try:
+                        results.append(await task_obj)
+                    except asyncio.CancelledError:
                         results.append(
                             ExecutionResult(
                                 success=False,
@@ -264,23 +253,36 @@ class ParallelExecutor:
                                 },
                             )
                         )
+                    except Exception as e:
+                        results.append(
+                            ExecutionResult(
+                                success=False,
+                                error={
+                                    "error_code": type(e).__name__,
+                                    "message": str(e),
+                                },
+                            )
+                        )
         else:
             # Use return_exceptions=True to collect all results
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            results_raw = await asyncio.gather(*tasks, return_exceptions=True)
 
             # Convert exceptions to ExecutionResult
-            for i, result in enumerate(results):
+            results: list[ExecutionResult] = []
+            for result in results_raw:
                 if isinstance(result, Exception):
-                    results[i] = ExecutionResult(
+                    converted_results.append(ExecutionResult(
                         success=False,
                         error={
                             "error_code": type(result).__name__,
                             "message": str(result),
                         },
-                    )
+                    ))
+                else:
+                    results.append(result)
 
         # Map results to step IDs
-        return dict(zip(step_ids, results))
+        return dict(zip(step_ids, converted_results if "converted_results" in locals() else results))
 
     async def _execute_step_async(self, step: StepExecution) -> ExecutionResult:
         """Execute a single step asynchronously.

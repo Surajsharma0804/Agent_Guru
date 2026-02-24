@@ -26,26 +26,40 @@ from Agent_Guru.reasoning.config.metrics import (
     PARSING_RETRY_COUNTER,
     PARSING_SUCCESS_COUNTER,
 )
+from Agent_Guru.reasoning.error.error_manager import (
+    ErrorContext,
+    ErrorType,
+    get_error_manager,
+)
 from Agent_Guru.reasoning.models.task import Task, TaskType
 
 logger = get_logger(__name__)
 
 
-class OutputParsingError(Exception):
-    """Exception raised when LLM output parsing fails."""
-
-    def __init__(self, message: str, raw_output: Optional[str] = None, retry_count: int = 0):
-        """
-        Initialize parsing error.
-
-        Args:
-            message: Error message
-            raw_output: Raw LLM output that failed to parse
-            retry_count: Number of retries attempted
-        """
-        super().__init__(message)
-        self.raw_output = raw_output
-        self.retry_count = retry_count
+# Use centralized error management instead of custom exception
+def create_parsing_error(message: str, raw_output: Optional[str] = None, retry_count: int = 0):
+    """Create structured parsing error using ErrorManager.
+    
+    Args:
+        message: Error message
+        raw_output: Raw LLM output that failed to parse
+        retry_count: Number of retries attempted
+        
+    Returns:
+        StructuredError from ErrorManager
+    """
+    error_manager = get_error_manager()
+    context = ErrorContext(
+        additional_data={
+            "raw_output": raw_output[:500] if raw_output else None,
+            "retry_count": retry_count,
+        }
+    )
+    return error_manager.create_error(
+        error_type=ErrorType.LLM_INVALID_RESPONSE,
+        message=message,
+        context=context,
+    )
 
 
 class TaskOutputParser:
@@ -149,7 +163,9 @@ class TaskOutputParser:
                 },
             )
 
-            raise OutputParsingError(error_msg, raw_output=llm_output, retry_count=retry_count)
+            # Use centralized error management
+            structured_error = create_parsing_error(error_msg, raw_output=llm_output, retry_count=retry_count)
+            raise ValueError(structured_error.user_message) from e
 
     def parse_with_retry(self, llm_output_generator, initial_prompt: str) -> tuple[Task, float]:
         """
@@ -168,7 +184,7 @@ class TaskOutputParser:
             Tuple of (Task object, confidence score)
 
         Raises:
-            OutputParsingError: If parsing fails after all retries
+            ValueError: If parsing fails after all retries (with user-friendly message)
 
         Example:
             >>> def generate_output(prompt, retry_count):
@@ -176,14 +192,14 @@ class TaskOutputParser:
             >>> parser = TaskOutputParser(max_retries=3)
             >>> task, confidence = parser.parse_with_retry(generate_output, prompt)
         """
-        last_error = None
+        last_error: Optional[ValueError] = None
 
         for retry_count in range(self.max_retries + 1):
             try:
                 # Generate LLM output
                 if retry_count == 0:
                     prompt = initial_prompt
-                else:
+                elif last_error is not None:
                     # Add error correction to prompt
                     prompt = self._create_retry_prompt(initial_prompt, last_error)
                     PARSING_RETRY_COUNTER.inc()
@@ -197,7 +213,7 @@ class TaskOutputParser:
                 # Try to parse
                 return self.parse(llm_output, retry_count)
 
-            except OutputParsingError as e:
+            except ValueError as e:
                 last_error = e
 
                 if retry_count < self.max_retries:
@@ -212,7 +228,7 @@ class TaskOutputParser:
                     raise
 
         # Should never reach here, but just in case
-        raise last_error or OutputParsingError("Unknown parsing error")
+        raise last_error or ValueError("Unknown parsing error")
 
     def _extract_json(self, llm_output: str) -> str:
         """
@@ -410,7 +426,7 @@ class TaskOutputParser:
 
         return max(0.0, score)
 
-    def _create_retry_prompt(self, original_prompt: str, error: OutputParsingError) -> str:
+    def _create_retry_prompt(self, original_prompt: str, error: Exception) -> str:
         """
         Create retry prompt with error correction guidance.
 
@@ -549,7 +565,7 @@ def parse_task_from_llm(llm_output: str, max_retries: int = 3) -> tuple[Task, fl
         Tuple of (Task object, confidence score)
 
     Raises:
-        OutputParsingError: If parsing fails
+        ValueError: If parsing fails (with user-friendly message from ErrorManager)
 
     Example:
         >>> llm_output = '{"goal": "Set timer", ...}'

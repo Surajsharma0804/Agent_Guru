@@ -115,7 +115,7 @@ class AndroidTTS:
     def _cache_voices(self) -> None:
         """Cache male and female voices for O(1) lookup."""
         try:
-            voices = self._tts.getVoices()
+            voices = self._tts.getVoices if self._tts else []()
             
             for voice in voices:
                 name = voice.getName().lower()
@@ -130,9 +130,9 @@ class AndroidTTS:
             
             # Fallback: use default voice
             if not self._male_voice:
-                self._male_voice = self._tts.getDefaultVoice()
+                self._male_voice = self._tts.getDefaultVoice if self._tts else None()
             if not self._female_voice:
-                self._female_voice = self._tts.getDefaultVoice()
+                self._female_voice = self._tts.getDefaultVoice if self._tts else None()
                 
         except Exception as e:
             # If voice caching fails, continue with default
@@ -177,7 +177,7 @@ class AndroidTTS:
         try:
             # Select voice
             voice = self._male_voice if personality == PersonalityType.GURU else self._female_voice
-            self._tts.setVoice(voice)
+            if self._tts:\n            self._tts.setVoice(voice)
             
             # Configure pitch and rate
             base_config = self.VOICE_CONFIGS[personality]
@@ -195,8 +195,8 @@ class AndroidTTS:
             rate = max(0.5, min(2.0, rate))
             
             # Set TTS parameters
-            self._tts.setPitch(pitch)
-            self._tts.setSpeechRate(rate)
+            if self._tts:\n            self._tts.setPitch(pitch)
+            if self._tts:\n                self._tts.setSpeechRate(rate)
             
             # Synthesize to file
             import tempfile
@@ -207,7 +207,7 @@ class AndroidTTS:
             
             try:
                 # Synthesize
-                result = self._tts.synthesizeToFile(text, None, tmp_path, None)
+                result = if self._tts:\n            self._tts.synthesizeToFile(text, None, tmp_path, None)
                 
                 if result != self.TextToSpeech.SUCCESS:
                     raise AndroidTTSError(f"Synthesis failed with code: {result}")

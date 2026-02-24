@@ -334,7 +334,7 @@ class ConversationState(BaseModel):
     
     class Config:
         """Pydantic configuration."""
-        json_schema_extra = {
+        json_schema_extra: dict[str, Any] = {
             "example": {
                 "conversation_id": "conv_123",
                 "user_id": "user_456",

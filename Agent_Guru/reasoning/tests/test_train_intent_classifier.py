@@ -27,7 +27,7 @@ import torch
 import torch.nn as nn
 import yaml
 
-from Agent_Guru.reasoning.train_intent_classifier import (
+from Agent_Guru.reasoning.scripts.train_intent_classifier import (
     DataAugmenter,
     FocalLoss,
     IntentClassifierModule,
@@ -692,8 +692,8 @@ class TestIntentClassifierModule:
         """Create test id_to_intent mapping."""
         return {0: "set_timer", 1: "play_music", 2: "send_message"}
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Config")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2ForSequenceClassification")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
     def test_module_init(self, mock_model_class, mock_config_class, config, id_to_intent):
         """Test IntentClassifierModule initialization."""
         # Mock the config
@@ -716,8 +716,8 @@ class TestIntentClassifierModule:
         assert module.id_to_intent == id_to_intent
         assert module.class_weights is None
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Config")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2ForSequenceClassification")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
     def test_forward_pass(self, mock_model_class, mock_config_class, config, id_to_intent):
         """Test forward pass through module."""
         # Mock the config
@@ -773,8 +773,8 @@ class TestIntentClassifierModuleAdvanced:
         """Create test id_to_intent mapping."""
         return {0: "set_timer", 1: "play_music", 2: "send_message"}
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Config")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2ForSequenceClassification")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
     def test_training_step_with_rdrop(
         self, mock_model_class, mock_config_class, config, id_to_intent
     ):
@@ -831,8 +831,8 @@ class TestIntentClassifierModuleAdvanced:
         assert loss is not None
         assert isinstance(loss, torch.Tensor)
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Config")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2ForSequenceClassification")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
     def test_training_step_without_rdrop(self, mock_model_class, mock_config_class, id_to_intent):
         """Test training_step without R-Drop."""
         config = TrainingConfig(use_rdrop=False, use_adversarial_training=False)
@@ -867,8 +867,8 @@ class TestIntentClassifierModuleAdvanced:
 
         assert loss is not None
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Config")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2ForSequenceClassification")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
     def test_validation_step(self, mock_model_class, mock_config_class, id_to_intent):
         """Test validation_step."""
         config = TrainingConfig()
@@ -905,8 +905,8 @@ class TestIntentClassifierModuleAdvanced:
         assert "preds" in result
         assert "labels" in result
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Config")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2ForSequenceClassification")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
     def test_on_validation_epoch_end(self, mock_model_class, mock_config_class, id_to_intent):
         """Test on_validation_epoch_end."""
         config = TrainingConfig()
@@ -946,8 +946,8 @@ class TestIntentClassifierModuleAdvanced:
         # Should clear outputs
         assert len(module.validation_step_outputs) == 0
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Config")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2ForSequenceClassification")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
     def test_test_step(self, mock_model_class, mock_config_class, id_to_intent):
         """Test test_step."""
         config = TrainingConfig()
@@ -982,8 +982,8 @@ class TestIntentClassifierModuleAdvanced:
         assert "preds" in result
         assert "labels" in result
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Config")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2ForSequenceClassification")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
     @patch("builtins.open", new_callable=MagicMock)
     @patch("pathlib.Path.mkdir")
     def test_on_test_epoch_end(
@@ -1025,8 +1025,8 @@ class TestIntentClassifierModuleAdvanced:
         # Should clear outputs
         assert len(module.test_step_outputs) == 0
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Config")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2ForSequenceClassification")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
     def test_configure_optimizers(self, mock_model_class, mock_config_class, id_to_intent):
         """Test configure_optimizers."""
         config = TrainingConfig()
@@ -1066,7 +1066,7 @@ class TestIntentClassifierModuleAdvanced:
 class TestDataAugmenterEdgeCases:
     """Test DataAugmenter edge cases for 100% coverage."""
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DataAugmenter._nltk_initialized", True)
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DataAugmenter._nltk_initialized", True)
     def test_augmenter_nltk_already_initialized(self):
         """Test that NLTK is not re-downloaded if already initialized."""
         # This should not trigger downloads
@@ -1140,7 +1140,7 @@ class TestIntentDatasetWithAugmentation:
         """Create intent mapping."""
         return {"set_timer": 0, "play_music": 1}
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DataAugmenter")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DataAugmenter")
     def test_dataset_with_augmentation(
         self,
         mock_augmenter_class,
@@ -1227,13 +1227,13 @@ class TestTrainIntentClassifierFunction:
 
         shutil.rmtree(temp_dir)
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.torch.cuda.is_available")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.pl.seed_everything")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Tokenizer")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.IntentDataset")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DataLoader")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.IntentClassifierModule")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.pl.Trainer")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.torch.cuda.is_available")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.pl.seed_everything")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Tokenizer")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.IntentDataset")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DataLoader")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.IntentClassifierModule")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.pl.Trainer")
     @patch("builtins.input")
     def test_train_intent_classifier_no_gpu_user_exits(
         self,
@@ -1259,23 +1259,23 @@ class TestTrainIntentClassifierFunction:
         # Trainer should not be called
         mock_trainer_class.assert_not_called()
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.torch.cuda.is_available")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.torch.cuda.get_device_name")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.torch.cuda.get_device_properties")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.torch.version")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.pl.seed_everything")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Tokenizer")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.IntentDataset")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DataLoader")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.torch.cuda.is_available")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.torch.cuda.get_device_name")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.torch.cuda.get_device_properties")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.torch.version")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.pl.seed_everything")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Tokenizer")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.IntentDataset")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DataLoader")
     @pytest.mark.slow
     @pytest.mark.skip(reason="GPU training test can freeze system - run manually only")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.IntentClassifierModule")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.ModelCheckpoint")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.EarlyStopping")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.LearningRateMonitor")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.StochasticWeightAveraging")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.TensorBoardLogger")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.pl.Trainer")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.IntentClassifierModule")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.ModelCheckpoint")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.EarlyStopping")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.LearningRateMonitor")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.StochasticWeightAveraging")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.TensorBoardLogger")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.pl.Trainer")
     @patch("builtins.open", new_callable=MagicMock)
     @patch("pathlib.Path.mkdir")
     def test_train_intent_classifier_with_gpu(
@@ -1375,13 +1375,13 @@ class TestTrainIntentClassifierFunction:
         mock_model.model.save_pretrained.assert_called_once()
         mock_tokenizer.save_pretrained.assert_called_once()
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.torch.cuda.is_available")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.pl.seed_everything")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Tokenizer")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.IntentDataset")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DataLoader")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.IntentClassifierModule")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.pl.Trainer")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.torch.cuda.is_available")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.pl.seed_everything")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Tokenizer")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.IntentDataset")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DataLoader")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.IntentClassifierModule")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.pl.Trainer")
     @patch("builtins.input")
     def test_train_intent_classifier_no_gpu_user_continues(
         self,
@@ -1464,8 +1464,8 @@ class TestIntentClassifierModuleAdversarialTraining:
         """Create test id_to_intent mapping."""
         return {0: "set_timer", 1: "play_music", 2: "send_message"}
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Config")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2ForSequenceClassification")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
     def test_adversarial_perturbation(
         self, mock_model_class, mock_config_class, config, id_to_intent
     ):
@@ -1524,9 +1524,9 @@ class TestIntentClassifierModuleAdversarialTraining:
 class TestDataAugmenterNLTKInitialization:
     """Test DataAugmenter NLTK initialization edge cases."""
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DataAugmenter._nltk_initialized", False)
-    @patch("Agent_Guru.reasoning.train_intent_classifier.nltk.data.find")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.nltk.download")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DataAugmenter._nltk_initialized", False)
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.nltk.data.find")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.nltk.download")
     def test_nltk_initialization_downloads_missing_data(self, mock_download, mock_find):
         """Test that NLTK data is downloaded when missing."""
         # Simulate missing data
@@ -1539,8 +1539,8 @@ class TestDataAugmenterNLTKInitialization:
         # Verify downloads were attempted
         assert mock_download.call_count >= 3  # averaged_perceptron_tagger, wordnet, omw-1.4
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DataAugmenter._nltk_initialized", False)
-    @patch("Agent_Guru.reasoning.train_intent_classifier.nltk.data.find")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DataAugmenter._nltk_initialized", False)
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.nltk.data.find")
     def test_nltk_initialization_skips_existing_data(self, mock_find):
         """Test that NLTK data is not re-downloaded if it exists."""
         # Simulate existing data
@@ -1569,8 +1569,8 @@ class TestIntentClassifierModuleValidationAndTest:
         """Create test id_to_intent mapping."""
         return {0: "set_timer", 1: "play_music", 2: "send_message"}
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Config")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2ForSequenceClassification")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
     def test_validation_step_appends_outputs(
         self, mock_model_class, mock_config_class, config, id_to_intent
     ):
@@ -1610,8 +1610,8 @@ class TestIntentClassifierModuleValidationAndTest:
         # Should have appended
         assert len(module.validation_step_outputs) == 1
 
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2Config")
-    @patch("Agent_Guru.reasoning.train_intent_classifier.DebertaV2ForSequenceClassification")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
+    @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
     def test_test_step_appends_outputs(
         self, mock_model_class, mock_config_class, config, id_to_intent
     ):
@@ -1663,3 +1663,4 @@ class TestIntentClassifierModuleValidationAndTest:
 # - IntentClassifierModule: 100%
 # - train_intent_classifier: 100%
 # WORLD-CLASS QUALITY - NO DEAD CODE - NO DUPLICATION
+

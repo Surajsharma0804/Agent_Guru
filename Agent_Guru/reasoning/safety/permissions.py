@@ -30,7 +30,7 @@ class Permission:
     granted_at: float
     granted_by: str
     expires_at: Optional[float] = None
-    metadata: Dict[str, Any] = None
+    metadata: Optional[Dict[str, Any]] = None
     
     def __post_init__(self) -> None:
         """Initialize metadata if None."""
@@ -199,6 +199,9 @@ class PermissionManager:
         )
         
         # Store in database
+        if self._conn is None:
+            raise RuntimeError("Database connection not initialized")
+        
         cursor = self._conn.cursor()
         cursor.execute("""
             INSERT OR REPLACE INTO permissions 
@@ -262,6 +265,9 @@ class PermissionManager:
             True if permission was revoked, False if not found
         """
         # Check if permission exists
+        if self._conn is None:
+            raise RuntimeError("Database connection not initialized")
+        
         cursor = self._conn.cursor()
         cursor.execute("""
             SELECT COUNT(*) FROM permissions 
@@ -359,6 +365,9 @@ class PermissionManager:
         Returns:
             List of Permission objects
         """
+        if self._conn is None:
+            raise RuntimeError("Database connection not initialized")
+        
         cursor = self._conn.cursor()
         cursor.execute("""
             SELECT user_id, permission_scope, granted_at, granted_by, expires_at, metadata
@@ -449,6 +458,9 @@ class PermissionManager:
         Returns:
             List of audit log entries
         """
+        if self._conn is None:
+            raise RuntimeError("Database connection not initialized")
+        
         cursor = self._conn.cursor()
         
         if user_id:
@@ -531,6 +543,9 @@ class PermissionManager:
         Returns:
             Permission object or None if not found
         """
+        if self._conn is None:
+            raise RuntimeError("Database connection not initialized")
+        
         cursor = self._conn.cursor()
         cursor.execute("""
             SELECT user_id, permission_scope, granted_at, granted_by, expires_at, metadata
@@ -571,6 +586,9 @@ class PermissionManager:
             reason: Reason for action
             metadata: Additional metadata
         """
+        if self._conn is None:
+            raise RuntimeError("Database connection not initialized")
+        
         cursor = self._conn.cursor()
         cursor.execute("""
             INSERT INTO permission_audit_log 

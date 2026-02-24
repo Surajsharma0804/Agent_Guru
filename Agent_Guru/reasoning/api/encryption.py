@@ -30,11 +30,11 @@ import base64
 import hashlib
 import os
 from datetime import datetime, timedelta
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -261,7 +261,7 @@ class SecretsManager:
         if backend == "vault":
             # Initialize Vault client
             try:
-                import hvac
+                import hvac  # type: ignore
                 self._vault_client = hvac.Client(
                     url=vault_url,
                     token=vault_token,
@@ -274,7 +274,7 @@ class SecretsManager:
         elif backend == "aws":
             # Initialize AWS Secrets Manager client
             try:
-                import boto3
+                import boto3  # type: ignore
                 self._aws_client = boto3.client("secretsmanager")
                 logger.info("aws_secrets_manager_initialized")
             except ImportError:
@@ -481,7 +481,7 @@ TLS_CONFIG = {
 }
 
 
-def get_tls_config() -> Dict[str, str]:
+def get_tls_config() -> Dict[str, Any]:
     """Get TLS configuration for secure connections.
     
     Returns:

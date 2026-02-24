@@ -12,7 +12,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Any
 
 from Agent_Guru.reasoning.latency.tracker import (
     PipelineStage,
@@ -190,13 +190,13 @@ class LatencyMonitor:
         self._last_check_time = time.time()
         return alerts
 
-    def get_monitoring_summary(self) -> Dict[str, any]:
+    def get_monitoring_summary(self) -> Dict[str, Any]:
         """Get monitoring summary for all stages.
 
         Returns:
             Summary dictionary
         """
-        summary = {
+        summary: Dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
             "stages": {},
             "alerts": len(self._alerts),
@@ -212,30 +212,32 @@ class LatencyMonitor:
             target = budget.get("target", 0)
             maximum = budget.get("maximum", 0)
 
-            summary["stages"][stage.value] = {
-                "latency": {
-                    "p50": stats.p50,
-                    "p95": stats.p95,
-                    "p99": stats.p99,
-                    "mean": stats.mean,
+            stages_dict = summary["stages"]
+            if isinstance(stages_dict, dict):
+                stages_dict[stage.value] = {
+                    "latency": {
+                        "p50": stats.p50,
+                        "p95": stats.p95,
+                        "p99": stats.p99,
+                        "mean": stats.mean,
+                    },
                     "target": target,
                     "maximum": maximum,
                     "meets_target": stats.p95 <= target,
                     "meets_maximum": stats.p95 <= maximum,
-                },
-                "timeout": {
-                    "rate": stats.timeout_rate,
-                    "count": stats.timeout_count,
-                    "threshold_exceeded": stats.timeout_rate > 0.05,
-                },
-                "degraded": {
-                    "rate": stats.degraded_rate,
-                    "count": stats.degraded_count,
-                    "threshold_exceeded": stats.degraded_rate > 0.10,
-                    "is_degraded": self.degraded_manager.is_degraded(stage),
-                },
-                "total_requests": stats.count,
-            }
+                    "timeout": {
+                        "rate": stats.timeout_rate,
+                        "count": stats.timeout_count,
+                        "threshold_exceeded": stats.timeout_rate > 0.05,
+                    },
+                    "degraded": {
+                        "rate": stats.degraded_rate,
+                        "count": stats.degraded_count,
+                        "threshold_exceeded": stats.degraded_rate > 0.10,
+                        "is_degraded": self.degraded_manager.is_degraded(stage),
+                    },
+                    "total_requests": stats.count,
+                }
 
         return summary
 

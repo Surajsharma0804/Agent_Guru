@@ -420,7 +420,8 @@ class VoiceCloner:
         # Normalize embedding
         embedding = embedding / (np.linalg.norm(embedding) + 1e-8)
         
-        return embedding.astype(np.float32)
+        result: np.ndarray = embedding.astype(np.float32)
+        return result
     
     def _neural_tts_synthesis(
         self,
@@ -899,7 +900,8 @@ class VoiceCloner:
             [pitch_mean, pitch_std, centroid_mean, centroid_std, rolloff_mean]
         ])
         
-        return features.astype(np.float32)
+        result: np.ndarray = features.astype(np.float32)
+        return result
     
     def _compute_audio_quality(
         self,

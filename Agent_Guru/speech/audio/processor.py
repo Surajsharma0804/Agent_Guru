@@ -1,7 +1,7 @@
 """Audio processing with VAD, noise reduction, and AGC."""
 
 import logging
-from typing import Optional
+from typing import Optional, Any
 
 import numpy as np
 
@@ -11,10 +11,10 @@ from ..exceptions import AudioProcessingError
 logger = logging.getLogger(__name__)
 
 # Lazy import to avoid loading torch unnecessarily
-_noisereduce = None
+_noisereduce: Optional[Any] = None
 
 
-def _get_noisereduce():
+def _get_noisereduce() -> Optional[Any]:
     """Lazy import of noisereduce to avoid torch loading issues."""
     global _noisereduce
     if _noisereduce is None:
@@ -24,6 +24,7 @@ def _get_noisereduce():
             _noisereduce = nr
         except Exception as e:
             logger.warning(f"Failed to import noisereduce: {e}")
+            # Set to False to indicate failed import (not None which means not tried yet)
             _noisereduce = False
     return _noisereduce if _noisereduce is not False else None
 
@@ -147,7 +148,7 @@ class AudioProcessor:
 
             # Apply noise reduction with configured strength
             # prop_decrease controls how much noise to reduce (0.0-1.0)
-            reduced = nr.reduce_noise(
+            reduced: np.ndarray = nr.reduce_noise(
                 y=audio_float,
                 sr=self.sample_rate,
                 prop_decrease=self.config.noise_reduction_strength,
@@ -185,7 +186,7 @@ class AudioProcessor:
             # Simple echo cancellation: subtract scaled reference
             # In production, use adaptive filter (LMS, NLMS, etc.)
             echo_estimate = reference * 0.3  # Simple scaling
-            cancelled = audio - echo_estimate
+            cancelled: np.ndarray = audio - echo_estimate
 
             return cancelled
 
@@ -230,7 +231,8 @@ class AudioProcessor:
             if max_val > 1.0:
                 normalized = normalized / max_val * 0.95
 
-            return normalized
+            result: np.ndarray = normalized
+            return result
 
         except Exception as e:
             logger.warning(f"AGC failed: {e}, returning original audio")

@@ -44,8 +44,8 @@ try:
     SPACY_AVAILABLE = True
 except ImportError:
     SPACY_AVAILABLE = False
-    spacy = None
-    Doc = None
+    spacy: Any = None  # type: ignore[assignment]
+    Doc: Any = None  # type: ignore[assignment, misc]
 
 
 @dataclass

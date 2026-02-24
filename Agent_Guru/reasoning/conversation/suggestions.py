@@ -100,7 +100,7 @@ class ProactiveSuggestionGenerator:
         Returns:
             List of follow-up suggestions
         """
-        suggestions = []
+        suggestions: list[str] = []
 
         # Only generate for successful actions
         if not result.success:
@@ -148,7 +148,7 @@ class ProactiveSuggestionGenerator:
         Returns:
             List of proactive suggestions
         """
-        suggestions = []
+        suggestions: list[str] = []
 
         # Get user's patterns
         patterns = self.user_patterns.get(user_id, [])
@@ -180,7 +180,7 @@ class ProactiveSuggestionGenerator:
         Returns:
             List of alternative suggestions
         """
-        suggestions = []
+        suggestions: list[str] = []
 
         # Get alternative templates for this action
         templates = self.ALTERNATIVE_SUGGESTIONS.get(task.task_type, [])
@@ -398,7 +398,7 @@ class ProactiveSuggestionGenerator:
         Returns:
             List of context-based suggestions
         """
-        suggestions = []
+        suggestions: list[str] = []
 
         # Time-based suggestions
         if current_time:

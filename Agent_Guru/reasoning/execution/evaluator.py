@@ -24,7 +24,7 @@ Version: 1.0.0
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field as dataclass_field
 from datetime import datetime
 from enum import Enum
 from typing import Any
@@ -77,7 +77,7 @@ class ValidationIssue:
     field: str
     message: str
     severity: str = "error"  # error, warning, info
-    details: dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = dataclass_field(default_factory=dict)
 
 
 @dataclass
@@ -100,7 +100,7 @@ class EvaluationResult:
 
     is_valid: bool
     validation_result: ValidationResult
-    issues: list[ValidationIssue] = field(default_factory=list)
+    issues: list[ValidationIssue] = dataclass_field(default_factory=list)
     retry_decision: RetryDecision = RetryDecision.NO_RETRY
     retry_delay: float = 0.0
     clarification_needed: bool = False
@@ -108,7 +108,7 @@ class EvaluationResult:
     plan_adjustment: dict[str, Any] | None = None
     should_abandon: bool = False
     abandonment_reason: str | None = None
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = dataclass_field(default_factory=datetime.now)
 
 
 class ResultValidator:
@@ -369,7 +369,7 @@ class ResultValidator:
                 issues.append(
                     ValidationIssue(
                         issue_type=ValidationResult.INCOMPLETE,
-                        field=str(field_name),
+                        field=field_name,
                         message=f"{field_name} is empty string",
                         severity="warning",
                     )
@@ -675,7 +675,7 @@ class ExecutionEvaluator:
             Delay in seconds (1s, 2s, 4s for retries 0, 1, 2)
         """
         # Exponential backoff: base_delay * 2^retry_count
-        return self.base_retry_delay * (2**retry_count)
+        return float(self.base_retry_delay * (2**retry_count))
 
     def _check_abandonment(
         self,

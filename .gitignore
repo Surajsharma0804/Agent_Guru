@@ -183,3 +183,56 @@ test_gpu_setup.py
 verify_gpu_final.py
 GPU_SETUP_COMPLETE.txt
 SETUP_SUMMARY.txt
+
+# Temporary test and demo files
+test_*.py
+demo_*.py
+verify_*.py
+check_*.py
+fix_*.py
+talk_to_*.py
+quick_test.py
+run_test*.py
+setup_voice_integration.py
+setup_vosk.py
+
+# Temporary documentation files
+*_SUMMARY.md
+*_COMPLETE.md
+*_STATUS.md
+*_PROGRESS.md
+TYPE_SAFETY_*.md
+TYPE_FIXES_*.md
+CLEANUP_*.md
+INTEGRATION_*.md
+VOICE_*.md
+WINDOWS_*.md
+MACOS_*.md
+GPU_SETUP.md
+INSTALL_*.md
+PRODUCTION_*.md
+SPACE_*.md
+START_HERE.md
+TEST_*.md
+TESTING_*.md
+
+# Temporary setup scripts
+quick_start.*
+setup_dev.*
+set_cuda_env.ps1
+start_training.ps1
+
+# Security scan outputs
+security_scan_*.json
+security_scan_*.md
+
+# Test output files
+test_output.txt
+
+# Temporary directories
+incident-response/
+logging/
+memory_db/
+
+# Ruff cache
+.ruff_cache/

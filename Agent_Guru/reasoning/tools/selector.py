@@ -83,27 +83,27 @@ class ToolSelector:
         self._total_selections += 1
 
         # Tier 1: Direct mapping (<10ms)
-        result = await self._tier1_direct_mapping(intent)
-        if result is not None:
+        result1 = await self._tier1_direct_mapping(intent)
+        if result1 is not None:
             self._tier1_hits += 1
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
             return SelectedTool(
-                tool=result[0],
-                parameters=result[1],
+                tool=result1[0],
+                parameters=result1[1],
                 confidence=1.0,
                 tier=1,
                 selection_time_ms=elapsed_ms,
             )
 
         # Tier 2: Capability matching (<50ms)
-        result = await self._tier2_capability_matching(intent)
-        if result is not None:
+        result2 = await self._tier2_capability_matching(intent)
+        if result2 is not None:
             self._tier2_hits += 1
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
             return SelectedTool(
-                tool=result[0],
-                parameters=result[1],
-                confidence=result[2],
+                tool=result2[0],
+                parameters=result2[1],
+                confidence=result2[2],
                 tier=2,
                 selection_time_ms=elapsed_ms,
             )
@@ -123,6 +123,47 @@ class ToolSelector:
 
         # No suitable tool found
         return None
+    
+    async def select_tool_by_id(
+        self, tool_id: str, parameters: Optional[dict[str, Any]] = None
+    ) -> Optional[SelectedTool]:
+        """Select tool by ID directly (FAST PATH for LLM-generated plans).
+        
+        Time Complexity: O(1) - direct lookup
+        Target Latency: <5ms
+        
+        Args:
+            tool_id: Tool identifier
+            parameters: Optional pre-extracted parameters
+        
+        Returns:
+            SelectedTool if found, None otherwise
+        """
+        start_time = time.perf_counter()
+        
+        # Check if it's a skill tool
+        if tool_id.startswith("skill."):
+            tool_any = self._skill_tool_registry.get_skill_tool(tool_id)
+        else:
+            tool_any = self.registry.get_tool(tool_id)
+        
+        if tool_any is None:
+            return None
+        
+        tool = tool_any  # Type narrowing
+        
+        # Use provided parameters or empty dict
+        params = parameters or {}
+        
+        elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+        
+        return SelectedTool(
+            tool=tool,
+            parameters=params,
+            confidence=1.0,  # High confidence for direct selection
+            tier=0,  # Special tier for direct selection
+            selection_time_ms=elapsed_ms,
+        )
 
     async def _tier1_direct_mapping(self, intent: Intent) -> Optional[tuple[Tool, dict[str, Any]]]:
         """Tier 1: Direct intent→tool mapping.
@@ -136,11 +177,12 @@ class ToolSelector:
         Returns:
             (tool, parameters) if mapping found, None otherwise
         """
-        # Check if intent type has direct mapping
-        if intent.intent_type not in DIRECT_MAPPINGS:
+        # Check if intent type has direct mapping (use .value to get string from enum)
+        intent_type_str = intent.intent_type.value if hasattr(intent.intent_type, 'value') else str(intent.intent_type)
+        if intent_type_str not in DIRECT_MAPPINGS:
             return None
 
-        tool_id = DIRECT_MAPPINGS[intent.intent_type]
+        tool_id = DIRECT_MAPPINGS[intent_type_str]
         tool = self.registry.get_tool(tool_id)
 
         if tool is None:
@@ -229,12 +271,14 @@ class ToolSelector:
         
         # Check if it's a skill tool
         if best_tool_id.startswith("skill."):
-            best_tool = self._skill_tool_registry.get_skill_tool(best_tool_id)
+            best_tool_any = self._skill_tool_registry.get_skill_tool(best_tool_id)
         else:
-            best_tool = self.registry.get_tool(best_tool_id)
+            best_tool_any = self.registry.get_tool(best_tool_id)
 
-        if best_tool is None:
+        if best_tool_any is None:
             return None
+        
+        best_tool = best_tool_any  # Type narrowing
 
         # Extract parameters
         parameters = self._extract_parameters_from_entities(best_tool, intent)

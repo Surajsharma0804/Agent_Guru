@@ -47,7 +47,7 @@ class SkillSandbox:
             config: Sandbox configuration
         """
         self.config = config
-        self.process: Optional[subprocess.Popen] = None
+        self.process: Optional[asyncio.subprocess.Process] = None
 
     async def execute(
         self, command: List[str], env: Optional[Dict[str, str]] = None

@@ -154,4 +154,3 @@ class Tool(ABC):
             return isinstance(value, list)
         elif expected_type == ToolParameterType.OBJECT:
             return isinstance(value, dict)
-        return False

@@ -39,7 +39,7 @@ class DeepSeekProvider(BaseLLMProvider):
         self,
         config: Optional[ProviderConfig] = None,
         model: str = "deepseek-chat",
-        base_url: str = "https://api.deepseek.com",
+        base_url: str = "https://api.deepseek.com/v1",  # Added /v1 endpoint
     ):
         """Initialize DeepSeek provider.
 

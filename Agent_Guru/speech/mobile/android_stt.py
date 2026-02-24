@@ -77,7 +77,7 @@ class AndroidSpeechRecognizer:
             True if running on Android, False otherwise
         """
         try:
-            import jnius
+            import jnius  # type: ignore[import-not-found]/
             return True
         except ImportError:
             return False
@@ -147,7 +147,6 @@ class AndroidSpeechRecognizer:
         # from jnius import autoclass
         # PythonActivity = autoclass('org.kivy.android.PythonActivity')
         # return PythonActivity.mActivity
-        return None
     
     async def recognize(
         self,

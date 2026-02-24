@@ -217,7 +217,7 @@ class BatteryMonitor:
         status = self.get_battery_status()
         stats = self.get_usage_stats()
         
-        recommendations = {
+        recommendations: Dict[str, Any] = {
             "pause_service": self.should_pause_service(),
             "reduce_frequency": self.should_reduce_frequency(),
             "warnings": []

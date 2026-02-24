@@ -20,7 +20,7 @@ Usage:
     obj = loads(data)
 """
 
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 import datetime
 import uuid
 
@@ -65,7 +65,7 @@ def _default_serializer(obj: Any) -> Any:
 def dumps(
     obj: Any,
     *,
-    default: Optional[callable] = None,
+    default: Optional[Callable[[Any], Any]] = None,
     option: int = 0
 ) -> bytes:
     """
@@ -97,7 +97,7 @@ def dumps(
 def dumps_str(
     obj: Any,
     *,
-    default: Optional[callable] = None,
+    default: Optional[Callable[[Any], Any]] = None,
     option: int = 0
 ) -> str:
     """
@@ -147,7 +147,7 @@ def loads(data: bytes | str) -> Any:
         return json.loads(data)
 
 
-def pretty_dumps(obj: Any, *, default: Optional[callable] = None) -> str:
+def pretty_dumps(obj: Any, *, default: Optional[Callable[[Any], Any]] = None) -> str:
     """
     Serialize object to pretty-printed JSON string.
     

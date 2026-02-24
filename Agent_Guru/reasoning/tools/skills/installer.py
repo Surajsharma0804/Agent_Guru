@@ -118,7 +118,7 @@ class SkillInstaller:
 
             # Step 3: Request permissions
             if not auto_approve_permissions:
-                for permission in manifest.required_permissions:
+                for permission in getattr(manifest, "required_permissions", []):
                     granted = await self.permission_manager.request_permission(
                         skill_id=manifest.skill_id,
                         permission=permission,
@@ -228,7 +228,7 @@ class SkillInstaller:
         Returns:
             List of available updates
         """
-        updates = []
+        updates: list[InstalledSkill] = []
 
         # Get skills to check
         if skill_id:
@@ -394,7 +394,7 @@ class SkillInstaller:
             with open(manifest_path, "r", encoding="utf-8") as f:
                 manifest_data = json.load(f)
 
-            return SkillManifestParser.parse(manifest_data)
+            return SkillManifestParser().parse  # type: ignore[attr-defined](manifest_data)
 
         except Exception as e:
             print(f"Failed to load manifest: {e}")

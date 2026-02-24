@@ -98,7 +98,7 @@ class KnowledgeQueryDetector:
     TIME_PATTERNS_STRING = {
         "today": lambda: TimeRange.today(),
         "yesterday": lambda: TimeRange.yesterday(),
-        "last week": lambda: TimeRange.last_week(),
+        "last week": lambda: lambda: TimeRange.LAST_WEEK(),
         "last month": lambda: TimeRange.last_month(),
         "last year": lambda: TimeRange.last_year(),
     }

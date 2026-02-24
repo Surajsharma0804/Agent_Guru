@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
 
 import yaml
 
@@ -20,10 +20,11 @@ class EntityAnnotator:
         self.intents_data = self._load_intents()
         self.entity_patterns = self._build_entity_patterns()
     
-    def _load_intents(self) -> Dict:
+    def _load_intents(self) -> Dict[Any, Any]:
         """Load intents from YAML file."""
         with open(self.intents_file, 'r') as f:
-            return yaml.safe_load(f)
+            data: Dict[Any, Any] = yaml.safe_load(f)
+            return data
     
     def _build_entity_patterns(self) -> Dict[str, List[str]]:
         """Build regex patterns for entity extraction.
@@ -219,14 +220,14 @@ class EntityAnnotator:
     def validate_annotations(
         self, 
         annotated_file: str
-    ) -> Dict[str, float]:
+    ) -> Dict[str, Any]:
         """Validate annotation quality.
         
         Args:
             annotated_file: Annotated dataset file
             
         Returns:
-            Dictionary with validation metrics
+            Dictionary with validation metrics (floats, ints, and nested dicts)
         """
         with open(annotated_file, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
@@ -236,7 +237,7 @@ class EntityAnnotator:
         total_entities = sum(len(item['entities']) for item in data)
         
         # Count entity types
-        entity_type_counts = {}
+        entity_type_counts: Dict[str, int] = {}
         for item in data:
             for entity in item['entities']:
                 entity_type = entity['type']

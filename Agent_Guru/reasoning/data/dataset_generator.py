@@ -3,7 +3,7 @@
 import random
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
 
 import yaml
 
@@ -32,10 +32,11 @@ class DatasetGenerator:
         # Noise words to add variation
         self.noise_words = ["please", "now", "right now", "quickly", "for me"]
         
-    def _load_intents(self) -> Dict:
+    def _load_intents(self) -> Dict[Any, Any]:
         """Load intents from YAML file."""
         with open(self.intents_file, 'r') as f:
-            return yaml.safe_load(f)
+            data: Dict[Any, Any] = yaml.safe_load(f)
+            return data
     
     def augment_utterance(self, utterance: str) -> List[str]:
         """Generate augmented variations of an utterance.
@@ -202,7 +203,7 @@ class DatasetGenerator:
         Returns:
             Dictionary mapping intent to count
         """
-        distribution = {}
+        distribution: Dict[str, int] = {}
         for _, intent in data:
             distribution[intent] = distribution.get(intent, 0) + 1
         return distribution

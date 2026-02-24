@@ -9,14 +9,13 @@ This module provides parameter extraction from intent entities with:
 
 from typing import Any, Dict, List, Optional
 
+from Agent_Guru.reasoning.error.error_manager import (
+    ErrorContext,
+    ErrorType,
+    get_error_manager,
+)
 from Agent_Guru.reasoning.models.intent import Intent, Entity
 from Agent_Guru.reasoning.tools.base import Tool, ToolParameter, ToolParameterType
-
-
-class ParameterExtractionError(Exception):
-    """Raised when parameter extraction fails."""
-
-    pass
 
 
 class ParameterExtractor:
@@ -35,8 +34,9 @@ class ParameterExtractor:
             Dictionary of parameter name → value
 
         Raises:
-            ParameterExtractionError: If required parameters missing or validation fails
+            ValueError: If required parameters missing or validation fails (with user-friendly message)
         """
+        error_manager = get_error_manager()
         metadata = tool.metadata
         parameters: Dict[str, Any] = {}
 
@@ -46,9 +46,19 @@ class ParameterExtractor:
 
             if value is None:
                 if param.required:
-                    raise ParameterExtractionError(
-                        f"Required parameter '{param.name}' not found in intent"
+                    context = ErrorContext(
+                        tool_id=metadata.tool_id,
+                        additional_data={
+                            "parameter": param.name,
+                            "intent_type": intent.intent_type.value,
+                        }
                     )
+                    error = error_manager.create_error(
+                        error_type=ErrorType.INVALID_INPUT,
+                        message=f"Required parameter '{param.name}' not found in intent",
+                        context=context,
+                    )
+                    raise ValueError(error.user_message)
                 # Apply default value for optional parameters
                 if hasattr(param, 'default_value') and param.default_value is not None:
                     value = param.default_value
@@ -59,9 +69,20 @@ class ParameterExtractor:
             try:
                 value = self._convert_and_validate(value, param)
             except (ValueError, TypeError) as e:
-                raise ParameterExtractionError(
-                    f"Parameter '{param.name}' validation failed: {str(e)}"
+                context = ErrorContext(
+                    tool_id=metadata.tool_id,
+                    additional_data={
+                        "parameter": param.name,
+                        "value": str(value),
+                        "expected_type": param.type.value,
+                    }
                 )
+                error = error_manager.create_error(
+                    error_type=ErrorType.INVALID_INPUT,
+                    message=f"Parameter '{param.name}' validation failed: {str(e)}",
+                    context=context,
+                )
+                raise ValueError(error.user_message)
 
             parameters[param.name] = value
 

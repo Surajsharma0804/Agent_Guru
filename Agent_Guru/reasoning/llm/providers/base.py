@@ -210,7 +210,7 @@ class BaseLLMProvider(ABC):
             self.rate_limit_state.reset_if_needed()
 
         # Retry logic with exponential backoff
-        last_exception = None
+        last_exception: Optional[Exception] = None
         for attempt in range(self.config.max_retries):
             try:
                 # Make request with timeout
