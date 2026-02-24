@@ -307,7 +307,7 @@ After completing EACH task:
     - Integration tests with messaging apps
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 13: System Settings Controller**
+- [x] **Task 13: System Settings Controller**
   - Implement `controllers/system_settings.py`:
     - `SystemSettingsController` class
     - Adjust volume
