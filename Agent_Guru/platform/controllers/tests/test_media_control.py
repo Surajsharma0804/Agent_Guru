@@ -233,17 +233,26 @@ class TestMediaControllerErrorHandling:
 
 # Windows Backend Tests
 
-@pytest.mark.skipif(platform.system() != "Windows", reason="Windows only")
 class TestWindowsMediaBackend:
     """Unit tests for Windows media backend."""
     
     @pytest.fixture
     def backend(self):
-        """Create Windows media backend."""
-        try:
-            return WindowsMediaBackend()
-        except ImportError:
-            pytest.skip("pywin32 not available")
+        """Create Windows media backend with mocked dependencies."""
+        if platform.system() == "Windows":
+            try:
+                return WindowsMediaBackend()
+            except ImportError:
+                pass
+        
+        # Mock for non-Windows platforms
+        with patch('Agent_Guru.platform.controllers.media_control.win32api') as mock_api:
+            with patch('Agent_Guru.platform.controllers.media_control.win32con') as mock_con:
+                backend = object.__new__(WindowsMediaBackend)
+                backend.win32api = mock_api
+                backend.win32con = mock_con
+                backend.win32con.KEYEVENTF_KEYUP = 2
+                return backend
     
     def test_initialization(self, backend):
         """Test Windows backend initialization."""
@@ -262,6 +271,18 @@ class TestWindowsMediaBackend:
             backend.pause()
             mock_send.assert_called_once_with(0xB3)
     
+    def test_play_pause_toggle_sends_key(self, backend):
+        """Test that play/pause toggle sends correct media key."""
+        with patch.object(backend, '_send_media_key') as mock_send:
+            backend.play_pause_toggle()
+            mock_send.assert_called_once_with(0xB3)
+    
+    def test_stop_sends_key(self, backend):
+        """Test that stop sends correct media key."""
+        with patch.object(backend, '_send_media_key') as mock_send:
+            backend.stop()
+            mock_send.assert_called_once_with(0xB2)
+    
     def test_next_track_sends_key(self, backend):
         """Test that next track sends correct media key."""
         with patch.object(backend, '_send_media_key') as mock_send:
@@ -274,15 +295,65 @@ class TestWindowsMediaBackend:
             backend.previous_track()
             mock_send.assert_called_once_with(0xB1)
     
+    def test_volume_up_sends_keys(self, backend):
+        """Test that volume up sends correct media keys."""
+        with patch.object(backend, '_send_media_key') as mock_send:
+            backend.volume_up(10)
+            # Should send 5 key presses (10 / 2)
+            assert mock_send.call_count == 5
+            mock_send.assert_called_with(0xAF)
+    
+    def test_volume_down_sends_keys(self, backend):
+        """Test that volume down sends correct media keys."""
+        with patch.object(backend, '_send_media_key') as mock_send:
+            backend.volume_down(10)
+            # Should send 5 key presses (10 / 2)
+            assert mock_send.call_count == 5
+            mock_send.assert_called_with(0xAE)
+    
+    def test_volume_invalid_amount(self, backend):
+        """Test that invalid volume amount raises error."""
+        with pytest.raises(MediaCommandError):
+            backend.volume_up(150)
+        
+        with pytest.raises(MediaCommandError):
+            backend.volume_down(-10)
+    
+    def test_mute_sends_key(self, backend):
+        """Test that mute sends correct media key."""
+        with patch.object(backend, '_send_media_key') as mock_send:
+            backend.mute()
+            mock_send.assert_called_once_with(0xAD)
+    
+    def test_unmute_sends_key(self, backend):
+        """Test that unmute sends correct media key."""
+        with patch.object(backend, '_send_media_key') as mock_send:
+            backend.unmute()
+            mock_send.assert_called_once_with(0xAD)
+    
     def test_get_state_returns_none(self, backend):
         """Test that Windows backend returns None for state."""
         state = backend.get_state()
         assert state is None
+    
+    def test_send_media_key_success(self, backend):
+        """Test successful media key sending."""
+        # Mock the keybd_event method
+        backend.win32api.keybd_event = Mock()
+        backend._send_media_key(0xB3)
+        backend.win32api.keybd_event.assert_called()
+    
+    def test_send_media_key_failure(self, backend):
+        """Test media key sending failure."""
+        # Mock the keybd_event method to raise exception
+        backend.win32api.keybd_event = Mock(side_effect=Exception("Key send failed"))
+        
+        with pytest.raises(MediaCommandError, match="Failed to send media key"):
+            backend._send_media_key(0xB3)
 
 
 # macOS Backend Tests
 
-@pytest.mark.skipif(platform.system() != "Darwin", reason="macOS only")
 class TestMacOSMediaBackend:
     """Unit tests for macOS media backend."""
     
@@ -297,11 +368,43 @@ class TestMacOSMediaBackend:
             backend.play()
             assert mock_exec.called
     
+    def test_play_fallback_to_media_key(self, backend):
+        """Test that play falls back to media key on error."""
+        with patch.object(backend, '_execute_applescript', side_effect=MediaCommandError("Test")):
+            with patch.object(backend, '_send_media_key') as mock_send:
+                backend.play()
+                mock_send.assert_called_once_with(16)
+    
     def test_pause_executes_applescript(self, backend):
         """Test that pause executes AppleScript."""
         with patch.object(backend, '_execute_applescript') as mock_exec:
             backend.pause()
             assert mock_exec.called
+    
+    def test_pause_fallback_to_media_key(self, backend):
+        """Test that pause falls back to media key on error."""
+        with patch.object(backend, '_execute_applescript', side_effect=MediaCommandError("Test")):
+            with patch.object(backend, '_send_media_key') as mock_send:
+                backend.pause()
+                mock_send.assert_called_once_with(16)
+    
+    def test_play_pause_toggle_sends_key(self, backend):
+        """Test that play/pause toggle sends media key."""
+        with patch.object(backend, '_send_media_key') as mock_send:
+            backend.play_pause_toggle()
+            mock_send.assert_called_once_with(16)
+    
+    def test_stop_executes_applescript(self, backend):
+        """Test that stop executes AppleScript."""
+        with patch.object(backend, '_execute_applescript') as mock_exec:
+            backend.stop()
+            assert mock_exec.called
+    
+    def test_stop_handles_error(self, backend):
+        """Test that stop handles errors gracefully."""
+        with patch.object(backend, '_execute_applescript', side_effect=MediaCommandError("Test")):
+            # Should not raise, just log warning
+            backend.stop()
     
     def test_next_track_sends_key(self, backend):
         """Test that next track sends media key."""
@@ -314,11 +417,97 @@ class TestMacOSMediaBackend:
         with patch.object(backend, '_send_media_key') as mock_send:
             backend.previous_track()
             mock_send.assert_called_once_with(18)
+    
+    def test_volume_up_sends_keys(self, backend):
+        """Test that volume up sends correct media keys."""
+        with patch.object(backend, '_send_media_key') as mock_send:
+            backend.volume_up(12)
+            # Should send 2 key presses (12 / 6)
+            assert mock_send.call_count == 2
+            mock_send.assert_called_with(72)
+    
+    def test_volume_down_sends_keys(self, backend):
+        """Test that volume down sends correct media keys."""
+        with patch.object(backend, '_send_media_key') as mock_send:
+            backend.volume_down(12)
+            # Should send 2 key presses (12 / 6)
+            assert mock_send.call_count == 2
+            mock_send.assert_called_with(73)
+    
+    def test_volume_invalid_amount(self, backend):
+        """Test that invalid volume amount raises error."""
+        with pytest.raises(MediaCommandError):
+            backend.volume_up(150)
+        
+        with pytest.raises(MediaCommandError):
+            backend.volume_down(-10)
+    
+    def test_mute_sends_key(self, backend):
+        """Test that mute sends media key."""
+        with patch.object(backend, '_send_media_key') as mock_send:
+            backend.mute()
+            mock_send.assert_called_once_with(74)
+    
+    def test_unmute_sends_key(self, backend):
+        """Test that unmute sends media key."""
+        with patch.object(backend, '_send_media_key') as mock_send:
+            backend.unmute()
+            mock_send.assert_called_once_with(74)
+    
+    def test_get_state_with_music_running(self, backend):
+        """Test get state when Music app is running."""
+        with patch.object(backend, '_execute_applescript', return_value="true|75|Test Song|Test Artist"):
+            state = backend.get_state()
+            
+            assert state is not None
+            assert state.is_playing is True
+            assert state.volume == 75
+            assert state.track_title == "Test Song"
+            assert state.artist == "Test Artist"
+    
+    def test_get_state_music_not_running(self, backend):
+        """Test get state when Music app is not running."""
+        with patch.object(backend, '_execute_applescript', return_value=""):
+            state = backend.get_state()
+            assert state is None
+    
+    def test_get_state_error(self, backend):
+        """Test get state when error occurs."""
+        with patch.object(backend, '_execute_applescript', side_effect=Exception("Test error")):
+            state = backend.get_state()
+            assert state is None
+    
+    def test_execute_applescript_success(self, backend):
+        """Test successful AppleScript execution."""
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value = Mock(stdout="success", stderr="", returncode=0)
+            result = backend._execute_applescript("test script")
+            assert result == "success"
+    
+    def test_execute_applescript_failure(self, backend):
+        """Test AppleScript execution failure."""
+        with patch('subprocess.run', side_effect=subprocess.CalledProcessError(1, 'osascript', stderr="error")):
+            with pytest.raises(MediaCommandError, match="AppleScript execution failed"):
+                backend._execute_applescript("test script")
+    
+    def test_execute_applescript_timeout(self, backend):
+        """Test AppleScript execution timeout."""
+        with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('osascript', 5.0)):
+            with pytest.raises(MediaCommandError, match="timeout"):
+                backend._execute_applescript("test script")
+    
+    def test_send_media_key(self, backend):
+        """Test sending media key via System Events."""
+        with patch.object(backend, '_execute_applescript') as mock_exec:
+            backend._send_media_key(16)
+            mock_exec.assert_called_once()
+            call_args = mock_exec.call_args[0][0]
+            assert "System Events" in call_args
+            assert "key code 16" in call_args
 
 
 # Linux Backend Tests
 
-@pytest.mark.skipif(platform.system() != "Linux", reason="Linux only")
 class TestLinuxMediaBackend:
     """Unit tests for Linux media backend."""
     
@@ -342,6 +531,19 @@ class TestLinuxMediaBackend:
         """Test initialization when playerctl is not available."""
         assert backend_without_playerctl.use_playerctl is False
     
+    def test_check_playerctl_available(self):
+        """Test playerctl availability check when installed."""
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value = Mock(returncode=0)
+            backend = LinuxMediaBackend()
+            assert backend.use_playerctl is True
+    
+    def test_check_playerctl_not_available(self):
+        """Test playerctl availability check when not installed."""
+        with patch('subprocess.run', side_effect=FileNotFoundError()):
+            backend = LinuxMediaBackend()
+            assert backend.use_playerctl is False
+    
     def test_play_with_playerctl(self, backend_with_playerctl):
         """Test play with playerctl."""
         with patch.object(backend_with_playerctl, '_execute_playerctl') as mock_exec:
@@ -354,17 +556,175 @@ class TestLinuxMediaBackend:
             backend_without_playerctl.play()
             mock_send.assert_called_once_with("XF86AudioPlay")
     
+    def test_pause_with_playerctl(self, backend_with_playerctl):
+        """Test pause with playerctl."""
+        with patch.object(backend_with_playerctl, '_execute_playerctl') as mock_exec:
+            backend_with_playerctl.pause()
+            mock_exec.assert_called_once_with("pause")
+    
+    def test_pause_without_playerctl(self, backend_without_playerctl):
+        """Test pause without playerctl."""
+        with patch.object(backend_without_playerctl, '_send_xdotool_key') as mock_send:
+            backend_without_playerctl.pause()
+            mock_send.assert_called_once_with("XF86AudioPause")
+    
+    def test_play_pause_toggle_with_playerctl(self, backend_with_playerctl):
+        """Test play/pause toggle with playerctl."""
+        with patch.object(backend_with_playerctl, '_execute_playerctl') as mock_exec:
+            backend_with_playerctl.play_pause_toggle()
+            mock_exec.assert_called_once_with("play-pause")
+    
+    def test_play_pause_toggle_without_playerctl(self, backend_without_playerctl):
+        """Test play/pause toggle without playerctl."""
+        with patch.object(backend_without_playerctl, '_send_xdotool_key') as mock_send:
+            backend_without_playerctl.play_pause_toggle()
+            mock_send.assert_called_once_with("XF86AudioPlay")
+    
+    def test_stop_with_playerctl(self, backend_with_playerctl):
+        """Test stop with playerctl."""
+        with patch.object(backend_with_playerctl, '_execute_playerctl') as mock_exec:
+            backend_with_playerctl.stop()
+            mock_exec.assert_called_once_with("stop")
+    
+    def test_stop_without_playerctl(self, backend_without_playerctl):
+        """Test stop without playerctl."""
+        with patch.object(backend_without_playerctl, '_send_xdotool_key') as mock_send:
+            backend_without_playerctl.stop()
+            mock_send.assert_called_once_with("XF86AudioStop")
+    
     def test_next_track_with_playerctl(self, backend_with_playerctl):
         """Test next track with playerctl."""
         with patch.object(backend_with_playerctl, '_execute_playerctl') as mock_exec:
             backend_with_playerctl.next_track()
             mock_exec.assert_called_once_with("next")
     
+    def test_next_track_without_playerctl(self, backend_without_playerctl):
+        """Test next track without playerctl."""
+        with patch.object(backend_without_playerctl, '_send_xdotool_key') as mock_send:
+            backend_without_playerctl.next_track()
+            mock_send.assert_called_once_with("XF86AudioNext")
+    
     def test_previous_track_with_playerctl(self, backend_with_playerctl):
         """Test previous track with playerctl."""
         with patch.object(backend_with_playerctl, '_execute_playerctl') as mock_exec:
             backend_with_playerctl.previous_track()
             mock_exec.assert_called_once_with("previous")
+    
+    def test_previous_track_without_playerctl(self, backend_without_playerctl):
+        """Test previous track without playerctl."""
+        with patch.object(backend_without_playerctl, '_send_xdotool_key') as mock_send:
+            backend_without_playerctl.previous_track()
+            mock_send.assert_called_once_with("XF86AudioPrev")
+    
+    def test_volume_up_with_playerctl(self, backend_with_playerctl):
+        """Test volume up with playerctl."""
+        with patch.object(backend_with_playerctl, '_execute_playerctl') as mock_exec:
+            backend_with_playerctl.volume_up(10)
+            mock_exec.assert_called_once_with("volume 0.1+")
+    
+    def test_volume_up_without_playerctl(self, backend_without_playerctl):
+        """Test volume up without playerctl."""
+        with patch.object(backend_without_playerctl, '_send_xdotool_key') as mock_send:
+            backend_without_playerctl.volume_up(10)
+            # Should send 2 key presses (10 / 5)
+            assert mock_send.call_count == 2
+            mock_send.assert_called_with("XF86AudioRaiseVolume")
+    
+    def test_volume_down_with_playerctl(self, backend_with_playerctl):
+        """Test volume down with playerctl."""
+        with patch.object(backend_with_playerctl, '_execute_playerctl') as mock_exec:
+            backend_with_playerctl.volume_down(10)
+            mock_exec.assert_called_once_with("volume 0.1-")
+    
+    def test_volume_down_without_playerctl(self, backend_without_playerctl):
+        """Test volume down without playerctl."""
+        with patch.object(backend_without_playerctl, '_send_xdotool_key') as mock_send:
+            backend_without_playerctl.volume_down(10)
+            # Should send 2 key presses (10 / 5)
+            assert mock_send.call_count == 2
+            mock_send.assert_called_with("XF86AudioLowerVolume")
+    
+    def test_volume_invalid_amount(self, backend_with_playerctl):
+        """Test that invalid volume amount raises error."""
+        with pytest.raises(MediaCommandError):
+            backend_with_playerctl.volume_up(150)
+        
+        with pytest.raises(MediaCommandError):
+            backend_with_playerctl.volume_down(-10)
+    
+    def test_mute(self, backend_with_playerctl):
+        """Test mute."""
+        with patch.object(backend_with_playerctl, '_send_xdotool_key') as mock_send:
+            backend_with_playerctl.mute()
+            mock_send.assert_called_once_with("XF86AudioMute")
+    
+    def test_unmute(self, backend_with_playerctl):
+        """Test unmute."""
+        with patch.object(backend_with_playerctl, '_send_xdotool_key') as mock_send:
+            backend_with_playerctl.unmute()
+            mock_send.assert_called_once_with("XF86AudioMute")
+    
+    def test_get_state_with_playerctl(self, backend_with_playerctl):
+        """Test get state with playerctl."""
+        with patch.object(backend_with_playerctl, '_execute_playerctl') as mock_exec:
+            mock_exec.side_effect = ["playing", "0.75", "Test Song", "Test Artist"]
+            
+            state = backend_with_playerctl.get_state()
+            
+            assert state is not None
+            assert state.is_playing is True
+            assert state.volume == 75
+            assert state.track_title == "Test Song"
+            assert state.artist == "Test Artist"
+    
+    def test_get_state_without_playerctl(self, backend_without_playerctl):
+        """Test get state without playerctl."""
+        state = backend_without_playerctl.get_state()
+        assert state is None
+    
+    def test_get_state_error(self, backend_with_playerctl):
+        """Test get state when error occurs."""
+        with patch.object(backend_with_playerctl, '_execute_playerctl', side_effect=Exception("Test error")):
+            state = backend_with_playerctl.get_state()
+            assert state is None
+    
+    def test_execute_playerctl_success(self, backend_with_playerctl):
+        """Test successful playerctl execution."""
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value = Mock(stdout="success", stderr="", returncode=0)
+            result = backend_with_playerctl._execute_playerctl("play")
+            assert result == "success"
+    
+    def test_execute_playerctl_failure(self, backend_with_playerctl):
+        """Test playerctl execution failure."""
+        with patch('subprocess.run', side_effect=subprocess.CalledProcessError(1, 'playerctl', stderr="error")):
+            with pytest.raises(MediaCommandError):
+                backend_with_playerctl._execute_playerctl("play")
+    
+    def test_execute_playerctl_timeout(self, backend_with_playerctl):
+        """Test playerctl execution timeout."""
+        with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('playerctl', 5.0)):
+            with pytest.raises(MediaCommandError, match="timeout"):
+                backend_with_playerctl._execute_playerctl("play")
+    
+    def test_send_xdotool_key_success(self, backend_without_playerctl):
+        """Test successful xdotool key sending."""
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value = Mock(returncode=0)
+            backend_without_playerctl._send_xdotool_key("XF86AudioPlay")
+            mock_run.assert_called_once()
+    
+    def test_send_xdotool_key_failure(self, backend_without_playerctl):
+        """Test xdotool key sending failure."""
+        with patch('subprocess.run', side_effect=subprocess.CalledProcessError(1, 'xdotool')):
+            with pytest.raises(MediaCommandError):
+                backend_without_playerctl._send_xdotool_key("XF86AudioPlay")
+    
+    def test_send_xdotool_key_not_found(self, backend_without_playerctl):
+        """Test xdotool not found."""
+        with patch('subprocess.run', side_effect=FileNotFoundError("xdotool not found")):
+            with pytest.raises(MediaCommandError):
+                backend_without_playerctl._send_xdotool_key("XF86AudioPlay")
 
 
 # Property-Based Tests
@@ -418,8 +778,6 @@ class TestMediaControllerProperties:
 class TestMediaControllerIntegration:
     """Integration tests for MediaController with real backends."""
     
-    @pytest.mark.skipif(platform.system() not in ["Windows", "Darwin", "Linux"],
-                       reason="Requires supported platform")
     def test_controller_creation_on_supported_platform(self):
         """Test that controller can be created on supported platforms."""
         # This may fail if platform-specific dependencies are missing
@@ -430,8 +788,6 @@ class TestMediaControllerIntegration:
         except ImportError as e:
             pytest.skip(f"Platform dependencies not available: {e}")
     
-    @pytest.mark.skipif(platform.system() not in ["Windows", "Darwin", "Linux"],
-                       reason="Requires supported platform")
     def test_all_operations_callable(self):
         """Test that all media operations can be called without errors."""
         try:
@@ -460,6 +816,132 @@ class TestMediaControllerIntegration:
                     # Expected in test environment without media player
                     pass
                 
+        except ImportError as e:
+            pytest.skip(f"Platform dependencies not available: {e}")
+    
+    @pytest.mark.slow
+    def test_open_youtube_and_play(self):
+        """Test opening YouTube and playing a video (real integration test)."""
+        try:
+            import webbrowser
+            
+            controller = MediaController()
+            
+            # Open YouTube in default browser
+            youtube_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            webbrowser.open(youtube_url)
+            
+            # Wait for browser to open
+            time.sleep(3)
+            
+            # Try to control playback
+            # Note: This may not work if browser doesn't support media keys
+            try:
+                controller.play()
+                time.sleep(1)
+                controller.pause()
+                time.sleep(1)
+                controller.play()
+            except MediaCommandError:
+                # Expected if media keys don't work with browser
+                pass
+            
+        except ImportError as e:
+            pytest.skip(f"Platform dependencies not available: {e}")
+    
+    @pytest.mark.slow
+    def test_media_player_integration(self):
+        """Test integration with system media player."""
+        try:
+            controller = MediaController()
+            
+            # Try to get current media state
+            state = controller.get_state()
+            
+            # If state is available, test operations
+            if state is not None:
+                # Test play/pause
+                controller.play()
+                time.sleep(0.5)
+                controller.pause()
+                
+                # Test volume control
+                controller.volume_up(5)
+                time.sleep(0.2)
+                controller.volume_down(5)
+                
+                # Test track navigation
+                controller.next_track()
+                time.sleep(0.2)
+                controller.previous_track()
+            else:
+                # No media player running, skip detailed tests
+                pytest.skip("No media player running")
+                
+        except ImportError as e:
+            pytest.skip(f"Platform dependencies not available: {e}")
+    
+    @pytest.mark.slow
+    def test_spotify_integration(self):
+        """Test integration with Spotify if available."""
+        try:
+            controller = MediaController()
+            
+            # Check if Spotify is running by trying to get state
+            state = controller.get_state()
+            
+            if state and state.track_title:
+                # Spotify is running, test controls
+                original_playing = state.is_playing
+                
+                # Test play/pause toggle
+                controller.play_pause_toggle()
+                time.sleep(0.5)
+                
+                # Toggle back to original state
+                controller.play_pause_toggle()
+                time.sleep(0.5)
+                
+                # Test track navigation
+                controller.next_track()
+                time.sleep(1)
+                
+                # Get new state
+                new_state = controller.get_state()
+                assert new_state is not None
+            else:
+                pytest.skip("Spotify not running")
+                
+        except ImportError as e:
+            pytest.skip(f"Platform dependencies not available: {e}")
+    
+    @pytest.mark.slow
+    def test_continuous_playback_control(self):
+        """Test continuous playback control over multiple operations."""
+        try:
+            controller = MediaController()
+            
+            # Sequence of operations
+            operations = [
+                ("play", controller.play),
+                ("pause", controller.pause),
+                ("play", controller.play),
+                ("next", controller.next_track),
+                ("previous", controller.previous_track),
+                ("volume_up", lambda: controller.volume_up(10)),
+                ("volume_down", lambda: controller.volume_down(10)),
+                ("mute", controller.mute),
+                ("unmute", controller.unmute),
+            ]
+            
+            for name, operation in operations:
+                try:
+                    operation()
+                    time.sleep(0.2)  # Small delay between operations
+                except MediaCommandError as e:
+                    # Log but don't fail - some operations may not work
+                    print(f"Operation {name} failed: {e}")
+            
         except ImportError as e:
             pytest.skip(f"Platform dependencies not available: {e}")
 

@@ -351,7 +351,7 @@ After completing EACH task:
     - Integration tests for window operations
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 16: Media Control Controller**
+- [x] **Task 16: Media Control Controller**
   - Implement `controllers/media_control.py`:
     - `MediaController` class
     - Play, pause, skip media
@@ -363,7 +363,7 @@ After completing EACH task:
     - Integration tests with media players
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 17: Screenshot and Recording Controller**
+- [x] **Task 17: Screenshot and Recording Controller**
   - Implement `controllers/screen_capture.py`:
     - `ScreenCaptureController` class
     - Capture screenshots
