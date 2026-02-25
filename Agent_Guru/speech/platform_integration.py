@@ -1,0 +1,421 @@
+"""
+Platform integration for speech engine.
+
+Provides audio device access and system control operations through
+the platform integration layer.
+
+Performance Requirements:
+- Device enumeration: <100ms
+- Device switching: <500ms
+- System control: <1s per operation
+
+Author: Speech Engine Team
+Date: 2026-02-25
+"""
+
+import logging
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass
+
+from ..platform.os_controller import OSController, OperationResult
+from ..platform.hardware.monitor import HardwareMonitor
+from .exceptions import AudioInputError, GuruSpeechError
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class AudioDeviceInfo:
+    """Information about an audio device."""
+    device_id: int
+    name: str
+    channels: int
+    sample_rate: float
+    is_default: bool
+
+
+class PlatformIntegration:
+    """
+    Integration with platform layer for audio and system control.
+    
+    Provides:
+    - Audio device enumeration and selection
+    - System control operations (volume, brightness, etc.)
+    - Cross-platform audio device management
+    
+    Time Complexity: O(1) for most operations
+    Space Complexity: O(n) where n is number of audio devices
+    """
+    
+    def __init__(self):
+        """Initialize platform integration."""
+        self.os_controller = OSController()
+        self.hardware_monitor = HardwareMonitor()
+        logger.info("Platform integration initialized")
+    
+    # Audio Device Management
+    
+    def list_audio_devices(self) -> List[AudioDeviceInfo]:
+        """
+        List available audio input devices.
+        
+        Time Complexity: O(n) where n is number of devices
+        
+        Returns:
+            List of audio device information
+            
+        Raises:
+            AudioInputError: If device enumeration fails
+        """
+        try:
+            import sounddevice as sd
+            
+            devices = sd.query_devices()
+            audio_devices = []
+            
+            default_device = sd.default.device[0]  # Input device
+            
+            for i, dev in enumerate(devices):
+                if dev['max_input_channels'] > 0:
+                    audio_devices.append(AudioDeviceInfo(
+                        device_id=i,
+                        name=dev['name'],
+                        channels=dev['max_input_channels'],
+                        sample_rate=dev['default_samplerate'],
+                        is_default=(i == default_device)
+                    ))
+            
+            logger.debug(f"Found {len(audio_devices)} audio input devices")
+            return audio_devices
+            
+        except Exception as e:
+            raise AudioInputError(f"Failed to list audio devices: {e}") from e
+    
+    def get_default_audio_device(self) -> Optional[AudioDeviceInfo]:
+        """
+        Get the default audio input device.
+        
+        Time Complexity: O(n) where n is number of devices
+        
+        Returns:
+            Default audio device info, or None if not found
+        """
+        try:
+            devices = self.list_audio_devices()
+            for device in devices:
+                if device.is_default:
+                    return device
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get default device: {e}")
+            return None
+    
+    def validate_audio_device(self, device_id: int) -> bool:
+        """
+        Validate that an audio device exists and is available.
+        
+        Time Complexity: O(n) where n is number of devices
+        
+        Args:
+            device_id: Device ID to validate
+            
+        Returns:
+            True if device is valid, False otherwise
+        """
+        try:
+            devices = self.list_audio_devices()
+            return any(dev.device_id == device_id for dev in devices)
+        except Exception:
+            return False
+    
+    # System Control Operations
+    
+    def set_system_volume(self, level: int) -> OperationResult:
+        """
+        Set system volume level.
+        
+        Time Complexity: O(1)
+        
+        Args:
+            level: Volume level (0-100)
+            
+        Returns:
+            Operation result
+            
+        Raises:
+            GuruSpeechError: If operation fails
+        """
+        try:
+            result = self.os_controller.set_volume(level)
+            if not result.success:
+                raise GuruSpeechError(f"Failed to set volume: {result.message}")
+            return result
+        except Exception as e:
+            raise GuruSpeechError(f"Volume control failed: {e}") from e
+    
+    def set_system_brightness(self, level: int) -> OperationResult:
+        """
+        Set system brightness level.
+        
+        Time Complexity: O(1)
+        
+        Args:
+            level: Brightness level (0-100)
+            
+        Returns:
+            Operation result
+            
+        Raises:
+            GuruSpeechError: If operation fails
+        """
+        try:
+            result = self.os_controller.set_brightness(level)
+            if not result.success:
+                raise GuruSpeechError(f"Failed to set brightness: {result.message}")
+            return result
+        except Exception as e:
+            raise GuruSpeechError(f"Brightness control failed: {e}") from e
+    
+    def open_application(self, app_name: str) -> OperationResult:
+        """
+        Open an application by name.
+        
+        Time Complexity: O(1)
+        
+        Args:
+            app_name: Application name
+            
+        Returns:
+            Operation result
+            
+        Raises:
+            GuruSpeechError: If operation fails
+        """
+        try:
+            result = self.os_controller.open_application(app_name)
+            if not result.success:
+                raise GuruSpeechError(f"Failed to open application: {result.message}")
+            return result
+        except Exception as e:
+            raise GuruSpeechError(f"Application launch failed: {e}") from e
+    
+    def type_text(self, text: str, typing_speed: float = 0.05) -> OperationResult:
+        """
+        Type text into the active application.
+        
+        Time Complexity: O(n) where n is text length
+        
+        Args:
+            text: Text to type
+            typing_speed: Delay between keystrokes in seconds
+            
+        Returns:
+            Operation result
+            
+        Raises:
+            GuruSpeechError: If operation fails
+        """
+        try:
+            result = self.os_controller.type_text(text, typing_speed)
+            if not result.success:
+                raise GuruSpeechError(f"Failed to type text: {result.message}")
+            return result
+        except Exception as e:
+            raise GuruSpeechError(f"Text input failed: {e}") from e
+    
+    def play_media(self) -> OperationResult:
+        """
+        Play media (simulate play/pause key).
+        
+        Time Complexity: O(1)
+        
+        Returns:
+            Operation result
+            
+        Raises:
+            GuruSpeechError: If operation fails
+        """
+        try:
+            result = self.os_controller.play_media()
+            if not result.success:
+                raise GuruSpeechError(f"Failed to play media: {result.message}")
+            return result
+        except Exception as e:
+            raise GuruSpeechError(f"Media control failed: {e}") from e
+    
+    def pause_media(self) -> OperationResult:
+        """
+        Pause media (simulate play/pause key).
+        
+        Time Complexity: O(1)
+        
+        Returns:
+            Operation result
+            
+        Raises:
+            GuruSpeechError: If operation fails
+        """
+        try:
+            result = self.os_controller.pause_media()
+            if not result.success:
+                raise GuruSpeechError(f"Failed to pause media: {result.message}")
+            return result
+        except Exception as e:
+            raise GuruSpeechError(f"Media control failed: {e}") from e
+    
+    def take_screenshot(self, save_path: Optional[str] = None) -> OperationResult:
+        """
+        Take a screenshot.
+        
+        Time Complexity: O(1)
+        
+        Args:
+            save_path: Path to save screenshot (None for default)
+            
+        Returns:
+            Operation result with screenshot path
+            
+        Raises:
+            GuruSpeechError: If operation fails
+        """
+        try:
+            result = self.os_controller.take_screenshot(save_path)
+            if not result.success:
+                raise GuruSpeechError(f"Failed to take screenshot: {result.message}")
+            return result
+        except Exception as e:
+            raise GuruSpeechError(f"Screenshot failed: {e}") from e
+    
+    # Hardware Monitoring
+    
+    def get_system_info(self) -> Dict[str, Any]:
+        """
+        Get comprehensive system information.
+        
+        Time Complexity: O(1)
+        
+        Returns:
+            Dictionary with system information including:
+            - CPU usage
+            - Memory usage
+            - Battery status (if available)
+            - Platform information
+        """
+        try:
+            info = {
+                'platform': self.os_controller.get_system_info(),
+                'cpu': self.hardware_monitor.get_cpu_usage().to_dict(),
+                'memory': self.hardware_monitor.get_memory_info().to_dict(),
+            }
+            
+            # Add battery info if available (mobile/laptop)
+            battery = self.hardware_monitor.get_battery_info()
+            if battery:
+                info['battery'] = battery.to_dict()
+            
+            return info
+            
+        except Exception as e:
+            logger.error(f"Failed to get system info: {e}")
+            return {}
+    
+    def get_cpu_usage(self) -> float:
+        """
+        Get current CPU usage percentage.
+        
+        Time Complexity: O(1)
+        
+        Returns:
+            CPU usage percentage (0-100)
+        """
+        try:
+            cpu_info = self.hardware_monitor.get_cpu_usage()
+            return cpu_info.usage_percent
+        except Exception as e:
+            logger.error(f"Failed to get CPU usage: {e}")
+            return 0.0
+    
+    def get_memory_usage(self) -> Dict[str, Any]:
+        """
+        Get current memory usage information.
+        
+        Time Complexity: O(1)
+        
+        Returns:
+            Dictionary with memory usage details
+        """
+        try:
+            mem_info = self.hardware_monitor.get_memory_info()
+            return mem_info.to_dict()
+        except Exception as e:
+            logger.error(f"Failed to get memory usage: {e}")
+            return {}
+    
+    def get_battery_status(self) -> Optional[Dict[str, Any]]:
+        """
+        Get battery status (if available).
+        
+        Time Complexity: O(1)
+        
+        Returns:
+            Battery status dictionary, or None if not available
+        """
+        try:
+            battery = self.hardware_monitor.get_battery_info()
+            return battery.to_dict() if battery else None
+        except Exception as e:
+            logger.error(f"Failed to get battery status: {e}")
+            return None
+    
+    # File Operations
+    
+    def create_file(self, file_path: str, content: str) -> OperationResult:
+        """
+        Create a file with content.
+        
+        Time Complexity: O(n) where n is content length
+        
+        Args:
+            file_path: Path to create file
+            content: File content
+            
+        Returns:
+            Operation result
+            
+        Raises:
+            GuruSpeechError: If operation fails
+        """
+        try:
+            result = self.os_controller.create_file(file_path, content)
+            if not result.success:
+                raise GuruSpeechError(f"Failed to create file: {result.message}")
+            return result
+        except Exception as e:
+            raise GuruSpeechError(f"File creation failed: {e}") from e
+    
+    def read_file(self, file_path: str) -> str:
+        """
+        Read file content.
+        
+        Time Complexity: O(n) where n is file size
+        
+        Args:
+            file_path: Path to read
+            
+        Returns:
+            File content
+            
+        Raises:
+            GuruSpeechError: If operation fails
+        """
+        try:
+            result = self.os_controller.read_file(file_path)
+            if not result.success:
+                raise GuruSpeechError(f"Failed to read file: {result.message}")
+            return result.metadata.get('content', '')
+        except Exception as e:
+            raise GuruSpeechError(f"File read failed: {e}") from e
+    
+    def __repr__(self) -> str:
+        """String representation."""
+        return f"PlatformIntegration(os={self.os_controller.platform})"
