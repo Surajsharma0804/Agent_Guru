@@ -24,7 +24,8 @@ import ssl
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, Optional, Union, List, Callable, Awaitable
+from pathlib import Path
+from typing import Any, Dict, Optional, Union, List, Callable, Awaitable, AsyncIterator
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
@@ -158,6 +159,101 @@ class HttpResponse:
     def is_server_error(self) -> bool:
         """Check if status code indicates server error (5xx)."""
         return 500 <= self.status_code < 600
+
+
+@dataclass
+class DownloadResult:
+    """Result of file download operation.
+    
+    Attributes:
+        url: Source URL
+        destination: Local file path
+        total_bytes: Total bytes downloaded
+        duration: Download duration in seconds
+        average_speed: Average download speed in bytes/second
+        success: Whether download completed successfully
+        error: Error message if download failed
+    """
+    
+    url: str
+    destination: str
+    total_bytes: int
+    duration: float
+    average_speed: float
+    success: bool
+    error: Optional[str] = None
+
+
+@dataclass
+class UploadResult:
+    """Result of file upload operation.
+    
+    Attributes:
+        url: Destination URL
+        source: Local file path
+        total_bytes: Total bytes uploaded
+        duration: Upload duration in seconds
+        average_speed: Average upload speed in bytes/second
+        success: Whether upload completed successfully
+        response_status: HTTP response status code
+        error: Error message if upload failed
+    """
+    
+    url: str
+    source: str
+    total_bytes: int
+    duration: float
+    average_speed: float
+    success: bool
+    response_status: Optional[int] = None
+    error: Optional[str] = None
+
+    @dataclass
+    class DownloadResult:
+        """Result of file download operation.
+
+        Attributes:
+            url: Source URL
+            destination: Local file path
+            total_bytes: Total bytes downloaded
+            duration: Download duration in seconds
+            average_speed: Average download speed in bytes/second
+            success: Whether download completed successfully
+            error: Error message if download failed
+        """
+
+        url: str
+        destination: str
+        total_bytes: int
+        duration: float
+        average_speed: float
+        success: bool
+        error: Optional[str] = None
+
+
+    @dataclass
+    class UploadResult:
+        """Result of file upload operation.
+
+        Attributes:
+            url: Destination URL
+            source: Local file path
+            total_bytes: Total bytes uploaded
+            duration: Upload duration in seconds
+            average_speed: Average upload speed in bytes/second
+            success: bool
+            response_status: HTTP response status code
+            error: Error message if upload failed
+        """
+
+        url: str
+        source: str
+        total_bytes: int
+        duration: float
+        average_speed: float
+        success: bool
+        response_status: Optional[int] = None
+        error: Optional[str] = None
 
 
 # Exception hierarchy
@@ -978,6 +1074,474 @@ class NetworkManager:
             params=params,
             timeout=timeout,
         )
+    
+    # Streaming methods
+    
+    async def stream_response(
+        self,
+        method: HttpMethod,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        body: Optional[Union[bytes, str, Dict[str, Any]]] = None,
+        timeout: Optional[float] = None,
+        params: Optional[Dict[str, str]] = None,
+        chunk_size: int = 8192,
+    ) -> AsyncIterator[bytes]:
+        """Stream HTTP response in chunks.
+        
+        Time Complexity: O(1) per chunk
+        Space Complexity: O(chunk_size) - constant memory usage
+        
+        Args:
+            method: HTTP method
+            url: Request URL
+            headers: Custom headers
+            body: Request body
+            timeout: Request timeout in seconds
+            params: Query parameters
+            chunk_size: Size of each chunk in bytes (default: 8KB)
+        
+        Yields:
+            Response body chunks
+        
+        Raises:
+            NetworkError: If request fails
+            SSLValidationError: If SSL certificate validation fails
+            TimeoutError: If request times out
+            ConnectionError: If connection fails
+        
+        Example:
+            >>> async for chunk in manager.stream_response(
+            ...     HttpMethod.GET,
+            ...     "https://example.com/large-file.zip"
+            ... ):
+            ...     process_chunk(chunk)
+        """
+        if self._session is None:
+            raise NetworkError("NetworkManager not started - call start() first")
+        
+        # Validate URL
+        parsed_url = urlparse(url)
+        if not parsed_url.scheme or not parsed_url.netloc:
+            raise ValueError(f"Invalid URL: {url}")
+        
+        # Extract service name for rate limiting
+        service = self._extract_service_name(url)
+        
+        # Check rate limit
+        if self._rate_limiter is not None:
+            try:
+                await self._rate_limiter.acquire(service, timeout=timeout)
+            except RateLimitExceeded as e:
+                logger.warning(
+                    "Rate limit exceeded",
+                    extra={
+                        "service": service,
+                        "retry_after": e.retry_after,
+                    }
+                )
+                raise RateLimitError(service, e.retry_after) from e
+            except asyncio.TimeoutError as e:
+                logger.warning(
+                    "Rate limit timeout",
+                    extra={
+                        "service": service,
+                        "timeout": timeout,
+                    }
+                )
+                raise TimeoutError(f"Rate limit timeout for service '{service}'") from e
+        
+        # Prepare request
+        request_timeout = timeout if timeout is not None else self.config.default_timeout
+        request_headers = headers.copy() if headers else {}
+        
+        # Handle body encoding
+        request_body = None
+        if body is not None:
+            if isinstance(body, dict):
+                import json
+                request_body = json.dumps(body).encode('utf-8')
+                request_headers.setdefault('Content-Type', 'application/json')
+            elif isinstance(body, str):
+                request_body = body.encode('utf-8')
+            else:
+                request_body = body
+        
+        # Log request
+        logger.debug(
+            "HTTP streaming request",
+            extra={
+                "method": method.value,
+                "url": url,
+                "chunk_size": chunk_size,
+                "timeout": request_timeout,
+            }
+        )
+        
+        try:
+            # Execute streaming request
+            async with self._session.request(
+                method=method.value,
+                url=url,
+                headers=request_headers,
+                data=request_body,
+                params=params,
+                timeout=aiohttp.ClientTimeout(total=request_timeout),
+                allow_redirects=True,
+            ) as response:
+                # Check status code
+                if response.status >= 400:
+                    error_body = await response.read()
+                    raise NetworkError(
+                        f"HTTP {response.status}: {error_body.decode('utf-8', errors='replace')}"
+                    )
+                
+                # Stream response chunks
+                total_bytes = 0
+                async for chunk in response.content.iter_chunked(chunk_size):
+                    total_bytes += len(chunk)
+                    yield chunk
+                
+                logger.info(
+                    "HTTP streaming response complete",
+                    extra={
+                        "method": method.value,
+                        "url": url,
+                        "status_code": response.status,
+                        "total_bytes": total_bytes,
+                    }
+                )
+        
+        except asyncio.TimeoutError as e:
+            logger.error(
+                "Streaming request timeout",
+                extra={
+                    "method": method.value,
+                    "url": url,
+                    "timeout": request_timeout,
+                }
+            )
+            raise TimeoutError(f"Request timed out after {request_timeout}s: {url}") from e
+        
+        except aiohttp.ClientSSLError as e:
+            logger.error(
+                "SSL validation failed",
+                extra={
+                    "method": method.value,
+                    "url": url,
+                    "error": str(e),
+                }
+            )
+            raise SSLValidationError(f"SSL certificate validation failed: {url}") from e
+        
+        except aiohttp.ClientConnectionError as e:
+            logger.error(
+                "Connection error",
+                extra={
+                    "method": method.value,
+                    "url": url,
+                    "error": str(e),
+                }
+            )
+            raise ConnectionError(f"Connection failed: {url}") from e
+        
+        except aiohttp.ClientError as e:
+            logger.error(
+                "Request error",
+                extra={
+                    "method": method.value,
+                    "url": url,
+                    "error": str(e),
+                }
+            )
+            raise NetworkError(f"Request failed: {url}") from e
+    
+    async def download_file(
+        self,
+        url: str,
+        destination: Path,
+        progress_callback: Optional[Callable[[int, int], None]] = None,
+        chunk_size: int = 8192,
+        timeout: Optional[float] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> DownloadResult:
+        """Download file with progress tracking.
+        
+        Time Complexity: O(n) where n is file size
+        Space Complexity: O(chunk_size) - constant memory usage
+        
+        Args:
+            url: File URL
+            destination: Local file path
+            progress_callback: Progress callback (bytes_downloaded, total_bytes)
+            chunk_size: Size of each chunk in bytes (default: 8KB)
+            timeout: Request timeout in seconds
+            headers: Custom headers
+        
+        Returns:
+            Download result with statistics
+        
+        Example:
+            >>> def progress(downloaded, total):
+            ...     percent = (downloaded / total) * 100 if total > 0 else 0
+            ...     print(f"Downloaded: {percent:.1f}%")
+            >>> 
+            >>> result = await manager.download_file(
+            ...     url="https://example.com/large-file.zip",
+            ...     destination=Path("/tmp/large-file.zip"),
+            ...     progress_callback=progress
+            ... )
+            >>> print(f"Downloaded {result.total_bytes} bytes in {result.duration:.2f}s")
+            >>> print(f"Average speed: {result.average_speed / 1024 / 1024:.2f} MB/s")
+        """
+        start_time = time.perf_counter()
+        total_bytes = 0
+        content_length = 0
+        
+        try:
+            # Create parent directories if needed
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Get content length from HEAD request
+            try:
+                head_response = await self.head(url, headers=headers, timeout=timeout)
+                content_length = int(head_response.headers.get('Content-Length', 0))
+            except Exception as e:
+                logger.warning(f"Failed to get content length: {e}")
+                content_length = 0
+            
+            # Open file for writing
+            with open(destination, 'wb') as f:
+                # Stream download
+                async for chunk in self.stream_response(
+                    HttpMethod.GET,
+                    url,
+                    headers=headers,
+                    timeout=timeout,
+                    chunk_size=chunk_size,
+                ):
+                    # Write chunk to file
+                    f.write(chunk)
+                    total_bytes += len(chunk)
+                    
+                    # Call progress callback
+                    if progress_callback is not None:
+                        try:
+                            progress_callback(total_bytes, content_length)
+                        except Exception as e:
+                            logger.warning(f"Progress callback error: {e}")
+            
+            # Calculate statistics
+            duration = time.perf_counter() - start_time
+            average_speed = total_bytes / duration if duration > 0 else 0
+            
+            logger.info(
+                "File download complete",
+                extra={
+                    "url": url,
+                    "destination": str(destination),
+                    "total_bytes": total_bytes,
+                    "duration": duration,
+                    "average_speed_mbps": average_speed / 1024 / 1024,
+                }
+            )
+            
+            return DownloadResult(
+                url=url,
+                destination=str(destination),
+                total_bytes=total_bytes,
+                duration=duration,
+                average_speed=average_speed,
+                success=True,
+            )
+        
+        except Exception as e:
+            duration = time.perf_counter() - start_time
+            average_speed = total_bytes / duration if duration > 0 else 0
+            
+            logger.error(
+                "File download failed",
+                extra={
+                    "url": url,
+                    "destination": str(destination),
+                    "error": str(e),
+                    "bytes_downloaded": total_bytes,
+                }
+            )
+            
+            # Clean up partial download
+            if destination.exists():
+                try:
+                    destination.unlink()
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to clean up partial download: {cleanup_error}")
+            
+            return DownloadResult(
+                url=url,
+                destination=str(destination),
+                total_bytes=total_bytes,
+                duration=duration,
+                average_speed=average_speed,
+                success=False,
+                error=str(e),
+            )
+    
+    async def upload_file(
+        self,
+        url: str,
+        file_path: Path,
+        progress_callback: Optional[Callable[[int, int], None]] = None,
+        chunk_size: int = 8192,
+        timeout: Optional[float] = None,
+        headers: Optional[Dict[str, str]] = None,
+        method: HttpMethod = HttpMethod.POST,
+    ) -> UploadResult:
+        """Upload file with progress tracking.
+        
+        Time Complexity: O(n) where n is file size
+        Space Complexity: O(chunk_size) - constant memory usage
+        
+        Args:
+            url: Upload URL
+            file_path: Local file path
+            progress_callback: Progress callback (bytes_uploaded, total_bytes)
+            chunk_size: Size of each chunk in bytes (default: 8KB)
+            timeout: Request timeout in seconds
+            headers: Custom headers
+            method: HTTP method (POST or PUT)
+        
+        Returns:
+            Upload result with statistics
+        
+        Example:
+            >>> def progress(uploaded, total):
+            ...     percent = (uploaded / total) * 100 if total > 0 else 0
+            ...     print(f"Uploaded: {percent:.1f}%")
+            >>> 
+            >>> result = await manager.upload_file(
+            ...     url="https://example.com/upload",
+            ...     file_path=Path("/tmp/large-file.zip"),
+            ...     progress_callback=progress
+            ... )
+            >>> print(f"Uploaded {result.total_bytes} bytes in {result.duration:.2f}s")
+            >>> print(f"Response status: {result.response_status}")
+        """
+        start_time = time.perf_counter()
+        total_bytes = 0
+        response_status = None
+        
+        try:
+            # Validate file exists
+            if not file_path.exists():
+                raise FileNotFoundError(f"File not found: {file_path}")
+            
+            # Get file size
+            file_size = file_path.stat().st_size
+            
+            # Create async generator for file chunks
+            async def file_chunk_generator():
+                nonlocal total_bytes
+                with open(file_path, 'rb') as f:
+                    while True:
+                        chunk = f.read(chunk_size)
+                        if not chunk:
+                            break
+                        total_bytes += len(chunk)
+                        
+                        # Call progress callback
+                        if progress_callback is not None:
+                            try:
+                                progress_callback(total_bytes, file_size)
+                            except Exception as e:
+                                logger.warning(f"Progress callback error: {e}")
+                        
+                        yield chunk
+            
+            # Prepare headers
+            request_headers = headers.copy() if headers else {}
+            request_headers.setdefault('Content-Type', 'application/octet-stream')
+            request_headers.setdefault('Content-Length', str(file_size))
+            
+            # Execute upload request
+            request_timeout = timeout if timeout is not None else self.config.default_timeout
+            
+            logger.debug(
+                "File upload starting",
+                extra={
+                    "url": url,
+                    "file_path": str(file_path),
+                    "file_size": file_size,
+                    "method": method.value,
+                }
+            )
+            
+            async with self._session.request(
+                method=method.value,
+                url=url,
+                headers=request_headers,
+                data=file_chunk_generator(),
+                timeout=aiohttp.ClientTimeout(total=request_timeout),
+            ) as response:
+                response_status = response.status
+                response_body = await response.read()
+                
+                # Check for errors
+                if response.status >= 400:
+                    raise NetworkError(
+                        f"Upload failed with HTTP {response.status}: "
+                        f"{response_body.decode('utf-8', errors='replace')}"
+                    )
+            
+            # Calculate statistics
+            duration = time.perf_counter() - start_time
+            average_speed = total_bytes / duration if duration > 0 else 0
+            
+            logger.info(
+                "File upload complete",
+                extra={
+                    "url": url,
+                    "file_path": str(file_path),
+                    "total_bytes": total_bytes,
+                    "duration": duration,
+                    "average_speed_mbps": average_speed / 1024 / 1024,
+                    "response_status": response_status,
+                }
+            )
+            
+            return UploadResult(
+                url=url,
+                source=str(file_path),
+                total_bytes=total_bytes,
+                duration=duration,
+                average_speed=average_speed,
+                success=True,
+                response_status=response_status,
+            )
+        
+        except Exception as e:
+            duration = time.perf_counter() - start_time
+            average_speed = total_bytes / duration if duration > 0 else 0
+            
+            logger.error(
+                "File upload failed",
+                extra={
+                    "url": url,
+                    "file_path": str(file_path),
+                    "error": str(e),
+                    "bytes_uploaded": total_bytes,
+                }
+            )
+            
+            return UploadResult(
+                url=url,
+                source=str(file_path),
+                total_bytes=total_bytes,
+                duration=duration,
+                average_speed=average_speed,
+                success=False,
+                response_status=response_status,
+                error=str(e),
+            )
 
     # Webhook methods
     

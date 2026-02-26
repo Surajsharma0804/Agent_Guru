@@ -1,0 +1,129 @@
+# Example Permission Model Configuration
+# This file demonstrates the complete permission model structure
+
+version: "1.0"
+environment: "production"  # Options: development, staging, production
+
+# File System Permissions
+file_system:
+  # Allowed paths with specific permissions
+  allowed_paths:
+    # Workspace directory - full access
+    - path: "/home/agent_guru/workspace"
+      permissions: ["read", "write", "delete", "execute"]
+    
+    # Config directory - read-only with time restrictions
+    - path: "/home/agent_guru/config"
+      permissions: ["read"]
+      time_restrictions:
+        - days: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+          hours: "09:00-18:00"
+    
+    # Logs directory - write and read only
+    - path: "/var/log/agent_guru"
+      permissions: ["read", "write"]
+    
+    # Temporary directory - full access
+    - path: "/tmp/agent_guru"
+      permissions: ["read", "write", "delete", "execute"]
+  
+  # Blocked file extensions (security)
+  blocked_extensions:
+    - ".exe"
+    - ".dll"
+    - ".so"
+    - ".dylib"
+    - ".bat"
+    - ".cmd"
+    - ".ps1"
+  
+  # Maximum file size (100MB)
+  max_file_size: 104857600
+
+# Command Execution Permissions
+commands:
+  # Allowed command patterns (regex)
+  allowed_patterns:
+    - "^git .*"                          # All git commands
+    - "^npm (install|test|build|run)"    # Specific npm commands
+    - "^python3? .*\\.py$"               # Python scripts
+    - "^node .*\\.js$"                   # Node.js scripts
+    - "^docker (ps|images|logs)"         # Read-only docker commands
+    - "^kubectl get .*"                  # Read-only kubectl commands
+    - "^ls .*"                           # List directory
+    - "^cat .*"                          # Read files
+    - "^grep .*"                         # Search files
+  
+  # Blocked command patterns (security - checked first)
+  blocked_patterns:
+    - ".*rm -rf.*"                       # Recursive delete
+    - ".*sudo.*"                         # Privilege escalation
+    - ".*format.*"                       # Disk formatting
+    - ".*shutdown.*"                     # System shutdown
+    - ".*reboot.*"                       # System reboot
+    - ".*mkfs\\..*"                      # Filesystem creation
+    - ".*dd if=.*of=/dev/.*"             # Direct disk write
+    - ".*chmod 777.*"                    # Insecure permissions
+    - ".*curl.*\\|.*bash.*"              # Pipe to shell (dangerous)
+    - ".*wget.*\\|.*sh.*"                # Pipe to shell (dangerous)
+
+# Network Permissions
+network:
+  # Allowed domains (supports wildcards)
+  allowed_domains:
+    - "api.github.com"
+    - "*.googleapis.com"
+    - "api.openai.com"
+    - "api.anthropic.com"
+    - "*.huggingface.co"
+    - "pypi.org"
+    - "*.npmjs.org"
+  
+  # Allowed HTTP methods
+  allowed_methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "PATCH"
+  
+  # Rate limits per service (requests per minute/hour)
+  rate_limits:
+    default: 100              # Default: 100 requests per minute
+    github: 5000              # GitHub: 5000 requests per hour
+    openai: 3500              # OpenAI: 3500 requests per minute
+    anthropic: 4000           # Anthropic: 4000 requests per minute
+
+# Resource Limits
+resources:
+  max_cpu_percent: 80.0                    # Maximum CPU usage (%)
+  max_memory_bytes: 2147483648             # Maximum memory (2GB)
+  min_disk_free_bytes: 1073741824          # Minimum free disk space (1GB)
+  max_process_count: 10                    # Maximum concurrent processes
+  max_network_bandwidth_mbps: 100.0        # Maximum network bandwidth
+
+# Operation Quotas
+quotas:
+  # File operations quota
+  file_operations:
+    per_hour: 1000
+    per_day: 10000
+  
+  # Command executions quota
+  command_executions:
+    per_hour: 500
+    per_day: 5000
+  
+  # Network requests quota
+  network_requests:
+    per_hour: 10000
+    per_day: 100000
+
+# Emergency Lockdown Mode
+lockdown_mode:
+  enabled: false
+  # Operations allowed during lockdown (critical only)
+  allowed_operations:
+    - "read_file"
+    - "get_system_info"
+    - "get_hardware_status"

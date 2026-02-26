@@ -875,7 +875,7 @@ This component is used by:
     - Integration tests for event routing
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 26.6: Streaming Support**
+- [x] **Task 26.6: Streaming Support**
   - Implement streaming:
     - Streaming response handling
     - Progress callbacks
@@ -890,7 +890,7 @@ This component is used by:
 
 ### Task 27: Permission Model & Policy Engine ⚠️ CRITICAL
 
-- [ ] **Task 27.1: Permission Model Manager**
+- [x] **Task 27.1: Permission Model Manager**
   - Implement `permissions/model_manager.py`:
     - `PermissionModelManager` class
     - YAML configuration loading
