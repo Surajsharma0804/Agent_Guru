@@ -221,6 +221,9 @@ class PermissionModelManager:
         self._lock = RLock()  # Thread-safe configuration updates
         self._config_hash: Optional[str] = None
         self._lockdown_mode = False
+        self._lockdown_activated_at: Optional[datetime] = None
+        self._lockdown_reason: Optional[str] = None
+        self._lockdown_activated_by: Optional[str] = None
         
         # Quota tracking (in-memory, reset hourly/daily)
         self._quota_counters: Dict[str, Dict[OperationType, Dict[str, int]]] = {}
@@ -459,8 +462,13 @@ class PermissionModelManager:
             # Check lockdown mode
             if self._lockdown_mode:
                 allowed_ops = self.model.lockdown_mode.get("allowed_operations", [])
-                if "read_file" not in allowed_ops and operation == FileOperation.READ:
-                    logger.warning(f"Path operation denied (lockdown mode): {path}")
+                operation_name = f"{operation.value}_file"
+                
+                if operation_name not in allowed_ops and "file_operations" not in allowed_ops:
+                    logger.warning(
+                        f"Path operation denied (lockdown mode): {path} ({operation.value}), "
+                        f"allowed operations: {allowed_ops}"
+                    )
                     return False
             
             # Normalize path to string (use forward slashes for consistency)
@@ -505,8 +513,13 @@ class PermissionModelManager:
         with self._lock:
             # Check lockdown mode
             if self._lockdown_mode:
-                logger.warning(f"Command denied (lockdown mode): {command}")
-                return False
+                allowed_ops = self.model.lockdown_mode.get("allowed_operations", [])
+                if "execute_command" not in allowed_ops and "commands" not in allowed_ops:
+                    logger.warning(
+                        f"Command denied (lockdown mode): {command}, "
+                        f"allowed operations: {allowed_ops}"
+                    )
+                    return False
             
             # Check blocked patterns first (security priority)
             for pattern in self.model.blocked_command_patterns:
@@ -546,8 +559,13 @@ class PermissionModelManager:
         with self._lock:
             # Check lockdown mode
             if self._lockdown_mode:
-                logger.warning(f"Network request denied (lockdown mode): {url}")
-                return False
+                allowed_ops = self.model.lockdown_mode.get("allowed_operations", [])
+                if "network_request" not in allowed_ops and "network" not in allowed_ops:
+                    logger.warning(
+                        f"Network request denied (lockdown mode): {url}, "
+                        f"allowed operations: {allowed_ops}"
+                    )
+                    return False
             
             # Check method
             if method not in self.model.allowed_methods:
@@ -658,22 +676,122 @@ class PermissionModelManager:
             self._last_day_reset = current_day
             logger.debug("Daily quota counters reset")
     
-    def enter_lockdown_mode(self) -> None:
+    def enter_lockdown_mode(self, reason: str = "Emergency lockdown", activated_by: str = "system") -> None:
         """
         Enter emergency lockdown mode (disable all non-critical operations).
         
         In lockdown mode, only operations in the allowed_operations list are permitted.
         This is useful for emergency situations or security incidents.
+        
+        Args:
+            reason: Reason for activating lockdown mode
+            activated_by: User or system that activated lockdown
         """
         with self._lock:
-            self._lockdown_mode = True
-            logger.warning("LOCKDOWN MODE ACTIVATED - Only critical operations allowed")
+            if not self._lockdown_mode:
+                self._lockdown_mode = True
+                self._lockdown_activated_at = datetime.now()
+                self._lockdown_reason = reason
+                self._lockdown_activated_by = activated_by
+                
+                logger.critical(
+                    f"LOCKDOWN MODE ACTIVATED - Only critical operations allowed. "
+                    f"Reason: {reason}, Activated by: {activated_by}"
+                )
+                
+                # Log to security audit
+                try:
+                    from Agent_Guru.platform.security.auditor import SecurityAuditor
+                    auditor = SecurityAuditor()
+                    auditor.log_security_event(
+                        event_type="lockdown_activated",
+                        severity="critical",
+                        details={
+                            "reason": reason,
+                            "activated_by": activated_by,
+                            "timestamp": self._lockdown_activated_at.isoformat(),
+                            "allowed_operations": self.model.lockdown_mode.get("allowed_operations", [])
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to log lockdown activation to security audit: {e}")
+            else:
+                logger.warning("Lockdown mode already active")
     
-    def exit_lockdown_mode(self) -> None:
-        """Exit lockdown mode and restore normal operations."""
+    def exit_lockdown_mode(self, exited_by: str = "system") -> None:
+        """
+        Exit lockdown mode and restore normal operations.
+        
+        Args:
+            exited_by: User or system that deactivated lockdown
+        """
         with self._lock:
-            self._lockdown_mode = False
-            logger.info("Lockdown mode deactivated - Normal operations restored")
+            if self._lockdown_mode:
+                duration = None
+                if self._lockdown_activated_at:
+                    duration = (datetime.now() - self._lockdown_activated_at).total_seconds()
+                
+                self._lockdown_mode = False
+                
+                logger.warning(
+                    f"Lockdown mode deactivated - Normal operations restored. "
+                    f"Exited by: {exited_by}, Duration: {duration:.2f}s"
+                )
+                
+                # Log to security audit
+                try:
+                    from Agent_Guru.platform.security.auditor import SecurityAuditor
+                    auditor = SecurityAuditor()
+                    auditor.log_security_event(
+                        event_type="lockdown_deactivated",
+                        severity="warning",
+                        details={
+                            "exited_by": exited_by,
+                            "duration_seconds": duration,
+                            "activated_at": self._lockdown_activated_at.isoformat() if self._lockdown_activated_at else None,
+                            "reason": self._lockdown_reason
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to log lockdown deactivation to security audit: {e}")
+                
+                # Clear lockdown tracking
+                self._lockdown_activated_at = None
+                self._lockdown_reason = None
+                self._lockdown_activated_by = None
+            else:
+                logger.warning("Lockdown mode not active")
+    
+    def get_lockdown_status(self) -> Dict[str, Any]:
+        """
+        Get current lockdown mode status with details.
+        
+        Returns:
+            Dictionary with lockdown status information
+        """
+        with self._lock:
+            if not self._lockdown_mode:
+                return {
+                    "active": False,
+                    "activated_at": None,
+                    "duration_seconds": None,
+                    "reason": None,
+                    "activated_by": None,
+                    "allowed_operations": []
+                }
+            
+            duration = None
+            if self._lockdown_activated_at:
+                duration = (datetime.now() - self._lockdown_activated_at).total_seconds()
+            
+            return {
+                "active": True,
+                "activated_at": self._lockdown_activated_at.isoformat() if self._lockdown_activated_at else None,
+                "duration_seconds": duration,
+                "reason": self._lockdown_reason,
+                "activated_by": self._lockdown_activated_by,
+                "allowed_operations": self.model.lockdown_mode.get("allowed_operations", [])
+            }
     
     @property
     def is_lockdown_mode(self) -> bool:
