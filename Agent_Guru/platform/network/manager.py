@@ -24,7 +24,7 @@ import ssl
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, List, Callable, Awaitable
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
@@ -43,6 +43,17 @@ from .connection_pool import (
     ConnectionPoolConfig,
     ConnectionStats,
     PoolStatistics,
+)
+from .webhook import (
+    WebhookManager,
+    WebhookConfig,
+    WebhookEvent,
+    WebhookHandler,
+    SignatureAlgorithm,
+    WebhookError,
+    SignatureVerificationError,
+    TimestampValidationError,
+    HandlerNotFoundError,
 )
 
 # Configure structured logging
@@ -79,6 +90,8 @@ class NetworkConfig:
         cache_max_size: Maximum cache size in bytes (100MB recommended)
         enable_connection_pooling: Whether to enable advanced connection pooling
         connection_pool_config: Connection pool configuration
+        enable_webhooks: Whether to enable webhook support
+        webhook_config: Webhook configuration
     """
     
     default_timeout: float = 30.0
@@ -94,6 +107,8 @@ class NetworkConfig:
     cache_max_size: int = 100 * 1024 * 1024  # 100MB
     enable_connection_pooling: bool = True
     connection_pool_config: Optional[ConnectionPoolConfig] = None
+    enable_webhooks: bool = True
+    webhook_config: Optional[WebhookConfig] = None
 
 
 @dataclass
@@ -238,6 +253,12 @@ class NetworkManager:
         if config.enable_caching:
             self._cache = ResponseCache(max_size=config.cache_max_size)
         
+        # Initialize webhook manager
+        self._webhook_manager: Optional[WebhookManager] = None
+        if config.enable_webhooks:
+            webhook_config = config.webhook_config or WebhookConfig()
+            self._webhook_manager = WebhookManager(webhook_config)
+        
         logger.info(
             "NetworkManager initialized",
             extra={
@@ -248,6 +269,7 @@ class NetworkManager:
                 "caching_enabled": config.enable_caching,
                 "cache_max_size_mb": config.cache_max_size / (1024 * 1024) if config.enable_caching else 0,
                 "connection_pooling_enabled": config.enable_connection_pooling,
+                "webhooks_enabled": config.enable_webhooks,
             }
         )
     
@@ -307,6 +329,10 @@ class NetworkManager:
         if self._pool_manager is not None:
             await self._pool_manager.close()
             self._pool_manager = None
+        
+        if self._webhook_manager is not None:
+            await self._webhook_manager.close()
+            self._webhook_manager = None
     
     async def __aenter__(self):
         """Context manager entry."""
@@ -951,4 +977,148 @@ class NetworkManager:
             headers=headers,
             params=params,
             timeout=timeout,
+        )
+
+    # Webhook methods
+    
+    def register_webhook(
+        self,
+        endpoint: str,
+        handler: Callable[[WebhookEvent], Awaitable[None]],
+        secret_key: Optional[str] = None,
+        config: Optional[WebhookConfig] = None,
+        event_types: Optional[List[str]] = None,
+    ) -> None:
+        """Register webhook handler for endpoint.
+        
+        Args:
+            endpoint: Webhook endpoint path (e.g., "/webhooks/github")
+            handler: Async handler function
+            secret_key: Secret key for signature verification
+            config: Webhook configuration (uses default if None)
+            event_types: List of event types to handle (empty = all types)
+        
+        Raises:
+            ValueError: If webhooks not enabled or endpoint already registered
+        
+        Example:
+            >>> async def handle_github_event(event: WebhookEvent):
+            ...     print(f"GitHub event: {event.event_type}")
+            ...     print(f"Payload: {event.payload}")
+            >>> 
+            >>> manager.register_webhook(
+            ...     endpoint="/webhooks/github",
+            ...     handler=handle_github_event,
+            ...     secret_key="github_webhook_secret",
+            ...     event_types=["push", "pull_request"]
+            ... )
+        """
+        if self._webhook_manager is None:
+            raise ValueError("Webhooks not enabled - set enable_webhooks=True in config")
+        
+        self._webhook_manager.register_webhook(
+            endpoint=endpoint,
+            handler=handler,
+            secret_key=secret_key,
+            config=config,
+            event_types=event_types,
+        )
+    
+    def unregister_webhook(self, endpoint: str) -> bool:
+        """Unregister webhook handler.
+        
+        Args:
+            endpoint: Webhook endpoint path
+        
+        Returns:
+            True if handler was unregistered, False if not found
+        
+        Example:
+            >>> manager.unregister_webhook("/webhooks/github")
+            True
+        """
+        if self._webhook_manager is None:
+            return False
+        
+        return self._webhook_manager.unregister_webhook(endpoint)
+    
+    def get_registered_webhooks(self) -> List[str]:
+        """Get list of registered webhook endpoints.
+        
+        Returns:
+            List of endpoint paths
+        
+        Example:
+            >>> endpoints = manager.get_registered_webhooks()
+            >>> print(f"Registered webhooks: {endpoints}")
+            ['/webhooks/github', '/webhooks/stripe']
+        """
+        if self._webhook_manager is None:
+            return []
+        
+        return self._webhook_manager.get_registered_endpoints()
+    
+    def get_webhook_stats(self, endpoint: str) -> Optional[Dict[str, Any]]:
+        """Get statistics for webhook handler.
+        
+        Args:
+            endpoint: Webhook endpoint path
+        
+        Returns:
+            Handler statistics or None if not found
+        
+        Example:
+            >>> stats = manager.get_webhook_stats("/webhooks/github")
+            >>> if stats:
+            ...     print(f"Triggers: {stats['trigger_count']}")
+            ...     print(f"Last triggered: {stats['last_triggered']}")
+        """
+        if self._webhook_manager is None:
+            return None
+        
+        return self._webhook_manager.get_handler_stats(endpoint)
+    
+    async def process_webhook(
+        self,
+        endpoint: str,
+        headers: Dict[str, str],
+        body: bytes,
+    ) -> WebhookEvent:
+        """Process incoming webhook request.
+        
+        Args:
+            endpoint: Webhook endpoint path
+            headers: HTTP headers from request
+            body: Request body bytes
+        
+        Returns:
+            Webhook event
+        
+        Raises:
+            ValueError: If webhooks not enabled
+            HandlerNotFoundError: If no handler registered for endpoint
+            SignatureVerificationError: If signature verification fails
+            TimestampValidationError: If timestamp validation fails
+            WebhookError: If webhook processing fails
+        
+        Example:
+            >>> event = await manager.process_webhook(
+            ...     endpoint="/webhooks/github",
+            ...     headers={
+            ...         "X-Webhook-Signature": "sha256=abc123...",
+            ...         "X-Webhook-Timestamp": "1234567890",
+            ...         "X-GitHub-Event": "push",
+            ...     },
+            ...     body=b'{"repository": "agent-guru", "ref": "refs/heads/main"}',
+            ... )
+            >>> print(f"Event type: {event.event_type}")
+            >>> print(f"Verified: {event.verified}")
+        """
+        if self._webhook_manager is None:
+            raise ValueError("Webhooks not enabled - set enable_webhooks=True in config")
+        
+        return await self._webhook_manager.process_webhook(
+            endpoint=endpoint,
+            headers=headers,
+            body=body,
         )

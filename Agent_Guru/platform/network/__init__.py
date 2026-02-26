@@ -12,6 +12,9 @@ This module provides robust HTTP/HTTPS client functionality with enterprise feat
 - Connection pooling with per-host limits
 - Idle connection cleanup
 - Connection reuse tracking
+- Webhook registration and handling
+- Signature verification (HMAC-SHA256/SHA512)
+- Event routing with async handlers
 """
 
 from Agent_Guru.platform.network.manager import (
@@ -48,6 +51,18 @@ from Agent_Guru.platform.network.connection_pool import (
     PoolStatistics,
 )
 
+from Agent_Guru.platform.network.webhook import (
+    WebhookManager,
+    WebhookConfig,
+    WebhookEvent,
+    WebhookHandler,
+    SignatureAlgorithm,
+    WebhookError,
+    SignatureVerificationError,
+    TimestampValidationError,
+    HandlerNotFoundError,
+)
+
 __all__ = [
     # Network Manager
     "NetworkManager",
@@ -76,5 +91,15 @@ __all__ = [
     "ConnectionPoolConfig",
     "ConnectionStats",
     "PoolStatistics",
+    # Webhooks
+    "WebhookManager",
+    "WebhookConfig",
+    "WebhookEvent",
+    "WebhookHandler",
+    "SignatureAlgorithm",
+    "WebhookError",
+    "SignatureVerificationError",
+    "TimestampValidationError",
+    "HandlerNotFoundError",
 ]
 
