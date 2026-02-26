@@ -40,8 +40,20 @@ from Agent_Guru.platform.platform_detector import (
     UnsupportedPlatformError
 )
 
+# Import integration clients
+from Agent_Guru.platform.integration import (
+    GoalManagerClient,
+    TaskCompletionNotification,
+    OperationResult,
+    NotificationStatus,
+)
+
 __all__ = [
     "PlatformDetector",
     "PlatformInfo",
     "UnsupportedPlatformError",
+    "GoalManagerClient",
+    "TaskCompletionNotification",
+    "OperationResult",
+    "NotificationStatus",
 ]
