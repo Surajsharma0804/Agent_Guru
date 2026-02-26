@@ -777,7 +777,7 @@ This component is used by:
     - Property tests for error structure
   - **GitHub Push**: ✅ Required after completion
 
-- [-] **Task 25.4: Graceful Degradation**
+- [x] **Task 25.4: Graceful Degradation**
   - Implement degradation:
     - Resource constraint detection
     - Non-critical feature disabling
@@ -790,7 +790,7 @@ This component is used by:
     - Performance tests for degradation impact
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 25.5: Health Check Endpoint**
+- [x] **Task 25.5: Health Check Endpoint**
   - Implement health checks:
     - Health check endpoint
     - Component health status
@@ -804,7 +804,7 @@ This component is used by:
 
 ### Task 26: Network Manager Implementation ⚠️ CRITICAL
 
-- [ ] **Task 26.1: Core Network Manager**
+- [x] **Task 26.1: Core Network Manager**
   - Implement `network/manager.py`:
     - `NetworkManager` class
     - HTTP client with all methods (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
@@ -820,7 +820,7 @@ This component is used by:
     - Performance tests for request latency
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 26.2: Rate Limiting**
+- [x] **Task 26.2: Rate Limiting**
   - Implement rate limiting:
     - Per-service rate limiters
     - Token bucket algorithm
@@ -834,7 +834,7 @@ This component is used by:
     - Integration tests for queuing
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 26.3: Response Caching**
+- [x] **Task 26.3: Response Caching**
   - Implement caching:
     - Response cache with LRU eviction
     - Cache-Control header parsing
