@@ -113,6 +113,78 @@ class GitRepositoryStatus:
     behind_count: int = 0
 
 
+@dataclass
+class PullRequestResult:
+    """Result of pull request creation.
+    
+    Attributes:
+        success: Whether PR was created successfully
+        pr_number: Pull request number
+        pr_url: URL to the pull request
+        message: Human-readable message
+        error: Error message if failed
+    """
+    success: bool
+    pr_number: Optional[int] = None
+    pr_url: Optional[str] = None
+    message: str = ""
+    error: Optional[str] = None
+
+
+@dataclass
+class BranchInfo:
+    """Information about a Git branch.
+    
+    Attributes:
+        name: Branch name
+        exists_locally: Whether branch exists locally
+        exists_remotely: Whether branch exists on remote
+        is_current: Whether this is the current branch
+        commit_hash: Latest commit hash
+    """
+    name: str
+    exists_locally: bool
+    exists_remotely: bool
+    is_current: bool
+    commit_hash: Optional[str] = None
+
+    @dataclass
+    class PullRequestResult:
+        """Result of pull request creation.
+
+        Attributes:
+            success: Whether PR was created successfully
+            pr_number: Pull request number
+            pr_url: URL to the pull request
+            message: Human-readable message
+            error: Error message if failed
+        """
+        success: bool
+        pr_number: Optional[int] = None
+        pr_url: Optional[str] = None
+        message: str = ""
+        error: Optional[str] = None
+
+
+    @dataclass
+    class BranchInfo:
+        """Information about a Git branch.
+
+        Attributes:
+            name: Branch name
+            exists_locally: Whether branch exists locally
+            exists_remotely: Whether branch exists on remote
+            is_current: Whether this is the current branch
+            commit_hash: Latest commit hash
+        """
+        name: str
+        exists_locally: bool
+        exists_remotely: bool
+        is_current: bool
+        commit_hash: Optional[str] = None
+
+
+
 class GitHubIntegrator:
     """
     Automated Git operations for Agent Guru.
@@ -1762,3 +1834,479 @@ class GitHubIntegrator:
         except Exception as e:
             logger.warning(f"Failed to notify Goal Manager: {e}")
 
+
+    def create_branch(
+        self,
+        branch_name: str,
+        base_branch: Optional[str] = None
+    ) -> GitOperationResult:
+        """Create a new branch.
+        
+        Time Complexity: O(1)
+        Space Complexity: O(1)
+        
+        Args:
+            branch_name: Name of the new branch
+            base_branch: Base branch to create from (None = current branch)
+        
+        Returns:
+            GitOperationResult with branch creation status
+        
+        Raises:
+            ValueError: If branch_name is empty
+            GitError: If branch creation fails
+        
+        Example:
+            >>> result = integrator.create_branch("feature/new-feature")
+            >>> if result.success:
+            ...     print(f"Branch created: {branch_name}")
+        """
+        if not branch_name or not branch_name.strip():
+            raise ValueError("Branch name cannot be empty")
+        
+        start_time = datetime.now()
+        
+        try:
+            # Check if branch already exists
+            branch_info = self.get_branch_info(branch_name)
+            if branch_info.exists_locally:
+                return GitOperationResult(
+                    success=False,
+                    message=f"Branch '{branch_name}' already exists locally",
+                    stderr=f"Branch exists: {branch_name}"
+                )
+            
+            # Create branch
+            cmd = ["checkout", "-b", branch_name]
+            if base_branch:
+                cmd.append(base_branch)
+            
+            result = self._run_git_command(cmd)
+            
+            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            
+            if result.success:
+                logger.info(f"Created branch: {branch_name}")
+                return GitOperationResult(
+                    success=True,
+                    message=f"Branch '{branch_name}' created successfully",
+                    stdout=result.stdout,
+                    stderr=result.stderr,
+                    return_code=result.return_code,
+                    duration_ms=duration_ms
+                )
+            else:
+                raise GitError(f"Failed to create branch: {result.stderr}")
+        
+        except Exception as e:
+            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            logger.error(f"Failed to create branch: {e}")
+            return GitOperationResult(
+                success=False,
+                message=f"Branch creation failed: {e}",
+                stderr=str(e),
+                duration_ms=duration_ms
+            )
+    
+    def get_branch_info(self, branch_name: str) -> BranchInfo:
+        """Get information about a branch.
+        
+        Time Complexity: O(1)
+        Space Complexity: O(1)
+        
+        Args:
+            branch_name: Name of the branch
+        
+        Returns:
+            BranchInfo with branch details
+        
+        Example:
+            >>> info = integrator.get_branch_info("main")
+            >>> print(f"Exists locally: {info.exists_locally}")
+        """
+        try:
+            # Check if branch exists locally
+            local_result = self._run_git_command(["branch", "--list", branch_name])
+            exists_locally = bool(local_result.stdout.strip())
+            
+            # Check if branch exists remotely
+            remote_result = self._run_git_command([
+                "ls-remote",
+                "--heads",
+                self.remote_name,
+                f"refs/heads/{branch_name}"
+            ])
+            exists_remotely = bool(remote_result.stdout.strip())
+            
+            # Check if it's the current branch
+            status = self.get_status()
+            is_current = status.current_branch == branch_name
+            
+            # Get commit hash if branch exists
+            commit_hash = None
+            if exists_locally:
+                hash_result = self._run_git_command(["rev-parse", branch_name])
+                if hash_result.success:
+                    commit_hash = hash_result.stdout.strip()
+            
+            return BranchInfo(
+                name=branch_name,
+                exists_locally=exists_locally,
+                exists_remotely=exists_remotely,
+                is_current=is_current,
+                commit_hash=commit_hash
+            )
+        
+        except Exception as e:
+            logger.error(f"Failed to get branch info: {e}")
+            return BranchInfo(
+                name=branch_name,
+                exists_locally=False,
+                exists_remotely=False,
+                is_current=False
+            )
+    
+    def generate_pr_description(
+        self,
+        task_id: str,
+        task_description: str,
+        changed_files: Optional[list[str]] = None,
+        task_type: str = "Task"
+    ) -> str:
+        """Generate pull request description from task context.
+        
+        Time Complexity: O(n) where n is number of changed files
+        Space Complexity: O(n) for file analysis
+        
+        Args:
+            task_id: Task identifier (e.g., "24.5")
+            task_description: Human-readable task description
+            changed_files: List of changed files (None = auto-detect)
+            task_type: Type of task (Task, Feature, Bugfix, etc.)
+        
+        Returns:
+            Formatted PR description in Markdown
+        
+        Example:
+            >>> description = integrator.generate_pr_description(
+            ...     task_id="24.5",
+            ...     task_description="Implement PR creation",
+            ...     task_type="Task"
+            ... )
+        """
+        # Auto-detect changed files if not provided
+        if changed_files is None:
+            status = self.get_status()
+            changed_files = (
+                status.staged_files +
+                status.unstaged_files +
+                status.untracked_files
+            )
+        
+        # Analyze files
+        file_stats = self._get_file_stats(changed_files)
+        
+        # Group files by component
+        components = set()
+        file_types = set()
+        for file_path in changed_files:
+            # Extract component from path (e.g., "Agent_Guru/platform/github" -> "github")
+            parts = Path(file_path).parts
+            if len(parts) >= 3 and parts[0] == "Agent_Guru":
+                components.add(parts[2])
+            
+            # Extract file extension
+            ext = Path(file_path).suffix
+            if ext:
+                file_types.add(ext)
+        
+        # Build description
+        description_parts = [
+            f"## [{task_type} {task_id}] {task_description}",
+            "",
+            "### Summary",
+            f"This PR implements {task_type} {task_id}: {task_description}",
+            "",
+            "### Changes",
+            f"- **Files changed**: {len(changed_files)}",
+            f"- **Components**: {', '.join(sorted(components)) if components else 'N/A'}",
+            f"- **File types**: {', '.join(sorted(file_types)) if file_types else 'N/A'}",
+            "",
+            "### Files Modified",
+        ]
+        
+        # Add file list with status
+        for file_path in sorted(changed_files)[:20]:  # Limit to 20 files
+            status_symbol = {
+                'A': '✨',  # Added
+                'M': '📝',  # Modified
+                'D': '🗑️'   # Deleted
+            }.get(file_stats.get(file_path, 'M'), '📝')
+            description_parts.append(f"- {status_symbol} `{file_path}`")
+        
+        if len(changed_files) > 20:
+            description_parts.append(f"- ... and {len(changed_files) - 20} more files")
+        
+        description_parts.extend([
+            "",
+            "### Testing",
+            "- [ ] Unit tests added/updated",
+            "- [ ] Integration tests added/updated",
+            "- [ ] All tests passing",
+            "",
+            "### Checklist",
+            "- [ ] Code follows project style guidelines",
+            "- [ ] Documentation updated",
+            "- [ ] No breaking changes",
+            "",
+            "---",
+            "*Auto-generated by Agent_Guru*"
+        ])
+        
+        return "\n".join(description_parts)
+    
+    def create_pull_request(
+        self,
+        title: str,
+        description: str,
+        source_branch: str,
+        target_branch: str = "main",
+        draft: bool = False
+    ) -> PullRequestResult:
+        """Create a pull request using GitHub CLI.
+        
+        This method requires GitHub CLI (gh) to be installed and authenticated.
+        
+        Time Complexity: O(1) (network operation)
+        Space Complexity: O(1)
+        
+        Args:
+            title: PR title
+            description: PR description (Markdown supported)
+            source_branch: Source branch (head)
+            target_branch: Target branch (base)
+            draft: Create as draft PR
+        
+        Returns:
+            PullRequestResult with PR details
+        
+        Raises:
+            ValueError: If title or source_branch is empty
+            GitError: If PR creation fails
+        
+        Example:
+            >>> result = integrator.create_pull_request(
+            ...     title="[Task 24.5] Implement PR creation",
+            ...     description="This PR adds PR creation functionality",
+            ...     source_branch="feature/pr-creation",
+            ...     target_branch="main"
+            ... )
+            >>> if result.success:
+            ...     print(f"PR created: {result.pr_url}")
+        """
+        if not title or not title.strip():
+            raise ValueError("PR title cannot be empty")
+        if not source_branch or not source_branch.strip():
+            raise ValueError("Source branch cannot be empty")
+        
+        start_time = datetime.now()
+        
+        try:
+            # Validate source branch exists
+            source_info = self.get_branch_info(source_branch)
+            if not source_info.exists_locally and not source_info.exists_remotely:
+                return PullRequestResult(
+                    success=False,
+                    message=f"Source branch '{source_branch}' does not exist",
+                    error=f"Branch not found: {source_branch}"
+                )
+            
+            # Push source branch if not on remote
+            if source_info.exists_locally and not source_info.exists_remotely:
+                logger.info(f"Pushing source branch '{source_branch}' to remote")
+                push_result = self.push(branch=source_branch, set_upstream=True)
+                if not push_result.success:
+                    return PullRequestResult(
+                        success=False,
+                        message=f"Failed to push source branch: {push_result.message}",
+                        error=push_result.stderr
+                    )
+            
+            # Check if GitHub CLI is available
+            gh_check = subprocess.run(
+                ["gh", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            if gh_check.returncode != 0:
+                return PullRequestResult(
+                    success=False,
+                    message="GitHub CLI (gh) is not installed or not in PATH",
+                    error=(
+                        "GitHub CLI is required for PR creation.\n"
+                        "Install from: https://cli.github.com/\n"
+                        "Then authenticate with: gh auth login"
+                    )
+                )
+            
+            # Build gh pr create command
+            cmd = [
+                "gh", "pr", "create",
+                "--title", title,
+                "--body", description,
+                "--base", target_branch,
+                "--head", source_branch
+            ]
+            
+            if draft:
+                cmd.append("--draft")
+            
+            # Create PR
+            result = subprocess.run(
+                cmd,
+                cwd=str(self.repo_path),
+                capture_output=True,
+                text=True,
+                timeout=self.timeout
+            )
+            
+            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            
+            if result.returncode == 0:
+                # Extract PR URL from output
+                pr_url = result.stdout.strip()
+                
+                # Extract PR number from URL (e.g., https://github.com/user/repo/pull/123)
+                pr_number = None
+                if "/pull/" in pr_url:
+                    try:
+                        pr_number = int(pr_url.split("/pull/")[-1])
+                    except (ValueError, IndexError):
+                        pass
+                
+                logger.info(f"PR created successfully: {pr_url}")
+                
+                return PullRequestResult(
+                    success=True,
+                    pr_number=pr_number,
+                    pr_url=pr_url,
+                    message=f"Pull request created: #{pr_number}" if pr_number else "Pull request created"
+                )
+            else:
+                error_msg = result.stderr.strip() or result.stdout.strip()
+                logger.error(f"Failed to create PR: {error_msg}")
+                
+                return PullRequestResult(
+                    success=False,
+                    message=f"Failed to create pull request: {error_msg}",
+                    error=error_msg
+                )
+        
+        except subprocess.TimeoutExpired:
+            return PullRequestResult(
+                success=False,
+                message=f"PR creation timed out after {self.timeout}s",
+                error="Timeout"
+            )
+        except Exception as e:
+            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            logger.error(f"Failed to create PR: {e}")
+            return PullRequestResult(
+                success=False,
+                message=f"PR creation failed: {e}",
+                error=str(e)
+            )
+    
+    def create_pr_from_task(
+        self,
+        task_id: str,
+        task_description: str,
+        source_branch: Optional[str] = None,
+        target_branch: str = "main",
+        task_type: str = "Task",
+        draft: bool = False
+    ) -> PullRequestResult:
+        """Create a pull request from task context (convenience method).
+        
+        This method combines branch creation, commit, push, and PR creation
+        into a single workflow.
+        
+        Time Complexity: O(n) where n is number of changed files
+        Space Complexity: O(n) for file analysis
+        
+        Args:
+            task_id: Task identifier
+            task_description: Task description
+            source_branch: Source branch (None = auto-generate from task_id)
+            target_branch: Target branch (default: "main")
+            task_type: Type of task
+            draft: Create as draft PR
+        
+        Returns:
+            PullRequestResult with PR details
+        
+        Example:
+            >>> result = integrator.create_pr_from_task(
+            ...     task_id="24.5",
+            ...     task_description="Implement PR creation",
+            ...     task_type="Task"
+            ... )
+            >>> if result.success:
+            ...     print(f"PR created: {result.pr_url}")
+        """
+        try:
+            # Auto-generate branch name if not provided
+            if source_branch is None:
+                # Convert task_id to branch name (e.g., "24.5" -> "task-24-5")
+                safe_task_id = task_id.replace(".", "-").replace(" ", "-").lower()
+                source_branch = f"task-{safe_task_id}"
+            
+            # Check if we're already on the source branch
+            status = self.get_status()
+            if status.current_branch != source_branch:
+                # Create and checkout branch if it doesn't exist
+                branch_info = self.get_branch_info(source_branch)
+                if not branch_info.exists_locally:
+                    create_result = self.create_branch(source_branch, target_branch)
+                    if not create_result.success:
+                        return PullRequestResult(
+                            success=False,
+                            message=f"Failed to create branch: {create_result.message}",
+                            error=create_result.stderr
+                        )
+                else:
+                    # Checkout existing branch
+                    checkout_result = self._run_git_command(["checkout", source_branch])
+                    if not checkout_result.success:
+                        return PullRequestResult(
+                            success=False,
+                            message=f"Failed to checkout branch: {checkout_result.stderr}",
+                            error=checkout_result.stderr
+                        )
+            
+            # Generate PR title and description
+            pr_title = f"[{task_type} {task_id}] {task_description}"
+            pr_description = self.generate_pr_description(
+                task_id=task_id,
+                task_description=task_description,
+                task_type=task_type
+            )
+            
+            # Create PR
+            return self.create_pull_request(
+                title=pr_title,
+                description=pr_description,
+                source_branch=source_branch,
+                target_branch=target_branch,
+                draft=draft
+            )
+        
+        except Exception as e:
+            logger.error(f"Failed to create PR from task: {e}")
+            return PullRequestResult(
+                success=False,
+                message=f"PR creation from task failed: {e}",
+                error=str(e)
+            )

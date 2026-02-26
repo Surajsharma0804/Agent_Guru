@@ -93,20 +93,6 @@ module = [
 ]
 ignore_missing_imports = true
 
-[tool.pytest.ini_options]
-testpaths = ["Agent_Guru/reasoning/tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-asyncio_mode = "auto"
-addopts = [
-    "--strict-markers",
-    "--cov=Agent_Guru/reasoning",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-fail-under=80",
-]
-
 [tool.coverage.run]
 source = ["Agent_Guru/reasoning"]
 omit = ["*/tests/*", "*/__pycache__/*"]
