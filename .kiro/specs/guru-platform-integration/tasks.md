@@ -905,7 +905,7 @@ This component is used by:
     - Integration tests for config changes
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 27.2: Path Permission Checking**
+- [x] **Task 27.2: Path Permission Checking**
   - Implement path validation:
     - Allowed path checking
     - Permission type validation (read, write, delete, execute)
@@ -918,7 +918,7 @@ This component is used by:
     - Property tests for path validation
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 27.3: Command Permission Checking**
+- [x] **Task 27.3: Command Permission Checking**
   - Implement command validation:
     - Allowed command pattern matching
     - Blocked command detection
