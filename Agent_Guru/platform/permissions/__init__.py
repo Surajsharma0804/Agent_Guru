@@ -32,6 +32,13 @@ from Agent_Guru.platform.permissions.model_manager import (
     ConfigurationError,
 )
 
+from Agent_Guru.platform.permissions.quota_manager import (
+    QuotaManager,
+    QuotaConfig,
+    UserQuotaCounters,
+    QuotaExceededException,
+)
+
 from Agent_Guru.platform.permissions.command_checker import (
     CommandPermissionChecker,
     CommandValidationResult,
@@ -87,6 +94,11 @@ __all__ = [
     "OperationContext",
     "QuotaStatus",
     "ConfigurationError",
+    # Quota Manager
+    "QuotaManager",
+    "QuotaConfig",
+    "UserQuotaCounters",
+    "QuotaExceededException",
     # Command Checker
     "CommandPermissionChecker",
     "CommandValidationResult",

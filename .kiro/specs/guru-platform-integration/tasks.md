@@ -955,7 +955,7 @@ This component is used by:
     - Property tests for time ranges
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 27.6: Operation Quotas**
+- [x] **Task 27.6: Operation Quotas**
   - Implement quota system:
     - Quota tracking per operation type
     - Per-hour and per-day limits
