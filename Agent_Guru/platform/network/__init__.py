@@ -9,7 +9,9 @@ This module provides robust HTTP/HTTPS client functionality with enterprise feat
 - Request/response logging
 - Rate limiting with token bucket algorithm
 - Response caching with LRU eviction
-- Connection pooling
+- Connection pooling with per-host limits
+- Idle connection cleanup
+- Connection reuse tracking
 """
 
 from Agent_Guru.platform.network.manager import (
@@ -39,6 +41,13 @@ from Agent_Guru.platform.network.response_cache import (
     CacheStatistics,
 )
 
+from Agent_Guru.platform.network.connection_pool import (
+    ConnectionPoolManager,
+    ConnectionPoolConfig,
+    ConnectionStats,
+    PoolStatistics,
+)
+
 __all__ = [
     # Network Manager
     "NetworkManager",
@@ -62,5 +71,10 @@ __all__ = [
     "ResponseCache",
     "CachedResponse",
     "CacheStatistics",
+    # Connection Pooling
+    "ConnectionPoolManager",
+    "ConnectionPoolConfig",
+    "ConnectionStats",
+    "PoolStatistics",
 ]
 

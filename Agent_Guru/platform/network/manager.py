@@ -38,6 +38,12 @@ from .rate_limiter import (
     RateLimitExceeded,
 )
 from .response_cache import ResponseCache, CachedResponse, CacheStatistics
+from .connection_pool import (
+    ConnectionPoolManager,
+    ConnectionPoolConfig,
+    ConnectionStats,
+    PoolStatistics,
+)
 
 # Configure structured logging
 logger = logging.getLogger(__name__)
@@ -71,6 +77,8 @@ class NetworkConfig:
         default_rate_limit: Default rate limit configuration
         enable_caching: Whether to enable response caching
         cache_max_size: Maximum cache size in bytes (100MB recommended)
+        enable_connection_pooling: Whether to enable advanced connection pooling
+        connection_pool_config: Connection pool configuration
     """
     
     default_timeout: float = 30.0
@@ -84,6 +92,8 @@ class NetworkConfig:
     default_rate_limit: Optional[RateLimitConfig] = None
     enable_caching: bool = True
     cache_max_size: int = 100 * 1024 * 1024  # 100MB
+    enable_connection_pooling: bool = True
+    connection_pool_config: Optional[ConnectionPoolConfig] = None
 
 
 @dataclass
@@ -208,6 +218,15 @@ class NetworkManager:
         self._ssl_context: Optional[ssl.SSLContext] = None
         self._connector: Optional[aiohttp.TCPConnector] = None
         
+        # Initialize connection pool manager
+        self._pool_manager: Optional[ConnectionPoolManager] = None
+        if config.enable_connection_pooling:
+            pool_config = config.connection_pool_config or ConnectionPoolConfig(
+                max_connections_per_host=config.max_connections,
+                max_connections_total=config.max_connections_total,
+            )
+            self._pool_manager = ConnectionPoolManager(pool_config)
+        
         # Initialize rate limiter manager
         self._rate_limiter: Optional[RateLimiterManager] = None
         if config.enable_rate_limiting:
@@ -228,6 +247,7 @@ class NetworkManager:
                 "rate_limiting_enabled": config.enable_rate_limiting,
                 "caching_enabled": config.enable_caching,
                 "cache_max_size_mb": config.cache_max_size / (1024 * 1024) if config.enable_caching else 0,
+                "connection_pooling_enabled": config.enable_connection_pooling,
             }
         )
     
@@ -250,13 +270,19 @@ class NetworkManager:
             logger.warning("SSL verification disabled - not recommended for production")
         
         # Create connector with connection pooling
-        self._connector = aiohttp.TCPConnector(
-            limit=self.config.max_connections_total,
-            limit_per_host=self.config.max_connections,
-            ssl=self._ssl_context,
-            ttl_dns_cache=300,  # Cache DNS for 5 minutes
-            enable_cleanup_closed=True,
-        )
+        if self._pool_manager is not None:
+            # Use advanced connection pool manager
+            self._connector = self._pool_manager.create_connector(self._ssl_context)
+            await self._pool_manager.start_cleanup()
+        else:
+            # Use basic connector
+            self._connector = aiohttp.TCPConnector(
+                limit=self.config.max_connections_total,
+                limit_per_host=self.config.max_connections,
+                ssl=self._ssl_context,
+                ttl_dns_cache=300,  # Cache DNS for 5 minutes
+                enable_cleanup_closed=True,
+            )
         
         # Create session
         timeout = aiohttp.ClientTimeout(total=self.config.default_timeout)
@@ -277,6 +303,10 @@ class NetworkManager:
             await self._session.close()
             self._session = None
             logger.info("NetworkManager closed")
+        
+        if self._pool_manager is not None:
+            await self._pool_manager.close()
+            self._pool_manager = None
     
     async def __aenter__(self):
         """Context manager entry."""
@@ -412,6 +442,53 @@ class NetworkManager:
         """
         if self._cache is not None:
             self._cache.reset_statistics()
+    
+    async def get_connection_pool_stats(self) -> Optional[PoolStatistics]:
+        """Get connection pool statistics.
+        
+        Returns:
+            Pool statistics or None if connection pooling disabled
+        
+        Example:
+            >>> stats = await manager.get_connection_pool_stats()
+            >>> if stats:
+            ...     print(f"Total hosts: {stats.total_hosts}")
+            ...     print(f"Average reuse rate: {stats.average_reuse_rate:.2%}")
+            ...     print(f"Total connections: {stats.total_created}")
+        """
+        if self._pool_manager is None:
+            return None
+        
+        return await self._pool_manager.get_all_stats()
+    
+    async def get_host_connection_stats(self, host: str) -> Optional[ConnectionStats]:
+        """Get connection statistics for specific host.
+        
+        Args:
+            host: Host name
+        
+        Returns:
+            Connection statistics or None if not found or pooling disabled
+        
+        Example:
+            >>> stats = await manager.get_host_connection_stats("api.example.com")
+            >>> if stats:
+            ...     print(f"Reuse rate: {stats.reuse_rate:.2%}")
+            ...     print(f"Active connections: {stats.active_connections}")
+        """
+        if self._pool_manager is None:
+            return None
+        
+        return await self._pool_manager.get_host_stats(host)
+    
+    async def reset_connection_pool_stats(self) -> None:
+        """Reset connection pool statistics.
+        
+        Example:
+            >>> await manager.reset_connection_pool_stats()
+        """
+        if self._pool_manager is not None:
+            await self._pool_manager.reset_stats()
     
     def _extract_service_name(self, url: str) -> str:
         """Extract service name from URL.
@@ -556,6 +633,14 @@ class NetworkManager:
                     # Read response body
                     response_body = await response.read()
                     response_time = time.perf_counter() - start_time
+                    
+                    # Record connection activity
+                    if self._pool_manager is not None:
+                        await self._pool_manager.record_connection_activity(
+                            service,
+                            is_new=(attempt == 0),  # First attempt is new connection
+                            is_reused=(attempt > 0),  # Subsequent attempts reuse connection
+                        )
                     
                     # Create response object
                     http_response = HttpResponse(
