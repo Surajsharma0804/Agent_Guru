@@ -777,7 +777,7 @@ This component is used by:
     - Property tests for error structure
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 25.4: Graceful Degradation**
+- [-] **Task 25.4: Graceful Degradation**
   - Implement degradation:
     - Resource constraint detection
     - Non-critical feature disabling

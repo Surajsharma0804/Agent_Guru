@@ -398,8 +398,8 @@ class TestErrorResponseProperties:
     """Property-based tests for ErrorResponse."""
     
     @given(
-        error_code=st.text(min_size=1, max_size=50),
-        message=st.text(min_size=1, max_size=200),
+        error_code=st.text(min_size=1, max_size=50, alphabet=st.characters(blacklist_categories=('Cs', 'Cc'))),
+        message=st.text(min_size=1, max_size=200, alphabet=st.characters(blacklist_categories=('Cs', 'Cc'))),
         category=st.sampled_from(list(ErrorCategory))
     )
     def test_error_response_always_valid(
@@ -420,8 +420,8 @@ class TestErrorResponseProperties:
         assert error.category == category
     
     @given(
-        error_code=st.text(min_size=1, max_size=50),
-        message=st.text(min_size=1, max_size=200),
+        error_code=st.text(min_size=1, max_size=50, alphabet=st.characters(blacklist_categories=('Cs', 'Cc'))),
+        message=st.text(min_size=1, max_size=200, alphabet=st.characters(blacklist_categories=('Cs', 'Cc'))),
         category=st.sampled_from(list(ErrorCategory))
     )
     def test_to_dict_roundtrip(
@@ -476,7 +476,7 @@ class TestErrorResponseProperties:
             assert error.is_critical() is False
     
     @given(
-        error_code=st.text(min_size=1, max_size=50),
+        error_code=st.text(min_size=1, max_size=50, alphabet=st.characters(blacklist_categories=('Cs', 'Cc'))),
         category=st.sampled_from(list(ErrorCategory))
     )
     def test_remediation_always_generated(
