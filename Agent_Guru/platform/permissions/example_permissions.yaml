@@ -12,12 +12,27 @@ file_system:
     - path: "/home/agent_guru/workspace"
       permissions: ["read", "write", "delete", "execute"]
     
-    # Config directory - read-only with time restrictions
+    # Config directory - read-only with enhanced time restrictions
     - path: "/home/agent_guru/config"
       permissions: ["read"]
       time_restrictions:
+        # Business hours in New York timezone
         - days: ["monday", "tuesday", "wednesday", "thursday", "friday"]
           hours: "09:00-18:00"
+          timezone: "America/New_York"
+        # Weekend access (shorter hours)
+        - days: ["saturday", "sunday"]
+          hours: "10:00-14:00"
+          timezone: "America/New_York"
+    
+    # Sensitive data - restricted to business hours with multiple windows
+    - path: "/home/agent_guru/sensitive"
+      permissions: ["read"]
+      time_restrictions:
+        # Morning and afternoon windows (lunch break excluded)
+        - days: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+          hours: ["09:00-12:00", "14:00-17:00"]
+          timezone: "UTC"
     
     # Logs directory - write and read only
     - path: "/var/log/agent_guru"

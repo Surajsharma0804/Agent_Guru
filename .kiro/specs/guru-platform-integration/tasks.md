@@ -930,7 +930,7 @@ This component is used by:
     - Integration tests with command executor
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 27.4: Network Permission Checking**
+- [x] **Task 27.4: Network Permission Checking**
   - Implement network validation:
     - Domain whitelist checking
     - HTTP method validation
@@ -942,7 +942,7 @@ This component is used by:
     - Integration tests with network manager
   - **GitHub Push**: ✅ Required after completion
 
-- [ ] **Task 27.5: Time-Based Permissions**
+- [x] **Task 27.5: Time-Based Permissions**
   - Implement time restrictions:
     - Time window validation
     - Day of week checking

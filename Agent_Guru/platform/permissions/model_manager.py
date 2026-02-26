@@ -8,6 +8,7 @@ This module implements fine-grained permission control with:
 - Hot reload without restart
 - Environment-specific configs
 - Path, command, and network permission checking
+- Enhanced time-based permissions with timezone support
 
 Performance Characteristics:
     - Time Complexity: O(1) for permission checks (hash table lookups)
@@ -29,6 +30,9 @@ from enum import Enum
 import logging
 from threading import RLock
 import hashlib
+
+# Import enhanced time-based permissions
+from .time_checker import TimeRestriction as EnhancedTimeRestriction
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +65,11 @@ class OperationType(Enum):
 
 @dataclass
 class TimeRestriction:
-    """Time-based access restriction."""
+    """
+    DEPRECATED: Use EnhancedTimeRestriction from time_checker module instead.
+    
+    This class is kept for backward compatibility only.
+    """
     days: List[str]  # ["monday", "tuesday", ...]
     hours: str  # "09:00-18:00"
     
@@ -86,10 +94,10 @@ class TimeRestriction:
 
 @dataclass
 class PathPermission:
-    """File system path permission."""
+    """File system path permission with enhanced time restrictions."""
     path: str
     permissions: List[str]
-    time_restrictions: List[TimeRestriction] = field(default_factory=list)
+    time_restrictions: List[EnhancedTimeRestriction] = field(default_factory=list)
     
     def is_allowed(
         self,
@@ -101,7 +109,7 @@ class PathPermission:
         if operation.value not in self.permissions:
             return False
         
-        # Check time restrictions if any
+        # Check time restrictions if any (OR logic - any restriction allows)
         if self.time_restrictions:
             return any(tr.is_allowed(dt) for tr in self.time_restrictions)
         
@@ -339,10 +347,8 @@ class PermissionModelManager:
             time_restrictions = []
             if "time_restrictions" in path_config:
                 for tr in path_config["time_restrictions"]:
-                    time_restrictions.append(TimeRestriction(
-                        days=tr["days"],
-                        hours=tr["hours"]
-                    ))
+                    # Use enhanced TimeRestriction from time_checker
+                    time_restrictions.append(EnhancedTimeRestriction.from_dict(tr))
             
             allowed_paths.append(PathPermission(
                 path=path_config["path"],
