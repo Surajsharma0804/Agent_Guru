@@ -20,4 +20,21 @@ Performance Characteristics:
 """
 
 __version__ = "1.0.0"
-__all__ = ["database_schema", "migrations"]
+__all__ = [
+    "database_schema",
+    "migrations",
+    "connection_pool",
+    "failure_analyzer",
+    "FailureAnalyzer",
+    "FailureType",
+    "TaskExecution",
+    "FailurePattern",
+]
+
+# Import key classes for convenience
+from Agent_Guru.self_improvement.failure_analyzer import (
+    FailureAnalyzer,
+    FailureType,
+    TaskExecution,
+    FailurePattern,
+)

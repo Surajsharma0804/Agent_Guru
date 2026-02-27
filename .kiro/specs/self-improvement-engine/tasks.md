@@ -36,14 +36,14 @@
 ## Phase 2: Failure Analysis System
 
 ### 3. Failure Analyzer Core
-- [ ] 3.1 Implement FailureAnalyzer class with failure categorization logic
-- [ ] 3.2 Create failure storage with full execution context capture
-- [ ] 3.3 Implement reasoning error analysis with logical step extraction
-- [ ] 3.4 Implement tool error analysis with misuse pattern detection
-- [ ] 3.5 Implement hallucination detection and content recording
-- [ ] 3.6 Write unit tests for each failure type categorization
-- [ ] 3.7 Write property-based test: all failures must be categorized correctly
-- [ ] 3.8 Commit failure analyzer to GitHub
+- [x] 3.1 Implement FailureAnalyzer class with failure categorization logic
+- [x] 3.2 Create failure storage with full execution context capture
+- [x] 3.3 Implement reasoning error analysis with logical step extraction
+- [x] 3.4 Implement tool error analysis with misuse pattern detection
+- [x] 3.5 Implement hallucination detection and content recording
+- [x] 3.6 Write unit tests for each failure type categorization
+- [x] 3.7 Write property-based test: all failures must be categorized correctly
+- [-] 3.8 Commit failure analyzer to GitHub
 
 ### 4. Failure Pattern Recognition
 - [ ] 4.1 Implement feature extraction from failure contexts
