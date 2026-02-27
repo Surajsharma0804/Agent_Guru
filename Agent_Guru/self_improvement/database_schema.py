@@ -164,6 +164,7 @@ class DatabaseSchema:
                 avg_execution_time_ms REAL NOT NULL DEFAULT 0.0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 last_updated TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_used TEXT,
                 
                 -- Constraints
                 CHECK (success_count >= 0),
