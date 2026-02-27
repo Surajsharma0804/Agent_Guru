@@ -347,6 +347,9 @@ class FailureAnalyzer:
         """
         Check if two feature sets match above threshold.
         
+        Critical features (tool_name, reasoning_step, error_category) must match exactly.
+        Other features use similarity threshold.
+        
         Args:
             features1: First feature set
             features2: Second feature set
@@ -356,6 +359,16 @@ class FailureAnalyzer:
             
         Time Complexity: O(k) where k is number of features
         """
+        # Critical features that must match exactly
+        critical_features = {"tool_name", "reasoning_step", "error_category"}
+        
+        # Check critical features first
+        for feature in critical_features:
+            if feature in features1 and feature in features2:
+                if features1[feature] != features2[feature]:
+                    return False  # Critical feature mismatch
+        
+        # Check overall similarity for non-critical features
         common_keys = set(features1.keys()) & set(features2.keys())
         if not common_keys:
             return False
@@ -405,7 +418,9 @@ class FailureAnalyzer:
         with self.pool.transaction() as conn:
             cursor = conn.cursor()
             
-            pattern_id = f"pattern_{int(time.time() * 1000000)}"
+            # Generate unique pattern_id using timestamp + random component
+            import random
+            pattern_id = f"pattern_{int(time.time() * 1000000)}_{random.randint(1000, 9999)}"
             now = datetime.now().isoformat()
             
             cursor.execute("""

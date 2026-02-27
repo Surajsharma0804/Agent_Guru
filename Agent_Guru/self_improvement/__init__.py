@@ -25,10 +25,14 @@ __all__ = [
     "migrations",
     "connection_pool",
     "failure_analyzer",
+    "git_integration",
     "FailureAnalyzer",
     "FailureType",
     "TaskExecution",
     "FailurePattern",
+    "GitIntegration",
+    "AuthMethod",
+    "CommitData",
 ]
 
 # Import key classes for convenience
@@ -37,4 +41,10 @@ from Agent_Guru.self_improvement.failure_analyzer import (
     FailureType,
     TaskExecution,
     FailurePattern,
+)
+
+from Agent_Guru.self_improvement.git_integration import (
+    GitIntegration,
+    AuthMethod,
+    CommitData,
 )
