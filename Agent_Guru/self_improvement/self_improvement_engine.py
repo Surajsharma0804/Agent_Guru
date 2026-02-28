@@ -436,39 +436,152 @@ class SelfImprovementEngine:
         self,
         failure_type: FailureType,
         task_type: str,
-        context: Dict[str, Any]
-    ) -> None:
+        context: Dict[str, Any],
+        strategy_id: str = "test_strategy",
+        record_in_tracker: bool = False
+    ) -> str:
         """
         Inject a test failure for validation.
         
         Used by testing framework to verify learning effectiveness.
         Test failures are processed identically to real failures but
-        are not committed to Git.
+        are not committed to Git by default.
         
         Args:
             failure_type: Type of failure to inject
             task_type: Task type for the failure
             context: Failure context
+            strategy_id: Strategy ID to associate with failure (default: "test_strategy")
+            record_in_tracker: Whether to record in performance tracker (default: False)
+            
+        Returns:
+            Task ID of injected failure
             
         Time Complexity: O(1)
         
-        Validates: Requirements 8.1, 8.2
+        Validates: Requirements 8.1, 8.2, 8.3
         """
+        # Generate unique task ID with more precision
+        import random
+        task_id = f"test_{int(time.time() * 1000000)}_{random.randint(1000, 9999)}"
+        
+        # Create appropriate error details based on failure type
+        error_details = {"test": True, "context": context}
+        
+        if failure_type == FailureType.REASONING_ERROR:
+            error_details.update({
+                "type": "reasoning_error",
+                "reasoning_step": context.get("reasoning_step", "unknown"),
+                "logical_error": context.get("logical_error", "test_error")
+            })
+        elif failure_type == FailureType.TOOL_ERROR:
+            error_details.update({
+                "type": "tool_error",
+                "tool_name": context.get("tool_name", "test_tool"),
+                "misuse_pattern": context.get("misuse_pattern", "incorrect_parameters")
+            })
+        elif failure_type == FailureType.HALLUCINATION:
+            error_details.update({
+                "type": "hallucination",
+                "hallucination_content": context.get("hallucination_content", "fabricated_data"),
+                "correct_content": context.get("correct_content", "actual_data")
+            })
+        elif failure_type == FailureType.TIMEOUT:
+            error_details.update({
+                "type": "timeout",
+                "timeout_ms": context.get("timeout_ms", 5000),
+                "operation": context.get("operation", "test_operation")
+            })
+        elif failure_type == FailureType.RESOURCE_ERROR:
+            error_details.update({
+                "type": "resource_error",
+                "resource_type": context.get("resource_type", "memory"),
+                "limit_exceeded": context.get("limit_exceeded", True)
+            })
+        else:
+            error_details.update({
+                "type": "unknown",
+                "description": context.get("description", "unknown_error")
+            })
+        
         # Create test execution
         test_execution = TaskExecution(
-            task_id=f"test_{int(time.time() * 1000000)}",
+            task_id=task_id,
             task_type=task_type,
-            strategy_id="test_strategy",
+            strategy_id=strategy_id,
             timestamp=datetime.now(),
             success=False,
-            execution_time_ms=0.0,
+            execution_time_ms=context.get("execution_time_ms", 0.0),
             failure_type=failure_type,
-            error_details={"test": True, "context": context},
+            error_details=error_details,
             context=context
         )
         
-        # Analyze failure (but don't record in performance tracker)
+        # Analyze failure
         self.failure_analyzer.analyze_failure(test_execution)
+        
+        # Optionally record in performance tracker
+        if record_in_tracker:
+            self.performance_tracker.record_task_metrics(
+                task_id=task_id,
+                task_type=task_type,
+                strategy_id=strategy_id,
+                success=False,
+                execution_time_ms=test_execution.execution_time_ms,
+                reasoning_quality=0.0,
+                tool_selection_correct=False,
+                hallucination_detected=(failure_type == FailureType.HALLUCINATION),
+                task_sequence_number=self._task_sequence + 1
+            )
+            
+            # Update strategy performance
+            self.strategy_optimizer.update_strategy_performance(
+                strategy_id, False, test_execution.execution_time_ms
+            )
+            
+            # Increment task sequence
+            self._task_sequence += 1
+        
+        return task_id
+    
+    def inject_multiple_failures(
+        self,
+        failure_configs: List[Dict[str, Any]],
+        record_in_tracker: bool = False
+    ) -> List[str]:
+        """
+        Inject multiple test failures in batch.
+        
+        Useful for testing learning convergence with many failures.
+        
+        Args:
+            failure_configs: List of failure configurations, each containing:
+                - failure_type: FailureType
+                - task_type: str
+                - context: Dict[str, Any]
+                - strategy_id: str (optional)
+            record_in_tracker: Whether to record in performance tracker
+            
+        Returns:
+            List of task IDs for injected failures
+            
+        Time Complexity: O(n) where n is number of failures
+        
+        Validates: Requirements 8.3, 8.6
+        """
+        task_ids = []
+        
+        for config in failure_configs:
+            task_id = self.inject_test_failure(
+                failure_type=config["failure_type"],
+                task_type=config["task_type"],
+                context=config.get("context", {}),
+                strategy_id=config.get("strategy_id", "test_strategy"),
+                record_in_tracker=record_in_tracker
+            )
+            task_ids.append(task_id)
+        
+        return task_ids
     
     def _classify_failure(self, error_details: Optional[Dict]) -> FailureType:
         """
