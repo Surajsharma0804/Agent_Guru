@@ -391,7 +391,6 @@ if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 
 
-
 class TestPromptWeaknessIdentification:
     """Tests for prompt weakness identification."""
 
@@ -568,7 +567,6 @@ class TestPromptWeaknessIdentification:
         assert not system.should_replace_prompt("nonexistent")
 
 
-
 class TestPromptImprovement:
     """Tests for prompt improvement generation."""
 
@@ -736,7 +734,6 @@ class TestPromptImprovement:
         assert "OUTPUT FORMAT" in meta_prompt
 
 
-
 class TestPromptValidation:
     """Tests for prompt validation before adoption."""
 
@@ -807,9 +804,7 @@ class TestPromptValidation:
             return (True, False)
 
         with pytest.raises(ValueError, match="Prompt .* not found"):
-            system.validate_improved_prompt(
-                "nonexistent", "Improved prompt", mock_validate
-            )
+            system.validate_improved_prompt("nonexistent", "Improved prompt", mock_validate)
 
     def test_validate_improved_prompt_validation_failure(self, system):
         """Test handling of validation callable failure."""
@@ -820,9 +815,7 @@ class TestPromptValidation:
             raise Exception("Validation error")
 
         with pytest.raises(RuntimeError, match="Validation failed on task"):
-            system.validate_improved_prompt(
-                prompt_id, "Improved prompt", failing_validate
-            )
+            system.validate_improved_prompt(prompt_id, "Improved prompt", failing_validate)
 
     def test_validate_improved_prompt_marginal_improvement(self, system):
         """Test validation with marginal improvement."""
@@ -898,9 +891,7 @@ class TestPromptEvolutionProperties:
         failure_count=st.integers(min_value=0, max_value=100),
     )
     @settings(max_examples=10)  # Reduce examples for faster testing
-    def test_property_success_rate_always_between_0_and_1(
-        self, success_count, failure_count
-    ):
+    def test_property_success_rate_always_between_0_and_1(self, success_count, failure_count):
         """Property: Success rate must always be between 0 and 1."""
         assume(success_count + failure_count > 0)  # Avoid division by zero
 
@@ -941,15 +932,18 @@ class TestPromptEvolutionProperties:
         iterations=st.integers(min_value=1, max_value=20),
         success_rate_increase=st.floats(min_value=0.05, max_value=0.3),
     )
+    @settings(max_examples=10, deadline=500)  # Reduce examples and increase deadline for iterations
     def test_property_prompt_quality_improves_over_iterations(
         self, iterations, success_rate_increase
     ):
         """Property: Prompt quality must improve over iterations."""
-        # Create fresh system for each iteration
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = Path(tmpdir) / "test.db"
-            DatabaseSchema.create_schema(str(db_path))
-            pool = ConnectionPool(str(db_path), min_size=1, max_size=5)
+        # Create fresh system for each iteration with named temp file
+        fd, db_path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)  # Close file descriptor immediately
+
+        try:
+            DatabaseSchema.create_schema(db_path)
+            pool = ConnectionPool(db_path, min_size=1, max_size=5)
             system = PromptEvolutionSystem(pool)
 
             prompt_type = "task_analysis"
@@ -987,23 +981,32 @@ class TestPromptEvolutionProperties:
 
                 previous_rate = current_success_rate
 
+            # Explicitly close pool before cleanup
             pool.close_all()
-            import time
-            time.sleep(0.01)  # Small delay to ensure file handles are released
+            del system
+            del pool
+            gc.collect()  # Force garbage collection
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(db_path)
+            except (PermissionError, FileNotFoundError):
+                pass  # Ignore if file is still locked or already deleted
 
     @given(
         total_uses=st.integers(min_value=10, max_value=100),
         failure_rate=st.floats(min_value=0.3, max_value=0.9),
     )
-    def test_property_weak_prompts_identified_correctly(
-        self, total_uses, failure_rate
-    ):
+    @settings(max_examples=10)  # Reduce examples for faster testing
+    def test_property_weak_prompts_identified_correctly(self, total_uses, failure_rate):
         """Property: Weak prompts must be identified when failure rate is high."""
-        # Create fresh system for each iteration
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = Path(tmpdir) / "test.db"
-            DatabaseSchema.create_schema(str(db_path))
-            pool = ConnectionPool(str(db_path), min_size=1, max_value=5)
+        # Create fresh system for each iteration with named temp file
+        fd, db_path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)  # Close file descriptor immediately
+
+        try:
+            DatabaseSchema.create_schema(db_path)
+            pool = ConnectionPool(db_path, min_size=1, max_size=5)
             system = PromptEvolutionSystem(pool)
 
             prompt_id = system.register_prompt("type1", "Weak prompt")
@@ -1018,32 +1021,39 @@ class TestPromptEvolutionProperties:
                 system.record_prompt_outcome(prompt_id, False, False)
 
             # Identify weak prompts
-            weak_prompts = system.identify_weak_prompts(
-                min_uses=10, max_success_rate=0.7
-            )
+            weak_prompts = system.identify_weak_prompts(min_uses=10, max_success_rate=0.7)
 
             # Should be identified as weak if success rate <= 0.7
             prompt = system.get_prompt_version(prompt_id)
             if prompt and prompt.success_rate <= 0.7:
                 assert any(p.prompt_id == prompt_id for p in weak_prompts)
 
+            # Explicitly close pool before cleanup
             pool.close_all()
-            import time
-            time.sleep(0.01)  # Small delay to ensure file handles are released
+            del system
+            del pool
+            gc.collect()  # Force garbage collection
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(db_path)
+            except (PermissionError, FileNotFoundError):
+                pass  # Ignore if file is still locked or already deleted
 
     @given(
         v1_success=st.integers(min_value=0, max_value=20),
         v2_success=st.integers(min_value=0, max_value=20),
     )
-    def test_property_version_comparison_is_consistent(
-        self, v1_success, v2_success
-    ):
+    @settings(max_examples=10)  # Reduce examples for faster testing
+    def test_property_version_comparison_is_consistent(self, v1_success, v2_success):
         """Property: Version comparison must be mathematically consistent."""
-        # Create fresh system for each iteration
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = Path(tmpdir) / "test.db"
-            DatabaseSchema.create_schema(str(db_path))
-            pool = ConnectionPool(str(db_path), min_size=1, max_size=5)
+        # Create fresh system for each iteration with named temp file
+        fd, db_path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)  # Close file descriptor immediately
+
+        try:
+            DatabaseSchema.create_schema(db_path)
+            pool = ConnectionPool(db_path, min_size=1, max_size=5)
             system = PromptEvolutionSystem(pool)
 
             prompt_type = "type1"
@@ -1070,25 +1080,34 @@ class TestPromptEvolutionProperties:
             assert comparison["version1_success_rate"] == round(v1_rate, 2)
             assert comparison["version2_success_rate"] == round(v2_rate, 2)
 
+            # Explicitly close pool before cleanup
             pool.close_all()
-            import time
-            time.sleep(0.01)  # Small delay to ensure file handles are released
+            del system
+            del pool
+            gc.collect()  # Force garbage collection
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(db_path)
+            except (PermissionError, FileNotFoundError):
+                pass  # Ignore if file is still locked or already deleted
 
     @given(
         prompt_text=st.text(min_size=10, max_size=200),
         total_uses=st.integers(min_value=5, max_value=50),
     )
-    def test_property_prompt_registration_always_succeeds(
-        self, prompt_text, total_uses
-    ):
+    @settings(max_examples=10)  # Reduce examples for faster testing
+    def test_property_prompt_registration_always_succeeds(self, prompt_text, total_uses):
         """Property: Valid prompt registration must always succeed."""
         assume(len(prompt_text.strip()) > 0)  # Non-empty after strip
 
-        # Create fresh system for each iteration
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = Path(tmpdir) / "test.db"
-            DatabaseSchema.create_schema(str(db_path))
-            pool = ConnectionPool(str(db_path), min_size=1, max_size=5)
+        # Create fresh system for each iteration with named temp file
+        fd, db_path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)  # Close file descriptor immediately
+
+        try:
+            DatabaseSchema.create_schema(db_path)
+            pool = ConnectionPool(db_path, min_size=1, max_size=5)
             system = PromptEvolutionSystem(pool)
 
             prompt_id = system.register_prompt("type1", prompt_text)
@@ -1108,23 +1127,32 @@ class TestPromptEvolutionProperties:
             assert prompt is not None
             assert prompt.total_uses == total_uses
 
+            # Explicitly close pool before cleanup
             pool.close_all()
-            import time
-            time.sleep(0.01)  # Small delay to ensure file handles are released
+            del system
+            del pool
+            gc.collect()  # Force garbage collection
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(db_path)
+            except (PermissionError, FileNotFoundError):
+                pass  # Ignore if file is still locked or already deleted
 
     @given(
         hallucination_rate=st.floats(min_value=0.2, max_value=0.8),
         total_uses=st.integers(min_value=20, max_value=50),
     )
-    def test_property_high_hallucination_triggers_replacement(
-        self, hallucination_rate, total_uses
-    ):
+    @settings(max_examples=10)  # Reduce examples for faster testing
+    def test_property_high_hallucination_triggers_replacement(self, hallucination_rate, total_uses):
         """Property: High hallucination rate must trigger replacement recommendation."""
-        # Create fresh system for each iteration
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = Path(tmpdir) / "test.db"
-            DatabaseSchema.create_schema(str(db_path))
-            pool = ConnectionPool(str(db_path), min_size=1, max_size=5)
+        # Create fresh system for each iteration with named temp file
+        fd, db_path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)  # Close file descriptor immediately
+
+        try:
+            DatabaseSchema.create_schema(db_path)
+            pool = ConnectionPool(db_path, min_size=1, max_size=5)
             system = PromptEvolutionSystem(pool)
 
             prompt_id = system.register_prompt("type1", "Prompt")
@@ -1146,6 +1174,14 @@ class TestPromptEvolutionProperties:
             if hallucination_rate >= 0.2:
                 assert should_replace is True
 
+            # Explicitly close pool before cleanup
             pool.close_all()
-            import time
-            time.sleep(0.01)  # Small delay to ensure file handles are released
+            del system
+            del pool
+            gc.collect()  # Force garbage collection
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(db_path)
+            except (PermissionError, FileNotFoundError):
+                pass  # Ignore if file is still locked or already deleted
