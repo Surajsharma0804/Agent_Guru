@@ -15,6 +15,7 @@ Author: Agent Guru Team
 Date: 2026-02-28
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -616,3 +617,137 @@ class PromptEvolutionSystem:
         )
 
         return failure_rate >= min_failure_rate or hallucination_rate >= 0.2
+
+    def generate_improved_prompt(
+        self, prompt_id: str, llm_callable: Callable[[str], str] | None = None
+    ) -> str:
+        """
+        Generate improved prompt using LLM meta-prompting.
+
+        Uses weakness analysis to create a meta-prompt that asks an LLM
+        to improve the original prompt based on identified issues.
+
+        Time Complexity: O(1) for analysis + O(LLM) for generation
+
+        Args:
+            prompt_id: Prompt ID to improve
+            llm_callable: Optional callable that takes prompt text and returns response
+                         If None, returns the meta-prompt for manual use
+
+        Returns:
+            Improved prompt text (or meta-prompt if llm_callable is None)
+
+        Raises:
+            ValueError: If prompt_id doesn't exist
+            RuntimeError: If LLM generation fails
+
+        Example:
+            >>> # Automatic improvement with LLM
+            >>> def my_llm(prompt: str) -> str:
+            ...     return openai.ChatCompletion.create(
+            ...         model="gpt-4",
+            ...         messages=[{"role": "user", "content": prompt}]
+            ...     ).choices[0].message.content
+            >>> improved = system.generate_improved_prompt("prompt_v1", my_llm)
+            >>>
+            >>> # Manual improvement (get meta-prompt)
+            >>> meta_prompt = system.generate_improved_prompt("prompt_v1")
+            >>> # Use meta_prompt with your LLM manually
+        """
+        # Get original prompt
+        prompt = self.get_prompt_version(prompt_id)
+        if not prompt:
+            raise ValueError(f"Prompt '{prompt_id}' not found")
+
+        # Get weakness analysis
+        weaknesses = self.get_prompt_weaknesses(prompt_id)
+
+        # Build meta-prompt for LLM
+        meta_prompt = self._build_meta_prompt(prompt, weaknesses)
+
+        # If LLM callable provided, generate improvement
+        if llm_callable:
+            try:
+                improved_prompt = llm_callable(meta_prompt)
+                return improved_prompt.strip()
+            except Exception as e:
+                raise RuntimeError(f"LLM generation failed: {e}") from e
+
+        # Otherwise return meta-prompt for manual use
+        return meta_prompt
+
+    def _build_meta_prompt(self, prompt: PromptVersion, weaknesses: dict[str, float]) -> str:
+        """
+        Build meta-prompt for LLM to improve original prompt.
+
+        Args:
+            prompt: Original prompt version
+            weaknesses: Weakness metrics
+
+        Returns:
+            Meta-prompt text for LLM
+        """
+        failure_rate = weaknesses["failure_rate"]
+        hallucination_rate = weaknesses["hallucination_rate"]
+        success_rate = weaknesses["success_rate"]
+        total_uses = weaknesses["total_uses"]
+
+        # Identify primary weakness
+        primary_issue = "general performance"
+        if hallucination_rate > 0.15:
+            primary_issue = "hallucinations (fabricated information)"
+        elif failure_rate > 0.4:
+            primary_issue = "task failures"
+        elif success_rate < 0.6:
+            primary_issue = "low success rate"
+
+        meta_prompt = f"""You are a prompt engineering expert. Your task is to improve the following prompt based on performance analysis.
+
+ORIGINAL PROMPT:
+```
+{prompt.content}
+```
+
+PERFORMANCE ANALYSIS:
+- Prompt Type: {prompt.prompt_type}
+- Version: {prompt.version}
+- Total Uses: {total_uses}
+- Success Rate: {success_rate:.1%}
+- Failure Rate: {failure_rate:.1%}
+- Hallucination Rate: {hallucination_rate:.1%}
+
+PRIMARY ISSUE: {primary_issue}
+
+IMPROVEMENT GUIDELINES:
+1. If hallucination rate is high (>{hallucination_rate:.1%}):
+   - Add explicit instructions to only use provided information
+   - Add warnings against fabricating data
+   - Request citations or sources for claims
+   - Add verification steps
+
+2. If failure rate is high (>{failure_rate:.1%}):
+   - Clarify ambiguous instructions
+   - Add step-by-step guidance
+   - Include error handling instructions
+   - Provide examples of correct behavior
+
+3. If success rate is low (<{success_rate:.1%}):
+   - Simplify complex instructions
+   - Break down into smaller steps
+   - Add context and background
+   - Clarify expected output format
+
+REQUIREMENTS:
+- Maintain the core purpose of the original prompt
+- Keep the improved prompt concise and clear
+- Use specific, actionable language
+- Avoid vague or ambiguous phrasing
+- Test-driven: imagine edge cases the prompt should handle
+
+OUTPUT FORMAT:
+Provide ONLY the improved prompt text, without explanations or commentary.
+The improved prompt should be ready to use directly.
+
+IMPROVED PROMPT:"""
+
+        return meta_prompt
