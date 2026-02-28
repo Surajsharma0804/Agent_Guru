@@ -971,3 +971,417 @@ class TestStatisticalProperties:
         # Verify ranking logic is applied
         assert len(ranked) >= 1
         assert ranked[0].strategy_id == "ucb_test"
+
+
+# ============================================================================
+# Strategy Learning and Discovery Tests
+# ============================================================================
+
+
+class TestStrategyDiscovery:
+    """Test strategy discovery from successful executions."""
+
+    def test_discover_strategy_from_successful_execution(self, optimizer):
+        """Test discovering new strategy from successful execution."""
+        context = {
+            "approach": "chain_of_thought",
+            "steps": 5,
+            "tools_used": ["search", "calculator"],
+        }
+
+        strategy_id = optimizer.discover_strategy_from_execution(
+            task_type="analysis", execution_context=context, success=True, execution_time_ms=150.0
+        )
+
+        assert strategy_id is not None
+        assert "discovered" in strategy_id
+        assert "chain_of_thought" in strategy_id
+
+        # Verify strategy was registered
+        strategy = optimizer.get_strategy(strategy_id)
+        assert strategy is not None
+        assert strategy.task_types == ["analysis"]
+        assert strategy.parameters["approach"] == "chain_of_thought"
+        assert strategy.total_executions == 1
+        assert strategy.success_rate == 1.0
+
+    def test_discover_strategy_from_failed_execution(self, optimizer):
+        """Test that failed executions don't create new strategies."""
+        context = {"approach": "random_approach"}
+
+        strategy_id = optimizer.discover_strategy_from_execution(
+            task_type="analysis", execution_context=context, success=False, execution_time_ms=150.0
+        )
+
+        assert strategy_id is None
+
+    def test_discover_strategy_without_approach(self, optimizer):
+        """Test that executions without approach don't create strategies."""
+        context = {"some_other_field": "value"}
+
+        strategy_id = optimizer.discover_strategy_from_execution(
+            task_type="analysis", execution_context=context, success=True, execution_time_ms=150.0
+        )
+
+        assert strategy_id is None
+
+    def test_discover_existing_strategy_updates_performance(self, optimizer):
+        """Test that discovering existing strategy just updates performance."""
+        # Register initial strategy
+        optimizer.register_strategy(
+            strategy_id="existing",
+            name="Existing Strategy",
+            description="Already exists",
+            task_types=["analysis"],
+            parameters={"approach": "chain_of_thought"},
+        )
+
+        context = {"approach": "chain_of_thought"}
+
+        # Try to discover same strategy
+        strategy_id = optimizer.discover_strategy_from_execution(
+            task_type="analysis", execution_context=context, success=True, execution_time_ms=150.0
+        )
+
+        # Should return None (not discovered, just updated)
+        assert strategy_id is None
+
+        # But performance should be updated
+        strategy = optimizer.get_strategy("existing")
+        assert strategy.total_executions == 1
+
+
+class TestStrategyValidation:
+    """Test strategy validation against held-out test set."""
+
+    def test_validate_strategy_with_good_performance(self, optimizer):
+        """Test validating strategy with >50% success rate."""
+        optimizer.register_strategy(
+            strategy_id="test_strategy",
+            name="Test",
+            description="Test strategy",
+            task_types=["test"],
+            parameters={},
+        )
+
+        validation_tasks = [
+            ("test", True, 100.0),
+            ("test", True, 150.0),
+            ("test", False, 200.0),
+            ("test", True, 120.0),
+        ]
+
+        is_valid = optimizer.validate_strategy("test_strategy", validation_tasks)
+        assert is_valid is True  # 75% success rate
+
+    def test_validate_strategy_with_poor_performance(self, optimizer):
+        """Test validating strategy with <50% success rate."""
+        optimizer.register_strategy(
+            strategy_id="test_strategy",
+            name="Test",
+            description="Test strategy",
+            task_types=["test"],
+            parameters={},
+        )
+
+        validation_tasks = [
+            ("test", False, 100.0),
+            ("test", False, 150.0),
+            ("test", True, 200.0),
+        ]
+
+        is_valid = optimizer.validate_strategy("test_strategy", validation_tasks)
+        assert is_valid is False  # 33% success rate
+
+    def test_validate_nonexistent_strategy(self, optimizer):
+        """Test validating nonexistent strategy raises error."""
+        with pytest.raises(ValueError, match="not found"):
+            optimizer.validate_strategy("nonexistent", [])
+
+    def test_validate_strategy_with_empty_tasks(self, optimizer):
+        """Test validating strategy with no validation tasks."""
+        optimizer.register_strategy(
+            strategy_id="test_strategy",
+            name="Test",
+            description="Test strategy",
+            task_types=["test"],
+            parameters={},
+        )
+
+        is_valid = optimizer.validate_strategy("test_strategy", [])
+        assert is_valid is False
+
+
+class TestStrategyMerging:
+    """Test merging similar strategies."""
+
+    def test_merge_similar_strategies(self, optimizer):
+        """Test merging two similar strategies."""
+        # Register two similar strategies
+        optimizer.register_strategy(
+            strategy_id="strategy1",
+            name="Strategy 1",
+            description="First strategy",
+            task_types=["analysis"],
+            parameters={"approach": "method_a", "param1": "value1"},
+        )
+        optimizer.register_strategy(
+            strategy_id="strategy2",
+            name="Strategy 2",
+            description="Second strategy",
+            task_types=["analysis"],
+            parameters={"approach": "method_a", "param2": "value2"},
+        )
+
+        # Give them some performance data
+        for _ in range(10):
+            optimizer.update_strategy_performance("strategy1", True, 100.0)
+            optimizer.update_strategy_performance("strategy2", True, 110.0)
+
+        # Merge them
+        merged_id = optimizer.merge_similar_strategies(
+            ["strategy1", "strategy2"], similarity_threshold=0.7
+        )
+
+        assert merged_id is not None
+        assert "merged" in merged_id
+
+        # Verify merged strategy exists
+        merged = optimizer.get_strategy(merged_id)
+        assert merged is not None
+        assert merged.total_executions == 20
+        assert merged.success_rate == 1.0
+        assert "analysis" in merged.task_types
+
+    def test_merge_dissimilar_strategies(self, optimizer):
+        """Test that dissimilar strategies are not merged."""
+        optimizer.register_strategy(
+            strategy_id="strategy1",
+            name="Strategy 1",
+            description="First strategy",
+            task_types=["analysis"],
+            parameters={"approach": "method_a"},
+        )
+        optimizer.register_strategy(
+            strategy_id="strategy2",
+            name="Strategy 2",
+            description="Second strategy",
+            task_types=["coding"],  # Different task type
+            parameters={"approach": "method_b"},  # Different approach
+        )
+
+        merged_id = optimizer.merge_similar_strategies(
+            ["strategy1", "strategy2"], similarity_threshold=0.8
+        )
+
+        assert merged_id is None
+
+    def test_merge_single_strategy(self, optimizer):
+        """Test that merging single strategy returns None."""
+        optimizer.register_strategy(
+            strategy_id="strategy1",
+            name="Strategy 1",
+            description="First strategy",
+            task_types=["analysis"],
+            parameters={},
+        )
+
+        merged_id = optimizer.merge_similar_strategies(["strategy1"])
+        assert merged_id is None
+
+    def test_merge_nonexistent_strategy(self, optimizer):
+        """Test merging nonexistent strategy raises error."""
+        with pytest.raises(ValueError, match="not found"):
+            optimizer.merge_similar_strategies(["nonexistent1", "nonexistent2"])
+
+
+class TestStrategyPruning:
+    """Test pruning poor performing strategies."""
+
+    def test_prune_poor_performers(self, optimizer):
+        """Test pruning strategies with high failure rates."""
+        # Register good and bad strategies
+        optimizer.register_strategy(
+            strategy_id="good_strategy",
+            name="Good Strategy",
+            description="Performs well",
+            task_types=["test"],
+            parameters={},
+        )
+        optimizer.register_strategy(
+            strategy_id="bad_strategy",
+            name="Bad Strategy",
+            description="Performs poorly",
+            task_types=["test"],
+            parameters={},
+        )
+
+        # Good strategy: 80% success rate
+        for _ in range(16):
+            optimizer.update_strategy_performance("good_strategy", True, 100.0)
+        for _ in range(4):
+            optimizer.update_strategy_performance("good_strategy", False, 100.0)
+
+        # Bad strategy: 10% success rate (90% failure)
+        for _ in range(2):
+            optimizer.update_strategy_performance("bad_strategy", True, 100.0)
+        for _ in range(18):
+            optimizer.update_strategy_performance("bad_strategy", False, 100.0)
+
+        # Prune poor performers (>80% failure rate)
+        pruned = optimizer.prune_poor_performers(min_executions=20, max_failure_rate=0.8)
+
+        assert len(pruned) == 1
+        assert "bad_strategy" in pruned
+
+        # Verify bad strategy was deleted
+        assert optimizer.get_strategy("bad_strategy") is None
+
+        # Verify good strategy still exists
+        assert optimizer.get_strategy("good_strategy") is not None
+
+    def test_prune_with_insufficient_executions(self, optimizer):
+        """Test that strategies with few executions are not pruned."""
+        optimizer.register_strategy(
+            strategy_id="new_strategy",
+            name="New Strategy",
+            description="Not enough data",
+            task_types=["test"],
+            parameters={},
+        )
+
+        # Only 5 executions, all failures
+        for _ in range(5):
+            optimizer.update_strategy_performance("new_strategy", False, 100.0)
+
+        # Prune (requires 20 executions)
+        pruned = optimizer.prune_poor_performers(min_executions=20, max_failure_rate=0.8)
+
+        # Should not be pruned (not enough data)
+        assert len(pruned) == 0
+        assert optimizer.get_strategy("new_strategy") is not None
+
+    def test_prune_no_poor_performers(self, optimizer):
+        """Test pruning when all strategies perform well."""
+        optimizer.register_strategy(
+            strategy_id="good_strategy",
+            name="Good Strategy",
+            description="Performs well",
+            task_types=["test"],
+            parameters={},
+        )
+
+        # 90% success rate
+        for _ in range(18):
+            optimizer.update_strategy_performance("good_strategy", True, 100.0)
+        for _ in range(2):
+            optimizer.update_strategy_performance("good_strategy", False, 100.0)
+
+        pruned = optimizer.prune_poor_performers(min_executions=20, max_failure_rate=0.8)
+
+        assert len(pruned) == 0
+
+
+# ============================================================================
+# Property-Based Tests for Strategy Learning
+# ============================================================================
+
+
+@pytest.mark.property
+class TestStrategyLearningProperties:
+    """Property-based tests for strategy learning."""
+
+    def test_optimal_strategy_selected_after_sufficient_trials(self, optimizer):
+        """
+        PROPERTY: After sufficient trials, the optimal strategy must be selected.
+
+        This validates that the system converges to the best strategy.
+        """
+        # Register three strategies with different true success rates
+        optimizer.register_strategy(
+            strategy_id="poor",
+            name="Poor Strategy",
+            description="Low success rate",
+            task_types=["test"],
+            parameters={},
+        )
+        optimizer.register_strategy(
+            strategy_id="medium",
+            name="Medium Strategy",
+            description="Medium success rate",
+            task_types=["test"],
+            parameters={},
+        )
+        optimizer.register_strategy(
+            strategy_id="best",
+            name="Best Strategy",
+            description="High success rate",
+            task_types=["test"],
+            parameters={},
+        )
+
+        # Simulate executions with true success rates
+        import random
+
+        random.seed(42)
+
+        for _ in range(100):
+            # Poor: 30% success
+            optimizer.update_strategy_performance("poor", random.random() < 0.3, 100.0)
+            # Medium: 60% success
+            optimizer.update_strategy_performance("medium", random.random() < 0.6, 100.0)
+            # Best: 90% success
+            optimizer.update_strategy_performance("best", random.random() < 0.9, 100.0)
+
+        # After sufficient trials, best strategy should be selected
+        best_strategy = optimizer.get_best_strategy("test")
+        assert best_strategy.strategy_id == "best"
+        assert best_strategy.success_rate > 0.8
+
+    def test_strategy_selection_under_noisy_feedback(self, optimizer):
+        """
+        ADVERSARIAL: Verify strategy selection works under noisy feedback.
+
+        Tests that the system is robust to measurement noise.
+        """
+        optimizer.register_strategy(
+            strategy_id="stable",
+            name="Stable Strategy",
+            description="Consistent performance",
+            task_types=["test"],
+            parameters={},
+        )
+        optimizer.register_strategy(
+            strategy_id="noisy",
+            name="Noisy Strategy",
+            description="Inconsistent performance",
+            task_types=["test"],
+            parameters={},
+        )
+
+        import random
+
+        random.seed(42)
+
+        # Stable strategy: consistent 70% success
+        for _ in range(100):
+            optimizer.update_strategy_performance("stable", random.random() < 0.7, 100.0)
+
+        # Noisy strategy: oscillates between 0% and 100%
+        for i in range(100):
+            success = i % 2 == 0  # Alternates
+            optimizer.update_strategy_performance("noisy", success, 100.0)
+
+        # Both should converge to their true rates
+        stable = optimizer.get_strategy("stable")
+        noisy = optimizer.get_strategy("noisy")
+
+        # Stable should be around 70%
+        assert 0.65 <= stable.success_rate <= 0.75
+
+        # Noisy should converge to 50% (average of oscillation)
+        assert 0.45 <= noisy.success_rate <= 0.55
+
+        # Stable should be selected as best
+        best = optimizer.get_best_strategy("test")
+        assert best.strategy_id == "stable"

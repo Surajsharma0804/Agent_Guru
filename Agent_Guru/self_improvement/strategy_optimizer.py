@@ -20,7 +20,7 @@ import math
 import random
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from Agent_Guru.self_improvement.connection_pool import ConnectionPool
@@ -250,9 +250,7 @@ class StrategyOptimizer:
 
             conn.commit()
 
-    def get_best_strategy(
-        self, task_type: str, min_success_rate: float = 0.0
-    ) -> Strategy | None:
+    def get_best_strategy(self, task_type: str, min_success_rate: float = 0.0) -> Strategy | None:
         """
         Get the best performing strategy for a task type.
 
@@ -518,3 +516,351 @@ class StrategyOptimizer:
                 )
 
             return strategies
+
+    # ========================================================================
+    # Strategy Learning and Discovery
+    # ========================================================================
+
+    def discover_strategy_from_execution(
+        self,
+        task_type: str,
+        execution_context: dict[str, Any],
+        success: bool,
+        execution_time_ms: float,
+    ) -> str | None:
+        """
+        Discover new strategy from successful execution.
+
+        Analyzes successful task executions to extract reusable strategies.
+        If a novel approach is detected, registers it as a new strategy.
+
+        Time Complexity: O(n) where n is existing strategies
+        Space Complexity: O(1)
+
+        Args:
+            task_type: Type of task that was executed
+            execution_context: Full execution context including approach used
+            success: Whether execution succeeded
+            execution_time_ms: Execution time in milliseconds
+
+        Returns:
+            Strategy ID if new strategy discovered, None otherwise
+
+        Example:
+            >>> context = {
+            ...     "approach": "chain_of_thought",
+            ...     "steps": 5,
+            ...     "tools_used": ["search", "calculator"]
+            ... }
+            >>> strategy_id = optimizer.discover_strategy_from_execution(
+            ...     "analysis", context, True, 150.0
+            ... )
+        """
+        # Only discover from successful executions
+        if not success:
+            return None
+
+        # Extract strategy signature from execution context
+        approach = execution_context.get("approach")
+        if not approach:
+            return None
+
+        # Check if this approach already exists as a strategy
+        existing_strategies = self.get_strategies_for_task_type(task_type)
+        for strategy in existing_strategies:
+            if strategy.parameters.get("approach") == approach:
+                # Strategy already exists, just update performance
+                self.update_strategy_performance(strategy.strategy_id, success, execution_time_ms)
+                return None
+
+        # New strategy discovered - register it
+        strategy_id = f"discovered_{approach}_{task_type}_{datetime.now().timestamp()}"
+        strategy_name = f"Discovered: {approach.replace('_', ' ').title()}"
+        strategy_description = (
+            f"Automatically discovered strategy from successful {task_type} execution"
+        )
+
+        # Extract parameters from execution context
+        parameters = {
+            "approach": approach,
+            "discovered_from": "successful_execution",
+            "original_context": execution_context,
+        }
+
+        try:
+            self.register_strategy(
+                strategy_id=strategy_id,
+                name=strategy_name,
+                description=strategy_description,
+                task_types=[task_type],
+                parameters=parameters,
+            )
+
+            # Initialize with the successful execution
+            self.update_strategy_performance(strategy_id, success, execution_time_ms)
+
+            return strategy_id
+
+        except ValueError:
+            # Strategy already exists (race condition)
+            return None
+
+    def validate_strategy(
+        self, strategy_id: str, validation_tasks: list[tuple[str, bool, float]]
+    ) -> bool:
+        """
+        Validate strategy against held-out test set.
+
+        Tests strategy performance on validation tasks to ensure it generalizes.
+        Strategy is considered valid if it achieves >50% success rate on validation.
+
+        Time Complexity: O(n) where n is validation tasks
+        Space Complexity: O(1)
+
+        Args:
+            strategy_id: Strategy to validate
+            validation_tasks: List of (task_type, success, execution_time_ms) tuples
+
+        Returns:
+            True if strategy is valid (>50% success rate), False otherwise
+
+        Raises:
+            ValueError: If strategy_id doesn't exist
+
+        Example:
+            >>> validation_data = [
+            ...     ("analysis", True, 100.0),
+            ...     ("analysis", True, 150.0),
+            ...     ("analysis", False, 200.0),
+            ... ]
+            >>> is_valid = optimizer.validate_strategy("strategy1", validation_data)
+        """
+        strategy = self.get_strategy(strategy_id)
+        if not strategy:
+            raise ValueError(f"Strategy '{strategy_id}' not found")
+
+        if not validation_tasks:
+            return False
+
+        # Calculate validation success rate
+        successes = sum(1 for _, success, _ in validation_tasks if success)
+        validation_success_rate = successes / len(validation_tasks)
+
+        # Strategy is valid if it achieves >50% success rate
+        return validation_success_rate > 0.5
+
+    def merge_similar_strategies(
+        self, strategy_ids: list[str], similarity_threshold: float = 0.8
+    ) -> str | None:
+        """
+        Merge similar strategies into a single strategy.
+
+        Combines strategies with similar parameters and performance into one.
+        The merged strategy inherits the best characteristics of both.
+
+        Time Complexity: O(n) where n is strategies to merge
+        Space Complexity: O(1)
+
+        Args:
+            strategy_ids: List of strategy IDs to potentially merge
+            similarity_threshold: Minimum similarity score (0.0-1.0) to merge
+
+        Returns:
+            ID of merged strategy if merge occurred, None otherwise
+
+        Raises:
+            ValueError: If any strategy_id doesn't exist
+
+        Example:
+            >>> merged_id = optimizer.merge_similar_strategies(
+            ...     ["strategy1", "strategy2"],
+            ...     similarity_threshold=0.8
+            ... )
+        """
+        if len(strategy_ids) < 2:
+            return None
+
+        # Get all strategies
+        strategies = []
+        for strategy_id in strategy_ids:
+            strategy = self.get_strategy(strategy_id)
+            if not strategy:
+                raise ValueError(f"Strategy '{strategy_id}' not found")
+            strategies.append(strategy)
+
+        # Check if strategies are similar enough to merge
+        if not self._are_strategies_similar(strategies, similarity_threshold):
+            return None
+
+        # Create merged strategy
+        merged_id = f"merged_{datetime.now().timestamp()}"
+        merged_name = f"Merged: {' + '.join(s.name for s in strategies[:2])}"
+        merged_description = (
+            f"Merged from {len(strategies)} similar strategies: "
+            f"{', '.join(s.strategy_id for s in strategies)}"
+        )
+
+        # Combine task types
+        merged_task_types = list({tt for s in strategies for tt in s.task_types})
+
+        # Merge parameters (take union of all parameters)
+        merged_parameters = {}
+        for strategy in strategies:
+            merged_parameters.update(strategy.parameters)
+        merged_parameters["merged_from"] = strategy_ids
+
+        # Register merged strategy
+        self.register_strategy(
+            strategy_id=merged_id,
+            name=merged_name,
+            description=merged_description,
+            task_types=merged_task_types,
+            parameters=merged_parameters,
+        )
+
+        # Initialize with combined performance data
+        with self.pool.connection() as conn:
+            cursor = conn.cursor()
+
+            # Sum up all executions from merged strategies
+            total_success = sum(s.success_count for s in strategies)
+            total_failure = sum(s.failure_count for s in strategies)
+            total_executions = total_success + total_failure
+            success_rate = total_success / total_executions if total_executions > 0 else 0.0
+
+            # Weighted average of execution times
+            total_time = sum(s.avg_execution_time_ms * s.total_executions for s in strategies)
+            avg_time = total_time / total_executions if total_executions > 0 else 0.0
+
+            now = datetime.now().isoformat()
+
+            cursor.execute(
+                """
+                UPDATE strategies
+                SET total_executions = ?,
+                    success_count = ?,
+                    failure_count = ?,
+                    success_rate = ?,
+                    avg_execution_time_ms = ?,
+                    last_updated = ?
+                WHERE strategy_id = ?
+            """,
+                (
+                    total_executions,
+                    total_success,
+                    total_failure,
+                    success_rate,
+                    avg_time,
+                    now,
+                    merged_id,
+                ),
+            )
+
+            conn.commit()
+
+        return merged_id
+
+    def prune_poor_performers(
+        self,
+        min_executions: int = 20,
+        max_failure_rate: float = 0.8,
+    ) -> list[str]:
+        """
+        Remove strategies that consistently perform poorly.
+
+        Identifies and removes strategies with high failure rates after
+        sufficient trials. This prevents the system from wasting time
+        on ineffective strategies.
+
+        Time Complexity: O(n) where n is total strategies
+        Space Complexity: O(k) where k is strategies to prune
+
+        Args:
+            min_executions: Minimum executions before considering for pruning
+            max_failure_rate: Maximum failure rate (0.0-1.0) to tolerate
+
+        Returns:
+            List of pruned strategy IDs
+
+        Example:
+            >>> pruned = optimizer.prune_poor_performers(
+            ...     min_executions=20,
+            ...     max_failure_rate=0.8
+            ... )
+            >>> print(f"Pruned {len(pruned)} poor performers")
+        """
+        pruned_ids = []
+
+        with self.pool.connection() as conn:
+            cursor = conn.cursor()
+
+            # Find strategies with high failure rates
+            cursor.execute(
+                """
+                SELECT strategy_id, success_rate, total_executions
+                FROM strategies
+                WHERE total_executions >= ?
+                AND success_rate < ?
+            """,
+                (min_executions, 1.0 - max_failure_rate),
+            )
+
+            for row in cursor.fetchall():
+                strategy_id = row[0]
+                pruned_ids.append(strategy_id)
+
+                # Delete the strategy
+                cursor.execute("DELETE FROM strategies WHERE strategy_id = ?", (strategy_id,))
+
+            conn.commit()
+
+        return pruned_ids
+
+    def _are_strategies_similar(self, strategies: list[Strategy], threshold: float) -> bool:
+        """
+        Check if strategies are similar enough to merge.
+
+        Compares strategies based on:
+        - Task types overlap
+        - Parameter similarity
+        - Performance similarity
+
+        Args:
+            strategies: List of strategies to compare
+            threshold: Similarity threshold (0.0-1.0)
+
+        Returns:
+            True if strategies are similar above threshold
+        """
+        if len(strategies) < 2:
+            return False
+
+        # Compare first strategy with all others
+        base_strategy = strategies[0]
+
+        for strategy in strategies[1:]:
+            # Check task type overlap
+            task_overlap = len(set(base_strategy.task_types) & set(strategy.task_types))
+            task_union = len(set(base_strategy.task_types) | set(strategy.task_types))
+            task_similarity = task_overlap / task_union if task_union > 0 else 0.0
+
+            # Check parameter similarity
+            base_params = set(base_strategy.parameters.keys())
+            strategy_params = set(strategy.parameters.keys())
+            param_overlap = len(base_params & strategy_params)
+            param_union = len(base_params | strategy_params)
+            param_similarity = param_overlap / param_union if param_union > 0 else 0.0
+
+            # Check performance similarity (within 20% of each other)
+            perf_diff = abs(base_strategy.success_rate - strategy.success_rate)
+            perf_similarity = 1.0 - min(perf_diff / 0.2, 1.0)
+
+            # Overall similarity is weighted average
+            overall_similarity = (
+                0.4 * task_similarity + 0.3 * param_similarity + 0.3 * perf_similarity
+            )
+
+            if overall_similarity < threshold:
+                return False
+
+        return True
