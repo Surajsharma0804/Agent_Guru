@@ -751,3 +751,116 @@ The improved prompt should be ready to use directly.
 IMPROVED PROMPT:"""
 
         return meta_prompt
+
+    def validate_improved_prompt(
+        self,
+        original_prompt_id: str,
+        improved_prompt_text: str,
+        validation_callable: Callable[[str, str], tuple[bool, bool]],
+        min_validation_tasks: int = 5,
+    ) -> tuple[bool, dict[str, float]]:
+        """
+        Validate improved prompt on similar tasks before adoption.
+
+        Tests the improved prompt against similar tasks to ensure it performs
+        better than the original before registering it as a new version.
+
+        Time Complexity: O(n) where n is min_validation_tasks
+
+        Args:
+            original_prompt_id: ID of original prompt to compare against
+            improved_prompt_text: Text of improved prompt to validate
+            validation_callable: Function that takes (prompt_text, task_context)
+                                and returns (success: bool, hallucination: bool)
+            min_validation_tasks: Minimum number of validation tasks to run
+
+        Returns:
+            Tuple of (should_adopt: bool, metrics: dict) where metrics contains:
+            - improved_success_rate: Success rate of improved prompt
+            - original_success_rate: Success rate of original prompt
+            - improvement: Absolute improvement in success rate
+            - improved_hallucination_rate: Hallucination rate of improved prompt
+            - validation_tasks: Number of validation tasks run
+
+        Raises:
+            ValueError: If original_prompt_id doesn't exist
+            RuntimeError: If validation_callable fails
+
+        Example:
+            >>> def validate_task(prompt: str, context: str) -> tuple[bool, bool]:
+            ...     # Run task with prompt and return (success, hallucination)
+            ...     result = run_task_with_prompt(prompt, context)
+            ...     return result.success, result.hallucination_detected
+            >>>
+            >>> should_adopt, metrics = system.validate_improved_prompt(
+            ...     "prompt_v1",
+            ...     "Improved prompt text",
+            ...     validate_task,
+            ...     min_validation_tasks=10
+            ... )
+            >>> if should_adopt:
+            ...     new_version = system.register_prompt(
+            ...         prompt_type="task_analysis",
+            ...         content="Improved prompt text",
+            ...         version=2
+            ...     )
+        """
+        # Get original prompt
+        original = self.get_prompt_version(original_prompt_id)
+        if not original:
+            raise ValueError(f"Prompt '{original_prompt_id}' not found")
+
+        # Run validation tasks
+        improved_successes = 0
+        improved_hallucinations = 0
+        original_successes = 0
+        original_hallucinations = 0
+
+        for i in range(min_validation_tasks):
+            # Create validation context (could be from historical tasks)
+            validation_context = f"validation_task_{i}"
+
+            try:
+                # Test improved prompt
+                success, hallucination = validation_callable(
+                    improved_prompt_text, validation_context
+                )
+                if success:
+                    improved_successes += 1
+                if hallucination:
+                    improved_hallucinations += 1
+
+                # Test original prompt
+                success, hallucination = validation_callable(original.content, validation_context)
+                if success:
+                    original_successes += 1
+                if hallucination:
+                    original_hallucinations += 1
+
+            except Exception as e:
+                raise RuntimeError(f"Validation failed on task {i}: {e}") from e
+
+        # Calculate metrics
+        improved_success_rate = improved_successes / min_validation_tasks
+        original_success_rate = original_successes / min_validation_tasks
+        improvement = improved_success_rate - original_success_rate
+        improved_hallucination_rate = improved_hallucinations / min_validation_tasks
+
+        metrics = {
+            "improved_success_rate": round(improved_success_rate, 2),
+            "original_success_rate": round(original_success_rate, 2),
+            "improvement": round(improvement, 2),
+            "improved_hallucination_rate": round(improved_hallucination_rate, 2),
+            "validation_tasks": min_validation_tasks,
+        }
+
+        # Adoption criteria:
+        # 1. Improved prompt must have better success rate
+        # 2. Hallucination rate must not increase significantly (>10%)
+        should_adopt = (
+            improvement > 0.0
+            and improved_hallucination_rate
+            <= (original_hallucinations / min_validation_tasks) + 0.1
+        )
+
+        return should_adopt, metrics
