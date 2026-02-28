@@ -738,3 +738,119 @@ class SelfImprovementEngine:
         Time Complexity: O(1)
         """
         self.pool.close_all()
+
+    def detect_contradictory_feedback(
+        self,
+        task_type: str,
+        strategy_id: str,
+        recent_window: int = 20,
+        min_executions: int = 5
+    ):
+        """
+        Detect contradictory feedback for a task type and strategy.
+        
+        Fetches recent execution data and passes to conflict resolver.
+        
+        Args:
+            task_type: Type of task to analyze
+            strategy_id: Strategy ID to analyze
+            recent_window: Number of recent executions to analyze
+            min_executions: Minimum executions required
+        
+        Returns:
+            ConflictDetection result
+        
+        Validates: Requirements 9.1
+        """
+        # Import here to avoid circular dependency
+        from Agent_Guru.self_improvement.conflict_resolution import TaskExecutionData
+        
+        # Fetch recent executions from database
+        with self.pool.connection() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT task_id, task_type, strategy_id, success, execution_time_ms,
+                       timestamp, reasoning_quality, tool_selection_correct, hallucination_detected
+                FROM metrics
+                WHERE task_type = ? AND strategy_id = ?
+                ORDER BY task_sequence_number DESC
+                LIMIT ?
+            """, (task_type, strategy_id, recent_window))
+            
+            executions = []
+            for row in cursor.fetchall():
+                executions.append(TaskExecutionData(
+                    task_id=row[0],
+                    task_type=row[1],
+                    strategy_id=row[2],
+                    success=bool(row[3]),
+                    execution_time_ms=row[4],
+                    timestamp=datetime.fromisoformat(row[5]),
+                    reasoning_quality=row[6],
+                    tool_selection_correct=bool(row[7]) if row[7] is not None else None,
+                    hallucination_detected=bool(row[8])
+                ))
+        
+        # Detect conflicts using conflict resolver
+        return self.conflict_resolver.detect_contradictory_feedback(
+            executions=executions,
+            min_executions=min_executions
+        )
+    
+    def detect_data_poisoning(
+        self,
+        task_type: str,
+        lookback_window: int = 50,
+        anomaly_threshold: float = 3.0
+    ):
+        """
+        Detect data poisoning for a task type.
+        
+        Fetches recent execution data and passes to conflict resolver.
+        
+        Args:
+            task_type: Type of task to analyze
+            lookback_window: Number of recent executions to analyze
+            anomaly_threshold: Z-score threshold for anomaly detection
+        
+        Returns:
+            ConflictDetection result
+        
+        Validates: Requirements 9.3
+        """
+        # Import here to avoid circular dependency
+        from Agent_Guru.self_improvement.conflict_resolution import TaskExecutionData
+        
+        # Fetch recent executions from database
+        with self.pool.connection() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT task_id, task_type, strategy_id, success, execution_time_ms,
+                       timestamp, reasoning_quality, tool_selection_correct, hallucination_detected
+                FROM metrics
+                WHERE task_type = ?
+                ORDER BY task_sequence_number DESC
+                LIMIT ?
+            """, (task_type, lookback_window))
+            
+            executions = []
+            for row in cursor.fetchall():
+                executions.append(TaskExecutionData(
+                    task_id=row[0],
+                    task_type=row[1],
+                    strategy_id=row[2],
+                    success=bool(row[3]),
+                    execution_time_ms=row[4],
+                    timestamp=datetime.fromisoformat(row[5]),
+                    reasoning_quality=row[6],
+                    tool_selection_correct=bool(row[7]) if row[7] is not None else None,
+                    hallucination_detected=bool(row[8])
+                ))
+        
+        # Detect poisoning using conflict resolver
+        return self.conflict_resolver.detect_data_poisoning(
+            executions=executions,
+            anomaly_threshold=anomaly_threshold
+        )
