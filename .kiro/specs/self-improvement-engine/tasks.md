@@ -169,14 +169,14 @@
 - [x] 15.4 Implement outcome recording after task completion
 - [x] 15.5 Write integration tests with orchestration system
 - [x] 15.6 Verify less than 10% overhead on task execution
-- [ ] 15.7 Commit orchestration integration to GitHub
+- [x] 15.7 Commit orchestration integration to GitHub
 
 ### 16. LLM Runtime Integration
-- [ ] 16.1 Create integration hooks in guru-llm-runtime
-- [ ] 16.2 Implement prompt retrieval from evolution system
-- [ ] 16.3 Add hallucination detection callbacks
-- [ ] 16.4 Implement response quality recording
-- [ ] 16.5 Write integration tests with LLM runtime
+- [x] 16.1 Create integration hooks in guru-llm-runtime
+- [x] 16.2 Implement prompt retrieval from evolution system
+- [x] 16.3 Add hallucination detection callbacks
+- [x] 16.4 Implement response quality recording
+- [x] 16.5 Write integration tests with LLM runtime
 - [ ] 16.6 Commit LLM integration to GitHub
 
 ### 17. Memory System Integration
