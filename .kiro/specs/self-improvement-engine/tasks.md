@@ -104,9 +104,9 @@
 - [x] 9.3 Implement baseline calculation from first 10 tasks
 - [x] 9.4 Create improvement calculation comparing windows of tasks
 - [x] 9.5 Implement statistical significance testing (t-test, confidence intervals)
-- [ ] 9.6 Write unit tests for metrics calculation
-- [ ] 9.7 Write property-based test: metrics must reflect actual performance changes
-- [ ] 9.8 Commit performance tracker to GitHub
+- [x] 9.6 Write unit tests for metrics calculation
+- [x] 9.7 Write property-based test: metrics must reflect actual performance changes
+- [x] 9.8 Commit performance tracker to GitHub
 
 ### 10. Improvement Reporting
 - [ ] 10.1 Implement improvement report generation after every 100 tasks

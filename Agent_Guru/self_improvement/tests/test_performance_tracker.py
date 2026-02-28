@@ -361,7 +361,7 @@ class TestCalculateStatisticalSignificance:
         significance = tracker.calculate_statistical_significance(baseline_size=10, recent_size=10)
 
         assert significance is not None
-        assert significance["is_significant"] is True
+        assert significance["is_significant"] == True
         assert significance["p_value"] < 0.05
         assert significance["improvement"] > 0
 
