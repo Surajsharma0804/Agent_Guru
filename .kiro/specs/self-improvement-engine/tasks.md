@@ -94,16 +94,16 @@
 - [x] 8.4 Add prompt A/B testing for validation
 - [x] 8.5 Write property-based test: poor prompts must be replaced by better versions
 - [x] 8.6 Write adversarial test: verify stability under oscillating feedback
-- [ ] 8.7 Commit prompt tracking system to GitHub
+- [x] 8.7 Commit prompt tracking system to GitHub
 
 ## Phase 5: Performance Measurement
 
 ### 9. Performance Tracker Core
-- [ ] 9.1 Implement PerformanceTracker class with metrics recording
-- [ ] 9.2 Create metrics storage for success rate, execution time, accuracy
-- [ ] 9.3 Implement baseline calculation from first 10 tasks
-- [ ] 9.4 Create improvement calculation comparing windows of tasks
-- [ ] 9.5 Implement statistical significance testing (t-test, confidence intervals)
+- [x] 9.1 Implement PerformanceTracker class with metrics recording
+- [x] 9.2 Create metrics storage for success rate, execution time, accuracy
+- [x] 9.3 Implement baseline calculation from first 10 tasks
+- [x] 9.4 Create improvement calculation comparing windows of tasks
+- [x] 9.5 Implement statistical significance testing (t-test, confidence intervals)
 - [ ] 9.6 Write unit tests for metrics calculation
 - [ ] 9.7 Write property-based test: metrics must reflect actual performance changes
 - [ ] 9.8 Commit performance tracker to GitHub
