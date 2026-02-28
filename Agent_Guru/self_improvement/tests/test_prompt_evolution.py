@@ -1185,3 +1185,542 @@ class TestPromptEvolutionProperties:
                 os.unlink(db_path)
             except (PermissionError, FileNotFoundError):
                 pass  # Ignore if file is still locked or already deleted
+
+
+class TestPromptRollback:
+    """Tests for prompt rollback mechanism."""
+
+    def test_rollback_to_previous_version(self, system):
+        """Test rolling back to previous version."""
+        # Register 3 versions
+        _ = system.register_prompt("type1", "Version 1", version=1)
+        v2 = system.register_prompt("type1", "Version 2", version=2)
+        _ = system.register_prompt("type1", "Version 3", version=3)
+
+        # Version 3 should be active
+        active = system.get_active_prompt("type1")
+        assert active.version == 3
+
+        # Rollback to previous version (2)
+        _ = system.rollback_prompt("type1")
+
+        # Version 2 should now be active
+        active = system.get_active_prompt("type1")
+        assert active.version == 2
+        assert active.prompt_id == v2
+
+    def test_rollback_to_specific_version(self, system):
+        """Test rolling back to specific version."""
+        # Register 3 versions
+        v1 = system.register_prompt("type1", "Version 1", version=1)
+        _ = system.register_prompt("type1", "Version 2", version=2)
+        _ = system.register_prompt("type1", "Version 3", version=3)
+
+        # Rollback to version 1
+        _ = system.rollback_prompt("type1", target_version=1)
+
+        # Version 1 should now be active
+        active = system.get_active_prompt("type1")
+        assert active.version == 1
+        assert active.prompt_id == v1
+
+    def test_rollback_nonexistent_type_fails(self, system):
+        """Test rollback fails for nonexistent prompt type."""
+        with pytest.raises(ValueError, match="No active prompt found"):
+            system.rollback_prompt("nonexistent")
+
+    def test_rollback_nonexistent_version_fails(self, system):
+        """Test rollback fails for nonexistent version."""
+        system.register_prompt("type1", "Version 1", version=1)
+
+        with pytest.raises(ValueError, match="Version 2 not found"):
+            system.rollback_prompt("type1", target_version=2)
+
+    def test_rollback_to_version_zero_fails(self, system):
+        """Test rollback fails for version 0."""
+        system.register_prompt("type1", "Version 1", version=1)
+
+        with pytest.raises(ValueError, match="Cannot rollback to version 0"):
+            system.rollback_prompt("type1", target_version=0)
+
+
+class TestPerformanceDegradationDetection:
+    """Tests for performance degradation detection."""
+
+    def test_detect_degradation_when_performance_drops(self, system):
+        """Test detection when performance significantly drops."""
+        # Register version 1 with good performance (80% success)
+        v1 = system.register_prompt("type1", "Version 1", version=1)
+        for i in range(50):
+            system.record_prompt_outcome(v1, i < 40, False)
+
+        # Register version 2 with poor performance (40% success)
+        v2 = system.register_prompt("type1", "Version 2", version=2)
+        for i in range(50):
+            system.record_prompt_outcome(v2, i < 20, False)
+
+        # Should detect degradation
+        is_degraded, metrics = system.detect_performance_degradation(
+            "type1", degradation_threshold=0.15
+        )
+
+        assert is_degraded is True
+        assert metrics["degradation"] >= 0.15
+        assert metrics["current_success_rate"] < metrics["previous_success_rate"]
+
+    def test_no_degradation_when_performance_stable(self, system):
+        """Test no degradation when performance is stable."""
+        # Register version 1 with 80% success
+        v1 = system.register_prompt("type1", "Version 1", version=1)
+        for i in range(50):
+            system.record_prompt_outcome(v1, i % 5 != 0, False)
+
+        # Register version 2 with similar performance (80% success)
+        v2 = system.register_prompt("type1", "Version 2", version=2)
+        for i in range(50):
+            system.record_prompt_outcome(v2, i % 5 != 0, False)
+
+        # Should not detect degradation
+        is_degraded, metrics = system.detect_performance_degradation(
+            "type1", degradation_threshold=0.15
+        )
+
+        assert is_degraded is False
+
+    def test_degradation_detection_insufficient_data(self, system):
+        """Test degradation detection with insufficient data."""
+        # Register prompt with only 5 outcomes (not enough)
+        prompt_id = system.register_prompt("type1", "Prompt")
+        for _ in range(5):
+            system.record_prompt_outcome(prompt_id, True, False)
+
+        # Should return False with empty metrics
+        is_degraded, metrics = system.detect_performance_degradation("type1")
+
+        assert is_degraded is False
+        assert metrics == {}
+
+    def test_degradation_detection_no_previous_version(self, system):
+        """Test degradation detection with no previous version."""
+        # Register only one version
+        prompt_id = system.register_prompt("type1", "Version 1")
+        for _ in range(20):
+            system.record_prompt_outcome(prompt_id, True, False)
+
+        # Should return False (no previous version to compare)
+        is_degraded, metrics = system.detect_performance_degradation("type1")
+
+        assert is_degraded is False
+        assert metrics == {}
+
+
+class TestPromptReplacementProperties:
+    """Property-based tests for prompt replacement behavior."""
+
+    @given(
+        failure_rate=st.floats(min_value=0.3, max_value=0.9),
+        total_uses=st.integers(min_value=20, max_value=50),
+    )
+    @settings(max_examples=10)
+    def test_property_poor_prompts_replaced_by_better_versions(self, failure_rate, total_uses):
+        """Property: Poor prompts must be replaced by better versions."""
+        # Create fresh system for each iteration with named temp file
+        fd, db_path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)  # Close file descriptor immediately
+
+        try:
+            DatabaseSchema.create_schema(db_path)
+            pool = ConnectionPool(db_path, min_size=1, max_size=5)
+            system = PromptEvolutionSystem(pool)
+
+            # Register poor performing prompt (version 1)
+            v1_id = system.register_prompt("type1", "Poor prompt", version=1)
+
+            # Record poor performance
+            failures = int(total_uses * failure_rate)
+            successes = total_uses - failures
+
+            for _ in range(successes):
+                system.record_prompt_outcome(v1_id, True, False)
+            for _ in range(failures):
+                system.record_prompt_outcome(v1_id, False, False)
+
+            # Verify it should be replaced
+            should_replace = system.should_replace_prompt(v1_id, min_uses=20, min_failure_rate=0.3)
+            assert should_replace is True
+
+            # Register improved version (version 2) with better performance
+            v2_id = system.register_prompt("type1", "Improved prompt", version=2)
+
+            # Record significantly better performance (success rate >= 80%)
+            # This ensures the improved version won't trigger replacement
+            improved_success_rate = max(0.8, 1.0 - (failure_rate * 0.3))
+            improved_successes = int(total_uses * improved_success_rate)
+            improved_failures = total_uses - improved_successes
+
+            for _ in range(improved_successes):
+                system.record_prompt_outcome(v2_id, True, False)
+            for _ in range(improved_failures):
+                system.record_prompt_outcome(v2_id, False, False)
+
+            # Verify version 2 is now active
+            active = system.get_active_prompt("type1")
+            assert active is not None
+            assert active.version == 2
+
+            # Verify version 2 performs better than version 1
+            v1 = system.get_prompt_version(v1_id)
+            v2 = system.get_prompt_version(v2_id)
+            assert v2.success_rate > v1.success_rate
+
+            # Verify version 2 should not be replaced (success rate >= 80%)
+            should_replace_v2 = system.should_replace_prompt(
+                v2_id, min_uses=20, min_failure_rate=0.3
+            )
+            assert should_replace_v2 is False
+
+            # Explicitly close pool before cleanup
+            pool.close_all()
+            del system
+            del pool
+            gc.collect()  # Force garbage collection
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(db_path)
+            except (PermissionError, FileNotFoundError):
+                pass  # Ignore if file is still locked or already deleted
+
+
+class TestPromptStabilityAdversarial:
+    """Adversarial tests for prompt system stability."""
+
+    def test_adversarial_stability_under_oscillating_feedback(self, system):
+        """Adversarial: System must remain stable under oscillating feedback.
+
+        This test simulates a worst-case scenario where feedback oscillates
+        rapidly between success and failure, which could cause the system
+        to thrash between versions or make poor decisions.
+        """
+        # Register initial prompt
+        v1_id = system.register_prompt("type1", "Version 1", version=1)
+
+        # Phase 1: Good performance (80% success)
+        for i in range(50):
+            system.record_prompt_outcome(v1_id, i % 5 != 0, False)
+
+        v1 = system.get_prompt_version(v1_id)
+        phase1_success_rate = v1.success_rate
+        assert phase1_success_rate >= 0.75  # Should be around 80%
+
+        # Register version 2
+        v2_id = system.register_prompt("type1", "Version 2", version=2)
+
+        # Phase 2: Oscillating feedback - alternating good and bad
+        for _ in range(5):
+            # Good batch (10 successes)
+            for _ in range(10):
+                system.record_prompt_outcome(v2_id, True, False)
+
+            # Bad batch (10 failures)
+            for _ in range(10):
+                system.record_prompt_outcome(v2_id, False, False)
+
+        # After oscillation, success rate should stabilize around 50%
+        v2 = system.get_prompt_version(v2_id)
+        assert 0.45 <= v2.success_rate <= 0.55  # Should be around 50%
+
+        # System should detect degradation (50% < 80%)
+        is_degraded, metrics = system.detect_performance_degradation(
+            "type1", degradation_threshold=0.15
+        )
+        assert is_degraded is True
+
+        # Rollback should work correctly
+        rolled_back_id = system.rollback_prompt("type1")
+        assert rolled_back_id == v1_id
+
+        # Version 1 should be active again
+        active = system.get_active_prompt("type1")
+        assert active.version == 1
+
+        # Register version 3 with more oscillation
+        v3_id = system.register_prompt("type1", "Version 3", version=3)
+
+        # Phase 3: Rapid oscillation - single success/failure alternating
+        for i in range(100):
+            system.record_prompt_outcome(v3_id, i % 2 == 0, False)
+
+        # Success rate should still be around 50%
+        v3 = system.get_prompt_version(v3_id)
+        assert 0.45 <= v3.success_rate <= 0.55
+
+        # System should remain stable - no crashes, no infinite loops
+        # Verify we can still query and operate normally
+        history = system.get_prompt_history("type1")
+        assert len(history) == 3
+        assert all(p.total_uses > 0 for p in history)
+
+        # Verify degradation detection still works
+        is_degraded, metrics = system.detect_performance_degradation("type1")
+        assert isinstance(is_degraded, bool)
+        assert isinstance(metrics, dict)
+
+    def test_adversarial_rapid_version_changes(self, system):
+        """Adversarial: System must handle rapid version changes without corruption."""
+        # Rapidly register and switch between versions
+        for version in range(1, 21):  # 20 versions
+            prompt_id = system.register_prompt("type1", f"Version {version}", version=version)
+
+            # Record a few outcomes for each
+            for i in range(5):
+                system.record_prompt_outcome(prompt_id, i % 2 == 0, False)
+
+        # Verify all versions are stored correctly
+        history = system.get_prompt_history("type1", limit=20)
+        assert len(history) == 20
+
+        # Verify only the latest is active
+        active_count = sum(1 for p in history if p.is_active)
+        assert active_count == 1
+        assert history[0].version == 20
+        assert history[0].is_active is True
+
+        # Verify we can rollback through multiple versions
+        system.rollback_prompt("type1", target_version=15)
+        active = system.get_active_prompt("type1")
+        assert active.version == 15
+
+        system.rollback_prompt("type1", target_version=10)
+        active = system.get_active_prompt("type1")
+        assert active.version == 10
+
+        system.rollback_prompt("type1", target_version=1)
+        active = system.get_active_prompt("type1")
+        assert active.version == 1
+
+    def test_adversarial_extreme_hallucination_rates(self, system):
+        """Adversarial: System must handle extreme hallucination rates correctly."""
+        # Register prompt with 100% hallucination rate
+        prompt_id = system.register_prompt("type1", "Hallucinating prompt")
+
+        # Record 50 outcomes, all with hallucinations
+        for _ in range(50):
+            system.record_prompt_outcome(prompt_id, False, True)
+
+        # Verify hallucination tracking is correct
+        prompt = system.get_prompt_version(prompt_id)
+        assert prompt.hallucination_count == 50
+        assert prompt.total_uses == 50
+
+        weaknesses = system.get_prompt_weaknesses(prompt_id)
+        assert weaknesses["hallucination_rate"] == 1.0
+        assert weaknesses["failure_rate"] == 1.0
+
+        # Should definitely recommend replacement
+        should_replace = system.should_replace_prompt(prompt_id, min_uses=20)
+        assert should_replace is True
+
+    def test_adversarial_concurrent_outcome_recording(self, system):
+        """Adversarial: System must handle concurrent outcome recording correctly."""
+        prompt_id = system.register_prompt("type1", "Concurrent prompt")
+
+        # Simulate concurrent recording (sequential in test, but tests data integrity)
+        outcomes = []
+        for i in range(100):
+            success = i % 3 != 0  # 66% success rate
+            hallucination = i % 10 == 0  # 10% hallucination rate
+            outcomes.append((success, hallucination))
+
+        # Record all outcomes
+        for success, hallucination in outcomes:
+            system.record_prompt_outcome(prompt_id, success, hallucination)
+
+        # Verify final statistics are correct
+        prompt = system.get_prompt_version(prompt_id)
+        assert prompt.total_uses == 100
+
+        expected_successes = sum(1 for s, _ in outcomes if s)
+        expected_failures = sum(1 for s, _ in outcomes if not s)
+        expected_hallucinations = sum(1 for _, h in outcomes if h)
+
+        assert prompt.success_count == expected_successes
+        assert prompt.failure_count == expected_failures
+        assert prompt.hallucination_count == expected_hallucinations
+        assert abs(prompt.success_rate - (expected_successes / 100)) < 0.01
+
+    def test_adversarial_degradation_detection_edge_cases(self, system):
+        """Adversarial: Degradation detection must handle edge cases correctly."""
+        # Edge case 1: Both versions have 0% success rate
+        v1_id = system.register_prompt("type1", "Version 1", version=1)
+        for _ in range(20):
+            system.record_prompt_outcome(v1_id, False, False)
+
+        v2_id = system.register_prompt("type1", "Version 2", version=2)
+        for _ in range(20):
+            system.record_prompt_outcome(v2_id, False, False)
+
+        is_degraded, metrics = system.detect_performance_degradation("type1")
+        assert is_degraded is False  # No degradation if both are equally bad
+        assert metrics["degradation"] == 0.0
+
+        # Edge case 2: Both versions have 100% success rate
+        v3_id = system.register_prompt("type2", "Version 1", version=1)
+        for _ in range(20):
+            system.record_prompt_outcome(v3_id, True, False)
+
+        v4_id = system.register_prompt("type2", "Version 2", version=2)
+        for _ in range(20):
+            system.record_prompt_outcome(v4_id, True, False)
+
+        is_degraded, metrics = system.detect_performance_degradation("type2")
+        assert is_degraded is False  # No degradation if both are perfect
+        assert metrics["degradation"] == 0.0
+
+        # Edge case 3: Exactly at threshold
+        v5_id = system.register_prompt("type3", "Version 1", version=1)
+        for i in range(20):
+            system.record_prompt_outcome(v5_id, i < 16, False)  # 80% success
+
+        v6_id = system.register_prompt("type3", "Version 2", version=2)
+        for i in range(20):
+            system.record_prompt_outcome(v6_id, i < 13, False)  # 65% success
+
+        is_degraded, metrics = system.detect_performance_degradation(
+            "type3", degradation_threshold=0.15
+        )
+        # 80% - 65% = 15% degradation, exactly at threshold
+        assert is_degraded is True
+        assert metrics["degradation"] == 0.15
+
+
+class TestABTesting:
+    """Tests for A/B testing functionality."""
+
+    def test_ab_test_better_candidate(self, system):
+        """Test A/B testing when candidate performs better."""
+        # Register active prompt
+        system.register_prompt("type1", "Active prompt")
+
+        # Mock test callable - candidate performs better
+        def mock_test(prompt: str, context: str) -> tuple[bool, bool]:
+            if "Candidate" in prompt:
+                return (True, False)  # Always succeeds
+            else:
+                return (False, False)  # Always fails
+
+        # Run A/B test
+        results = system.ab_test_prompts(
+            "type1",
+            "Candidate prompt",
+            mock_test,
+            num_tests=20,
+            traffic_split=0.5,
+        )
+
+        assert results["candidate_success_rate"] == 1.0
+        assert results["active_success_rate"] == 0.0
+        assert results["improvement"] == 1.0
+        assert results["recommendation"] == "adopt"
+
+    def test_ab_test_worse_candidate(self, system):
+        """Test A/B testing when candidate performs worse."""
+        # Register active prompt
+        system.register_prompt("type1", "Active prompt")
+
+        # Mock test callable - candidate performs worse
+        def mock_test(prompt: str, context: str) -> tuple[bool, bool]:
+            if "Candidate" in prompt:
+                return (False, False)  # Always fails
+            else:
+                return (True, False)  # Always succeeds
+
+        # Run A/B test
+        results = system.ab_test_prompts(
+            "type1",
+            "Candidate prompt",
+            mock_test,
+            num_tests=20,
+            traffic_split=0.5,
+        )
+
+        assert results["candidate_success_rate"] == 0.0
+        assert results["active_success_rate"] == 1.0
+        assert results["improvement"] == -1.0
+        assert results["recommendation"] == "reject"
+
+    def test_ab_test_marginal_improvement(self, system):
+        """Test A/B testing with marginal improvement (not significant)."""
+        # Register active prompt
+        system.register_prompt("type1", "Active prompt")
+
+        # Mock test callable - candidate slightly better but not significant
+        call_count = {"count": 0}
+
+        def mock_test(prompt: str, context: str) -> tuple[bool, bool]:
+            call_count["count"] += 1
+            if "Candidate" in prompt:
+                # 85% success
+                return (call_count["count"] % 7 != 0, False)
+            else:
+                # 80% success
+                return (call_count["count"] % 5 != 0, False)
+
+        # Run A/B test
+        results = system.ab_test_prompts(
+            "type1",
+            "Candidate prompt",
+            mock_test,
+            num_tests=20,
+            traffic_split=0.5,
+        )
+
+        # Improvement is less than or equal to 10%, should reject
+        assert results["improvement"] <= 0.10
+        assert results["recommendation"] == "reject"
+
+    def test_ab_test_nonexistent_prompt_fails(self, system):
+        """Test A/B testing fails for nonexistent prompt type."""
+
+        def mock_test(prompt: str, context: str) -> tuple[bool, bool]:
+            return (True, False)
+
+        with pytest.raises(ValueError, match="No active prompt found"):
+            system.ab_test_prompts("nonexistent", "Candidate", mock_test)
+
+    def test_ab_test_callable_failure(self, system):
+        """Test A/B testing handles callable failures."""
+        system.register_prompt("type1", "Active prompt")
+
+        def failing_test(prompt: str, context: str) -> tuple[bool, bool]:
+            raise Exception("Test failed")
+
+        with pytest.raises(RuntimeError, match="A/B test failed"):
+            system.ab_test_prompts("type1", "Candidate", failing_test)
+
+    def test_ab_test_traffic_split(self, system):
+        """Test A/B testing respects traffic split."""
+        system.register_prompt("type1", "Active prompt")
+
+        test_calls = {"candidate": 0, "active": 0}
+
+        def mock_test(prompt: str, context: str) -> tuple[bool, bool]:
+            if "Candidate" in prompt:
+                test_calls["candidate"] += 1
+            else:
+                test_calls["active"] += 1
+            return (True, False)
+
+        # Run with 70/30 split
+        results = system.ab_test_prompts(
+            "type1",
+            "Candidate prompt",
+            mock_test,
+            num_tests=100,
+            traffic_split=0.7,
+        )
+
+        assert results["candidate_tests"] == 70
+        assert results["active_tests"] == 30
+        assert test_calls["candidate"] == 70
+        assert test_calls["active"] == 30

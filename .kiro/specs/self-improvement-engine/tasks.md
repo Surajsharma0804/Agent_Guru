@@ -85,15 +85,15 @@
 - [x] 7.5 Implement prompt validation on similar tasks before adoption
 - [x] 7.6 Write unit tests for prompt version management
 - [x] 7.7 Write property-based test: prompt quality must improve over iterations
-- [ ] 7.8 Commit prompt evolution core to GitHub
+- [x] 7.8 Commit prompt evolution core to GitHub
 
 ### 8. Prompt Performance Tracking
-- [ ] 8.1 Implement prompt outcome recording from LLM Runtime
-- [ ] 8.2 Create prompt success rate calculation per prompt type
-- [ ] 8.3 Implement prompt rollback mechanism for degraded performance
-- [ ] 8.4 Add prompt A/B testing for validation
-- [ ] 8.5 Write property-based test: poor prompts must be replaced by better versions
-- [ ] 8.6 Write adversarial test: verify stability under oscillating feedback
+- [x] 8.1 Implement prompt outcome recording from LLM Runtime
+- [x] 8.2 Create prompt success rate calculation per prompt type
+- [x] 8.3 Implement prompt rollback mechanism for degraded performance
+- [x] 8.4 Add prompt A/B testing for validation
+- [x] 8.5 Write property-based test: poor prompts must be replaced by better versions
+- [x] 8.6 Write adversarial test: verify stability under oscillating feedback
 - [ ] 8.7 Commit prompt tracking system to GitHub
 
 ## Phase 5: Performance Measurement
