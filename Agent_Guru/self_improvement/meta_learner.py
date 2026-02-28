@@ -907,3 +907,76 @@ class MetaLearner:
         matches.sort(key=lambda x: x[1], reverse=True)
         
         return matches[:5]  # Return top 5 matches
+    
+    def analyze_feature_correlations(self) -> Dict[str, float]:
+        """
+        Analyze correlation between task features and success.
+        
+        Calculates Pearson correlation coefficient between each feature
+        and task success to identify which features predict success.
+        
+        Returns:
+            Dictionary mapping feature names to correlation coefficients
+            
+        Time Complexity: O(n) where n is number of executions
+        Space Complexity: O(n)
+        """
+        # Load all execution features
+        conn = sqlite3.connect(self.storage_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT features, success
+            FROM execution_features
+            ORDER BY timestamp DESC
+            LIMIT 1000
+        """)
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        if len(rows) < 10:
+            # Not enough data for correlation analysis
+            return {}
+        
+        # Convert to arrays
+        features_list = []
+        success_list = []
+        
+        for feature_blob, success in rows:
+            feature_vector = np.frombuffer(feature_blob, dtype=np.float32)
+            features_list.append(feature_vector)
+            success_list.append(float(success))
+        
+        features_matrix = np.array(features_list)
+        success_array = np.array(success_list)
+        
+        # Calculate correlations for each feature
+        feature_names = [
+            'task_type_hash',
+            'strategy_hash',
+            'execution_time_ms',
+            'success',
+            'reasoning_quality',
+            'tool_selection_correct',
+            'hallucination_detected',
+            'context_complexity'
+        ]
+        
+        correlations = {}
+        for i, name in enumerate(feature_names):
+            if name == 'success':
+                continue  # Skip success feature itself
+            
+            feature_values = features_matrix[:, i]
+            
+            # Calculate Pearson correlation
+            correlation = np.corrcoef(feature_values, success_array)[0, 1]
+            
+            # Handle NaN (constant feature)
+            if np.isnan(correlation):
+                correlation = 0.0
+            
+            correlations[name] = float(correlation)
+        
+        return correlations
