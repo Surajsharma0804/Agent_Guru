@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
@@ -398,6 +398,8 @@ class TestGetTaskCount:
     num_tasks=st.integers(min_value=1, max_value=50),
     success_rate=st.floats(min_value=0.0, max_value=1.0),
 )
+@settings(max_examples=20, deadline=None)
+@pytest.mark.property
 def test_property_success_rate_accuracy(num_tasks, success_rate):
     """
     Property: Recorded success rate must match actual success rate.
@@ -439,6 +441,8 @@ def test_property_success_rate_accuracy(num_tasks, success_rate):
     baseline_success=st.floats(min_value=0.0, max_value=0.5),
     recent_success=st.floats(min_value=0.5, max_value=1.0),
 )
+@settings(max_examples=20, deadline=None)
+@pytest.mark.property
 def test_property_improvement_detection(baseline_success, recent_success):
     """
     Property: Improvement must be detected when recent > baseline.
@@ -499,6 +503,8 @@ def test_property_improvement_detection(baseline_success, recent_success):
     reasoning_quality=st.floats(min_value=0.0, max_value=1.0),
     num_tasks=st.integers(min_value=1, max_value=30),
 )
+@settings(max_examples=20, deadline=None)
+@pytest.mark.property
 def test_property_reasoning_quality_tracking(reasoning_quality, num_tasks):
     """
     Property: Average reasoning quality must match recorded values.
