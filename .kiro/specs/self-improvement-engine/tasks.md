@@ -158,17 +158,17 @@
 - [x] 14.4 Create validation suite for learning effectiveness
 - [x] 14.5 Write property-based test: system must learn from injected failures
 - [x] 14.6 Write hardest test: inject 100 failures and verify learning convergence
-- [-] 14.7 Commit testing infrastructure to GitHub
+- [x] 14.7 Commit testing infrastructure to GitHub
 
 ## Phase 8: Integration with Agent_Guru
 
 ### 15. Agent Orchestration Integration
-- [ ] 15.1 Create integration hooks in guru-agent-orchestration
-- [ ] 15.2 Implement task execution instrumentation
-- [ ] 15.3 Add strategy selection before task execution
-- [ ] 15.4 Implement outcome recording after task completion
-- [ ] 15.5 Write integration tests with orchestration system
-- [ ] 15.6 Verify less than 10% overhead on task execution
+- [x] 15.1 Create integration hooks in guru-agent-orchestration
+- [x] 15.2 Implement task execution instrumentation
+- [x] 15.3 Add strategy selection before task execution
+- [x] 15.4 Implement outcome recording after task completion
+- [x] 15.5 Write integration tests with orchestration system
+- [x] 15.6 Verify less than 10% overhead on task execution
 - [ ] 15.7 Commit orchestration integration to GitHub
 
 ### 16. LLM Runtime Integration
