@@ -184,13 +184,13 @@
 - [x] 17.2 Implement learning data synchronization
 - [x] 17.3 Add historical pattern retrieval
 - [x] 17.4 Write integration tests with memory system
-- [ ] 17.5 Commit memory integration to GitHub
+- [x] 17.5 Commit memory integration to GitHub
 
 ### 18. Policy Engine Integration
-- [ ] 18.1 Ensure self-improvement respects guru-policy-engine constraints
-- [ ] 18.2 Implement policy-aware strategy selection
-- [ ] 18.3 Add policy validation before prompt evolution
-- [ ] 18.4 Write integration tests with policy engine
+- [x] 18.1 Ensure self-improvement respects guru-policy-engine constraints
+- [x] 18.2 Implement policy-aware strategy selection
+- [x] 18.3 Add policy validation before prompt evolution
+- [x] 18.4 Write integration tests with policy engine
 - [ ] 18.5 Commit policy integration to GitHub
 
 ## Phase 9: Adversarial Robustness
