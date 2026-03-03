@@ -669,7 +669,7 @@ class SelfImprovementEngine:
         
         Validates: Requirements 7.5
         """
-        print(f"⚠️  WARNING: Improvement target not met!")
+        print(f"WARNING: Improvement target not met!")
         print(f"   Target: {self.improvement_threshold * 100:.1f}% improvement")
         print(f"   Actual: {report['improvement']['relative_improvement']:.1f}% improvement")
         print(f"   Tasks completed: {report['total_tasks']}")
