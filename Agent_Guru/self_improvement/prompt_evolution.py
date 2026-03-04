@@ -18,7 +18,7 @@ Date: 2026-02-28
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from Agent_Guru.self_improvement.connection_pool import ConnectionPool
@@ -62,18 +62,32 @@ class PromptEvolutionSystem:
         >>> best = system.get_active_prompt("task_analysis")
     """
 
-    def __init__(self, pool: "ConnectionPool") -> None:
+    def __init__(
+        self,
+        pool: "ConnectionPool",
+        min_update_interval_seconds: float = 3600.0,  # 1 hour default
+        rollback_cooldown_seconds: float = 7200.0,  # 2 hours default
+        oscillation_window_seconds: float = 86400.0,  # 24 hours default
+    ) -> None:
         """
         Initialize prompt evolution system.
 
         Args:
             pool: ConnectionPool for database access
+            min_update_interval_seconds: Minimum time between prompt updates (default: 1 hour)
+            rollback_cooldown_seconds: Cooldown period after rollback (default: 2 hours)
+            oscillation_window_seconds: Time window for oscillation detection (default: 24 hours)
 
         Raises:
             RuntimeError: If prompts table doesn't exist
         """
         self.pool = pool
+        self.min_update_interval = min_update_interval_seconds
+        self.rollback_cooldown = rollback_cooldown_seconds
+        self.oscillation_window = oscillation_window_seconds
         self._init_database()
+
+
 
     def _init_database(self) -> None:
         """
@@ -103,6 +117,7 @@ class PromptEvolutionSystem:
         prompt_type: str,
         content: str,
         version: int = 1,
+        force: bool = False,
     ) -> str:
         """
         Register a new prompt version.
@@ -111,20 +126,40 @@ class PromptEvolutionSystem:
             prompt_type: Type of prompt (e.g., "task_analysis", "tool_selection")
             content: The prompt text
             version: Version number (default: 1)
+            force: If True, bypass rate limiting (default: False)
 
         Returns:
             Prompt ID of the registered prompt
 
         Raises:
             ValueError: If prompt_type is empty or content is empty
+            RuntimeError: If rate limit prevents update (unless force=True)
         """
         if not prompt_type:
             raise ValueError("prompt_type cannot be empty")
         if not content:
             raise ValueError("content cannot be empty")
 
+        # Check rate limiting (unless forced)
+        if not force:
+            can_update, reason = self.can_update_prompt(prompt_type, "register")
+            if not can_update:
+                raise RuntimeError(f"Rate limit prevents update: {reason}")
+
         with self.pool.connection() as conn:
             cursor = conn.cursor()
+
+            # Get previous active version
+            cursor.execute(
+                """
+                SELECT version
+                FROM prompts
+                WHERE prompt_type = ? AND is_active = 1
+            """,
+                (prompt_type,),
+            )
+            prev_row = cursor.fetchone()
+            previous_version = prev_row[0] if prev_row else None
 
             # Generate prompt ID
             prompt_id = f"{prompt_type}_v{version}_{datetime.now().timestamp()}"
@@ -165,7 +200,11 @@ class PromptEvolutionSystem:
             )
 
             conn.commit()
-            return prompt_id
+
+        # Record update for rate limiting
+        self._record_prompt_update(prompt_type, "register", previous_version, version)
+
+        return prompt_id
 
     def record_prompt_outcome(
         self,
@@ -864,3 +903,637 @@ IMPROVED PROMPT:"""
         )
 
         return should_adopt, metrics
+
+    def rollback_prompt(
+        self,
+        prompt_type: str,
+        target_version: int | None = None,
+        force: bool = False,
+    ) -> str:
+        """
+        Rollback to a previous prompt version due to degraded performance.
+
+        Deactivates the current active prompt and activates a previous version.
+        If target_version is not specified, rolls back to the previous version.
+
+        Time Complexity: O(1) - constant database operations
+        Space Complexity: O(1)
+
+        Args:
+            prompt_type: Type of prompt to rollback
+            target_version: Specific version to rollback to (None = previous version)
+            force: If True, bypass rate limiting and oscillation checks (default: False)
+
+        Returns:
+            prompt_id of the activated version
+
+        Raises:
+            ValueError: If prompt_type doesn't exist or target_version not found
+            RuntimeError: If oscillation detected (unless force=True)
+
+        Example:
+            >>> # Current version is 3, rollback to version 2
+            >>> prompt_id = system.rollback_prompt("task_analysis", target_version=2)
+            >>> active = system.get_active_prompt("task_analysis")
+            >>> assert active.version == 2
+        """
+        conn = self.pool.acquire()
+        cursor = conn.connection.cursor()
+
+        try:
+            # Get current active version
+            cursor.execute(
+                """
+                SELECT prompt_id, version
+                FROM prompts
+                WHERE prompt_type = ? AND is_active = 1
+                """,
+                (prompt_type,),
+            )
+            current = cursor.fetchone()
+
+            if not current:
+                raise ValueError(f"No active prompt found for type '{prompt_type}'")
+
+            current_id, current_version = current
+
+            # Determine target version
+            if target_version is None:
+                # Rollback to previous version
+                target_version = current_version - 1
+
+            if target_version < 1:
+                raise ValueError(
+                    f"Cannot rollback to version {target_version} (minimum is 1)"
+                )
+
+            # Check oscillation (unless forced)
+            if not force:
+                can_switch, reason = self.can_switch_to_version(
+                    prompt_type, target_version
+                )
+                if not can_switch:
+                    raise RuntimeError(f"Oscillation prevention: {reason}")
+
+            # Get target version
+            cursor.execute(
+                """
+                SELECT prompt_id
+                FROM prompts
+                WHERE prompt_type = ? AND version = ?
+                """,
+                (prompt_type, target_version),
+            )
+            target = cursor.fetchone()
+
+            if not target:
+                raise ValueError(
+                    f"Version {target_version} not found for prompt type '{prompt_type}'"
+                )
+
+            target_id = target[0]
+
+            # Deactivate current version
+            cursor.execute(
+                """
+                UPDATE prompts
+                SET is_active = 0
+                WHERE prompt_id = ?
+                """,
+                (current_id,),
+            )
+
+            # Activate target version
+            cursor.execute(
+                """
+                UPDATE prompts
+                SET is_active = 1
+                WHERE prompt_id = ?
+                """,
+                (target_id,),
+            )
+
+            conn.connection.commit()
+
+            # Record rollback for rate limiting
+            self._record_prompt_update(
+                prompt_type, "rollback", current_version, target_version
+            )
+
+            return target_id
+
+        finally:
+            self.pool.release(conn)
+
+    def detect_performance_degradation(
+        self,
+        prompt_type: str,
+        degradation_threshold: float = 0.15,
+    ) -> tuple[bool, dict[str, float]]:
+        """
+        Detect if prompt performance has degraded significantly.
+
+        Compares current active prompt performance to previous version performance.
+        Used to trigger automatic rollback when performance drops.
+
+        Time Complexity: O(1) - constant database operations
+        Space Complexity: O(1)
+
+        Args:
+            prompt_type: Type of prompt to check
+            degradation_threshold: Minimum degradation to trigger alert (0.15 = 15%)
+
+        Returns:
+            Tuple of (is_degraded: bool, metrics: dict) where metrics contains:
+            - current_success_rate: Success rate of current version
+            - previous_success_rate: Success rate of previous version
+            - degradation: Absolute degradation amount
+            - current_hallucination_rate: Hallucination rate of current version
+
+        Example:
+            >>> is_degraded, metrics = system.detect_performance_degradation(
+            ...     "task_analysis",
+            ...     degradation_threshold=0.15
+            ... )
+            >>> if is_degraded:
+            ...     # Automatic rollback
+            ...     system.rollback_prompt("task_analysis")
+        """
+        # Get current active prompt
+        current = self.get_active_prompt(prompt_type)
+        if not current or current.total_uses < 10:
+            # Not enough data
+            return False, {}
+
+        # Get previous version
+        history = self.get_prompt_history(prompt_type, limit=2)
+        if len(history) < 2:
+            # No previous version to compare
+            return False, {}
+
+        previous = history[1]  # Second in history (first is current)
+        if previous.total_uses < 10:
+            # Not enough data in previous version
+            return False, {}
+
+        # Calculate degradation
+        degradation = previous.success_rate - current.success_rate
+        current_hallucination_rate = (
+            current.hallucination_count / current.total_uses
+            if current.total_uses > 0
+            else 0.0
+        )
+
+        metrics = {
+            "current_success_rate": round(current.success_rate, 2),
+            "previous_success_rate": round(previous.success_rate, 2),
+            "degradation": round(degradation, 2),
+            "current_hallucination_rate": round(current_hallucination_rate, 2),
+        }
+
+        is_degraded = degradation >= degradation_threshold
+
+        return is_degraded, metrics
+
+    def ab_test_prompts(
+        self,
+        prompt_type: str,
+        candidate_prompt_text: str,
+        test_callable: Callable[[str, str], tuple[bool, bool]],
+        num_tests: int = 20,
+        traffic_split: float = 0.5,
+    ) -> dict[str, Any]:
+        """
+        A/B test a candidate prompt against the current active prompt.
+
+        Runs parallel testing of candidate vs active prompt to determine
+        which performs better before full adoption.
+
+        Time Complexity: O(n) where n is num_tests
+        Space Complexity: O(n)
+
+        Args:
+            prompt_type: Type of prompt to test
+            candidate_prompt_text: Text of candidate prompt to test
+            test_callable: Function that takes (prompt_text, task_context)
+                          and returns (success: bool, hallucination: bool)
+            num_tests: Total number of test tasks to run
+            traffic_split: Fraction of traffic to send to candidate (0.0-1.0)
+
+        Returns:
+            Dictionary with A/B test results:
+            - candidate_success_rate: Success rate of candidate prompt
+            - active_success_rate: Success rate of active prompt
+            - candidate_hallucination_rate: Hallucination rate of candidate
+            - active_hallucination_rate: Hallucination rate of active
+            - improvement: Absolute improvement (candidate - active)
+            - statistical_significance: Whether difference is significant
+            - recommendation: "adopt" or "reject"
+
+        Raises:
+            ValueError: If prompt_type doesn't have an active prompt
+            RuntimeError: If test_callable fails
+
+        Example:
+            >>> def test_task(prompt: str, context: str) -> tuple[bool, bool]:
+            ...     result = run_task_with_prompt(prompt, context)
+            ...     return result.success, result.hallucination_detected
+            >>>
+            >>> results = system.ab_test_prompts(
+            ...     "task_analysis",
+            ...     "Candidate prompt text",
+            ...     test_task,
+            ...     num_tests=50,
+            ...     traffic_split=0.5
+            ... )
+            >>> if results["recommendation"] == "adopt":
+            ...     system.register_prompt("task_analysis", "Candidate prompt text")
+        """
+        active = self.get_active_prompt(prompt_type)
+        if not active:
+            raise ValueError(f"No active prompt found for type '{prompt_type}'")
+
+        # Determine test allocation
+        candidate_tests = int(num_tests * traffic_split)
+        active_tests = num_tests - candidate_tests
+
+        # Run tests
+        candidate_successes = 0
+        candidate_hallucinations = 0
+        active_successes = 0
+        active_hallucinations = 0
+
+        try:
+            # Test candidate prompt
+            for i in range(candidate_tests):
+                test_context = f"ab_test_candidate_{i}"
+                success, hallucination = test_callable(candidate_prompt_text, test_context)
+                if success:
+                    candidate_successes += 1
+                if hallucination:
+                    candidate_hallucinations += 1
+
+            # Test active prompt
+            for i in range(active_tests):
+                test_context = f"ab_test_active_{i}"
+                success, hallucination = test_callable(active.content, test_context)
+                if success:
+                    active_successes += 1
+                if hallucination:
+                    active_hallucinations += 1
+
+        except Exception as e:
+            raise RuntimeError(f"A/B test failed: {e}") from e
+
+        # Calculate metrics
+        candidate_success_rate = (
+            candidate_successes / candidate_tests if candidate_tests > 0 else 0.0
+        )
+        active_success_rate = (
+            active_successes / active_tests if active_tests > 0 else 0.0
+        )
+        candidate_hallucination_rate = (
+            candidate_hallucinations / candidate_tests if candidate_tests > 0 else 0.0
+        )
+        active_hallucination_rate = (
+            active_hallucinations / active_tests if active_tests > 0 else 0.0
+        )
+
+        improvement = candidate_success_rate - active_success_rate
+
+        # Simple statistical significance test (chi-square would be better)
+        # For now, require at least 10% improvement with sufficient sample size
+        statistical_significance = (
+            abs(improvement) >= 0.10 and num_tests >= 20
+        )
+
+        # Recommendation
+        recommendation = (
+            "adopt"
+            if improvement > 0 and statistical_significance
+            else "reject"
+        )
+
+        return {
+            "candidate_success_rate": round(candidate_success_rate, 2),
+            "active_success_rate": round(active_success_rate, 2),
+            "candidate_hallucination_rate": round(candidate_hallucination_rate, 2),
+            "active_hallucination_rate": round(active_hallucination_rate, 2),
+            "improvement": round(improvement, 2),
+            "statistical_significance": statistical_significance,
+            "recommendation": recommendation,
+            "num_tests": num_tests,
+            "candidate_tests": candidate_tests,
+            "active_tests": active_tests,
+        }
+
+    def _record_prompt_update(
+        self,
+        prompt_type: str,
+        update_type: str,
+        previous_version: int | None,
+        new_version: int,
+    ) -> None:
+        """
+        Record a prompt update for rate limiting tracking.
+
+        Args:
+            prompt_type: Type of prompt updated
+            update_type: Type of update ('register', 'rollback', 'replace')
+            previous_version: Previous version number (None for first registration)
+            new_version: New version number
+        """
+        with self.pool.connection() as conn:
+            cursor = conn.cursor()
+
+            update_id = f"update_{prompt_type}_{datetime.now().timestamp()}"
+            now = datetime.now().isoformat()
+
+            cursor.execute(
+                """
+                INSERT INTO prompt_updates (
+                    update_id, prompt_type, update_type,
+                    previous_version, new_version, timestamp
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    update_id,
+                    prompt_type,
+                    update_type,
+                    previous_version,
+                    new_version,
+                    now,
+                ),
+            )
+
+            conn.commit()
+
+    def _get_last_update_time(self, prompt_type: str) -> datetime | None:
+        """
+        Get timestamp of last update for a prompt type.
+
+        Args:
+            prompt_type: Type of prompt to check
+
+        Returns:
+            Datetime of last update or None if never updated
+        """
+        with self.pool.connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT timestamp
+                FROM prompt_updates
+                WHERE prompt_type = ?
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """,
+                (prompt_type,),
+            )
+
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            return datetime.fromisoformat(row[0])
+
+    def _get_last_rollback_time(self, prompt_type: str) -> datetime | None:
+        """
+        Get timestamp of last rollback for a prompt type.
+
+        Args:
+            prompt_type: Type of prompt to check
+
+        Returns:
+            Datetime of last rollback or None if never rolled back
+        """
+        with self.pool.connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT timestamp
+                FROM prompt_updates
+                WHERE prompt_type = ? AND update_type = 'rollback'
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """,
+                (prompt_type,),
+            )
+
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            return datetime.fromisoformat(row[0])
+
+    def _check_oscillation(
+        self, prompt_type: str, target_version: int
+    ) -> tuple[bool, list[int]]:
+        """
+        Check if switching to target version would cause oscillation.
+
+        Detects rapid back-and-forth changes between versions within
+        the oscillation window. Oscillation is defined as switching
+        to a version that was active recently AND there's a pattern
+        of version switching.
+
+        Args:
+            prompt_type: Type of prompt to check
+            target_version: Version we want to switch to
+
+        Returns:
+            Tuple of (is_oscillating, recent_versions) where:
+            - is_oscillating: True if oscillation detected
+            - recent_versions: List of recent version numbers
+        """
+        with self.pool.connection() as conn:
+            cursor = conn.cursor()
+
+            # Get recent updates within oscillation window
+            cutoff_time = datetime.now().timestamp() - self.oscillation_window
+            cutoff_iso = datetime.fromtimestamp(cutoff_time).isoformat()
+
+            cursor.execute(
+                """
+                SELECT new_version
+                FROM prompt_updates
+                WHERE prompt_type = ? AND timestamp >= ?
+                ORDER BY timestamp DESC
+            """,
+                (prompt_type, cutoff_iso),
+            )
+
+            recent_versions = [row[0] for row in cursor.fetchall()]
+
+            # No oscillation if not enough history
+            if len(recent_versions) < 2:
+                return False, recent_versions
+
+            # Oscillation detected if:
+            # 1. Target version appears in recent history (last 4 updates)
+            # 2. The target version appears at least twice in recent history
+            # This catches back-and-forth switching patterns
+            last_four = recent_versions[:4] if len(recent_versions) >= 4 else recent_versions
+            target_count_in_recent = recent_versions.count(target_version)
+
+            # True oscillation: switching back to a recently used version
+            is_oscillating = (
+                target_version in last_four
+                and target_count_in_recent >= 1
+            )
+
+            return is_oscillating, recent_versions
+
+    def can_update_prompt(
+        self,
+        prompt_type: str,
+        update_type: str = "register",
+    ) -> tuple[bool, str]:
+        """
+        Check if a prompt can be updated based on rate limiting rules.
+
+        Enforces:
+        1. Cooldown period after rollback (rollback_cooldown) - checked first
+        2. Minimum time between updates (min_update_interval)
+        3. Oscillation prevention (oscillation_window)
+
+        Time Complexity: O(1) - constant database queries
+        Space Complexity: O(1)
+
+        Args:
+            prompt_type: Type of prompt to update
+            update_type: Type of update ('register', 'rollback', 'replace')
+
+        Returns:
+            Tuple of (can_update: bool, reason: str) where:
+            - can_update: True if update is allowed
+            - reason: Explanation if update is blocked
+
+        Example:
+            >>> can_update, reason = system.can_update_prompt("task_analysis")
+            >>> if not can_update:
+            ...     print(f"Update blocked: {reason}")
+            >>> else:
+            ...     system.register_prompt("task_analysis", "New prompt text")
+        """
+        now = datetime.now()
+
+        # Check rollback cooldown FIRST (highest priority)
+        if update_type != "rollback":
+            last_rollback = self._get_last_rollback_time(prompt_type)
+            if last_rollback:
+                time_since_rollback = (now - last_rollback).total_seconds()
+                if time_since_rollback < self.rollback_cooldown:
+                    remaining = self.rollback_cooldown - time_since_rollback
+                    return (
+                        False,
+                        f"Rollback cooldown: {remaining:.0f}s remaining before new updates allowed",
+                    )
+
+        # Check minimum update interval
+        last_update = self._get_last_update_time(prompt_type)
+        if last_update:
+            time_since_update = (now - last_update).total_seconds()
+            if time_since_update < self.min_update_interval:
+                remaining = self.min_update_interval - time_since_update
+                return (
+                    False,
+                    f"Rate limit: {remaining:.0f}s remaining until next update allowed",
+                )
+
+        return True, "Update allowed"
+
+    def can_switch_to_version(
+        self, prompt_type: str, target_version: int
+    ) -> tuple[bool, str]:
+        """
+        Check if switching to a specific version would cause oscillation.
+
+        Args:
+            prompt_type: Type of prompt
+            target_version: Version to switch to
+
+        Returns:
+            Tuple of (can_switch: bool, reason: str)
+
+        Example:
+            >>> can_switch, reason = system.can_switch_to_version("task_analysis", 2)
+            >>> if not can_switch:
+            ...     print(f"Switch blocked: {reason}")
+        """
+        is_oscillating, recent_versions = self._check_oscillation(
+            prompt_type, target_version
+        )
+
+        if is_oscillating:
+            return (
+                False,
+                f"Oscillation detected: version {target_version} was recently active. "
+                f"Recent versions: {recent_versions[:5]}",
+            )
+
+        return True, "Switch allowed"
+
+    def get_rate_limit_status(self, prompt_type: str) -> dict[str, Any]:
+        """
+        Get current rate limiting status for a prompt type.
+
+        Args:
+            prompt_type: Type of prompt to check
+
+        Returns:
+            Dictionary with rate limit status:
+            - can_update: Whether update is currently allowed
+            - last_update: Timestamp of last update (or None)
+            - time_since_update: Seconds since last update (or None)
+            - time_until_next_update: Seconds until next update allowed (or 0)
+            - last_rollback: Timestamp of last rollback (or None)
+            - time_since_rollback: Seconds since last rollback (or None)
+            - rollback_cooldown_remaining: Seconds remaining in cooldown (or 0)
+            - recent_versions: List of recent version numbers
+
+        Example:
+            >>> status = system.get_rate_limit_status("task_analysis")
+            >>> print(f"Can update: {status['can_update']}")
+            >>> print(f"Time until next update: {status['time_until_next_update']}s")
+        """
+        now = datetime.now()
+
+        last_update = self._get_last_update_time(prompt_type)
+        last_rollback = self._get_last_rollback_time(prompt_type)
+
+        time_since_update = (
+            (now - last_update).total_seconds() if last_update else None
+        )
+        time_since_rollback = (
+            (now - last_rollback).total_seconds() if last_rollback else None
+        )
+
+        time_until_next_update = 0.0
+        if time_since_update is not None:
+            time_until_next_update = max(
+                0.0, self.min_update_interval - time_since_update
+            )
+
+        rollback_cooldown_remaining = 0.0
+        if time_since_rollback is not None:
+            rollback_cooldown_remaining = max(
+                0.0, self.rollback_cooldown - time_since_rollback
+            )
+
+        can_update, _ = self.can_update_prompt(prompt_type)
+
+        _, recent_versions = self._check_oscillation(prompt_type, 0)
+
+        return {
+            "can_update": can_update,
+            "last_update": last_update.isoformat() if last_update else None,
+            "time_since_update": time_since_update,
+            "time_until_next_update": time_until_next_update,
+            "last_rollback": last_rollback.isoformat() if last_rollback else None,
+            "time_since_rollback": time_since_rollback,
+            "rollback_cooldown_remaining": rollback_cooldown_remaining,
+            "recent_versions": recent_versions[:10],  # Last 10 versions
+        }

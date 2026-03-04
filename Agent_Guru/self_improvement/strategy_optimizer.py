@@ -3,8 +3,9 @@ Strategy Optimizer for Self-Improvement Engine.
 
 Tracks strategy performance and selects optimal strategies for tasks.
 Implements exploration-exploitation tradeoff for continuous learning.
+Includes dampening mechanisms to prevent rapid strategy flip-flopping.
 
-**Validates: Requirements 2.1, 2.2, 2.3**
+**Validates: Requirements 2.1, 2.2, 2.3, 9.7 (Stability)**
 
 Performance Requirements:
 - Time Complexity: O(log n) for strategy selection
@@ -24,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from Agent_Guru.self_improvement.connection_pool import ConnectionPool
+    from Agent_Guru.self_improvement.stability_monitor import StabilityMonitor
 
 
 @dataclass
@@ -69,7 +71,12 @@ class StrategyOptimizer:
     """
 
     def __init__(
-        self, pool: "ConnectionPool", epsilon: float = 0.1, min_executions_for_confidence: int = 10
+        self, 
+        pool: "ConnectionPool", 
+        epsilon: float = 0.1, 
+        min_executions_for_confidence: int = 10,
+        stability_monitor: "StabilityMonitor | None" = None,
+        enable_dampening: bool = True
     ) -> None:
         """
         Initialize strategy optimizer.
@@ -78,6 +85,8 @@ class StrategyOptimizer:
             pool: ConnectionPool for database access
             epsilon: Exploration rate (0.0-1.0), default 0.1 (10% exploration)
             min_executions_for_confidence: Minimum executions before trusting success rate
+            stability_monitor: Optional StabilityMonitor for dampening rapid changes
+            enable_dampening: Whether to enable dampening (default: True)
 
         Raises:
             ValueError: If epsilon not in [0.0, 1.0]
@@ -88,6 +97,12 @@ class StrategyOptimizer:
         self.pool = pool
         self.epsilon = epsilon
         self.min_executions_for_confidence = min_executions_for_confidence
+        self.stability_monitor = stability_monitor
+        self.enable_dampening = enable_dampening
+        
+        # Track last selected strategy per task type for dampening
+        self._last_selected: dict[str, str] = {}
+        
         self._init_database()
 
     def _init_database(self) -> None:
@@ -281,10 +296,13 @@ class StrategyOptimizer:
 
     def select_strategy_with_exploration(self, task_type: str) -> Strategy | None:
         """
-        Select strategy using epsilon-greedy exploration.
+        Select strategy using epsilon-greedy exploration with dampening.
 
         With probability epsilon, selects random strategy (exploration).
         With probability 1-epsilon, selects best strategy (exploitation).
+        
+        If dampening is enabled and a StabilityMonitor is provided,
+        applies dampening to prevent rapid strategy flip-flopping.
 
         Time Complexity: O(n) where n is strategies for task_type
 
@@ -301,10 +319,90 @@ class StrategyOptimizer:
 
         # Exploration: select random strategy
         if random.random() < self.epsilon:
-            return random.choice(strategies)
+            selected = random.choice(strategies)
+        else:
+            # Exploitation: select best strategy
+            selected = self.get_best_strategy(task_type)
+            if selected is None:
+                return None
 
-        # Exploitation: select best strategy
-        return self.get_best_strategy(task_type)
+        # Apply dampening if enabled
+        if self.enable_dampening and self.stability_monitor:
+            selected = self._apply_strategy_dampening(task_type, selected, strategies)
+        
+        # Track selection for dampening
+        self._last_selected[task_type] = selected.strategy_id
+        
+        # Record selection in stability monitor
+        if self.stability_monitor:
+            # Use strategy index as numeric value for stability tracking
+            strategy_ids = [s.strategy_id for s in strategies]
+            strategy_index = strategy_ids.index(selected.strategy_id)
+            self.stability_monitor.record_change(
+                "strategy_selection",
+                task_type,
+                float(strategy_index)
+            )
+
+        return selected
+    
+    def _apply_strategy_dampening(
+        self,
+        task_type: str,
+        proposed_strategy: Strategy,
+        available_strategies: list[Strategy]
+    ) -> Strategy:
+        """
+        Apply dampening to prevent rapid strategy flip-flopping.
+        
+        Uses StabilityMonitor to detect oscillations and applies
+        dampening by preferring the last selected strategy if
+        the system is unstable.
+        
+        Time Complexity: O(1)
+        Space Complexity: O(1)
+        
+        Args:
+            task_type: Type of task
+            proposed_strategy: Strategy that would be selected
+            available_strategies: List of available strategies
+            
+        Returns:
+            Dampened strategy selection (may be same as proposed)
+        """
+        if not self.stability_monitor:
+            return proposed_strategy
+        
+        # Check if strategy selection is stable
+        is_stable, metrics = self.stability_monitor.check_stability(
+            "strategy_selection",
+            task_type
+        )
+        
+        # If unstable, apply dampening
+        if not is_stable and metrics:
+            # Get last selected strategy
+            last_strategy_id = self._last_selected.get(task_type)
+            
+            if last_strategy_id:
+                # Find last selected strategy in available strategies
+                last_strategy = next(
+                    (s for s in available_strategies if s.strategy_id == last_strategy_id),
+                    None
+                )
+                
+                if last_strategy:
+                    # Calculate dampening: prefer last strategy if proposed is different
+                    if proposed_strategy.strategy_id != last_strategy_id:
+                        # Use dampening factor to decide whether to switch
+                        # Higher stability score = more likely to allow switch
+                        switch_probability = metrics.stability_score
+                        
+                        if random.random() > switch_probability:
+                            # Don't switch - stick with last strategy
+                            return last_strategy
+        
+        return proposed_strategy
 
     def get_strategies_for_task_type(self, task_type: str) -> list[Strategy]:
         """
@@ -864,3 +962,118 @@ class StrategyOptimizer:
                 return False
 
         return True
+
+    def get_dampening_metrics(self, task_type: str | None = None) -> dict[str, Any]:
+        """
+        Get dampening metrics for strategy selection.
+        
+        Args:
+            task_type: Optional task type to filter (None = all task types)
+            
+        Returns:
+            Dictionary with dampening metrics:
+            - stability_score: Overall stability score (0.0-1.0)
+            - oscillation_detected: Whether oscillation is detected
+            - last_selected: Last selected strategies per task type
+            - recommendations: List of recommended actions
+            
+        Example:
+            >>> metrics = optimizer.get_dampening_metrics("analysis")
+            >>> if metrics['oscillation_detected']:
+            ...     print("Strategy selection is oscillating!")
+        """
+        if not self.stability_monitor:
+            return {
+                "stability_score": 1.0,
+                "oscillation_detected": False,
+                "last_selected": self._last_selected.copy(),
+                "recommendations": [],
+                "dampening_enabled": self.enable_dampening
+            }
+        
+        # Get stability report from monitor
+        report = self.stability_monitor.get_stability_report("strategy_selection")
+        
+        # Filter by task type if specified
+        if task_type:
+            metrics_list = [
+                m for m in report["metrics"]
+                if m.metric_name == task_type
+            ]
+            unstable_metrics = [
+                m for m in report["unstable_metrics"]
+                if m.metric_name == task_type
+            ]
+        else:
+            metrics_list = report["metrics"]
+            unstable_metrics = report["unstable_metrics"]
+        
+        # Calculate overall stability
+        if metrics_list:
+            stability_score = sum(m.stability_score for m in metrics_list) / len(metrics_list)
+        else:
+            stability_score = 1.0
+        
+        oscillation_detected = len(unstable_metrics) > 0
+        
+        # Generate recommendations
+        recommendations = []
+        if oscillation_detected:
+            recommendations.append(
+                "Strategy selection is oscillating - dampening is being applied"
+            )
+            recommendations.append(
+                "Consider increasing min_executions_for_confidence to gather more data"
+            )
+            recommendations.append(
+                "Review strategy performance metrics for conflicting signals"
+            )
+        
+        return {
+            "stability_score": stability_score,
+            "oscillation_detected": oscillation_detected,
+            "last_selected": self._last_selected.copy(),
+            "unstable_task_types": [m.metric_name for m in unstable_metrics],
+            "recommendations": recommendations,
+            "dampening_enabled": self.enable_dampening,
+            "detailed_metrics": [
+                {
+                    "task_type": m.metric_name,
+                    "variance": m.variance,
+                    "change_frequency": m.change_frequency,
+                    "stability_score": m.stability_score
+                }
+                for m in metrics_list
+            ]
+        }
+    
+    def reset_dampening_history(self, task_type: str | None = None) -> None:
+        """
+        Reset dampening history for strategy selection.
+        
+        Clears the last selected strategy tracking and stability history.
+        Useful after major system changes or for testing.
+        
+        Args:
+            task_type: Optional task type to reset (None = reset all)
+            
+        Example:
+            >>> # Reset specific task type
+            >>> optimizer.reset_dampening_history("analysis")
+            >>>
+            >>> # Reset all task types
+            >>> optimizer.reset_dampening_history()
+        """
+        if task_type:
+            # Reset specific task type
+            if task_type in self._last_selected:
+                del self._last_selected[task_type]
+            
+            if self.stability_monitor:
+                self.stability_monitor.reset_history("strategy_selection", task_type)
+        else:
+            # Reset all
+            self._last_selected.clear()
+            
+            if self.stability_monitor:
+                self.stability_monitor.reset_history("strategy_selection")

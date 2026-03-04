@@ -890,7 +890,7 @@ class TestPromptEvolutionProperties:
         success_count=st.integers(min_value=0, max_value=100),
         failure_count=st.integers(min_value=0, max_value=100),
     )
-    @settings(max_examples=10)  # Reduce examples for faster testing
+    @settings(max_examples=10, deadline=1000)  # Increase deadline to 1000ms for database operations
     def test_property_success_rate_always_between_0_and_1(self, success_count, failure_count):
         """Property: Success rate must always be between 0 and 1."""
         assume(success_count + failure_count > 0)  # Avoid division by zero
@@ -1192,17 +1192,17 @@ class TestPromptRollback:
 
     def test_rollback_to_previous_version(self, system):
         """Test rolling back to previous version."""
-        # Register 3 versions
+        # Register 3 versions (use force to bypass rate limiting for test)
         _ = system.register_prompt("type1", "Version 1", version=1)
-        v2 = system.register_prompt("type1", "Version 2", version=2)
-        _ = system.register_prompt("type1", "Version 3", version=3)
+        v2 = system.register_prompt("type1", "Version 2", version=2, force=True)
+        _ = system.register_prompt("type1", "Version 3", version=3, force=True)
 
         # Version 3 should be active
         active = system.get_active_prompt("type1")
         assert active.version == 3
 
-        # Rollback to previous version (2)
-        _ = system.rollback_prompt("type1")
+        # Rollback to previous version (2) - use force to bypass oscillation check
+        _ = system.rollback_prompt("type1", force=True)
 
         # Version 2 should now be active
         active = system.get_active_prompt("type1")
@@ -1211,13 +1211,13 @@ class TestPromptRollback:
 
     def test_rollback_to_specific_version(self, system):
         """Test rolling back to specific version."""
-        # Register 3 versions
+        # Register 3 versions (use force to bypass rate limiting for test)
         v1 = system.register_prompt("type1", "Version 1", version=1)
-        _ = system.register_prompt("type1", "Version 2", version=2)
-        _ = system.register_prompt("type1", "Version 3", version=3)
+        _ = system.register_prompt("type1", "Version 2", version=2, force=True)
+        _ = system.register_prompt("type1", "Version 3", version=3, force=True)
 
-        # Rollback to version 1
-        _ = system.rollback_prompt("type1", target_version=1)
+        # Rollback to version 1 - use force to bypass oscillation check
+        _ = system.rollback_prompt("type1", target_version=1, force=True)
 
         # Version 1 should now be active
         active = system.get_active_prompt("type1")
@@ -1318,7 +1318,7 @@ class TestPromptReplacementProperties:
     """Property-based tests for prompt replacement behavior."""
 
     @given(
-        failure_rate=st.floats(min_value=0.3, max_value=0.9),
+        failure_rate=st.floats(min_value=0.35, max_value=0.9),  # Increased min to ensure failures >= 30%
         total_uses=st.integers(min_value=20, max_value=50),
     )
     @settings(max_examples=10)
@@ -1336,9 +1336,15 @@ class TestPromptReplacementProperties:
             # Register poor performing prompt (version 1)
             v1_id = system.register_prompt("type1", "Poor prompt", version=1)
 
-            # Record poor performance
+            # Record poor performance - ensure actual failure rate >= 30%
             failures = int(total_uses * failure_rate)
             successes = total_uses - failures
+            
+            # Ensure we have at least 30% failures (round up if needed)
+            actual_failure_rate = failures / total_uses
+            if actual_failure_rate < 0.3:
+                failures = int(total_uses * 0.3) + 1  # Add 1 to ensure >= 30%
+                successes = total_uses - failures
 
             for _ in range(successes):
                 system.record_prompt_outcome(v1_id, True, False)
