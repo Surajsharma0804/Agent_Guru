@@ -211,16 +211,16 @@
 - [x] 20.4 Implement ensemble voting for critical tasks
 - [x] 20.5 Write property-based test: system must recover from bad updates
 - [x] 20.6 Write hardest test: inject catastrophic update and verify recovery
-- [-] 20.7 Commit rollback system to GitHub
+- [x] 20.7 Commit rollback system to GitHub
 
 ### 21. Rate Limiting and Stability
-- [~] 21.1 Implement rate limiting on prompt evolution
-- [~] 21.2 Add stability checks to prevent oscillations
-- [~] 21.3 Create dampening for rapid strategy changes
-- [~] 21.4 Implement edge case handling without overgeneralization
-- [~] 21.5 Write property-based test: system must remain stable over time
-- [~] 21.6 Write adversarial test: rapid feedback changes must not cause instability
-- [~] 21.7 Commit stability mechanisms to GitHub
+- [x] 21.1 Implement rate limiting on prompt evolution
+- [x] 21.2 Add stability checks to prevent oscillations
+- [x] 21.3 Create dampening for rapid strategy changes
+- [x] 21.4 Implement edge case handling without overgeneralization
+- [x] 21.5 Write property-based test: system must remain stable over time
+- [x] 21.6 Write adversarial test: rapid feedback changes must not cause instability
+- [x] 21.7 Commit stability mechanisms to GitHub
 
 ## Phase 10: Comprehensive Testing and Benchmarking
 
