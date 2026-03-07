@@ -1,0 +1,53 @@
+{
+  "framework_name": "Agent Guru",
+  "timestamp": "2026-03-07T13:26:21.156763",
+  "scenarios_run": 5,
+  "metrics": {
+    "success_rate": 100.0,
+    "avg_execution_time_ms": 0.009020001743920147,
+    "total_api_calls": 5,
+    "total_tokens": 120,
+    "avg_memory_mb": 151.94921875,
+    "avg_cpu_percent": 0.0,
+    "improvement_rate": null,
+    "recovery_rate": null
+  },
+  "scenario_results": [
+    {
+      "scenario_id": "simple_001",
+      "name": "Basic Math",
+      "success": true,
+      "execution_time_ms": 0.01239999255631119,
+      "result": "4"
+    },
+    {
+      "scenario_id": "simple_002",
+      "name": "String Manipulation",
+      "success": true,
+      "execution_time_ms": 0.007000009645707905,
+      "result": "HELLO"
+    },
+    {
+      "scenario_id": "simple_003",
+      "name": "List Length",
+      "success": true,
+      "execution_time_ms": 0.011299998732283711,
+      "result": "5"
+    },
+    {
+      "scenario_id": "simple_004",
+      "name": "Boolean Logic",
+      "success": true,
+      "execution_time_ms": 0.009100011084228754,
+      "result": "Yes, 10 is greater than 5"
+    },
+    {
+      "scenario_id": "simple_005",
+      "name": "String Concatenation",
+      "success": true,
+      "execution_time_ms": 0.005299996701069176,
+      "result": "Hello World"
+    }
+  ],
+  "errors": []
+}

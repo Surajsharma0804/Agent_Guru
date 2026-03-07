@@ -1,7 +1,7 @@
 """
 Main benchmark runner script.
 
-Runs benchmarks comparing Agent Guru to LangChain and generates reports.
+Runs benchmarks comparing Agent Guru to all competitor frameworks and generates reports.
 """
 
 import argparse
@@ -12,6 +12,10 @@ from typing import List
 from Agent_Guru.self_improvement.benchmarks.base_benchmark import BenchmarkResult
 from Agent_Guru.self_improvement.benchmarks.agent_guru_benchmark import create_agent_guru_benchmark
 from Agent_Guru.self_improvement.benchmarks.langchain_benchmark import create_langchain_benchmark
+from Agent_Guru.self_improvement.benchmarks.crewai_benchmark import create_crewai_benchmark
+from Agent_Guru.self_improvement.benchmarks.autogen_benchmark import create_autogen_benchmark
+from Agent_Guru.self_improvement.benchmarks.autogpt_benchmark import create_autogpt_benchmark
+from Agent_Guru.self_improvement.benchmarks.comprehensive_report import generate_comprehensive_report
 from Agent_Guru.self_improvement.benchmarks.test_scenarios import (
     get_all_scenarios,
     get_simple_scenarios,
@@ -61,6 +65,7 @@ def run_all_benchmarks(
     print(f"Loaded {len(scenarios)} scenarios\n")
     
     results = []
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Run Agent Guru benchmark
     print("=" * 60)
@@ -71,7 +76,6 @@ def run_all_benchmarks(
     results.append(agent_guru_result)
     
     # Save Agent Guru results
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     agent_guru_result.to_json(
         os.path.join(output_dir, f"agent_guru_{timestamp}.json")
     )
@@ -103,13 +107,83 @@ def run_all_benchmarks(
     print(f"  API Calls: {langchain_result.metrics.total_api_calls}")
     print(f"  Tokens: {langchain_result.metrics.total_tokens}")
     
+    # Run CrewAI benchmark
+    print("\n" + "=" * 60)
+    print("Running CrewAI Benchmark")
+    print("=" * 60)
+    crewai = create_crewai_benchmark()
+    crewai_result = crewai.run_benchmark(scenarios, warmup_runs=warmup_runs)
+    results.append(crewai_result)
+    
+    # Save CrewAI results
+    crewai_result.to_json(
+        os.path.join(output_dir, f"crewai_{timestamp}.json")
+    )
+    print(f"\nCrewAI Results:")
+    print(f"  Success Rate: {crewai_result.metrics.success_rate:.1f}%")
+    print(f"  Avg Time: {crewai_result.metrics.avg_execution_time_ms:.1f} ms")
+    print(f"  API Calls: {crewai_result.metrics.total_api_calls}")
+    print(f"  Tokens: {crewai_result.metrics.total_tokens}")
+    
+    # Run AutoGen benchmark
+    print("\n" + "=" * 60)
+    print("Running AutoGen Benchmark")
+    print("=" * 60)
+    autogen = create_autogen_benchmark()
+    autogen_result = autogen.run_benchmark(scenarios, warmup_runs=warmup_runs)
+    results.append(autogen_result)
+    
+    # Save AutoGen results
+    autogen_result.to_json(
+        os.path.join(output_dir, f"autogen_{timestamp}.json")
+    )
+    print(f"\nAutoGen Results:")
+    print(f"  Success Rate: {autogen_result.metrics.success_rate:.1f}%")
+    print(f"  Avg Time: {autogen_result.metrics.avg_execution_time_ms:.1f} ms")
+    print(f"  API Calls: {autogen_result.metrics.total_api_calls}")
+    print(f"  Tokens: {autogen_result.metrics.total_tokens}")
+    
+    # Run AutoGPT benchmark
+    print("\n" + "=" * 60)
+    print("Running AutoGPT Benchmark")
+    print("=" * 60)
+    autogpt = create_autogpt_benchmark()
+    autogpt_result = autogpt.run_benchmark(scenarios, warmup_runs=warmup_runs)
+    results.append(autogpt_result)
+    
+    # Save AutoGPT results
+    autogpt_result.to_json(
+        os.path.join(output_dir, f"autogpt_{timestamp}.json")
+    )
+    print(f"\nAutoGPT Results:")
+    print(f"  Success Rate: {autogpt_result.metrics.success_rate:.1f}%")
+    print(f"  Avg Time: {autogpt_result.metrics.avg_execution_time_ms:.1f} ms")
+    print(f"  API Calls: {autogpt_result.metrics.total_api_calls}")
+    print(f"  Tokens: {autogpt_result.metrics.total_tokens}")
+    
     # Generate comparison report
     print("\n" + "=" * 60)
-    print("Generating Comparison Report")
+    print("Generating Comprehensive Comparison Report")
     print("=" * 60)
+    
+    # Generate comprehensive report with all metrics
+    analysis = generate_comprehensive_report(results, output_dir)
+    
+    # Also generate simple markdown report
     report_path = os.path.join(output_dir, f"comparison_{timestamp}.md")
     agent_guru.generate_markdown_report(results, report_path)
-    print(f"Report saved to: {report_path}")
+    print(f"Simple report saved to: {report_path}")
+    
+    # Print key findings
+    print("\n" + "=" * 60)
+    print("Key Findings")
+    print("=" * 60)
+    print(f"\nOverall Winner: {analysis['overall_winner']['winner']['framework']}")
+    print(f"Agent Guru Wins: {analysis['overall_winner']['agent_guru_wins']}")
+    
+    if analysis['improvement_analysis'].get('agent_guru_unique'):
+        print(f"\n✅ Agent Guru has unique self-improvement capability")
+        print(f"   Improvement Rate: {analysis['improvement_analysis']['agent_guru_improvement']:.1f}%")
     
     return results
 
@@ -117,7 +191,7 @@ def run_all_benchmarks(
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Run Agent Guru vs LangChain benchmark comparison"
+        description="Run Agent Guru vs Competitor Frameworks Benchmark"
     )
     parser.add_argument(
         "--output-dir",
@@ -142,11 +216,12 @@ def main():
     args = parser.parse_args()
     
     print("\n" + "=" * 60)
-    print("Agent Guru vs LangChain Benchmark Suite")
+    print("Agent Guru vs Competitor Frameworks Benchmark Suite")
     print("=" * 60)
     print(f"Scenario Type: {args.scenario_type}")
     print(f"Output Directory: {args.output_dir}")
     print(f"Warmup Runs: {args.warmup_runs}")
+    print(f"\nFrameworks: Agent Guru, LangChain, CrewAI, AutoGen, AutoGPT")
     
     results = run_all_benchmarks(
         output_dir=args.output_dir,

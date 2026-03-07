@@ -1,0 +1,53 @@
+{
+  "framework_name": "CrewAI",
+  "timestamp": "2026-03-07T13:27:52.969672",
+  "scenarios_run": 5,
+  "metrics": {
+    "success_rate": 80.0,
+    "avg_execution_time_ms": 50.49268000293523,
+    "total_api_calls": 5,
+    "total_tokens": 600,
+    "avg_memory_mb": 190.084765625,
+    "avg_cpu_percent": 0.0,
+    "improvement_rate": null,
+    "recovery_rate": null
+  },
+  "scenario_results": [
+    {
+      "scenario_id": "simple_001",
+      "name": "Basic Math",
+      "success": true,
+      "execution_time_ms": 50.59169999731239,
+      "result": "4"
+    },
+    {
+      "scenario_id": "simple_002",
+      "name": "String Manipulation",
+      "success": true,
+      "execution_time_ms": 50.55260000517592,
+      "result": "HELLO"
+    },
+    {
+      "scenario_id": "simple_003",
+      "name": "List Length",
+      "success": true,
+      "execution_time_ms": 50.4481000098167,
+      "result": "5"
+    },
+    {
+      "scenario_id": "simple_004",
+      "name": "Boolean Logic",
+      "success": true,
+      "execution_time_ms": 50.63779999909457,
+      "result": "True"
+    },
+    {
+      "scenario_id": "simple_005",
+      "name": "String Concatenation",
+      "success": false,
+      "execution_time_ms": 50.23320000327658,
+      "result": "hello world"
+    }
+  ],
+  "errors": []
+}
