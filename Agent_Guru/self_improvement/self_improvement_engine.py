@@ -737,7 +737,23 @@ class SelfImprovementEngine:
         
         Time Complexity: O(1)
         """
-        self.pool.close_all()
+        # Close meta-learner first (it has its own connection)
+        if hasattr(self, 'meta_learner') and self.meta_learner:
+            try:
+                self.meta_learner.close()
+            except Exception as e:
+                print(f"WARNING: Error closing meta_learner: {e}")
+        
+        # Close connection pool
+        if hasattr(self, 'pool') and self.pool:
+            try:
+                self.pool.close_all()
+            except Exception as e:
+                print(f"WARNING: Error closing connection pool: {e}")
+        
+        # Small delay to ensure Windows releases file locks
+        import time
+        time.sleep(0.05)
 
     def detect_contradictory_feedback(
         self,

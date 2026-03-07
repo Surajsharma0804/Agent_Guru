@@ -414,11 +414,24 @@ class PerformanceTracker:
         )  # Lower is better
 
         # Relative improvement in success rate (percentage)
-        relative_improvement = (
-            (success_rate_improvement / baseline.success_rate * 100)
-            if baseline.success_rate > 0
-            else 0.0
-        )
+        # Handle edge case where baseline is 0 or very close to 1
+        if baseline.success_rate == 0:
+            # If baseline is 0%, any improvement is infinite
+            relative_improvement = 100.0 if recent.success_rate > 0 else 0.0
+        elif baseline.success_rate >= 0.99:
+            # If baseline is already near perfect (>=99%), calculate improvement
+            # based on error rate reduction instead
+            baseline_error_rate = 1.0 - baseline.success_rate
+            recent_error_rate = 1.0 - recent.success_rate
+            error_reduction = baseline_error_rate - recent_error_rate
+            relative_improvement = (
+                (error_reduction / baseline_error_rate * 100)
+                if baseline_error_rate > 0
+                else 0.0
+            )
+        else:
+            # Standard relative improvement calculation
+            relative_improvement = (success_rate_improvement / baseline.success_rate * 100)
 
         return {
             "success_rate_improvement": round(success_rate_improvement, 4),

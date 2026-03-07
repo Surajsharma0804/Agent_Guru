@@ -406,35 +406,40 @@ def test_property_success_rate_accuracy(num_tasks, success_rate):
 
     Validates Requirement 4.1: Accurate metric recording.
     """
+    import time
+    
     with tempfile.TemporaryDirectory() as tmpdir:
         temp_db = str(Path(tmpdir) / "test.db")
         DatabaseSchema.create_schema(temp_db)
         pool = ConnectionPool(temp_db, min_size=1, max_size=5)
         tracker = PerformanceTracker(pool)
 
-        # Record tasks with known success rate
-        num_successes = int(num_tasks * success_rate)
-        for i in range(num_tasks):
-            tracker.record_task_metrics(
-                task_id=f"task_{i}",
-                task_type="analysis",
-                strategy_id="strategy_1",
-                success=i < num_successes,
-                execution_time_ms=100.0,
-                reasoning_quality=0.9,
-                tool_selection_correct=True,
-                hallucination_detected=False,
-                task_sequence_number=i + 1,
-            )
+        try:
+            # Record tasks with known success rate
+            num_successes = int(num_tasks * success_rate)
+            for i in range(num_tasks):
+                tracker.record_task_metrics(
+                    task_id=f"task_{i}",
+                    task_type="analysis",
+                    strategy_id="strategy_1",
+                    success=i < num_successes,
+                    execution_time_ms=100.0,
+                    reasoning_quality=0.9,
+                    tool_selection_correct=True,
+                    hallucination_detected=False,
+                    task_sequence_number=i + 1,
+                )
 
-        metrics = tracker.get_current_metrics()
-        expected_rate = num_successes / num_tasks
+            metrics = tracker.get_current_metrics()
+            expected_rate = num_successes / num_tasks
 
-        # Allow small floating point error
-        assert abs(metrics.success_rate - expected_rate) < 0.01
-
-        pool.close_all()
-        gc.collect()
+            # Allow small floating point error
+            assert abs(metrics.success_rate - expected_rate) < 0.01
+        finally:
+            # Ensure proper cleanup for Windows file locking
+            pool.close_all()
+            gc.collect()
+            time.sleep(0.1)  # Allow Windows to release file locks
 
 
 @given(
@@ -449,54 +454,59 @@ def test_property_improvement_detection(baseline_success, recent_success):
 
     Validates Requirement 7.3: Measurable improvement detection.
     """
+    import time
+    
     with tempfile.TemporaryDirectory() as tmpdir:
         temp_db = str(Path(tmpdir) / "test.db")
         DatabaseSchema.create_schema(temp_db)
         pool = ConnectionPool(temp_db, min_size=1, max_size=5)
         tracker = PerformanceTracker(pool)
 
-        # Record baseline tasks
-        baseline_successes = int(10 * baseline_success)
-        for i in range(10):
-            tracker.record_task_metrics(
-                task_id=f"baseline_{i}",
-                task_type="analysis",
-                strategy_id="strategy_1",
-                success=i < baseline_successes,
-                execution_time_ms=100.0,
-                reasoning_quality=0.5,
-                tool_selection_correct=True,
-                hallucination_detected=False,
-                task_sequence_number=i + 1,
-            )
+        try:
+            # Record baseline tasks
+            baseline_successes = int(10 * baseline_success)
+            for i in range(10):
+                tracker.record_task_metrics(
+                    task_id=f"baseline_{i}",
+                    task_type="analysis",
+                    strategy_id="strategy_1",
+                    success=i < baseline_successes,
+                    execution_time_ms=100.0,
+                    reasoning_quality=0.5,
+                    tool_selection_correct=True,
+                    hallucination_detected=False,
+                    task_sequence_number=i + 1,
+                )
 
-        # Record recent tasks
-        recent_successes = int(10 * recent_success)
-        for i in range(10):
-            tracker.record_task_metrics(
-                task_id=f"recent_{i}",
-                task_type="analysis",
-                strategy_id="strategy_1",
-                success=i < recent_successes,
-                execution_time_ms=100.0,
-                reasoning_quality=0.9,
-                tool_selection_correct=True,
-                hallucination_detected=False,
-                task_sequence_number=i + 11,
-            )
+            # Record recent tasks
+            recent_successes = int(10 * recent_success)
+            for i in range(10):
+                tracker.record_task_metrics(
+                    task_id=f"recent_{i}",
+                    task_type="analysis",
+                    strategy_id="strategy_1",
+                    success=i < recent_successes,
+                    execution_time_ms=100.0,
+                    reasoning_quality=0.9,
+                    tool_selection_correct=True,
+                    hallucination_detected=False,
+                    task_sequence_number=i + 11,
+                )
 
-        improvement = tracker.calculate_improvement(baseline_size=10, recent_size=10)
+            improvement = tracker.calculate_improvement(baseline_size=10, recent_size=10)
 
-        assert improvement is not None
-        if recent_success > baseline_success:
-            assert improvement["success_rate_improvement"] > 0
-        elif recent_success < baseline_success:
-            assert improvement["success_rate_improvement"] < 0
-        else:
-            assert abs(improvement["success_rate_improvement"]) < 0.1
-
-        pool.close_all()
-        gc.collect()
+            assert improvement is not None
+            if recent_success > baseline_success:
+                assert improvement["success_rate_improvement"] > 0
+            elif recent_success < baseline_success:
+                assert improvement["success_rate_improvement"] < 0
+            else:
+                assert abs(improvement["success_rate_improvement"]) < 0.1
+        finally:
+            # Ensure proper cleanup for Windows file locking
+            pool.close_all()
+            gc.collect()
+            time.sleep(0.1)  # Allow Windows to release file locks
 
 
 @given(
@@ -511,33 +521,38 @@ def test_property_reasoning_quality_tracking(reasoning_quality, num_tasks):
 
     Validates Requirement 4.5: Reasoning quality tracking.
     """
+    import time
+    
     with tempfile.TemporaryDirectory() as tmpdir:
         temp_db = str(Path(tmpdir) / "test.db")
         DatabaseSchema.create_schema(temp_db)
         pool = ConnectionPool(temp_db, min_size=1, max_size=5)
         tracker = PerformanceTracker(pool)
 
-        # Record tasks with known reasoning quality
-        for i in range(num_tasks):
-            tracker.record_task_metrics(
-                task_id=f"task_{i}",
-                task_type="analysis",
-                strategy_id="strategy_1",
-                success=True,
-                execution_time_ms=100.0,
-                reasoning_quality=reasoning_quality,
-                tool_selection_correct=True,
-                hallucination_detected=False,
-                task_sequence_number=i + 1,
-            )
+        try:
+            # Record tasks with known reasoning quality
+            for i in range(num_tasks):
+                tracker.record_task_metrics(
+                    task_id=f"task_{i}",
+                    task_type="analysis",
+                    strategy_id="strategy_1",
+                    success=True,
+                    execution_time_ms=100.0,
+                    reasoning_quality=reasoning_quality,
+                    tool_selection_correct=True,
+                    hallucination_detected=False,
+                    task_sequence_number=i + 1,
+                )
 
-        metrics = tracker.get_current_metrics()
+            metrics = tracker.get_current_metrics()
 
-        # Allow small floating point error
-        assert abs(metrics.avg_reasoning_quality - reasoning_quality) < 0.01
-
-        pool.close_all()
-        gc.collect()
+            # Allow small floating point error
+            assert abs(metrics.avg_reasoning_quality - reasoning_quality) < 0.01
+        finally:
+            # Ensure proper cleanup for Windows file locking
+            pool.close_all()
+            gc.collect()
+            time.sleep(0.1)  # Allow Windows to release file locks
 
 
 # Edge Case Tests

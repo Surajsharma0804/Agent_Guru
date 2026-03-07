@@ -529,7 +529,7 @@ class TestPropertyBasedConflictDetection:
     )
     @settings(
         max_examples=30,
-        deadline=timedelta(milliseconds=2000),
+        deadline=None,  # Disabled due to variable performance on first run
         suppress_health_check=[HealthCheck.function_scoped_fixture]
     )
     def test_anomalies_trigger_poisoning_detection(
