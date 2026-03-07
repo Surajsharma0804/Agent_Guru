@@ -1,0 +1,38 @@
+{
+  "status": "PASSED",
+  "verification_date": "2026-03-07T09:41:38.971918",
+  "database": "Agent_Guru/self_improvement/validation/results/validation_20260307_092801.db",
+  "baseline": {
+    "window": "Tasks 1-10",
+    "mean_ms": 202.02,
+    "median_ms": 174.75,
+    "min_ms": 96.27,
+    "max_ms": 455.97,
+    "std_dev_ms": 118.27,
+    "count": 10
+  },
+  "final": {
+    "window": "Tasks 91-100",
+    "mean_ms": 121.07,
+    "median_ms": 104.72,
+    "min_ms": 48.62,
+    "max_ms": 246.74,
+    "std_dev_ms": 53.7,
+    "count": 10
+  },
+  "improvement": {
+    "absolute_change_ms": 80.95,
+    "relative_change": 0.4007,
+    "percentage_change": 40.07,
+    "improved": true,
+    "interpretation": "Faster"
+  },
+  "overall": {
+    "total_tasks": 100,
+    "mean": 169.44347861394,
+    "median": 162.22788381106824,
+    "min": 48.620094656729684,
+    "max": 455.96563846685257
+  },
+  "conclusion": "Execution time IMPROVED from baseline to final window. Mean execution time changed by 40.1%."
+}
