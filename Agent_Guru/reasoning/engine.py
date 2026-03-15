@@ -75,6 +75,11 @@ from Agent_Guru.reasoning.utils.response_cache import (
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
+# Sentinel used to distinguish "llm_reasoning not provided" from "llm_reasoning=None".
+# Passing None explicitly disables LLM (no Ollama/API calls — useful in tests).
+# Omitting the argument (default=_UNSET) triggers auto-initialisation from env.
+_UNSET: Any = object()
+
 
 def _convert_tool_to_action_model(base_tool: BaseTool) -> ActionTool:
     """Convert tools.base.Tool to models.action.Tool for safety gate.
@@ -232,7 +237,7 @@ class ReasoningEngine:
         memory_retriever: Optional[MemoryRetriever] = None,
         knowledge_detector: Optional[KnowledgeQueryDetector] = None,
         knowledge_synthesizer: Optional[KnowledgeSynthesizer] = None,
-        llm_reasoning: Optional[ReasoningPlanGenerator] = None,
+        llm_reasoning: Optional[ReasoningPlanGenerator] = _UNSET,  # type: ignore[assignment]
         tool_selector: Optional[ToolSelector] = None,
         safety_gate: Optional[SafetyGate] = None,
         response_generator: Optional[TemplateGenerator] = None,
@@ -248,7 +253,9 @@ class ReasoningEngine:
             memory_retriever: Optional MemoryRetriever instance
             knowledge_detector: Optional KnowledgeQueryDetector instance
             knowledge_synthesizer: Optional KnowledgeSynthesizer instance
-            llm_reasoning: Optional LLMReasoningCore instance
+            llm_reasoning: LLM reasoning generator. Pass a ReasoningPlanGenerator
+                instance to use it, pass ``None`` to explicitly disable LLM
+                (no Ollama/API calls), or omit to auto-initialise from env.
             tool_selector: Optional ToolSelector instance
             safety_gate: Optional SafetyGate instance
             response_generator: Optional ResponseGenerator instance
@@ -276,16 +283,20 @@ class ReasoningEngine:
         self.knowledge_detector = knowledge_detector or KnowledgeQueryDetector()
         self.knowledge_synthesizer = knowledge_synthesizer
         
-        # Initialize custom reasoning model with LLM provider (with fallback chain)
-        if llm_reasoning is None:
+        # Initialize LLM reasoning:
+        #   - _UNSET (default): auto-initialise from environment (tries Ollama/API keys)
+        #   - None (explicit): disable LLM entirely — no network calls, tests stay fast
+        #   - ReasoningPlanGenerator instance: use as-is
+        if llm_reasoning is _UNSET:
             llm_provider = self._initialize_llm_provider()
             if llm_provider:
-                self.llm_reasoning = ReasoningPlanGenerator(llm_provider)
+                self.llm_reasoning: Optional[ReasoningPlanGenerator] = ReasoningPlanGenerator(llm_provider)
                 logger.info("Custom reasoning model initialized with LLM provider")
             else:
                 self.llm_reasoning = None
                 logger.warning("No LLM provider available, custom reasoning disabled")
         else:
+            # Explicit value (including None to disable)
             self.llm_reasoning = llm_reasoning
         
         self.tool_selector = tool_selector or ToolSelector(get_registry())
@@ -314,94 +325,126 @@ class ReasoningEngine:
         )
     
     def _initialize_llm_provider(self) -> Optional[Any]:
-        """Initialize LLM provider with fallback chain for PRODUCTION.
-        
-        Priority order (tries each until one works):
-        1. Gemini (if API key available) - best for reasoning
-        2. DeepSeek (if API key available) - fast and cheap
-        3. OpenAI (if API key available) - reliable
-        4. Ollama (always available as fallback) - local, free, unlimited
-        
+        """Initialize LLM provider with fallback chain.
+
+        Priority order (first available wins):
+        1. Skip entirely in test mode (AGENT_GURU_TEST_MODE=1 or PYTEST_CURRENT_TEST set)
+        2. Gemini  — if GEMINI_API_KEY is set  (best reasoning, low latency)
+        3. DeepSeek — if DEEPSEEK_API_KEY is set (fast and cheap)
+        4. OpenAI  — if OPENAI_API_KEY is set  (reliable)
+        5. Ollama  — local fallback (free, offline, unlimited)
+           Uses OLLAMA_TIMEOUT_SECONDS env var (default 8s dev / 120s prod).
+
         Returns:
-            LLM provider instance or None if all fail
+            LLM provider instance, or None if all providers fail / test mode.
         """
         import os
-        
-        # COMMENTED OUT FOR TESTING - UNCOMMENT FOR PRODUCTION
-        # Try Gemini first (best for reasoning)
-        # gemini_key = os.environ.get("GEMINI_API_KEY")
-        # if gemini_key:
-        #     try:
-        #         from Agent_Guru.reasoning.llm.providers.gemini_provider import GeminiProvider
-        #         from Agent_Guru.reasoning.llm.providers.base import ProviderConfig
-        #         
-        #         config = ProviderConfig(
-        #             api_key=gemini_key,
-        #             timeout_seconds=30.0,
-        #             max_retries=2,
-        #         )
-        #         provider = GeminiProvider(config)
-        #         logger.info("Initialized Gemini provider for custom reasoning")
-        #         print("[INFO] Using Gemini API (with Ollama fallback if rate limited)")
-        #         return provider
-        #     except Exception as e:
-        #         logger.warning(f"Failed to initialize Gemini provider: {e}")
-        
-        # Try DeepSeek (fast and cheap)
-        # deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
-        # if deepseek_key:
-        #     try:
-        #         from Agent_Guru.reasoning.llm.providers.deepseek_provider import DeepSeekProvider
-        #         from Agent_Guru.reasoning.llm.providers.base import ProviderConfig
-        #         
-        #         config = ProviderConfig(
-        #             api_key=deepseek_key,
-        #             timeout_seconds=30.0,
-        #             max_retries=2,
-        #         )
-        #         provider = DeepSeekProvider(config)
-        #         logger.info("Initialized DeepSeek provider for custom reasoning")
-        #         print("[INFO] Using DeepSeek API (with Ollama fallback if rate limited)")
-        #         return provider
-        #     except Exception as e:
-        #         logger.warning(f"Failed to initialize DeepSeek provider: {e}")
-        
-        # Try OpenAI (reliable but expensive)
-        # openai_key = os.environ.get("OPENAI_API_KEY")
-        # if openai_key:
-        #     try:
-        #         from Agent_Guru.reasoning.llm.providers.openai_provider import OpenAIProvider
-        #         from Agent_Guru.reasoning.llm.providers.base import ProviderConfig
-        #         
-        #         config = ProviderConfig(
-        #             api_key=openai_key,
-        #             timeout_seconds=30.0,
-        #             max_retries=2,
-        #         )
-        #         provider = OpenAIProvider(config)
-        #         logger.info("Initialized OpenAI provider for custom reasoning")
-        #         print("[INFO] Using OpenAI API (with Ollama fallback if rate limited)")
-        #         return provider
-        #     except Exception as e:
-        #         logger.warning(f"Failed to initialize OpenAI provider: {e}")
-        
-        # LOCAL OLLAMA ONLY (for testing)
-        # Uncomment API providers above for production use
+
+        # ------------------------------------------------------------------ #
+        # Test-mode guard — skip ALL network calls during pytest runs.        #
+        # Set AGENT_GURU_REAL_OLLAMA=1 to override and test with real Ollama. #
+        # ------------------------------------------------------------------ #
+        in_test = (
+            os.environ.get("AGENT_GURU_TEST_MODE") == "1"
+            or "PYTEST_CURRENT_TEST" in os.environ
+        )
+        if in_test and os.environ.get("AGENT_GURU_REAL_OLLAMA") != "1":
+            logger.debug("Test mode detected — LLM provider disabled (no network calls)")
+            return None
+
+        # ------------------------------------------------------------------ #
+        # 1. Gemini — best for reasoning, lowest latency on cloud             #
+        # ------------------------------------------------------------------ #
+        gemini_key = os.environ.get("GEMINI_API_KEY")
+        if gemini_key:
+            try:
+                from Agent_Guru.reasoning.llm.providers.gemini_provider import GeminiProvider
+                from Agent_Guru.reasoning.llm.providers.base import ProviderConfig
+
+                config = ProviderConfig(
+                    api_key=gemini_key,
+                    timeout_seconds=30.0,
+                    max_retries=2,
+                )
+                provider = GeminiProvider(config)
+                logger.info("LLM provider: Gemini")
+                print("[INFO] Using Gemini API for reasoning")
+                return provider
+            except Exception as e:
+                logger.warning(f"Gemini provider failed: {e}")
+
+        # ------------------------------------------------------------------ #
+        # 2. DeepSeek — fast and cost-effective                               #
+        # ------------------------------------------------------------------ #
+        deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
+        if deepseek_key:
+            try:
+                from Agent_Guru.reasoning.llm.providers.deepseek_provider import DeepSeekProvider
+                from Agent_Guru.reasoning.llm.providers.base import ProviderConfig
+
+                config = ProviderConfig(
+                    api_key=deepseek_key,
+                    timeout_seconds=30.0,
+                    max_retries=2,
+                )
+                provider = DeepSeekProvider(config)
+                logger.info("LLM provider: DeepSeek")
+                print("[INFO] Using DeepSeek API for reasoning")
+                return provider
+            except Exception as e:
+                logger.warning(f"DeepSeek provider failed: {e}")
+
+        # ------------------------------------------------------------------ #
+        # 3. OpenAI — reliable, widely supported                              #
+        # ------------------------------------------------------------------ #
+        openai_key = os.environ.get("OPENAI_API_KEY")
+        if openai_key:
+            try:
+                from Agent_Guru.reasoning.llm.providers.openai_provider import OpenAIProvider
+                from Agent_Guru.reasoning.llm.providers.base import ProviderConfig
+
+                config = ProviderConfig(
+                    api_key=openai_key,
+                    timeout_seconds=30.0,
+                    max_retries=2,
+                )
+                provider = OpenAIProvider(config)
+                logger.info("LLM provider: OpenAI")
+                print("[INFO] Using OpenAI API for reasoning")
+                return provider
+            except Exception as e:
+                logger.warning(f"OpenAI provider failed: {e}")
+
+        # ------------------------------------------------------------------ #
+        # 4. Ollama — local fallback (desktop / self-hosted production)       #
+        #    OLLAMA_TIMEOUT_SECONDS: 8s default (dev), set 120s for prod.     #
+        # ------------------------------------------------------------------ #
         try:
-            from Agent_Guru.reasoning.llm.providers.ollama_provider import OllamaProvider, OllamaProviderConfig
-            
+            from Agent_Guru.reasoning.llm.providers.ollama_provider import (
+                OllamaProvider,
+                OllamaProviderConfig,
+            )
+
+            ollama_timeout = float(os.environ.get("OLLAMA_TIMEOUT_SECONDS", "8.0"))
             config = OllamaProviderConfig(
                 model="mistral:7b-instruct",
-                timeout_seconds=300.0,  # 5 minutes - no rush for local processing
+                timeout_seconds=ollama_timeout,
+                max_retries=1,  # No retries on local — fail fast, let caller handle
             )
             provider = OllamaProvider(config)
-            logger.info("Initialized Ollama provider for custom reasoning (LOCAL ONLY - testing mode)")
-            print("[INFO] Using LOCAL Ollama only (testing mode - uncomment API providers for production)")
+            logger.info(
+                "LLM provider: Ollama (local)",
+                timeout=ollama_timeout,
+            )
+            print(
+                f"[INFO] Using LOCAL Ollama (timeout={ollama_timeout}s). "
+                "Set OLLAMA_TIMEOUT_SECONDS=120 for production."
+            )
             return provider
         except Exception as e:
-            logger.error(f"Failed to initialize Ollama provider: {e}")
-            print(f"[ERROR] Failed to initialize Ollama: {e}")
-            print("[ERROR] Please ensure Ollama is installed and running: ollama serve")
+            logger.error(f"Ollama provider failed: {e}")
+            print(f"[ERROR] Ollama unavailable: {e}")
+            print("[ERROR] Run: ollama serve  (or set a cloud API key)")
             return None
     
     async def process(self, raw_input: RawInput) -> ReasoningResult:
@@ -911,8 +954,12 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
                     logger.info(f"Using custom reasoning model (LOCAL Ollama) for query: {normalized_input.text}")
                     print("[INFO] Using LOCAL Ollama model (may take 15-30 seconds for first response)...")
                     
-                    # Call through custom reasoning model's provider
-                    llm_response = await self.llm_reasoning.llm_provider.generate(llm_request)
+                    # Call through custom reasoning model's provider with a hard timeout
+                    # so tests and offline environments fail fast instead of hanging.
+                    llm_response = await asyncio.wait_for(
+                        self.llm_reasoning.llm_provider.generate(llm_request),
+                        timeout=10.0,
+                    )
                     stage_latencies["custom_reasoning_local"] = timer.elapsed_ms()
                     
                     logger.info(f"Ollama response ({llm_response.latency_ms:.0f}ms): {llm_response.text.strip()}")
@@ -924,7 +971,7 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
                         stage_latencies=stage_latencies,
                     )
                         
-            except Exception as reasoning_error:
+            except (Exception, asyncio.TimeoutError, asyncio.CancelledError) as reasoning_error:
                 logger.error(f"Custom reasoning (Ollama) failed: {reasoning_error}", exc_info=True)
                 print(f"[ERROR] Ollama failed: {reasoning_error}")
                 print("[ERROR] Please ensure Ollama is installed and running: ollama serve")
@@ -945,7 +992,7 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
         if self.llm_reasoning and intent.requires_reasoning:
             with self.latency_controller.stage_context(PipelineStage.REASONING) as timer:
                 # Get available tools
-                available_tools = [tool.metadata.tool_id for tool in self.tool_selector.registry.get_all_tools()]
+                available_tools = [tool.tool_id for tool in self.tool_selector.registry.list_tools()]
                 
                 # Generate reasoning plan using YOUR CUSTOM REASONING MODEL
                 reasoning_plan = await self.llm_reasoning.generate_plan(

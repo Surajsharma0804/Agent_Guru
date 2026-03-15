@@ -213,10 +213,14 @@ class BaseLLMProvider(ABC):
         last_exception: Optional[Exception] = None
         for attempt in range(self.config.max_retries):
             try:
-                # Make request with timeout
-                response = await asyncio.wait_for(
-                    self._generate_impl(request), timeout=self.config.timeout_seconds
-                )
+                # Make request — do NOT wrap in asyncio.wait_for here.
+                # The aiohttp ClientTimeout inside _generate_impl already
+                # enforces the per-request deadline.  Adding a second
+                # wait_for causes CancelledError to propagate incorrectly
+                # when an outer timeout (e.g. ReasoningPlanGenerator) fires,
+                # because the inner wait_for catches the cancellation and
+                # converts it to TimeoutError before the outer one can see it.
+                response = await self._generate_impl(request)
 
                 # Record success
                 self.circuit_breaker.record_success()
@@ -231,6 +235,11 @@ class BaseLLMProvider(ABC):
                     # Exponential backoff: 1s, 2s, 4s
                     await asyncio.sleep(2**attempt)
                 continue
+
+            except asyncio.CancelledError:
+                # Propagate cancellation immediately — do not retry.
+                # This happens when an outer asyncio.wait_for fires.
+                raise
 
             except Exception as e:
                 last_exception = e

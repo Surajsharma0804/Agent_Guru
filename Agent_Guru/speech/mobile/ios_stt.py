@@ -418,6 +418,7 @@ class IOSSpeechRecognizer:
         """
         if not self._is_ios:
             # Return common languages for stub
+            return [
                 "en-US", "en-GB", "es-ES", "fr-FR",
                 "de-DE", "it-IT", "ja-JP", "zh-CN"
             ]
@@ -427,6 +428,7 @@ class IOSSpeechRecognizer:
             # In real implementation:
             # supported_locales = self.SFSpeechRecognizer.supportedLocales()
             # return [locale.localeIdentifier() for locale in supported_locales]
+            return ["en-US"]
             
         except Exception as e:
             logger.error(f"Failed to get supported languages: {e}")

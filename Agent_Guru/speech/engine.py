@@ -47,6 +47,9 @@ from Agent_Guru.speech.commands.command_parser import CommandParser
 from Agent_Guru.speech.context.context_manager import ConversationContextManager
 from Agent_Guru.speech.background_service import BackgroundServiceManager
 from Agent_Guru.speech.model_router_client import ModelRouterClient
+from Agent_Guru.speech.agent_orchestration_client import AgentOrchestrationClient
+from Agent_Guru.speech.memory_client import MemoryClient
+from Agent_Guru.speech.goal_manager_client import GoalManagerClient
 
 
 class EngineState(Enum):
@@ -115,6 +118,9 @@ class SpeechEngine:
         self.context_manager: Optional[ConversationContextManager] = None
         self.background_service: Optional[BackgroundServiceManager] = None
         self.model_router: Optional[ModelRouterClient] = None
+        self.agent_orchestration: Optional[AgentOrchestrationClient] = None
+        self.memory_client: Optional[MemoryClient] = None
+        self.goal_manager_client: Optional[GoalManagerClient] = None
         
         # Current state
         self._current_personality: Optional[PersonalityType] = None
@@ -144,7 +150,7 @@ class SpeechEngine:
                 config=self.config.audio_processing,
                 sample_rate=self.config.audio.sample_rate
             )
-            self.wake_word_detector = None  # Disabled for now
+            self.wake_word_detector = WakeWordDetector()
             self.noise_cancellation = AdvancedNoiseCancellation()
             
             # Create StreamConfig from our config
@@ -182,6 +188,11 @@ class SpeechEngine:
             
             # Initialize model router
             self.model_router = ModelRouterClient()
+            
+            # Initialize integration clients (no external systems required at init)
+            self.agent_orchestration = AgentOrchestrationClient()
+            self.memory_client = MemoryClient()
+            self.goal_manager_client = GoalManagerClient()
             
             self._state = EngineState.READY
             self.logger.info("Speech Engine initialized successfully")
@@ -230,15 +241,16 @@ class SpeechEngine:
             if personality is None:
                 # Wake word detector has async detect() method
                 if self.wake_word_detector is None:
-                    raise RuntimeError("Wake word detector not initialized")
-                try:
-                    wake_word_result = await self.wake_word_detector.detect(processed_audio)
-                    if wake_word_result:
-                        personality = wake_word_result.personality
-                    else:
-                        personality = PersonalityType.GURU  # Default
-                except:
-                    personality = PersonalityType.GURU  # Default on error
+                    personality = PersonalityType.GURU  # Default when not initialized
+                else:
+                    try:
+                        wake_word_result = await self.wake_word_detector.detect(processed_audio)
+                        if wake_word_result:
+                            personality = wake_word_result.personality
+                        else:
+                            personality = PersonalityType.GURU  # Default
+                    except Exception:
+                        personality = PersonalityType.GURU  # Default on error
             
             self._current_personality = personality
             
@@ -254,6 +266,13 @@ class SpeechEngine:
                 if self.command_parser is None:
                     raise RuntimeError("Command parser not initialized")
                 command = self.command_parser.interpret(transcription.text)
+            
+            # Step 5a: Route command to agent orchestration
+            if command and command.is_command and self.agent_orchestration:
+                try:
+                    await self.agent_orchestration.route_command(command)
+                except Exception as e:
+                    self.logger.warning(f"Agent orchestration routing failed: {e}")
             
             # Step 6: Context management
             if self.context_manager is None:
@@ -272,6 +291,26 @@ class SpeechEngine:
                 text=transcription.text,
                 emotion=emotion.primary_emotion
             )
+            
+            # Step 6a: Store emotion state and conversation turn in memory
+            if self.memory_client:
+                import asyncio as _asyncio
+                try:
+                    await self.memory_client.store_emotion_state(
+                        user_id="default_user",
+                        emotion=emotion.primary_emotion,
+                        timestamp=__import__("datetime").datetime.now(),
+                        confidence=emotion.confidence,
+                    )
+                    await self.memory_client.store_conversation_turn(
+                        user_id="default_user",
+                        speaker="user",
+                        text=transcription.text,
+                        emotion=emotion.primary_emotion,
+                        personality=personality.value,
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Memory storage failed: {e}")
             
             # Step 7: Generate response (placeholder - would integrate with LLM)
             response_text = None
@@ -381,14 +420,33 @@ class SpeechEngine:
         return audio
     
     def extract_voice_features(self, audio: np.ndarray) -> VoiceFeatures:
-        """
-        Extract voice biometric features for authentication.
-        
+        """Extract voice biometric features.
+
+        FOR SECURITY SYSTEM USE ONLY.  This method is the integration point
+        between the speech engine and guru-security-cryptography.  Callers
+        outside the security system MUST NOT use this method to make
+        authentication decisions – all authentication logic lives in
+        ``BiometricAuthenticator`` (Agent_Guru/security/).
+
+        The returned :class:`~Agent_Guru.speech.models.VoiceFeatures` object
+        includes ``liveness_score`` and ``is_live`` fields that the
+        ``BiometricAuthenticator`` MUST check before accepting an
+        authentication attempt.
+
         Args:
-            audio: Audio data
-        
+            audio: Raw audio data as a float32 numpy array.
+
         Returns:
-            VoiceFeatures for authentication
+            :class:`~Agent_Guru.speech.models.VoiceFeatures` containing the
+            feature vector, quality score, liveness score, and liveness flag.
+            Pass this object directly to
+            ``BiometricAuthenticator.authenticate_voice()``.
+
+        Raises:
+            RuntimeError: If the voice feature extractor has not been
+                initialised (call :meth:`initialize` first).
+            :class:`~Agent_Guru.speech.exceptions.VoiceBiometricError`:
+                If feature extraction fails.
         """
         if self.voice_feature_extractor is None:
             raise RuntimeError("Voice feature extractor not initialized")
@@ -490,6 +548,9 @@ class SpeechEngine:
             self.context_manager = None
             self.background_service = None
             self.model_router = None
+            self.agent_orchestration = None
+            self.memory_client = None
+            self.goal_manager_client = None
             
             self.logger.info("Speech Engine shutdown complete")
             

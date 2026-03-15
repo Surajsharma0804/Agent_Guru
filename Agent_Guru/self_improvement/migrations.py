@@ -419,12 +419,17 @@ class MigrationSystem:
         """
         logger.info(f"Applying migration {migration.version}: {migration.description}")
         
+        # Connect with explicit transaction mode
         conn = sqlite3.connect(self.db_path)
+        conn.isolation_level = None  # Autocommit off - manual transaction control
         cursor = conn.cursor()
         
         start_time = datetime.now()
         
         try:
+            # Explicitly begin transaction
+            cursor.execute("BEGIN")
+            
             # Apply migration
             migration.upgrade(cursor)
             
@@ -441,7 +446,7 @@ class MigrationSystem:
             self._validate_schema(cursor)
             
             # Commit transaction
-            conn.commit()
+            cursor.execute("COMMIT")
             
             logger.info(
                 f"Migration {migration.version} applied successfully "
@@ -450,7 +455,10 @@ class MigrationSystem:
             
         except Exception as e:
             # Rollback on error
-            conn.rollback()
+            try:
+                cursor.execute("ROLLBACK")
+            except:
+                pass
             logger.error(f"Migration {migration.version} failed: {e}")
             raise
         finally:
@@ -470,10 +478,15 @@ class MigrationSystem:
         """
         logger.info(f"Rolling back migration {migration.version}: {migration.description}")
         
+        # Connect with manual transaction control
         conn = sqlite3.connect(self.db_path)
+        conn.isolation_level = None  # Autocommit off - manual transaction control
         cursor = conn.cursor()
         
         try:
+            # Explicitly begin transaction
+            cursor.execute("BEGIN")
+            
             # Rollback migration
             migration.downgrade(cursor)
             
@@ -487,13 +500,16 @@ class MigrationSystem:
             self._validate_schema(cursor)
             
             # Commit transaction
-            conn.commit()
+            cursor.execute("COMMIT")
             
             logger.info(f"Migration {migration.version} rolled back successfully")
             
         except Exception as e:
             # Rollback on error
-            conn.rollback()
+            try:
+                cursor.execute("ROLLBACK")
+            except:
+                pass
             logger.error(f"Rollback of migration {migration.version} failed: {e}")
             raise
         finally:

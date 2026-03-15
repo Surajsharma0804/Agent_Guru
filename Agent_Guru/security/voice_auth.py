@@ -104,6 +104,14 @@ class VoiceAuthenticator:
         Raises:
             VoiceAuthenticationError: If authentication fails
         """
+        # Liveness check: reject non-live audio immediately
+        if not voice_features.is_live:
+            self.logger.warning(
+                f"SECURITY: Liveness check failed for {'user ' + user_id if user_id else 'identification'} "
+                f"(liveness_score: {voice_features.liveness_score:.3f}) — authentication rejected"
+            )
+            return False, None, 0.0
+
         if user_id:
             # Verification mode: check against specific user
             if user_id not in self._profiles:

@@ -191,25 +191,10 @@ class ConnectionPool:
             
         Time Complexity: O(1)
         """
-        conn = sqlite3.connect(
-            self.db_path,
-            check_same_thread=self.check_same_thread,
-            timeout=self.timeout
-        )
-        
-        # Enable WAL mode for better concurrency
-        conn.execute("PRAGMA journal_mode=WAL")
-        
-        # Enable foreign keys
-        conn.execute("PRAGMA foreign_keys=ON")
-        
-        # Set busy timeout
-        conn.execute(f"PRAGMA busy_timeout={int(self.timeout * 1000)}")
-        
         with self._lock:
             self._total_connections += 1
         
-        return PooledConnection(conn, self)
+        return self._create_connection_unlocked()
     
     def acquire(self, timeout: Optional[float] = None) -> PooledConnection:
         """
@@ -234,26 +219,33 @@ class ConnectionPool:
         timeout = timeout or self.timeout
         
         try:
-            # Try to get connection from pool
+            # Try to get connection from pool with timeout
             try:
                 conn = self._pool.get(timeout=timeout)
             except Empty:
-                # Pool empty, try to create new connection
+                # Pool empty, check if we can create new connection
+                can_create = False
                 with self._lock:
                     if self._total_connections < self.max_size:
-                        conn = self._create_connection()
-                    else:
-                        # Pool full, wait for connection
+                        self._total_connections += 1  # Reserve slot
+                        can_create = True
+                
+                if can_create:
+                    # Create connection outside lock
+                    conn = self._create_connection_unlocked()
+                else:
+                    # Pool exhausted
+                    with self._lock:
                         self._failed_acquisitions += 1
-                        raise TimeoutError(
-                            f"Connection pool exhausted (max_size={self.max_size})"
-                        )
+                    raise TimeoutError(
+                        f"Connection pool exhausted (max_size={self.max_size})"
+                    )
             
             # Check connection health
             if not conn.is_healthy():
                 # Replace unhealthy connection
                 conn.connection.close()
-                conn = self._create_connection()
+                conn = self._create_connection_unlocked()
             
             # Mark as in use
             conn.mark_used()
@@ -269,10 +261,40 @@ class ConnectionPool:
             
             return conn
             
+        except TimeoutError:
+            with self._lock:
+                self._failed_acquisitions += 1
+            raise
         except Exception as e:
             with self._lock:
                 self._failed_acquisitions += 1
             raise
+    
+    def _create_connection_unlocked(self) -> PooledConnection:
+        """
+        Create new database connection without locking.
+        
+        Returns:
+            New pooled connection
+            
+        Time Complexity: O(1)
+        """
+        conn = sqlite3.connect(
+            self.db_path,
+            check_same_thread=self.check_same_thread,
+            timeout=self.timeout
+        )
+        
+        # Enable WAL mode for better concurrency
+        conn.execute("PRAGMA journal_mode=WAL")
+        
+        # Enable foreign keys
+        conn.execute("PRAGMA foreign_keys=ON")
+        
+        # Set busy timeout
+        conn.execute(f"PRAGMA busy_timeout={int(self.timeout * 1000)}")
+        
+        return PooledConnection(conn, self)
     
     def release(self, conn: PooledConnection) -> None:
         """

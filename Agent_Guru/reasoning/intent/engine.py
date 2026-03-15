@@ -488,8 +488,40 @@ class IntentDetectionEngine:
             # If no loop is running, run directly
             return loop.run_until_complete(self.detect_intent_async(text, context, user_id))
 
+    # Mapping from pattern-file intent strings → valid IntentType enum values.
+    # Pattern files may use fine-grained labels (e.g. "device_off") that don't
+    # exist in the IntentType enum.  We normalise them here so Pydantic never
+    # sees an invalid value.
+    _PATTERN_INTENT_MAP: dict[str, str] = {
+        # Smart-home device control
+        "device_on": "control_device",
+        "device_off": "control_device",
+        "device_dim": "control_device",
+        "device_brighten": "control_device",
+        # Media / volume
+        "pause_music": "pause_media",
+        "stop_music": "stop_media",
+        "volume_up": "system_command",
+        "volume_down": "system_command",
+        # Navigation
+        "navigate": "get_directions",
+        # Calendar
+        "query_calendar": "get_calendar_events",
+        # Alarm
+        "cancel_alarm": "cancel_timer",
+        # Meta / help
+        "help": "help_request",
+        "capabilities": "help_request",
+        "cancel": "cancellation",
+        "stop": "cancellation",
+    }
+
     def _create_intent_from_fast_path(self, match: PatternMatch, text: str) -> Intent:
         """Create Intent object from fast-path match.
+
+        Normalises the raw pattern intent string to a valid IntentType enum
+        value using _PATTERN_INTENT_MAP before constructing the Intent so that
+        Pydantic validation never fails on fine-grained pattern labels.
 
         Args:
             match: Pattern match result
@@ -498,13 +530,24 @@ class IntentDetectionEngine:
         Returns:
             Intent object
         """
+        # Normalise pattern intent string → valid IntentType value
+        intent_type_str = self._PATTERN_INTENT_MAP.get(
+            match.intent_type, match.intent_type
+        )
+
+        # If the (possibly mapped) string is still not a valid enum value,
+        # fall back to "unknown" so we never raise a ValidationError.
+        try:
+            IntentType(intent_type_str)
+        except ValueError:
+            intent_type_str = "unknown"
+
         return Intent(
-            intent_type=match.intent_type,
+            intent_type=intent_type_str,
             entities=match.entities,
             confidence=match.confidence,
             requires_reasoning=False,  # Fast-path intents are simple
             original_input=text,
-            # resolved_input=text,
             detection_method="rule",  # Fast-path uses rule-based matching
         )
 

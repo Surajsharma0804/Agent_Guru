@@ -119,7 +119,9 @@ class TestTaskOutputParser:
         with pytest.raises((ValueError, Exception)) as exc_info:
             parser.parse(llm_output)
 
-        assert "parse" in str(exc_info.value).lower() or "json" in str(exc_info.value).lower()
+        # Error message should indicate parsing issue (either technical or user-friendly)
+        error_msg = str(exc_info.value).lower()
+        assert any(keyword in error_msg for keyword in ["parse", "json", "confusing", "response"])
 
     def test_parse_malformed_json(self):
         """Test parsing malformed JSON raises error."""

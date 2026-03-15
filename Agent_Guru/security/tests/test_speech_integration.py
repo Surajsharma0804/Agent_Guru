@@ -20,8 +20,25 @@ class TestSpeechSecurityIntegration:
     
     @pytest.fixture
     def integration(self, speech_engine: SpeechEngine) -> SpeechSecurityIntegration:
-        """Create speech-security integration."""
-        return SpeechSecurityIntegration(speech_engine)
+        """Create speech-security integration.
+
+        Uses a liveness-permissive VoiceAuthenticator so that integration tests
+        focus on the speech↔security wiring rather than liveness policy
+        (liveness policy is tested separately in test_biometric_auth.py).
+        """
+        import dataclasses
+
+        class _LivenessPermissiveAuthenticator(VoiceAuthenticator):
+            """Authenticator that treats all audio as live for integration tests."""
+
+            def authenticate(self, voice_features, user_id=None):  # type: ignore[override]
+                live_features = dataclasses.replace(voice_features, is_live=True)
+                return super().authenticate(live_features, user_id)
+
+        return SpeechSecurityIntegration(
+            speech_engine,
+            voice_authenticator=_LivenessPermissiveAuthenticator(similarity_threshold=0.85),
+        )
     
     @pytest.fixture
     def sample_audio(self) -> np.ndarray:

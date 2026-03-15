@@ -167,7 +167,8 @@ class ReasoningPlanGenerator:
         # Generate plan with retry logic
         for attempt in range(self.MAX_RETRIES):
             try:
-                # Call LLM with timeout
+                # Call LLM with timeout — single wait_for here; _call_llm must NOT
+                # add its own wait_for so the cancellation propagates cleanly.
                 response = await asyncio.wait_for(
                     self._call_llm(full_prompt),
                     timeout=self.TIMEOUT_SECONDS,
@@ -183,6 +184,12 @@ class ReasoningPlanGenerator:
                     )
 
                 return plan
+
+            except asyncio.CancelledError:
+                # Outer wait_for cancelled the inner coroutine — treat as timeout
+                raise asyncio.TimeoutError(
+                    f"LLM plan generation timed out after {self.TIMEOUT_SECONDS}s"
+                )
 
             except (ValueError, json.JSONDecodeError) as e:
                 if attempt == self.MAX_RETRIES - 1:
@@ -226,6 +233,10 @@ class ReasoningPlanGenerator:
     async def _call_llm(self, prompt: str) -> LLMResponse:
         """
         Call LLM provider with prompt.
+
+        The caller (generate_plan) wraps this in asyncio.wait_for, so we do NOT
+        add a second wait_for here — nested wait_for calls cause CancelledError
+        to propagate incorrectly when the outer timeout fires.
 
         Args:
             prompt: Formatted prompt

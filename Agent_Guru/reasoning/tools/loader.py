@@ -114,6 +114,9 @@ async def load_all_tools(registry: ToolRegistry | None = None) -> int:
     for tool_class in tool_classes:
         try:
             tool = tool_class()
+            # Skip if already registered to avoid duplicate-registration warnings
+            if registry.get_tool(tool.metadata.tool_id) is not None:
+                continue
             await registry.register(tool, tool.metadata)
             count += 1
         except Exception as e:

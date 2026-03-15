@@ -1,0 +1,91 @@
+# Agent Orchestration System - Configuration Template
+# Copy this file to config.yaml and adjust values for your environment.
+
+# ── Storage ──────────────────────────────────────────────────────────────────
+storage:
+  db_path: "data/agents.db"          # Path to SQLite database file
+
+# ── Agent Lifecycle ───────────────────────────────────────────────────────────
+lifecycle:
+  forbidden_role_names:              # Role names that cannot be used as capabilities
+    - "admin"
+    - "root"
+    - "system"
+    - "god"
+
+# ── Specialization ────────────────────────────────────────────────────────────
+specialization:
+  ema_alpha: 0.3                     # Exponential moving average weight for score updates
+  high_specialization_threshold: 0.8 # Score above which agent is considered highly specialized
+  removal_threshold: 0.1             # Score below which specialization is removed
+
+# ── Agent Merger ──────────────────────────────────────────────────────────────
+merger:
+  similarity_threshold: 0.85         # Cosine similarity above which agents are merged (0.0–1.0)
+
+# ── Agent Splitter ────────────────────────────────────────────────────────────
+splitter:
+  divergence_threshold: 0.5          # Divergence score above which agents are split (0.0–1.0)
+  min_tasks_for_split: 10            # Minimum task history required before splitting
+
+# ── Task Decomposer ───────────────────────────────────────────────────────────
+decomposer:
+  max_decomposition_depth: 3         # Maximum recursion depth for task decomposition
+  min_subtask_count: 2               # Minimum sub-tasks required to decompose
+  max_subtask_count: 7               # Maximum sub-tasks produced per decomposition
+  complexity_threshold: 0.6          # Complexity score above which decomposition occurs (0.0–1.0)
+
+# ── Task Assigner ─────────────────────────────────────────────────────────────
+assigner:
+  max_workload_per_agent: 5          # Maximum concurrent tasks per agent
+  specialization_weight: 0.7         # Weight for specialization score in assignment (0.0–1.0)
+  workload_weight: 0.3               # Weight for workload headroom in assignment (0.0–1.0)
+
+# ── Delegation Manager ────────────────────────────────────────────────────────
+delegation:
+  max_delegation_depth: 3            # Maximum delegation chain length
+
+# ── Loop Detector ─────────────────────────────────────────────────────────────
+loop_detector:
+  action_window: 10                  # Number of recent actions to check for loops
+  delegation_window: 5               # Number of recent delegations to check for loops
+
+# ── Performance Tracker ───────────────────────────────────────────────────────
+performance:
+  window_size: 100                   # Sliding window size for metrics calculation
+  degradation_threshold: 0.2         # Success rate drop that triggers degradation alert
+
+# ── Population Manager ────────────────────────────────────────────────────────
+population:
+  min_agents: 5                      # Minimum active agents (conservative retirement below this)
+  max_agents: 50                     # Maximum active agents (aggressive merging above this)
+
+# ── Convergence Analyzer ──────────────────────────────────────────────────────
+convergence:
+  stability_window: 5                # Number of snapshots to check for stability
+  stability_threshold: 0.05          # Max variance in success rates to be considered stable
+
+# ── Adversarial Handler ───────────────────────────────────────────────────────
+adversarial:
+  invalid_output_threshold: 5        # Invalid outputs before quarantine
+  delegation_limit: 10               # Delegations before privilege limiting
+  coordination_threshold: 0.9        # Fraction of quarantined agents to trigger coordinated detection
+
+# ── Assignment Optimizer ──────────────────────────────────────────────────────
+optimizer:
+  baseline_success_rate: 0.5         # Random assignment baseline for comparison
+  degradation_threshold: 0.1         # Drop below baseline that triggers degradation alert
+  window_size: 50                    # Window size for quality comparison
+
+# ── Circuit Breaker ───────────────────────────────────────────────────────────
+circuit_breaker:
+  failure_threshold: 5               # Consecutive failures before opening circuit
+  recovery_timeout_seconds: 30.0     # Seconds before attempting half-open recovery
+  success_threshold: 2               # Successes in half-open before closing circuit
+
+# ── GitHub Sync ───────────────────────────────────────────────────────────────
+github_sync:
+  enabled: false                     # Set to true to enable GitHub sync
+  max_retries: 3                     # Maximum retry attempts per event
+  batch_size: 10                     # Events per sync batch
+  base_backoff_seconds: 1.0          # Base delay for exponential backoff

@@ -160,12 +160,12 @@ class SyncExecutor:
             try:
                 # Execute with timeout
                 result_data = self._execute_with_timeout(
-                    tool_function, step.parameters, timeout, cancellation_token
+                    tool_function, action.parameters, timeout, cancellation_token
                 )
 
                 # Success - record latency and return
                 execution_time = time.perf_counter() - start_time
-                self._record_latency(step.tool_id, execution_time)
+                self._record_latency(action.tool_id, execution_time)
 
                 return ExecutionResult(
                     success=True,
@@ -312,17 +312,8 @@ class SyncExecutor:
                         # Check if cancelled
                         if check_fn():
                             future.cancel()
-                            error_manager = get_error_manager()
-                            context = ErrorContext(
-                                action_id=action.action_id,
-                                tool_id=step.tool_id,
-                            )
-                            error = error_manager.create_error(
-                                error_type=ErrorType.TOOL_EXECUTION_FAILED,
-                                message="Execution was cancelled",
-                                context=context,
-                            )
-                            raise ValueError(error.user_message)
+                            # Raise cancellation error
+                            raise ValueError("Execution was cancelled")
 
                         # Try to get result with short timeout
                         try:

@@ -184,11 +184,16 @@ class VoiceFeatureExtractor:
             # Compute duration
             duration = len(audio) / sample_rate
             
+            # Liveness detection – required by BiometricAuthenticator (Req 12)
+            is_live, liveness_score = self.detect_liveness(audio, sample_rate)
+
             return VoiceFeatures(
                 feature_vector=feature_vector,
                 sample_rate=sample_rate,
                 duration=duration,
-                quality_score=quality_score
+                quality_score=quality_score,
+                liveness_score=liveness_score,
+                is_live=is_live,
             )
             
         except Exception as e:

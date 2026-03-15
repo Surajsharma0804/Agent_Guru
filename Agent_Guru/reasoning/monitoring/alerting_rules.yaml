@@ -1,0 +1,166 @@
+# Prometheus alerting rules for the Core Reasoning Engine.
+#
+# Alerts defined:
+#   - P95 latency > 3s (critical)
+#   - Error rate > 5% (critical)
+#   - Degraded/fallback mode > 10% (warning)
+#   - Service unavailability (critical)
+#   - CPU usage > 90% (critical)
+#   - Memory usage > 90% of 2GB limit (critical)
+
+groups:
+  - name: reasoning_engine_latency
+    interval: 30s
+    rules:
+      - alert: ReasoningEngineHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(reasoning_engine_intent_detection_duration_seconds_bucket[5m]))
+            by (le)
+          ) > 3.0
+        for: 2m
+        labels:
+          severity: critical
+          team: reasoning
+        annotations:
+          summary: "Reasoning engine P95 latency exceeds 3s"
+          description: >
+            P95 latency for intent_detection is
+            {{ $value | humanizeDuration }} (threshold: 3s).
+            This exceeds the SLA and will degrade user experience.
+          runbook_url: "https://docs.agentguru.io/runbooks/high-latency"
+
+      - alert: ReasoningEnginePipelineLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(reasoning_engine_reasoning_duration_seconds_bucket[5m]))
+            by (le)
+          ) > 3.0
+        for: 2m
+        labels:
+          severity: critical
+          team: reasoning
+        annotations:
+          summary: "Reasoning pipeline P95 latency exceeds 3s"
+          description: >
+            P95 latency for reasoning stage is
+            {{ $value | humanizeDuration }} (threshold: 3s).
+          runbook_url: "https://docs.agentguru.io/runbooks/high-latency"
+
+  - name: reasoning_engine_errors
+    interval: 30s
+    rules:
+      - alert: ReasoningEngineHighErrorRate
+        expr: |
+          (
+            sum(rate(reasoning_engine_errors_total[5m]))
+            /
+            sum(rate(reasoning_engine_requests_total[5m]))
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          team: reasoning
+        annotations:
+          summary: "Reasoning engine error rate exceeds 5%"
+          description: >
+            Error rate is {{ $value | humanizePercentage }} (threshold: 5%).
+            Investigate recent deployments and error logs.
+          runbook_url: "https://docs.agentguru.io/runbooks/high-error-rate"
+
+      - alert: ReasoningEngineDegradedMode
+        expr: |
+          (
+            sum(rate(reasoning_engine_fallbacks_total[5m]))
+            /
+            sum(rate(reasoning_engine_requests_total[5m]))
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          team: reasoning
+        annotations:
+          summary: "Reasoning engine degraded mode exceeds 10%"
+          description: >
+            Fallback/degraded mode rate is {{ $value | humanizePercentage }}
+            (threshold: 10%). LLM or tool availability may be degraded.
+          runbook_url: "https://docs.agentguru.io/runbooks/degraded-mode"
+
+  - name: reasoning_engine_availability
+    interval: 15s
+    rules:
+      - alert: ReasoningEngineDown
+        expr: |
+          absent(reasoning_engine_requests_total)
+        for: 1m
+        labels:
+          severity: critical
+          team: reasoning
+        annotations:
+          summary: "Reasoning engine is not receiving requests"
+          description: >
+            No requests have been recorded for 1 minute.
+            The service may be down or unreachable.
+          runbook_url: "https://docs.agentguru.io/runbooks/service-down"
+
+      - alert: ReasoningEngineNoSuccessfulRequests
+        expr: |
+          sum(rate(reasoning_engine_requests_total{status="success"}[5m])) == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: reasoning
+        annotations:
+          summary: "Reasoning engine has no successful requests"
+          description: >
+            No successful requests in the last 5 minutes.
+            All requests may be failing.
+          runbook_url: "https://docs.agentguru.io/runbooks/service-down"
+
+  - name: reasoning_engine_resources
+    interval: 30s
+    rules:
+      - alert: ReasoningEngineCPUExhaustion
+        expr: |
+          reasoning_engine_cpu_usage_percent > 90
+        for: 5m
+        labels:
+          severity: critical
+          team: reasoning
+        annotations:
+          summary: "Reasoning engine CPU usage exceeds 90%"
+          description: >
+            CPU usage is {{ $value }}% (threshold: 90%).
+            Consider scaling up or investigating runaway processes.
+          runbook_url: "https://docs.agentguru.io/runbooks/resource-exhaustion"
+
+      - alert: ReasoningEngineMemoryExhaustion
+        expr: |
+          (
+            reasoning_engine_memory_usage_bytes
+            / (2 * 1024 * 1024 * 1024)
+          ) > 0.90
+        for: 5m
+        labels:
+          severity: critical
+          team: reasoning
+        annotations:
+          summary: "Reasoning engine memory usage exceeds 90% of 2GB limit"
+          description: >
+            Memory usage is {{ $value | humanizePercentage }} of the 2GB limit.
+            Risk of OOM. Investigate memory leaks or scale up.
+          runbook_url: "https://docs.agentguru.io/runbooks/resource-exhaustion"
+
+      - alert: ReasoningEngineHighQueueDepth
+        expr: |
+          reasoning_engine_queue_depth > 100
+        for: 2m
+        labels:
+          severity: warning
+          team: reasoning
+        annotations:
+          summary: "Reasoning engine queue depth exceeds 100"
+          description: >
+            Queue depth is {{ $value }} (threshold: 100).
+            Processing may be falling behind. Consider scaling.
+          runbook_url: "https://docs.agentguru.io/runbooks/queue-depth"

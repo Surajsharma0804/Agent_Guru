@@ -8,13 +8,20 @@ Performance Targets:
 - Inference latency: <400ms for 512 tokens (95th percentile)
 - GPU utilization: >80% during inference
 - No API key required (local inference)
+
+Implementation Notes:
+- Uses aiohttp (truly async, cancellable) instead of requests in executor.
+  The requests-in-executor pattern blocks the thread even after asyncio
+  cancellation, causing event-loop shutdown hangs in tests.
+- connect_timeout=2s: fail fast when Ollama is not running
+- read_timeout=config.timeout_seconds: allow long inference when it IS running
 """
 
 import asyncio
 import time
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
-import requests
+import aiohttp
 
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider, ProviderConfig
@@ -28,17 +35,17 @@ class OllamaProviderConfig(ProviderConfig):
         host: str = "127.0.0.1",
         port: int = 11434,
         model: str = "mistral:7b-instruct",
-        **kwargs
-    ):
+        **kwargs: Any,
+    ) -> None:
         """Initialize Ollama config.
 
         Args:
             host: Ollama server host
             port: Ollama server port
             model: Model name to use
-            **kwargs: Additional config parameters
+            **kwargs: Additional config parameters passed to ProviderConfig
         """
-        # Ollama doesn't need API key, but base class requires it
+        # Ollama doesn't need an API key, but base class requires one.
         super().__init__(api_key="local", **kwargs)
         self.host = host
         self.port = port
@@ -62,7 +69,10 @@ class OllamaProvider(BaseLLMProvider):
         >>> response = await provider.generate(request)
     """
 
-    def __init__(self, config: OllamaProviderConfig):
+    # Short connect timeout so tests fail fast when Ollama is not running.
+    _CONNECT_TIMEOUT_S: float = 2.0
+
+    def __init__(self, config: OllamaProviderConfig) -> None:
         """Initialize Ollama provider.
 
         Args:
@@ -77,7 +87,11 @@ class OllamaProvider(BaseLLMProvider):
 
     async def _generate_impl(self, request: LLMRequest) -> LLMResponse:
         """
-        Generate text using Ollama API.
+        Generate text using Ollama API (fully async via aiohttp).
+
+        Using aiohttp instead of requests-in-executor ensures that asyncio
+        cancellation (from asyncio.wait_for) propagates correctly and does
+        not leave a blocking thread alive after the timeout fires.
 
         Args:
             request: LLM request
@@ -86,11 +100,10 @@ class OllamaProvider(BaseLLMProvider):
             LLM response
 
         Raises:
-            RuntimeError: If Ollama server is not available
+            RuntimeError: If Ollama server is not available or returns an error
         """
         start_time = time.perf_counter()
 
-        # Build request payload
         payload: Dict[str, Any] = {
             "model": self.ollama_config.model,
             "prompt": request.prompt,
@@ -102,63 +115,69 @@ class OllamaProvider(BaseLLMProvider):
             },
         }
 
-        # Add stop sequences if provided
         if request.stop_sequences:
             options = payload["options"]
             if isinstance(options, dict):
                 options["stop"] = request.stop_sequences
 
+        # aiohttp timeout: short connect (fail fast offline), long read (allow inference)
+        timeout = aiohttp.ClientTimeout(
+            connect=self._CONNECT_TIMEOUT_S,
+            total=self.config.timeout_seconds,
+        )
+
         try:
-            # Call Ollama generate endpoint (synchronous, run in executor)
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: requests.post(
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(
                     f"{self.ollama_config.base_url}/api/generate",
                     json=payload,
-                    timeout=self.config.timeout_seconds,
-                ),
+                ) as response:
+                    latency_ms = (time.perf_counter() - start_time) * 1000
+
+                    if response.status == 200:
+                        data = await response.json()
+
+                        text: str = data.get("response", "")
+
+                        finish_reason = "stop"
+                        if data.get("done_reason") == "length":
+                            finish_reason = "length"
+                        elif not data.get("done", False):
+                            finish_reason = "error"
+
+                        tokens_generated: int = data.get("eval_count", len(text.split()))
+
+                        return LLMResponse(
+                            text=text,
+                            provider=LLMProvider.LOCAL,
+                            latency_ms=latency_ms,
+                            tokens_generated=tokens_generated,
+                            finish_reason=finish_reason,
+                            metadata={
+                                "model": self.ollama_config.model,
+                                "total_duration_ns": data.get("total_duration", 0),
+                                "load_duration_ns": data.get("load_duration", 0),
+                                "prompt_eval_count": data.get("prompt_eval_count", 0),
+                                "eval_count": data.get("eval_count", 0),
+                            },
+                        )
+                    else:
+                        body = await response.text()
+                        raise RuntimeError(
+                            f"Ollama generation failed: {response.status} - {body}"
+                        )
+
+        except aiohttp.ClientConnectorError as e:
+            raise RuntimeError(
+                f"Ollama server not reachable at {self.ollama_config.base_url}: {e}"
             )
-
-            latency_ms = (time.perf_counter() - start_time) * 1000
-
-            if response.status_code == 200:
-                data = response.json()
-
-                # Extract response text
-                text = data.get("response", "")
-
-                # Determine finish reason
-                finish_reason = "stop"
-                if data.get("done_reason") == "length":
-                    finish_reason = "length"
-                elif not data.get("done", False):
-                    finish_reason = "error"
-
-                # Count tokens (approximate from eval_count)
-                tokens_generated = data.get("eval_count", len(text.split()))
-
-                return LLMResponse(
-                    text=text,
-                    provider=LLMProvider.LOCAL,
-                    latency_ms=latency_ms,
-                    tokens_generated=tokens_generated,
-                    finish_reason=finish_reason,
-                    metadata={
-                        "model": self.ollama_config.model,
-                        "total_duration_ns": data.get("total_duration", 0),
-                        "load_duration_ns": data.get("load_duration", 0),
-                        "prompt_eval_count": data.get("prompt_eval_count", 0),
-                        "eval_count": data.get("eval_count", 0),
-                    },
-                )
-            else:
-                raise RuntimeError(
-                    f"Ollama generation failed: {response.status_code} - {response.text}"
-                )
-
-        except requests.RequestException as e:
-            raise RuntimeError(f"Ollama server error: {str(e)}")
+        except asyncio.TimeoutError:
+            raise RuntimeError(
+                f"Ollama request timed out after {self.config.timeout_seconds}s "
+                f"(connect timeout: {self._CONNECT_TIMEOUT_S}s)"
+            )
+        except aiohttp.ClientError as e:
+            raise RuntimeError(f"Ollama HTTP client error: {e}")
 
     async def health_check(self) -> bool:
         """Check if Ollama server is available.
@@ -167,14 +186,11 @@ class OllamaProvider(BaseLLMProvider):
             True if server is healthy
         """
         try:
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: requests.get(
-                    f"{self.ollama_config.base_url}/api/tags",
-                    timeout=2.0,
-                ),
-            )
-            return response.status_code == 200
+            timeout = aiohttp.ClientTimeout(connect=2.0, total=3.0)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(
+                    f"{self.ollama_config.base_url}/api/tags"
+                ) as response:
+                    return response.status == 200
         except Exception:
             return False

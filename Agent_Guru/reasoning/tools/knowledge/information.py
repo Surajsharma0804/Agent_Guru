@@ -202,9 +202,31 @@ class CalculateTool(Tool):
                     "error": "Expression contains invalid characters",
                 }
 
-            # Evaluate expression safely
-            # Note: In production, use a proper math parser library
-            result = eval(expression, {"__builtins__": {}}, {})
+            # Evaluate expression safely using ast for security
+            import ast as _ast
+            import operator as _op
+
+            _SAFE_OPS = {
+                _ast.Add: _op.add,
+                _ast.Sub: _op.sub,
+                _ast.Mult: _op.mul,
+                _ast.Div: _op.truediv,
+                _ast.Mod: _op.mod,
+                _ast.Pow: _op.pow,
+                _ast.USub: _op.neg,
+                _ast.UAdd: _op.pos,
+            }
+
+            def _safe_eval(node: _ast.AST) -> float:
+                if isinstance(node, _ast.Constant) and isinstance(node.value, (int, float)):
+                    return float(node.value)
+                if isinstance(node, _ast.BinOp) and type(node.op) in _SAFE_OPS:
+                    return _SAFE_OPS[type(node.op)](_safe_eval(node.left), _safe_eval(node.right))
+                if isinstance(node, _ast.UnaryOp) and type(node.op) in _SAFE_OPS:
+                    return _SAFE_OPS[type(node.op)](_safe_eval(node.operand))
+                raise ValueError(f"Unsupported expression node: {type(node).__name__}")
+
+            result = _safe_eval(_ast.parse(expression, mode="eval").body)
 
             return {
                 "success": True,

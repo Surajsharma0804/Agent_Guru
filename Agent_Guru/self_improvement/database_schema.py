@@ -74,8 +74,11 @@ class DatabaseSchema:
         DatabaseSchema._create_failures_table(cursor)
         DatabaseSchema._create_strategies_table(cursor)
         DatabaseSchema._create_prompts_table(cursor)
+        DatabaseSchema._create_prompt_updates_table(cursor)
         DatabaseSchema._create_metrics_table(cursor)
         DatabaseSchema._create_failure_patterns_table(cursor)
+        DatabaseSchema._create_stability_metrics_table(cursor)
+        DatabaseSchema._create_edge_case_metrics_table(cursor)
         
         # Create indexes for performance
         DatabaseSchema._create_indexes(cursor)
@@ -218,6 +221,33 @@ class DatabaseSchema:
         """)
     
     @staticmethod
+    def _create_prompt_updates_table(cursor: sqlite3.Cursor) -> None:
+        """
+        Create prompt_updates table for rate limiting.
+        
+        Tracks prompt update history to enforce rate limits and prevent oscillations:
+        - Update timestamps per prompt type
+        - Update types (register, rollback, replace)
+        - Previous and new versions for oscillation detection
+        """
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS prompt_updates (
+                update_id TEXT PRIMARY KEY,
+                prompt_type TEXT NOT NULL,
+                update_type TEXT NOT NULL,
+                previous_version INTEGER,
+                new_version INTEGER NOT NULL,
+                timestamp TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                
+                -- Constraints
+                CHECK (update_type IN ('register', 'rollback', 'replace')),
+                CHECK (new_version > 0),
+                CHECK (previous_version IS NULL OR previous_version > 0)
+            )
+        """)
+    
+    @staticmethod
     def _create_metrics_table(cursor: sqlite3.Cursor) -> None:
         """
         Create metrics table.
@@ -294,6 +324,122 @@ class DatabaseSchema:
         """)
     
     @staticmethod
+    def _create_stability_metrics_table(cursor: sqlite3.Cursor) -> None:
+        """
+        Create stability_metrics table.
+        
+        Stores stability tracking for oscillation detection:
+        - Component and metric identification
+        - Stability metrics (variance, change frequency)
+        - Oscillation detection flags
+        - Stability scores
+        """
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stability_metrics (
+                metric_id TEXT PRIMARY KEY,
+                component TEXT NOT NULL,
+                metric_name TEXT NOT NULL,
+                value REAL NOT NULL,
+                variance REAL NOT NULL DEFAULT 0.0,
+                change_frequency REAL NOT NULL DEFAULT 0.0,
+                oscillation_detected INTEGER NOT NULL DEFAULT 0,
+                stability_score REAL NOT NULL DEFAULT 1.0,
+                timestamp TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                
+                -- Constraints
+                CHECK (variance >= 0.0),
+                CHECK (change_frequency >= 0.0 AND change_frequency <= 1.0),
+                CHECK (oscillation_detected IN (0, 1)),
+                CHECK (stability_score >= 0.0 AND stability_score <= 1.0)
+            )
+        """)
+    
+    @staticmethod
+    def _create_edge_case_metrics_table(cursor: sqlite3.Cursor) -> None:
+        """
+        Create edge_case_metrics table.
+        
+        Stores confidence metrics for patterns to prevent overgeneralization:
+        - Pattern identification
+        - Sample size and success rate
+        - Confidence scores and intervals
+        - Edge case detection flags
+        - Event frequency and weighted scores
+        """
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS edge_case_metrics (
+                metric_id TEXT PRIMARY KEY,
+                pattern_id TEXT NOT NULL,
+                sample_size INTEGER NOT NULL,
+                success_rate REAL NOT NULL,
+                confidence_score REAL NOT NULL,
+                lower_bound REAL NOT NULL,
+                upper_bound REAL NOT NULL,
+                is_edge_case INTEGER NOT NULL,
+                event_frequency REAL NOT NULL,
+                weighted_score REAL NOT NULL,
+                meets_threshold INTEGER NOT NULL,
+                timestamp TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                
+                -- Constraints
+                CHECK (sample_size >= 0),
+                CHECK (success_rate >= 0.0 AND success_rate <= 1.0),
+                CHECK (confidence_score >= 0.0 AND confidence_score <= 1.0),
+                CHECK (lower_bound >= 0.0 AND lower_bound <= 1.0),
+                CHECK (upper_bound >= 0.0 AND upper_bound <= 1.0),
+                CHECK (lower_bound <= upper_bound),
+                CHECK (is_edge_case IN (0, 1)),
+                CHECK (event_frequency >= 0.0 AND event_frequency <= 1.0),
+                CHECK (weighted_score >= 0.0 AND weighted_score <= 1.0),
+                CHECK (meets_threshold IN (0, 1))
+            )
+        """)
+    @staticmethod
+    def _create_edge_case_metrics_table(cursor: sqlite3.Cursor) -> None:
+        """
+        Create edge_case_metrics table.
+
+        Stores confidence metrics for patterns to prevent overgeneralization:
+        - Pattern identification
+        - Sample size and success rate
+        - Confidence scores and intervals
+        - Edge case detection flags
+        - Event frequency and weighted scores
+        """
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS edge_case_metrics (
+                metric_id TEXT PRIMARY KEY,
+                pattern_id TEXT NOT NULL,
+                sample_size INTEGER NOT NULL,
+                success_rate REAL NOT NULL,
+                confidence_score REAL NOT NULL,
+                lower_bound REAL NOT NULL,
+                upper_bound REAL NOT NULL,
+                is_edge_case INTEGER NOT NULL,
+                event_frequency REAL NOT NULL,
+                weighted_score REAL NOT NULL,
+                meets_threshold INTEGER NOT NULL,
+                timestamp TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+                -- Constraints
+                CHECK (sample_size >= 0),
+                CHECK (success_rate >= 0.0 AND success_rate <= 1.0),
+                CHECK (confidence_score >= 0.0 AND confidence_score <= 1.0),
+                CHECK (lower_bound >= 0.0 AND lower_bound <= 1.0),
+                CHECK (upper_bound >= 0.0 AND upper_bound <= 1.0),
+                CHECK (lower_bound <= upper_bound),
+                CHECK (is_edge_case IN (0, 1)),
+                CHECK (event_frequency >= 0.0 AND event_frequency <= 1.0),
+                CHECK (weighted_score >= 0.0 AND weighted_score <= 1.0),
+                CHECK (meets_threshold IN (0, 1))
+            )
+        """)
+
+    
+    @staticmethod
     def _create_indexes(cursor: sqlite3.Cursor) -> None:
         """
         Create indexes for query performance.
@@ -352,6 +498,17 @@ class DatabaseSchema:
             ON prompts(success_rate DESC)
         """)
         
+        # Prompt updates table indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_prompt_updates_type 
+            ON prompt_updates(prompt_type)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_prompt_updates_timestamp 
+            ON prompt_updates(timestamp DESC)
+        """)
+        
         # Metrics table indexes
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_metrics_timestamp 
@@ -387,6 +544,48 @@ class DatabaseSchema:
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_patterns_confidence 
             ON failure_patterns(confidence_score DESC)
+        """)
+        
+        # Stability metrics table indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_stability_component 
+            ON stability_metrics(component)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_stability_metric_name 
+            ON stability_metrics(metric_name)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_stability_timestamp 
+            ON stability_metrics(timestamp DESC)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_stability_score 
+            ON stability_metrics(stability_score ASC)
+        """)
+        
+        # Edge case metrics table indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_edge_case_pattern 
+            ON edge_case_metrics(pattern_id)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_edge_case_is_edge 
+            ON edge_case_metrics(is_edge_case)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_edge_case_timestamp 
+            ON edge_case_metrics(timestamp DESC)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_edge_case_confidence 
+            ON edge_case_metrics(confidence_score DESC)
         """)
     
     @staticmethod
@@ -434,7 +633,8 @@ class DatabaseSchema:
                 'strategies',
                 'prompts',
                 'metrics',
-                'failure_patterns'
+                'failure_patterns',
+                'stability_metrics'
             ]
             
             cursor.execute("""

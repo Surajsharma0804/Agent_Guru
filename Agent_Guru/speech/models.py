@@ -55,11 +55,33 @@ class TranscriptionResult:
 
 @dataclass
 class VoiceFeatures:
-    """Voice biometric features."""
+    """Voice biometric features extracted for the security system.
+
+    This dataclass is the API contract between the speech engine (feature
+    extraction) and guru-security-cryptography (authentication).  The speech
+    engine populates every field; the security system consumes them to make
+    authentication decisions.
+
+    Attributes:
+        feature_vector: Numerical representation of voice characteristics
+            (MFCC, pitch, spectral, energy features).
+        sample_rate: Sample rate of the source audio in Hz.
+        duration: Duration of the source audio in seconds.
+        quality_score: Overall audio quality estimate in [0.0, 1.0].
+            Higher values indicate better quality for authentication.
+        liveness_score: Anti-spoofing confidence in [0.0, 1.0].
+            Higher values indicate the audio is more likely from a live speaker.
+        is_live: True when liveness_score meets the liveness threshold
+            (>= 0.55).  The BiometricAuthenticator MUST reject authentication
+            when this field is False.
+    """
+
     feature_vector: np.ndarray
     sample_rate: int
     duration: float
     quality_score: float  # 0.0 to 1.0
+    liveness_score: float = 0.0  # 0.0 to 1.0 – populated by VoiceFeatureExtractor
+    is_live: bool = False  # True when liveness_score >= 0.55
 
 
 @dataclass

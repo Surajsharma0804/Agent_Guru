@@ -1,54 +1,60 @@
 """
-Agent Guru - Vision Engine (Python)
+Agent Guru - Vision Module
 
-This is a FRESH START based on complete specifications.
+Provides face detection and 512-dimensional embedding extraction.
 
-## Status: NOT STARTED
+This module does NOT perform authentication.  All authentication decisions
+are delegated to the ``BiometricAuthenticator`` in
+``Agent_Guru.security``.
 
-## Implementation Plan:
-Follow guruvision-facial-recognition specification:
-- Location: .kiro/specs/guruvision-facial-recognition/
-- Requirements: requirements.md (complete)
-- Design: design.md (complete architecture)
-- Tasks: tasks.md (implementation tasks)
+Public API:
+    FaceFeatureExtractor  — detect faces and extract embeddings
+    FaceFeatures          — extraction result (embedding + quality + liveness)
+    FaceDetection         — single detected face with bounding box
+    FaceQuality           — quality metrics for a detected face
+    BoundingBox           — face bounding box in image coordinates
 
-## Modules to Implement:
-- detection: Face detection (RetinaFace)
-- recognition: Face recognition (ArcFace)
-- liveness: Liveness detection (anti-spoofing)
-- emotion: Emotion recognition
-- tracking: Face tracking (DeepSORT/ByteTrack)
-- database: Identity database management
-- engine: Main vision engine orchestrator
+Exceptions:
+    FaceExtractionError   — base exception
+    FaceNotFoundError     — no face detected
+    LivenessFailedError   — liveness check failed
+    InvalidImageError     — image cannot be decoded
+    ExtractionTimeoutError — extraction exceeded 500 ms
 
-## Features:
-- Real-time face recognition
-- Liveness detection
-- Emotion recognition
-- Face tracking
-- Multi-angle memory
-- Permission system
-- Incremental updates
-
-## Reference:
-- Spec: .kiro/specs/guruvision-facial-recognition/
-- Quick Start: QUICK_START_DEV.md
-- GPU Setup: GPU_SETUP.md
-
-## Next Steps:
-1. Read .kiro/specs/guruvision-facial-recognition/requirements.md
-2. Review design.md for architecture
-3. Start with Task 1 from tasks.md
+Example:
+    >>> from Agent_Guru.vision import FaceFeatureExtractor
+    >>> extractor = FaceFeatureExtractor()
+    >>> with open("face.jpg", "rb") as f:
+    ...     features = extractor.extract_face_embedding(f.read())
+    >>> print(features.embedding.shape)  # (512,)
+    >>> # Pass features to BiometricAuthenticator for identity verification
 """
 
-__version__ = "0.1.0"
-__status__ = "NOT_STARTED"
+from Agent_Guru.vision.exceptions import (
+    ExtractionTimeoutError,
+    FaceExtractionError,
+    FaceNotFoundError,
+    InvalidImageError,
+    LivenessFailedError,
+)
+from Agent_Guru.vision.face_features import FaceFeatureExtractor
+from Agent_Guru.vision.models import BoundingBox, FaceDetection, FaceFeatures, FaceQuality
 
-# TODO: Implement based on specs
-# from .detection import FaceDetector
-# from .recognition import FaceRecognizer
-# from .liveness import LivenessDetector
-# from .emotion import EmotionRecognizer
-# from .tracking import FaceTracker
-# from .database import FaceDatabase
-# from .engine import GuruVisionEngine
+__version__ = "0.2.0"
+__status__ = "IMPLEMENTED"
+
+__all__ = [
+    # Main extractor
+    "FaceFeatureExtractor",
+    # Data models
+    "FaceFeatures",
+    "FaceDetection",
+    "FaceQuality",
+    "BoundingBox",
+    # Exceptions
+    "FaceExtractionError",
+    "FaceNotFoundError",
+    "LivenessFailedError",
+    "InvalidImageError",
+    "ExtractionTimeoutError",
+]

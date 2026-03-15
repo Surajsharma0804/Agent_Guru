@@ -6,6 +6,8 @@ and retraining coordination for the intent detection system.
 
 It also includes behavioral learning for command tracking, pattern detection,
 preference learning, proactive suggestions, and persistent goal management.
+
+Note: Self-Improvement Engine components are in Agent_Guru.self_improvement module.
 """
 
 from Agent_Guru.reasoning.learning.app_tracker import AppTracker
@@ -19,6 +21,7 @@ from Agent_Guru.reasoning.learning.preference_learner import PreferenceLearner
 from Agent_Guru.reasoning.learning.suggestion_generator import SuggestionGenerator
 
 __all__ = [
+    # Behavioral Learning
     "FeedbackStore",
     "OnlineLearner",
     "CommandTracker",

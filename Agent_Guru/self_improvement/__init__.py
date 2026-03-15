@@ -31,6 +31,7 @@ __all__ = [
     "git_integration",
     "degradation_detector",
     "rollback_manager",
+    "edge_case_handler",
     "FailureAnalyzer",
     "FailureType",
     "TaskExecution",
@@ -46,6 +47,8 @@ __all__ = [
     "ChangeType",
     "ChangeRecord",
     "RollbackResult",
+    "EdgeCaseHandler",
+    "ConfidenceMetrics",
 ]
 
 # Import key classes for convenience
@@ -76,3 +79,7 @@ from Agent_Guru.self_improvement.rollback_manager import (
     RollbackResult,
 )
 
+from Agent_Guru.self_improvement.edge_case_handler import (
+    EdgeCaseHandler,
+    ConfidenceMetrics,
+)

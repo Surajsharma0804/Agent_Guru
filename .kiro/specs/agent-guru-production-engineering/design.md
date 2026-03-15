@@ -1037,3 +1037,320 @@ mod wake_word_properties {
 7. Security audit (cargo audit, safety)
 
 This comprehensive testing strategy ensures the AGENT_GURU system meets all correctness properties, performance requirements, and quality standards for production deployment.
+
+## Deployment Architecture
+
+### Installer Design
+
+The production deployment delivers native installers for Windows and macOS, bundling all required components (models, libraries, binaries) into a single distributable package.
+
+**Windows Installer (MSI via WiX Toolset)**:
+```
+AgentGuru-Setup-{version}-x64.msi
+├── guru.exe                    # Main Rust binary
+├── models/
+│   ├── whisper-base.bin        # STT model (~140MB)
+│   ├── wake_word.onnx          # Wake word model (~5MB)
+│   └── piper-voice.onnx        # TTS voice model (~60MB)
+├── lib/
+│   ├── whisper.dll             # Whisper C++ runtime
+│   ├── onnxruntime.dll         # ONNX inference runtime
+│   └── python312.dll           # Python runtime
+├── python/                     # Python intelligence layer
+│   ├── site-packages/          # All Python dependencies
+│   └── agent_guru/             # Agent Guru Python modules
+└── config/
+    └── default_config.toml     # Default configuration
+```
+
+**macOS Installer (DMG with App Bundle)**:
+```
+AgentGuru-{version}-macOS.dmg
+└── AgentGuru.app/
+    └── Contents/
+        ├── MacOS/
+        │   └── guru             # Main Rust binary (universal binary: x86_64 + arm64)
+        ├── Resources/
+        │   ├── models/          # Same model files as Windows
+        │   └── python/          # Python runtime and packages
+        ├── Frameworks/
+        │   ├── libwhisper.dylib
+        │   └── libonnxruntime.dylib
+        └── Info.plist           # App metadata
+```
+
+### Packaging Strategy
+
+**Model Bundling**:
+- Whisper base model (~140MB) bundled in installer — no download required
+- Wake word ONNX model (~5MB) bundled
+- Piper TTS voice model (~60MB) bundled
+- Total installer size target: <400MB
+
+**Dependency Isolation**:
+- Python runtime embedded (no system Python required)
+- All native libraries bundled (no system library conflicts)
+- Self-contained: works on clean OS install with no prerequisites
+
+**Version Management**:
+```toml
+# Embedded in binary at build time
+[build_info]
+version = "1.0.0"
+build_date = "2025-01-01"
+git_commit = "abc1234"
+rust_version = "1.75.0"
+python_version = "3.12.0"
+whisper_model = "base"
+```
+
+### Installation Flow
+
+**Windows Installation Sequence**:
+1. Verify OS version (Windows 10 1903+ or Windows 11)
+2. Check available disk space (minimum 1GB)
+3. Extract all files to `%ProgramFiles%\AgentGuru\`
+4. Register application in Windows registry
+5. Create desktop shortcut and Start Menu entry
+6. Register autostart entry (optional, user choice)
+7. Run first-launch setup wizard
+8. Verify microphone permissions
+
+**macOS Installation Sequence**:
+1. Verify macOS version (11.0+)
+2. Mount DMG and copy app bundle to `/Applications/`
+3. Verify code signature (Gatekeeper compatibility)
+4. On first launch: request microphone and accessibility permissions
+5. Run first-launch setup wizard
+6. Optionally add to Login Items
+
+**First-Launch Setup Wizard**:
+```
+Step 1: Welcome screen (product overview)
+Step 2: Microphone permission request + test
+Step 3: LLM provider selection (Ollama local / Cloud API)
+Step 4: API key entry (if cloud selected)
+Step 5: Wake word selection ("Hey Guru" / "Hey Maya")
+Step 6: Voice test (say wake word to verify)
+Step 7: Ready screen with quick-start guide
+```
+
+### Update Mechanism
+
+**Auto-Update Strategy**:
+- Check for updates on startup (background, non-blocking)
+- Download update package in background
+- Prompt user to install when ready
+- Support silent update for minor versions
+- Require user confirmation for major versions
+
+**Update Package Structure**:
+- Delta updates for model files (only changed bytes)
+- Full binary replacement for Rust/Python components
+- Configuration migration scripts for breaking changes
+- Rollback support: keep previous version for 7 days
+
+### System Requirements
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| OS (Windows) | Windows 10 1903 | Windows 11 |
+| OS (macOS) | macOS 11.0 | macOS 13+ |
+| RAM | 4GB | 8GB+ |
+| Disk Space | 1GB | 2GB+ |
+| CPU | x86_64 (any) | Modern multi-core |
+| Microphone | Any USB/built-in | Noise-canceling |
+| Internet | Optional (local LLM) | Required (cloud LLM) |
+
+## CI/CD Pipeline Design
+
+### Pipeline Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Developer Workflow                        │
+│  git push → GitHub Actions → Build → Test → Package → Release│
+└─────────────────────────────────────────────────────────────┘
+
+Stages:
+1. Lint & Format    (parallel, ~2 min)
+2. Build            (parallel per platform, ~10 min)
+3. Unit Tests       (parallel, ~5 min)
+4. Property Tests   (parallel, ~15 min)
+5. Integration Tests(sequential, ~20 min)
+6. Performance Tests(weekly only, ~30 min)
+7. Security Audit   (parallel, ~5 min)
+8. Package          (on main branch only, ~15 min)
+9. Release          (manual trigger, ~5 min)
+```
+
+### GitHub Actions Workflow
+
+**Trigger Conditions**:
+- `push` to any branch → Stages 1-4 (fast feedback)
+- `pull_request` to `main` → Stages 1-7 (full validation)
+- `push` to `main` → Stages 1-8 (build packages)
+- Manual trigger → Stage 9 (release)
+- Weekly schedule → Stage 6 (performance regression)
+
+**Stage 1: Lint and Format**
+```yaml
+# Runs in parallel across languages
+jobs:
+  rust-lint:
+    - cargo fmt --check
+    - cargo clippy --all-features -- -D warnings
+    - cargo audit
+  
+  python-lint:
+    - black --check Agent_Guru/
+    - ruff check Agent_Guru/
+    - mypy Agent_Guru/ --strict
+    - bandit -r Agent_Guru/
+```
+
+**Stage 2: Build**
+```yaml
+# Cross-platform build matrix
+strategy:
+  matrix:
+    os: [windows-latest, macos-latest]
+    
+steps:
+  - cargo build --release --all-features
+  - Verify zero warnings (RUSTFLAGS="-D warnings")
+  - Build Python wheel
+  - Verify all imports succeed
+```
+
+**Stage 3: Unit Tests**
+```yaml
+# Fast unit tests with coverage
+- cargo test --lib --release
+- pytest Agent_Guru/ -m unit --cov=Agent_Guru --cov-report=xml
+- Enforce 80% minimum coverage
+- Upload coverage to Codecov
+```
+
+**Stage 4: Property Tests**
+```yaml
+# Property-based tests (100 iterations minimum)
+- cargo test --release -- --test-threads=4
+- pytest Agent_Guru/ -m property --hypothesis-seed=0
+- Minimum 100 examples per property
+- Fail on any counterexample found
+```
+
+**Stage 5: Integration Tests**
+```yaml
+# End-to-end pipeline tests (sequential)
+- cargo test --test integration --release
+- pytest Agent_Guru/ -m integration
+- Test voice pipeline with mock audio
+- Test OS control with sandboxed environment
+```
+
+**Stage 6: Performance Tests (Weekly)**
+```yaml
+# Regression detection against baseline
+- cargo bench --bench latency_benchmarks
+- pytest Agent_Guru/ -m performance
+- Compare against stored baseline
+- Fail if any metric regresses >10%
+- Update baseline on main branch
+```
+
+**Stage 7: Security Audit**
+```yaml
+# Automated security scanning
+- cargo audit --deny warnings
+- safety check -r requirements.txt
+- bandit -r Agent_Guru/ -ll  # High severity only
+- trivy fs . --severity HIGH,CRITICAL
+```
+
+**Stage 8: Package (main branch only)**
+```yaml
+# Build production installers
+windows:
+  - cargo build --release --target x86_64-pc-windows-msvc
+  - Bundle models and Python runtime
+  - Build MSI with WiX Toolset
+  - Sign with code signing certificate
+  - Upload artifact: AgentGuru-{version}-x64.msi
+
+macos:
+  - cargo build --release --target universal-apple-darwin
+  - Bundle models and Python runtime
+  - Build app bundle and DMG
+  - Sign and notarize with Apple Developer ID
+  - Upload artifact: AgentGuru-{version}-macOS.dmg
+```
+
+**Stage 9: Release (manual trigger)**
+```yaml
+# Publish release
+- Download installer artifacts from Stage 8
+- Create GitHub Release with changelog
+- Upload installers as release assets
+- Publish release notes
+- Notify team via Slack/email
+```
+
+### Quality Gates
+
+Every stage must pass before proceeding to the next. The following gates are enforced:
+
+| Gate | Threshold | Action on Failure |
+|------|-----------|-------------------|
+| Rust compilation | Zero warnings | Block PR merge |
+| Python type checking | Zero mypy errors | Block PR merge |
+| Unit test coverage | ≥80% | Block PR merge |
+| Property test iterations | ≥100 per property | Block PR merge |
+| Security audit | Zero high/critical | Block PR merge |
+| Performance regression | ≤10% degradation | Alert + block release |
+| Code duplication | <3% | Warning (non-blocking) |
+
+### Branch Strategy
+
+```
+main          ← Production-ready code, triggers package builds
+  └── develop ← Integration branch, full test suite
+        ├── feature/wake-word-optimization
+        ├── feature/llm-provider-gemini
+        └── fix/audio-device-reconnection
+```
+
+**Merge Requirements for `main`**:
+- All CI stages pass (1-7)
+- Two reviewer approvals
+- No unresolved review comments
+- Branch up-to-date with main
+
+### Artifact Management
+
+**Build Artifacts** (retained 30 days):
+- `AgentGuru-{version}-{commit}-x64.msi` — Windows installer
+- `AgentGuru-{version}-{commit}-macOS.dmg` — macOS installer
+- `coverage-report-{commit}.xml` — Test coverage
+- `benchmark-results-{commit}.json` — Performance baseline
+
+**Release Artifacts** (retained indefinitely):
+- Tagged release installers (MSI + DMG)
+- SHA256 checksums for all installers
+- Release notes and changelog
+- Source code archive (zip + tar.gz)
+
+### Monitoring and Alerting
+
+**CI Health Metrics**:
+- Build success rate (target: >95%)
+- Average build duration (target: <30 min total)
+- Test flakiness rate (target: <1%)
+- Security vulnerability count (target: 0 high/critical)
+
+**Alerts**:
+- Build failure on `main` → Immediate Slack notification
+- Performance regression detected → Email to team lead
+- Security vulnerability found → Immediate email + Slack
+- Coverage drops below 80% → PR blocked + notification
