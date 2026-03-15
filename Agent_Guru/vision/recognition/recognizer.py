@@ -7,10 +7,15 @@ Falls back to random normalised vectors when onnxruntime or model is unavailable
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Optional
 
 import numpy as np
+
+from Agent_Guru.vision.exceptions import InvalidImageError
+
+logger = logging.getLogger("guruvision.recognition")
 
 
 class FaceRecognizer:
@@ -26,6 +31,7 @@ class FaceRecognizer:
     """
 
     EMBEDDING_DIM: int = 512
+    _EXPECTED_SHAPE: tuple[int, int, int] = (112, 112, 3)
 
     def __init__(self, model_path: str, use_gpu: bool = False) -> None:
         self.model_path = model_path
@@ -44,7 +50,12 @@ class FaceRecognizer:
 
         Returns:
             L2-normalised embedding of shape (512,), dtype float32.
+
+        Raises:
+            InvalidImageError: If aligned_face has wrong shape or dtype.
         """
+        self._validate_face(aligned_face)
+
         session = self._get_session()
         if session is None:
             return self._random_embedding()
@@ -77,6 +88,10 @@ class FaceRecognizer:
             return self._session
 
         if not os.path.isfile(self.model_path):
+            logger.warning(
+                "ONNX model not found at '%s', using random embedding fallback",
+                self.model_path,
+            )
             return None
 
         try:
@@ -88,9 +103,32 @@ class FaceRecognizer:
                 else ["CPUExecutionProvider"]
             )
             self._session = ort.InferenceSession(self.model_path, providers=providers)
+            logger.info("Loaded ArcFace ONNX model from '%s'", self.model_path)
             return self._session
-        except Exception:
+        except Exception as exc:
+            logger.error(
+                "Failed to load ONNX model from '%s': %s", self.model_path, exc
+            )
             return None
+
+    @staticmethod
+    def _validate_face(face: np.ndarray) -> None:
+        """Validate that face has the expected shape and dtype.
+
+        Args:
+            face: Image array to validate.
+
+        Raises:
+            InvalidImageError: If shape or dtype is wrong.
+        """
+        if face.shape != FaceRecognizer._EXPECTED_SHAPE:
+            raise InvalidImageError(
+                f"Expected face shape {FaceRecognizer._EXPECTED_SHAPE}, got {face.shape}"
+            )
+        if face.dtype != np.uint8:
+            raise InvalidImageError(
+                f"Expected face dtype uint8, got {face.dtype}"
+            )
 
     @staticmethod
     def _preprocess(face: np.ndarray) -> np.ndarray:
@@ -109,5 +147,9 @@ class FaceRecognizer:
 
     def _random_embedding(self) -> np.ndarray:
         """Return a random L2-normalised 512-dim vector (dev/test fallback)."""
+        logger.warning(
+            "ONNX model not available at '%s', returning random embedding fallback",
+            self.model_path,
+        )
         vec = np.random.randn(self.EMBEDDING_DIM).astype(np.float32)
         return self._l2_normalize(vec)

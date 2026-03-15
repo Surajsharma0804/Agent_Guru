@@ -7,10 +7,14 @@ tracks. Tracks are aged out after max_age frames without a match.
 
 from __future__ import annotations
 
+import logging
+import threading
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
+
+logger = logging.getLogger("guruvision.tracking")
 
 
 @dataclass
@@ -31,11 +35,14 @@ class TrackedFace:
     identity: Optional[str] = None
     confidence: float = 1.0
     age: int = 0
-    embedding: Optional[np.ndarray] = None
+    embedding: Optional[np.ndarray] = field(default=None, repr=False)
 
 
 class FaceTracker:
     """Tracks multiple faces across video frames using IoU matching.
+
+    Thread-safe: all public methods acquire an internal lock before
+    mutating shared state, making this safe for concurrent frame processing.
 
     Args:
         max_age: Maximum number of frames a track can go unmatched before
@@ -51,6 +58,7 @@ class FaceTracker:
         self.algorithm = algorithm
         self._tracks: Dict[int, TrackedFace] = {}
         self._next_id: int = 0
+        self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Public API
@@ -71,67 +79,71 @@ class FaceTracker:
         Returns:
             List of all active TrackedFace objects (age <= max_age).
         """
-        # 1. Age all existing tracks
-        for track in self._tracks.values():
-            track.age += 1
+        with self._lock:
+            # 1. Age all existing tracks
+            for track in self._tracks.values():
+                track.age += 1
 
-        # 2. Remove stale tracks
-        self._tracks = {
-            tid: t for tid, t in self._tracks.items() if t.age <= self.max_age
-        }
+            # 2. Remove stale tracks
+            stale = [tid for tid, t in self._tracks.items() if t.age > self.max_age]
+            for tid in stale:
+                logger.debug("Track %d expired (age > %d)", tid, self.max_age)
+                del self._tracks[tid]
 
-        if not detections:
-            return self.get_active_tracks()
+            if not detections:
+                return self._active_tracks()
 
-        track_ids = list(self._tracks.keys())
-        track_bboxes = [self._tracks[tid].bbox for tid in track_ids]
+            track_ids = list(self._tracks.keys())
+            track_bboxes = [self._tracks[tid].bbox for tid in track_ids]
 
-        det_bboxes = [self._get_bbox(d) for d in detections]
-        det_confs = [self._get_conf(d) for d in detections]
+            det_bboxes = [self._get_bbox(d) for d in detections]
+            det_confs = [self._get_conf(d) for d in detections]
 
-        matched_tracks: set[int] = set()
-        matched_dets: set[int] = set()
+            matched_tracks: set[int] = set()
+            matched_dets: set[int] = set()
 
-        # 3. Greedy IoU matching
-        if track_bboxes:
-            iou_matrix = np.zeros((len(track_ids), len(det_bboxes)), dtype=np.float32)
-            for ti, tb in enumerate(track_bboxes):
-                for di, db in enumerate(det_bboxes):
-                    iou_matrix[ti, di] = self._compute_iou(tb, db)
+            # 3. Greedy IoU matching
+            if track_bboxes:
+                iou_matrix = np.zeros(
+                    (len(track_ids), len(det_bboxes)), dtype=np.float32
+                )
+                for ti, tb in enumerate(track_bboxes):
+                    for di, db in enumerate(det_bboxes):
+                        iou_matrix[ti, di] = self._compute_iou(tb, db)
 
-            # Greedy: pick highest IoU pairs first
-            flat_order = np.argsort(iou_matrix.ravel())[::-1]
-            for idx in flat_order:
-                ti, di = divmod(int(idx), len(det_bboxes))
-                if iou_matrix[ti, di] < self._IOU_THRESHOLD:
-                    break
-                if ti in matched_tracks or di in matched_dets:
+                flat_order = np.argsort(iou_matrix.ravel())[::-1]
+                for idx in flat_order:
+                    ti, di = divmod(int(idx), len(det_bboxes))
+                    if iou_matrix[ti, di] < self._IOU_THRESHOLD:
+                        break
+                    if ti in matched_tracks or di in matched_dets:
+                        continue
+                    matched_tracks.add(ti)
+                    matched_dets.add(di)
+                    tid = track_ids[ti]
+                    self._tracks[tid].bbox = det_bboxes[di]
+                    self._tracks[tid].age = 0
+                    self._tracks[tid].confidence = det_confs[di]
+                    if embeddings and di < len(embeddings):
+                        self._tracks[tid].embedding = embeddings[di]
+
+            # 4. Create new tracks for unmatched detections
+            for di in range(len(detections)):
+                if di in matched_dets:
                     continue
-                matched_tracks.add(ti)
-                matched_dets.add(di)
-                tid = track_ids[ti]
-                self._tracks[tid].bbox = det_bboxes[di]
-                self._tracks[tid].age = 0
-                self._tracks[tid].confidence = det_confs[di]
-                if embeddings and di < len(embeddings):
-                    self._tracks[tid].embedding = embeddings[di]
+                emb = embeddings[di] if embeddings and di < len(embeddings) else None
+                new_track = TrackedFace(
+                    track_id=self._next_id,
+                    bbox=det_bboxes[di],
+                    confidence=det_confs[di],
+                    age=0,
+                    embedding=emb,
+                )
+                self._tracks[self._next_id] = new_track
+                logger.debug("New track created: id=%d bbox=%s", self._next_id, det_bboxes[di])
+                self._next_id += 1
 
-        # 4. Create new tracks for unmatched detections
-        for di in range(len(detections)):
-            if di in matched_dets:
-                continue
-            emb = embeddings[di] if embeddings and di < len(embeddings) else None
-            new_track = TrackedFace(
-                track_id=self._next_id,
-                bbox=det_bboxes[di],
-                confidence=det_confs[di],
-                age=0,
-                embedding=emb,
-            )
-            self._tracks[self._next_id] = new_track
-            self._next_id += 1
-
-        return self.get_active_tracks()
+            return self._active_tracks()
 
     def assign_identity(self, track_id: int, identity: str) -> bool:
         """Assign an identity name to a track.
@@ -139,23 +151,33 @@ class FaceTracker:
         Returns:
             True if the track was found and updated, False otherwise.
         """
-        if track_id not in self._tracks:
-            return False
-        self._tracks[track_id].identity = identity
-        return True
+        with self._lock:
+            if track_id not in self._tracks:
+                logger.warning("assign_identity: track %d not found", track_id)
+                return False
+            self._tracks[track_id].identity = identity
+            logger.debug("Track %d assigned identity '%s'", track_id, identity)
+            return True
 
     def get_active_tracks(self) -> List[TrackedFace]:
-        """Return all tracks with age <= max_age."""
-        return [t for t in self._tracks.values() if t.age <= self.max_age]
+        """Return all tracks with age <= max_age (thread-safe snapshot)."""
+        with self._lock:
+            return self._active_tracks()
 
     def reset(self) -> None:
         """Clear all tracks and reset the ID counter."""
-        self._tracks.clear()
-        self._next_id = 0
+        with self._lock:
+            count = len(self._tracks)
+            self._tracks.clear()
+            self._next_id = 0
+            logger.info("Tracker reset — cleared %d tracks", count)
 
     # ------------------------------------------------------------------
-    # Internal helpers
+    # Internal helpers (must be called with lock held)
     # ------------------------------------------------------------------
+
+    def _active_tracks(self) -> List[TrackedFace]:
+        return [t for t in self._tracks.values() if t.age <= self.max_age]
 
     @staticmethod
     def _compute_iou(

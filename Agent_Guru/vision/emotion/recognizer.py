@@ -8,11 +8,16 @@ heuristic that still produces a valid probability distribution.
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 from typing import Dict, Optional
 
 import numpy as np
+
+from Agent_Guru.vision.exceptions import InvalidImageError
+
+logger = logging.getLogger("guruvision.emotion")
 
 EMOTION_LABELS: list[str] = [
     "neutral", "happy", "sad", "angry", "surprised", "fearful", "disgusted"
@@ -42,6 +47,8 @@ class EmotionRecognizer:
         use_gpu: Use CUDAExecutionProvider when True.
     """
 
+    _EXPECTED_SHAPE: tuple[int, int, int] = (112, 112, 3)
+
     def __init__(
         self,
         model_path: Optional[str] = None,
@@ -59,7 +66,12 @@ class EmotionRecognizer:
 
         Returns:
             EmotionResult with dominant emotion, confidence, and all_scores.
+
+        Raises:
+            InvalidImageError: If aligned_face has wrong shape or dtype.
         """
+        self._validate_face(aligned_face)
+
         session = self._get_session()
         if session is not None:
             scores = self._run_onnx(session, aligned_face)
@@ -82,6 +94,11 @@ class EmotionRecognizer:
         if self._session is not None:
             return self._session
         if not self.model_path or not os.path.isfile(self.model_path):
+            if self.model_path:
+                logger.warning(
+                    "Emotion ONNX model not found at '%s', using heuristic fallback",
+                    self.model_path,
+                )
             return None
         try:
             import onnxruntime as ort  # type: ignore[import]
@@ -92,9 +109,29 @@ class EmotionRecognizer:
                 else ["CPUExecutionProvider"]
             )
             self._session = ort.InferenceSession(self.model_path, providers=providers)
+            logger.info("Loaded emotion ONNX model from '%s'", self.model_path)
             return self._session
-        except Exception:
+        except Exception as exc:
+            logger.error(
+                "Failed to load emotion ONNX model from '%s': %s", self.model_path, exc
+            )
             return None
+
+    @staticmethod
+    def _validate_face(face: np.ndarray) -> None:
+        """Validate that face has the expected shape and dtype.
+
+        Raises:
+            InvalidImageError: If shape or dtype is wrong.
+        """
+        if face.shape != EmotionRecognizer._EXPECTED_SHAPE:
+            raise InvalidImageError(
+                f"Expected face shape {EmotionRecognizer._EXPECTED_SHAPE}, got {face.shape}"
+            )
+        if face.dtype != np.uint8:
+            raise InvalidImageError(
+                f"Expected face dtype uint8, got {face.dtype}"
+            )
 
     @staticmethod
     def _run_onnx(session: object, face: np.ndarray) -> np.ndarray:
@@ -107,7 +144,15 @@ class EmotionRecognizer:
 
     @staticmethod
     def _heuristic_scores(face: np.ndarray) -> np.ndarray:
-        """Brightness/contrast heuristic — returns a valid probability distribution."""
+        """Brightness/contrast heuristic — returns a valid probability distribution.
+
+        Note: This is a dev/test fallback only. It has no real correlation with
+        actual emotions and should never be used in production without a real model.
+        """
+        logger.warning(
+            "No emotion model available — using brightness/contrast heuristic fallback. "
+            "Results are not meaningful without a real ONNX model."
+        )
         gray = (
             0.114 * face[:, :, 0].astype(np.float32)
             + 0.587 * face[:, :, 1].astype(np.float32)
@@ -116,11 +161,9 @@ class EmotionRecognizer:
         brightness = float(np.mean(gray)) / 255.0   # 0..1
         contrast = float(np.std(gray)) / 128.0       # 0..~1
 
-        # Seed a deterministic but varied distribution from image stats
         n = len(EMOTION_LABELS)
         base = np.ones(n, dtype=np.float32)
 
-        # Bias toward happy when bright+contrasty, sad when dark, neutral otherwise
         base[0] += 1.0 - abs(brightness - 0.5) * 2   # neutral: mid-brightness
         base[1] += brightness * contrast               # happy: bright + contrasty
         base[2] += (1.0 - brightness) * 0.8           # sad: dark
