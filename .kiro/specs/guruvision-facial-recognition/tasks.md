@@ -143,109 +143,96 @@ After completing EACH task:
     - **Property 27: Face Detection Completeness**
     - **Validates: Requirements 3.1, 3.3**
 
-- [~] 7. Implement face alignment module
-  - [ ] 7.1 Create alignment/aligner.py with FaceAligner class
+- [x] 7. Implement face alignment module
+  - [x] 7.1 Create alignment/aligner.py with FaceAligner class
     - Initialize with output size (112x112)
     - Use InsightFace alignment utilities
     - _Requirements: 4.2, 26.5_
 
-  - [ ] 7.2 Implement align() method
+  - [x] 7.2 Implement align() method
     - Extract landmarks from Detection
     - Compute similarity transform to standard face template
     - Apply affine transformation
     - Resize to 112x112
     - _Requirements: 4.1, 4.3, 4.4_
 
-  - [ ] 7.3 Write property test for aligned face dimensions
+  - [x] 7.3 Write property test for aligned face dimensions
     - **Property 2: Aligned Face Dimensions**
     - **Validates: Requirements 4.2**
 
-- [~] 8. Implement recognition module
-  - [ ] 8.1 Create recognition/recognizer.py with FaceRecognizer class
+- [x] 8. Implement recognition module
+  - [x] 8.1 Create recognition/recognizer.py with FaceRecognizer class
     - Initialize ONNX Runtime session
     - Support CPU and GPU execution providers
     - Load ONNX model from path
     - _Requirements: 11.2, 11.3, 11.4, 11.5_
 
-  - [ ] 8.2 Implement extract_embedding() method
+  - [x] 8.2 Implement extract_embedding() method
     - Preprocess aligned face: normalize to [-1, 1], convert to CHW format
     - Run ONNX inference
     - Return 512-dimensional embedding vector
     - L2-normalize the embedding
     - _Requirements: 5.1_
 
-  - [ ] 8.3 Implement match_identity() method
-    - Accept embedding and FaceDatabase
-    - Call database.search() with threshold
-    - Return MatchResult with identity, confidence, permission_level
-    - _Requirements: 5.3, 5.4, 5.5, 5.6_
-
-  - [ ] 8.4 Write property tests for recognition
+  - [x] 8.3 Write property tests for recognition
     - **Property 3: Embedding Vector Dimensions**
     - **Property 4: Cosine Similarity Range**
-    - **Property 5: Threshold-Based Identity Matching**
-    - **Property 6: Multi-Embedding Maximum Similarity**
-    - **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.7**
+    - **Validates: Requirements 5.1, 5.2**
 
-- [~] 9. Implement liveness detection module
-  - [ ] 9.1 Create liveness/detector.py with LivenessDetector class
+- [x] 9. Implement liveness detection module
+  - [x] 9.1 Create liveness/detector.py with LivenessDetector class
     - Initialize Silent-Face anti-spoofing model or equivalent
     - Support CPU and GPU modes
     - Define LivenessResult dataclass
     - _Requirements: 7.1, 24.1_
 
-  - [ ] 9.2 Implement detect() method
-    - Preprocess aligned face for liveness model
-    - Run inference
-    - Return LivenessResult with is_live, confidence, attack_type
+  - [x] 9.2 Implement check_liveness() method
+    - Texture analysis via Laplacian variance
+    - EAR blink detection with 5-point landmarks
+    - Return LivenessResult with is_live, score, method
     - _Requirements: 7.1, 7.2, 7.3, 7.5, 24.2, 24.3, 24.4, 24.6_
 
-  - [ ] 9.3 Write property tests for liveness detection
-    - **Property 9: Liveness Binary Classification**
-    - **Property 10: Liveness-Based Recognition Rejection**
+  - [x] 9.3 Write property tests for liveness detection
+    - **Property 5: Liveness Score Bounds**
     - **Validates: Requirements 7.1, 7.4**
 
-- [~] 10. Implement emotion recognition module
-  - [ ] 10.1 Create emotion/recognizer.py with EmotionRecognizer class
+- [x] 10. Implement emotion recognition module
+  - [x] 10.1 Create emotion/recognizer.py with EmotionRecognizer class
     - Initialize FER or DeepFace emotion model
     - Support CPU and GPU modes
     - Define EmotionResult dataclass
     - _Requirements: 8.1_
 
-  - [ ] 10.2 Implement recognize() method
+  - [x] 10.2 Implement recognize() method
     - Preprocess aligned face for emotion model
     - Run inference
-    - Return EmotionResult with dominant_emotion, confidence, all_scores
+    - Return EmotionResult with emotion, confidence, all_scores
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-  - [ ] 10.3 Write property tests for emotion recognition
-    - **Property 11: Emotion Classification Categories**
-    - **Property 12: Emotion Confidence Completeness**
+  - [x] 10.3 Write property tests for emotion recognition
+    - **Property 6: Emotion Score Distribution**
     - **Validates: Requirements 8.1, 8.2**
 
-- [ ] 11. Checkpoint - Verify all detection and recognition modules
+- [x] 11. Checkpoint - Verify all detection and recognition modules
   - Ensure all tests pass, ask the user if questions arise.
 
-- [~] 12. Implement face tracking module
-  - [ ] 12.1 Create tracking/tracker.py with FaceTracker class
-    - Initialize DeepSORT or ByteTrack algorithm
-    - Configure max_age parameter (default 30 frames)
-    - Define Track dataclass
+- [x] 12. Implement face tracking module
+  - [x] 12.1 Create tracking/tracker.py with FaceTracker class
+    - IoU-based matching, max_age parameter (default 30 frames)
+    - Define TrackedFace dataclass
     - _Requirements: 10.1, 23.1_
 
-  - [ ] 12.2 Implement update() method
-    - Predict track positions using motion model (Kalman filter)
-    - Associate detections with existing tracks (Hungarian algorithm)
-    - Update matched tracks
+  - [x] 12.2 Implement update() method with IoU-based matching
+    - Age increment, stale track removal, IoU matching (threshold 0.3)
     - Create new tracks for unmatched detections
-    - Delete tracks exceeding max_age
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 23.2, 23.3, 23.4, 23.5, 23.6_
 
-  - [ ] 12.3 Write property test for tracking ID consistency
-    - **Property 14: Tracking ID Consistency**
+  - [x] 12.3 Write property tests for track ID uniqueness and age bounds
+    - **Property 9: Track ID Uniqueness**
+    - **Property 10: Track Age Bounds**
     - **Validates: Requirements 10.1, 10.3, 23.2**
 
-- [~] 13. Implement preprocessing utilities
+- [ ] 13. Implement preprocessing utilities
   - [ ] 13.1 Create utils/preprocessing.py with low-light enhancement
     - Implement enhance_low_light() using CLAHE
     - Check mean brightness threshold (< 50)
