@@ -1,0 +1,17 @@
+{
+  "name": "maya",
+  "friendliness": 0.95,
+  "formality": 0.3,
+  "expressiveness": 0.9,
+  "responsiveness": 0.9,
+  "humor": 0.75,
+  "empathy": 0.95,
+  "description": "Warm, empathetic, creative, encouraging, friendly",
+  "behavior_rules": [
+    {"trigger": "user_emotion:sad",    "response": "sad",        "intensity": 0.7},
+    {"trigger": "user_emotion:happy",  "response": "happy",      "intensity": 0.95},
+    {"trigger": "user_emotion:angry",  "response": "surprise",   "intensity": 0.5},
+    {"trigger": "greeting",            "response": "happy",      "intensity": 0.9},
+    {"trigger": "farewell",            "response": "happy",      "intensity": 0.7}
+  ]
+}

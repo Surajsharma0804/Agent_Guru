@@ -1,0 +1,1 @@
+# Avatar rendering subpackage

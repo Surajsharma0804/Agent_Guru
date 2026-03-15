@@ -1,0 +1,1 @@
+# Avatar emotion recognition subpackage
