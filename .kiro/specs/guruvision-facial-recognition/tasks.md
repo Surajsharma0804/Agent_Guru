@@ -122,24 +122,24 @@ After completing EACH task:
     - **Property 18: Database JSON Round-Trip**
     - **Validates: Requirements 6.1, 6.2, 6.4, 12.1, 12.2, 12.3, 12.5, 12.7**
 
-- [ ] 5. Checkpoint - Verify configuration and database modules
+- [x] 5. Checkpoint - Verify configuration and database modules
   - Ensure all tests pass, ask the user if questions arise.
 
-- [-] 6. Implement face detection module
-  - [ ] 6.1 Create detection/detector.py with FaceDetector class
+- [x] 6. Implement face detection module
+  - [x] 6.1 Create detection/detector.py with FaceDetector class
     - Initialize RetinaFace from InsightFace
     - Support CPU and GPU modes
     - Define Detection dataclass with bbox, landmarks, confidence
     - _Requirements: 3.5, 26.4_
 
-  - [ ] 6.2 Implement detect() method
+  - [x] 6.2 Implement detect() method
     - Process frame with RetinaFace
     - Return list of Detection objects
     - Filter by confidence threshold
     - Return empty list if no faces detected
     - _Requirements: 3.1, 3.3, 3.4_
 
-  - [ ] 6.3 Write property test for face detection completeness
+  - [x] 6.3 Write property test for face detection completeness
     - **Property 27: Face Detection Completeness**
     - **Validates: Requirements 3.1, 3.3**
 
