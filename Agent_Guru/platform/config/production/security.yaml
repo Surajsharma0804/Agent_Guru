@@ -1,0 +1,40 @@
+version: "1.0"
+environment: "production"
+
+audit:
+  log_dir: "/var/log/agent_guru/audit"
+  max_log_size_mb: 500
+  retention_days: 90
+  compress_after_days: 7
+  enable_siem_export: false
+  siem_endpoint: ""
+
+  redact_patterns:
+    - "password\\s*=\\s*\\S+"
+    - "api_key\\s*=\\s*\\S+"
+    - "token\\s*=\\s*\\S+"
+    - "secret\\s*=\\s*\\S+"
+    - "Authorization:\\s*\\S+"
+    - "Bearer\\s+[A-Za-z0-9._-]+"
+
+suspicious_pattern_detection:
+  rapid_failure_threshold: 10
+  rapid_failure_window_seconds: 60
+  permission_probe_threshold: 5
+  permission_probe_window_seconds: 30
+
+dangerous_commands:
+  # These are checked in addition to the blocked_patterns in permissions.yaml
+  extra_blocked_patterns:
+    - ".*base64.*decode.*\\|.*"
+    - ".*python.*-c.*import.*os.*"
+    - ".*nc\\s+-.*"
+    - ".*ncat\\s+.*"
+    - ".*socat\\s+.*"
+
+compliance:
+  gdpr_enabled: true
+  ccpa_enabled: true
+  hipaa_enabled: false
+  soc2_enabled: true
+  report_output_dir: "/var/log/agent_guru/compliance"

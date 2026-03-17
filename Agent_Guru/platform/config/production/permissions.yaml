@@ -1,0 +1,88 @@
+version: "1.0"
+environment: "production"
+
+file_system:
+  allowed_paths:
+    - path: "/home/agent_guru/workspace"
+      permissions: ["read", "write"]
+    - path: "/var/log/agent_guru"
+      permissions: ["read", "write"]
+    - path: "/tmp/agent_guru"
+      permissions: ["read", "write", "delete"]
+    - path: "/etc/agent_guru"
+      permissions: ["read"]
+
+  blocked_extensions:
+    - ".exe"
+    - ".dll"
+    - ".so"
+    - ".dylib"
+    - ".bat"
+    - ".cmd"
+    - ".ps1"
+    - ".sh"
+
+  max_file_size: 52428800  # 50 MB
+
+commands:
+  allowed_patterns:
+    - "^git (status|log|diff|fetch|pull)$"
+    - "^python3 -m pytest .*"
+    - "^python3 verify_setup\\.py$"
+
+  blocked_patterns:
+    - ".*rm.*"
+    - ".*sudo.*"
+    - ".*format.*"
+    - ".*shutdown.*"
+    - ".*reboot.*"
+    - ".*mkfs\\..*"
+    - ".*dd if=.*"
+    - ".*curl.*\\|.*"
+    - ".*wget.*\\|.*"
+    - ".*eval.*"
+    - ".*exec.*"
+    - ".*chmod 777.*"
+    - ".*passwd.*"
+
+network:
+  allowed_domains:
+    - "api.github.com"
+    - "*.googleapis.com"
+    - "api.openai.com"
+    - "api.anthropic.com"
+    - "*.huggingface.co"
+    - "pypi.org"
+
+  allowed_methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+
+  rate_limits:
+    default: 60
+    github: 5000
+    openai: 3500
+    anthropic: 4000
+
+resources:
+  max_cpu_percent: 80.0
+  max_memory_bytes: 2147483648      # 2 GB
+  min_disk_free_bytes: 2147483648   # 2 GB
+  max_process_count: 5
+  max_network_bandwidth_mbps: 50.0
+
+quotas:
+  file_operations:
+    per_hour: 1000
+    per_day: 10000
+  command_executions:
+    per_hour: 100
+    per_day: 1000
+  network_requests:
+    per_hour: 5000
+    per_day: 50000
+
+lockdown_mode:
+  enabled: false
+  allowed_operations:
+    - "read_file"
+    - "get_system_info"
+    - "get_hardware_status"

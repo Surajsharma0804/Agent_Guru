@@ -145,16 +145,17 @@ class AuditLogEntry:
 
     entry_id: str
     timestamp: str
-    operation_type: OperationType
+    operation_type: str  # stored as string value for serialization
     user_id: str
     parameters: Dict[str, Any]
-    result_status: ResultStatus
+    result_status: str  # stored as string value for serialization
     execution_time: float
     resource_usage: ResourceUsage = field(default_factory=ResourceUsage)
     policy_checks: List[PolicyCheck] = field(default_factory=list)
     error_message: Optional[str] = None
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
+    entry_hash: str = ""  # SHA-256 hash alias for entry_id (set after creation)
 
 
 @dataclass
@@ -218,11 +219,11 @@ class SecurityAuditor:
     # Pre-compiled regex patterns for sensitive data redaction (10x faster)
     # Compiled ONCE at class level for maximum performance
     SENSITIVE_PATTERNS: List[Tuple[re.Pattern, str]] = [
-        (re.compile(r'password["\']?\s*[:=]\s*["\']?([^"\'}\s,]+)', re.IGNORECASE), "password"),
-        (re.compile(r'token["\']?\s*[:=]\s*["\']?([^"\'}\s,]+)', re.IGNORECASE), "token"),
-        (re.compile(r'api[_-]?key["\']?\s*[:=]\s*["\']?([^"\'}\s,]+)', re.IGNORECASE), "api_key"),
-        (re.compile(r'secret["\']?\s*[:=]\s*["\']?([^"\'}\s,]+)', re.IGNORECASE), "secret"),
-        (re.compile(r"bearer\s+([a-zA-Z0-9\-._~+/]+=*)", re.IGNORECASE), "bearer_token"),
+        (re.compile(r"password[\"']?\s*[:=]\s*[\"']?([^\"'}\s,]+)", re.IGNORECASE), "password"),
+        (re.compile(r"token[\"']?\s*[:=]\s*[\"']?([^\"'}\s,]+)", re.IGNORECASE), "token"),
+        (re.compile(r"api[_-]?key[\"']?\s*[:=]\s*[\"']?([^\"'}\s,]+)", re.IGNORECASE), "api_key"),
+        (re.compile(r"secret[\"']?\s*[:=]\s*[\"']?([^\"'}\s,]+)", re.IGNORECASE), "secret"),
+        (re.compile(r"(bearer\s+)([a-zA-Z0-9\-._~+/]+=*)", re.IGNORECASE), "bearer_token"),
         (re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"), "email"),
         (re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "ssn"),
         (re.compile(r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b"), "credit_card"),
@@ -450,10 +451,10 @@ class SecurityAuditor:
         entry = AuditLogEntry(
             entry_id="",  # Will be computed from hash
             timestamp=timestamp,
-            operation_type=operation_type,
+            operation_type=operation_type.value,
             user_id=user_id,
             parameters=redacted_params,
-            result_status=result_status,
+            result_status=result_status.value,
             execution_time=execution_time,
             resource_usage=resource_usage if resource_usage else ResourceUsage(),
             policy_checks=policy_checks if policy_checks else [],
@@ -482,6 +483,7 @@ class SecurityAuditor:
         entry_content = json.dumps(entry_dict, separators=(",", ":"))
         entry_id = hashlib.sha256(entry_content.encode()).hexdigest()
         entry.entry_id = entry_id
+        entry.entry_hash = entry_id  # entry_hash is an alias for entry_id
 
         # Add to buffer (thread-safe)
         with self._buffer_lock:
@@ -529,14 +531,19 @@ class SecurityAuditor:
         """
         self._total_violations += 1
 
+        # Merge violation metadata into parameters
+        merged_params = {"violation_type": violation_type.value, "reason": reason}
+        if parameters:
+            merged_params.update(parameters)
+
         # Log as denied operation
         entry = self.log_operation(
             operation_type=operation_type,
             user_id=user_id,
-            parameters=parameters or {"violation_type": violation_type.value, "reason": reason},
+            parameters=merged_params,
             result_status=ResultStatus.DENIED,
             execution_time=0.0,
-            error_message=f"{violation_type.value.upper().replace('_', ' ')}: {reason}",
+            error_message=f"Security violation - {violation_type.value.upper().replace('_', ' ')}: {reason}",
         )
 
         logger.warning(
@@ -596,9 +603,15 @@ class SecurityAuditor:
                 redacted_value = value
                 for pattern, name in self.SENSITIVE_PATTERNS:
                     if "***REDACTED" not in redacted_value:  # Skip if already redacted
-                        redacted_value = pattern.sub(
-                            f"***{name.upper()}_REDACTED***", redacted_value
-                        )
+                        if name == "bearer_token":
+                            # Keep "Bearer " prefix, redact only the token (group 2)
+                            redacted_value = pattern.sub(
+                                r"\1***BEARER_TOKEN_REDACTED***", redacted_value
+                            )
+                        else:
+                            redacted_value = pattern.sub(
+                                f"***{name.upper()}_REDACTED***", redacted_value
+                            )
 
                 # Then check if key name indicates sensitive data (O(1))
                 # Only redact if regex didn't already handle it
@@ -662,7 +675,7 @@ class SecurityAuditor:
 
             # Check file modification time
             try:
-                mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
+                mtime = datetime.utcfromtimestamp(log_file.stat().st_mtime)
             except (OSError, IOError):
                 continue
 
@@ -1499,6 +1512,10 @@ class SecurityAuditor:
         Returns:
             Dictionary with statistics
         """
+        # Flush buffer to ensure all entries are written to disk
+        with self._buffer_lock:
+            self._flush_buffer()
+
         # Count archive files
         archives_count = len(list(self.log_dir.glob("audit_*.jsonl.gz")))
 
@@ -1517,6 +1534,26 @@ class SecurityAuditor:
             ),
             "archives_count": archives_count,
         }
+
+    def get_log_stats(self) -> Dict[str, Any]:
+        """
+        Get log statistics (alias for get_statistics with extended fields).
+
+        Returns:
+            Dictionary with log statistics including current_log_entries and total_size
+        """
+        stats = self.get_statistics()
+        # Count entries in current log file
+        current_entries = 0
+        if self.current_log_file.exists():
+            try:
+                with open(self.current_log_file, "r", encoding="utf-8") as f:
+                    current_entries = sum(1 for line in f if line.strip())
+            except IOError:
+                pass
+        stats["current_log_entries"] = current_entries
+        stats["total_size"] = stats["current_log_size"]
+        return stats
 
     def flush(self) -> None:
         """
@@ -1568,9 +1605,7 @@ class SecurityAuditor:
                 # Convert to dict once
                 entry_dict = asdict(entry)
 
-                # Convert enums to strings (in-place, faster)
-                entry_dict["operation_type"] = entry.operation_type.value
-                entry_dict["result_status"] = entry.result_status.value
+                # operation_type and result_status are already strings (no .value needed)
 
                 # Serialize to JSON (optimized: compact separators, no sorting for speed)
                 lines.append(json.dumps(entry_dict, separators=(",", ":"), sort_keys=False))

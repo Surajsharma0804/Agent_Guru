@@ -42,6 +42,12 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+def _is_android_available() -> bool:
+    """Return whether Android platform is available. Exists as a function to allow patching in tests."""
+    return ANDROID_AVAILABLE
+
+
+
 class ServiceState(Enum):
     """Android service state."""
     STOPPED = "stopped"
@@ -106,7 +112,7 @@ class AndroidForegroundService:
         Raises:
             AndroidServiceError: If not running on Android platform
         """
-        if not ANDROID_AVAILABLE:
+        if not _is_android_available():
             raise AndroidServiceError(
                 "Android service not available. "
                 "This module requires pyjnius and Android platform."

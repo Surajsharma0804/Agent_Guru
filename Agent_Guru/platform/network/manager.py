@@ -1302,34 +1302,39 @@ class NetworkManager:
             # Create parent directories if needed
             destination.parent.mkdir(parents=True, exist_ok=True)
             
-            # Get content length from HEAD request
-            try:
-                head_response = await self.head(url, headers=headers, timeout=timeout)
-                content_length = int(head_response.headers.get('Content-Length', 0))
-            except Exception as e:
-                logger.warning(f"Failed to get content length: {e}")
-                content_length = 0
-            
             # Open file for writing
             with open(destination, 'wb') as f:
-                # Stream download
-                async for chunk in self.stream_response(
-                    HttpMethod.GET,
-                    url,
-                    headers=headers,
-                    timeout=timeout,
-                    chunk_size=chunk_size,
-                ):
-                    # Write chunk to file
-                    f.write(chunk)
-                    total_bytes += len(chunk)
+                # Stream download - get content-length from response headers
+                request_timeout = timeout if timeout is not None else self.config.default_timeout
+                request_headers = headers.copy() if headers else {}
+                
+                async with self._session.request(
+                    method=HttpMethod.GET.value,
+                    url=url,
+                    headers=request_headers,
+                    timeout=aiohttp.ClientTimeout(total=request_timeout),
+                    allow_redirects=True,
+                ) as response:
+                    if response.status >= 400:
+                        error_body = await response.read()
+                        raise NetworkError(
+                            f"HTTP {response.status}: {error_body.decode('utf-8', errors='replace')}"
+                        )
                     
-                    # Call progress callback
-                    if progress_callback is not None:
-                        try:
-                            progress_callback(total_bytes, content_length)
-                        except Exception as e:
-                            logger.warning(f"Progress callback error: {e}")
+                    # Get content length from response headers
+                    content_length = int(response.headers.get('Content-Length', 0))
+                    
+                    # Stream chunks
+                    async for chunk in response.content.iter_chunked(chunk_size):
+                        f.write(chunk)
+                        total_bytes += len(chunk)
+                        
+                        # Call progress callback
+                        if progress_callback is not None:
+                            try:
+                                progress_callback(total_bytes, content_length)
+                            except Exception as cb_err:
+                                logger.warning(f"Progress callback error: {cb_err}")
             
             # Calculate statistics
             duration = time.perf_counter() - start_time

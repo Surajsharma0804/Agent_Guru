@@ -430,26 +430,25 @@ class WindowsIntegration:
             ...     print(f"{proc.name} (PID: {proc.pid})")
         """
         processes = []
-        
-        for proc in psutil.process_iter(['pid', 'name', 'status', 'cpu_percent', 
-                                         'memory_percent', 'create_time']):
+        attrs = ["pid", "name", "status", "cpu_percent", "memory_percent", "create_time"]
+
+        for proc in psutil.process_iter(attrs=attrs):
             try:
                 info = proc.info
                 processes.append(ProcessInfo(
-                    pid=info['pid'],
-                    name=info['name'],
-                    status=info['status'],
-                    cpu_percent=info['cpu_percent'] or 0.0,
-                    memory_percent=info['memory_percent'] or 0.0,
-                    create_time=info['create_time']
+                    pid=info.get("pid") or 0,
+                    name=info.get("name") or "unknown",
+                    status=info.get("status") or "unknown",
+                    cpu_percent=info.get("cpu_percent") or 0.0,
+                    memory_percent=info.get("memory_percent") or 0.0,
+                    create_time=info.get("create_time") or 0.0,
                 ))
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                # Process terminated or access denied - skip it
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError):
                 continue
-        
+
         logger.debug(f"Retrieved {len(processes)} processes")
         return processes
-    
+
     def start_process(self, executable: str, args: List[str]) -> int:
         """
         Start a new process.

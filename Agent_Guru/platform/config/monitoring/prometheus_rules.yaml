@@ -1,0 +1,101 @@
+groups:
+  - name: agent_guru_platform
+    interval: 30s
+    rules:
+      # CPU alert
+      - alert: HighCPUUsage
+        expr: agent_guru_cpu_percent > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on Agent Guru Platform"
+          description: "CPU usage is {{ $value }}% (threshold: 80%)"
+
+      - alert: CriticalCPUUsage
+        expr: agent_guru_cpu_percent > 95
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical CPU usage on Agent Guru Platform"
+          description: "CPU usage is {{ $value }}% — immediate action required"
+
+      # Memory alert
+      - alert: HighMemoryUsage
+        expr: agent_guru_memory_percent > 85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on Agent Guru Platform"
+          description: "Memory usage is {{ $value }}% (threshold: 85%)"
+
+      - alert: CriticalMemoryUsage
+        expr: agent_guru_memory_bytes > 1.8e9
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Memory approaching 2GB limit"
+          description: "Memory usage is {{ $value | humanize1024 }}B"
+
+      # Disk alert
+      - alert: LowDiskSpace
+        expr: agent_guru_disk_free_bytes < 2e9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on Agent Guru Platform"
+          description: "Free disk space is {{ $value | humanize1024 }}B (threshold: 2GB)"
+
+      # Error rate alert
+      - alert: HighErrorRate
+        expr: rate(agent_guru_operation_errors_total[5m]) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High operation error rate"
+          description: "Error rate is {{ $value | humanizePercentage }} over last 5 minutes"
+
+      # Throttle alert
+      - alert: FrequentThrottling
+        expr: rate(agent_guru_throttle_events_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Frequent operation throttling"
+          description: "Throttle rate is {{ $value }} events/sec — system under pressure"
+
+      # Cache performance alert
+      - alert: LowCacheHitRate
+        expr: agent_guru_cache_hit_rate < 0.80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low duplicate detector cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }} (target: >95%)"
+
+      # Circuit breaker alert
+      - alert: CircuitBreakerOpen
+        expr: agent_guru_circuit_breaker_state == 1
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker is OPEN"
+          description: "Circuit breaker for {{ $labels.service }} is open — service unavailable"
+
+      # Security alert
+      - alert: SecurityViolationDetected
+        expr: rate(agent_guru_security_violations_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Security violation detected"
+          description: "{{ $value }} security violations per minute detected"

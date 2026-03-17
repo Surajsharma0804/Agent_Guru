@@ -301,19 +301,24 @@ class ResourceMonitor:
         # Process/thread counts (O(1))
         process_count = len(psutil.pids())
         
-        # Calculate thread count safely
+        # Thread count: use process_count as proxy on Windows (num_threads hangs on
+        # protected system processes via psutil C extension on Windows)
+        import platform as _platform
         thread_count = 0
-        try:
-            for p in psutil.process_iter(['num_threads']):
-                try:
-                    if p.info['num_threads'] is not None:
-                        thread_count += p.info['num_threads']
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    # Process terminated or access denied, skip it
-                    continue
-        except Exception:
-            # If thread counting fails, use a default
-            thread_count = 0
+        if _platform.system() != "Windows":
+            try:
+                for pid in psutil.pids():
+                    try:
+                        p = psutil.Process(pid)
+                        try:
+                            nt = p.num_threads()
+                            thread_count += nt
+                        except (psutil.AccessDenied, OSError):
+                            pass
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError):
+                        continue
+            except Exception:
+                thread_count = 0
         
         snapshot = ResourceSnapshot(
             timestamp=timestamp,

@@ -1,0 +1,34 @@
+version: "1.0"
+environment: "production"
+
+monitoring:
+  sampling_interval: 5.0
+  history_size: 500
+  enable_gpu_monitoring: true
+
+  alert_thresholds:
+    cpu_percent: 80.0
+    memory_percent: 85.0
+    disk_percent: 90.0
+    network_bandwidth_mbps: 80.0
+
+throttling:
+  cpu_throttle_threshold: 80.0
+  memory_throttle_threshold: 85.0
+  recovery_check_interval: 10.0
+  history_maxlen: 1000
+
+duplicate_detection:
+  max_cache_size: 1000
+  ttl_seconds: 300
+
+circuit_breaker:
+  failure_threshold: 5
+  cooldown_seconds: 60
+  success_threshold: 2
+
+retry:
+  max_attempts: 3
+  base_delay_seconds: 1.0
+  max_delay_seconds: 60.0
+  jitter_factor: 0.2

@@ -198,33 +198,47 @@ class ProcessManager:
         try:
             processes = []
             
-            # Iterate through all processes
-            for proc in psutil.process_iter(['pid', 'name', 'status', 'cpu_percent', 'memory_percent', 'create_time']):
+            # Use psutil.pids() + individual Process() to avoid process_iter hanging
+            # on Windows protected system processes (e.g. System, Idle)
+            for pid in psutil.pids():
                 try:
-                    # Get process info
-                    info = proc.info
-                    
-                    # Skip system idle process (PID 0 on Windows)
-                    if info['pid'] <= 0:
+                    proc = psutil.Process(pid)
+                    try:
+                        name = proc.name()
+                    except (psutil.AccessDenied, OSError):
+                        name = "unknown"
+                    try:
+                        status = self._normalize_status(proc.status())
+                    except (psutil.AccessDenied, OSError):
+                        status = "unknown"
+                    try:
+                        cpu_pct = proc.cpu_percent()
+                    except (psutil.AccessDenied, OSError):
+                        cpu_pct = 0.0
+                    try:
+                        mem_pct = proc.memory_percent()
+                    except (psutil.AccessDenied, OSError):
+                        mem_pct = 0.0
+                    try:
+                        create_time = proc.create_time()
+                    except (psutil.AccessDenied, OSError):
+                        create_time = 0.0
+
+                    if pid <= 0:
                         continue
-                    
-                    # Normalize status (psutil uses different names on different platforms)
-                    status = self._normalize_status(info['status'])
-                    
-                    # Create ProcessInfo object
+
                     process_info = ProcessInfo(
-                        pid=info['pid'],
-                        name=info['name'] or "unknown",
+                        pid=pid,
+                        name=name or "unknown",
                         status=status,
-                        cpu_percent=info['cpu_percent'] or 0.0,
-                        memory_percent=info['memory_percent'] or 0.0,
-                        create_time=info['create_time'] or 0.0
+                        cpu_percent=cpu_pct or 0.0,
+                        memory_percent=mem_pct or 0.0,
+                        create_time=create_time or 0.0
                     )
                     processes.append(process_info)
-                    
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
-                    # Process disappeared or access denied - skip it
-                    logger.debug("Skipping process: %s", e)
+
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError) as e:
+                    logger.debug("Skipping process %d: %s", pid, e)
                     continue
 
             # Update cache

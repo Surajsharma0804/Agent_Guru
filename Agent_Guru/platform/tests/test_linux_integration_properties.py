@@ -7,7 +7,7 @@ Tests run 100+ iterations with randomly generated test data.
 
 import pytest
 import sys
-from hypothesis import given, strategies as st, assume, settings
+from hypothesis import given, strategies as st, assume, settings, HealthCheck
 from unittest.mock import Mock, patch
 from Agent_Guru.platform.linux.integration import (
     LinuxIntegration,
@@ -18,11 +18,10 @@ from Agent_Guru.platform.linux.integration import (
 )
 
 
-# Skip all tests if not on Linux
-pytestmark = pytest.mark.skipif(
-    sys.platform != "linux",
-    reason="Linux integration property tests only run on Linux"
-)
+# Helper: create a LinuxIntegration instance with platform mocked to Linux
+def _make_integration():
+    with patch('platform.system', return_value='Linux'):
+        return LinuxIntegration()
 
 
 # Custom strategies for generating valid test data
@@ -65,11 +64,10 @@ class TestServiceStatusProperties:
     @pytest.fixture
     def integration(self):
         """Create Linux integration instance."""
-        with patch('platform.system', return_value='Linux'):
-            return LinuxIntegration()
+        return _make_integration()
     
     @given(service_name=service_names())
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_property_service_status_returns_valid_status(self, integration, service_name):
         """
         Feature: guru-platform-integration, Property 5: Service Queries Return Valid Status
@@ -102,7 +100,7 @@ class TestServiceStatusProperties:
                 pass
     
     @given(service_name=service_names())
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_property_service_name_has_suffix(self, integration, service_name):
         """
         Property: Service names are normalized with .service suffix.
@@ -132,11 +130,10 @@ class TestProcessManagementProperties:
     @pytest.fixture
     def integration(self):
         """Create Linux integration instance."""
-        with patch('platform.system', return_value='Linux'):
-            return LinuxIntegration()
+        return _make_integration()
     
     @given(pid=process_ids())
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_property_process_termination_returns_bool(self, integration, pid):
         """
         Feature: guru-platform-integration, Property 14: Process Termination Removes Process
@@ -162,7 +159,7 @@ class TestProcessManagementProperties:
                 pass
     
     @given(pid=process_ids(), force=st.booleans())
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_property_terminate_uses_correct_signal(self, integration, pid, force):
         """
         Property: Process termination uses correct signal based on force parameter.
@@ -232,14 +229,13 @@ class TestCommandExecutionProperties:
     @pytest.fixture
     def integration(self):
         """Create Linux integration instance."""
-        with patch('platform.system', return_value='Linux'):
-            return LinuxIntegration()
+        return _make_integration()
     
     @given(
         command=command_names(),
         args=st.lists(st.text(min_size=0, max_size=20), max_size=5)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_property_command_result_complete(self, integration, command, args):
         """
         Feature: guru-platform-integration, Property 7: Command Execution Returns Complete Result
@@ -273,7 +269,7 @@ class TestCommandExecutionProperties:
         command=command_names(),
         return_code=st.integers(min_value=0, max_value=255)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_property_command_return_code_preserved(self, integration, command, return_code):
         """
         Property: Command return codes are preserved correctly.
@@ -298,18 +294,17 @@ class TestPermissionValidationProperties:
     @pytest.fixture
     def integration(self):
         """Create Linux integration instance."""
-        with patch('platform.system', return_value='Linux'):
-            return LinuxIntegration()
+        return _make_integration()
     
     @given(uid=st.integers(min_value=0, max_value=65535))
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_property_root_detection_correct(self, integration, uid):
         """
         Feature: guru-platform-integration, Property 17: Elevated Privilege Detection
         
         For any UID, is_root() should return True when UID is 0 (root) and False otherwise.
         """
-        with patch('os.geteuid', return_value=uid):
+        with patch('os.geteuid', return_value=uid, create=True):
             is_root = integration.is_root()
             
             assert isinstance(is_root, bool)
@@ -319,14 +314,14 @@ class TestPermissionValidationProperties:
                 assert is_root is False
     
     @given(uid=st.integers(min_value=1, max_value=65535))
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_property_require_root_raises_when_not_root(self, integration, uid):
         """
         Feature: guru-platform-integration, Property 18: Permission Errors When Insufficient
         
         For any non-root UID, require_root() should raise PermissionError.
         """
-        with patch('os.geteuid', return_value=uid):
+        with patch('os.geteuid', return_value=uid, create=True):
             with pytest.raises(PermissionError, match="root privileges"):
                 integration.require_root()
     
@@ -336,7 +331,7 @@ class TestPermissionValidationProperties:
         
         When UID is 0, require_root() should not raise any exception.
         """
-        with patch('os.geteuid', return_value=0):
+        with patch('os.geteuid', return_value=0, create=True):
             # Should not raise
             integration.require_root()
 
@@ -347,8 +342,7 @@ class TestSystemInfoProperties:
     @pytest.fixture
     def integration(self):
         """Create Linux integration instance."""
-        with patch('platform.system', return_value='Linux'):
-            return LinuxIntegration()
+        return _make_integration()
     
     def test_property_system_info_completeness(self, integration):
         """
@@ -382,11 +376,10 @@ class TestErrorHandlingProperties:
     @pytest.fixture
     def integration(self):
         """Create Linux integration instance."""
-        with patch('platform.system', return_value='Linux'):
-            return LinuxIntegration()
+        return _make_integration()
     
     @given(service_name=service_names())
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_property_permission_errors_descriptive(self, integration, service_name):
         """
         Feature: guru-platform-integration, Property 19: Permission Errors Are Descriptive
@@ -410,7 +403,7 @@ class TestErrorHandlingProperties:
                 assert "root" in error_msg.lower() or "sudo" in error_msg.lower()
     
     @given(pid=process_ids())
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_property_errors_contain_context(self, integration, pid):
         """
         Feature: guru-platform-integration, Property 16: Errors Contain Context
