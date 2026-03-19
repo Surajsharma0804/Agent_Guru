@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Allow hardened runtime -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <false/>
+
+    <!-- Microphone access for voice commands -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+
+    <!-- Camera access for face recognition -->
+    <key>com.apple.security.device.camera</key>
+    <true/>
+
+    <!-- Network access for cloud LLM providers -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <!-- File access for conversation memory and logs -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+
+    <!-- Accessibility API for OS control -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+</dict>
+</plist>
