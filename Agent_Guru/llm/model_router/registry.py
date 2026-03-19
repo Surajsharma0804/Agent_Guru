@@ -6,7 +6,6 @@ Thread-safe in-memory registry with optional SQLite persistence.
 """
 from __future__ import annotations
 
-import logging
 import threading
 from datetime import datetime, timezone
 from typing import Dict, List, Optional

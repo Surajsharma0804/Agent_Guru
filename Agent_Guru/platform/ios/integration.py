@@ -19,7 +19,7 @@ Architecture:
 Author: Agent Guru Team
 """
 
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
 import logging
@@ -121,7 +121,7 @@ class IOSIntegration:
             self.NSURL = autoclass("NSURL")
             self.UIDevice = autoclass("UIDevice")
             self.UNUserNotificationCenter = autoclass("UNUserNotificationCenter")
-            self.AVAudioSession = autoclass("AVAudioSession")
+            self.AVAudioSession = autoclass("AVAudioSession")  # noqa: N806
             self.UIBackgroundTaskIdentifier = autoclass("UIBackgroundTaskIdentifier")
             
             logger.info("iOS frameworks initialized successfully")
@@ -352,7 +352,7 @@ class IOSIntegration:
         """Request microphone permission."""
         from pyobjus import autoclass
         
-        AVAudioSession = autoclass("AVAudioSession")
+        AVAudioSession = autoclass("AVAudioSession")  # noqa: N806
         session = AVAudioSession.sharedInstance()
         
         # Request permission (blocks until user responds)
@@ -365,7 +365,7 @@ class IOSIntegration:
         """Request camera permission."""
         from pyobjus import autoclass
         
-        AVCaptureDevice = autoclass("AVCaptureDevice")
+        AVCaptureDevice = autoclass("AVCaptureDevice")  # noqa: N806
         
         # Request permission
         AVCaptureDevice.requestAccessForMediaType_completionHandler_(
@@ -393,7 +393,7 @@ class IOSIntegration:
         """Request location permission."""
         from pyobjus import autoclass
         
-        CLLocationManager = autoclass("CLLocationManager")
+        CLLocationManager = autoclass("CLLocationManager")  # noqa: N806
         manager = CLLocationManager.alloc().init()
         
         # Request when-in-use authorization
@@ -463,11 +463,11 @@ class IOSIntegration:
         try:
             from pyobjus import autoclass
             
-            BGTaskScheduler = autoclass("BGTaskScheduler")
+            BGTaskScheduler = autoclass("BGTaskScheduler")  # noqa: N806
             scheduler = BGTaskScheduler.sharedScheduler()
             
             # Create task request
-            BGAppRefreshTaskRequest = autoclass("BGAppRefreshTaskRequest")
+            BGAppRefreshTaskRequest = autoclass("BGAppRefreshTaskRequest")  # noqa: N806
             request = BGAppRefreshTaskRequest.alloc().initWithIdentifier_(task_id)
             
             # Set earliest begin date
@@ -508,14 +508,14 @@ class IOSIntegration:
             center = self.UNUserNotificationCenter.currentNotificationCenter()
             
             # Create notification content
-            UNMutableNotificationContent = autoclass("UNMutableNotificationContent")
+            UNMutableNotificationContent = autoclass("UNMutableNotificationContent")  # noqa: N806
             content = UNMutableNotificationContent.alloc().init()
             content.setTitle_(title)
             content.setBody_(message)
             content.setSound_(autoclass("UNNotificationSound").defaultSound())
             
             # Create trigger (deliver immediately)
-            UNTimeIntervalNotificationTrigger = autoclass(
+            UNTimeIntervalNotificationTrigger = autoclass(  # noqa: N806
                 "UNTimeIntervalNotificationTrigger"
             )
             trigger = UNTimeIntervalNotificationTrigger.triggerWithTimeInterval_repeats_(
@@ -524,7 +524,7 @@ class IOSIntegration:
             )
             
             # Create request
-            UNNotificationRequest = autoclass("UNNotificationRequest")
+            UNNotificationRequest = autoclass("UNNotificationRequest")  # noqa: N806
             request = UNNotificationRequest.requestWithIdentifier_content_trigger_(
                 "agent_guru_notification",
                 content,

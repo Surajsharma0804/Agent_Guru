@@ -17,12 +17,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional, Set
+from datetime import datetime, timezone
+from typing import Any, Dict, Set
 
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from Agent_Guru.security.crypto.errors import ReplayAttackError, ZKProofError
 

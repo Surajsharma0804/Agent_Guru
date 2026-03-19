@@ -20,10 +20,18 @@ from Agent_Guru.reasoning.intent.fast_router import (
     PatternMatch,
     TrieNode,
 )
+from Agent_Guru.reasoning.intent.intent_parser import (
+    IntentParser,
+    IntentParserConfig,
+    ParseResult,
+)
 
 __all__ = [
     "FastIntentRouter",
+    "IntentParser",
+    "IntentParserConfig",
     "MatchQuality",
+    "ParseResult",
     "PatternMatch",
     "TrieNode",
 ]

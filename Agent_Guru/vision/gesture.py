@@ -120,20 +120,20 @@ class GestureRecognizer:
 
         # Landmark indices (MediaPipe convention)
         WRIST = 0
-        THUMB_TIP, THUMB_MCP = 4, 2
-        INDEX_TIP, INDEX_MCP = 8, 5
-        MIDDLE_TIP, MIDDLE_MCP = 12, 9
-        RING_TIP, RING_MCP = 16, 13
-        PINKY_TIP, PINKY_MCP = 20, 17
+        THUMB_TIP, THUMB_MCP = 4, 2  # noqa: N806
+        INDEX_TIP, INDEX_MCP = 8, 5  # noqa: N806
+        MIDDLE_TIP, MIDDLE_MCP = 12, 9  # noqa: N806
+        RING_TIP, RING_MCP = 16, 13  # noqa: N806
+        PINKY_TIP, PINKY_MCP = 20, 17  # noqa: N806
 
         def tip_above_mcp(tip: int, mcp: int) -> bool:
             return keypoints[tip][1] < keypoints[mcp][1]  # y decreases upward
 
         fingers_extended = [
-            tip_above_mcp(INDEX_TIP, INDEX_MCP),
-            tip_above_mcp(MIDDLE_TIP, MIDDLE_MCP),
-            tip_above_mcp(RING_TIP, RING_MCP),
-            tip_above_mcp(PINKY_TIP, PINKY_MCP),
+            tip_above_mcp(INDEX_TIP, INDEX_MCP),  # noqa: N806
+            tip_above_mcp(MIDDLE_TIP, MIDDLE_MCP),  # noqa: N806
+            tip_above_mcp(RING_TIP, RING_MCP),  # noqa: N806
+            tip_above_mcp(PINKY_TIP, PINKY_MCP),  # noqa: N806
         ]
         n_extended = sum(fingers_extended)
         thumb_up = keypoints[THUMB_TIP][1] < keypoints[THUMB_MCP][1]

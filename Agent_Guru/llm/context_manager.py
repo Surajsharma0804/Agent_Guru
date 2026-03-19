@@ -19,7 +19,7 @@ import asyncio
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from Agent_Guru.llm.models import Message
 from Agent_Guru.llm.token_counter import TokenCounter

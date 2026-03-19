@@ -37,12 +37,9 @@ import subprocess
 import asyncio
 import time
 import threading
-import plistlib
 from typing import Any, List, Optional, Dict, Tuple, Callable
 from dataclasses import dataclass, field
-from functools import lru_cache, wraps
 from collections import defaultdict
-from contextlib import contextmanager
 import logging
 import psutil
 

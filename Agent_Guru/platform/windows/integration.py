@@ -16,25 +16,46 @@ Design Decisions:
 - Use psutil for cross-platform process management where possible
 """
 
-import winreg
+import sys
 import subprocess
-from typing import Any, List, Optional, Dict
+from typing import Any, List, Optional
 from dataclasses import dataclass
 import logging
 import psutil
 
+# winreg is Windows-only (built-in on Windows, absent on other platforms)
+if sys.platform == "win32":
+    try:
+        import winreg
+        WINREG_AVAILABLE = True
+    except ImportError:
+        WINREG_AVAILABLE = False
+        logging.warning("winreg not available")
+else:
+    WINREG_AVAILABLE = False
+    winreg = None  # type: ignore[assignment]
+
 # Windows-specific imports (only available on Windows)
-try:
-    import win32service
-    import win32serviceutil
-    import win32api
-    import win32con
-    import win32security
-    import pywintypes
-    PYWIN32_AVAILABLE = True
-except ImportError:
+if sys.platform == "win32":
+    try:
+        import win32service
+        import win32serviceutil
+        import win32api
+        import win32con
+        import win32security
+        import pywintypes
+        PYWIN32_AVAILABLE = True
+    except ImportError:
+        PYWIN32_AVAILABLE = False
+        logging.warning("pywin32 not available - some Windows features will be limited")
+else:
     PYWIN32_AVAILABLE = False
-    logging.warning("pywin32 not available - some Windows features will be limited")
+    win32service = None  # type: ignore[assignment]
+    win32serviceutil = None  # type: ignore[assignment]
+    win32api = None  # type: ignore[assignment]
+    win32con = None  # type: ignore[assignment]
+    win32security = None  # type: ignore[assignment]
+    pywintypes = None  # type: ignore[assignment]
 
 
 logger = logging.getLogger(__name__)
@@ -200,7 +221,7 @@ class WindowsIntegration:
         key_path: str,
         value_name: str,
         value: Any,
-        value_type: int = winreg.REG_SZ
+        value_type: int = 1  # winreg.REG_SZ = 1
     ) -> None:
         """
         Write a Windows registry key.
@@ -393,6 +414,8 @@ class WindowsIntegration:
             Startup type: "automatic", "manual", or "disabled"
         """
         try:
+            if not WINREG_AVAILABLE or winreg is None:
+                return "unknown"
             key_path = f"SYSTEM\\CurrentControlSet\\Services\\{service_name}"
             start_value = self.read_registry_key(
                 winreg.HKEY_LOCAL_MACHINE,

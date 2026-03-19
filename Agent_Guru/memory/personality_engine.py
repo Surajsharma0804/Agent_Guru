@@ -11,15 +11,12 @@ Consistency formula:
 from __future__ import annotations
 
 import logging
-from collections import defaultdict
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
 from Agent_Guru.memory.models import (
     FeedbackType,
     InteractionFeedback,
-    PersonalityMetrics,
     PersonalityParameters,
     PersonalityProfile,
     PersonalitySnapshot,

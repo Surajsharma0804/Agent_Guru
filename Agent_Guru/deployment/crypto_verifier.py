@@ -20,7 +20,7 @@ from typing import Dict, List, Optional
 import structlog
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat, load_der_public_key
+from cryptography.hazmat.primitives.serialization import load_der_public_key
 
 from .exceptions import InvalidKeyError, KeyNotFoundError, SignatureVerificationError, UnsignedPackageError
 from .models import AuditLogEntry, Configuration, OperationType, TrustedKey, VerificationPolicy

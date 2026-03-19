@@ -29,14 +29,12 @@ Date: 2024
 Version: 1.0.0
 """
 
-import asyncio
 import time
 from typing import Dict, Optional
 
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, status, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from opentelemetry import trace
 from prometheus_client import Counter, Histogram, generate_latest
 from starlette.responses import Response

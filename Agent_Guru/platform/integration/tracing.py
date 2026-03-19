@@ -20,7 +20,6 @@ Author: Agent Guru Platform Team
 Date: 2026-03-16
 """
 
-import asyncio
 import logging
 import time
 from collections import deque

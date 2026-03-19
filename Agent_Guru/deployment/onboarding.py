@@ -205,8 +205,8 @@ class OnboardingManager:
 
         Only BIOMETRIC step is skippable.
         """
-        _SKIPPABLE = {OnboardingStep.BIOMETRIC}
-        if step not in _SKIPPABLE:
+        _skippable = {OnboardingStep.BIOMETRIC}
+        if step not in _skippable:
             raise ValueError(f"Step '{step.value}' is not skippable")
         if step != self._state.current_step:
             raise ValueError(f"Cannot skip step '{step.value}' — not the current step")

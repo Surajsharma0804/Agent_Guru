@@ -5,7 +5,7 @@ Validates: Requirements 21.1, 21.2, 21.3, 21.4
 """
 
 from typing import Dict, List, Any, TYPE_CHECKING
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 import statistics
 

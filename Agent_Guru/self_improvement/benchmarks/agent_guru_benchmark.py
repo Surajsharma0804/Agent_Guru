@@ -5,7 +5,7 @@ Provides benchmark wrapper for Agent Guru's self-improvement engine
 to measure its performance and learning capabilities.
 """
 
-from typing import Any, Optional, Dict
+from typing import Any, Optional
 import tempfile
 import os
 from Agent_Guru.self_improvement.benchmarks.base_benchmark import (
@@ -15,7 +15,6 @@ from Agent_Guru.self_improvement.benchmarks.base_benchmark import (
 )
 from Agent_Guru.self_improvement.self_improvement_engine import (
     SelfImprovementEngine,
-    FailureType,
 )
 
 

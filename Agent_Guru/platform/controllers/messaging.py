@@ -54,8 +54,7 @@ import time
 import logging
 import subprocess
 import urllib.parse
-from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 from dataclasses import dataclass
 from enum import Enum
 

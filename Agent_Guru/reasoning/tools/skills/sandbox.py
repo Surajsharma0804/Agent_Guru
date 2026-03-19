@@ -6,7 +6,6 @@ Provides isolated execution environment with resource limits and security contro
 
 import asyncio
 import os
-import platform
 import subprocess
 import tempfile
 from pathlib import Path

@@ -294,7 +294,6 @@ class SpeechEngine:
             
             # Step 6a: Store emotion state and conversation turn in memory
             if self.memory_client:
-                import asyncio as _asyncio
                 try:
                     await self.memory_client.store_emotion_state(
                         user_id="default_user",

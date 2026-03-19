@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
-import uuid
 
 from .agent_lifecycle import Agent  # noqa: F401 – re-exported for convenience
 

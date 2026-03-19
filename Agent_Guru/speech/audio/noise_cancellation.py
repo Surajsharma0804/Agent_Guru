@@ -2,7 +2,7 @@
 
 import logging
 from enum import Enum
-from typing import Optional, Any
+from typing import Any
 
 import numpy as np
 
@@ -11,10 +11,10 @@ from ..exceptions import AudioProcessingError
 logger = logging.getLogger(__name__)
 
 # Lazy import to avoid loading torch unnecessarily
-_noisereduce: Optional[Any] = None
+_noisereduce: Any | None = None
 
 
-def _get_noisereduce() -> Optional[Any]:
+def _get_noisereduce() -> Any | None:
     """Lazy import of noisereduce to avoid torch loading issues."""
     global _noisereduce
     if _noisereduce is None:
@@ -57,7 +57,7 @@ class AdvancedNoiseCancellation:
             sample_rate: Sample rate in Hz
         """
         self.sample_rate = sample_rate
-        self._noise_profile: Optional[np.ndarray] = None
+        self._noise_profile: np.ndarray | None = None
         self._noise_type: NoiseType = NoiseType.UNKNOWN
         self._adaptation_rate: float = 0.1
 
@@ -187,7 +187,7 @@ class AdvancedNoiseCancellation:
             logger.warning(f"Noise type detection failed: {e}")
             return NoiseType.UNKNOWN
 
-    def compute_snr(self, signal: np.ndarray, noise: Optional[np.ndarray] = None) -> float:
+    def compute_snr(self, signal: np.ndarray, noise: np.ndarray | None = None) -> float:
         """
         Compute Signal-to-Noise Ratio in dB.
 
@@ -326,7 +326,7 @@ class AdvancedNoiseCancellation:
         except Exception as e:
             logger.warning(f"Failed to update noise profile: {e}")
 
-    def get_noise_profile(self) -> Optional[np.ndarray]:
+    def get_noise_profile(self) -> np.ndarray | None:
         """
         Get current noise profile.
 

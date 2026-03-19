@@ -13,7 +13,6 @@ from typing import Dict, List, Optional, Set
 from Agent_Guru.reasoning.models.skill import (
     Permission,
     TrustLevel,
-    InstalledSkill,
 )
 
 

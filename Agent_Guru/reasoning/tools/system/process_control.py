@@ -4,10 +4,9 @@ Process control tools for listing and killing processes.
 Platform-specific implementations for Windows, macOS, and Linux.
 """
 
-import asyncio
 import platform
 import subprocess
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,

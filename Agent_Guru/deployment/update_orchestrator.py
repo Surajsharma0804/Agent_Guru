@@ -31,7 +31,6 @@ from .models import (
     AuditLogEntry,
     Configuration,
     OperationType,
-    PackageInfo,
     Transaction,
     TransactionResult,
     TransactionState,

@@ -27,10 +27,9 @@ Date: 2024-01-15
 Version: 1.0.0
 """
 
-from typing import Optional
 from datetime import datetime
 
-from .models import Goal, GoalStatus
+from .models import GoalStatus
 from .goal_storage import GoalStorage
 
 

@@ -4,12 +4,11 @@ Adversarial Handler - Detects and handles adversarial agent behavior.
 Validates: Requirements 22.1, 22.2, 22.3, 22.4, 22.5
 """
 
-from typing import Dict, List, Set, Any, TYPE_CHECKING
-from dataclasses import dataclass, field
+from typing import Dict, List, Set, TYPE_CHECKING
+from dataclasses import dataclass
 from datetime import datetime
 import logging
 
-from .agent_lifecycle import AgentStatus
 
 if TYPE_CHECKING:
     from .agent_storage import AgentStorage

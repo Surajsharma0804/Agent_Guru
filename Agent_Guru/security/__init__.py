@@ -1,4 +1,4 @@
-﻿"""Security system for Agent Guru."""
+"""Security system for Agent Guru."""
 
 from Agent_Guru.security.models import AuthenticationResult
 from Agent_Guru.security.voice_auth import (

@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from Agent_Guru.self_improvement.connection_pool import ConnectionPool
     from Agent_Guru.self_improvement.degradation_detector import DegradationAlert
-    from Agent_Guru.self_improvement.rollback_manager import ChangeRecord
 
 
 class RootCauseConfidence(Enum):

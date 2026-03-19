@@ -1,4 +1,4 @@
-﻿"""
+"""
 Agent Guru - AI Voice Assistant Platform
 
 An always-on, cross-platform AI voice assistant with wake word detection,
@@ -20,17 +20,25 @@ Components:
 __version__ = "0.1.0"
 __author__ = "Agent Guru Team"
 
-# Import main components
-from . import speech
-from . import vision
-from . import llm
-from . import platform
-from . import agents
-from . import memory
-from . import deployment
-from . import policy
-from . import security
-from . import avatar
+# Lazy imports — sub-packages are only loaded when accessed.
+# This prevents heavy ML libraries (TTS, insightface, vosk, etc.) from
+# being imported at package import time, which would crash on platforms
+# where optional dependencies are not installed.
+
+def __getattr__(name: str):  # type: ignore[misc]
+    """Lazy-load sub-packages on first access."""
+    _subpackages = {
+        "speech", "vision", "llm", "platform",
+        "agents", "memory", "deployment", "policy",
+        "security", "avatar",
+    }
+    if name in _subpackages:
+        import importlib
+        module = importlib.import_module(f"Agent_Guru.{name}")
+        globals()[name] = module
+        return module
+    raise AttributeError(f"module 'Agent_Guru' has no attribute {name!r}")
+
 
 __all__ = [
     "speech",

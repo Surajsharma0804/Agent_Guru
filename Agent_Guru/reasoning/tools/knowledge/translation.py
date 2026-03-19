@@ -4,7 +4,6 @@ Translation tool for translating text between languages.
 Supports 50+ languages using translation APIs.
 """
 
-import asyncio
 from typing import Any, Dict
 
 from Agent_Guru.reasoning.tools.base import (

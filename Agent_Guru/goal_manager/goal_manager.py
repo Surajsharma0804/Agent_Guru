@@ -47,11 +47,8 @@ from Agent_Guru.goal_manager.dependency_resolver import DependencyResolver
 from Agent_Guru.goal_manager.session_manager import SessionManager
 from Agent_Guru.goal_manager.exceptions import (
     GoalManagerError,
-    GoalNotFoundError,
-    CircularDependencyError,
     InvalidGoalStateError,
     ValidationError,
-    StorageError,
 )
 from Agent_Guru.goal_manager.logging_config import get_logger
 

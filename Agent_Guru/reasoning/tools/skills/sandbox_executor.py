@@ -8,9 +8,7 @@ Integrates SkillSandbox with the skill execution pipeline, providing:
 - Error handling for sandbox violations
 """
 
-import asyncio
 import time
-from pathlib import Path
 from typing import Any, Dict, Optional
 from dataclasses import dataclass
 
@@ -19,10 +17,9 @@ from Agent_Guru.reasoning.error.error_manager import (
     ErrorType,
     get_error_manager,
 )
-from Agent_Guru.reasoning.models.skill import Permission, InstalledSkill
+from Agent_Guru.reasoning.models.skill import InstalledSkill
 from Agent_Guru.reasoning.tools.skills.sandbox import (
     SkillSandbox,
-    SandboxConfig,
     ResourceLimits,
     get_sandbox_manager,
 )

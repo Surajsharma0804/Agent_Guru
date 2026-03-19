@@ -2,7 +2,6 @@
 Timer tool for setting and canceling timers.
 """
 
-import asyncio
 import time
 from typing import Any, Dict
 

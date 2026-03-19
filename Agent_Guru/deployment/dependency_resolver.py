@@ -10,16 +10,14 @@ Space Complexity: O(V + E) for the dependency graph
 
 from __future__ import annotations
 
-import re
 from collections import defaultdict
-from functools import lru_cache
 from typing import Dict, List, Optional, Set, Tuple
 
 import structlog
 from packaging.requirements import Requirement
 from packaging.version import Version
 
-from .exceptions import CircularDependencyError, DependencyConflictError
+from .exceptions import CircularDependencyError
 from .models import Conflict, DependencyGraph, PackageInfo, PackageNode
 
 logger = structlog.get_logger(__name__)

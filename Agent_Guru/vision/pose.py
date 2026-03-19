@@ -15,13 +15,12 @@ Requirements: 6.1–6.6
 
 from __future__ import annotations
 
-import time
 from typing import Any, Callable
 
 import numpy as np
 import structlog
 
-from Agent_Guru.vision.vision_models import BoundingBox, PoseKeypoint, PoseResult, VisionEvent
+from Agent_Guru.vision.vision_models import PoseKeypoint, PoseResult, VisionEvent
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 

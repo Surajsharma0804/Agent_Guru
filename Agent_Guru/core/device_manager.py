@@ -3,7 +3,6 @@ Central GPU Device Manager for Agent Guru
 Automatically detects and manages CUDA GPU availability across all AI models.
 """
 
-from typing import Optional
 
 import torch
 
@@ -56,7 +55,7 @@ class DeviceManager:
         """
         return self._device == "cuda"
 
-    def get_device_name(self) -> Optional[str]:
+    def get_device_name(self) -> str | None:
         """
         Get the name of the GPU device.
 

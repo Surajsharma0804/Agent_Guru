@@ -15,10 +15,10 @@ Validates: Requirements 1 (Agent Registration), 2 (Task Decomposition)
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-from .task_decomposer import SubTask, Task
+from .task_decomposer import Task
 
 
 # ---------------------------------------------------------------------------

@@ -21,11 +21,10 @@ Date: 2026-03-13
 Version: 1.0.0
 """
 
-from typing import Dict, List, Tuple, Set, Any, Optional, TYPE_CHECKING
+from typing import Dict, List, Tuple, TYPE_CHECKING
 from datetime import datetime
 import uuid
 import numpy as np
-from collections import defaultdict
 
 if TYPE_CHECKING:
     from .agent_storage import AgentStorage

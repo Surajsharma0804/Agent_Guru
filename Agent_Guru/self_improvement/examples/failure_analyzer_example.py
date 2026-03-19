@@ -13,7 +13,6 @@ This example shows the core functionality of the failure analysis system.
 import tempfile
 import os
 from datetime import datetime
-from pathlib import Path
 
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool

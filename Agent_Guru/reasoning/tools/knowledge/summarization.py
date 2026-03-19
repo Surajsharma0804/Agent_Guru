@@ -4,7 +4,6 @@ Summarization tools for text, articles, and documents.
 Uses LLM for intelligent summarization.
 """
 
-import asyncio
 from typing import Any, Dict
 
 from Agent_Guru.reasoning.tools.base import (

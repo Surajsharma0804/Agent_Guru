@@ -4,8 +4,7 @@ Information tools for news and stock prices.
 Provides access to news APIs and financial data.
 """
 
-import asyncio
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,

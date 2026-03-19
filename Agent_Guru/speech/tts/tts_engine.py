@@ -19,16 +19,17 @@ Performance:
 - Real-time factor: <0.5 (2x faster than real-time)
 """
 
-import time
 import io
-import wave
-import threading
-import tempfile
+import logging
 import os
 import sys
+import tempfile
+import threading
+import time
 import warnings
-import logging
-from typing import Optional, Dict, List, Any, Tuple
+import wave
+from typing import Any
+
 import numpy as np
 
 # ============================================================================
@@ -61,55 +62,54 @@ logging.getLogger('matplotlib').setLevel(logging.ERROR)
 # Redirect C-level stderr to suppress cuDNN symbol warnings
 # This is the most robust solution for production systems
 import ctypes
-import platform
+import platform as _platform_module
+
 
 def suppress_c_stderr():
     """Suppress C-level stderr output (for cuDNN warnings).
     
     Production-grade solution that works at the OS level.
     This prevents cuDNN warnings from appearing in console.
+    Only applied when TTS model is actually loaded, not at import time.
     """
-    if platform.system() == 'Windows':
-        # Windows: Redirect stderr to NUL
+    if _platform_module.system() == 'Windows':
         try:
             libc = ctypes.CDLL('msvcrt')
-            c_stderr = ctypes.c_void_p.in_dll(libc, 'stderr')
             devnull = open(os.devnull, 'w')
             os.dup2(devnull.fileno(), 2)  # Redirect stderr (fd=2) to devnull
-        except:
+        except Exception:
             pass  # Fallback: continue without suppression
     else:
-        # Linux/Mac: Redirect stderr to /dev/null
         try:
             devnull = open(os.devnull, 'w')
             os.dup2(devnull.fileno(), 2)
-        except:
+        except Exception:
             pass
 
-# Apply C-level stderr suppression (production best practice)
-# This prevents cuDNN "Could not load symbol" warnings
-suppress_c_stderr()
+# NOTE: suppress_c_stderr() is NOT called at import time.
+# It is called lazily inside _ensure_model_loaded() only when TTS is used.
 
-# SET ESPEAK-NG PATH BEFORE ANY TTS IMPORTS (CRITICAL!)
-espeak_path = r"C:\Program Files\eSpeak NG"
-if os.path.exists(espeak_path):
-    # Set environment variables for phonemizer
-    os.environ["PHONEMIZER_ESPEAK_PATH"] = espeak_path
-    os.environ["PHONEMIZER_ESPEAK_LIBRARY"] = os.path.join(espeak_path, "libespeak-ng.dll")
-    os.environ["ESPEAK_DATA_PATH"] = os.path.join(espeak_path, "espeak-ng-data")
-    
-    # Also add to PATH so DLL can be found
-    if espeak_path not in os.environ["PATH"]:
-        os.environ["PATH"] = espeak_path + os.pathsep + os.environ["PATH"]
+# SET ESPEAK-NG PATH BEFORE ANY TTS IMPORTS (CRITICAL! — Windows only)
+if sys.platform == "win32":
+    espeak_path = r"C:\Program Files\eSpeak NG"
+    if os.path.exists(espeak_path):
+        # Set environment variables for phonemizer
+        os.environ["PHONEMIZER_ESPEAK_PATH"] = espeak_path
+        os.environ["PHONEMIZER_ESPEAK_LIBRARY"] = os.path.join(espeak_path, "libespeak-ng.dll")
+        os.environ["ESPEAK_DATA_PATH"] = os.path.join(espeak_path, "espeak-ng-data")
 
-from Agent_Guru.speech.models import PersonalityType, EmotionType, TTSConfig
+        # Also add to PATH so DLL can be found
+        if espeak_path not in os.environ["PATH"]:
+            os.environ["PATH"] = espeak_path + os.pathsep + os.environ["PATH"]
+
 from Agent_Guru.speech.exceptions import GuruSpeechError
+from Agent_Guru.speech.models import EmotionType, PersonalityType
 
 
 class TTSError(GuruSpeechError):
     """TTS-specific errors."""
-    
-    def __init__(self, message: str, original_error: Optional[Exception] = None):
+
+    def __init__(self, message: str, original_error: Exception | None = None):
         super().__init__(message, "CoquiTTSEngine", original_error)
 
 
@@ -131,7 +131,7 @@ class CoquiTTSEngine:
     - tts_models/en/ljspeech/glow-tts (female, fast)
     - tts_models/en/vctk/vits (multi-speaker, male+female)
     """
-    
+
     # Voice configurations for personalities (USER APPROVED)
     VOICE_CONFIGS = {
         PersonalityType.GURU: {
@@ -145,7 +145,7 @@ class CoquiTTSEngine:
             "pitch": 1.05,      # Slightly higher pitch for female
         }
     }
-    
+
     # Emotion adjustments
     EMOTION_ADJUSTMENTS = {
         EmotionType.HAPPY: {"speed_mult": 1.15, "pitch_mult": 1.05},
@@ -156,7 +156,7 @@ class CoquiTTSEngine:
         EmotionType.FEARFUL: {"speed_mult": 1.1, "pitch_mult": 1.05},
         EmotionType.DISGUSTED: {"speed_mult": 0.9, "pitch_mult": 0.95}
     }
-    
+
     def __init__(self, use_gpu: bool = False):
         """Initialize Coqui TTS engine.
         
@@ -166,13 +166,13 @@ class CoquiTTSEngine:
                     GPU provides 2-3x speedup but may show cuDNN warnings on some systems
         """
         self._engine_lock = threading.Lock()
-        self._tts: Optional[Any] = None
+        self._tts: Any | None = None
         self._use_gpu = use_gpu
         self._model_loaded = False
-        
+
         # Lazy initialization - load model on first use
         print("[TTS] Coqui TTS engine initialized (model will load on first use)")
-    
+
     def _ensure_model_loaded(self):
         """Ensure TTS model is loaded (lazy loading).
         
@@ -185,20 +185,23 @@ class CoquiTTSEngine:
         """
         if self._model_loaded:
             return
-        
+
         try:
-            from TTS.api import TTS
             import torch
-            
+            from TTS.api import TTS
+
             # Configure logging for clean output
             logging.getLogger('TTS').setLevel(logging.ERROR)
             logging.getLogger('numba').setLevel(logging.ERROR)
-            
+
+            # Suppress C-level stderr for cuDNN warnings (only when loading model)
+            suppress_c_stderr()
+
             print("[TTS] Loading Coqui TTS model (this may take a moment)...")
-            
+
             # Use VCTK model for multi-speaker support (male + female)
             model_name = "tts_models/en/vctk/vits"
-            
+
             # Check GPU availability with fallback
             device = "cpu"  # Default to CPU
             if self._use_gpu:
@@ -209,18 +212,18 @@ class CoquiTTSEngine:
                         print(f"[TTS] GPU detected: {gpu_name}")
                 except Exception:
                     pass  # Silently fallback to CPU
-            
+
             print(f"[TTS] Using device: {device}")
-            
+
             # Load model (cuDNN warnings suppressed at C level)
             tts_model = TTS(model_name=model_name, progress_bar=False)
             self._tts = tts_model.to(device)
             self._model_loaded = True
-            
+
             print(f"[TTS] Model loaded successfully: {model_name}")
             if self._tts is not None and hasattr(self._tts, 'speakers') and self._tts.speakers is not None:
                 print(f"[TTS] Available speakers: {len(self._tts.speakers)} voices")
-            
+
         except ImportError as e:
             raise TTSError(
                 f"Required library not installed: {e}. Install with: pip install TTS phonemizer",
@@ -229,18 +232,18 @@ class CoquiTTSEngine:
         except Exception as e:
             # Fallback to CPU if GPU fails
             if self._use_gpu and device == "cuda":
-                print(f"[TTS] GPU initialization failed, retrying with CPU...")
+                print("[TTS] GPU initialization failed, retrying with CPU...")
                 self._use_gpu = False
                 self._model_loaded = False
                 return self._ensure_model_loaded()
-            
+
             raise TTSError(f"Failed to load TTS model: {e}", e)
-    
+
     def synthesize(
         self,
         text: str,
         personality: PersonalityType = PersonalityType.GURU,
-        emotion: Optional[EmotionType] = None,
+        emotion: EmotionType | None = None,
         speech_rate: float = 1.0,
         pitch: float = 1.0,
         volume: float = 1.0,
@@ -270,25 +273,25 @@ class CoquiTTSEngine:
         # Input validation
         if not text or not text.strip():
             raise TTSError("Text cannot be empty")
-        
+
         if not 0.5 <= speech_rate <= 2.0:
             raise TTSError(f"Speech rate must be in [0.5, 2.0], got {speech_rate}")
         if not 0.0 <= volume <= 1.0:
             raise TTSError(f"Volume must be in [0.0, 1.0], got {volume}")
-        
+
         # PRODUCTION FIX: Convert string personality to enum (backward compatibility)
         if isinstance(personality, str):
             personality = self._string_to_personality(personality)
-        
+
         # Thread-safe synthesis
         with self._engine_lock:
             return self._synthesize_locked(text, personality, emotion, speech_rate, pitch, volume)
-    
+
     def _synthesize_locked(
         self,
         text: str,
         personality: PersonalityType,
-        emotion: Optional[EmotionType],
+        emotion: EmotionType | None,
         speech_rate: float,
         pitch: float,
         volume: float
@@ -303,59 +306,59 @@ class CoquiTTSEngine:
         - Clean output (no warnings)
         """
         start_time = time.time()
-        
+
         # Ensure model is loaded
         self._ensure_model_loaded()
-        
+
         # PRODUCTION FIX: Remove emojis from text (voice conversation, not text)
         # This prevents TTS crashes and improves naturalness
         text = self._remove_emojis(text)
-        
+
         # Get voice configuration
         config = self.VOICE_CONFIGS.get(personality, self.VOICE_CONFIGS[PersonalityType.GURU])
         speaker = str(config["speaker"])
         base_speed = float(config["speed"])
         speed = base_speed * speech_rate
-        
+
         # Apply emotion adjustments
         if emotion:
             emotion_adj = self.EMOTION_ADJUSTMENTS.get(emotion, {"speed_mult": 1.0, "pitch_mult": 1.0})
             speed_mult_value = emotion_adj.get("speed_mult", 1.0)
             speed_mult = float(speed_mult_value) if isinstance(speed_mult_value, (int, float, str)) else 1.0
             speed *= speed_mult
-        
+
         # Clamp speed to safe range
         speed = max(0.5, min(2.0, speed))
-        
+
         tmp_path = None
         try:
             # Create temp file for output
             tmp_fd, tmp_path = tempfile.mkstemp(suffix='.wav')
             os.close(tmp_fd)
-            
+
             # Synthesize with Coqui TTS (warnings already suppressed at C level)
             if self._tts is None:
                 raise TTSError("TTS model not loaded")
-            
+
             self._tts.tts_to_file(
                 text=text,
                 speaker=speaker,
                 file_path=tmp_path,
                 speed=speed
             )
-            
+
             # Read audio file
             with open(tmp_path, 'rb') as f:
                 audio_data = f.read()
-            
+
             # Apply volume adjustment if needed
             if volume != 1.0:
                 audio_data = self._adjust_volume(audio_data, volume)
-            
+
             # Performance monitoring (production-grade)
             synthesis_time = time.time() - start_time
             audio_duration = self._get_wav_duration(audio_data)
-            
+
             # Log performance metrics (only if slow)
             if audio_duration > 0:
                 rtf = synthesis_time / audio_duration
@@ -364,9 +367,9 @@ class CoquiTTSEngine:
                     logger.debug(
                         f"Synthesis RTF: {rtf:.3f} (synth={synthesis_time:.3f}s, audio={audio_duration:.3f}s)"
                     )
-            
+
             return audio_data
-            
+
         except Exception as e:
             raise TTSError(f"Synthesis failed: {e}", e)
         finally:
@@ -378,7 +381,7 @@ class CoquiTTSEngine:
                     # Log but don't fail on cleanup errors
                     logger = logging.getLogger("Agent_Guru.speech.tts")
                     logger.warning(f"Failed to cleanup temp file {tmp_path}: {cleanup_error}")
-    
+
     @staticmethod
     def _remove_emojis(text: str) -> str:
         """Remove emojis from text (production best practice for TTS).
@@ -393,7 +396,7 @@ class CoquiTTSEngine:
             Text with emojis removed
         """
         import re
-        
+
         # Comprehensive emoji pattern (covers all Unicode emoji ranges)
         emoji_pattern = re.compile(
             "["
@@ -411,9 +414,9 @@ class CoquiTTSEngine:
             "]+",
             flags=re.UNICODE
         )
-        
+
         return emoji_pattern.sub('', text)
-    
+
     @staticmethod
     def _string_to_personality(personality_str: str) -> PersonalityType:
         """Convert string to PersonalityType enum (production helper).
@@ -431,9 +434,9 @@ class CoquiTTSEngine:
         """
         if isinstance(personality_str, PersonalityType):
             return personality_str
-        
+
         personality_lower = personality_str.lower().strip()
-        
+
         if personality_lower == "guru":
             return PersonalityType.GURU
         elif personality_lower == "maya":
@@ -442,7 +445,7 @@ class CoquiTTSEngine:
             raise TTSError(
                 f"Invalid personality: '{personality_str}'. Must be 'guru' or 'maya'"
             )
-    
+
     def _adjust_volume(self, audio_bytes: bytes, volume: float) -> bytes:
         """Adjust audio volume.
         
@@ -458,7 +461,7 @@ class CoquiTTSEngine:
             with wave.open(io.BytesIO(audio_bytes), 'rb') as wav:
                 params = wav.getparams()
                 frames = wav.readframes(wav.getnframes())
-            
+
             # Convert to numpy
             if params.sampwidth == 1:
                 audio = np.frombuffer(frames, dtype=np.uint8)
@@ -469,26 +472,26 @@ class CoquiTTSEngine:
             else:
                 audio = np.frombuffer(frames, dtype=np.int32)
                 audio = (audio.astype(np.float32) * volume).astype(np.int32)
-            
+
             # Write back to WAV
             output = io.BytesIO()
             with wave.open(output, 'wb') as wav:
                 wav.setparams(params)
                 wav.writeframes(audio.tobytes())
-            
+
             return output.getvalue()
-            
+
         except Exception as e:
             # If volume adjustment fails, return original
             import logging
             logging.getLogger("Agent_Guru.speech.tts").warning(f"Volume adjustment failed: {e}")
             return audio_bytes
-    
+
     def synthesize_to_array(
         self,
         text: str,
         personality: PersonalityType = PersonalityType.GURU,
-        emotion: Optional[EmotionType] = None,
+        emotion: EmotionType | None = None,
         speech_rate: float = 1.0,
         pitch: float = 1.0,
         volume: float = 1.0
@@ -508,16 +511,16 @@ class CoquiTTSEngine:
         # PRODUCTION FIX: Convert string personality to enum (backward compatibility)
         if isinstance(personality, str):
             personality = self._string_to_personality(personality)
-        
+
         audio_bytes = self.synthesize(text, personality, emotion, speech_rate, pitch, volume)
-        
+
         # Parse WAV
         with wave.open(io.BytesIO(audio_bytes), 'rb') as wav:
             sample_rate = wav.getframerate()
             n_channels = wav.getnchannels()
             sample_width = wav.getsampwidth()
             frames = wav.readframes(wav.getnframes())
-        
+
         # Convert to numpy
         audio_float: np.ndarray[Any, Any]
         if sample_width == 1:
@@ -529,15 +532,15 @@ class CoquiTTSEngine:
         else:
             audio_int32 = np.frombuffer(frames, dtype=np.int32)
             audio_float = audio_int32.astype(np.float32) / 2147483648.0
-        
+
         # Handle stereo
         audio = audio_float
         if n_channels > 1:
             audio = audio[::n_channels]
-        
+
         return audio, sample_rate
-    
-    def get_voice_info(self, personality: PersonalityType) -> Dict[str, Any]:
+
+    def get_voice_info(self, personality: PersonalityType) -> dict[str, Any]:
         """
         Get voice information.
         
@@ -545,9 +548,9 @@ class CoquiTTSEngine:
             Dictionary with voice metadata
         """
         self._ensure_model_loaded()
-        
+
         config = self.VOICE_CONFIGS.get(personality, self.VOICE_CONFIGS[PersonalityType.GURU])
-        
+
         return {
             "engine": "Coqui TTS",
             "model": "tts_models/en/vctk/vits",
@@ -559,20 +562,20 @@ class CoquiTTSEngine:
             "quality": "natural (neural TTS)",
             "cost": "FREE (runs locally)"
         }
-    
-    def list_available_speakers(self) -> List[str]:
+
+    def list_available_speakers(self) -> list[str]:
         """List all available speakers in the model.
         
         Returns:
             List of speaker IDs
         """
         self._ensure_model_loaded()
-        
+
         if self._tts is not None and self._tts.speakers is not None:
             speakers = self._tts.speakers
             return list(speakers) if speakers else []
         return []
-    
+
     @staticmethod
     def _get_wav_duration(audio_bytes: bytes) -> float:
         """Get WAV duration in seconds."""
@@ -583,7 +586,7 @@ class CoquiTTSEngine:
                 return frames / float(rate) if rate > 0 else 0.0
         except:
             return 0.0
-    
+
     def __del__(self):
         """Cleanup on deletion."""
         self._tts = None

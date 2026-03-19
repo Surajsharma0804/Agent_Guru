@@ -5,10 +5,9 @@ Validates: Requirements 26.1, 26.2, 26.3, 26.4, 26.5
 """
 
 from typing import Callable, Awaitable, Any, Optional
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
-import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
@@ -86,7 +85,7 @@ class CircuitBreaker:
             result = await func(*args, **kwargs)
             self._on_success()
             return result
-        except Exception as exc:
+        except Exception:
             self._on_failure()
             raise
 

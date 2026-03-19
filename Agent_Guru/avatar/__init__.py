@@ -1,4 +1,4 @@
-﻿"""
+"""
 Agent_Guru.avatar — Production Avatar and Emotion Engine
 
 Provides dual AI personalities (Guru and Maya) with:

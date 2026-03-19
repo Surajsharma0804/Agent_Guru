@@ -375,23 +375,23 @@ class _MetricsAccessor:
     """Accessor for module-level metrics."""
 
     @property
-    def PARSING_LATENCY(self):
+    def PARSING_LATENCY(self):  # noqa: N802
         return _get_collector().parsing_latency
 
     @property
-    def PARSING_SUCCESS_COUNTER(self):
+    def PARSING_SUCCESS_COUNTER(self):  # noqa: N802
         return _get_collector().parsing_success
 
     @property
-    def PARSING_FAILURE_COUNTER(self):
+    def PARSING_FAILURE_COUNTER(self):  # noqa: N802
         return _get_collector().parsing_failure
 
     @property
-    def PARSING_RETRY_COUNTER(self):
+    def PARSING_RETRY_COUNTER(self):  # noqa: N802
         return _get_collector().parsing_retry
 
     @property
-    def CONFIDENCE_SCORE_HISTOGRAM(self):
+    def CONFIDENCE_SCORE_HISTOGRAM(self):  # noqa: N802
         return _get_collector().confidence_score
 
 

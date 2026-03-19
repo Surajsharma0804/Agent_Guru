@@ -21,7 +21,7 @@ import logging
 from collections import defaultdict, deque
 from datetime import datetime
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from Agent_Guru.memory.models import (
     Entity,

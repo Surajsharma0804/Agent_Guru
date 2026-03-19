@@ -7,7 +7,6 @@ from Agent_Guru.llm.model_router.models import (
     ModelCapability,
     ModelMetadata,
     Provider,
-    TaskType,
 )
 from Agent_Guru.llm.model_router.registry import ModelRegistry
 

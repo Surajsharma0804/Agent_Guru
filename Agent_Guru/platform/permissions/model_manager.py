@@ -25,7 +25,7 @@ import yaml
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Any
 from dataclasses import dataclass, field
-from datetime import datetime, time, timedelta
+from datetime import datetime, time
 from enum import Enum
 import logging
 from threading import RLock

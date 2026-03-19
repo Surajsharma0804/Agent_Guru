@@ -5,7 +5,7 @@ Verifier System, Memory System, and Self-Improvement Engine.
 Validates: Requirements 15.x, 16.x, 17.x, 18.x, 19.x
 """
 
-from typing import Dict, Any, Optional, List, TYPE_CHECKING
+from typing import Dict, Any, List, TYPE_CHECKING
 from dataclasses import dataclass
 import logging
 

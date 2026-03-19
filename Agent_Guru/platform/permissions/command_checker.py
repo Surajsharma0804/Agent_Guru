@@ -29,7 +29,7 @@ Version: 1.0.0
 
 import re
 import shlex
-from typing import List, Optional, Set, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import logging

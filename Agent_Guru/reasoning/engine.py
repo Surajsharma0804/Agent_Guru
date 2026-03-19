@@ -35,7 +35,6 @@ import asyncio
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from functools import lru_cache
 from typing import Any, Optional
 
 import structlog
@@ -60,14 +59,13 @@ from Agent_Guru.reasoning.llm.reasoning import ReasoningPlanGenerator
 from Agent_Guru.reasoning.memory_retriever import MemoryRetriever
 from Agent_Guru.reasoning.models.intent import Intent
 from Agent_Guru.reasoning.response.template_generator import TemplateGenerator
-from Agent_Guru.reasoning.models.result import ExecutionResult, ResponseModality
+from Agent_Guru.reasoning.models.result import ResponseModality
 from Agent_Guru.reasoning.safety.gate import SafetyGate
 from Agent_Guru.reasoning.tools.selector import ToolSelector
 from Agent_Guru.reasoning.tools.registry import get_registry
 from Agent_Guru.reasoning.tools.base import Tool as BaseTool, ToolSensitivity
 from Agent_Guru.reasoning.models.action import Tool as ActionTool, ActionSensitivity, Parameter
 from Agent_Guru.reasoning.utils.response_cache import (
-    ResponseCache,
     generate_cache_key,
     get_response_cache,
 )

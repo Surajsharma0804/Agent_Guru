@@ -28,11 +28,10 @@ Version: 1.0.0
 
 import time
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Deque
-import statistics
 
 try:
     import numpy as np
@@ -43,8 +42,7 @@ except ImportError:
 from .resource_monitor import (
     ResourceType,
     AlertSeverity,
-    ResourceSnapshot,
-    ResourceAlert
+    ResourceSnapshot
 )
 
 

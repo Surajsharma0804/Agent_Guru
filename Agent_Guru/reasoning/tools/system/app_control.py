@@ -4,7 +4,6 @@ Application control tools for opening, closing, and switching applications.
 Platform-specific implementations for Windows, macOS, and Linux.
 """
 
-import asyncio
 import platform
 import subprocess
 from typing import Any, Dict

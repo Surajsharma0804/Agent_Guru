@@ -14,14 +14,12 @@ Version: 1.0.0
 """
 
 import hashlib
-import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from Agent_Guru.reasoning.models.intent import Intent
-from Agent_Guru.reasoning.tools.base import Tool
 
 
 @dataclass

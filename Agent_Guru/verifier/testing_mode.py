@@ -9,7 +9,7 @@ Requirements: 15.1, 15.2, 15.3, 15.4, 15.5
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 

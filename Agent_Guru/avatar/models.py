@@ -18,14 +18,13 @@ from __future__ import annotations
 
 import time
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 try:
     from pydantic import BaseModel, Field, field_validator, model_validator
     _PYDANTIC_V2 = True
 except ImportError:
     # Fallback: use dataclasses if pydantic not installed
-    from dataclasses import dataclass as BaseModel  # type: ignore[assignment]
     Field = None  # type: ignore[assignment]
     _PYDANTIC_V2 = False
 

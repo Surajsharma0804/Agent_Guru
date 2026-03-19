@@ -4,9 +4,8 @@ Calendar tools for creating and retrieving calendar events.
 Supports Google Calendar, Outlook Calendar, and other calendar services.
 """
 
-import asyncio
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,

@@ -5,7 +5,7 @@ This skill demonstrates how to create a skill that fetches
 news articles from external sources.
 """
 
-from typing import Dict, List, Any
+from typing import Dict, Any
 from Agent_Guru.sdk import Skill, skill_capability
 
 

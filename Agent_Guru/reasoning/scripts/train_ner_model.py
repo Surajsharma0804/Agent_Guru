@@ -29,7 +29,6 @@ from pathlib import Path
 
 import torch
 import yaml
-from gliner import gliner  # type: ignore[import-untyped]
 from sklearn.metrics import precision_recall_fscore_support  # type: ignore[import-untyped]
 from tqdm import tqdm  # type: ignore[import-untyped]
 

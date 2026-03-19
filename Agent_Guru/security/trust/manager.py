@@ -21,7 +21,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 
-from Agent_Guru.security.crypto.errors import TrustError
 
 _DEFAULT_TRUST = 0.5
 _TRANSITIVE_DECAY = 0.8

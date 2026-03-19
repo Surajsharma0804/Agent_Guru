@@ -31,9 +31,8 @@ import threading
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
-from typing import Optional, Generator, Dict, Any
+from typing import Optional, Generator
 from queue import Queue, Empty, Full
 
 
@@ -265,7 +264,7 @@ class ConnectionPool:
             with self._lock:
                 self._failed_acquisitions += 1
             raise
-        except Exception as e:
+        except Exception:
             with self._lock:
                 self._failed_acquisitions += 1
             raise
@@ -443,7 +442,7 @@ class ConnectionPool:
                 if len(self._transaction_times) > 1000:
                     self._transaction_times.pop(0)
             
-        except Exception as e:
+        except Exception:
             # Rollback on error
             try:
                 conn.connection.rollback()

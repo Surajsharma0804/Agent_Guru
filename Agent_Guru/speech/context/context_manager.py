@@ -15,7 +15,6 @@ This module provides conversation context management including:
 import time
 import uuid
 from typing import Dict, List, Optional, Any
-from collections import deque
 import re
 
 from Agent_Guru.speech.models import (

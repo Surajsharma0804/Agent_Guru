@@ -36,7 +36,7 @@ from datetime import datetime
 from typing import Dict, Optional, Set
 
 import structlog
-from fastapi import WebSocket, WebSocketDisconnect, status
+from fastapi import WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)

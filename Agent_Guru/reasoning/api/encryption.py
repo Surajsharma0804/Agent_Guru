@@ -27,14 +27,11 @@ Version: 1.0.0
 """
 
 import base64
-import hashlib
 import os
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Any
 
 from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import structlog
 
 logger = structlog.get_logger(__name__)

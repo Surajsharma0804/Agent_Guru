@@ -35,10 +35,9 @@ Version: 1.0.0
 """
 
 import json
-import csv
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Iterator
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict
 from enum import Enum
 import structlog

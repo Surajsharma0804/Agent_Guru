@@ -12,7 +12,7 @@ This module provides integration with the Model Router for optimal model selecti
 """
 
 import time
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
 

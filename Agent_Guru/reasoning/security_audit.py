@@ -20,14 +20,12 @@ Requirements: 31.1
 from __future__ import annotations
 
 import ast
-import os
 import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
 
 
 class Severity(str, Enum):

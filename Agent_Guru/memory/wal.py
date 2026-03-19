@@ -167,7 +167,7 @@ class CircuitBreaker:
             result = fn()
             self._failure_count = 0  # Reset on success
             return result
-        except Exception as exc:
+        except Exception:
             self._failure_count += 1
             if self._failure_count >= self._threshold:
                 self._open_since = time.monotonic()

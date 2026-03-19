@@ -15,11 +15,11 @@ This module provides always-on background service management:
 import time
 import threading
 import logging
-from typing import Optional, Callable, Dict, Any
+from typing import Optional, Callable
 from dataclasses import dataclass
 from enum import Enum
 
-from Agent_Guru.speech.battery_monitor import BatteryMonitor, BatteryOptimizationLevel
+from Agent_Guru.speech.battery_monitor import BatteryMonitor
 
 
 class ServiceState(Enum):

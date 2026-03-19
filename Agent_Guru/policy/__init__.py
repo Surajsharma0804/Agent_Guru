@@ -1,4 +1,4 @@
-﻿"""
+"""
 Guru Policy Engine - Governance and access control for AGENT_GURU.
 
 Provides permission management, RBAC/ABAC evaluation, conflict resolution,

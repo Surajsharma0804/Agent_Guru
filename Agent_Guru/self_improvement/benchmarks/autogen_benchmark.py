@@ -4,7 +4,7 @@ AutoGen benchmark implementation.
 Benchmarks Microsoft AutoGen framework for comparison with Agent Guru.
 """
 
-from typing import Any, Optional
+from typing import Any
 import time
 
 from Agent_Guru.self_improvement.benchmarks.base_benchmark import (

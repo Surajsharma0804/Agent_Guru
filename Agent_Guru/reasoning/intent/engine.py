@@ -54,7 +54,7 @@ import asyncio
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.intent.fast_router import FastIntentRouter, PatternMatch
 from Agent_Guru.reasoning.intent.intent_cache import IntentDetectionCache

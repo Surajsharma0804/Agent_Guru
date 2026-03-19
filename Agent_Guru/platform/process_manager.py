@@ -75,13 +75,12 @@ Date: 2026-02-24
 Version: 1.0.0
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from dataclasses import dataclass
 import psutil
 import subprocess
 import time
 import logging
-from pathlib import Path
 
 # Configure logging
 logger = logging.getLogger(__name__)

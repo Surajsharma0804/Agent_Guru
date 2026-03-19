@@ -7,12 +7,11 @@ Author: Agent Guru Team
 Date: 2026-02-22
 """
 
-import asyncio
 import os
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import aiohttp
 import structlog

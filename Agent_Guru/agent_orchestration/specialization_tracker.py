@@ -14,7 +14,7 @@ Date: 2024
 Version: 1.0.0
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 from Agent_Guru.agent_orchestration.storage import AgentStorage
 from Agent_Guru.agent_orchestration.models import Agent
 

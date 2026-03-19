@@ -20,7 +20,7 @@ Design Decisions:
 import asyncio
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 from collections import deque
@@ -82,9 +82,9 @@ class RateLimitStatus:
     is_limited: bool = False
 
 
-class RateLimitExceeded(Exception):
+class RateLimitExceededError(Exception):
     """Raised when rate limit is exceeded and queuing is disabled."""
-    
+
     def __init__(self, service: str, retry_after: float):
         self.service = service
         self.retry_after = retry_after
@@ -92,6 +92,10 @@ class RateLimitExceeded(Exception):
             f"Rate limit exceeded for service '{service}'. "
             f"Retry after {retry_after:.1f} seconds."
         )
+
+
+# Backward-compatible alias
+RateLimitExceeded = RateLimitExceededError
 
 
 class TokenBucket:

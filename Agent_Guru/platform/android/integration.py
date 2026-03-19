@@ -216,7 +216,7 @@ class AndroidIntegration:
             intent = self.Intent(action)
 
             if data:
-                Uri = autoclass('android.net.Uri')
+                Uri = autoclass('android.net.Uri')  # noqa: N806
                 intent.setData(Uri.parse(data))
 
             if extras:
@@ -361,7 +361,7 @@ class AndroidIntegration:
         """Create notification channel for Android 8.0+."""
         try:
             # Use module-level autoclass (patchable in tests)
-            Build = autoclass('android.os.Build')
+            Build = autoclass('android.os.Build')  # noqa: N806
             sdk_int = int(Build.VERSION.SDK_INT)
             if sdk_int >= 26:
                 nm = cast(
@@ -397,7 +397,7 @@ class AndroidIntegration:
             AndroidIntegrationError: If request fails
         """
         try:
-            Build = autoclass('android.os.Build')
+            Build = autoclass('android.os.Build')  # noqa: N806
             sdk_int = int(Build.VERSION.SDK_INT)
 
             if sdk_int >= 23:
@@ -413,7 +413,7 @@ class AndroidIntegration:
 
                 intent = self.Intent()
                 intent.setAction(self.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                Uri = autoclass('android.net.Uri')
+                Uri = autoclass('android.net.Uri')  # noqa: N806
                 intent.setData(Uri.parse(f"package:{package_name}"))
                 intent.addFlags(self.Intent.FLAG_ACTIVITY_NEW_TASK)
                 self.context.startActivity(intent)
@@ -431,7 +431,7 @@ class AndroidIntegration:
     def is_battery_optimization_exempted(self) -> bool:
         """Check if app is exempted from battery optimization."""
         try:
-            Build = autoclass('android.os.Build')
+            Build = autoclass('android.os.Build')  # noqa: N806
             sdk_int = int(Build.VERSION.SDK_INT)
 
             if sdk_int >= 23:

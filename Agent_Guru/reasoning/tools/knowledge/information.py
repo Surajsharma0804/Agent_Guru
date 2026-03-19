@@ -4,8 +4,6 @@ Information tools for question answering, definitions, calculations, and unit co
 Provides access to knowledge bases and computational tools.
 """
 
-import asyncio
-import re
 from typing import Any, Dict
 
 from Agent_Guru.reasoning.tools.base import (
@@ -206,7 +204,7 @@ class CalculateTool(Tool):
             import ast as _ast
             import operator as _op
 
-            _SAFE_OPS = {
+            _SAFE_OPS = {  # noqa: N806
                 _ast.Add: _op.add,
                 _ast.Sub: _op.sub,
                 _ast.Mult: _op.mul,

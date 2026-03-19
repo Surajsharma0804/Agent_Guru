@@ -4,7 +4,6 @@ System control tools for volume, brightness, WiFi, and Bluetooth.
 Platform-specific implementations for Windows, macOS, and Linux.
 """
 
-import asyncio
 import platform
 import subprocess
 from typing import Any, Dict

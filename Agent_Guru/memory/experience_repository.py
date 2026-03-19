@@ -10,12 +10,9 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import datetime
-from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from Agent_Guru.memory.models import (
-    Action,
     CausalLink,
     Experience,
     ExperienceQuery,
@@ -23,7 +20,6 @@ from Agent_Guru.memory.models import (
     Pattern,
     PatternAbstraction,
     PatternType,
-    State,
 )
 
 logger = logging.getLogger(__name__)

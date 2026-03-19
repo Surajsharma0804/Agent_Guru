@@ -9,14 +9,12 @@ Provides intelligent recovery strategies:
 """
 
 import asyncio
-import time
 import structlog
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, Optional
 
-from Agent_Guru.reasoning.error.error_manager import ErrorType, StructuredError
 
 logger = structlog.get_logger(__name__)
 
@@ -297,7 +295,7 @@ class CircuitBreaker:
             self._on_success()
             return result
 
-        except Exception as e:
+        except Exception:
             # Failure
             self._on_failure()
             raise

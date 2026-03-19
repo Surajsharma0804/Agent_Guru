@@ -156,7 +156,6 @@ class PerformanceMonitor:
         if self._process is None:
             return 0.0
         try:
-            import psutil  # type: ignore[import]
             info = self._process.memory_info()
             return float(info.rss / (1024 * 1024))  # bytes → MB
         except Exception:

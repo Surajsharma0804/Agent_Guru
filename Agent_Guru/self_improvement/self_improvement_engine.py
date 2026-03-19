@@ -26,9 +26,7 @@ Version: 1.0.0
 
 import time
 from typing import Dict, Any, Optional, List
-from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema
@@ -43,17 +41,12 @@ from Agent_Guru.self_improvement.strategy_optimizer import (
 )
 from Agent_Guru.self_improvement.prompt_evolution import (
     PromptEvolutionSystem,
-    PromptVersion,
 )
 from Agent_Guru.self_improvement.performance_tracker import (
     PerformanceTracker,
-    TaskMetrics,
-    AggregateMetrics,
 )
 from Agent_Guru.self_improvement.meta_learner import (
     MetaLearner,
-    Pattern,
-    PatternType,
 )
 
 

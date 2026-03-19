@@ -50,7 +50,7 @@ import time
 import threading
 from enum import Enum
 from typing import Any, Callable, Optional, TypeVar, Generic
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import logging
 
 logger = logging.getLogger(__name__)
@@ -272,7 +272,7 @@ class CircuitBreaker(Generic[T]):
             result = func(*args, **kwargs)
             self._record_success()
             return result
-        except self.config.expected_exception as e:
+        except self.config.expected_exception:
             self._record_failure()
             raise
     

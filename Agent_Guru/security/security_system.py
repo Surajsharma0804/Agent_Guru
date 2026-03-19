@@ -17,7 +17,6 @@ from typing import Any, Dict, List, Optional
 from Agent_Guru.security.audit.logger import AuditLogger, EventType, LogQuery
 from Agent_Guru.security.crypto.errors import (
     ConfigurationError,
-    IdentityNotFoundError,
     SecurityError,
 )
 from Agent_Guru.security.crypto.identity import IdentityManager, IdentityProfile, KeyPair

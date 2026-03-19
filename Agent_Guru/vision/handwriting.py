@@ -113,7 +113,7 @@ class HandwritingRecognizer:
                 [[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]],
                 dtype=np.float32,
             )
-            M = cv2.getPerspectiveTransform(src_pts, dst_pts)
+            M = cv2.getPerspectiveTransform(src_pts, dst_pts)  # noqa: N806
             warped = cv2.warpPerspective(image, M, (w, h))
             return warped
         except Exception:

@@ -51,6 +51,11 @@ class IntentType(str, Enum):
     OPEN_APP = "open_app"
     CLOSE_APP = "close_app"
     SYSTEM_COMMAND = "system_command"
+    TYPE_TEXT = "type_text"
+    SYSTEM_ACTION = "system_action"
+    NAVIGATE = "navigate"
+    SCREENSHOT = "screenshot"
+    CLIPBOARD = "clipboard"
 
     # Conversation Management
     CLARIFICATION_REQUEST = "clarification_request"

@@ -20,7 +20,6 @@ Author: Kiro AI
 Date: 2024
 """
 
-import sqlite3
 import json
 import time
 from typing import Dict, List, Optional, Any

@@ -6,10 +6,9 @@ All models use Pydantic v2 for validation with full type annotations.
 """
 from __future__ import annotations
 
-from collections import deque
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Deque, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from pydantic import BaseModel, Field, field_validator
 

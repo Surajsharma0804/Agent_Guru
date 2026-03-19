@@ -38,17 +38,9 @@ from Agent_Guru.vision.tracking.tracker import FaceTracker, TrackedFace
 from Agent_Guru.vision.utils.logging import setup_logging
 from Agent_Guru.vision.utils.preprocessing import enhance_low_light, is_low_light
 from Agent_Guru.vision.exceptions import (
-    AlignmentError,
     DatabaseError,
-    DetectionError,
-    EmotionError,
-    FaceExtractionError,
     InitializationError,
     InvalidImageError,
-    LivenessError,
-    LivenessFailedError,
-    RecognitionError,
-    TrackingError,
 )
 
 logger = logging.getLogger("guruvision.engine")
@@ -665,7 +657,6 @@ class GuruVisionEngine:
         frame_count = 0
 
         try:
-            import cv2  # type: ignore[import]
 
             while not self._shutdown_event.is_set():
                 ret, frame = cap.read()

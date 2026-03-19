@@ -4,7 +4,6 @@ Web search tool for searching the internet.
 Supports multiple search engines: Google, Bing, DuckDuckGo.
 """
 
-import asyncio
 import urllib.parse
 from typing import Any, Dict
 

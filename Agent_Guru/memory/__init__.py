@@ -1,4 +1,4 @@
-﻿"""Agent Guru - Memory System.
+"""Agent Guru - Memory System.
 
 Provides Knowledge Graph, Preference Learning, Experience Repository,
 Personality Evolution, Deduplication, GitHub Sync, and Metrics engines.

@@ -5,7 +5,6 @@ Implements safe file operations with validation and error handling.
 """
 
 import asyncio
-import os
 import shutil
 from pathlib import Path
 from typing import Any, Dict

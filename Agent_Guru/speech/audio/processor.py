@@ -1,7 +1,7 @@
 """Audio processing with VAD, noise reduction, and AGC."""
 
 import logging
-from typing import Optional, Any
+from typing import Any
 
 import numpy as np
 
@@ -11,10 +11,10 @@ from ..exceptions import AudioProcessingError
 logger = logging.getLogger(__name__)
 
 # Lazy import to avoid loading torch unnecessarily
-_noisereduce: Optional[Any] = None
+_noisereduce: Any | None = None
 
 
-def _get_noisereduce() -> Optional[Any]:
+def _get_noisereduce() -> Any | None:
     """Lazy import of noisereduce to avoid torch loading issues."""
     global _noisereduce
     if _noisereduce is None:
@@ -46,7 +46,7 @@ class AudioProcessor:
         """
         self.config = config
         self.sample_rate = sample_rate
-        self._noise_profile: Optional[np.ndarray] = None
+        self._noise_profile: np.ndarray | None = None
 
         logger.info(
             f"AudioProcessor initialized: VAD={config.enable_vad}, "

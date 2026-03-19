@@ -5,7 +5,7 @@ import logging
 from typing import Optional, Tuple
 
 from Agent_Guru.speech.engine import SpeechEngine
-from Agent_Guru.security.voice_auth import VoiceAuthenticator, VoiceProfile, VoiceAuthenticationError
+from Agent_Guru.security.voice_auth import VoiceAuthenticator, VoiceProfile
 
 logger = logging.getLogger(__name__)
 

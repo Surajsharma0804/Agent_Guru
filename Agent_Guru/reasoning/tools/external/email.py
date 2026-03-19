@@ -4,8 +4,7 @@ Email tool for sending emails via Gmail, Outlook, or IMAP.
 Supports multiple email providers with API key management.
 """
 
-import asyncio
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,

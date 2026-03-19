@@ -20,7 +20,7 @@ Version: 1.0.0
 """
 
 from datetime import datetime, time, timezone, timedelta
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from dataclasses import dataclass
 from enum import Enum
 import logging

@@ -4,10 +4,9 @@ Assignment Optimizer - Verifies task assignment optimality vs random baseline.
 Validates: Requirements 24.1, 24.2, 24.3, 24.4, 24.5
 """
 
-from typing import Dict, List, Tuple, Any, TYPE_CHECKING
-from dataclasses import dataclass, field
+from typing import Dict, List, Any, TYPE_CHECKING
+from dataclasses import dataclass
 from datetime import datetime
-import statistics
 import logging
 
 if TYPE_CHECKING:

@@ -18,9 +18,9 @@ import asyncio
 import json
 import uuid
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
-from Agent_Guru.goal_manager.models import Goal, GoalStatus, Priority
+from Agent_Guru.goal_manager.models import Goal, GoalStatus
 from Agent_Guru.goal_manager.exceptions import DecompositionError
 from Agent_Guru.goal_manager.logging_config import get_logger
 

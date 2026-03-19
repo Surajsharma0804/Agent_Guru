@@ -76,18 +76,18 @@ class IOSTTS:
         self._female_voice = None
         
         # Use override for testing, otherwise use global autoclass
-        autoclass  # type: ignore[name-defined]/ = autoclass_override if autoclass_override is not None else autoclass
-        
-        if autoclass  # type: ignore[name-defined]/ is None:
+        _autoclass = autoclass_override if autoclass_override is not None else autoclass
+
+        if _autoclass is None:
             raise IOSTTSError(
                 "iOS TTS requires pyobjus. Install with: pip install pyobjus"
             )
-        
+
         try:
             # Import iOS-specific modules
-            self.AVSpeechSynthesizer = autoclass  # type: ignore[name-defined]/('AVSpeechSynthesizer')
-            self.AVSpeechUtterance = autoclass  # type: ignore[name-defined]/('AVSpeechUtterance')
-            self.AVSpeechSynthesisVoice = autoclass  # type: ignore[name-defined]/('AVSpeechSynthesisVoice')
+            self.AVSpeechSynthesizer = _autoclass('AVSpeechSynthesizer')
+            self.AVSpeechUtterance = _autoclass('AVSpeechUtterance')
+            self.AVSpeechSynthesisVoice = _autoclass('AVSpeechSynthesisVoice')
             
             # Initialize synthesizer
             self._init_synthesizer()
@@ -212,8 +212,8 @@ class IOSTTS:
             try:
                 # Write to file using AVAudioFile
                 # Note: iOS doesn't have direct synthesizeToFile, so we use audio session
-                AVAudioFile = autoclass  # type: ignore[name-defined]/('AVAudioFile') if hasattr(self, 'autoclass  # type: ignore[name-defined]/_func') else None
-                AVAudioSession = autoclass  # type: ignore[name-defined]/('AVAudioSession') if hasattr(self, 'autoclass  # type: ignore[name-defined]/_func') else None
+                AVAudioFile = _autoclass('AVAudioFile') if _autoclass is not None else None  # noqa: N806
+                AVAudioSession = _autoclass('AVAudioSession') if _autoclass is not None else None  # noqa: N806
                 
                 if AVAudioSession:
                     # Configure audio session
@@ -222,10 +222,11 @@ class IOSTTS:
                     audio_session.setActive_error_(True, None)
                 
                 # Speak utterance
-                if self._synthesizer:\n            self._synthesizer.speakUtterance_(utterance)
+                if self._synthesizer:
+                    self._synthesizer.speakUtterance_(utterance)
                 
                 # Wait for synthesis to complete
-                while self._synthesizer.isSpeaking if self._synthesizer else False():
+                while (self._synthesizer.isSpeaking if self._synthesizer else False):
                     time.sleep(0.1)
                 
                 # For now, return empty bytes as iOS synthesis is more complex

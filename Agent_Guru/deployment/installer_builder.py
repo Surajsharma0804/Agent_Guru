@@ -14,7 +14,6 @@ This module generates the configuration files and build scripts.
 
 from __future__ import annotations
 
-import json
 import platform
 import subprocess
 from dataclasses import dataclass, field

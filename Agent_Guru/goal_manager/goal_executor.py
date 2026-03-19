@@ -26,10 +26,9 @@ Date: 2024
 Version: 1.0.0
 """
 
-from typing import Dict, Optional, Any
+from typing import Dict, Any
 from datetime import datetime
 from git import Repo
-import asyncio
 
 from Agent_Guru.goal_manager.models import Goal, GoalStatus
 from Agent_Guru.goal_manager.goal_storage import GoalStorage

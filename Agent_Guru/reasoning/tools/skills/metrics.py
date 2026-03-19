@@ -6,7 +6,7 @@ Tracks execution count, success rate, and latency for each skill.
 
 import time
 from typing import Dict, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass

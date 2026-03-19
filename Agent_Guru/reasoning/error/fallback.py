@@ -7,11 +7,10 @@ Provides intelligent fallback mechanisms for different error types:
 - Timeout fallback: partial results → async execution → simplification
 """
 
-import asyncio
 import time
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 
 from Agent_Guru.reasoning.error.error_manager import ErrorType, StructuredError
@@ -109,7 +108,7 @@ class LLMFallbackHandler(FallbackHandler):
                     result=result,
                     fallback_count=1,
                 )
-            except Exception as e:
+            except Exception:
                 # Continue to next fallback
                 pass
 
@@ -123,7 +122,7 @@ class LLMFallbackHandler(FallbackHandler):
                     result=result,
                     fallback_count=2,
                 )
-            except Exception as e:
+            except Exception:
                 # Continue to next fallback
                 pass
 
@@ -469,7 +468,7 @@ class FallbackRegistry:
 
                 return result
 
-            except Exception as e:
+            except Exception:
                 # Continue to next handler
                 continue
 

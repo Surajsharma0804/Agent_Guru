@@ -9,7 +9,7 @@ import asyncio
 import time
 import structlog
 from collections import defaultdict, deque
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Deque, Dict, List, Optional

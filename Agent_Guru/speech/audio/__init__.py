@@ -1,7 +1,7 @@
 """Audio processing and capture components."""
 
+from .capture import AudioCapture, FileCapture, MicrophoneCapture
 from .processor import AudioProcessor
-from .capture import AudioCapture, MicrophoneCapture, FileCapture
 
 __all__ = [
     'AudioProcessor',

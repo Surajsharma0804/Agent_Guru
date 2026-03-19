@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import base64
 import os
-import re
 from typing import Any, Callable
 
 import numpy as np
@@ -200,7 +199,6 @@ class VQAEngine:
         try:
             import google.generativeai as genai  # type: ignore[import]
             from PIL import Image as PILImage  # type: ignore[import]
-            import io
 
             pil_img = PILImage.fromarray(image)
             model = genai.GenerativeModel("gemini-pro-vision")

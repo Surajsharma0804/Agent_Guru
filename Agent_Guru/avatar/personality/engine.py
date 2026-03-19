@@ -188,7 +188,6 @@ class PersonalityEngine:
             Updated :class:`AvatarState` with behavior-adjusted emotion.
         """
         modulated = self.modulate_emotion(state.emotion, state.personality)
-        from dataclasses import replace  # noqa: PLC0415
         return AvatarState(
             personality_type=state.personality_type,
             emotion=modulated,

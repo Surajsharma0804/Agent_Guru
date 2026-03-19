@@ -71,7 +71,7 @@ Version: 1.0.0
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Any, Dict, Generic, Optional, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 
 import structlog
 

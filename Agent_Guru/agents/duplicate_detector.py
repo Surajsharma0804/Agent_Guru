@@ -20,7 +20,7 @@ Date: 2026-03-13
 Version: 1.0.0
 """
 
-from typing import List, Tuple, Dict, Any, Optional, TYPE_CHECKING
+from typing import List, Tuple, Dict, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .agent_storage import AgentStorage

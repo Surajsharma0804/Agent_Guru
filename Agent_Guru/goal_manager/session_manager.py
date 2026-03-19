@@ -137,7 +137,6 @@ class SessionManager:
             List of successfully loaded goals (corrupted goals are recovered)
         """
         import sqlite3
-        from .exceptions import StorageError
         
         goals = []
         

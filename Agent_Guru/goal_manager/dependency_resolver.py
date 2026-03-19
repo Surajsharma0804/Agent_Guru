@@ -33,7 +33,7 @@ from typing import Set
 
 from .models import Goal, GoalStatus
 from .goal_storage import GoalStorage
-from .exceptions import ValidationError, CircularDependencyError
+from .exceptions import CircularDependencyError
 
 
 class DependencyResolver:

@@ -7,9 +7,8 @@ Run:
 
 from __future__ import annotations
 
-import numpy as np
 
-from Agent_Guru.avatar import GuruAvatarSystem, PersonalityType
+from Agent_Guru.avatar import GuruAvatarSystem
 
 
 def main() -> None:

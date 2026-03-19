@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Optional
 
 from Agent_Guru.avatar.models import (
     AvatarState,

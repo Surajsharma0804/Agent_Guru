@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, List, Optional, Pattern
+from typing import Any, List, Pattern
 
 logger = logging.getLogger(__name__)
 

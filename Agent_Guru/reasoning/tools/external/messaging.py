@@ -4,7 +4,6 @@ Messaging tools for SMS, WhatsApp, Telegram, and Slack.
 Supports multiple messaging platforms with API key management and rate limiting.
 """
 
-import asyncio
 from typing import Any, Dict
 
 from Agent_Guru.reasoning.tools.base import (

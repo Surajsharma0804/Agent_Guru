@@ -39,9 +39,7 @@ from typing import List, Dict, Any, Optional
 from enum import Enum
 
 import numpy as np
-from scipy import stats
 from sklearn.ensemble import IsolationForest
-from sklearn.covariance import EllipticEnvelope
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 
@@ -425,12 +423,12 @@ class ConflictResolver:
             features.append(feature_vec)
             task_ids.append(ex.task_id)
         
-        X = np.array(features)
+        X = np.array(features)  # noqa: N806
         
         # Feature scaling using StandardScaler (research-backed best practice)
         from sklearn.preprocessing import StandardScaler
         scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
+        X_scaled = scaler.fit_transform(X)  # noqa: N806
         
         try:
             # Method 1: Isolation Forest (global outlier detection)
@@ -576,7 +574,7 @@ class ConflictResolver:
                 detected_at=datetime.now()
             )
             
-        except Exception as e:
+        except Exception:
             # Fallback to statistical method if ensemble fails
             return self._detect_poisoning_statistical(
                 executions, anomaly_threshold, min_executions

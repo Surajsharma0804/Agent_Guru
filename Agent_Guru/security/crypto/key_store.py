@@ -11,7 +11,6 @@ from __future__ import annotations
 import os
 import sqlite3
 from datetime import datetime
-from typing import Optional
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM

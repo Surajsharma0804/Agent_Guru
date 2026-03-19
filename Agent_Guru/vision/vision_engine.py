@@ -19,7 +19,6 @@ Requirements: 12.8, 13.7, 13.8
 from __future__ import annotations
 
 import asyncio
-import time
 from typing import Any
 
 import numpy as np

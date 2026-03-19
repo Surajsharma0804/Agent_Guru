@@ -5,10 +5,8 @@ This module discovers and registers all tools from the tools package.
 """
 
 import asyncio
-from typing import List
 
 from Agent_Guru.reasoning.tools.registry import ToolRegistry, get_registry
-from Agent_Guru.reasoning.tools.base import Tool
 
 # Import all tool modules
 from Agent_Guru.reasoning.tools.system import (

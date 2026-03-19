@@ -17,7 +17,7 @@ import hashlib
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from Agent_Guru.policy.models import EvaluationContext, MissingAttributeStrategy
 

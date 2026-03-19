@@ -4,11 +4,10 @@ Skill loader for loading and registering third-party skills.
 Handles skill discovery, validation, and registration with the tool registry.
 """
 
-import asyncio
 import importlib.util
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from Agent_Guru.reasoning.error.error_manager import (
     ErrorContext,

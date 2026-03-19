@@ -18,27 +18,25 @@ Design Decisions:
 """
 
 import asyncio
-import hashlib
 import logging
 import ssl
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Optional, Union, List, Callable, Awaitable, AsyncIterator
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 import aiohttp
 import certifi
 
 from .rate_limiter import (
-    RateLimiter,
     RateLimiterManager,
     RateLimitConfig,
     RateLimitStatus,
     RateLimitExceeded,
 )
-from .response_cache import ResponseCache, CachedResponse, CacheStatistics
+from .response_cache import ResponseCache, CacheStatistics
 from .connection_pool import (
     ConnectionPoolManager,
     ConnectionPoolConfig,
@@ -49,12 +47,6 @@ from .webhook import (
     WebhookManager,
     WebhookConfig,
     WebhookEvent,
-    WebhookHandler,
-    SignatureAlgorithm,
-    WebhookError,
-    SignatureVerificationError,
-    TimestampValidationError,
-    HandlerNotFoundError,
 )
 
 # Configure structured logging
@@ -816,7 +808,7 @@ class NetworkManager:
                     
                     return http_response
             
-            except asyncio.TimeoutError as e:
+            except asyncio.TimeoutError:
                 last_exception = TimeoutError(f"Request timed out after {request_timeout}s: {url}")
                 logger.warning(
                     "Request timeout",

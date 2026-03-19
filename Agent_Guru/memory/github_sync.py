@@ -12,8 +12,6 @@ All sync operations are non-blocking — they never delay memory writes.
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
 import sqlite3
 import time

@@ -14,8 +14,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Any
+from datetime import datetime
 
 from Agent_Guru.memory.models import MetricSnapshot, MetricType
 

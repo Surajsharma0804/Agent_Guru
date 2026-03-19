@@ -1,10 +1,10 @@
 """Audio capture from microphone and files."""
 
+import logging
+
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
-from typing import Optional, Tuple
-import logging
 
 from ..exceptions import AudioInputError
 
@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 class AudioCapture:
     """Base class for audio capture."""
-    
-    def capture(self, duration: Optional[float] = None) -> Tuple[np.ndarray, int]:
+
+    def capture(self, duration: float | None = None) -> tuple[np.ndarray, int]:
         """
         Capture audio.
         
@@ -32,12 +32,12 @@ class AudioCapture:
 
 class MicrophoneCapture(AudioCapture):
     """Captures audio from system microphone using sounddevice."""
-    
+
     def __init__(
         self,
         sample_rate: int = 16000,
         channels: int = 1,
-        device: Optional[int] = None
+        device: int | None = None
     ):
         """
         Initialize microphone capture.
@@ -50,7 +50,7 @@ class MicrophoneCapture(AudioCapture):
         self.sample_rate = sample_rate
         self.channels = channels
         self.device = device
-        
+
         # Verify device is available
         try:
             if device is not None:
@@ -60,8 +60,8 @@ class MicrophoneCapture(AudioCapture):
                 logger.info("Using default audio device")
         except Exception as e:
             raise AudioInputError(f"Failed to query audio device: {e}") from e
-    
-    def capture(self, duration: Optional[float] = None) -> Tuple[np.ndarray, int]:
+
+    def capture(self, duration: float | None = None) -> tuple[np.ndarray, int]:
         """
         Capture audio from microphone.
         
@@ -76,10 +76,10 @@ class MicrophoneCapture(AudioCapture):
         """
         if duration is None:
             raise AudioInputError("Duration is required for microphone capture")
-        
+
         try:
             logger.debug(f"Capturing {duration}s of audio at {self.sample_rate}Hz")
-            
+
             # Record audio
             audio = sd.rec(
                 int(duration * self.sample_rate),
@@ -89,20 +89,20 @@ class MicrophoneCapture(AudioCapture):
                 dtype='float32'
             )
             sd.wait()  # Wait for recording to complete
-            
+
             # Convert to mono if needed
             if self.channels > 1 and audio.ndim > 1:
                 audio = np.mean(audio, axis=1)
-            
+
             # Flatten to 1D array
             audio = audio.flatten()
-            
+
             logger.debug(f"Captured {len(audio)} samples")
             return audio, self.sample_rate
-            
+
         except Exception as e:
             raise AudioInputError(f"Failed to capture audio: {e}") from e
-    
+
     @staticmethod
     def list_devices() -> list:
         """
@@ -131,7 +131,7 @@ class MicrophoneCapture(AudioCapture):
 
 class FileCapture(AudioCapture):
     """Loads audio from files using soundfile."""
-    
+
     def __init__(self, file_path: str):
         """
         Initialize file capture.
@@ -141,8 +141,8 @@ class FileCapture(AudioCapture):
         """
         self.file_path = file_path
         logger.info(f"FileCapture initialized for: {file_path}")
-    
-    def capture(self, duration: Optional[float] = None) -> Tuple[np.ndarray, int]:
+
+    def capture(self, duration: float | None = None) -> tuple[np.ndarray, int]:
         """
         Load audio from file.
         
@@ -156,12 +156,12 @@ class FileCapture(AudioCapture):
             AudioInputError: If file loading fails
         """
         return self.load_file(self.file_path, duration)
-    
+
     def load_file(
         self,
         file_path: str,
-        duration: Optional[float] = None
-    ) -> Tuple[np.ndarray, int]:
+        duration: float | None = None
+    ) -> tuple[np.ndarray, int]:
         """
         Load audio from file.
         
@@ -179,31 +179,31 @@ class FileCapture(AudioCapture):
         """
         try:
             logger.debug(f"Loading audio from: {file_path}")
-            
+
             # Load audio file
             audio, sample_rate = sf.read(file_path, dtype='float32')
-            
+
             # Convert to mono if stereo
             if audio.ndim > 1:
                 audio = np.mean(audio, axis=1)
-            
+
             # Trim to duration if specified
             if duration is not None:
                 max_samples = int(duration * sample_rate)
                 audio = audio[:max_samples]
-            
+
             logger.debug(
                 f"Loaded {len(audio)} samples at {sample_rate}Hz "
                 f"({len(audio)/sample_rate:.2f}s)"
             )
-            
+
             return audio, sample_rate
-            
+
         except FileNotFoundError:
             raise AudioInputError(f"Audio file not found: {file_path}")
         except Exception as e:
             raise AudioInputError(f"Failed to load audio file: {e}") from e
-    
+
     @staticmethod
     def get_file_info(file_path: str) -> dict:
         """

@@ -21,11 +21,10 @@ Version: 1.0.0
 """
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any
-from uuid import uuid4
 
 from celery import Celery, Task
 from celery.result import AsyncResult

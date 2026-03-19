@@ -158,7 +158,6 @@ def _preload_tools():
     By pre-loading here, subsequent load_all_tools_sync() calls are no-ops
     (all tools already registered → get_tool() check skips them).
     """
-    import asyncio
     from Agent_Guru.reasoning.tools.loader import load_all_tools
     from Agent_Guru.reasoning.tools.registry import get_registry
 

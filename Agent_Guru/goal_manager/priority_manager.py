@@ -37,7 +37,6 @@ from typing import Optional
 
 from .models import Goal, GoalStatus, Priority
 from .goal_storage import GoalStorage
-from .exceptions import StorageError
 
 
 class PriorityManager:

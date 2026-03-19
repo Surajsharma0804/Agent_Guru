@@ -14,7 +14,6 @@ Key management: keys stored in-memory (swap for OS keychain in production).
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import os
 import re

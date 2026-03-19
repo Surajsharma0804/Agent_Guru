@@ -165,9 +165,9 @@ class UserQuotaCounters:
             op_counters["day"] = 0
 
 
-class QuotaExceededException(Exception):
+class QuotaExceededError(Exception):
     """Raised when operation quota is exceeded."""
-    
+
     def __init__(self, status: QuotaStatus):
         self.status = status
         if status.hour_exceeded:
@@ -183,6 +183,10 @@ class QuotaExceededException(Exception):
                 f"Resets at {status.reset_day_at.strftime('%Y-%m-%d %H:%M:%S')}"
             )
         super().__init__(message)
+
+
+# Backward-compatible alias
+QuotaExceededException = QuotaExceededError
 
 
 class QuotaManager:

@@ -258,6 +258,131 @@ patterns:
     intent: "stop"
     entities: {}
 
+  # App Control (OS-level)
+  - pattern: "open {app}"
+    intent: "open_app"
+    entities:
+      app: "APP"
+
+  - pattern: "launch {app}"
+    intent: "open_app"
+    entities:
+      app: "APP"
+
+  - pattern: "start {app}"
+    intent: "open_app"
+    entities:
+      app: "APP"
+
+  - pattern: "close {app}"
+    intent: "close_app"
+    entities:
+      app: "APP"
+
+  - pattern: "quit {app}"
+    intent: "close_app"
+    entities:
+      app: "APP"
+
+  # Type Text (OS-level keyboard input)
+  - pattern: "type {text}"
+    intent: "type_text"
+    entities:
+      text: "TEXT"
+
+  - pattern: "write {text}"
+    intent: "type_text"
+    entities:
+      text: "TEXT"
+
+  - pattern: "type out {text}"
+    intent: "type_text"
+    entities:
+      text: "TEXT"
+
+  - pattern: "enter {text}"
+    intent: "type_text"
+    entities:
+      text: "TEXT"
+
+  # System Actions (OS-level)
+  - pattern: "take a screenshot"
+    intent: "screenshot"
+    entities: {}
+
+  - pattern: "screenshot"
+    intent: "screenshot"
+    entities: {}
+
+  - pattern: "copy to clipboard"
+    intent: "clipboard"
+    entities:
+      action: "copy"
+
+  - pattern: "paste from clipboard"
+    intent: "clipboard"
+    entities:
+      action: "paste"
+
+  - pattern: "lock screen"
+    intent: "system_action"
+    entities:
+      action: "lock"
+
+  - pattern: "sleep computer"
+    intent: "system_action"
+    entities:
+      action: "sleep"
+
+  - pattern: "restart computer"
+    intent: "system_action"
+    entities:
+      action: "restart"
+
+  - pattern: "shut down"
+    intent: "system_action"
+    entities:
+      action: "shutdown"
+
+  - pattern: "increase volume"
+    intent: "volume_up"
+    entities: {}
+
+  - pattern: "decrease volume"
+    intent: "volume_down"
+    entities: {}
+
+  - pattern: "mute"
+    intent: "system_action"
+    entities:
+      action: "mute"
+
+  - pattern: "unmute"
+    intent: "system_action"
+    entities:
+      action: "unmute"
+
+  # Web Search
+  - pattern: "search for {query}"
+    intent: "search_web"
+    entities:
+      query: "TASK"
+
+  - pattern: "google {query}"
+    intent: "search_web"
+    entities:
+      query: "TASK"
+
+  - pattern: "look up {query}"
+    intent: "search_web"
+    entities:
+      query: "TASK"
+
+  - pattern: "find {query} online"
+    intent: "search_web"
+    entities:
+      query: "TASK"
+
 # Entity Extraction Rules
 # Regex patterns for extracting entity values
 entity_patterns:

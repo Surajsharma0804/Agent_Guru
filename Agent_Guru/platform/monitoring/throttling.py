@@ -31,9 +31,9 @@ import time
 import threading
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Callable, Deque, Set
+from typing import Dict, List, Optional, Deque, Set
 import logging
 
 from .resource_monitor import (

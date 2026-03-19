@@ -17,7 +17,7 @@ Usage:
 
 import asyncio
 import time
-from typing import List, Dict, Any
+from typing import Dict, Any
 import sys
 import os
 

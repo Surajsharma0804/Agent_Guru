@@ -13,7 +13,6 @@ both sync and async contexts without requiring an event loop.
 
 from __future__ import annotations
 
-import logging
 from collections import OrderedDict
 from typing import Any, Optional
 

@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from Agent_Guru.memory.models import (
     DuplicationCandidate,
@@ -26,7 +26,6 @@ from Agent_Guru.memory.models import (
     Experience,
     ItemType,
     MergeResult,
-    MergeStrategy,
     Preference,
 )
 

@@ -17,7 +17,7 @@ Date: 2026-02-28
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from Agent_Guru.self_improvement.performance_tracker import PerformanceTracker

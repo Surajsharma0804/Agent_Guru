@@ -4,8 +4,8 @@ GitHub Sync Engine - Queues and syncs agent evolution events to GitHub.
 Validates: Requirements 20.1, 20.2, 20.3, 20.4, 20.5
 """
 
-from typing import Dict, List, Any, Callable, Awaitable, Optional
-from dataclasses import dataclass, field
+from typing import Dict, List, Any
+from dataclasses import dataclass
 from datetime import datetime
 import asyncio
 import logging

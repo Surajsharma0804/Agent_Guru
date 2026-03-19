@@ -13,7 +13,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import shutil
 import sqlite3
 import subprocess
 import sys

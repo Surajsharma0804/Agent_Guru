@@ -12,7 +12,6 @@ import logging
 
 from .task_decomposer import Task, TaskDecomposer
 from .task_assigner import TaskAssigner
-from .agent_lifecycle import AgentLifecycleManager
 from .performance_tracker import PerformanceTracker
 from .delegation_manager import DelegationManager
 from .loop_detector import LoopDetector

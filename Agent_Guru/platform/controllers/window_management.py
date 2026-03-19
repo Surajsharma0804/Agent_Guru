@@ -222,7 +222,7 @@ class WindowManager:
             screens = []
             monitor_enum = win32api.EnumDisplayMonitors()
 
-            for i, (hMonitor, hdcMonitor, rect) in enumerate(monitor_enum):
+            for i, (hMonitor, hdcMonitor, rect) in enumerate(monitor_enum):  # noqa: N806
                 monitor_info = win32api.GetMonitorInfo(hMonitor)
                 is_primary = monitor_info['Flags'] & win32con.MONITORINFOF_PRIMARY != 0
 

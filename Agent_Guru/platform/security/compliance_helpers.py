@@ -12,12 +12,9 @@ Date: 2026-02-25
 Version: 1.0.0
 """
 
-import json
 import socket
 from datetime import datetime
-from pathlib import Path
 from typing import Dict, Any, List
-from dataclasses import asdict
 
 from Agent_Guru.platform.security.auditor import AuditLogEntry
 import structlog

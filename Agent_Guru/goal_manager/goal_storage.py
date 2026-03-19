@@ -113,7 +113,6 @@ class GoalStorage:
         Raises:
             StorageError: If update fails or goal not found
         """
-        import sqlite3 as _sqlite3
         from .exceptions import StorageError as _StorageError
 
         status_value = status.value if hasattr(status, "value") else str(status)

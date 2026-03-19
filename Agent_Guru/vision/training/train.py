@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Tuple
 
 logger = logging.getLogger("guruvision.training.train")
 
@@ -74,7 +74,7 @@ def _build_arcface_loss(num_classes: int, embedding_dim: int, scale: float, marg
     import math
     import torch
     import torch.nn as nn
-    import torch.nn.functional as F
+    import torch.nn.functional as F  # noqa: N812
 
     class ArcFaceLoss(nn.Module):
         """ArcFace additive angular margin loss (Deng et al., 2019)."""
