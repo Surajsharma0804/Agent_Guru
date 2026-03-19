@@ -222,6 +222,8 @@ class TestReasoningEngine:
         )
 
         engine = make_engine_fast(tool_selector=mock_selector)
+        # Clear the singleton response cache to avoid cross-test pollution
+        engine._response_cache.clear()
         normalized = NormalizedInput(
             text="set a timer for 5 minutes",
             source=InputSource.TEXT,

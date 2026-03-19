@@ -83,16 +83,30 @@ class FaceRecognizer:
     # ------------------------------------------------------------------
 
     def _get_session(self) -> Optional[object]:
-        """Lazy-init the ONNX Runtime session. Returns None on failure."""
+        """Lazy-init the ONNX Runtime session.
+
+        Returns None only in explicit test/dev mode (when model_path is empty
+        or starts with "test_").  In all other cases a missing or unloadable
+        model raises ``RuntimeError`` so the failure is never silently swallowed.
+        """
         if self._session is not None:
             return self._session
 
+        # Allow explicit test/dev bypass via a sentinel path prefix
+        _is_test_mode = not self.model_path or self.model_path.startswith("test_")
+
         if not os.path.isfile(self.model_path):
-            logger.warning(
-                "ONNX model not found at '%s', using random embedding fallback",
-                self.model_path,
+            if _is_test_mode:
+                logger.warning(
+                    "FaceRecognizer: test mode — no model at '%s', random fallback active",
+                    self.model_path,
+                )
+                return None
+            raise RuntimeError(
+                f"ArcFace ONNX model not found at '{self.model_path}'. "
+                "Download the model and place it at the configured path. "
+                "See docs/models.md for instructions."
             )
-            return None
 
         try:
             import onnxruntime as ort  # type: ignore[import]
@@ -106,10 +120,9 @@ class FaceRecognizer:
             logger.info("Loaded ArcFace ONNX model from '%s'", self.model_path)
             return self._session
         except Exception as exc:
-            logger.error(
-                "Failed to load ONNX model from '%s': %s", self.model_path, exc
-            )
-            return None
+            raise RuntimeError(
+                f"Failed to load ArcFace ONNX model from '{self.model_path}': {exc}"
+            ) from exc
 
     @staticmethod
     def _validate_face(face: np.ndarray) -> None:
@@ -146,10 +159,10 @@ class FaceRecognizer:
         return vec / norm
 
     def _random_embedding(self) -> np.ndarray:
-        """Return a random L2-normalised 512-dim vector (dev/test fallback)."""
-        logger.warning(
-            "ONNX model not available at '%s', returning random embedding fallback",
-            self.model_path,
-        )
+        """Return a random L2-normalised 512-dim vector.
+
+        ONLY used in test/dev mode (model_path is empty or starts with "test_").
+        Never called in production — _get_session() raises RuntimeError instead.
+        """
         vec = np.random.randn(self.EMBEDDING_DIM).astype(np.float32)
         return self._l2_normalize(vec)

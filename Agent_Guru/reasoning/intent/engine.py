@@ -479,14 +479,17 @@ class IntentDetectionEngine:
             Detection result with intent and metadata
         """
         # Run async method in event loop
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If loop is already running, create a new task
-            future = asyncio.ensure_future(self.detect_intent_async(text, context, user_id))
-            return loop.run_until_complete(future)
-        else:
-            # If no loop is running, run directly
-            return loop.run_until_complete(self.detect_intent_async(text, context, user_id))
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If loop is already running, create a new task
+                future = asyncio.ensure_future(self.detect_intent_async(text, context, user_id))
+                return loop.run_until_complete(future)
+            else:
+                return loop.run_until_complete(self.detect_intent_async(text, context, user_id))
+        except RuntimeError:
+            # No current event loop (Python 3.11+) — create one
+            return asyncio.run(self.detect_intent_async(text, context, user_id))
 
     # Mapping from pattern-file intent strings → valid IntentType enum values.
     # Pattern files may use fine-grained labels (e.g. "device_off") that don't
@@ -759,9 +762,9 @@ class IntentDetectionEngine:
             "target_fast_path_percent": target_percent,
             "actual_fast_path_percent": fast_path_percent,
             "performance_vs_target": (
-                "[OK] Meeting target"
+                "✓ Meeting target"
                 if fast_path_percent >= target_percent
-                else f"[WARNING] Below target ({fast_path_percent:.1f}% vs {target_percent}%)"
+                else f"⚠ Below target ({fast_path_percent:.1f}% vs {target_percent}%)"
             ),
         }
 

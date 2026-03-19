@@ -27,6 +27,7 @@ class FeedbackType(str, Enum):
     ENTITY_CORRECTION = "entity_correction"  # User corrected entities
     POSITIVE = "positive"  # User confirmed prediction was correct
     NEGATIVE = "negative"  # User indicated prediction was wrong
+    CORRECTION = "correction"  # Generic correction (used by FeedbackCollector)
 
 
 class IntentFeedback(BaseModel):

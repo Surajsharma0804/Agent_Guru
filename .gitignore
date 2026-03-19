@@ -123,6 +123,13 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# Production ONNX model files (large binaries — download via models/download_models.py)
+models/*.onnx
+models/*.pt
+models/*.pth
+models/*.bin
+models/*.zip
+
 # Agent_Guru specific data directories
 Agent_Guru/vision/data/model/*.pth
 Agent_Guru/vision/data/model/*.onnx

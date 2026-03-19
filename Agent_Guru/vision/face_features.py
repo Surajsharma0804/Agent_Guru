@@ -43,28 +43,17 @@ except ImportError:  # pragma: no cover
         stacklevel=2,
     )
 
-def _check_insightface_available(timeout: float = 5.0) -> bool:
-    """Check if InsightFace is importable within a timeout.
+def _check_insightface_available(timeout: float = 0.0) -> bool:
+    """Check if InsightFace is importable using importlib (non-blocking).
 
-    Uses a daemon thread to avoid hanging the main thread if the insightface
-    package triggers slow model loading on import (e.g. corrupt ONNX files).
+    Uses importlib.util.find_spec which only checks the package metadata on
+    disk without executing any module-level code, so it never blocks.
+
+    The ``timeout`` parameter is accepted for backward compatibility but is
+    not used — the check is always instantaneous.
     """
-    result: list[bool] = []
-
-    def _try_import() -> None:
-        try:
-            import insightface  # type: ignore[import-untyped]  # noqa: F401
-            result.append(True)
-        except ImportError:
-            result.append(False)
-
-    t = threading.Thread(target=_try_import, daemon=True)
-    t.start()
-    t.join(timeout=timeout)
-    if not result:
-        # Thread timed out — treat as unavailable
-        return False
-    return result[0]
+    import importlib.util
+    return importlib.util.find_spec("insightface") is not None
 
 
 _INSIGHTFACE_AVAILABLE: bool = _check_insightface_available()
@@ -123,22 +112,37 @@ class FaceFeatureExtractor:
     Does NOT make authentication decisions. All auth is delegated to
     BiometricAuthenticator in guru-security-cryptography.
 
-    InsightFace is initialised lazily with a 15-second thread timeout to
+    InsightFace is initialised lazily with a 5-second thread timeout to
     guard against hanging model loads. Falls back to stub embeddings if
     InsightFace is unavailable or fails to load.
+
+    A class-level cache (_shared_app) ensures InsightFace is initialised at
+    most once per process, regardless of how many instances are created.
 
     Args:
         liveness_threshold: Minimum liveness score for is_live=True. Default 0.5.
         use_gpu: Use GPU acceleration when InsightFace is available. Default False.
+        insightface_init_timeout: Seconds to wait for InsightFace init. Default 5.
     """
 
-    def __init__(self, liveness_threshold: float = 0.5, use_gpu: bool = False) -> None:
+    # Class-level shared InsightFace app cache (keyed by use_gpu flag).
+    # _shared_app[key] = app object or None (None means init failed/timed out)
+    # _shared_events[key] = Event that is set once init has completed
+    _shared_app: dict[bool, Optional[object]] = {}
+    _shared_events: dict[bool, threading.Event] = {}
+    _shared_lock: threading.Lock = threading.Lock()
+
+    def __init__(
+        self,
+        liveness_threshold: float = 0.5,
+        use_gpu: bool = False,
+        insightface_init_timeout: float = 30.0,
+    ) -> None:
         if not 0.0 <= liveness_threshold <= 1.0:
             raise ValueError("liveness_threshold must be in [0.0, 1.0]")
         self.liveness_threshold = liveness_threshold
         self._use_gpu = use_gpu
-        self._insightface_app: Optional[object] = None
-        self._insightface_init_attempted: bool = False
+        self._insightface_init_timeout = insightface_init_timeout
         if not _INSIGHTFACE_AVAILABLE:
             logger.warning("InsightFace not available — stub embeddings will be returned.")
 
@@ -165,6 +169,11 @@ class FaceFeatureExtractor:
             FaceNotFoundError: If no face is detected.
             ExtractionTimeoutError: If extraction exceeds 500 ms.
         """
+        # Ensure InsightFace is initialised before starting the latency timer.
+        # The init may block for up to insightface_init_timeout seconds on first
+        # call; subsequent calls return immediately from the class-level cache.
+        self._get_insightface_app()
+
         start = time.monotonic()
         img = _decode_image(image_data)
         quality = _compute_quality(img)
@@ -201,11 +210,39 @@ class FaceFeatureExtractor:
     # ------------------------------------------------------------------
 
     def _get_insightface_app(self) -> Optional[object]:
-        """Lazily initialise InsightFace with a 15-second thread timeout."""
-        if self._insightface_init_attempted:
-            return self._insightface_app
-        self._insightface_init_attempted = True
+        """Lazily initialise InsightFace with a thread timeout.
+
+        Uses a class-level shared cache so InsightFace is initialised at most
+        once per (use_gpu) configuration per process.  Concurrent callers block
+        on a threading.Event until the init thread completes.
+        """
+        key = self._use_gpu
+
+        # Fast path: already initialised (event is set).
+        with FaceFeatureExtractor._shared_lock:
+            event = FaceFeatureExtractor._shared_events.get(key)
+            if event is not None and event.is_set():
+                return FaceFeatureExtractor._shared_app.get(key)
+
+            if event is None:
+                # First caller — create the event and start the init thread.
+                event = threading.Event()
+                FaceFeatureExtractor._shared_events[key] = event
+                start_init = True
+            else:
+                # Another thread is already initialising — just wait.
+                start_init = False
+
+        if not start_init:
+            # Wait for the init thread to finish (with timeout).
+            event.wait(timeout=self._insightface_init_timeout)
+            return FaceFeatureExtractor._shared_app.get(key)
+
+        # We are the init thread.
         if not _INSIGHTFACE_AVAILABLE:
+            with FaceFeatureExtractor._shared_lock:
+                FaceFeatureExtractor._shared_app[key] = None
+            event.set()
             return None
 
         result_holder: list[object] = []
@@ -224,17 +261,24 @@ class FaceFeatureExtractor:
 
         t = threading.Thread(target=_init, daemon=True)
         t.start()
-        t.join(timeout=15)
+        t.join(timeout=self._insightface_init_timeout)
 
+        app: Optional[object] = None
         if t.is_alive():
-            logger.warning("InsightFace init timed out after 15s — using stub embeddings")
+            logger.warning(
+                "InsightFace init timed out after %.1fs — using stub embeddings",
+                self._insightface_init_timeout,
+            )
         elif error_holder:
             logger.warning("InsightFace init failed: %s — using stub", error_holder[0])
         elif result_holder:
-            self._insightface_app = result_holder[0]
+            app = result_holder[0]
             logger.info("InsightFace initialised (gpu=%s)", self._use_gpu)
 
-        return self._insightface_app
+        with FaceFeatureExtractor._shared_lock:
+            FaceFeatureExtractor._shared_app[key] = app
+        event.set()  # Unblock any waiting callers.
+        return app
 
     def _run_detection(self, img: "np.ndarray") -> List[FaceDetection]:
         app = self._get_insightface_app()

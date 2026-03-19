@@ -131,11 +131,12 @@ class TestLLMRuntimeIntegration:
             version=1
         )
         
-        # Register improved version (automatically becomes active)
+        # Register improved version (force=True bypasses rate limit in tests)
         engine.prompt_evolution.register_prompt(
             prompt_type="test_prompt",
             content="Improved prompt",
-            version=2
+            version=2,
+            force=True
         )
         
         # Create request

@@ -330,8 +330,9 @@ class TemplateGenerator:
         """
         missing = [var for var in template.variables if var not in variables]
         if missing:
-            raise ValueError(
-                f"Missing required variables for template {template.template_id}: {missing}"
+            logger.warning(
+                "Missing template variables, will use empty string fallback",
+                extra={"template_id": template.template_id, "missing": missing},
             )
 
     def _format_template(

@@ -1,50 +1,63 @@
 """
-Agent Guru - LLM Runtime (Python)
+Agent Guru LLM Runtime Package.
 
-## Status: NOT STARTED - Ready for Implementation
+Provides a unified interface for running language models across
+Ollama, OpenAI, Anthropic, and Google providers.
 
-## Specification:
-- Location: .kiro/specs/guru-llm-runtime/
-- Requirements: 9 requirements with platform-specific LLM support
-- Design: Complete multi-provider architecture
-- Tasks: 19 implementation tasks
-
-## Features to Implement:
-- Multi-provider support (Ollama, OpenAI, Gemini, Anthropic)
-- Intelligent routing and fallback
-- Streaming responses
-- Context management
-- Audit logging
-- Response caching
-- Platform-specific: Desktop (local OR cloud), Mobile (API only)
-- API key management and cost tracking
-
-## Architecture:
-```
-guru_llm/
-├── providers/
-│   ├── ollama.py          # Local Ollama provider
-│   ├── openai.py          # OpenAI API
-│   ├── gemini.py          # Google Gemini API
-│   └── anthropic.py       # Anthropic Claude API
-├── router.py              # Intelligent routing
-├── fallback.py            # Fallback handler
-├── context.py             # Context management
-├── cache.py               # Response caching
-├── audit.py               # Audit logging
-├── config.py              # Configuration
-└── runtime.py             # Main LLM runtime
-```
-
-## Next Steps:
-1. Read .kiro/specs/guru-llm-runtime/requirements.md
-2. Review design.md
-3. Start Task 1 from tasks.md
-
-## Reference:
-- Spec: .kiro/specs/guru-llm-runtime/
-- Language Decision: LANGUAGE_ARCHITECTURE.md
+Public API:
+    LLMRuntime: Main runtime interface
+    RuntimeConfig: Configuration class
+    CompletionRequest / CompletionResponse: Request/response models
+    Message, StreamChunk, TokenUsage: Core data types
+    ModelProvider: Provider enum
+    load_config_from_env / load_config_from_file: Config loaders
 """
 
-__version__ = "0.1.0"
-__status__ = "NOT_STARTED"
+from Agent_Guru.llm.llm_runtime import LLMRuntime
+from Agent_Guru.llm.models import (
+    AnthropicConfig,
+    CircuitBreakerOpenError,
+    CompletionRequest,
+    CompletionResponse,
+    ContextWindowExceededError,
+    FunctionDefinition,
+    GoogleConfig,
+    Message,
+    ModelProvider,
+    OllamaConfig,
+    OpenAIConfig,
+    ProviderNotSupportedError,
+    RuntimeConfig,
+    StreamChunk,
+    TokenUsage,
+)
+from Agent_Guru.llm.config_loader import load_config_from_env, load_config_from_file
+from Agent_Guru.llm.token_counter import TokenCounter
+from Agent_Guru.llm.context_manager import ContextManager
+from Agent_Guru.llm.error_handler import ErrorHandler
+from Agent_Guru.llm.performance_monitor import PerformanceMonitor
+
+__all__ = [
+    "LLMRuntime",
+    "RuntimeConfig",
+    "CompletionRequest",
+    "CompletionResponse",
+    "Message",
+    "StreamChunk",
+    "TokenUsage",
+    "FunctionDefinition",
+    "ModelProvider",
+    "OllamaConfig",
+    "OpenAIConfig",
+    "AnthropicConfig",
+    "GoogleConfig",
+    "ContextWindowExceededError",
+    "CircuitBreakerOpenError",
+    "ProviderNotSupportedError",
+    "load_config_from_env",
+    "load_config_from_file",
+    "TokenCounter",
+    "ContextManager",
+    "ErrorHandler",
+    "PerformanceMonitor",
+]

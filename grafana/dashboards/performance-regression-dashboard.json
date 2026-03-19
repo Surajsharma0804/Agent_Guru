@@ -1,0 +1,246 @@
+{
+  "dashboard": {
+    "title": "Reasoning Engine - Performance Regression Tracking",
+    "tags": ["reasoning-engine", "performance", "regression", "benchmarks"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "1m",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Pipeline Latency Trend (P50/P95/P99) vs Baselines",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(reasoning_engine_pipeline_duration_seconds_bucket[5m])) * 1000",
+            "legendFormat": "Pipeline P50 (ms)",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_pipeline_duration_seconds_bucket[5m])) * 1000",
+            "legendFormat": "Pipeline P95 (ms)",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(reasoning_engine_pipeline_duration_seconds_bucket[5m])) * 1000",
+            "legendFormat": "Pipeline P99 (ms)",
+            "refId": "C"
+          },
+          {
+            "expr": "1000",
+            "legendFormat": "Baseline: 1000ms avg target",
+            "refId": "D"
+          },
+          {
+            "expr": "1500",
+            "legendFormat": "Baseline: 1500ms P95 target",
+            "refId": "E"
+          }
+        ],
+        "thresholds": [
+          {"value": 1000, "colorMode": "warning", "op": "gt", "fill": true, "line": true},
+          {"value": 1500, "colorMode": "critical", "op": "gt", "fill": true, "line": true}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Intent Detection Latency (P50/P95) vs Baselines",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(reasoning_engine_intent_detection_duration_seconds_bucket[5m])) * 1000",
+            "legendFormat": "Intent P50 (ms)",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_intent_detection_duration_seconds_bucket[5m])) * 1000",
+            "legendFormat": "Intent P95 (ms)",
+            "refId": "B"
+          },
+          {
+            "expr": "50",
+            "legendFormat": "Baseline: 50ms fast-path target",
+            "refId": "C"
+          },
+          {
+            "expr": "200",
+            "legendFormat": "Baseline: 200ms full-path target",
+            "refId": "D"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Input Normalization Latency vs Baseline",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(reasoning_engine_input_normalization_duration_seconds_bucket[5m])) * 1000",
+            "legendFormat": "Normalization P95 (ms)",
+            "refId": "A"
+          },
+          {
+            "expr": "10",
+            "legendFormat": "Baseline: 10ms target",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Performance vs Competitors (Alexa/Siri/Google)",
+        "type": "bargauge",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(reasoning_engine_pipeline_duration_seconds_bucket[5m])) * 1000",
+            "legendFormat": "Agent_Guru (avg ms)",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {"calcs": ["lastNotNull"]},
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 800},
+              {"color": "red", "value": 1000}
+            ]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 800},
+                {"color": "red", "value": 1000}
+              ]
+            },
+            "mappings": [],
+            "min": 0,
+            "max": 2000
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Cache Hit Rate (Optimization Metric)",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(reasoning_engine_cache_hits_total[5m]) / (rate(reasoning_engine_cache_hits_total[5m]) + rate(reasoning_engine_cache_misses_total[5m])) * 100",
+            "legendFormat": "Cache Hit Rate (%)",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {"calcs": ["lastNotNull"]},
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 60},
+              {"color": "green", "value": 80}
+            ]
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Regression Alert: P95 Latency > 10% Above Baseline",
+        "type": "alertlist",
+        "gridPos": {"x": 0, "y": 24, "w": 24, "h": 6},
+        "options": {
+          "alertName": "PerformanceRegression",
+          "dashboardAlerts": false,
+          "maxItems": 10,
+          "sortOrder": 1,
+          "stateFilter": {"firing": true, "pending": true}
+        }
+      },
+      {
+        "id": 7,
+        "title": "Fast-Path vs Full-Path Routing Ratio",
+        "type": "piechart",
+        "gridPos": {"x": 0, "y": 30, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(reasoning_engine_fast_path_requests_total[5m])",
+            "legendFormat": "Fast-Path (target: 80%)",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(reasoning_engine_full_path_requests_total[5m])",
+            "legendFormat": "Full-Path (target: 20%)",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Intent Detection Accuracy Over Time",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 30, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "reasoning_engine_intent_accuracy_gauge",
+            "legendFormat": "Intent Accuracy",
+            "refId": "A"
+          },
+          {
+            "expr": "0.95",
+            "legendFormat": "Target: 95%",
+            "refId": "B"
+          },
+          {
+            "expr": "0.93",
+            "legendFormat": "Google baseline: 93%",
+            "refId": "C"
+          },
+          {
+            "expr": "0.90",
+            "legendFormat": "Alexa/Siri baseline: 90%",
+            "refId": "D"
+          }
+        ]
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployments",
+          "datasource": "Prometheus",
+          "expr": "changes(reasoning_engine_build_info[1m]) > 0",
+          "step": "60s",
+          "titleFormat": "Deployment",
+          "tagKeys": "version",
+          "iconColor": "blue"
+        },
+        {
+          "name": "Performance Regressions",
+          "datasource": "Prometheus",
+          "expr": "ALERTS{alertname='PerformanceRegression'}",
+          "step": "60s",
+          "titleFormat": "Regression Detected",
+          "iconColor": "red"
+        }
+      ]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "interval",
+          "type": "interval",
+          "options": ["1m", "5m", "10m", "30m", "1h"],
+          "current": {"value": "5m", "text": "5m"}
+        }
+      ]
+    }
+  },
+  "overwrite": true
+}
