@@ -1333,42 +1333,42 @@ Current coverage status will be tracked and reported for each completed task.
 ## Phase 15: Core User Scenarios Testing - NEW PHASE
 
 - [x]* 25. Implement and test all 10 core user scenarios
-  - [ ]* 25.1 Test: Open an app (<500ms)
+  - [x]* 25.1 Test: Open an app (<500ms)
     - Test "Open Spotify" command
     - Verify fast-path routing
     - Verify latency <500ms
     - Test error handling (app not found)
     - _Requirements: 30.1_
 
-  - [ ]* 25.2 Test: Send a message (with confirmation)
+  - [x]* 25.2 Test: Send a message (with confirmation)
     - Test "Send a message to John saying I'll be late"
     - Verify confirmation request
     - Verify message sent after confirmation
     - Test error handling (contact not found)
     - _Requirements: 30.2_
 
-  - [ ]* 25.3 Test: Set a reminder (with time parsing)
+  - [x]* 25.3 Test: Set a reminder (with time parsing)
     - Test "Remind me to call mom tomorrow at 3pm"
     - Verify time parsing (tomorrow, 3pm)
     - Verify reminder created
     - Test error handling (ambiguous time)
     - _Requirements: 30.3_
 
-  - [ ]* 25.4 Test: Ask a knowledge question (with web search)
+  - [x]* 25.4 Test: Ask a knowledge question (with web search)
     - Test "What's the weather in Seattle?"
     - Verify web search or API call
     - Verify formatted response
     - Test error handling (location not found)
     - _Requirements: 30.4_
 
-  - [ ]* 25.5 Test: Control system settings (with permission check)
+  - [x]* 25.5 Test: Control system settings (with permission check)
     - Test "Set volume to 50%"
     - Verify permission check
     - Verify system setting changed
     - Test error handling (permission denied)
     - _Requirements: 30.5_
 
-  - [ ]* 25.6 Test: Multi-step task (weather + reminder)
+  - [x]* 25.6 Test: Multi-step task (weather + reminder)
     - Test "Check the weather and remind me to bring an umbrella if it's raining"
     - Verify multi-step plan creation
     - Verify conditional logic execution
@@ -1376,28 +1376,28 @@ Current coverage status will be tracked and reported for each completed task.
     - Test error handling (weather API failure)
     - _Requirements: 30.6_
 
-  - [ ]* 25.7 Test: Follow-up question (using context)
+  - [x]* 25.7 Test: Follow-up question (using context)
     - Test "What about tomorrow?" after weather query
     - Verify context resolution
     - Verify correct interpretation
     - Test error handling (unclear context)
     - _Requirements: 30.7_
 
-  - [ ]* 25.8 Test: Error recovery (with alternatives)
+  - [x]* 25.8 Test: Error recovery (with alternatives)
     - Test "Call John" when John not in contacts
     - Verify error detection
     - Verify alternative suggestions
     - Test manual entry fallback
     - _Requirements: 30.8_
 
-  - [ ]* 25.9 Test: Proactive suggestion (time-based)
+  - [x]* 25.9 Test: Proactive suggestion (time-based)
     - Simulate user pattern (open app at 8am daily)
     - Verify pattern detection
     - Verify proactive suggestion generated
     - Test suggestion acceptance/rejection
     - _Requirements: 30.9_
 
-  - [ ]* 25.10 Test: Third-party skill invocation (with sandboxing)
+  - [x]* 25.10 Test: Third-party skill invocation (with sandboxing)
     - Test "Order pizza from Domino's" (example skill)
     - Verify skill discovery and selection
     - Verify sandboxing (resource limits, isolation)
@@ -1457,28 +1457,28 @@ Current coverage status will be tracked and reported for each completed task.
 ## Phase 17: Integration and End-to-End Testing - NEW PHASE
 
 - [x]* 27. Complete integration testing
-  - [ ]* 27.1 Test fast-path end-to-end (<500ms)
+  - [x]* 27.1 Test fast-path end-to-end (<500ms)
     - Test 20 common fast-path commands
     - Verify all complete within 500ms
     - Measure P50, P95, P99 latency
     - Identify any bottlenecks
     - _Requirements: 29.9_
 
-  - [ ]* 27.2 Test normal path end-to-end (<1.5s)
+  - [x]* 27.2 Test normal path end-to-end (<1.5s)
     - Test 20 common normal-path commands
     - Verify all complete within 1.5s
     - Measure P50, P95, P99 latency
     - Identify any bottlenecks
     - _Requirements: 29.10_
 
-  - [ ]* 27.3 Test multi-step task execution
+  - [x]* 27.3 Test multi-step task execution
     - Test 10 multi-step scenarios
     - Verify sequential execution
     - Verify state passing between steps
     - Verify error handling and partial results
     - _Requirements: 30.6_
 
-  - [ ]* 27.4 Test error recovery and fallback strategies
+  - [x]* 27.4 Test error recovery and fallback strategies
     - Test LLM unavailable fallback
     - Test tool unavailable fallback
     - Test timeout fallback
@@ -1486,21 +1486,21 @@ Current coverage status will be tracked and reported for each completed task.
     - Verify graceful degradation
     - _Requirements: 30.8_
 
-  - [ ]* 27.5 Test behavioral learning over 100 tasks
+  - [x]* 27.5 Test behavioral learning over 100 tasks
     - Execute 100 varied tasks
     - Verify pattern detection
     - Verify preference learning
     - Verify suggestion accuracy improves by 15%
     - _Requirements: 27.8_
 
-  - [ ]* 27.6 Load testing (1000 concurrent requests)
+  - [x]* 27.6 Load testing (1000 concurrent requests)
     - Run load test with 1000 concurrent users
     - Measure latency under load
     - Verify no crashes or errors
     - Verify resource usage stays within limits
     - _Requirements: 29.9, 29.10_
 
-  - [ ]* 27.7 Stress testing (find breaking points)
+  - [x]* 27.7 Stress testing (find breaking points)
     - Gradually increase load until system breaks
     - Identify breaking point (max RPS)
     - Identify bottlenecks

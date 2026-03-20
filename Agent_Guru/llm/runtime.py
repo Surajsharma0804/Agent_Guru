@@ -135,10 +135,13 @@ class LLMRuntime:
         enable_learning: bool = False,
         hallucination_detector: Optional[Callable[[str], bool]] = None,
         config: Optional[RuntimeConfig] = None,
+        degradation_controller: Optional[Any] = None,
     ) -> None:
         self.self_improvement_engine = self_improvement_engine
         self.enable_learning = enable_learning
         self.hallucination_detector = hallucination_detector
+        # Requirement 7.1, 7.6: offline resilience and LLM failover
+        self.degradation_controller = degradation_controller
 
         # Session history: session_id -> List[Message]
         self.active_sessions: Dict[str, List[Message]] = {}
@@ -173,6 +176,26 @@ class LLMRuntime:
             Exception: If execution fails (after recording the failure)
         """
         start = time.perf_counter()
+
+        # Requirement 7.1: Check network/degradation state before LLM call
+        if self.degradation_controller is not None:
+            try:
+                mode = self.degradation_controller.current_mode
+                if hasattr(mode, "value") and mode.value in ("minimal", "safe"):
+                    # Use offline cache lookup instead of LLM
+                    cached = self.degradation_controller.lookup_offline(
+                        str(request.messages[-1].content if request.messages else "")
+                    )
+                    if cached:
+                        return LLMResponse(
+                            content=cached,
+                            model="offline_cache",
+                            provider="cache",
+                            latency_ms=(time.perf_counter() - start) * 1000,
+                            total_tokens=0,
+                        )
+            except Exception:
+                pass  # Degradation check is best-effort
 
         # Resolve active prompt_id for recording
         active_prompt_id: Optional[str] = None

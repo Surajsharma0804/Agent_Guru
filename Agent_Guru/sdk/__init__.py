@@ -16,12 +16,20 @@ Example:
 
 from Agent_Guru.sdk.skill import Skill, skill_capability, skill_parameter
 from Agent_Guru.sdk.manifest import ManifestGenerator
+from Agent_Guru.sdk.client import AgentGuruClient
+from Agent_Guru.sdk.exceptions import InvalidParameterError, RateLimitError, ProviderUnavailableError
+from Agent_Guru.sdk.mock_server import MockServer
 
 __all__ = [
     "Skill",
     "skill_capability",
     "skill_parameter",
     "ManifestGenerator",
+    "AgentGuruClient",
+    "InvalidParameterError",
+    "RateLimitError",
+    "ProviderUnavailableError",
+    "MockServer",
 ]
 
 __version__ = "1.0.0"

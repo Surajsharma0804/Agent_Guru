@@ -25,7 +25,7 @@ __author__ = "Agent Guru Team"
 # being imported at package import time, which would crash on platforms
 # where optional dependencies are not installed.
 
-def __getattr__(name: str):  # type: ignore[misc]
+def __getattr__(name: str):  # noqa: ANN201
     """Lazy-load sub-packages on first access."""
     _subpackages = {
         "speech", "vision", "llm", "platform",

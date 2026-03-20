@@ -6,8 +6,8 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
 
 ## Tasks
 
-- [ ] 1. Skill and Plugin Marketplace (`Agent_Guru/skills/`)
-  - [ ] 1.1 Create `Agent_Guru/skills/` package with `__init__.py`, `manifest.py`, `registry.py`, `sandbox.py`
+- [x] 1. Skill and Plugin Marketplace (`Agent_Guru/skills/`)
+  - [x] 1.1 Create `Agent_Guru/skills/` package with `__init__.py`, `manifest.py`, `registry.py`, `sandbox.py`
     - Implement `SkillManifest`, `ResourceLimits`, `InstallResult`, `ValidationError`, `SkillResult`, `ResourceUsage` dataclasses
     - Implement `SkillRegistry.discover()`, `install()`, `validate()`, `resolve_conflict()`, `uninstall()`
     - Use `jsonschema` for manifest validation against JSON Schema v7
@@ -18,7 +18,7 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - **Property 1: Skill manifest round-trip serialization**
     - **Validates: Requirement 1.8**
 
-  - [ ] 1.3 Implement `SkillSandbox` with subprocess isolation and resource enforcement
+  - [x] 1.3 Implement `SkillSandbox` with subprocess isolation and resource enforcement
     - Execute each Skill in a separate subprocess via `multiprocessing`
     - Enforce CPU/memory/timeout limits using `resource` module (Linux), `psutil` (cross-platform)
     - Apply `seccomp` (Linux) / `sandbox-exec` (macOS) / AppContainer (Windows) syscall filtering
@@ -42,8 +42,8 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.10_
 
 
-- [ ] 2. Multi-Modal Input Fusion (`Agent_Guru/fusion/`)
-  - [ ] 2.1 Create `Agent_Guru/fusion/` package with `__init__.py`, `engine.py`, `deictic.py`
+- [x] 2. Multi-Modal Input Fusion (`Agent_Guru/fusion/`)
+  - [x] 2.1 Create `Agent_Guru/fusion/` package with `__init__.py`, `engine.py`, `deictic.py`
     - Implement `ModalityInput`, `FusedIntent` dataclasses
     - Implement `FusionEngine.fuse()` with 500ms fusion window logic
     - Implement confidence-weighted intent merging; emit `ClarificationRequired` when all scores < 0.4
@@ -71,8 +71,8 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Test deictic resolution, audio-only fallback, audit trail logging
     - _Requirements: 2.5, 2.7, 2.8_
 
-- [ ] 3. Proactive Notifications and Predictive Assistance (`Agent_Guru/proactive/`)
-  - [ ] 3.1 Create `Agent_Guru/proactive/` package with `__init__.py`, `engine.py`, `suppression.py`
+- [x] 3. Proactive Notifications and Predictive Assistance (`Agent_Guru/proactive/`)
+  - [x] 3.1 Create `Agent_Guru/proactive/` package with `__init__.py`, `engine.py`, `suppression.py`
     - Implement `ProactiveSuggestion`, `DeliveryResult` dataclasses
     - Implement `ProactiveEngine.evaluate_context()` monitoring calendar, location, time, conversation context
     - Implement token-bucket rate limiter: max 3/hour active, 1/hour idle
@@ -81,7 +81,7 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Implement 15-minute pre-event calendar reminders with memory context enrichment
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.6, 3.7, 3.8_
 
-  - [ ] 3.2 Implement online learning for relevance scoring in `ProactiveEngine`
+  - [x] 3.2 Implement online learning for relevance scoring in `ProactiveEngine`
     - Use SGD-based online classifier trained on acceptance/dismissal feedback
     - Implement `record_feedback()` to update classifier weights after each interaction
     - _Requirements: 3.5_
@@ -103,8 +103,8 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - _Requirements: 3.1, 3.2, 3.6, 3.8_
 
 
-- [ ] 4. Natural Conversation — Barge-In, Multi-Party, Prosody (`Agent_Guru/speech/conversation.py`)
-  - [ ] 4.1 Implement `BargeInHandler` in `Agent_Guru/speech/conversation.py`
+- [x] 4. Natural Conversation — Barge-In, Multi-Party, Prosody (`Agent_Guru/speech/conversation.py`)
+  - [x] 4.1 Implement `BargeInHandler` in `Agent_Guru/speech/conversation.py`
     - Use WebRTC VAD for speech onset detection within 100ms
     - Implement `halt_output()` guaranteeing ≤200ms halt after barge-in detection
     - Implement `preserve_context()` to store interrupted response for coherent resumption
@@ -118,7 +118,7 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - **Property 13: Barge-in halt latency**
     - **Validates: Requirement 4.2**
 
-  - [ ] 4.4 Implement `SpeakerDiarization` using pyannote.audio
+  - [x] 4.4 Implement `SpeakerDiarization` using pyannote.audio
     - Implement `identify_speakers()` with ≤300ms latency guarantee
     - Maintain per-speaker `ConversationContext`; merge contexts for shared queries
     - Address speakers generically when confidence < 80%
@@ -132,7 +132,7 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - **Property 15: Low-confidence speaker handling**
     - **Validates: Requirement 4.7**
 
-  - [ ] 4.7 Implement prosody control and conversation resumption
+  - [x] 4.7 Implement prosody control and conversation resumption
     - Implement `ProsodyConfig` with distinct rate/pitch/emphasis for question/statement/warning/confirmation
     - Integrate Piper TTS SSML tags for prosody control
     - Implement 30-minute conversation resumption window
@@ -146,8 +146,8 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
 - [ ] 5. Checkpoint — Ensure all tests pass for domains 1–4
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Privacy-Preserving Federated Learning (`Agent_Guru/learning/`)
-  - [ ] 6.1 Create `Agent_Guru/learning/` package with `__init__.py`, `federated.py`, `privacy.py`
+- [x] 6. Privacy-Preserving Federated Learning (`Agent_Guru/learning/`)
+  - [x] 6.1 Create `Agent_Guru/learning/` package with `__init__.py`, `federated.py`, `privacy.py`
     - Implement `FederatedUpdate`, `PrivacyProof` dataclasses
     - Implement `FederatedLearner.train_round()` using `opacus` for DP training
     - Enforce ε ≤ 1.0, δ ≤ 1e-5 with L2 gradient clipping to norm 1.0
@@ -155,7 +155,7 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Implement `PrivacyProof` with SHA-256 hash of (epsilon, delta, mechanism, noise_scale)
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.7_
 
-  - [ ] 6.2 Implement opt-out and data deletion in `FederatedLearner`
+  - [x] 6.2 Implement opt-out and data deletion in `FederatedLearner`
     - Implement `opt_out()` with immediate effect and `shutil.rmtree` within 60 seconds
     - Implement `transmit()` sending only differentially-private gradient delta
     - _Requirements: 5.3, 5.5, 5.6_
@@ -181,8 +181,8 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - _Requirements: 5.1, 5.4, 5.5, 5.8_
 
 
-- [ ] 7. Explainability and User-Facing Audit Trail (`Agent_Guru/explainability/`)
-  - [ ] 7.1 Create `Agent_Guru/explainability/` package with `__init__.py`, `audit.py`, `explain.py`
+- [x] 7. Explainability and User-Facing Audit Trail (`Agent_Guru/explainability/`)
+  - [x] 7.1 Create `Agent_Guru/explainability/` package with `__init__.py`, `audit.py`, `explain.py`
     - Implement `AuditEntry` dataclass with Ed25519 signature and blockchain-style hash chaining
     - Implement `AuditTrail.append()` (append-only, SQLite WAL mode)
     - Implement `AuditTrail.query()` with pagination and filters (date range, action type, confidence)
@@ -190,7 +190,7 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Implement user-initiated `delete()` and 90-day retention enforcement
     - _Requirements: 6.3, 6.4, 6.5, 6.6_
 
-  - [ ] 7.2 Implement `ExplainabilityEngine` with LLM-backed explanation generation
+  - [x] 7.2 Implement `ExplainabilityEngine` with LLM-backed explanation generation
     - Implement `explain()` generating plain-language explanation within 500ms
     - Implement `get_confidence_breakdown()` returning weighted contributions of memory/LLM/policy/verifier
     - Store reversibility info for file, email, and settings actions
@@ -212,15 +212,15 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Test pagination, filter queries, tamper detection, confidence breakdown
     - _Requirements: 6.1, 6.3, 6.5, 6.6, 6.8_
 
-- [ ] 8. Offline-First Resilience and Graceful Degradation (`Agent_Guru/resilience/`)
-  - [ ] 8.1 Create `Agent_Guru/resilience/` package with `__init__.py`, `controller.py`, `cache.py`
+- [x] 8. Offline-First Resilience and Graceful Degradation (`Agent_Guru/resilience/`)
+  - [x] 8.1 Create `Agent_Guru/resilience/` package with `__init__.py`, `controller.py`, `cache.py`
     - Implement `DegradationController.detect_network_state()` using `httpx` HEAD with 2s timeout
     - Implement `switch_mode()` transitioning through Full → Degraded → Minimal → Safe modes
     - Implement `monitor_resources()` via `psutil` polling every 5s; reduce model complexity at RAM < 512MB or CPU > 90% for 5s
     - Implement LLM failover chain: Ollama → OpenAI → Gemini → rule-based, each with 3s timeout
     - _Requirements: 7.1, 7.5, 7.6, 7.7_
 
-  - [ ] 8.2 Implement `OfflineCache` with SQLite FTS5 and queued action sync
+  - [x] 8.2 Implement `OfflineCache` with SQLite FTS5 and queued action sync
     - Implement `precompute()` for top-500 commands refreshed nightly
     - Implement `lookup()` with fuzzy FTS5 matching
     - Implement `sync_queued_actions()` replaying queued actions within 30s on reconnect
@@ -252,8 +252,8 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
   - Ensure all tests pass, ask the user if questions arise.
 
 
-- [ ] 10. Real-Time Ambient Context Engine (`Agent_Guru/context/`)
-  - [ ] 10.1 Create `Agent_Guru/context/` package with `__init__.py`, `engine.py`, `activity.py`
+- [x] 10. Real-Time Ambient Context Engine (`Agent_Guru/context/`)
+  - [x] 10.1 Create `Agent_Guru/context/` package with `__init__.py`, `engine.py`, `activity.py`
     - Implement `ContextSnapshot`, `SensorSignals` dataclasses
     - Implement `ContextEngine.get_snapshot()` with ≤10ms response guarantee
     - Implement `update()` polling every 30s (60s in ambient mode)
@@ -262,7 +262,7 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Auto-switch to text output when `location_type == "public"`
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7_
 
-  - [ ] 10.2 Implement context persistence with AES-256-GCM encryption
+  - [x] 10.2 Implement context persistence with AES-256-GCM encryption
     - Implement `persist()` writing encrypted JSON snapshot to `~/.agent_guru/context.enc`
     - Implement `restore()` decrypting and deserializing context on startup
     - _Requirements: 8.8_
@@ -283,15 +283,15 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Test ambient mode polling reduction, personality config update on activity change, battery impact
     - _Requirements: 8.1, 8.3, 8.4, 8.7_
 
-- [ ] 11. Developer SDK and API Gateway (`Agent_Guru/sdk/`)
-  - [ ] 11.1 Create `Agent_Guru/sdk/` package with `__init__.py`, `client.py`, `exceptions.py`, `mock_server.py`
+- [x] 11. Developer SDK and API Gateway (`Agent_Guru/sdk/`)
+  - [x] 11.1 Create `Agent_Guru/sdk/` package with `__init__.py`, `client.py`, `exceptions.py`, `mock_server.py`
     - Implement `AgentGuruClient` with async methods: `transcribe()`, `synthesize()`, `classify_intent()`, `query_llm()`, `search_memory()`, `execute_skill()`, `register_webhook()`
     - Implement typed exceptions: `InvalidParameterError`, `RateLimitError`, `ProviderUnavailableError`
     - Implement Pydantic v2 parameter validation with ≤1ms validation guarantee
     - Add rate limit headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`) to all responses
     - _Requirements: 9.1, 9.2, 9.3, 9.7_
 
-  - [ ] 11.2 Implement `MockServer` and webhook delivery
+  - [x] 11.2 Implement `MockServer` and webhook delivery
     - Implement `MockServer` using `aiohttp` with configurable response fixtures
     - Implement webhook delivery with 3-attempt exponential backoff within 500ms
     - Implement round-trip JSON serialization for all request objects
@@ -313,8 +313,8 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Test all async methods, typed exception raising, webhook retry logic
     - _Requirements: 9.1, 9.2, 9.4, 9.7, 9.8_
 
-- [ ] 12. Adaptive Noise Cancellation (`Agent_Guru/speech/noise.py`)
-  - [ ] 12.1 Implement `NoiseCanceller` in `Agent_Guru/speech/noise.py`
+- [x] 12. Adaptive Noise Cancellation (`Agent_Guru/speech/noise.py`)
+  - [x] 12.1 Implement `NoiseCanceller` in `Agent_Guru/speech/noise.py`
     - Integrate RNNoise (Mozilla) for real-time suppression achieving ≥20dB SNR improvement
     - Implement `recalibrate()` triggered on noise delta > 10dB, completing within 500ms
     - Maintain 2-second rolling audio buffer updated every 100ms
@@ -322,7 +322,7 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Implement `load_user_model()` for personalized noise profile after 10 sessions
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.8_
 
-  - [ ] 12.2 Implement `AcousticEnvironmentModel` with beamforming and source classification
+  - [x] 12.2 Implement `AcousticEnvironmentModel` with beamforming and source classification
     - Implement CNN-based `classify_source()` distinguishing speech/music/TV/alarm
     - Implement delay-and-sum `apply_beamforming()` when ≥2 microphones available
     - _Requirements: 10.5, 10.6, 10.7_
@@ -347,15 +347,15 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
   - Ensure all tests pass, ask the user if questions arise.
 
 
-- [ ] 14. Emotional Intelligence and Empathetic Response (`Agent_Guru/emotion/`)
-  - [ ] 14.1 Create `Agent_Guru/emotion/` package with `__init__.py`, `detector.py`, `adapter.py`
+- [x] 14. Emotional Intelligence and Empathetic Response (`Agent_Guru/emotion/`)
+  - [x] 14.1 Create `Agent_Guru/emotion/` package with `__init__.py`, `detector.py`, `adapter.py`
     - Implement `EmotionalState`, `EmotionTrend` dataclasses
     - Implement `EmotionDetector.detect()` fusing SpeechBrain (voice prosody) + VADER (text) + InsightFace (facial)
     - Implement 7-class Ekman emotion classification with ≥85% accuracy target
     - Implement opt-out enforcement: disable all emotion analysis when opted out, enforce neutral tone
     - _Requirements: 11.1, 11.6_
 
-  - [ ] 14.2 Implement `EmpathyAdapter` and distress detection
+  - [x] 14.2 Implement `EmpathyAdapter` and distress detection
     - Implement `adapt_response()` adjusting tone, vocabulary complexity, and pacing per emotional state
     - Implement `should_offer_support()` triggering on sad/fearful confidence > 0.8 for 3+ consecutive turns
     - Implement 7-day trend tracking with `get_trend()`; surface patterns on user request
@@ -379,8 +379,8 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Test trend tracking, federated update hook, AI honesty constraint
     - _Requirements: 11.2, 11.3, 11.5, 11.7, 11.8_
 
-- [ ] 15. Cross-Device Continuity and Handoff (`Agent_Guru/sync/`)
-  - [ ] 15.1 Create `Agent_Guru/sync/` package with `__init__.py`, `engine.py`, `crdt.py`
+- [x] 15. Cross-Device Continuity and Handoff (`Agent_Guru/sync/`)
+  - [x] 15.1 Create `Agent_Guru/sync/` package with `__init__.py`, `engine.py`, `crdt.py`
     - Implement `ContextDelta` dataclass with Ed25519 signature and SHA-256 delta hash
     - Implement `SyncEngine.push_delta()` and `pull_delta()` with ≤5s propagation target
     - Implement CRDT-based `resolve_conflict()` for conversation history merging
@@ -388,7 +388,7 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Implement offline delta queuing with ordered replay on reconnect
     - _Requirements: 12.1, 12.4, 12.7_
 
-  - [ ] 15.2 Implement handoff, encryption, and new device enrollment
+  - [x] 15.2 Implement handoff, encryption, and new device enrollment
     - Implement `handoff()` offering conversation resume on new device with in-progress task transfer
     - Encrypt all sync payloads with device-bound Ed25519/X25519 ECDH key exchange
     - Require biometric verification on both devices for new device enrollment
@@ -411,14 +411,14 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Test CRDT merge, offline queue ordering, biometric enrollment gate
     - _Requirements: 12.2, 12.3, 12.4, 12.6, 12.7_
 
-- [ ] 16. Autonomous Agentic Task Execution (`Agent_Guru/agents/computer_use.py`)
-  - [ ] 16.1 Implement `ComputerUseAgent` screen perception and task decomposition
+- [x] 16. Autonomous Agentic Task Execution (`Agent_Guru/agents/computer_use.py`)
+  - [x] 16.1 Implement `ComputerUseAgent` screen perception and task decomposition
     - Implement `perceive()` using GPT-4V/Gemini Vision for element identification within 200ms
     - Implement `decompose()` using ReAct-style prompting to generate `UIAction` sequences
     - Implement `AgenticTask`, `UIAction`, `ActionResult` dataclasses
     - _Requirements: 13.1, 13.2_
 
-  - [ ] 16.2 Implement task execution, confirmation gate, recovery, and halt
+  - [x] 16.2 Implement task execution, confirmation gate, recovery, and halt
     - Implement `execute()` with confirmation gate for financial/communication/persistent-data actions
     - Implement `recover()` with up to 3 recovery strategies per failed step
     - Implement `halt()` propagating `asyncio.CancelledError` within 500ms on "stop"/"cancel"
@@ -427,7 +427,7 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Use Playwright in isolated browser profile for web tasks
     - _Requirements: 13.3, 13.4, 13.6, 13.7, 13.8, 13.9, 13.10_
 
-  - [ ] 16.3 Implement support for required service categories
+  - [x] 16.3 Implement support for required service categories
     - Implement task templates for: ride booking, food ordering, restaurant reservations, calendar scheduling, email composition, form filling
     - _Requirements: 13.5_
 
@@ -455,8 +455,8 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
   - Ensure all tests pass, ask the user if questions arise.
 
 
-- [ ] 18. Real-Time Multilingual Translation (`Agent_Guru/translation/`)
-  - [ ] 18.1 Create `Agent_Guru/translation/` package with `__init__.py`, `engine.py`, `subtitles.py`
+- [x] 18. Real-Time Multilingual Translation (`Agent_Guru/translation/`)
+  - [x] 18.1 Create `Agent_Guru/translation/` package with `__init__.py`, `engine.py`, `subtitles.py`
     - Implement `TranslationResult`, `SubtitleEntry` dataclasses
     - Integrate SeamlessM4T v2 (Meta) for speech-to-speech translation across 50+ languages
     - Implement `detect_language()` with ≥85% confidence threshold; prompt user below threshold
@@ -465,7 +465,7 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Prefer on-device NLLB-200 distilled model; fall back to cloud for unsupported pairs
     - _Requirements: 14.1, 14.2, 14.4, 14.6_
 
-  - [ ] 18.2 Implement bidirectional mode, uncertainty handling, subtitles, and corrections
+  - [x] 18.2 Implement bidirectional mode, uncertainty handling, subtitles, and corrections
     - Implement `translate_bidirectional()` for real-time two-speaker translation
     - Surface alternative translations when confidence < 0.7
     - Implement `generate_subtitles()` synchronized within 100ms of translated audio
@@ -489,15 +489,15 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Test bidirectional mode, domain terminology preservation, session correction application
     - _Requirements: 14.3, 14.5, 14.7, 14.10_
 
-- [ ] 19. Health and Wellness Intelligence (`Agent_Guru/health/`)
-  - [ ] 19.1 Create `Agent_Guru/health/` package with `__init__.py`, `engine.py`, `platforms.py`, `anomaly.py`
+- [x] 19. Health and Wellness Intelligence (`Agent_Guru/health/`)
+  - [x] 19.1 Create `Agent_Guru/health/` package with `__init__.py`, `engine.py`, `platforms.py`, `anomaly.py`
     - Implement `BiometricSnapshot`, `HealthAlert`, `WellnessSummary`, `SleepStage`, `BehavioralInsight` dataclasses
     - Implement `HealthEngine.connect_platform()` for Apple HealthKit, Google Health Connect, Fitbit, Garmin Connect, Oura Ring
     - Implement `get_snapshot()` aggregating heart rate, HRV, SpO2, sleep stages, steps, stress score
     - Encrypt all health data with AES-256-GCM locally; never transmit to third-party LLM providers
     - _Requirements: 15.1, 15.2, 15.7_
 
-  - [ ] 19.2 Implement anomaly detection, wellness summaries, and behavioral trends
+  - [x] 19.2 Implement anomaly detection, wellness summaries, and behavioral trends
     - Implement `detect_anomaly()` alerting within 60s on HR > 150 BPM at rest, SpO2 < 90%, sleep < 4h
     - Implement `generate_daily_summary()` with sleep quality score, activity goal progress, stress level, recovery readiness
     - Implement `get_behavioral_trends()` over 7-day rolling window detecting sleep regression, activity decline, elevated resting HR
@@ -519,8 +519,8 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Test platform connection lifecycle, medication adherence calculation, HIPAA audit log entries
     - _Requirements: 15.1, 15.4, 15.6, 15.8, 15.9, 15.10_
 
-- [ ] 20. Smart Home and IoT Orchestration (`Agent_Guru/iot/`)
-  - [ ] 20.1 Create `Agent_Guru/iot/` package with `__init__.py`, `matter.py`, `automation.py`, `energy.py`
+- [x] 20. Smart Home and IoT Orchestration (`Agent_Guru/iot/`)
+  - [x] 20.1 Create `Agent_Guru/iot/` package with `__init__.py`, `matter.py`, `automation.py`, `energy.py`
     - Implement `DeviceState`, `DeviceCommand`, `EnergyReport` dataclasses
     - Implement `MatterController.discover()` using `python-matter-server` for local Matter/Thread discovery
     - Implement `control()` and `get_state()` for all device categories: lights, thermostats, locks, cameras, sensors, plugs, blinds, fans, appliances
@@ -529,7 +529,7 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Implement `serialize()` / `deserialize()` with round-trip guarantee
     - _Requirements: 16.1, 16.2, 16.3, 16.8, 16.10_
 
-  - [ ] 20.2 Implement automations, energy monitoring, ecosystem bridges, and retry logic
+  - [x] 20.2 Implement automations, energy monitoring, ecosystem bridges, and retry logic
     - Implement `AutomationEngine.create_scene()` and `activate_scene()` with SQLite scene storage
     - Implement natural language automation parsing via LLM → structured trigger/action
     - Implement `get_energy_report()` aggregating smart plug data with daily/weekly reports and threshold alerts
@@ -558,24 +558,24 @@ Implement sixteen capability domains that elevate Agent Guru to surpass all majo
     - Test scene activation, natural language automation parsing, energy threshold alerts, multi-room audio
     - _Requirements: 16.4, 16.5, 16.6, 16.7, 16.9, 16.12_
 
-- [ ] 21. Integration wiring — connect all capability modules to existing orchestration layer
-  - [ ] 21.1 Wire `FusionEngine` into `Agent_Guru/agents/orchestrator.py` as primary intent source
+- [-] 21. Integration wiring — connect all capability modules to existing orchestration layer
+  - [x] 21.1 Wire `FusionEngine` into `Agent_Guru/agents/orchestrator.py` as primary intent source
     - Replace single-modality intent path with `FusionEngine.fuse()` output
     - _Requirements: 2.1, 2.2_
 
-  - [ ] 21.2 Wire `ContextEngine` into orchestrator for personality and response style adaptation
+  - [x] 21.2 Wire `ContextEngine` into orchestrator for personality and response style adaptation
     - Subscribe orchestrator to `ContextEngine` activity change events
     - _Requirements: 8.3, 8.4_
 
-  - [ ] 21.3 Wire `ProactiveEngine` into orchestrator output pipeline
+  - [x] 21.3 Wire `ProactiveEngine` into orchestrator output pipeline
     - Integrate rate limiter and quiet hours check before any proactive delivery
     - _Requirements: 3.2, 3.3, 3.7_
 
-  - [ ] 21.4 Wire `AuditTrail` into all capability modules as a shared singleton
+  - [x] 21.4 Wire `AuditTrail` into all capability modules as a shared singleton
     - Ensure `FusionEngine`, `ComputerUseAgent`, `DegradationController`, and `HealthEngine` all append to the shared `AuditTrail`
     - _Requirements: 2.8, 6.3, 7.8, 13.8_
 
-  - [ ] 21.5 Wire `DegradationController` into LLM runtime and speech engine
+  - [x] 21.5 Wire `DegradationController` into LLM runtime and speech engine
     - Integrate failover chain into `Agent_Guru/llm/runtime.py`
     - Integrate offline cache lookup into speech command processing path
     - _Requirements: 7.1, 7.6_

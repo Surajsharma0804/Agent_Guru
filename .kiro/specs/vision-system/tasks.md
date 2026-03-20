@@ -132,7 +132,7 @@ Implement the Agent Guru Vision System — a real-time, privacy-first, GPU-accel
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8_
 
 
-- [-] 6. Depth Estimator (`Agent_Guru/vision/depth.py`)
+- [x] 6. Depth Estimator (`Agent_Guru/vision/depth.py`)
   - [x] 6.1 Implement `DepthEstimator` with MiDaS/Depth Anything ONNX inference
     - Load MiDaS v3.1 or Depth Anything v2 ONNX model via `ModelManager`
     - Normalize output to [0.0, 1.0]: 0.0 = nearest, 1.0 = farthest
