@@ -33,6 +33,7 @@ Version: 1.0.0
 
 import sqlite3
 import json
+import threading
 from typing import List, Optional
 from datetime import datetime
 from pathlib import Path
@@ -81,12 +82,34 @@ class GoalStorage:
             StorageError: If database initialization fails
         """
         self.db_path = db_path
-        
-        # Ensure parent directory exists
-        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-        
+        self._lock = threading.RLock()
+
+        # Use a single persistent connection for all databases.
+        # For file-based DBs this avoids WAL write-lock contention between
+        # multiple GoalStorage instances in the same process.
+        if db_path != ":memory:":
+            Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+
+        self._conn: sqlite3.Connection = sqlite3.connect(
+            db_path, check_same_thread=False
+        )
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA synchronous=NORMAL")
+        self._conn.execute("PRAGMA busy_timeout=5000")
+
         # Initialize schema
         self._init_schema()
+
+    def close(self) -> None:
+        """Close the persistent database connection."""
+        try:
+            self._conn.close()
+        except Exception:
+            pass
+
+    def __del__(self) -> None:
+        """Ensure connection is closed on garbage collection."""
+        self.close()
 
     async def initialize(self) -> None:
         """
@@ -117,106 +140,79 @@ class GoalStorage:
 
         status_value = status.value if hasattr(status, "value") else str(status)
         try:
-            conn = self._connect()
-            cursor = conn.cursor()
-            cursor.execute(
-                "UPDATE goals SET status = ? WHERE id = ?",
-                (status_value, goal_id),
-            )
-            if cursor.rowcount == 0:
-                conn.close()
-                raise _StorageError(f"Goal {goal_id} not found")
-            conn.commit()
-            conn.close()
+            with self._lock:
+                conn = self._connect()
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE goals SET status = ? WHERE id = ?",
+                    (status_value, goal_id),
+                )
+                if cursor.rowcount == 0:
+                    self._close(conn)
+                    raise _StorageError(f"Goal {goal_id} not found")
+                conn.commit()
+                self._close(conn)
         except _StorageError:
             raise
         except Exception as e:
             raise _StorageError(f"Failed to update goal status: {e}")
 
     def _connect(self) -> sqlite3.Connection:
-        """
-        Create a SQLite connection with WAL mode and timeout.
+        """Return the persistent connection."""
+        return self._conn
 
-        Returns:
-            sqlite3.Connection with WAL mode enabled
-        """
-        conn = sqlite3.connect(self.db_path, timeout=30)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute("PRAGMA busy_timeout=30000")
-        return conn
+    def _close(self, conn: sqlite3.Connection) -> None:
+        """No-op: we keep the persistent connection open."""
+        pass
 
     def _init_schema(self) -> None:
         """
         Initialize database schema with tables and indexes.
-        
-        Creates goals table with foreign key constraints and indexes
-        for efficient querying.
-        
-        Time Complexity: O(1) - fixed number of DDL statements
-        
-        Raises:
-            StorageError: If schema creation fails
         """
         try:
-            conn = self._connect()
-            cursor = conn.cursor()
-            
-            # Enable foreign key constraints
-            cursor.execute("PRAGMA foreign_keys = ON")
-            
-            # Create goals table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS goals (
-                    id TEXT PRIMARY KEY,
-                    description TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    priority TEXT NOT NULL,
-                    goal_type TEXT NOT NULL DEFAULT 'task',
-                    progress REAL NOT NULL,
-                    created_at TEXT NOT NULL,
-                    started_at TEXT,
-                    completed_at TEXT,
-                    deadline TEXT,
-                    parent_id TEXT,
-                    sub_goal_ids TEXT NOT NULL,
-                    dependency_ids TEXT NOT NULL,
-                    metadata TEXT NOT NULL,
-                    error_message TEXT,
-                    retry_count INTEGER NOT NULL DEFAULT 0,
-                    FOREIGN KEY (parent_id) REFERENCES goals(id)
-                )
-            """)
-            
-            # Create indexes for O(log n) filtered queries
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_status ON goals(status)
-            """)
-            
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_priority ON goals(priority)
-            """)
-            
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_parent ON goals(parent_id)
-            """)
-            
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_created_at ON goals(created_at)
-            """)
-            
-            # Migrate existing databases: add new columns if missing
-            existing_cols = {row[1] for row in cursor.execute("PRAGMA table_info(goals)")}
-            if 'goal_type' not in existing_cols:
-                cursor.execute("ALTER TABLE goals ADD COLUMN goal_type TEXT NOT NULL DEFAULT 'task'")
-            if 'deadline' not in existing_cols:
-                cursor.execute("ALTER TABLE goals ADD COLUMN deadline TEXT")
-            if 'retry_count' not in existing_cols:
-                cursor.execute("ALTER TABLE goals ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0")
-            
-            conn.commit()
-            conn.close()
-        
+            with self._lock:
+                conn = self._connect()
+                cursor = conn.cursor()
+
+                cursor.execute("PRAGMA foreign_keys = ON")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS goals (
+                        id TEXT PRIMARY KEY,
+                        description TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        priority TEXT NOT NULL,
+                        goal_type TEXT NOT NULL DEFAULT 'task',
+                        progress REAL NOT NULL,
+                        created_at TEXT NOT NULL,
+                        started_at TEXT,
+                        completed_at TEXT,
+                        deadline TEXT,
+                        parent_id TEXT,
+                        sub_goal_ids TEXT NOT NULL,
+                        dependency_ids TEXT NOT NULL,
+                        metadata TEXT NOT NULL,
+                        error_message TEXT,
+                        retry_count INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY (parent_id) REFERENCES goals(id)
+                    )
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_status ON goals(status)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_priority ON goals(priority)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_parent ON goals(parent_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_created_at ON goals(created_at)")
+
+                # Migrate existing databases: add new columns if missing
+                existing_cols = {row[1] for row in cursor.execute("PRAGMA table_info(goals)")}
+                if 'goal_type' not in existing_cols:
+                    cursor.execute("ALTER TABLE goals ADD COLUMN goal_type TEXT NOT NULL DEFAULT 'task'")
+                if 'deadline' not in existing_cols:
+                    cursor.execute("ALTER TABLE goals ADD COLUMN deadline TEXT")
+                if 'retry_count' not in existing_cols:
+                    cursor.execute("ALTER TABLE goals ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0")
+
+                conn.commit()
+                self._close(conn)
+
         except Exception as e:
             logger.error(
                 "schema_initialization_failed",
@@ -245,32 +241,32 @@ class GoalStorage:
         cursor = conn.cursor()
         
         try:
-            cursor.execute("""
-                INSERT INTO goals (
-                    id, description, status, priority, goal_type, progress,
-                    created_at, started_at, completed_at, deadline, parent_id,
-                    sub_goal_ids, dependency_ids, metadata, error_message, retry_count
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                goal.id,
-                goal.description,
-                self._get_enum_value(goal.status),
-                self._get_enum_value(goal.priority),
-                self._get_enum_value(goal.goal_type) if hasattr(goal, 'goal_type') else 'task',
-                goal.progress,
-                goal.created_at.isoformat(),
-                goal.started_at.isoformat() if goal.started_at else None,
-                goal.completed_at.isoformat() if goal.completed_at else None,
-                goal.deadline.isoformat() if goal.deadline else None,
-                goal.parent_id,
-                json.dumps(goal.sub_goal_ids),
-                json.dumps(goal.dependency_ids),
-                json.dumps(goal.metadata),
-                goal.error_message,
-                goal.retry_count if hasattr(goal, 'retry_count') else 0,
-            ))
-            
-            conn.commit()
+            with self._lock:
+                cursor.execute("""
+                    INSERT INTO goals (
+                        id, description, status, priority, goal_type, progress,
+                        created_at, started_at, completed_at, deadline, parent_id,
+                        sub_goal_ids, dependency_ids, metadata, error_message, retry_count
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    goal.id,
+                    goal.description,
+                    self._get_enum_value(goal.status),
+                    self._get_enum_value(goal.priority),
+                    self._get_enum_value(goal.goal_type) if hasattr(goal, 'goal_type') else 'task',
+                    goal.progress,
+                    goal.created_at.isoformat(),
+                    goal.started_at.isoformat() if goal.started_at else None,
+                    goal.completed_at.isoformat() if goal.completed_at else None,
+                    goal.deadline.isoformat() if goal.deadline else None,
+                    goal.parent_id,
+                    json.dumps(goal.sub_goal_ids),
+                    json.dumps(goal.dependency_ids),
+                    json.dumps(goal.metadata),
+                    goal.error_message,
+                    goal.retry_count if hasattr(goal, 'retry_count') else 0,
+                ))
+                conn.commit()
         
         except sqlite3.IntegrityError as e:
             conn.rollback()
@@ -283,6 +279,9 @@ class GoalStorage:
             )
             raise StorageError(f"Goal with ID {goal.id} already exists: {e}")
         
+        except StorageError:
+            raise
+
         except Exception as e:
             conn.rollback()
             logger.error(
@@ -295,7 +294,7 @@ class GoalStorage:
             raise StorageError(f"Failed to store goal: {e}")
         
         finally:
-            conn.close()
+            self._close(conn)
     
     async def update_goal(self, goal: Goal) -> None:
         """
@@ -316,49 +315,53 @@ class GoalStorage:
         cursor = conn.cursor()
         
         try:
-            cursor.execute("""
-                UPDATE goals SET
-                    description = ?,
-                    status = ?,
-                    priority = ?,
-                    goal_type = ?,
-                    progress = ?,
-                    started_at = ?,
-                    completed_at = ?,
-                    deadline = ?,
-                    sub_goal_ids = ?,
-                    dependency_ids = ?,
-                    metadata = ?,
-                    error_message = ?,
-                    retry_count = ?
-                WHERE id = ?
-            """, (
-                goal.description,
-                self._get_enum_value(goal.status),
-                self._get_enum_value(goal.priority),
-                self._get_enum_value(goal.goal_type) if hasattr(goal, 'goal_type') else 'task',
-                goal.progress,
-                goal.started_at.isoformat() if goal.started_at else None,
-                goal.completed_at.isoformat() if goal.completed_at else None,
-                goal.deadline.isoformat() if goal.deadline else None,
-                json.dumps(goal.sub_goal_ids),
-                json.dumps(goal.dependency_ids),
-                json.dumps(goal.metadata),
-                goal.error_message,
-                goal.retry_count if hasattr(goal, 'retry_count') else 0,
-                goal.id
-            ))
-            
-            if cursor.rowcount == 0:
-                logger.error(
-                    "goal_update_not_found",
-                    goal_id=goal.id,
-                    operation="update"
-                )
-                raise StorageError(f"Goal with ID {goal.id} not found")
-            
-            conn.commit()
+            with self._lock:
+                cursor.execute("""
+                    UPDATE goals SET
+                        description = ?,
+                        status = ?,
+                        priority = ?,
+                        goal_type = ?,
+                        progress = ?,
+                        started_at = ?,
+                        completed_at = ?,
+                        deadline = ?,
+                        sub_goal_ids = ?,
+                        dependency_ids = ?,
+                        metadata = ?,
+                        error_message = ?,
+                        retry_count = ?
+                    WHERE id = ?
+                """, (
+                    goal.description,
+                    self._get_enum_value(goal.status),
+                    self._get_enum_value(goal.priority),
+                    self._get_enum_value(goal.goal_type) if hasattr(goal, 'goal_type') else 'task',
+                    goal.progress,
+                    goal.started_at.isoformat() if goal.started_at else None,
+                    goal.completed_at.isoformat() if goal.completed_at else None,
+                    goal.deadline.isoformat() if goal.deadline else None,
+                    json.dumps(goal.sub_goal_ids),
+                    json.dumps(goal.dependency_ids),
+                    json.dumps(goal.metadata),
+                    goal.error_message,
+                    goal.retry_count if hasattr(goal, 'retry_count') else 0,
+                    goal.id
+                ))
+
+                if cursor.rowcount == 0:
+                    logger.error(
+                        "goal_update_not_found",
+                        goal_id=goal.id,
+                        operation="update"
+                    )
+                    raise StorageError(f"Goal with ID {goal.id} not found")
+
+                conn.commit()
         
+        except StorageError:
+            raise
+
         except Exception as e:
             conn.rollback()
             logger.error(
@@ -371,7 +374,7 @@ class GoalStorage:
             raise StorageError(f"Failed to update goal: {e}")
         
         finally:
-            conn.close()
+            self._close(conn)
     
     async def get_goal(self, goal_id: str) -> Optional[Goal]:
         """
@@ -392,18 +395,19 @@ class GoalStorage:
             StorageError: If retrieval fails
         """
         try:
-            conn = self._connect()
-            cursor = conn.cursor()
-            
-            cursor.execute("""
-                SELECT id, description, status, priority, goal_type, progress,
-                       created_at, started_at, completed_at, deadline, parent_id,
-                       sub_goal_ids, dependency_ids, metadata, error_message, retry_count
-                FROM goals WHERE id = ?
-            """, (goal_id,))
-            
-            row = cursor.fetchone()
-            conn.close()
+            with self._lock:
+                conn = self._connect()
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    SELECT id, description, status, priority, goal_type, progress,
+                           created_at, started_at, completed_at, deadline, parent_id,
+                           sub_goal_ids, dependency_ids, metadata, error_message, retry_count
+                    FROM goals WHERE id = ?
+                """, (goal_id,))
+                
+                row = cursor.fetchone()
+                self._close(conn)
             
             if not row:
                 return None
@@ -444,29 +448,30 @@ class GoalStorage:
             StorageError: If query fails
         """
         try:
-            conn = self._connect()
-            cursor = conn.cursor()
-            
-            # Build query with filters
-            query = """
-                SELECT id, description, status, priority, goal_type, progress,
-                       created_at, started_at, completed_at, deadline, parent_id,
-                       sub_goal_ids, dependency_ids, metadata, error_message, retry_count
-                FROM goals WHERE 1=1
-            """
-            params = []
-            
-            if status:
-                query += " AND status = ?"
-                params.append(status.value)
-            
-            if priority:
-                query += " AND priority = ?"
-                params.append(priority.value)
-            
-            cursor.execute(query, params)
-            rows = cursor.fetchall()
-            conn.close()
+            with self._lock:
+                conn = self._connect()
+                cursor = conn.cursor()
+                
+                # Build query with filters
+                query = """
+                    SELECT id, description, status, priority, goal_type, progress,
+                           created_at, started_at, completed_at, deadline, parent_id,
+                           sub_goal_ids, dependency_ids, metadata, error_message, retry_count
+                    FROM goals WHERE 1=1
+                """
+                params = []
+                
+                if status:
+                    query += " AND status = ?"
+                    params.append(status.value)
+                
+                if priority:
+                    query += " AND priority = ?"
+                    params.append(priority.value)
+                
+                cursor.execute(query, params)
+                rows = cursor.fetchall()
+                self._close(conn)
             
             return [self._row_to_goal(row) for row in rows]
         

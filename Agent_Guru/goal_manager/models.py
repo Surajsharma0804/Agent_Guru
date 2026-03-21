@@ -7,7 +7,7 @@ Defines core data structures using Pydantic for validation.
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Any
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 import uuid
 
 
@@ -113,12 +113,7 @@ class Goal(BaseModel):
                 )
         return self
     
-    class Config:
-        """Pydantic configuration."""
-        use_enum_values = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-        }
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class ExecutionResult:

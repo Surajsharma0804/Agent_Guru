@@ -46,6 +46,7 @@ class PerformanceMonitor:
         self._latency_history: Deque[float] = deque(maxlen=history_size)
 
         self._running = False
+        self._stop_event = threading.Event()
         self._monitor_thread: Optional[threading.Thread] = None
         self._psutil_available = self._check_psutil()
         self._process = None
@@ -63,6 +64,7 @@ class PerformanceMonitor:
         if self._running:
             return
         self._running = True
+        self._stop_event.clear()
         self._monitor_thread = threading.Thread(
             target=self._monitor_loop,
             daemon=True,
@@ -74,6 +76,7 @@ class PerformanceMonitor:
     def stop(self) -> None:
         """Stop background monitoring thread."""
         self._running = False
+        self._stop_event.set()
         if self._monitor_thread and self._monitor_thread.is_alive():
             self._monitor_thread.join(timeout=2.0)
         logger.info("Performance monitor stopped")
@@ -131,18 +134,26 @@ class PerformanceMonitor:
 
     def _monitor_loop(self) -> None:
         """Background monitoring loop."""
+        _last_cpu_warn: float = 0.0
+        _last_mem_warn: float = 0.0
+        _warn_interval: float = 60.0  # Throttle: warn at most once per minute
+
         while self._running:
             cpu = self._get_cpu()
             memory = self._get_memory()
             self._cpu_history.append(cpu)
             self._memory_history.append(memory)
 
-            if cpu > self._max_cpu:
+            now = time.monotonic()
+            if cpu > self._max_cpu and now - _last_cpu_warn >= _warn_interval:
                 logger.warning("CPU usage %.1f%% exceeds limit %.1f%%", cpu, self._max_cpu)
-            if memory > self._max_memory:
+                _last_cpu_warn = now
+            if memory > self._max_memory and now - _last_mem_warn >= _warn_interval:
                 logger.warning("Memory %.1fMB exceeds limit %.1fMB", memory, self._max_memory)
+                _last_mem_warn = now
 
-            time.sleep(self._sample_interval)
+            # Interruptible sleep — stop() sets the event for instant wakeup
+            self._stop_event.wait(timeout=self._sample_interval)
 
     def _get_cpu(self) -> float:
         if self._process is None:

@@ -1,0 +1,113 @@
+# Implementation Plan
+
+- [x] 1. Write bug condition exploration test
+  - **Property 1: Bug Condition** - No Integration Orchestrator Wired
+  - **CRITICAL**: This test MUST FAIL on unfixed code — failure confirms the bug exists
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior — it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate the bug exists before any fix is applied
+  - **Scoped PBT Approach**: Scope the property to the concrete failing cases — no `IntegrationOrchestrator` exists, so any wake word event fails to traverse all 8 pipeline stages
+  - Create `Agent_Guru/integration/tests/__init__.py` (empty)
+  - Create `Agent_Guru/integration/tests/test_bug_condition.py`
+  - Test 1 — No Pipeline: attempt to route a `WakeWordEvent` through all 8 stages without an orchestrator; assert no unified dispatch mechanism exists (stages_completed < 8)
+  - Test 2 — GPU Contention: initialize PyTorch, ONNX Runtime, and faster-whisper independently with no shared memory budget; assert total allocated VRAM exceeds available VRAM or one subsystem silently falls back to CPU
+  - Test 3 — Sequential Startup: time startup of all subsystems sequentially; assert startup time ≈ sum of individual init times (no concurrency)
+  - Test 4 — Missing Context: make an LLM inference call without memory/reasoning context; assert `memory_context` and `reasoning_output` are absent from the inference call
+  - The test assertions match the Expected Behavior Properties from design (all 8 stages completed, GPU coordinated, concurrent startup, enriched context)
+  - Run test on UNFIXED code: `pytest Agent_Guru/integration/tests/test_bug_condition.py -v`
+  - **EXPECTED OUTCOME**: Tests FAIL (this is correct — it proves the bug exists)
+  - Document counterexamples found (e.g., "wake word event not routed to any pipeline stage", "GPU over-subscribed", "startup time = sum of all init times")
+  - Mark task complete when tests are written, run, and failures are documented
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7_
+
+- [x] 2. Implement GPUResourcePool
+  - Create `Agent_Guru/integration/__init__.py` with placeholder exports
+  - Create `Agent_Guru/integration/gpu_pool.py` with `GPUResourcePool` class
+  - Sub-task 2.1: GPU detection — call `torch.cuda.is_available()` and `torch.cuda.get_device_properties(0)` to determine total VRAM; set `self.device = "cuda"` or `"cpu"` accordingly; set `self.total_vram` to total memory bytes (0 on CPU)
+  - Sub-task 2.2: Memory partitioning — divide available VRAM into three named budgets: `whisper_budget` = 30% of VRAM, `onnx_budget` = 30% of VRAM, `torch_budget` = 40% of VRAM; on CPU all budgets are 0
+  - Sub-task 2.3: Allocation API — implement `allocate(subsystem: str) -> DeviceConfig` returning `DeviceConfig(device=self.device, memory_limit=budget)` for `"whisper"`, `"onnx"`, `"torch"`; raise `ValueError` for unknown subsystem names
+  - Sub-task 2.4: CPU fallback — when `device == "cpu"`, `allocate()` returns `DeviceConfig(device="cpu", memory_limit=0)` for all subsystems without raising any exception
+  - Sub-task 2.5: Utilization monitoring — implement `get_utilization() -> float` using `torch.cuda.memory_allocated() / total_memory` when GPU is available; return `0.0` on CPU
+  - Sub-task 2.6: Define `DeviceConfig` dataclass with fields `device: str` and `memory_limit: int`
+  - Run: `pytest Agent_Guru/integration/tests/test_gpu_pool.py -v -m unit`
+  - _Requirements: 2.3, 2.4, 3.1_
+
+- [x] 3. Implement IntegrationOrchestrator
+  - Create `Agent_Guru/integration/orchestrator.py` with `IntegrationOrchestrator` class
+  - Sub-task 3.1: Subsystem wiring — constructor accepts all subsystem coordinator instances (`speech_engine`, `vision_engine`, `llm_runtime`, `platform_controller`, `agent_orchestrator`, `memory`, `reasoning`, `security`, `policy`, `avatar`, `deployment`) and stores references; set `self.is_wired = True`; accept `gpu_pool: GPUResourcePool` as a required argument
+  - Sub-task 3.2: Concurrent startup — implement `async def startup()` using `asyncio.gather()` with all subsystem `initialize()` coroutines; do NOT use sequential `await` calls; call `gpu_pool.allocate()` for each GPU-using subsystem and pass the resulting `DeviceConfig` to that subsystem's initializer before gathering
+  - Sub-task 3.3: Pipeline execution — implement `async def run_pipeline(wake_event: WakeWordEvent) -> PipelineResult` executing all 8 stages in order: (1) STT via `speech_engine.transcribe(wake_event.audio)`, (2) memory context via `memory.retrieve(transcript)`, (3) reasoning via `reasoning.analyze(transcript, memory_context)`, (4) LLM inference via `llm_runtime.infer(transcript, memory_context, reasoning_output)`, (5) intent recognition from LLM response, (6) policy check via `policy.evaluate(intent)`, (7) action execution via `agent_orchestrator.execute(intent)` only if policy allows, (8) TTS via `speech_engine.synthesize(response, personality)`; return `PipelineResult` with all stage outputs populated
+  - Sub-task 3.4: Parallel vision/speech dispatch — implement `async def handle_concurrent_event(vision_event, audio_event)` using `asyncio.gather(self._vision_pipeline(vision_event), self.run_pipeline(audio_event))`
+  - Sub-task 3.5: Wake word routing — in `run_pipeline`, detect personality from `wake_event.wake_word`: `"Hey Guru"` → `Personality.GURU`, `"Hey Maya"` → `Personality.MAYA`; pass personality to TTS stage
+  - Sub-task 3.6: Define `WakeWordEvent`, `PipelineResult`, and `Personality` types in `orchestrator.py` or a shared `types.py`
+  - Run: `pytest Agent_Guru/integration/tests/test_orchestrator.py -v -m unit`
+  - _Requirements: 2.1, 2.2, 2.5, 2.6, 2.7, 3.3, 3.4_
+
+- [x] 4. Write fix-checking property-based tests
+  - **Property 1: Expected Behavior** - End-to-End Pipeline Execution
+  - Create `Agent_Guru/integration/tests/test_gpu_pool.py` with unit and property-based tests for `GPUResourcePool`
+  - Create `Agent_Guru/integration/tests/test_orchestrator.py` with unit and property-based tests for `IntegrationOrchestrator`
+  - Property test P1 (Fix): for any `WakeWordEvent` with valid audio, `run_pipeline()` always returns a `PipelineResult` with `stages_completed == 8` and `tts_response is not None`; use `@given(wake_events())` with Hypothesis
+  - Property test P2 (Fix): for any set of subsystem mock configurations, `startup()` completes in time ≤ max(individual_init_times) + epsilon; mock each subsystem's `initialize()` with a configurable async sleep; assert total time ≤ slowest + 50ms
+  - Property test P3 (Fix): for any GPU VRAM size > 0, `GPUResourcePool` allocates budgets that sum to ≤ total VRAM; use `@given(st.integers(min_value=1, max_value=80 * 1024**3))` for VRAM size
+  - Property test P4 (Fix): for any LLM inference call through the pipeline, the context always contains both `memory_context` and `reasoning_output` as non-None values; capture the args passed to `llm_runtime.infer` and assert both fields present
+  - Unit tests for `GPUResourcePool`: construction with GPU available (mock `torch.cuda`), construction with no GPU (CPU fallback), `allocate()` returns correct memory budgets (whisper=30%, onnx=30%, torch=40%), `get_utilization()` returns value in [0.0, 1.0], unknown subsystem raises `ValueError`
+  - Unit tests for `IntegrationOrchestrator`: constructor sets `is_wired = True`, `startup()` calls `asyncio.gather()` not sequential awaits, `run_pipeline()` invokes all 8 stages in order, `handle_concurrent_event()` dispatches vision and speech as parallel tasks, policy denial blocks action execution, wake word routing assigns correct personality
+  - Run: `pytest Agent_Guru/integration/tests/test_gpu_pool.py Agent_Guru/integration/tests/test_orchestrator.py -v -m "unit or property"`
+  - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
+
+- [x] 5. Write preservation property-based tests
+  - **Property 2: Preservation** - Existing Subsystem Behavior Unchanged
+  - **IMPORTANT**: Follow observation-first methodology — observe behavior on UNFIXED subsystem code for non-integration inputs, then write tests capturing those observations
+  - Observe: direct call to `SpeechEngine` with wake word "Hey Guru" returns `Personality.GURU` on unfixed code
+  - Observe: direct call to `SpeechEngine` with wake word "Hey Maya" returns `Personality.MAYA` on unfixed code
+  - Observe: `PolicyEngine.evaluate(denied_intent)` blocks execution and returns a voice response on unfixed code
+  - Observe: startup with `torch.cuda.is_available() == False` completes without GPU-related exceptions on unfixed code
+  - Observe: privileged command without biometric auth is rejected by `SecurityModule` on unfixed code
+  - Property test P5 (Preservation): for any wake word string in `{"Hey Guru", "Hey Maya"}`, personality routing produces the same result before and after the fix; use `@given(st.sampled_from(["Hey Guru", "Hey Maya"]))`
+  - Property test P6 (Preservation): for any startup with `torch.cuda.is_available() == False`, `IntegrationOrchestrator.startup()` completes without raising any exception; use `@given(st.just(False))` with mocked `torch.cuda.is_available`
+  - Property test P7 (Preservation): for any policy-denied intent, `PolicyEngine.evaluate()` blocks execution and returns a voice response; use `@given(denied_intents())` strategy
+  - Property test P8 (Preservation): for any privileged command, biometric MFA is enforced before execution; assert `SecurityModule.verify_mfa()` is called
+  - Verify all preservation tests PASS on unfixed subsystem code before implementing the fix
+  - Run: `pytest Agent_Guru/integration/tests/test_orchestrator.py -v -m property -k preservation`
+  - **EXPECTED OUTCOME**: Tests PASS on unfixed code (confirms baseline behavior to preserve)
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8_
+
+- [x] 6. Write integration tests
+  - Create `Agent_Guru/integration/tests/test_integration.py`
+  - Integration test 1 — Full pipeline: mock wake word event through all 8 stages with all subsystems mocked; verify stage outputs are passed correctly between stages (transcript → memory.retrieve, memory_context → reasoning.analyze, etc.)
+  - Integration test 2 — Concurrent vision + speech: assert both `_vision_pipeline` and `run_pipeline` complete within their individual latency targets (<50ms face recognition, <1s STT) when dispatched via `handle_concurrent_event`; use `asyncio.gather` timing
+  - Integration test 3 — GPU resource pool integration: verify each GPU-using subsystem receives its allocated `DeviceConfig` during `startup()`; mock `GPUResourcePool.allocate()` and assert it is called with `"whisper"`, `"onnx"`, and `"torch"` subsystem names
+  - Integration test 4 — Sleep mode: call `orchestrator.sleep()` and verify only wake word detection remains active; assert all other subsystems are idle
+  - Integration test 5 — Onboarding trigger: startup with missing API key; verify the onboarding flow is triggered and no crash occurs
+  - Integration test 6 — Policy denial end-to-end: route a policy-denied intent through the full pipeline; assert action execution is skipped and TTS returns a denial response
+  - Run: `pytest Agent_Guru/integration/tests/test_integration.py -v -m integration`
+  - _Requirements: 2.1, 2.2, 2.5, 2.6, 3.5, 3.6, 3.7, 3.8_
+
+- [x] 7. Wire everything together and verify end-to-end
+  - Sub-task 7.1: Update `Agent_Guru/integration/__init__.py` to export `IntegrationOrchestrator`, `GPUResourcePool`, `DeviceConfig`, `WakeWordEvent`, `PipelineResult`, and `Personality`
+  - Sub-task 7.2: Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - No Integration Orchestrator Wired
+    - **IMPORTANT**: Re-run the SAME test from task 1 — do NOT write a new test
+    - The test from task 1 encodes the expected behavior; when it passes, the bug is fixed
+    - Run: `pytest Agent_Guru/integration/tests/test_bug_condition.py -v`
+    - **EXPECTED OUTCOME**: Tests PASS (confirms bug is fixed)
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
+  - Sub-task 7.3: Verify preservation tests still pass
+    - **Property 2: Preservation** - Existing Subsystem Behavior Unchanged
+    - **IMPORTANT**: Re-run the SAME tests from task 5 — do NOT write new tests
+    - Run: `pytest Agent_Guru/integration/tests/test_orchestrator.py -v -m property -k preservation`
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8_
+  - Sub-task 7.4: Run full test suite for the integration module
+    - Run: `pytest Agent_Guru/integration/tests/ -v --cov=Agent_Guru/integration --cov-report=term-missing`
+    - Verify coverage ≥ 80% for `gpu_pool.py` and `orchestrator.py`
+    - _Bug_Condition: isBugCondition(system_state) where system_state.integration_orchestrator is None OR NOT system_state.integration_orchestrator.is_wired_
+    - _Expected_Behavior: all 8 pipeline stages complete, GPU resources coordinated, concurrent startup, enriched LLM context_
+    - _Preservation: personality routing, policy enforcement, biometric MFA, CPU fallback, sleep mode, onboarding flow all unchanged_
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8_
+
+- [x] 8. Checkpoint — Ensure all tests pass
+  - Run the complete integration test suite: `pytest Agent_Guru/integration/tests/ -v`
+  - Run the full project test suite to confirm no regressions in existing subsystems: `pytest -v --ignore=Agent_Guru/integration/tests/test_bug_condition.py`
+  - Confirm all tests pass; ask the user if any questions arise

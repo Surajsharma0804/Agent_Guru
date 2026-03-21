@@ -480,7 +480,7 @@ class WindowsIntegration:
         Space Complexity: O(1)
         
         Args:
-            executable: Path to executable
+            executable: Path to executable or bare executable name
             args: Command-line arguments
             
         Returns:
@@ -494,31 +494,53 @@ class WindowsIntegration:
             >>> pid = integration.start_process("notepad.exe", [])
             >>> print(f"Started notepad with PID: {pid}")
         """
+        import os
+
         try:
-            # Build command
             cmd = [executable] + args
-            
-            # Start process
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
-            )
-            
-            logger.info(f"Started process: {executable} (PID: {process.pid})")
-            return process.pid
-            
-        except FileNotFoundError as e:
-            error_msg = f"Executable not found: {executable}"
-            logger.error(error_msg)
-            raise FileNotFoundError(error_msg) from e
-            
-        except PermissionError as e:
-            error_msg = f"Permission denied starting process: {executable}"
-            logger.error(error_msg)
-            raise PermissionError(error_msg) from e
-            
+
+            # Try direct Popen first (works for full paths and PATH-resolved names)
+            try:
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+                )
+                logger.info(f"Started process: {executable} (PID: {process.pid})")
+                return process.pid
+            except (FileNotFoundError, OSError):
+                pass
+
+            # Fallback: use shell=True so Windows can resolve via App Paths registry
+            if not args:
+                try:
+                    process = subprocess.Popen(
+                        executable,
+                        shell=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+                    logger.info(f"Started process via shell: {executable} (PID: {process.pid})")
+                    return process.pid
+                except Exception:
+                    pass
+
+            # Last resort: os.startfile (Windows only, no PID returned)
+            try:
+                os.startfile(executable)
+                logger.info(f"Started process via startfile: {executable} (PID unknown)")
+                # Return 0 as sentinel — caller should not rely on PID in this case
+                return 0
+            except Exception as e:
+                raise FileNotFoundError(f"Could not start '{executable}': {e}") from e
+
+        except FileNotFoundError:
+            logger.error(f"Executable not found: {executable}")
+            raise
+        except PermissionError:
+            logger.error(f"Permission denied starting process: {executable}")
+            raise
         except Exception as e:
             error_msg = f"Error starting process {executable}: {e}"
             logger.error(error_msg)

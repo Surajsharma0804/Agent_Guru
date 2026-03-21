@@ -105,14 +105,23 @@ class AgentStorage:
         Initialize storage backend.
         
         Args:
-            db_path: Path to SQLite database file
+            db_path: Path to SQLite database file, or ":memory:" for in-memory DB.
         
         Time Complexity: O(1)
         """
         self.db_path = db_path
         
-        # Create directory if needed
-        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        # For in-memory databases, keep a single persistent connection so the
+        # schema and data survive across multiple _get_connection() calls.
+        # For file-based databases, create a new connection per operation
+        # (standard SQLite pattern for thread safety).
+        self._memory_conn: Optional[sqlite3.Connection] = None
+        if db_path == ":memory:":
+            self._memory_conn = sqlite3.connect(":memory:", check_same_thread=False)
+            self._memory_conn.row_factory = sqlite3.Row
+        else:
+            # Create directory if needed
+            Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         
         # Initialize database
         self._init_database()
@@ -125,19 +134,28 @@ class AgentStorage:
         
         Time Complexity: O(1)
         """
-        with sqlite3.connect(self.db_path) as conn:
-            conn.executescript(self.SCHEMA)
-            conn.commit()
+        if self._memory_conn is not None:
+            self._memory_conn.executescript(self.SCHEMA)
+            self._memory_conn.commit()
+        else:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.executescript(self.SCHEMA)
+                conn.commit()
     
     def _get_connection(self) -> sqlite3.Connection:
         """
         Get database connection.
+        
+        For in-memory databases, returns the persistent shared connection.
+        For file-based databases, creates a new connection per call.
         
         Returns:
             SQLite connection
         
         Time Complexity: O(1)
         """
+        if self._memory_conn is not None:
+            return self._memory_conn
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn

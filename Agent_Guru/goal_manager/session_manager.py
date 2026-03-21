@@ -30,6 +30,8 @@ Version: 1.0.0
 """
 
 from typing import List
+import json
+from datetime import datetime
 from .goal_storage import GoalStorage
 from .models import Goal, GoalStatus, Priority
 from .logging_config import get_logger
@@ -140,12 +142,12 @@ class SessionManager:
         
         goals = []
         
-        # Query database directly
-        conn = sqlite3.connect(self.storage.db_path)
+        # Use the storage's persistent connection to avoid creating a new one
+        conn = self.storage._conn
         cursor = conn.cursor()
         
         try:
-            cursor.execute("SELECT * FROM goals")
+            cursor.execute("SELECT id, description, status, priority, goal_type, progress, created_at, started_at, completed_at, deadline, parent_id, sub_goal_ids, dependency_ids, metadata, error_message, retry_count FROM goals")
             rows = cursor.fetchall()
             
             for row in rows:
@@ -164,14 +166,46 @@ class SessionManager:
                     try:
                         goal_id = row[0]  # ID is first column
                         if goal_id and len(goal_id) > 0:
-                            # Create a minimal failed goal
+                            # Preserve as many original fields as possible
+                            original_description = row[1] if row[1] else "[Corrupted - no description]"
+                            try:
+                                original_priority = Priority(row[3])
+                            except Exception:
+                                original_priority = Priority.MEDIUM
+                            try:
+                                original_metadata = json.loads(row[13]) if row[13] else {}
+                            except Exception:
+                                original_metadata = {}
+                            try:
+                                original_sub_goal_ids = json.loads(row[11]) if row[11] else []
+                            except Exception:
+                                original_sub_goal_ids = []
+                            try:
+                                original_dependency_ids = json.loads(row[12]) if row[12] else []
+                            except Exception:
+                                original_dependency_ids = []
+                            try:
+                                original_created_at = datetime.fromisoformat(row[6]) if row[6] else datetime.now()
+                            except Exception:
+                                original_created_at = datetime.now()
+                            try:
+                                original_started_at = datetime.fromisoformat(row[7]) if row[7] else None
+                            except Exception:
+                                original_started_at = None
+
+                            # Create a recovered goal preserving original data
                             goal = Goal(
                                 id=goal_id,
-                                description="[Corrupted - could not deserialize]",
+                                description=original_description,
                                 status=GoalStatus.FAILED,
-                                priority=Priority.MEDIUM,
+                                priority=original_priority,
                                 progress=0.0,
-                                error_message=f"Severe data corruption detected: {str(e)}"
+                                created_at=original_created_at,
+                                started_at=original_started_at,
+                                metadata=original_metadata,
+                                sub_goal_ids=original_sub_goal_ids,
+                                dependency_ids=original_dependency_ids,
+                                error_message=f"Data corruption detected: {str(e)}"
                             )
                             goals.append(goal)
                             
@@ -187,7 +221,7 @@ class SessionManager:
                         print(f"Warning: Skipping severely corrupted goal that can't be recovered")
         
         finally:
-            conn.close()
+            pass  # Don't close the shared persistent connection
         
         return goals
     

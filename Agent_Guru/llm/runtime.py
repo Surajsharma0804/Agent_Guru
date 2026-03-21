@@ -258,10 +258,10 @@ class LLMRuntime:
             raise
 
     def _execute_llm(self, request: LLMRequest, messages: List[Message]) -> str:
-        """
-        Execute the actual LLM call.
+        """Execute the actual LLM call via the async LLMRuntime (llm_runtime.py).
 
-        Mockable for testing. In production this would call the async LLMRuntime.
+        Runs the async ``complete()`` coroutine in a thread-safe way so this
+        synchronous method can be called from any context.
 
         Args:
             request: Original request
@@ -270,8 +270,56 @@ class LLMRuntime:
         Returns:
             Response content string
         """
-        last_content = messages[-1].content if messages else "empty"
-        return f"Response to: {last_content}"
+        import asyncio
+
+        try:
+            from Agent_Guru.llm.llm_runtime import LLMRuntime as AsyncLLMRuntime
+            from Agent_Guru.llm.models import CompletionRequest, Message as LLMMessage, RuntimeConfig
+        except ImportError:
+            # Fallback when llm_runtime not available
+            last_content = messages[-1].content if messages else "empty"
+            return f"Response to: {last_content}"
+
+        try:
+            # Build a CompletionRequest from the synchronous LLMRequest
+            llm_messages = [
+                LLMMessage(role=m.role, content=m.content)
+                for m in messages
+            ]
+            completion_req = CompletionRequest(
+                model=request.model or "mistral:7b-instruct",
+                messages=llm_messages,
+                max_tokens=request.max_tokens,
+                temperature=request.temperature,
+            )
+
+            # Get or create the async runtime (singleton per process)
+            runtime = _get_async_llm_runtime()
+            if runtime is None:
+                last_content = messages[-1].content if messages else ""
+                return last_content  # No runtime available
+
+            # Run the async complete() in a new event loop (thread-safe)
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # We're inside an async context — use run_in_executor
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                        future = pool.submit(asyncio.run, runtime.complete(completion_req))
+                        response = future.result(timeout=30)
+                else:
+                    response = loop.run_until_complete(runtime.complete(completion_req))
+            except RuntimeError:
+                response = asyncio.run(runtime.complete(completion_req))
+
+            return response.content or ""
+
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("LLMRuntime._execute_llm failed: %s", exc)
+            # Return empty string so the pipeline continues gracefully
+            return ""
 
     def _build_messages(
         self, request: LLMRequest, session_id: Optional[str]
@@ -309,6 +357,35 @@ class LLMRuntime:
     def close(self) -> None:
         """Release resources."""
         pass
+
+
+_async_llm_runtime_instance: Any = None
+
+
+def _get_async_llm_runtime() -> Any:
+    """Return a cached async LLMRuntime instance (singleton).
+
+    Lazily initialises from environment variables on first call.
+    Returns None if the runtime cannot be created (missing deps/config).
+    """
+    global _async_llm_runtime_instance
+    if _async_llm_runtime_instance is not None:
+        return _async_llm_runtime_instance
+
+    try:
+        from Agent_Guru.llm.llm_runtime import LLMRuntime as AsyncLLMRuntime
+        from Agent_Guru.llm import load_config_from_env
+        cfg = load_config_from_env()
+        if not cfg.ollama_config.host:
+            cfg.ollama_config.host = "http://localhost:11434"
+        _async_llm_runtime_instance = AsyncLLMRuntime.from_config(cfg)
+        return _async_llm_runtime_instance
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "_get_async_llm_runtime: could not create runtime: %s", exc
+        )
+        return None
 
 
 def create_runtime_with_learning(

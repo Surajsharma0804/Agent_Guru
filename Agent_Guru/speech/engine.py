@@ -348,6 +348,24 @@ class SpeechEngine:
             
             raise GuruSpeechError(f"Voice processing failed: {e}") from e
     
+    def transcribe(
+        self,
+        audio_data: np.ndarray,
+        sample_rate: int = 16000,
+    ) -> "TranscriptionResult":
+        """Transcribe audio to text (alias for transcribe_with_personality).
+
+        This is the primary entry point used by the IntegrationOrchestrator.
+
+        Args:
+            audio_data: Audio as float32 numpy array.
+            sample_rate: Sample rate in Hz (default 16000).
+
+        Returns:
+            TranscriptionResult with text, language, confidence.
+        """
+        return self.transcribe_with_personality(audio_data, PersonalityType.GURU)
+
     def transcribe_with_personality(
         self,
         audio: np.ndarray,
@@ -380,6 +398,28 @@ class SpeechEngine:
         
         return result
     
+    def synthesize_to_array(
+        self,
+        text: str,
+        personality: "PersonalityType",
+        emotion: "Optional[EmotionType]" = None,
+    ) -> "tuple[np.ndarray, int]":
+        """Synthesize speech and return (audio_array, sample_rate).
+
+        This is the primary TTS entry point used by the IntegrationOrchestrator.
+
+        Args:
+            text: Text to synthesize.
+            personality: Guru or Maya personality.
+            emotion: Optional emotion (defaults to NEUTRAL).
+
+        Returns:
+            Tuple of (float32 numpy array in [-1, 1], sample_rate_hz).
+        """
+        if self.tts_engine is None:
+            raise RuntimeError("TTS engine not initialized")
+        return self.tts_engine.synthesize_to_array(text, personality, emotion)
+
     def synthesize_response(
         self,
         text: str,
@@ -451,10 +491,25 @@ class SpeechEngine:
             raise RuntimeError("Voice feature extractor not initialized")
         
         import asyncio
-        result: VoiceFeatures = asyncio.run(self.voice_feature_extractor.extract_features(
+        import concurrent.futures
+
+        coro = self.voice_feature_extractor.extract_features(
             audio,
             self.config.audio.sample_rate
-        ))
+        )
+
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Called from inside an async context — run in a separate thread
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    future = pool.submit(asyncio.run, coro)
+                    result: VoiceFeatures = future.result(timeout=10)
+            else:
+                result = loop.run_until_complete(coro)
+        except RuntimeError:
+            result = asyncio.run(coro)
+
         return result
     
     def detect_emotion(self, audio: np.ndarray) -> EmotionResult:

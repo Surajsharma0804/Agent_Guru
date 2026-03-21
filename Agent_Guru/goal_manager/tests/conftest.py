@@ -86,3 +86,22 @@ def sample_goal_with_subgoals() -> Goal:
     parent.sub_goal_ids = [sub1.id, sub2.id]
     
     return parent
+
+
+import asyncio
+import gc
+
+
+@pytest.fixture(autouse=True)
+async def cancel_background_tasks():
+    """Cancel any lingering asyncio tasks after each test to prevent hangs."""
+    yield
+    # Cancel all tasks except the current one
+    current = asyncio.current_task()
+    tasks = [t for t in asyncio.all_tasks() if t is not current and not t.done()]
+    for task in tasks:
+        task.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+    # Force garbage collection to close any open SQLite connections
+    gc.collect()

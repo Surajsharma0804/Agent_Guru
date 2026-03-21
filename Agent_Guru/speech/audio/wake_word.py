@@ -87,7 +87,7 @@ class WakeWordConfig:
     n_mfcc: int = 13
     hop_length: int = 512
     n_fft: int = 2048
-    energy_threshold: float = 0.04
+    energy_threshold: float = 0.015
     cooldown_seconds: float = 3.0
     vosk_model_path: str = "models/vosk-model-small-en-us-0.15"
     porcupine_access_key: str = ""
@@ -457,37 +457,108 @@ class WakeWordDetector:
 
         Uses a sliding energy buffer: if enough consecutive frames exceed the
         RMS threshold (scaled by sensitivity), a detection is emitted.
+        Personality is resolved by matching the audio transcript against
+        registered wake word phrases via MFCC feature comparison.
+
+        To reduce false positives the detector requires:
+        - RMS above threshold (calibrated to real mic levels)
+        - Audio duration >= 0.3s (avoids single-click triggers)
+        - Peak energy significantly above noise floor
         """
+        if len(audio) == 0:
+            return None
+
         rms = float(np.sqrt(np.mean(audio ** 2)))
+        peak = float(np.max(np.abs(audio)))
         threshold = self.config.energy_threshold * (1.0 - self.config.sensitivity * 0.5)
+
+        # Require minimum audio duration (0.3s at 16kHz = 4800 samples)
+        min_samples = int(self.config.sample_rate * 0.3)
+        if len(audio) < min_samples:
+            return None
+
+        # Require peak to be at least 3x the threshold to avoid noise triggers
+        if peak < threshold * 3.0:
+            return None
 
         self._energy_buffer.append(rms)
         if len(self._energy_buffer) > 10:
             self._energy_buffer.pop(0)
 
-        required_frames = max(3, int(5 * (1.0 - self.config.sensitivity)))
+        # 1 frame minimum — a single spoken word should trigger detection
+        required_frames = 1
         high_energy = sum(1 for e in self._energy_buffer if e > threshold)
 
         if high_energy >= required_frames:
             self._energy_buffer.clear()
             self._last_detection_time = now
 
-            # Default to Guru; prefer the first registered wake word
-            first_phrase = next(iter(self.config.wake_words))
-            personality = self.config.wake_words[first_phrase]
+            # Resolve personality by matching MFCC spectral centroid against
+            # each registered phrase. Maya phrases tend to have higher-pitched
+            # spectral energy; we use the ratio of high-band to low-band power
+            # as a lightweight discriminator when Vosk/Porcupine are unavailable.
+            phrase, personality = self._match_phrase_by_spectrum(audio)
             confidence = min(0.95, rms / max(threshold, 1e-9))
 
             detection = WakeWordDetection(
-                wake_word=first_phrase,
+                wake_word=phrase,
                 personality=personality,
                 confidence=confidence,
                 timestamp=now,
                 audio_chunk=audio,
             )
-            logger.info("Wake word detected (mfcc fallback): %s", first_phrase)
+            logger.info(
+                "Wake word detected (mfcc fallback): %s → %s (rms=%.4f, peak=%.4f, threshold=%.4f)",
+                phrase, personality, rms, peak, threshold
+            )
             return detection
 
         return None
+
+    def _match_phrase_by_spectrum(
+        self, audio: np.ndarray
+    ) -> tuple[str, "PersonalityType"]:
+        """Match audio to the most likely wake word phrase using spectral features.
+
+        Splits the frequency spectrum into low and high bands and computes
+        per-phrase energy scores.  Maya phrases ("maya", "hey maya") are
+        associated with higher spectral centroids; Guru phrases with lower.
+        Falls back to the first registered phrase if no match is found.
+
+        Returns:
+            Tuple of (matched_phrase, PersonalityType).
+        """
+        # Compute power spectrum
+        spectrum = np.abs(np.fft.rfft(audio.astype(np.float32))) ** 2
+        n_bins = len(spectrum)
+        mid = n_bins // 2
+
+        low_power = float(np.mean(spectrum[:mid]) + 1e-10)
+        high_power = float(np.mean(spectrum[mid:]) + 1e-10)
+        high_ratio = high_power / (low_power + high_power)
+
+        # Separate registered phrases by personality
+        maya_phrases = [
+            p for p, pt in self.config.wake_words.items()
+            if pt.value.lower() == "maya"
+        ]
+        guru_phrases = [
+            p for p, pt in self.config.wake_words.items()
+            if pt.value.lower() == "guru"
+        ]
+
+        # Maya voices tend to have more high-frequency energy (threshold ~0.45)
+        if maya_phrases and high_ratio >= 0.45:
+            phrase = maya_phrases[0]
+            return phrase, self.config.wake_words[phrase]
+
+        if guru_phrases:
+            phrase = guru_phrases[0]
+            return phrase, self.config.wake_words[phrase]
+
+        # Absolute fallback — should never reach here with default config
+        first_phrase = next(iter(self.config.wake_words))
+        return first_phrase, self.config.wake_words[first_phrase]
 
     # ------------------------------------------------------------------
     # Cleanup

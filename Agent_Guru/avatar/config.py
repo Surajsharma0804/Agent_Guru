@@ -59,8 +59,8 @@ try:
         transition_duration_ms: float = Field(default=350.0, ge=100.0, le=1000.0)
 
         # Performance
-        max_cpu_percent: float = Field(default=50.0, gt=0.0, le=100.0)
-        max_memory_mb: float = Field(default=512.0, gt=0.0)
+        max_cpu_percent: float = Field(default=80.0, gt=0.0, le=100.0)
+        max_memory_mb: float = Field(default=2048.0, gt=0.0)
         enable_gpu: bool = Field(default=True)
 
         # Paths
@@ -146,8 +146,8 @@ except ImportError:
         display_width: int = 640
         display_height: int = 480
         transition_duration_ms: float = 350.0
-        max_cpu_percent: float = 50.0
-        max_memory_mb: float = 512.0
+        max_cpu_percent: float = 80.0
+        max_memory_mb: float = 2048.0
         enable_gpu: bool = True
         avatar_model_path: Optional[str] = None
 

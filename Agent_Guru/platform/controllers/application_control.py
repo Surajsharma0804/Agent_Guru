@@ -243,34 +243,116 @@ class ApplicationController:
     def _resolve_windows_application(self, app_name: str) -> str:
         """Resolve Windows application name to path.
 
+        Handles built-in Windows apps (notepad, calc, mspaint, etc.) as well
+        as installed applications found in Program Files or PATH.
+
         Args:
-            app_name: Application name
+            app_name: Application name (with or without .exe)
 
         Returns:
-            Full path to executable
+            Full path to executable, or the bare name if found in PATH/System32
         """
-        # Add .exe extension if not present
-        if not app_name.lower().endswith('.exe'):
-            app_name = f"{app_name}.exe"
-
-        # Check common Windows application paths
-        common_paths = [
-            os.path.join(os.environ.get('ProgramFiles', 'C:\\Program Files'), app_name),
-            os.path.join(os.environ.get('ProgramFiles(x86)', 'C:\\Program Files (x86)'), app_name),
-            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', app_name),
-        ]
-
-        for path in common_paths:
-            if os.path.exists(path):
-                return path
-
-        # Search in PATH
         import shutil
-        path = shutil.which(app_name)
-        if path:
-            return path
 
-        raise FileNotFoundError(f"Application not found: {app_name}")
+        # Normalise: strip whitespace, lowercase for matching
+        name_lower = app_name.strip().lower()
+
+        # Map common voice-command names to their Windows executable names
+        COMMON_APPS: dict[str, str] = {
+            "notepad": "notepad.exe",
+            "calculator": "calc.exe",
+            "calc": "calc.exe",
+            "paint": "mspaint.exe",
+            "mspaint": "mspaint.exe",
+            "wordpad": "wordpad.exe",
+            "explorer": "explorer.exe",
+            "file explorer": "explorer.exe",
+            "cmd": "cmd.exe",
+            "command prompt": "cmd.exe",
+            "powershell": "powershell.exe",
+            "task manager": "taskmgr.exe",
+            "taskmgr": "taskmgr.exe",
+            "control panel": "control.exe",
+            "control": "control.exe",
+            "snipping tool": "SnippingTool.exe",
+            "snip": "SnippingTool.exe",
+            "chrome": "chrome.exe",
+            "google chrome": "chrome.exe",
+            "firefox": "firefox.exe",
+            "mozilla firefox": "firefox.exe",
+            "edge": "msedge.exe",
+            "microsoft edge": "msedge.exe",
+            "word": "WINWORD.EXE",
+            "excel": "EXCEL.EXE",
+            "powerpoint": "POWERPNT.EXE",
+            "outlook": "OUTLOOK.EXE",
+            "teams": "Teams.exe",
+            "microsoft teams": "Teams.exe",
+            "spotify": "Spotify.exe",
+            "discord": "Discord.exe",
+            "vlc": "vlc.exe",
+            "zoom": "Zoom.exe",
+            "vs code": "Code.exe",
+            "vscode": "Code.exe",
+            "visual studio code": "Code.exe",
+        }
+
+        # Resolve via common name map
+        exe_name = COMMON_APPS.get(name_lower)
+        if exe_name is None:
+            # Add .exe if not present
+            exe_name = app_name if app_name.lower().endswith(".exe") else f"{app_name}.exe"
+
+        # 1. Check PATH (covers System32, WindowsApps, etc.)
+        found = shutil.which(exe_name)
+        if found:
+            return found
+
+        # 2. Check System32 / SysWOW64 explicitly
+        system32 = os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32")
+        syswow64 = os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "SysWOW64")
+        for sys_dir in (system32, syswow64):
+            candidate = os.path.join(sys_dir, exe_name)
+            if os.path.exists(candidate):
+                return candidate
+
+        # 3. Check Program Files directories
+        prog_dirs = [
+            os.environ.get("ProgramFiles", r"C:\Program Files"),
+            os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"),
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs"),
+            os.path.join(os.environ.get("APPDATA", ""), "Local", "Programs"),
+        ]
+        for prog_dir in prog_dirs:
+            if not prog_dir:
+                continue
+            # Direct match
+            candidate = os.path.join(prog_dir, exe_name)
+            if os.path.exists(candidate):
+                return candidate
+            # One-level subdirectory search (e.g. Program Files\Google\Chrome\Application\chrome.exe)
+            try:
+                for sub in os.listdir(prog_dir):
+                    sub_path = os.path.join(prog_dir, sub, exe_name)
+                    if os.path.exists(sub_path):
+                        return sub_path
+                    # Two levels deep
+                    sub_dir = os.path.join(prog_dir, sub)
+                    if os.path.isdir(sub_dir):
+                        for sub2 in os.listdir(sub_dir):
+                            deep = os.path.join(sub_dir, sub2, exe_name)
+                            if os.path.exists(deep):
+                                return deep
+            except (PermissionError, OSError):
+                continue
+
+        # 4. Last resort: return the bare exe name and let the OS find it
+        #    (works for apps registered in App Paths registry key)
+        logger.warning(
+            "Could not resolve full path for '%s', using bare name '%s'",
+            app_name, exe_name
+        )
+        return exe_name
 
     def _resolve_macos_application(self, app_name: str) -> str:
         """Resolve macOS application name to path.
