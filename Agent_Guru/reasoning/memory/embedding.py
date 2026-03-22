@@ -27,6 +27,8 @@ from typing import Optional, Union
 import numpy as np
 import torch
 
+from Agent_Guru.security.embedding_auth import RETRIEVAL_THRESHOLD, verify_embedding
+
 logger = logging.getLogger(__name__)
 
 
@@ -229,7 +231,8 @@ class EmbeddingGenerator:
         Raises:
             ValueError: If embeddings have different dimensions
 
-        Example:
+        Example::
+
             >>> generator = EmbeddingGenerator()
             >>> emb1 = generator.generate("Hello world")
             >>> emb2 = generator.generate("Hi there")
@@ -251,3 +254,28 @@ class EmbeddingGenerator:
 
         # Clamp to [-1, 1] to handle floating point errors
         return float(np.clip(similarity, -1.0, 1.0))
+
+    def is_similar(
+        self,
+        embedding1: Union[list[float], np.ndarray],
+        embedding2: Union[list[float], np.ndarray],
+        threshold: float = RETRIEVAL_THRESHOLD,
+    ) -> bool:
+        """Return True iff cosine similarity between the two embeddings >= *threshold*.
+
+        Enforces the retrieval threshold via
+        :func:`~Agent_Guru.security.embedding_auth.verify_embedding`
+        (CWE-200/284/20 fix).
+
+        Args:
+            embedding1: First embedding vector.
+            embedding2: Second embedding vector.
+            threshold: Minimum cosine similarity for a positive match.
+                Defaults to :data:`~Agent_Guru.security.embedding_auth.RETRIEVAL_THRESHOLD` (0.85).
+
+        Returns:
+            ``True`` if similarity >= *threshold*, ``False`` otherwise.
+        """
+        arr1 = np.array(embedding1, dtype=np.float32)
+        arr2 = np.array(embedding2, dtype=np.float32)
+        return verify_embedding(arr1, arr2, threshold)

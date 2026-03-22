@@ -192,8 +192,8 @@ def check_internet() -> CheckResult:
     """Verify internet connectivity (for cloud LLM providers)."""
     import socket
     try:
-        socket.setdefaulttimeout(5)
-        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(("8.8.8.8", 53))
+        with socket.create_connection(("8.8.8.8", 53), timeout=30):
+            pass
         return CheckResult("Internet", CheckStatus.PASS,
                            "Internet connection available")
     except OSError:

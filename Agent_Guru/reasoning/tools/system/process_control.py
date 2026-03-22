@@ -4,6 +4,7 @@ Process control tools for listing and killing processes.
 Platform-specific implementations for Windows, macOS, and Linux.
 """
 
+import logging
 import platform
 import subprocess
 from typing import Any, Dict
@@ -15,6 +16,9 @@ from Agent_Guru.reasoning.tools.base import (
     ToolSensitivity,
 )
 from Agent_Guru.reasoning.tools.registry import tool
+from Agent_Guru.security.redaction import redact
+
+logger = logging.getLogger(__name__)
 
 
 class PlatformProcessController:
@@ -96,14 +100,16 @@ class PlatformProcessController:
                     "error": f"Unsupported platform: {system}",
                 }
 
+            result_data = {
+                "platform": system,
+                "process_count": len(processes),
+                "processes": processes[:100],  # Limit to first 100
+                "message": f"Found {len(processes)} running processes",
+            }
+            logger.info("Process list result: %s", redact(result_data))
             return {
                 "success": True,
-                "result": {
-                    "platform": system,
-                    "process_count": len(processes),
-                    "processes": processes[:100],  # Limit to first 100
-                    "message": f"Found {len(processes)} running processes",
-                },
+                "result": result_data,
             }
 
         except Exception as e:
@@ -163,14 +169,16 @@ class PlatformProcessController:
                     "error": f"Unsupported platform: {system}",
                 }
 
+            result_data = {
+                "pid": pid,
+                "force": force,
+                "platform": system,
+                "message": f"Killed process {pid}",
+            }
+            logger.info("Process kill result: %s", redact(result_data))
             return {
                 "success": True,
-                "result": {
-                    "pid": pid,
-                    "force": force,
-                    "platform": system,
-                    "message": f"Killed process {pid}",
-                },
+                "result": result_data,
             }
 
         except Exception as e:

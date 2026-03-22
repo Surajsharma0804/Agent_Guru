@@ -211,8 +211,8 @@ class DependencyResolver:
                     else:
                         dep_version = "0.0.0"
                     deps.append((dep_name, dep_version))
-                except Exception:
-                    pass
+                except (KeyError, ValueError) as exc:
+                    logger.warning("Dependency resolution skipped for entry: %s", exc)
         return deps
 
     @staticmethod

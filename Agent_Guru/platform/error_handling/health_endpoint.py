@@ -333,7 +333,7 @@ if __name__ == "__main__":
             logger.info("  - GET /health/components - Component details")
             logger.info("  - GET /health/metrics - Prometheus metrics")
             
-            uvicorn.run(app, host="0.0.0.0", port=8080)
+            uvicorn.run(app, host="0.0.0.0", port=8080)  # nosec B104
             
         except ImportError:
             logger.error("uvicorn not installed, cannot run server")

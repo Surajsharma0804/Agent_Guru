@@ -230,9 +230,9 @@ class OSController:
         """Initialize audit log file."""
         try:
             audit_path = Path(self.audit_log_path)
-            audit_path.parent.mkdir(parents=True, exist_ok=True)
+            audit_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             if not audit_path.exists():
-                audit_path.touch()
+                audit_path.touch(mode=0o600)
             logger.info(f"Audit log initialized: {self.audit_log_path}")
         except Exception as e:
             logger.error(f"Failed to initialize audit log: {e}")

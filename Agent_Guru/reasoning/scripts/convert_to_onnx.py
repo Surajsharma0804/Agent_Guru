@@ -41,8 +41,8 @@ def convert_to_onnx(
     print(f"Loading PyTorch DeBERTa-v3 model from: {model_path}")
 
     # Load model and tokenizer (DeBERTa-v3-large)
-    model = DebertaV2ForSequenceClassification.from_pretrained(model_path)
-    tokenizer = DebertaV2Tokenizer.from_pretrained(model_path)
+    model = DebertaV2ForSequenceClassification.from_pretrained(model_path)  # nosec B615
+    tokenizer = DebertaV2Tokenizer.from_pretrained(model_path)  # nosec B615
 
     # Set model to evaluation mode
     model.eval()
@@ -74,18 +74,19 @@ def convert_to_onnx(
 
     print(f"Converting to ONNX (opset {opset_version})...")
 
-    # Export to ONNX
-    torch.onnx.export(
-        model,
-        (input_ids, attention_mask),
-        output_path,
-        input_names=input_names,
-        output_names=output_names,
-        dynamic_axes=dynamic_axes,
-        opset_version=opset_version,
-        do_constant_folding=True,  # Optimize constant folding
-        export_params=True,  # Export model parameters
-    )
+    # Export to ONNX (no_grad disables gradient tracking during the forward pass)
+    with torch.no_grad():
+        torch.onnx.export(
+            model,
+            (input_ids, attention_mask),
+            output_path,
+            input_names=input_names,
+            output_names=output_names,
+            dynamic_axes=dynamic_axes,
+            opset_version=opset_version,
+            do_constant_folding=True,  # Optimize constant folding
+            export_params=True,  # Export model parameters
+        )
 
     print(f"✓ ONNX model saved to: {output_path}")
 

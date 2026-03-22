@@ -13,6 +13,7 @@ from typing import Optional
 
 import numpy as np
 
+from Agent_Guru.security.embedding_auth import BIOMETRIC_THRESHOLD, verify_embedding
 from Agent_Guru.vision.exceptions import InvalidImageError
 
 logger = logging.getLogger("guruvision.recognition")
@@ -77,6 +78,27 @@ class FaceRecognizer:
         """
         score = float(np.dot(emb1, emb2))
         return float(np.clip(score, -1.0, 1.0))
+
+    def verify(
+        self,
+        emb1: np.ndarray,
+        emb2: np.ndarray,
+        threshold: float = BIOMETRIC_THRESHOLD,
+    ) -> bool:
+        """Return True iff cosine similarity between *emb1* and *emb2* >= *threshold*.
+
+        Uses :func:`~Agent_Guru.security.embedding_auth.verify_embedding` to
+        enforce the biometric threshold (FAR < 0.1%).
+
+        Args:
+            emb1: First L2-normalised embedding, shape (512,).
+            emb2: Second L2-normalised embedding, shape (512,).
+            threshold: Minimum cosine similarity for a positive match.
+
+        Returns:
+            ``True`` if the embeddings are similar enough, ``False`` otherwise.
+        """
+        return verify_embedding(emb1, emb2, threshold)
 
     # ------------------------------------------------------------------
     # Internal helpers

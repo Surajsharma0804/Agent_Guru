@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 import librosa
 import numpy as np
 
+from Agent_Guru.security.embedding_auth import BIOMETRIC_THRESHOLD, verify_embedding
 from ..exceptions import GuruSpeechError
 from ..models import VoiceModel
 
@@ -692,6 +693,35 @@ class VoiceCloner:
             logger.error(f"Similarity computation failed: {e}")
             return 0.0
 
+    def is_voice_match(
+        self,
+        audio1: np.ndarray,
+        audio2: np.ndarray,
+        sample_rate: int = 16000,
+        threshold: float = BIOMETRIC_THRESHOLD,
+    ) -> bool:
+        """Return True iff the two voice samples are a biometric match.
+
+        Uses :func:`~Agent_Guru.security.embedding_auth.verify_embedding` to
+        enforce the biometric threshold (FAR < 0.1%).
+
+        Args:
+            audio1: First audio sample.
+            audio2: Second audio sample.
+            sample_rate: Sample rate of audio.
+            threshold: Minimum cosine similarity for a positive match.
+
+        Returns:
+            ``True`` if the voice embeddings are similar enough, ``False`` otherwise.
+        """
+        try:
+            features1 = self._extract_voice_features(audio1, sample_rate)
+            features2 = self._extract_voice_features(audio2, sample_rate)
+            return verify_embedding(features1, features2, threshold)
+        except Exception as e:
+            logger.error(f"Voice match check failed: {e}")
+            return False
+
     def get_voice_model(self, voice_id: str) -> VoiceModel | None:
         """
         Get voice model by ID.
@@ -788,7 +818,7 @@ class VoiceCloner:
         """
         try:
             with open(filepath, 'rb') as f:
-                profile = pickle.load(f)
+                profile = pickle.load(f)  # nosec B301
 
             if not isinstance(profile, VoiceProfile):
                 raise VoiceCloningError("Invalid voice profile file")

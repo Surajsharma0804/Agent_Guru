@@ -311,8 +311,9 @@ def _is_android() -> bool:
         import os
         if os.path.exists("/system/build.prop"):
             return True
-    except Exception:
-        pass
+    except OSError as exc:
+        import logging as _logging
+        _logging.getLogger(__name__).debug("Android build.prop check failed: %s", exc)
     
     # Check sys.platform for Android indicators
     if "android" in sys.platform.lower():
@@ -338,7 +339,8 @@ def _is_ios() -> bool:
             # iOS apps run in a sandboxed environment
             if os.path.exists("/var/mobile"):
                 return True
-        except Exception:
-            pass
+        except OSError as exc:
+            import logging as _logging
+            _logging.getLogger(__name__).debug("iOS /var/mobile check failed: %s", exc)
     
     return False

@@ -521,15 +521,15 @@ class WindowsController:
             try:
                 hwnd = win32gui.GetForegroundWindow()
                 return win32gui.GetWindowText(hwnd)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("win32gui active window title failed: %s", exc)
 
         if _PYAUTOGUI_AVAILABLE:
             try:
                 win = pyautogui.getActiveWindow()
                 return win.title if win else ""
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("pyautogui active window title failed: %s", exc)
 
         return ""
 
@@ -556,14 +556,14 @@ class WindowsController:
                 if title_lower in window_title and win32gui.IsWindowVisible(hwnd):
                     found_hwnd = hwnd
                     return False  # Stop enumeration
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Window enumeration callback error: %s", exc)
             return True
 
         try:
             win32gui.EnumWindows(_enum_callback, None)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("EnumWindows failed in find_window: %s", exc)
 
         return found_hwnd
 
@@ -710,14 +710,14 @@ class WindowsController:
                     is_minimized=is_minimized,
                     is_maximized=is_maximized,
                 ))
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Window info collection failed for hwnd %s: %s", hwnd, exc)
             return True
 
         try:
             win32gui.EnumWindows(_enum_callback, None)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("EnumWindows failed in list_windows: %s", exc)
 
         return windows
 

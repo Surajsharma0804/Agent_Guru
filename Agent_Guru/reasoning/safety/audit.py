@@ -348,28 +348,31 @@ class AuditLogger:
             where_clause += " AND timestamp <= ?"
             params.append(str(end_time))
 
-        # Get total count
-        cursor.execute(f"SELECT COUNT(*) FROM audit_log {where_clause}", params)
+        # Get total count — where_clause is built from hardcoded strings with ? placeholders only
+        cursor.execute(
+            "SELECT COUNT(*) FROM audit_log " + where_clause,  # nosec B608
+            params,
+        )
         total_count = cursor.fetchone()[0]
 
         # Get counts by decision
         cursor.execute(
-            f"SELECT decision, COUNT(*) FROM audit_log {where_clause} GROUP BY decision",
-            params
+            "SELECT decision, COUNT(*) FROM audit_log " + where_clause + " GROUP BY decision",  # nosec B608
+            params,
         )
         decision_counts = {row[0]: row[1] for row in cursor.fetchall()}
 
         # Get counts by sensitivity
         cursor.execute(
-            f"SELECT sensitivity, COUNT(*) FROM audit_log {where_clause} GROUP BY sensitivity",
-            params
+            "SELECT sensitivity, COUNT(*) FROM audit_log " + where_clause + " GROUP BY sensitivity",  # nosec B608
+            params,
         )
         sensitivity_counts = {row[0]: row[1] for row in cursor.fetchall()}
 
         # Get average validation time
         cursor.execute(
-            f"SELECT AVG(validation_time) FROM audit_log {where_clause}",
-            params
+            "SELECT AVG(validation_time) FROM audit_log " + where_clause,  # nosec B608
+            params,
         )
         avg_validation_time = cursor.fetchone()[0] or 0.0
 

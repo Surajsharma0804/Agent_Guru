@@ -27,6 +27,7 @@ import torch
 import torch.nn as nn
 import yaml
 
+from Agent_Guru.training.seed_utils import set_deterministic_seeds
 from Agent_Guru.reasoning.scripts.train_intent_classifier import (
     DataAugmenter,
     FocalLoss,
@@ -41,6 +42,12 @@ from Agent_Guru.reasoning.scripts.train_intent_classifier import (
     mixup_data,
     train_intent_classifier,
 )
+
+
+@pytest.fixture(autouse=True)
+def _set_seeds() -> None:
+    """Set deterministic seeds before each test for reproducibility (Req 2.24)."""
+    set_deterministic_seeds(42)
 
 
 class TestTrainingConfig:
@@ -68,7 +75,7 @@ class TestTrainingConfig:
         # GPU optimization
         assert config.mixed_precision is True
         assert config.gradient_accumulation_steps == 32
-        assert config.num_workers == 0
+        assert config.num_workers == min(4, __import__("os").cpu_count() or 1)
 
         # Data augmentation
         assert config.use_augmentation is True

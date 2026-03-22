@@ -46,7 +46,7 @@ class TestLocalLLMServerInit:
         model_file = tmp_path / "model.gguf"
         model_file.touch()
 
-        config = LocalLLMConfig(model_path=str(model_file), host="0.0.0.0", port=9000)
+        config = LocalLLMConfig(model_path=str(model_file), host="0.0.0.0", port=9000)  # nosec B104
         server = LocalLLMServer(config)
 
         assert server._base_url == "http://0.0.0.0:9000"

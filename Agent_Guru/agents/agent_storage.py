@@ -15,6 +15,7 @@ Date: 2026-02-28
 Version: 1.0.0
 """
 
+from contextlib import closing
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import sqlite3
@@ -76,98 +77,97 @@ class AgentStorage:
         """Create database and tables if they don't exist."""
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
 
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            cursor = conn.cursor()
 
-        # Agents table
-        cursor.execute(
+            # Agents table
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS agents (
+                    id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL,
+                    capabilities TEXT NOT NULL,
+                    specializations TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    last_active TEXT NOT NULL,
+                    total_tasks INTEGER NOT NULL,
+                    successful_tasks INTEGER NOT NULL,
+                    metadata TEXT NOT NULL
+                )
             """
-            CREATE TABLE IF NOT EXISTS agents (
-                id TEXT PRIMARY KEY,
-                status TEXT NOT NULL,
-                capabilities TEXT NOT NULL,
-                specializations TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                last_active TEXT NOT NULL,
-                total_tasks INTEGER NOT NULL,
-                successful_tasks INTEGER NOT NULL,
-                metadata TEXT NOT NULL
             )
-        """
-        )
 
-        # Performance records table
-        cursor.execute(
+            # Performance records table
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS performance_records (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    agent_id TEXT NOT NULL,
+                    task_id TEXT NOT NULL,
+                    task_type TEXT NOT NULL,
+                    success INTEGER NOT NULL,
+                    completion_time_ms REAL NOT NULL,
+                    resource_usage TEXT NOT NULL,
+                    timestamp TEXT NOT NULL,
+                    FOREIGN KEY (agent_id) REFERENCES agents(id)
+                )
             """
-            CREATE TABLE IF NOT EXISTS performance_records (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                agent_id TEXT NOT NULL,
-                task_id TEXT NOT NULL,
-                task_type TEXT NOT NULL,
-                success INTEGER NOT NULL,
-                completion_time_ms REAL NOT NULL,
-                resource_usage TEXT NOT NULL,
-                timestamp TEXT NOT NULL,
-                FOREIGN KEY (agent_id) REFERENCES agents(id)
             )
-        """
-        )
 
-        # Evolution events table
-        cursor.execute(
+            # Evolution events table
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS evolution_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_type TEXT NOT NULL,
+                    agent_ids TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    details TEXT NOT NULL,
+                    timestamp TEXT NOT NULL
+                )
             """
-            CREATE TABLE IF NOT EXISTS evolution_events (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                event_type TEXT NOT NULL,
-                agent_ids TEXT NOT NULL,
-                reason TEXT NOT NULL,
-                details TEXT NOT NULL,
-                timestamp TEXT NOT NULL
             )
-        """
-        )
 
-        # Create indexes for efficient queries
-        cursor.execute(
+            # Create indexes for efficient queries
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_agents_status 
+                ON agents(status)
             """
-            CREATE INDEX IF NOT EXISTS idx_agents_status 
-            ON agents(status)
-        """
-        )
+            )
 
-        cursor.execute(
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_performance_agent_type 
+                ON performance_records(agent_id, task_type)
             """
-            CREATE INDEX IF NOT EXISTS idx_performance_agent_type 
-            ON performance_records(agent_id, task_type)
-        """
-        )
+            )
 
-        # Additional indexes for hot query paths
-        cursor.execute(
+            # Additional indexes for hot query paths
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_performance_timestamp
+                ON performance_records(timestamp)
             """
-            CREATE INDEX IF NOT EXISTS idx_performance_timestamp
-            ON performance_records(timestamp)
-        """
-        )
+            )
 
-        cursor.execute(
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_evolution_type
+                ON evolution_events(event_type)
             """
-            CREATE INDEX IF NOT EXISTS idx_evolution_type
-            ON evolution_events(event_type)
-        """
-        )
+            )
 
-        cursor.execute(
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_task_assignments_agent
+                ON task_assignments(agent_id)
             """
-            CREATE INDEX IF NOT EXISTS idx_task_assignments_agent
-            ON task_assignments(agent_id)
-        """
-        ) if cursor.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='task_assignments'"
-        ).fetchone() else None
+            ) if cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='task_assignments'"
+            ).fetchone() else None
 
-        conn.commit()
-        conn.close()
+            conn.commit()
 
     async def store_agent(self, agent: Agent) -> None:
         """
@@ -181,48 +181,46 @@ class AgentStorage:
 
         Validates: Requirement 1.1
         """
-        conn = self._get_conn()
-        cursor = conn.cursor()
+        with closing(self._get_conn()) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute(
-            """
-            INSERT INTO agents (
-                id, status, capabilities, specializations,
-                created_at, last_active, total_tasks, successful_tasks, metadata
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                agent.id,
-                agent.status.value,
-                json.dumps(agent.capabilities),
-                json.dumps(agent.specializations),
-                agent.created_at.isoformat(),
-                agent.last_active.isoformat(),
-                agent.total_tasks,
-                agent.successful_tasks,
-                json.dumps(agent.metadata),
-            ),
-        )
+            cursor.execute(
+                """
+                INSERT INTO agents (
+                    id, status, capabilities, specializations,
+                    created_at, last_active, total_tasks, successful_tasks, metadata
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    agent.id,
+                    agent.status.value,
+                    json.dumps(agent.capabilities),
+                    json.dumps(agent.specializations),
+                    agent.created_at.isoformat(),
+                    agent.last_active.isoformat(),
+                    agent.total_tasks,
+                    agent.successful_tasks,
+                    json.dumps(agent.metadata),
+                ),
+            )
 
-        conn.commit()
-        conn.close()
+            conn.commit()
         self._active_agents_cache = None  # Invalidate cache
 
     async def get_agent(self, agent_id: str) -> Optional[Agent]:
-        conn = self._get_conn()
-        cursor = conn.cursor()
+        with closing(self._get_conn()) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute(
-            """
-            SELECT id, status, capabilities, specializations,
-                   created_at, last_active, total_tasks, successful_tasks, metadata
-            FROM agents WHERE id = ?
-        """,
-            (agent_id,),
-        )
+            cursor.execute(
+                """
+                SELECT id, status, capabilities, specializations,
+                       created_at, last_active, total_tasks, successful_tasks, metadata
+                FROM agents WHERE id = ?
+            """,
+                (agent_id,),
+            )
 
-        row = cursor.fetchone()
-        conn.close()
+            row = cursor.fetchone()
 
         if not row:
             return None
@@ -253,35 +251,34 @@ class AgentStorage:
         Time Complexity: O(1)
         Performance Target: <5ms
         """
-        conn = self._get_conn()
-        cursor = conn.cursor()
+        with closing(self._get_conn()) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute(
-            """
-            UPDATE agents SET
-                status = ?,
-                capabilities = ?,
-                specializations = ?,
-                last_active = ?,
-                total_tasks = ?,
-                successful_tasks = ?,
-                metadata = ?
-            WHERE id = ?
-        """,
-            (
-                agent.status.value,
-                json.dumps(agent.capabilities),
-                json.dumps(agent.specializations),
-                agent.last_active.isoformat(),
-                agent.total_tasks,
-                agent.successful_tasks,
-                json.dumps(agent.metadata),
-                agent.id,
-            ),
-        )
+            cursor.execute(
+                """
+                UPDATE agents SET
+                    status = ?,
+                    capabilities = ?,
+                    specializations = ?,
+                    last_active = ?,
+                    total_tasks = ?,
+                    successful_tasks = ?,
+                    metadata = ?
+                WHERE id = ?
+            """,
+                (
+                    agent.status.value,
+                    json.dumps(agent.capabilities),
+                    json.dumps(agent.specializations),
+                    agent.last_active.isoformat(),
+                    agent.total_tasks,
+                    agent.successful_tasks,
+                    json.dumps(agent.metadata),
+                    agent.id,
+                ),
+            )
 
-        conn.commit()
-        conn.close()
+            conn.commit()
         self._active_agents_cache = None  # Invalidate cache
 
     async def query_agents(self, status: Optional[AgentStatus] = None) -> List[Agent]:
@@ -297,29 +294,28 @@ class AgentStorage:
         Time Complexity: O(n) where n is matching agents
         Performance Target: <50ms for 1000 agents
         """
-        conn = self._get_conn()
-        cursor = conn.cursor()
+        with closing(self._get_conn()) as conn:
+            cursor = conn.cursor()
 
-        if status:
-            cursor.execute(
+            if status:
+                cursor.execute(
+                    """
+                    SELECT id, status, capabilities, specializations,
+                           created_at, last_active, total_tasks, successful_tasks, metadata
+                    FROM agents WHERE status = ?
+                """,
+                    (status.value,),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT id, status, capabilities, specializations,
+                           created_at, last_active, total_tasks, successful_tasks, metadata
+                    FROM agents
                 """
-                SELECT id, status, capabilities, specializations,
-                       created_at, last_active, total_tasks, successful_tasks, metadata
-                FROM agents WHERE status = ?
-            """,
-                (status.value,),
-            )
-        else:
-            cursor.execute(
-                """
-                SELECT id, status, capabilities, specializations,
-                       created_at, last_active, total_tasks, successful_tasks, metadata
-                FROM agents
-            """
-            )
+                )
 
-        rows = cursor.fetchall()
-        conn.close()
+            rows = cursor.fetchall()
 
         agents = []
         for row in rows:
@@ -373,29 +369,28 @@ class AgentStorage:
 
         Validates: Requirement 12.1, 12.5
         """
-        conn = self._get_conn()
-        cursor = conn.cursor()
+        with closing(self._get_conn()) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute(
-            """
-            INSERT INTO performance_records (
-                agent_id, task_id, task_type, success,
-                completion_time_ms, resource_usage, timestamp
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                agent_id,
-                record.task_id,
-                record.task_type,
-                1 if record.success else 0,
-                record.completion_time_ms,
-                json.dumps(record.resource_usage),
-                record.timestamp.isoformat(),
-            ),
-        )
+            cursor.execute(
+                """
+                INSERT INTO performance_records (
+                    agent_id, task_id, task_type, success,
+                    completion_time_ms, resource_usage, timestamp
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    agent_id,
+                    record.task_id,
+                    record.task_type,
+                    1 if record.success else 0,
+                    record.completion_time_ms,
+                    json.dumps(record.resource_usage),
+                    record.timestamp.isoformat(),
+                ),
+            )
 
-        conn.commit()
-        conn.close()
+            conn.commit()
 
     async def get_performance_records(
         self, agent_id: str, task_type: Optional[str] = None, limit: Optional[int] = None
@@ -414,34 +409,33 @@ class AgentStorage:
         Time Complexity: O(n) where n is matching records
         Performance Target: <20ms for 1000 records
         """
-        conn = self._get_conn()
-        cursor = conn.cursor()
+        with closing(self._get_conn()) as conn:
+            cursor = conn.cursor()
 
-        if task_type:
-            query = """
-                SELECT task_id, task_type, success, completion_time_ms,
-                       resource_usage, timestamp
-                FROM performance_records
-                WHERE agent_id = ? AND task_type = ?
-                ORDER BY timestamp DESC
-            """
-            params: tuple = (agent_id, task_type)
-        else:
-            query = """
-                SELECT task_id, task_type, success, completion_time_ms,
-                       resource_usage, timestamp
-                FROM performance_records
-                WHERE agent_id = ?
-                ORDER BY timestamp DESC
-            """
-            params = (agent_id,)
+            if task_type:
+                query = """
+                    SELECT task_id, task_type, success, completion_time_ms,
+                           resource_usage, timestamp
+                    FROM performance_records
+                    WHERE agent_id = ? AND task_type = ?
+                    ORDER BY timestamp DESC
+                """
+                params: tuple = (agent_id, task_type)
+            else:
+                query = """
+                    SELECT task_id, task_type, success, completion_time_ms,
+                           resource_usage, timestamp
+                    FROM performance_records
+                    WHERE agent_id = ?
+                    ORDER BY timestamp DESC
+                """
+                params = (agent_id,)
 
-        if limit:
-            query += f" LIMIT {limit}"
+            if limit:
+                query += f" LIMIT {limit}"
 
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
-        conn.close()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
 
         records = []
         for row in rows:
@@ -469,26 +463,25 @@ class AgentStorage:
 
         Validates: Requirements 1.4, 3.5, 5.3, 20.1
         """
-        conn = self._get_conn()
-        cursor = conn.cursor()
+        with closing(self._get_conn()) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute(
-            """
-            INSERT INTO evolution_events (
-                event_type, agent_ids, reason, details, timestamp
-            ) VALUES (?, ?, ?, ?, ?)
-        """,
-            (
-                event["event_type"],
-                json.dumps(event["agent_ids"]),
-                event["reason"],
-                json.dumps(event["details"]),
-                event["timestamp"],
-            ),
-        )
+            cursor.execute(
+                """
+                INSERT INTO evolution_events (
+                    event_type, agent_ids, reason, details, timestamp
+                ) VALUES (?, ?, ?, ?, ?)
+            """,
+                (
+                    event["event_type"],
+                    json.dumps(event["agent_ids"]),
+                    event["reason"],
+                    json.dumps(event["details"]),
+                    event["timestamp"],
+                ),
+            )
 
-        conn.commit()
-        conn.close()
+            conn.commit()
 
     async def record_task_assignment(
         self, task_id: str, agent_id: str, timestamp: datetime
@@ -536,46 +529,45 @@ class AgentStorage:
 
         Validates: Requirements 1.1, 1.4
         """
-        conn = self._get_conn()
-        cursor = conn.cursor()
+        with closing(self._get_conn()) as conn:
+            cursor = conn.cursor()
 
-        now_iso = datetime.now().isoformat()
+            now_iso = datetime.now().isoformat()
 
-        cursor.execute(
-            """
-            INSERT INTO agents (
-                id, status, capabilities, specializations,
-                created_at, last_active, total_tasks, successful_tasks, metadata
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                agent.id,
-                agent.status.value,
-                json.dumps(agent.capabilities),
-                json.dumps(agent.specializations),
-                agent.created_at.isoformat(),
-                agent.last_active.isoformat(),
-                agent.total_tasks,
-                agent.successful_tasks,
-                json.dumps(agent.metadata),
-            ),
-        )
+            cursor.execute(
+                """
+                INSERT INTO agents (
+                    id, status, capabilities, specializations,
+                    created_at, last_active, total_tasks, successful_tasks, metadata
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    agent.id,
+                    agent.status.value,
+                    json.dumps(agent.capabilities),
+                    json.dumps(agent.specializations),
+                    agent.created_at.isoformat(),
+                    agent.last_active.isoformat(),
+                    agent.total_tasks,
+                    agent.successful_tasks,
+                    json.dumps(agent.metadata),
+                ),
+            )
 
-        cursor.execute(
-            """
-            INSERT INTO evolution_events (
-                event_type, agent_ids, reason, details, timestamp
-            ) VALUES (?, ?, ?, ?, ?)
-            """,
-            (
-                "creation",
-                json.dumps([agent.id]),
-                "task_requirements",
-                json.dumps(task_requirements),
-                now_iso,
-            ),
-        )
+            cursor.execute(
+                """
+                INSERT INTO evolution_events (
+                    event_type, agent_ids, reason, details, timestamp
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    "creation",
+                    json.dumps([agent.id]),
+                    "task_requirements",
+                    json.dumps(task_requirements),
+                    now_iso,
+                ),
+            )
 
-        conn.commit()
-        conn.close()
+            conn.commit()
         self._active_agents_cache = None

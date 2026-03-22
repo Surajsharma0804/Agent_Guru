@@ -108,5 +108,5 @@ exclude_lines = [
 ]
 
 [tool.bandit]
-exclude_dirs = ["*/tests/*", "*/test_*"]
-skips = ["B101"]  # Skip assert_used check (valid in tests)
+exclude_dirs = ["*/tests/*", "*/test_*", "htmlcov"]
+skips = ["B101", "B108"]  # B101: assert_used (valid in tests); B108: hardcoded_tmp (acceptable in tests)

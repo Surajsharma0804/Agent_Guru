@@ -22,6 +22,9 @@ from Agent_Guru.reasoning.llm.fallback_processor import (
     FallbackProcessor,
 )
 from Agent_Guru.reasoning.models.task import Task, TaskStatus, TaskType
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Unit Tests - FallbackMetrics
 
@@ -578,8 +581,8 @@ class TestFallbackProcessorIntegration:
         for input_text in inputs:
             try:
                 processor.process_with_fallback(input_text)
-            except Exception:
-                pass  # Ignore errors for this test
+            except OSError as exc:
+                logger.debug("Cleanup skipped: %s", exc)  # Ignore errors for this test
 
         # Verify metrics were tracked
         metrics = processor.get_metrics()

@@ -9,6 +9,7 @@ Validates: Requirement 4 (ABAC), Requirement 3 (RBAC)
 
 from __future__ import annotations
 
+import html
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
@@ -81,11 +82,11 @@ class PermissionManager:
         Returns:
             ID of the created policy.
         """
-        policy_id = f"perm:{principal_id}:{resource_id}:{':'.join(sorted(actions))}"
+        policy_id = f"perm:{html.escape(str(principal_id))}:{html.escape(str(resource_id))}:{':'.join(sorted(actions))}"
         policy = Policy(
             id=policy_id,
             version=1,
-            name=name or f"Grant {principal_id} on {resource_id}",
+            name=name or f"Grant {html.escape(str(principal_id))} on {html.escape(str(resource_id))}",
             description=f"Auto-generated permission grant",
             effect=PolicyEffect.ALLOW,
             priority=priority,
@@ -128,11 +129,11 @@ class PermissionManager:
         Returns:
             ID of the created policy.
         """
-        policy_id = f"deny:{principal_id}:{resource_id}:{':'.join(sorted(actions))}"
+        policy_id = f"deny:{html.escape(str(principal_id))}:{html.escape(str(resource_id))}:{':'.join(sorted(actions))}"
         policy = Policy(
             id=policy_id,
             version=1,
-            name=name or f"Deny {principal_id} on {resource_id}",
+            name=name or f"Deny {html.escape(str(principal_id))} on {html.escape(str(resource_id))}",
             description="Auto-generated permission denial",
             effect=PolicyEffect.DENY,
             priority=priority,

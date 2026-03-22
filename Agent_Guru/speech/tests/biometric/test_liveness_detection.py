@@ -9,6 +9,9 @@ import numpy as np
 from scipy.signal import butter, filtfilt
 
 from Agent_Guru.speech.biometric import VoiceFeatureExtractor
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TestLivenessDetection:
@@ -290,6 +293,6 @@ class TestLivenessDetection:
             # If it doesn't raise, check it returns valid values
             assert isinstance(is_live, bool)
             assert 0.0 <= confidence <= 1.0
-        except Exception:
+        except OSError as exc:
             # If it raises, that's also acceptable
-            pass
+            logger.debug("Cleanup skipped: %s", exc)

@@ -317,7 +317,7 @@ class MetaLearner:
         Time Complexity: O(len(s))
         Space Complexity: O(1)
         """
-        return int(hashlib.md5(s.encode()).hexdigest()[:8], 16)
+        return int(hashlib.md5(s.encode(), usedforsecurity=False).hexdigest()[:8], 16)  # noqa: S324
     
     def _calculate_context_complexity(self, context: Dict[str, Any]) -> float:
         """
@@ -710,7 +710,7 @@ class MetaLearner:
         Time Complexity: O(1)
         Space Complexity: O(1)
         """
-        centroid_hash = hashlib.md5(centroid.tobytes()).hexdigest()[:8]
+        centroid_hash = hashlib.md5(centroid.tobytes(), usedforsecurity=False).hexdigest()[:8]  # noqa: S324
         return f"{pattern_type.value}_{centroid_hash}"
     
     def _store_patterns(self, patterns: List[Pattern]) -> None:

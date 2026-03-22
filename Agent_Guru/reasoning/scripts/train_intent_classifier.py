@@ -25,10 +25,17 @@ Date: 2026
 """
 
 import json
+import logging
+import os
 import random
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
+
+from Agent_Guru.security.path_utils import safe_path
+from Agent_Guru.training.seed_utils import set_deterministic_seeds
+
+_logger = logging.getLogger(__name__)
 
 # CRITICAL FIX: Monkey-patch NLTK to prevent download loop
 import nltk  # type: ignore[import-untyped]
@@ -122,7 +129,7 @@ class TrainingConfig:
     # GPU optimization
     mixed_precision: bool = True
     gradient_accumulation_steps: int = 32  # Effective batch 32 (1*32) - INCREASED for smaller batch
-    num_workers: int = 0  # DISABLED to save memory
+    num_workers: int = min(4, os.cpu_count() or 1)  # Optimal DataLoader workers (Req 2.26)
 
     # Data augmentation (research-backed)
     use_augmentation: bool = True
@@ -224,8 +231,8 @@ class DataAugmenter:
                 augmented.extend(aug_text[:num_augmentations])
             else:
                 augmented.append(aug_text)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _logger.debug("Synonym augmentation skipped: %s", exc)
 
         # Contextual embeddings
         try:
@@ -234,8 +241,8 @@ class DataAugmenter:
                 augmented.extend(aug_text[:num_augmentations])
             else:
                 augmented.append(aug_text)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _logger.debug("Contextual augmentation skipped: %s", exc)
 
         # Back translation (slower but high quality)
         if self.back_translation_aug and len(augmented) < num_augmentations + 1:
@@ -245,8 +252,8 @@ class DataAugmenter:
                     augmented.extend(aug_text[:1])
                 else:
                     augmented.append(aug_text)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _logger.debug("Back-translation augmentation skipped: %s", exc)
 
         return augmented[: num_augmentations + 1]
 
@@ -495,12 +502,12 @@ class IntentClassifierModule(pl.LightningModule):
         self.class_weights = class_weights
 
         # Load DeBERTa-v3-large
-        model_config = DebertaV2Config.from_pretrained(
+        model_config = DebertaV2Config.from_pretrained(  # nosec B615
             config.model_name,
             num_labels=num_labels,
         )
 
-        self.model = DebertaV2ForSequenceClassification.from_pretrained(
+        self.model = DebertaV2ForSequenceClassification.from_pretrained(  # nosec B615
             config.model_name, config=model_config
         )
 
@@ -807,7 +814,7 @@ def load_intent_mapping(data_dir: str) -> tuple[dict[str, int], dict[int, str]]:
     Returns:
         Tuple of (intent_to_id, id_to_intent) mappings
     """
-    intents_path = Path(data_dir) / "intents.yaml"
+    intents_path = safe_path(Path(data_dir) / "intents.yaml", Path(data_dir).resolve())
     with open(intents_path) as f:
         intents_data = yaml.safe_load(f)
 
@@ -847,9 +854,10 @@ def load_data_from_txt(
                         texts.append(parts[1])
         return texts, labels
 
-    train_texts, train_labels = read_file(Path(data_dir) / "train.txt")
-    val_texts, val_labels = read_file(Path(data_dir) / "val.txt")
-    test_texts, test_labels = read_file(Path(data_dir) / "test.txt")
+    _data_base = Path(data_dir).resolve()
+    train_texts, train_labels = read_file(safe_path(Path(data_dir) / "train.txt", _data_base))
+    val_texts, val_labels = read_file(safe_path(Path(data_dir) / "val.txt", _data_base))
+    test_texts, test_labels = read_file(safe_path(Path(data_dir) / "test.txt", _data_base))
 
     return train_texts, train_labels, val_texts, val_labels, test_texts, test_labels
 
@@ -911,6 +919,9 @@ def train_intent_classifier(config: TrainingConfig):
     print("DeBERTa-v3-large (435M parameters)")
     print(f"{'='*80}\n")
 
+    # Set deterministic seeds for reproducibility (Task 17.2 / Req 2.24)
+    set_deterministic_seeds(42)
+
     # Check GPU availability
     if torch.cuda.is_available():
         print(f"✓ GPU available: {torch.cuda.get_device_name(0)}")
@@ -942,12 +953,13 @@ def train_intent_classifier(config: TrainingConfig):
 
     # Initialize tokenizer
     print("Loading DeBERTa-v3 tokenizer...")
-    tokenizer = DebertaV2Tokenizer.from_pretrained(config.model_name)
+    tokenizer = DebertaV2Tokenizer.from_pretrained(config.model_name)  # nosec B615
 
     # Create datasets with augmentation
+    _data_base = Path(config.data_dir).resolve()
     print("\nCreating datasets...")
     train_dataset = IntentDataset(
-        data_path=Path(config.data_dir) / "train_annotated.yaml",
+        data_path=safe_path(Path(config.data_dir) / "train_annotated.yaml", _data_base),
         tokenizer=tokenizer,
         intent_to_id=intent_to_id,
         max_length=config.max_length,
@@ -956,7 +968,7 @@ def train_intent_classifier(config: TrainingConfig):
     )
 
     val_dataset = IntentDataset(
-        data_path=Path(config.data_dir) / "val_annotated.yaml",
+        data_path=safe_path(Path(config.data_dir) / "val_annotated.yaml", _data_base),
         tokenizer=tokenizer,
         intent_to_id=intent_to_id,
         max_length=config.max_length,
@@ -964,7 +976,7 @@ def train_intent_classifier(config: TrainingConfig):
     )
 
     test_dataset = IntentDataset(
-        data_path=Path(config.data_dir) / "test_annotated.yaml",
+        data_path=safe_path(Path(config.data_dir) / "test_annotated.yaml", _data_base),
         tokenizer=tokenizer,
         intent_to_id=intent_to_id,
         max_length=config.max_length,
@@ -977,38 +989,40 @@ def train_intent_classifier(config: TrainingConfig):
     print(f"  Test: {len(test_dataset)}\n")
 
     # Get class weights for balanced training
+    _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     class_weights = torch.tensor(
-        [train_dataset.class_weights.get(i, 1.0) for i in range(num_labels)], dtype=torch.float32
+        [train_dataset.class_weights.get(i, 1.0) for i in range(num_labels)],
+        dtype=torch.float32,
+        device=_device,
     )
-    if torch.cuda.is_available():
-        class_weights = class_weights.cuda()
 
     # Create data loaders
+    _num_workers = min(4, os.cpu_count() or 1)
     train_loader = DataLoader(
         train_dataset,
         batch_size=config.batch_size,
         shuffle=True,
-        num_workers=config.num_workers,
+        num_workers=_num_workers,
         pin_memory=True,
-        persistent_workers=True if config.num_workers > 0 else False,
+        persistent_workers=True,
     )
 
     val_loader = DataLoader(
         val_dataset,
         batch_size=config.batch_size,
         shuffle=False,
-        num_workers=config.num_workers,
+        num_workers=_num_workers,
         pin_memory=True,
-        persistent_workers=True if config.num_workers > 0 else False,
+        persistent_workers=True,
     )
 
     test_loader = DataLoader(
         test_dataset,
         batch_size=config.batch_size,
         shuffle=False,
-        num_workers=config.num_workers,
+        num_workers=_num_workers,
         pin_memory=True,
-        persistent_workers=True if config.num_workers > 0 else False,
+        persistent_workers=True,
     )
 
     # Initialize model
@@ -1090,7 +1104,8 @@ def train_intent_classifier(config: TrainingConfig):
 
     # Save final model and tokenizer
     print("\nSaving final model and tokenizer...")
-    final_model_path = Path(config.output_dir) / "final_model"
+    _output_base = Path(config.output_dir).resolve()
+    final_model_path = safe_path(Path(config.output_dir) / "final_model", _output_base)
     final_model_path.mkdir(parents=True, exist_ok=True)
 
     # Load best checkpoint

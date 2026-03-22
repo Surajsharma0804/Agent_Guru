@@ -26,6 +26,7 @@ Time Complexity: O(1) for connection acquisition/release
 Space Complexity: O(n) where n is pool size
 """
 
+import logging
 import sqlite3
 import threading
 import time
@@ -34,6 +35,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Generator
 from queue import Queue, Empty, Full
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -313,8 +316,8 @@ class ConnectionPool:
         # Rollback any uncommitted transaction
         try:
             conn.connection.rollback()
-        except Exception:
-            pass
+        except sqlite3.Error as exc:
+            _logger.warning("Rollback on release failed: %s", exc)
         
         # Return to pool
         try:
@@ -446,8 +449,8 @@ class ConnectionPool:
             # Rollback on error
             try:
                 conn.connection.rollback()
-            except Exception:
-                pass
+            except sqlite3.Error as exc:
+                _logger.warning("Transaction rollback failed: %s", exc)
             
             with self._lock:
                 self._failed_transactions += 1

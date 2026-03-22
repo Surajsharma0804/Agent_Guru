@@ -41,7 +41,7 @@ class PipelineStage(str, Enum):
     WAKE_WORD = "wake_word"
     STT = "stt"
     INTENT = "intent"
-    LLM_FIRST_TOKEN = "llm_first_token"
+    LLM_FIRST_TOKEN = "llm_first_token"  # nosec B105
     TTS = "tts"
     END_TO_END = "end_to_end"
     STARTUP = "startup"

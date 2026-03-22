@@ -135,10 +135,10 @@ class HandwritingRecognizer:
         # Attempt 1: transformers (preferred — handles BPE correctly)
         try:
             from transformers import AutoTokenizer  # type: ignore[import]
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            tokenizer = AutoTokenizer.from_pretrained(model_name)  # nosec B615
             logger.info("HandwritingRecognizer: loaded transformers tokenizer")
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("HandwritingRecognizer: transformers tokenizer unavailable: %s", exc)
 
         # Attempt 2: tokenizers library (lighter, no PyTorch dependency)
         if tokenizer is None:

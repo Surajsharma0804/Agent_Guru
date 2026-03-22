@@ -4,9 +4,12 @@ Application control tools for opening, closing, and switching applications.
 Platform-specific implementations for Windows, macOS, and Linux.
 """
 
+import logging
 import platform
 import subprocess
 from typing import Any, Dict
+
+from Agent_Guru.platform.subprocess_utils import run_cmd
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -15,6 +18,9 @@ from Agent_Guru.reasoning.tools.base import (
     ToolSensitivity,
 )
 from Agent_Guru.reasoning.tools.registry import tool
+from Agent_Guru.security.redaction import redact
+
+logger = logging.getLogger(__name__)
 
 
 class PlatformAppController:
@@ -39,8 +45,8 @@ class PlatformAppController:
 
         try:
             if system == "windows":
-                # Windows: use start command
-                subprocess.Popen(["start", "", app_name], shell=True)
+                # Windows: use cmd /c start to launch via App Paths registry
+                run_cmd(["cmd", "/c", "start", "", app_name], check=False)
             elif system == "darwin":
                 # macOS: use open command
                 subprocess.Popen(["open", "-a", app_name])
@@ -57,13 +63,15 @@ class PlatformAppController:
                     "error": f"Unsupported platform: {system}",
                 }
 
+            result_data = {
+                "app_name": app_name,
+                "platform": system,
+                "message": f"Opened {app_name}",
+            }
+            logger.info("App open result: %s", redact(result_data))
             return {
                 "success": True,
-                "result": {
-                    "app_name": app_name,
-                    "platform": system,
-                    "message": f"Opened {app_name}",
-                },
+                "result": result_data,
             }
 
         except Exception as e:
@@ -126,13 +134,15 @@ class PlatformAppController:
                     "error": f"Unsupported platform: {system}",
                 }
 
+            result_data = {
+                "app_name": app_name,
+                "platform": system,
+                "message": f"Closed {app_name}",
+            }
+            logger.info("App close result: %s", redact(result_data))
             return {
                 "success": True,
-                "result": {
-                    "app_name": app_name,
-                    "platform": system,
-                    "message": f"Closed {app_name}",
-                },
+                "result": result_data,
             }
 
         except Exception as e:

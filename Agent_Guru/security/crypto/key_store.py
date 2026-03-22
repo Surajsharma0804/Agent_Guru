@@ -36,7 +36,7 @@ class KeyStore:
         master_password: Password used to derive the encryption key.
     """
 
-    def __init__(self, storage_path: str = ":memory:", master_password: str = "") -> None:
+    def __init__(self, storage_path: str = ":memory:", master_password: str = "") -> None:  # nosec B107
         self._storage_path = storage_path
         self._conn = sqlite3.connect(storage_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row

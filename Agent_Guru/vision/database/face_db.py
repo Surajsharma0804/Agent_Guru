@@ -27,6 +27,8 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
+from Agent_Guru.security.embedding_auth import BIOMETRIC_THRESHOLD, verify_embedding
+
 logger = logging.getLogger(__name__)
 
 # Valid permission levels
@@ -101,7 +103,8 @@ def _l2_normalise(vector: np.ndarray) -> np.ndarray:
     norm = float(np.linalg.norm(vector))
     if norm == 0.0:
         return vector.astype(np.float32)
-    return (vector / norm).astype(np.float32)
+    result: np.ndarray = (vector / norm).astype(np.float32)
+    return result
 
 
 def _now_iso() -> str:
@@ -273,7 +276,7 @@ class FaceDatabase:
     def search(
         self,
         embedding: np.ndarray,
-        threshold: float = 0.6,
+        threshold: float = BIOMETRIC_THRESHOLD,
     ) -> MatchResult:
         """Find the best matching identity for *embedding*.
 
@@ -284,6 +287,8 @@ class FaceDatabase:
         Args:
             embedding: Query embedding vector (will be L2-normalised).
             threshold: Minimum similarity score to accept a match (0.0–1.0).
+                Defaults to :data:`~Agent_Guru.security.embedding_auth.BIOMETRIC_THRESHOLD`
+                (0.97) to enforce FAR < 0.1%.
 
         Returns:
             :class:`MatchResult` with the best match, or
@@ -294,6 +299,7 @@ class FaceDatabase:
 
         best_score = -1.0
         best_name: Optional[str] = None
+        best_emb_vector: Optional[np.ndarray] = None
 
         for identity in self._identities.values():
             for emb in identity.embeddings:
@@ -301,8 +307,13 @@ class FaceDatabase:
                 if score > best_score:
                     best_score = score
                     best_name = identity.name
+                    best_emb_vector = emb.vector
 
-        if best_name is not None and best_score >= threshold:
+        if (
+            best_name is not None
+            and best_emb_vector is not None
+            and verify_embedding(query, best_emb_vector, threshold)
+        ):
             identity = self._identities[best_name]
             return MatchResult(
                 identity=best_name,

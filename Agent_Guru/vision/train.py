@@ -31,6 +31,8 @@ import sys
 import time
 from pathlib import Path
 
+from Agent_Guru.security.path_utils import safe_path
+from Agent_Guru.training.seed_utils import set_deterministic_seeds
 from Agent_Guru.vision.utils.logging import setup_logging
 from Agent_Guru.vision.training.preprocess import (
     validate_dataset_structure,
@@ -39,6 +41,8 @@ from Agent_Guru.vision.training.preprocess import (
 )
 from Agent_Guru.vision.training.train import TrainingConfig, train_arcface_model
 from Agent_Guru.vision.training.export import export_to_onnx, validate_onnx_equivalence
+
+BASE_DIR = Path(__file__).parent.resolve()
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -80,7 +84,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def _load_config_overrides(config_path: str, config: TrainingConfig) -> TrainingConfig:
     """Apply overrides from a YAML or JSON config file."""
-    path = Path(config_path)
+    path = safe_path(config_path, BASE_DIR)
     if not path.exists():
         logging.getLogger("guruvision.train").warning(
             "Config file not found: %s — using defaults", config_path
@@ -109,7 +113,10 @@ def _load_config_overrides(config_path: str, config: TrainingConfig) -> Training
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
 
-    log_file = os.path.join(args.output_dir, "training.log")
+    # Set deterministic seeds for reproducibility (Req 2.24)
+    set_deterministic_seeds(42)
+
+    log_file = str(safe_path(os.path.join(args.output_dir, "training.log"), BASE_DIR))
     os.makedirs(args.output_dir, exist_ok=True)
     logger = setup_logging(log_level=args.log_level, log_file=log_file)
     logger.info("GuruVision training started")
@@ -197,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
     t2 = time.perf_counter()
     logger.info("Phase 3: Exporting to ONNX …")
 
-    onnx_path = os.path.join(args.output_dir, "guru_face_model.onnx")
+    onnx_path = str(safe_path(os.path.join(args.output_dir, "guru_face_model.onnx"), BASE_DIR))
     try:
         onnx_path = export_to_onnx(checkpoint_path, output_path=onnx_path)
         equivalence_ok = validate_onnx_equivalence(checkpoint_path, onnx_path)
@@ -226,7 +233,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _write_report(report: dict, output_dir: str) -> None:
-    report_path = os.path.join(output_dir, "training_report.json")
+    report_path = str(safe_path(os.path.join(output_dir, "training_report.json"), BASE_DIR))
     try:
         with open(report_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)

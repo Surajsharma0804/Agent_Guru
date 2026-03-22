@@ -28,6 +28,9 @@ from Agent_Guru.self_improvement.meta_learner import (
     Pattern,
     PatternType
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Mock TaskExecution for testing
@@ -63,8 +66,8 @@ def temp_db():
     # Cleanup
     try:
         os.unlink(path)
-    except Exception:
-        pass
+    except OSError as exc:
+        logger.debug("Cleanup skipped: %s", exc)
     gc.collect()
 
 
@@ -539,8 +542,8 @@ class TestPropertyBased:
             # Cleanup
             try:
                 os.unlink(temp_path)
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.debug("Cleanup skipped: %s", exc)
             gc.collect()
     
     @given(
@@ -627,8 +630,8 @@ class TestPropertyBased:
             # Cleanup
             try:
                 os.unlink(temp_path)
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.debug("Cleanup skipped: %s", exc)
             gc.collect()
     
     @given(
@@ -705,8 +708,8 @@ class TestPropertyBased:
             # Cleanup
             try:
                 os.unlink(temp_path)
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.debug("Cleanup skipped: %s", exc)
             gc.collect()
 
 
@@ -893,8 +896,8 @@ class TestIntegration:
             # Cleanup
             try:
                 os.unlink(temp_path)
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.debug("Cleanup skipped: %s", exc)
             gc.collect()
     
     def test_correlation_analysis(self, meta_learner):
@@ -1166,8 +1169,8 @@ class TestPatternGeneralization:
             # Cleanup
             try:
                 os.unlink(temp_path)
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.debug("Cleanup skipped: %s", exc)
             gc.collect()
     
     @given(
@@ -1267,8 +1270,8 @@ class TestPatternGeneralization:
             # Cleanup
             try:
                 os.unlink(temp_path)
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.debug("Cleanup skipped: %s", exc)
             gc.collect()
     
     @given(
@@ -1353,6 +1356,6 @@ class TestPatternGeneralization:
             # Cleanup
             try:
                 os.unlink(temp_path)
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.debug("Cleanup skipped: %s", exc)
             gc.collect()

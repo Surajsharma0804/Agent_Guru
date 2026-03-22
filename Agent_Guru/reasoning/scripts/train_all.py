@@ -23,7 +23,15 @@ def run_training_script(script_name: str, description: str) -> bool:
 
     Returns:
         True if successful, False otherwise
+
+    Raises:
+        ValueError: If script_name or description is not a non-empty string.
     """
+    if not isinstance(script_name, str) or not script_name.strip():
+        raise ValueError(f"script_name must be non-empty string, got {script_name!r}")
+    if not isinstance(description, str) or not description.strip():
+        raise ValueError(f"description must be non-empty string, got {description!r}")
+
     print(f"\n{'='*80}")
     print(f"STARTING: {description}")
     print(f"Script: {script_name}")

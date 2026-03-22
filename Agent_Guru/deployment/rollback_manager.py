@@ -10,6 +10,7 @@ Space Complexity: O(n) for snapshot metadata
 
 from __future__ import annotations
 
+import html
 import json
 import pickle
 import shutil
@@ -19,6 +20,7 @@ from typing import List, Optional
 
 import structlog
 
+from Agent_Guru.security.path_utils import safe_path
 from .exceptions import InsufficientSpaceError, RestoreError, SnapshotNotFoundError
 from .models import (
     AuditLogEntry,
@@ -30,6 +32,8 @@ from .models import (
 )
 
 logger = structlog.get_logger(__name__)
+
+BASE_DIR = Path(__file__).parent.resolve()
 
 _MIN_FREE_BYTES = 100 * 1024 * 1024  # 100 MB minimum
 
@@ -111,7 +115,7 @@ class RollbackManager:
         (snap_dir / "metadata.json").write_text(json.dumps(meta, indent=2))
 
         # Persist package list as pickle for fast restore
-        with open(snap_dir / "packages.pkl", "wb") as fh:
+        with open(safe_path(snap_dir / "packages.pkl", BASE_DIR), "wb") as fh:
             pickle.dump(packages, fh)
 
         size = sum(f.stat().st_size for f in snap_dir.rglob("*") if f.is_file())
@@ -139,17 +143,17 @@ class RollbackManager:
         """
         snap_dir = self._snapshot_dir / snapshot_id
         if not snap_dir.exists():
-            raise SnapshotNotFoundError(f"Snapshot '{snapshot_id}' not found")
+            raise SnapshotNotFoundError(f"Snapshot '{html.escape(str(snapshot_id))}' not found")
 
         pkl_path = snap_dir / "packages.pkl"
         if not pkl_path.exists():
-            raise RestoreError(f"Snapshot '{snapshot_id}' is corrupted (missing packages.pkl)")
+            raise RestoreError(f"Snapshot '{html.escape(str(snapshot_id))}' is corrupted (missing packages.pkl)")
 
         try:
-            with open(pkl_path, "rb") as fh:
-                packages: List[PackageInfo] = pickle.load(fh)
+            with open(safe_path(pkl_path, BASE_DIR), "rb") as fh:
+                packages: List[PackageInfo] = pickle.load(fh)  # nosec B301
         except Exception as exc:
-            raise RestoreError(f"Failed to load snapshot '{snapshot_id}': {exc}") from exc
+            raise RestoreError(f"Failed to load snapshot '{html.escape(str(snapshot_id))}': {exc}") from exc
 
         self._audit(OperationType.ROLLBACK, None, "SUCCESS",
                     {"snapshot_id": snapshot_id, "package_count": len(packages)})
@@ -236,8 +240,8 @@ class RollbackManager:
                 )
         except InsufficientSpaceError:
             raise
-        except Exception:
-            pass  # Non-fatal if disk check fails
+        except OSError as exc:
+            logger.warning("disk_check_failed", path=str(path), error=str(exc))  # Non-fatal if disk check fails
 
     def _audit(
         self,

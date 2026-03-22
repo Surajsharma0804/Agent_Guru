@@ -637,10 +637,13 @@ class DatabaseSchema:
                 'stability_metrics'
             ]
             
-            cursor.execute("""
-                SELECT name FROM sqlite_master 
-                WHERE type='table' AND name IN ({})
-            """.format(','.join('?' * len(required_tables))), required_tables)
+            # Use parameterized placeholders — table names are hardcoded, only values are parameterized
+            placeholders = ",".join("?" * len(required_tables))
+            cursor.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='table' AND name IN (" + placeholders + ")",  # nosec B608
+                required_tables,
+            )
             
             existing_tables = {row[0] for row in cursor.fetchall()}
             

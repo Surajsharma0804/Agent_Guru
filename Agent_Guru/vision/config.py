@@ -15,7 +15,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from Agent_Guru.security.path_utils import safe_path
+
 logger = logging.getLogger(__name__)
+
+BASE_DIR = Path(__file__).parent.resolve()
 
 # ---------------------------------------------------------------------------
 # Default value constants (used for validation fallback)
@@ -129,7 +133,7 @@ class GuruVisionConfig:
 
             config = GuruVisionConfig.from_file("config.yaml")
         """
-        file_path = Path(path)
+        file_path = safe_path(path, BASE_DIR)
         if not file_path.exists():
             raise FileNotFoundError(f"Configuration file not found: {path}")
 

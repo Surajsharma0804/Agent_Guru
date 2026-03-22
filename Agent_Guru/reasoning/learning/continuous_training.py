@@ -227,7 +227,7 @@ class DataCollectionPipeline:
     def _compute_hash(self, text: str, intent: str) -> str:
         """Compute content hash for deduplication."""
         content = f"{text.lower().strip()}|{intent}"
-        return hashlib.md5(content.encode()).hexdigest()  # noqa: S324
+        return hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()  # noqa: S324
 
 
 # ---------------------------------------------------------------------------

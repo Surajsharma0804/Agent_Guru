@@ -51,8 +51,8 @@ class NoiseCanceller:
         if _RNNOISE_AVAILABLE:
             try:
                 self._rnnoise = rnnoise.RNNoise()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("RNNoise initialization failed, falling back to spectral subtraction: %s", exc)
 
     def process(self, audio: np.ndarray) -> np.ndarray:
         """Apply noise cancellation to audio chunk."""

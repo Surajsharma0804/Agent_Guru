@@ -12,6 +12,7 @@ All sync operations are non-blocking — they never delay memory writes.
 
 from __future__ import annotations
 
+import html
 import logging
 import sqlite3
 import time
@@ -23,7 +24,11 @@ from uuid import UUID, uuid4
 
 from Agent_Guru.memory.models import SyncOperation, SyncStatus
 
+from Agent_Guru.security.path_utils import safe_path
+
 logger = logging.getLogger(__name__)
+
+BASE_DIR = Path(__file__).parent.resolve()
 
 # Exponential backoff delays in seconds
 _BACKOFF_DELAYS = [0.1, 0.2, 0.4, 0.8, 1.6]
@@ -174,7 +179,8 @@ class GitHubSyncEngine:
     @staticmethod
     def validate_file_path(file_path: str) -> None:
         """Raise if file_path is not README.md."""
-        if Path(file_path).name != _README_FILENAME:
+        resolved = safe_path(file_path, BASE_DIR)
+        if resolved.name != _README_FILENAME:
             raise ReadmeOnlyViolationError(
                 f"Only '{_README_FILENAME}' is allowed; got '{file_path}'"
             )
@@ -192,12 +198,12 @@ class GitHubSyncEngine:
         personality_count: int = 0,
     ) -> str:
         return (
-            f"[Memory Update] {component}: learned information\n\n"
+            f"[Memory Update] {html.escape(str(component))}: learned information\n\n"
             f"- Entity updates: {entity_count}\n"
             f"- Preference updates: {preference_count}\n"
             f"- Experience updates: {experience_count}\n"
             f"- Personality updates: {personality_count}\n\n"
-            f"Triggered by: {component}"
+            f"Triggered by: {html.escape(str(component))}"
         )
 
     # ------------------------------------------------------------------

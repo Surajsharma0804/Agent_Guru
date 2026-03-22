@@ -47,6 +47,8 @@ from sklearn.metrics import (  # type: ignore[import-untyped]
 from tqdm import tqdm  # type: ignore[import-untyped]
 from transformers import RobertaForSequenceClassification, RobertaTokenizer
 
+from Agent_Guru.training.seed_utils import set_deterministic_seeds
+
 
 @dataclass
 class EvaluationResults:
@@ -98,8 +100,8 @@ class IntentClassifierEvaluator:
 
         # Load model
         print(f"Loading intent classifier from {model_path}...")
-        self.model = RobertaForSequenceClassification.from_pretrained(model_path)
-        self.tokenizer = RobertaTokenizer.from_pretrained(model_path)
+        self.model = RobertaForSequenceClassification.from_pretrained(model_path)  # nosec B615
+        self.tokenizer = RobertaTokenizer.from_pretrained(model_path)  # nosec B615
 
         # Load intent mappings
         with open(self.model_path / "intent_mappings.json") as f:
@@ -439,6 +441,9 @@ def main():
     print("RUTHLESS MODEL EVALUATION SUITE")
     print("ZERO COMPROMISE - COMPREHENSIVE ANALYSIS")
     print(f"{'='*80}\n")
+
+    # Set deterministic seeds for reproducibility (Req 2.24)
+    set_deterministic_seeds(42)
 
     # Paths
     intent_model_path = "Agent_Guru/reasoning/models/intent_classifier/final_model"

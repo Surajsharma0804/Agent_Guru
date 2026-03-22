@@ -39,6 +39,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 from Agent_Guru.reasoning.models.memory import Memory, MemoryType
+from Agent_Guru.security.embedding_auth import RETRIEVAL_THRESHOLD, verify_embedding
 
 
 class MemoryRetriever:
@@ -287,7 +288,10 @@ class MemoryRetriever:
             if memory.embedding is not None:
                 memory_embedding = np.array(memory.embedding, dtype=np.float32)
                 similarity = self._cosine_similarity(query_embedding, memory_embedding)
-                similarities.append((similarity, memory_id))
+                # Enforce retrieval threshold — only include memories that meet
+                # the minimum similarity requirement (CWE-200/284/20 fix).
+                if verify_embedding(query_embedding, memory_embedding, RETRIEVAL_THRESHOLD):
+                    similarities.append((similarity, memory_id))
 
         # Sort by similarity (descending)
         similarities.sort(reverse=True, key=lambda x: x[0])

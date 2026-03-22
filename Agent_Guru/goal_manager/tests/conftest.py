@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Generator
 from datetime import datetime
 
+from Agent_Guru.platform.subprocess_utils import run_cmd
+
 from Agent_Guru.goal_manager.models import Goal, GoalStatus, Priority
 
 
@@ -34,9 +36,9 @@ def temp_git_repo() -> Generator[Path, None, None]:
         repo_path = Path(tmpdir)
         
         # Initialize git repo
-        os.system(f"cd {repo_path} && git init")
-        os.system(f"cd {repo_path} && git config user.email 'test@example.com'")
-        os.system(f"cd {repo_path} && git config user.name 'Test User'")
+        run_cmd(["git", "init"], cwd=repo_path)
+        run_cmd(["git", "config", "user.email", "test@example.com"], cwd=repo_path)
+        run_cmd(["git", "config", "user.name", "Test User"], cwd=repo_path)
         
         yield repo_path
 

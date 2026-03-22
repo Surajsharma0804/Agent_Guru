@@ -129,14 +129,15 @@ class VerificationResultStorage:
             conditions.append("timestamp >= ?")
             params.append(since.isoformat())
 
-        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         params.append(limit)
 
+        # where is built from hardcoded condition strings with ? placeholders only
         rows = self._conn.execute(
-            f"SELECT entry_id, result_id, status, confidence, latency_ms, "
-            f"hallucination_detected, validation_passed, loop_detected, "
-            f"timestamp, context_type, metadata "
-            f"FROM verification_log {where} ORDER BY timestamp DESC LIMIT ?",
+            "SELECT entry_id, result_id, status, confidence, latency_ms, "
+            "hallucination_detected, validation_passed, loop_detected, "
+            "timestamp, context_type, metadata "
+            "FROM verification_log " + where + " ORDER BY timestamp DESC LIMIT ?",  # nosec B608
             params,
         ).fetchall()
 

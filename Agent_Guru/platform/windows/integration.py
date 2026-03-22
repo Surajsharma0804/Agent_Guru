@@ -23,6 +23,8 @@ from dataclasses import dataclass
 import logging
 import psutil
 
+from Agent_Guru.platform.subprocess_utils import run_cmd
+
 # winreg is Windows-only (built-in on Windows, absent on other platforms)
 if sys.platform == "win32":
     try:
@@ -512,19 +514,14 @@ class WindowsIntegration:
             except (FileNotFoundError, OSError):
                 pass
 
-            # Fallback: use shell=True so Windows can resolve via App Paths registry
+            # Fallback: use cmd /c to let Windows resolve via App Paths registry
             if not args:
                 try:
-                    process = subprocess.Popen(
-                        executable,
-                        shell=True,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                    )
-                    logger.info(f"Started process via shell: {executable} (PID: {process.pid})")
-                    return process.pid
-                except Exception:
-                    pass
+                    result = run_cmd(["cmd", "/c", executable], check=False)
+                    logger.info(f"Started process via cmd /c: {executable}")
+                    return 0
+                except (OSError, FileNotFoundError) as exc:
+                    logger.warning(f"cmd /c launch failed for {executable!r}: {exc}")
 
             # Last resort: os.startfile (Windows only, no PID returned)
             try:

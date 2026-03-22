@@ -27,7 +27,7 @@ def sync_config():
         port=5432,
         database="test_db",
         user="test_user",
-        password="test_pass",
+        password="test_pass",  # nosec B106
     )
 
 

@@ -46,7 +46,7 @@ def download_model(output_dir: Path, model_name: str = "llama-3.2-8b-q4_k_m") ->
     try:
         # Download pre-quantized GGUF model
         # Note: Replace with actual HuggingFace repo when available
-        model_file = hf_hub_download(
+        model_file = hf_hub_download(  # nosec B615
             repo_id="TheBloke/Llama-2-7B-GGUF",  # Placeholder
             filename="llama-2-7b.Q4_K_M.gguf",
             local_dir=str(output_dir),

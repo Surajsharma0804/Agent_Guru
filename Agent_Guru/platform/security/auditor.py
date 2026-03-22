@@ -348,7 +348,7 @@ class SecurityAuditor:
 
         # Create log file immediately if it doesn't exist (CRITICAL FIX)
         if not self.current_log_file.exists():
-            self.current_log_file.touch()
+            self.current_log_file.touch(mode=0o600)
 
         # Buffered writes for performance (100x fewer syscalls)
         self._buffer: deque = deque(maxlen=buffer_size)
@@ -1586,7 +1586,7 @@ class SecurityAuditor:
 
         # Ensure log file exists before writing (CRITICAL FIX)
         if not self.current_log_file.exists():
-            self.current_log_file.touch()
+            self.current_log_file.touch(mode=0o600)
 
         # Check if log rotation needed
         if (

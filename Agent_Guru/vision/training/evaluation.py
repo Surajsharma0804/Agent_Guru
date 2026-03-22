@@ -416,7 +416,7 @@ class EvaluationEngine:
         import torch.nn as nn
         import torchvision.models as models  # type: ignore[import]
 
-        checkpoint = torch.load(model_path, map_location="cpu")
+        checkpoint = torch.load(model_path, map_location="cpu", weights_only=True)
         saved_dim = checkpoint.get("embedding_dim", self.embedding_dim)
         backbone = models.resnet50(weights=None)
         backbone.fc = nn.Linear(backbone.fc.in_features, saved_dim)

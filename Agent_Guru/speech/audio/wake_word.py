@@ -19,6 +19,7 @@ from typing import Any
 
 import numpy as np
 
+from Agent_Guru.security.embedding_auth import RETRIEVAL_THRESHOLD, verify_embedding
 from ..exceptions import GuruSpeechError
 from ..models import PersonalityType, WakeWordDetection
 
@@ -568,5 +569,6 @@ class WakeWordDetector:
         if self._porcupine is not None:
             try:
                 self._porcupine.delete()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                import logging as _logging
+                _logging.getLogger(__name__).debug("Porcupine cleanup failed: %s", exc)

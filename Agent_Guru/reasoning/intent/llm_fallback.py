@@ -379,7 +379,7 @@ Classify the following input:"""
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
-            lambda: requests.post(
+            lambda: requests.post(  # nosec B113
                 f"{base_url}/api/generate",
                 json=payload,
                 timeout=self.config.timeout_ms / 1000.0,

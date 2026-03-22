@@ -238,29 +238,39 @@ class GoalEngine:
             try:
                 cursor = conn.cursor()
 
+                # Allowlist of valid column names to prevent SQL injection
+                _ALLOWED_UPDATE_KEYS = frozenset({
+                    "trigger_condition", "action_plan", "metadata",
+                    "last_evaluated", "last_triggered", "created_at",
+                    "status", "description", "trigger_type", "notify_before_execution",
+                    "notification_sent", "trigger_count",
+                })
+
                 # Build update query
                 set_clauses = []
                 values = []
                 for key, value in updates.items():
+                    if key not in _ALLOWED_UPDATE_KEYS:
+                        raise ValueError(f"Invalid update key: {key!r}")
                     if key in ["trigger_condition", "action_plan", "metadata"]:
-                        set_clauses.append(f"{key} = ?")
+                        set_clauses.append(key + " = ?")
                         values.append(json.dumps(value))
                     elif key in ["last_evaluated", "last_triggered", "created_at"]:
-                        set_clauses.append(f"{key} = ?")
+                        set_clauses.append(key + " = ?")
                         iso_value = value.isoformat() if value else None
                         values.append(str(iso_value) if iso_value is not None else "")
                     else:
-                        set_clauses.append(f"{key} = ?")
+                        set_clauses.append(key + " = ?")
                         values.append(value)
 
                 if not set_clauses:
                     return await self.get_goal(goal_id)
 
                 values.append(goal_id)
-                # Build query safely - set_clauses are constructed from validated keys
+                # Build query — column names are validated against allowlist above; values are parameterized
                 query = (
-                    "UPDATE persistent_goals SET " + ", ".join(set_clauses) + " WHERE goal_id = ?"
-                )  # nosec B608
+                    "UPDATE persistent_goals SET " + ", ".join(set_clauses) + " WHERE goal_id = ?"  # nosec B608
+                )
 
                 cursor.execute(query, values)
                 conn.commit()

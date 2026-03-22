@@ -9,6 +9,9 @@ import pytest
 
 from Agent_Guru.speech.tts.tts_engine import TTSEngine
 from Agent_Guru.speech.models import PersonalityType, EmotionType
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Shared TTS engine fixture - module scope for performance
@@ -21,8 +24,8 @@ def tts_engine():
     try:
         if hasattr(engine, 'engine') and engine.engine:
             del engine.engine
-    except:
-        pass
+    except OSError as exc:
+        logger.debug("Cleanup skipped: %s", exc)
 
 
 # Helper functions
@@ -556,21 +559,21 @@ def test_tts_error_recovery(tts_engine):
     try:
         tts_engine.synthesize("", personality=PersonalityType.GURU)
         assert False, "Should raise error for empty text"
-    except Exception:
-        pass  # Expected
+    except OSError as exc:
+        logger.debug("Cleanup skipped: %s", exc)  # Expected
     
     # Test invalid parameters
     try:
         tts_engine.synthesize("test", speech_rate=10.0)
         assert False, "Should raise error for invalid speech rate"
-    except Exception:
-        pass  # Expected
+    except OSError as exc:
+        logger.debug("Cleanup skipped: %s", exc)  # Expected
     
     try:
         tts_engine.synthesize("test", volume=5.0)
         assert False, "Should raise error for invalid volume"
-    except Exception:
-        pass  # Expected
+    except OSError as exc:
+        logger.debug("Cleanup skipped: %s", exc)  # Expected
     
     # Engine should still work after errors
     audio = tts_engine.synthesize("Recovery test", personality=PersonalityType.GURU)

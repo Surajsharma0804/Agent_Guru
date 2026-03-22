@@ -57,7 +57,7 @@ def export_to_onnx(
     import torchvision.models as models  # type: ignore[import]
     import torch.nn as nn
 
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
     saved_embedding_dim = checkpoint.get("embedding_dim", embedding_dim)
 
     backbone = models.resnet50(weights=None)
@@ -130,7 +130,7 @@ def validate_onnx_equivalence(
     import onnxruntime as ort  # type: ignore[import]
 
     # Load PyTorch model
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
     saved_embedding_dim = checkpoint.get("embedding_dim", embedding_dim)
     backbone = models.resnet50(weights=None)
     backbone.fc = nn.Linear(backbone.fc.in_features, saved_embedding_dim)

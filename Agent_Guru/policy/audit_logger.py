@@ -200,12 +200,13 @@ class AuditLogger:
             clauses.append("effect = ?")
             params.append(effect)
 
-        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
         params.append(limit)
 
         with self._conn() as conn:
+            # where is built from hardcoded condition strings with ? placeholders only
             rows = conn.execute(
-                f"SELECT * FROM audit_log {where} ORDER BY timestamp DESC LIMIT ?",
+                "SELECT * FROM audit_log " + where + " ORDER BY timestamp DESC LIMIT ?",  # nosec B608
                 params,
             ).fetchall()
 

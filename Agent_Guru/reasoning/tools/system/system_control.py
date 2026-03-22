@@ -4,6 +4,7 @@ System control tools for volume, brightness, WiFi, and Bluetooth.
 Platform-specific implementations for Windows, macOS, and Linux.
 """
 
+import logging
 import platform
 import subprocess
 from typing import Any, Dict
@@ -15,6 +16,9 @@ from Agent_Guru.reasoning.tools.base import (
     ToolSensitivity,
 )
 from Agent_Guru.reasoning.tools.registry import tool
+from Agent_Guru.security.redaction import redact
+
+logger = logging.getLogger(__name__)
 
 
 class PlatformSystemController:
@@ -39,70 +43,47 @@ class PlatformSystemController:
 
         try:
             if system == "windows":
-                # Windows: use nircmd or PowerShell
-                ps_script = f"""
-                $obj = New-Object -ComObject WScript.Shell
-                for ($i = 0; $i -lt 50; $i++) {{
-                    $obj.SendKeys([char]174)
-                }}
-                for ($i = 0; $i -lt {level * 2}; $i++) {{
-                    $obj.SendKeys([char]175)
-                }}
-                """
+                ps_script = (
+                    "$obj = New-Object -ComObject WScript.Shell; "
+                    f"for ($i = 0; $i -lt 50; $i++) {{ $obj.SendKeys([char]174) }}; "
+                    f"for ($i = 0; $i -lt {level * 2}; $i++) {{ $obj.SendKeys([char]175) }}"
+                )
                 result = subprocess.run(
                     ["powershell", "-Command", ps_script],
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    return {
-                        "success": False,
-                        "error": f"Failed to set volume: {result.stderr}",
-                    }
+                    return {"success": False, "error": f"Failed to set volume: {result.stderr}"}
             elif system == "darwin":
-                # macOS: use osascript
                 result = subprocess.run(
                     ["osascript", "-e", f"set volume output volume {level}"],
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    return {
-                        "success": False,
-                        "error": f"Failed to set volume: {result.stderr}",
-                    }
+                    return {"success": False, "error": f"Failed to set volume: {result.stderr}"}
             elif system == "linux":
-                # Linux: use amixer
                 result = subprocess.run(
                     ["amixer", "set", "Master", f"{level}%"],
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    return {
-                        "success": False,
-                        "error": f"Failed to set volume: {result.stderr}",
-                    }
+                    return {"success": False, "error": f"Failed to set volume: {result.stderr}"}
             else:
-                return {
-                    "success": False,
-                    "error": f"Unsupported platform: {system}",
-                }
+                return {"success": False, "error": f"Unsupported platform: {system}"}
 
-            return {
-                "success": True,
-                "result": {
-                    "level": level,
-                    "platform": system,
-                    "message": f"Set volume to {level}%",
-                },
+            result_data = {
+                "level": level,
+                "platform": system,
+                "message": f"Set volume to {level}%",
             }
+            logger.info("Volume result: %s", redact(result_data))
+            return {"success": True, "result": result_data}
 
         except Exception as e:
-            return {
-                "success": False,
-                "error": f"Failed to set volume: {str(e)}",
-            }
+            return {"success": False, "error": f"Failed to set volume: {str(e)}"}
 
     @staticmethod
     async def set_brightness(level: int) -> Dict[str, Any]:
@@ -118,71 +99,52 @@ class PlatformSystemController:
 
         try:
             if system == "windows":
-                # Windows: use PowerShell WMI
-                ps_script = f"""
-                (Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1,{level})
-                """
+                ps_script = (
+                    "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods)"
+                    f".WmiSetBrightness(1,{level})"
+                )
                 result = subprocess.run(
                     ["powershell", "-Command", ps_script],
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    return {
-                        "success": False,
-                        "error": f"Failed to set brightness: {result.stderr}",
-                    }
+                    return {"success": False, "error": f"Failed to set brightness: {result.stderr}"}
             elif system == "darwin":
-                # macOS: use brightness command if available
                 result = subprocess.run(
                     ["brightness", str(level / 100.0)],
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    return {
-                        "success": False,
-                        "error": f"Failed to set brightness: {result.stderr}",
-                    }
+                    return {"success": False, "error": f"Failed to set brightness: {result.stderr}"}
             elif system == "linux":
-                # Linux: use xrandr or brightnessctl
                 result = subprocess.run(
                     ["brightnessctl", "set", f"{level}%"],
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    # Try xbacklight as fallback
                     result = subprocess.run(
                         ["xbacklight", "-set", str(level)],
                         capture_output=True,
                         text=True,
                     )
                     if result.returncode != 0:
-                        return {
-                            "success": False,
-                            "error": f"Failed to set brightness: {result.stderr}",
-                        }
+                        return {"success": False, "error": f"Failed to set brightness: {result.stderr}"}
             else:
-                return {
-                    "success": False,
-                    "error": f"Unsupported platform: {system}",
-                }
+                return {"success": False, "error": f"Unsupported platform: {system}"}
 
-            return {
-                "success": True,
-                "result": {
-                    "level": level,
-                    "platform": system,
-                    "message": f"Set brightness to {level}%",
-                },
+            result_data = {
+                "level": level,
+                "platform": system,
+                "message": f"Set brightness to {level}%",
             }
+            logger.info("Brightness result: %s", redact(result_data))
+            return {"success": True, "result": result_data}
 
         except Exception as e:
-            return {
-                "success": False,
-                "error": f"Failed to set brightness: {str(e)}",
-            }
+            return {"success": False, "error": f"Failed to set brightness: {str(e)}"}
 
     @staticmethod
     async def toggle_wifi(enable: bool) -> Dict[str, Any]:
@@ -199,7 +161,6 @@ class PlatformSystemController:
 
         try:
             if system == "windows":
-                # Windows: use netsh
                 state = "enable" if enable else "disable"
                 result = subprocess.run(
                     ["netsh", "interface", "set", "interface", "Wi-Fi", state],
@@ -207,12 +168,8 @@ class PlatformSystemController:
                     text=True,
                 )
                 if result.returncode != 0:
-                    return {
-                        "success": False,
-                        "error": f"Failed to {action} WiFi: {result.stderr}",
-                    }
+                    return {"success": False, "error": f"Failed to {action} WiFi: {result.stderr}"}
             elif system == "darwin":
-                # macOS: use networksetup
                 state = "on" if enable else "off"
                 result = subprocess.run(
                     ["networksetup", "-setairportpower", "en0", state],
@@ -220,12 +177,8 @@ class PlatformSystemController:
                     text=True,
                 )
                 if result.returncode != 0:
-                    return {
-                        "success": False,
-                        "error": f"Failed to {action} WiFi: {result.stderr}",
-                    }
+                    return {"success": False, "error": f"Failed to {action} WiFi: {result.stderr}"}
             elif system == "linux":
-                # Linux: use nmcli
                 state = "on" if enable else "off"
                 result = subprocess.run(
                     ["nmcli", "radio", "wifi", state],
@@ -233,30 +186,20 @@ class PlatformSystemController:
                     text=True,
                 )
                 if result.returncode != 0:
-                    return {
-                        "success": False,
-                        "error": f"Failed to {action} WiFi: {result.stderr}",
-                    }
+                    return {"success": False, "error": f"Failed to {action} WiFi: {result.stderr}"}
             else:
-                return {
-                    "success": False,
-                    "error": f"Unsupported platform: {system}",
-                }
+                return {"success": False, "error": f"Unsupported platform: {system}"}
 
-            return {
-                "success": True,
-                "result": {
-                    "enabled": enable,
-                    "platform": system,
-                    "message": f"WiFi {action}d",
-                },
+            result_data = {
+                "enabled": enable,
+                "platform": system,
+                "message": f"WiFi {action}d",
             }
+            logger.info("WiFi toggle result: %s", redact(result_data))
+            return {"success": True, "result": result_data}
 
         except Exception as e:
-            return {
-                "success": False,
-                "error": f"Failed to {action} WiFi: {str(e)}",
-            }
+            return {"success": False, "error": f"Failed to {action} WiFi: {str(e)}"}
 
     @staticmethod
     async def toggle_bluetooth(enable: bool) -> Dict[str, Any]:
@@ -273,37 +216,22 @@ class PlatformSystemController:
 
         try:
             if system == "windows":
-                # Windows: use PowerShell
                 state = "$true" if enable else "$false"
-                ps_script = f"""
-                Add-Type -AssemblyName System.Runtime.WindowsRuntime
-                $asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | ? {{ $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' }})[0]
-                Function Await($WinRtTask, $ResultType) {{
-                    $asTask = $asTaskGeneric.MakeGenericMethod($ResultType)
-                    $netTask = $asTask.Invoke($null, @($WinRtTask))
-                    $netTask.Wait(-1) | Out-Null
-                    $netTask.Result
-                }}
-                [Windows.Devices.Radios.Radio,Windows.System.Devices,ContentType=WindowsRuntime] | Out-Null
-                [Windows.Devices.Radios.RadioAccessStatus,Windows.System.Devices,ContentType=WindowsRuntime] | Out-Null
-                Await ([Windows.Devices.Radios.Radio]::RequestAccessAsync()) ([Windows.Devices.Radios.RadioAccessStatus]) | Out-Null
-                $radios = Await ([Windows.Devices.Radios.Radio]::GetRadiosAsync()) ([System.Collections.Generic.IReadOnlyList[Windows.Devices.Radios.Radio]])
-                $bluetooth = $radios | ? {{ $_.Kind -eq 'Bluetooth' }}
-                [Windows.Devices.Radios.RadioState,Windows.System.Devices,ContentType=WindowsRuntime] | Out-Null
-                Await ($bluetooth.SetStateAsync({state})) ([Windows.Devices.Radios.RadioAccessStatus]) | Out-Null
-                """
+                ps_script = (
+                    "Add-Type -AssemblyName System.Runtime.WindowsRuntime; "
+                    "[Windows.Devices.Radios.Radio,Windows.System.Devices,ContentType=WindowsRuntime] | Out-Null; "
+                    f"$radios = [Windows.Devices.Radios.Radio]::GetRadiosAsync().GetAwaiter().GetResult(); "
+                    "$bluetooth = $radios | Where-Object { $_.Kind -eq 'Bluetooth' }; "
+                    f"$bluetooth.SetStateAsync({state}).GetAwaiter().GetResult() | Out-Null"
+                )
                 result = subprocess.run(
                     ["powershell", "-Command", ps_script],
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    return {
-                        "success": False,
-                        "error": f"Failed to {action} Bluetooth: {result.stderr}",
-                    }
+                    return {"success": False, "error": f"Failed to {action} Bluetooth: {result.stderr}"}
             elif system == "darwin":
-                # macOS: use blueutil if available
                 state = "1" if enable else "0"
                 result = subprocess.run(
                     ["blueutil", "--power", state],
@@ -311,12 +239,8 @@ class PlatformSystemController:
                     text=True,
                 )
                 if result.returncode != 0:
-                    return {
-                        "success": False,
-                        "error": f"Failed to {action} Bluetooth: {result.stderr}",
-                    }
+                    return {"success": False, "error": f"Failed to {action} Bluetooth: {result.stderr}"}
             elif system == "linux":
-                # Linux: use rfkill
                 state = "unblock" if enable else "block"
                 result = subprocess.run(
                     ["rfkill", state, "bluetooth"],
@@ -324,30 +248,20 @@ class PlatformSystemController:
                     text=True,
                 )
                 if result.returncode != 0:
-                    return {
-                        "success": False,
-                        "error": f"Failed to {action} Bluetooth: {result.stderr}",
-                    }
+                    return {"success": False, "error": f"Failed to {action} Bluetooth: {result.stderr}"}
             else:
-                return {
-                    "success": False,
-                    "error": f"Unsupported platform: {system}",
-                }
+                return {"success": False, "error": f"Unsupported platform: {system}"}
 
-            return {
-                "success": True,
-                "result": {
-                    "enabled": enable,
-                    "platform": system,
-                    "message": f"Bluetooth {action}d",
-                },
+            result_data = {
+                "enabled": enable,
+                "platform": system,
+                "message": f"Bluetooth {action}d",
             }
+            logger.info("Bluetooth toggle result: %s", redact(result_data))
+            return {"success": True, "result": result_data}
 
         except Exception as e:
-            return {
-                "success": False,
-                "error": f"Failed to {action} Bluetooth: {str(e)}",
-            }
+            return {"success": False, "error": f"Failed to {action} Bluetooth: {str(e)}"}
 
 
 @tool(
@@ -385,14 +299,8 @@ class SetVolumeTool(Tool):
             Execution result
         """
         level = kwargs["level"]
-
-        # Validate level
         if not 0 <= level <= 100:
-            return {
-                "success": False,
-                "error": "Volume level must be between 0 and 100",
-            }
-
+            return {"success": False, "error": "Volume level must be between 0 and 100"}
         return await PlatformSystemController.set_volume(level)
 
 
@@ -431,14 +339,8 @@ class SetBrightnessTool(Tool):
             Execution result
         """
         level = kwargs["level"]
-
-        # Validate level
         if not 0 <= level <= 100:
-            return {
-                "success": False,
-                "error": "Brightness level must be between 0 and 100",
-            }
-
+            return {"success": False, "error": "Brightness level must be between 0 and 100"}
         return await PlatformSystemController.set_brightness(level)
 
 

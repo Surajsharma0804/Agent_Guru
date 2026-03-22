@@ -342,14 +342,26 @@ class DatabaseBatchWriter:
             if not rows:
                 continue
             
-            # Build batch INSERT
+            # Validate table name — must be a simple identifier (letters, digits, underscores)
+            if not table.replace("_", "").isalnum():
+                raise ValueError(f"Invalid table name: {table!r}")
+            
+            # Build batch INSERT — table name is validated above; values are parameterized
             columns = list(rows[0].keys())
-            placeholders = ', '.join(['?' * len(columns)] * len(rows))
+            # Validate column names as well
+            for col in columns:
+                if not col.replace("_", "").isalnum():
+                    raise ValueError(f"Invalid column name: {col!r}")
+            
+            col_list = ", ".join(columns)
+            row_placeholders = "(" + ", ".join("?" * len(columns)) + ")"
+            all_placeholders = ", ".join([row_placeholders] * len(rows))
             values: list[Any] = []
             for row in rows:
                 values.extend(row[col] for col in columns)
             
-            query = f"INSERT INTO {table} ({', '.join(columns)}) VALUES {placeholders}"
+            # Table and column names are validated identifiers; values are parameterized
+            query = "INSERT INTO " + table + " (" + col_list + ") VALUES " + all_placeholders  # nosec B608
             
             # Execute
             loop = asyncio.get_event_loop()

@@ -519,8 +519,8 @@ class MacOSController:
                     for app in apps
                     if app.localizedName()
                 ]
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("NSWorkspace app listing failed: %s", exc)
 
         # AppleScript fallback
         try:
@@ -533,8 +533,8 @@ class MacOSController:
             )
             if result.returncode == 0:
                 return [a.strip() for a in result.stdout.split(",") if a.strip()]
-        except Exception:
-            pass
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            logger.debug("AppleScript app listing failed: %s", exc)
 
         return []
 
@@ -622,8 +622,8 @@ class MacOSController:
                         {Quartz.kAXTrustedCheckOptionPrompt: False}
                     )
                 )
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Quartz accessibility check failed: %s", exc)
 
         # Fallback: try a benign AppleScript operation
         try:
@@ -634,7 +634,8 @@ class MacOSController:
                 timeout=3,
             )
             return result.returncode == 0
-        except Exception:
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            logger.debug("AppleScript accessibility check failed: %s", exc)
             return False
 
     def check_permission(self, operation: str) -> bool:

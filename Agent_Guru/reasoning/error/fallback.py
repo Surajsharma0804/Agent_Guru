@@ -7,6 +7,7 @@ Provides intelligent fallback mechanisms for different error types:
 - Timeout fallback: partial results → async execution → simplification
 """
 
+import logging
 import time
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -14,6 +15,8 @@ from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 
 from Agent_Guru.reasoning.error.error_manager import ErrorType, StructuredError
+
+_logger = logging.getLogger(__name__)
 
 
 class FallbackStrategy(str, Enum):
@@ -240,8 +243,8 @@ class ToolFallbackHandler(FallbackHandler):
                 result=result,
                 fallback_count=1,
             )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _logger.warning("Alternative tool fallback failed: %s", exc)
 
         # Try simplified request
         try:
@@ -252,8 +255,8 @@ class ToolFallbackHandler(FallbackHandler):
                 result=result,
                 fallback_count=2,
             )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            _logger.warning("Simplified request fallback failed: %s", exc)
 
         # Final fallback: notify user
         return FallbackResult(
@@ -351,8 +354,8 @@ class TimeoutFallbackHandler(FallbackHandler):
                     result=result,
                     fallback_count=2,
                 )
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _logger.warning("Async execution fallback failed: %s", exc)
 
         # Final fallback: simplify
         return FallbackResult(

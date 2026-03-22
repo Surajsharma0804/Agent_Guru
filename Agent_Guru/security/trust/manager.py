@@ -15,9 +15,12 @@ Storage: SQLite (in-memory or file-based).
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import uuid
 from dataclasses import dataclass, field
+
+_logger = logging.getLogger(__name__)
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 
@@ -242,8 +245,8 @@ class TrustManager:
                     outcome="success",
                     details={"trust_level": trust_level},
                 )
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _logger.warning("Audit log failed for trust relationship creation: %s", exc)
 
         return rel
 
@@ -271,8 +274,8 @@ class TrustManager:
                     outcome="success",
                     details={},
                 )
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _logger.warning("Audit log failed for trust relationship revocation: %s", exc)
 
     def get_relationships(
         self, profile_id: str, transitive: bool = False

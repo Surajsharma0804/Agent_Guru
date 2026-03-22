@@ -6,6 +6,9 @@ import numpy as np
 from Agent_Guru.speech.engine import SpeechEngine
 from Agent_Guru.security.voice_auth import VoiceAuthenticator, VoiceAuthenticationError
 from Agent_Guru.security.speech_integration import SpeechSecurityIntegration
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TestSpeechSecurityIntegration:
@@ -324,9 +327,9 @@ class TestSpeechSecurityIntegration:
         try:
             profile = integration.enroll_user_from_audio("user1", nan_audio)
             assert profile.user_id == "user1"
-        except Exception:
-            # Acceptable to fail with NaN
-            pass
+        except Exception as exc:  # noqa: BLE001
+            # Acceptable to fail with NaN audio
+            logger.debug("NaN audio enrollment failed as expected: %s", exc)
     
     def test_enroll_with_inf_audio(
         self,
@@ -339,9 +342,9 @@ class TestSpeechSecurityIntegration:
         try:
             profile = integration.enroll_user_from_audio("user1", inf_audio)
             assert profile.user_id == "user1"
-        except Exception:
-            # Acceptable to fail with inf
-            pass
+        except Exception as exc:  # noqa: BLE001
+            # Acceptable to fail with inf audio
+            logger.debug("Inf audio enrollment failed as expected: %s", exc)
     
     def test_authenticate_after_multiple_updates(
         self,

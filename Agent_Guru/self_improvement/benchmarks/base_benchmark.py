@@ -9,10 +9,13 @@ from typing import Dict, List, Any, Optional, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import logging
 import time
 import json
 import psutil
 import os
+
+_logger = logging.getLogger(__name__)
 
 
 class ScenarioType(Enum):
@@ -145,8 +148,8 @@ class BaseBenchmark:
                 scenario = scenarios[i % len(scenarios)]
                 try:
                     self.execute_scenario(scenario)
-                except Exception:
-                    pass  # Ignore warmup errors
+                except Exception as exc:  # noqa: BLE001
+                    _logger.debug("Warmup iteration %d skipped: %s", i, exc)  # Ignore warmup errors
         
         # Actual benchmark runs
         print(f"Running benchmark on {len(scenarios)} scenarios...")

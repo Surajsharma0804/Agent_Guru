@@ -5,9 +5,106 @@ This skill demonstrates a simple computational skill with no
 external dependencies or permissions required.
 """
 
+import ast
 import math
+import operator as op
 from typing import Dict, Union
 from Agent_Guru.sdk import Skill, skill_capability
+
+# Allowlist of safe AST node types and their corresponding operators
+_SAFE_OPS: dict = {
+    ast.Add: op.add,
+    ast.Sub: op.sub,
+    ast.Mult: op.mul,
+    ast.Div: op.truediv,
+    ast.Pow: op.pow,
+    ast.USub: op.neg,
+    ast.UAdd: op.pos,
+    ast.Mod: op.mod,
+    ast.FloorDiv: op.floordiv,
+}
+
+# Allowlist of safe names (math constants and functions)
+_SAFE_NAMES: dict = {
+    "abs": abs,
+    "round": round,
+    "min": min,
+    "max": max,
+    "sum": sum,
+    "pow": pow,
+    "sqrt": math.sqrt,
+    "sin": math.sin,
+    "cos": math.cos,
+    "tan": math.tan,
+    "pi": math.pi,
+    "e": math.e,
+}
+
+
+def _eval_node(node: ast.AST) -> float:
+    """Recursively evaluate a safe AST node.
+
+    Args:
+        node: AST node to evaluate
+
+    Returns:
+        Numeric result
+
+    Raises:
+        ValueError: For any non-numeric or non-operator node
+    """
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, (int, float)):
+            return float(node.value)
+        raise ValueError(f"Unsafe constant type: {type(node.value).__name__}")
+    if isinstance(node, ast.Name):
+        if node.id in _SAFE_NAMES:
+            val = _SAFE_NAMES[node.id]
+            if callable(val):
+                raise ValueError(f"Name '{node.id}' is a function, not a value")
+            return float(val)
+        raise ValueError(f"Name '{node.id}' is not allowed")
+    if isinstance(node, ast.BinOp):
+        op_type = type(node.op)
+        if op_type not in _SAFE_OPS:
+            raise ValueError(f"Operator {op_type.__name__} is not allowed")
+        left = _eval_node(node.left)
+        right = _eval_node(node.right)
+        return _SAFE_OPS[op_type](left, right)
+    if isinstance(node, ast.UnaryOp):
+        op_type = type(node.op)
+        if op_type not in _SAFE_OPS:
+            raise ValueError(f"Unary operator {op_type.__name__} is not allowed")
+        operand = _eval_node(node.operand)
+        return _SAFE_OPS[op_type](operand)
+    if isinstance(node, ast.Call):
+        if not isinstance(node.func, ast.Name):
+            raise ValueError("Only simple function calls are allowed")
+        func_name = node.func.id
+        if func_name not in _SAFE_NAMES or not callable(_SAFE_NAMES[func_name]):
+            raise ValueError(f"Function '{func_name}' is not allowed")
+        args = [_eval_node(arg) for arg in node.args]
+        return float(_SAFE_NAMES[func_name](*args))
+    raise ValueError(f"Unsafe expression node: {type(node).__name__}")
+
+
+def safe_eval_expr(expr: str) -> float:
+    """Safely evaluate a mathematical expression using AST parsing.
+
+    Args:
+        expr: Mathematical expression string
+
+    Returns:
+        Numeric result as float
+
+    Raises:
+        ValueError: For any non-numeric, non-operator, or unsafe expression
+    """
+    try:
+        tree = ast.parse(expr.strip(), mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(f"Invalid expression syntax: {exc}") from exc
+    return _eval_node(tree.body)
 
 
 class CalculatorSkill(Skill):
@@ -26,38 +123,16 @@ class CalculatorSkill(Skill):
 
         Returns:
             Calculation result dictionary
+
+        Raises:
+            ValueError: For any unsafe or non-mathematical expression
         """
-        try:
-            # Safe evaluation (limited to math operations)
-            allowed_names = {
-                "abs": abs,
-                "round": round,
-                "min": min,
-                "max": max,
-                "sum": sum,
-                "pow": pow,
-                "sqrt": math.sqrt,
-                "sin": math.sin,
-                "cos": math.cos,
-                "tan": math.tan,
-                "pi": math.pi,
-                "e": math.e,
-            }
-
-            result = eval(expression, {"__builtins__": {}}, allowed_names)
-
-            return {
-                "expression": expression,
-                "result": float(result),
-                "success": True,
-            }
-
-        except Exception as e:
-            return {
-                "expression": expression,
-                "error": str(e),
-                "success": False,
-            }
+        result = safe_eval_expr(expression)
+        return {
+            "expression": expression,
+            "result": result,
+            "success": True,
+        }
 
     @skill_capability("convert_units", "Convert between units")
     async def convert_units(

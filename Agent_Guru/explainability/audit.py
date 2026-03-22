@@ -154,9 +154,10 @@ class AuditTrail:
             params.append(min_confidence)
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         params.extend([limit, offset])
+        # where is built from hardcoded condition strings with ? placeholders only
         rows = self._conn.execute(
-            f"SELECT entry_id, action, actor, timestamp, details, confidence, prev_hash, signature, entry_hash "
-            f"FROM audit_entries {where} ORDER BY timestamp ASC LIMIT ? OFFSET ?",
+            "SELECT entry_id, action, actor, timestamp, details, confidence, prev_hash, signature, entry_hash "
+            "FROM audit_entries " + where + " ORDER BY timestamp ASC LIMIT ? OFFSET ?",  # nosec B608
             params,
         ).fetchall()
         entries = []

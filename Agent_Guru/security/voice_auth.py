@@ -6,6 +6,7 @@ from typing import Optional, Dict, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 
+from Agent_Guru.security.embedding_auth import BIOMETRIC_THRESHOLD, verify_embedding
 from Agent_Guru.speech.models import VoiceFeatures
 
 logger = logging.getLogger(__name__)
@@ -123,7 +124,11 @@ class VoiceAuthenticator:
                 profile.feature_vector
             )
             
-            authenticated = similarity >= self.similarity_threshold
+            authenticated = verify_embedding(
+                voice_features.feature_vector,
+                profile.feature_vector,
+                BIOMETRIC_THRESHOLD,
+            )
             self.logger.info(
                 f"Verification for {user_id}: "
                 f"{'SUCCESS' if authenticated else 'FAILED'} "
@@ -150,7 +155,14 @@ class VoiceAuthenticator:
                     best_similarity = similarity
                     best_match = uid
             
-            authenticated = best_similarity >= self.similarity_threshold
+            authenticated = (
+                best_match is not None
+                and verify_embedding(
+                    voice_features.feature_vector,
+                    self._profiles[best_match].feature_vector,
+                    BIOMETRIC_THRESHOLD,
+                )
+            )
             self.logger.info(
                 f"Identification: "
                 f"{'SUCCESS' if authenticated else 'FAILED'} "

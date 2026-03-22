@@ -232,8 +232,9 @@ class AgentGuruBenchmark(BaseBenchmark):
             import shutil
             try:
                 shutil.rmtree(self.temp_dir)
-            except Exception:
-                pass
+            except OSError as exc:
+                import logging as _logging
+                _logging.getLogger(__name__).debug("Temp dir cleanup failed: %s", exc)
 
 
 def create_agent_guru_benchmark(storage_path: Optional[str] = None) -> AgentGuruBenchmark:

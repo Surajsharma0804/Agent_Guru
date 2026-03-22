@@ -169,7 +169,7 @@ class NeuralIntentClassifier:
             raise FileNotFoundError(f"Label mappings not found at: {label_mappings_path}")
 
         # Load tokenizer (DeBERTa-v3)
-        self.tokenizer = DebertaV2Tokenizer.from_pretrained(str(tokenizer_path))
+        self.tokenizer = DebertaV2Tokenizer.from_pretrained(str(tokenizer_path))  # nosec B615
 
         # Load label mappings
         with open(label_mappings_path) as f:

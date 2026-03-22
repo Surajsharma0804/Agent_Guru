@@ -16,6 +16,7 @@ from typing import Dict, Optional
 
 import numpy as np
 
+from Agent_Guru.security.embedding_auth import BIOMETRIC_THRESHOLD, verify_embedding
 from Agent_Guru.security.models import AuthenticationResult
 from Agent_Guru.security.voice_auth import VoiceAuthenticator, VoiceAuthenticationError
 from Agent_Guru.speech.engine import SpeechEngine
@@ -30,14 +31,12 @@ _VOICE_WEIGHT: float = 0.4
 
 
 def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
-    """Cosine similarity normalised to [0.0, 1.0]."""
-    norm_a = np.linalg.norm(a)
-    norm_b = np.linalg.norm(b)
+    """Cosine similarity in [-1.0, 1.0] (raw, not normalised to [0,1])."""
+    norm_a = float(np.linalg.norm(a))
+    norm_b = float(np.linalg.norm(b))
     if norm_a == 0.0 or norm_b == 0.0:
         return 0.0
-    raw: float = float(np.dot(a, b) / (norm_a * norm_b))
-    # cosine is in [-1, 1]; map to [0, 1]
-    return (raw + 1.0) / 2.0
+    return float(np.dot(a, b) / (norm_a * norm_b))
 
 
 class BiometricAuthenticator:
@@ -153,9 +152,10 @@ class BiometricAuthenticator:
             )
 
         template = self._face_templates[profile_id]
-        # Clamp to [0.0, 1.0] to guard against floating-point precision issues.
+        # Enforce biometric threshold via verify_embedding (FAR < 0.1%).
+        # Also compute raw similarity for the confidence field.
         similarity = float(max(0.0, min(1.0, _cosine_similarity(features.embedding, template))))
-        authenticated = similarity >= self.face_threshold
+        authenticated = verify_embedding(features.embedding, template, BIOMETRIC_THRESHOLD)
 
         logger.info(
             "Face auth for %s: %s (similarity=%.3f)",

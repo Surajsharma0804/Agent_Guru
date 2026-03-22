@@ -126,8 +126,9 @@ class IdentityManager:
                         outcome="success",
                         details={"profile_name": profile_name},
                     )
-                except Exception:
-                    pass  # Audit logging is best-effort
+                except Exception as exc:  # noqa: BLE001
+                    import logging as _logging
+                    _logging.getLogger(__name__).warning("Audit log failed for key generation: %s", exc)  # Audit logging is best-effort
 
             return profile
 
@@ -189,13 +190,10 @@ class IdentityManager:
                         outcome="success",
                         details={},
                     )
-                except Exception:
-                    pass
-
+                except Exception as exc:  # noqa: BLE001
+                    import logging as _logging
+                    _logging.getLogger(__name__).warning("Audit log failed for key rotation: %s", exc)
             return new_key_pair
-
-        except IdentityNotFoundError:
-            raise
         except Exception as exc:
             raise KeyGenerationError(f"Key rotation failed: type={type(exc).__name__}") from exc
 

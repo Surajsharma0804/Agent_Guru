@@ -27,17 +27,22 @@ __author__ = "Agent Guru Team"
 
 def __getattr__(name: str):  # noqa: ANN201
     """Lazy-load sub-packages on first access."""
-    _subpackages = {
+    # Whitelist of allowed subpackages - prevents code injection
+    _allowed_subpackages = {
         "speech", "vision", "llm", "platform",
         "agents", "memory", "deployment", "policy",
         "security", "avatar",
     }
-    if name in _subpackages:
-        import importlib
-        module = importlib.import_module(f"Agent_Guru.{name}")
-        globals()[name] = module
-        return module
-    raise AttributeError(f"module 'Agent_Guru' has no attribute {name!r}")
+    
+    # Validate input against whitelist only
+    if name not in _allowed_subpackages:
+        raise AttributeError(f"module 'Agent_Guru' has no attribute {name!r}")
+    
+    # Safe to import - name is validated against whitelist
+    import importlib
+    module = importlib.import_module(f"Agent_Guru.{name}")
+    globals()[name] = module
+    return module
 
 
 __all__ = [

@@ -32,6 +32,9 @@ from Agent_Guru.self_improvement.ensemble_voting import (
     VotingMethod,
 )
 from Agent_Guru.self_improvement.strategy_optimizer import StrategyOptimizer
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -476,8 +479,8 @@ class TestPerformanceMetrics:
                     task_executor=task_executor,
                     criticality=TaskCriticality.MEDIUM,
                 )
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.debug("Cleanup skipped: %s", exc)
 
         metrics = ensemble_system.get_performance_metrics(task_type="test_task")
 

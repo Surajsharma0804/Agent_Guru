@@ -664,7 +664,8 @@ class TestEdgeCases:
             assert isinstance(result, NormalizedInput), "Must handle Unicode"
         except ValueError as e:
             # Empty after normalization is acceptable (whitespace-only input)
-            if "empty after normalization" in str(e).lower():
+            err_lower = str(e).lower()
+            if "empty after normalization" in err_lower or "cannot be empty" in err_lower:
                 assert True, "Whitespace-only input handled correctly"
             else:
                 # Other ValueErrors should not occur for valid Unicode

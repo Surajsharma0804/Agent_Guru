@@ -80,7 +80,7 @@ class FeatureFlag:
 
         # Consistent hash: same user always gets same result
         hash_input = f"{self.name}:{user_id}"
-        hash_value = int(hashlib.md5(hash_input.encode()).hexdigest(), 16)  # noqa: S324
+        hash_value = int(hashlib.md5(hash_input.encode(), usedforsecurity=False).hexdigest(), 16)  # noqa: S324
         user_bucket = (hash_value % 10000) / 100.0  # 0.0 to 99.99
         return user_bucket < self.rollout_percentage
 
@@ -267,7 +267,7 @@ class Experiment:
             Assigned variant (deterministic per user)
         """
         hash_input = f"{self.experiment_id}:{user_id}"
-        hash_value = int(hashlib.md5(hash_input.encode()).hexdigest(), 16)  # noqa: S324
+        hash_value = int(hashlib.md5(hash_input.encode(), usedforsecurity=False).hexdigest(), 16)  # noqa: S324
         bucket = (hash_value % 10000) / 100.0  # 0.0 to 99.99
 
         cumulative = 0.0

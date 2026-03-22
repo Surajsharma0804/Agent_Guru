@@ -23,6 +23,7 @@ from typing import Dict, List, Optional
 
 import structlog
 
+from Agent_Guru.security.path_utils import safe_path
 from .exceptions import (
     InstallationError,
     NetworkError,
@@ -31,6 +32,8 @@ from .exceptions import (
 from .models import AuditLogEntry, Configuration, OperationType, PackageInfo
 
 logger = structlog.get_logger(__name__)
+
+BASE_DIR = Path(__file__).parent.resolve()
 
 _CHUNK_SIZE = 65536  # 64 KB
 _DEFAULT_TIMEOUT = 30
@@ -196,7 +199,7 @@ class PackageManager:
         Streams the file to avoid loading large packages into memory.
         """
         hasher = hashlib.sha256()
-        with open(package_path, "rb") as fh:
+        with open(safe_path(package_path, BASE_DIR), "rb") as fh:
             while chunk := fh.read(_CHUNK_SIZE):
                 hasher.update(chunk)
         actual = hasher.hexdigest()
@@ -217,15 +220,14 @@ class PackageManager:
         except ImportError:
             # Fallback: use urllib for environments without aiohttp
             import urllib.request
-            urllib.request.urlretrieve(url, str(dest))
-            return
+            urllib.request.urlretrieve(url, str(dest))  # nosec B310
 
         timeout = aiohttp.ClientTimeout(total=self._config.network_timeout)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(url) as resp:
                 if resp.status != 200:
                     raise NetworkError(f"HTTP {resp.status} for {url}")
-                with open(dest, "wb") as fh:
+                with open(safe_path(dest, BASE_DIR), "wb") as fh:
                     async for chunk in resp.content.iter_chunked(_CHUNK_SIZE):
                         fh.write(chunk)
 
@@ -246,7 +248,7 @@ class PackageManager:
         checksum = ""
         if package_path.exists():
             hasher = hashlib.sha256()
-            with open(package_path, "rb") as fh:
+            with open(safe_path(package_path, BASE_DIR), "rb") as fh:
                 while chunk := fh.read(_CHUNK_SIZE):
                     hasher.update(chunk)
             checksum = hasher.hexdigest()

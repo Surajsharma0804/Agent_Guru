@@ -17,6 +17,7 @@ Requirements: 3.1, 4.1, 5.1, 5.3, 7.1, 7.4, 8.1, 10.1, 12.2, 12.3, 12.4,
 
 from __future__ import annotations
 
+import html
 import logging
 import signal
 import threading
@@ -504,7 +505,7 @@ class GuruVisionEngine:
             result = self._database.add_identity(name, embeddings, permission_level=permission_level)
         except Exception as exc:
             logger.error("add_identity '%s': database write failed: %s", name, exc)
-            raise DatabaseError(f"Failed to store identity '{name}': {exc}") from exc
+            raise DatabaseError(f"Failed to store identity '{html.escape(str(name))}': {exc}") from exc
         if result:
             self._emit("new_identity", {"name": name, "num_embeddings": len(embeddings)})
         return result
@@ -566,7 +567,7 @@ class GuruVisionEngine:
         """
         if event_type not in self._callbacks:
             raise ValueError(
-                f"Unknown event type '{event_type}'. "
+                f"Unknown event type '{html.escape(str(event_type))}'. "
                 f"Valid types: {sorted(self._callbacks.keys())}"
             )
         self._callbacks[event_type].append(callback)

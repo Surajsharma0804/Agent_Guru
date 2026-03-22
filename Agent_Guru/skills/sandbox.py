@@ -49,10 +49,11 @@ class SkillSandbox:
         """Execute a callable in a sandboxed subprocess."""
         kwargs = kwargs or {}
         timeout_s = self.limits.timeout_ms / 1000.0
-        result_queue: multiprocessing.Queue = multiprocessing.Queue()
+        ctx = multiprocessing.get_context("spawn")
+        result_queue: multiprocessing.Queue = ctx.Queue()
 
         # We pass the function directly via a wrapper approach
-        proc = multiprocessing.Process(
+        proc = ctx.Process(
             target=_sandbox_target,
             args=(func, kwargs, result_queue),
             daemon=True,
@@ -79,8 +80,8 @@ class SkillSandbox:
             try:
                 mem = ps_proc.memory_info().rss / (1024 * 1024)
                 peak_memory_mb = mem
-            except Exception:
-                pass
+            except (psutil.NoSuchProcess, psutil.AccessDenied) as exc:
+                logger.debug("Memory measurement skipped for skill %s: %s", skill_id, exc)
 
         if proc.is_alive():
             proc.terminate()

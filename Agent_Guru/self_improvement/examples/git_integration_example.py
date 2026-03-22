@@ -12,6 +12,7 @@ Features demonstrated:
 - Authentication handling
 """
 
+import os
 from datetime import datetime
 from pathlib import Path
 from Agent_Guru.self_improvement import (
@@ -83,7 +84,7 @@ def example_with_authentication():
     # Method 2: Token (recommended for CI/CD)
     print("2. Token Authentication (uses GitHub token)")
     # In production, load token from environment variable
-    token = "ghp_your_token_here"  # Replace with actual token
+    token = os.environ["GITHUB_TOKEN"]
     git_token = GitIntegration(
         repo_path=str(repo_path),
         auth_method=AuthMethod.TOKEN,

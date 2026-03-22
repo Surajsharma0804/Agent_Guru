@@ -28,6 +28,9 @@ from hypothesis import strategies as st
 
 from Agent_Guru.reasoning.memory.vector_db import VectorDatabase
 from Agent_Guru.reasoning.models.memory import MemoryType
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Use in-memory mode on Windows to avoid file locking issues
 IS_WINDOWS = platform.system() == "Windows"
@@ -54,15 +57,15 @@ class TestVectorDatabase:
         # Reset database before cleanup to ensure clean state
         try:
             db_instance.reset()  # Clear all data
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.debug("Cleanup skipped: %s", exc)
         # Cleanup
         try:
             del db_instance
             gc.collect()
             time.sleep(0.1)
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.debug("Cleanup skipped: %s", exc)
 
     @pytest.fixture
     def sample_embedding(self):
@@ -480,15 +483,15 @@ class TestVectorDatabaseProperties:
         # Reset database before cleanup to ensure clean state
         try:
             db_instance.reset()  # Clear all data
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.debug("Cleanup skipped: %s", exc)
         # Cleanup
         try:
             del db_instance
             gc.collect()
             time.sleep(0.1)
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.debug("Cleanup skipped: %s", exc)
 
     @settings(
         suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=20, deadline=None
@@ -609,15 +612,15 @@ class TestVectorDatabaseIntegration:
         # Reset database before cleanup to ensure clean state
         try:
             db_instance.reset()  # Clear all data
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.debug("Cleanup skipped: %s", exc)
         # Cleanup
         try:
             del db_instance
             gc.collect()
             time.sleep(0.1)
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.debug("Cleanup skipped: %s", exc)
 
     def test_persistence_across_instances(self, temp_db_path):
         """Test that data persists across database instances."""

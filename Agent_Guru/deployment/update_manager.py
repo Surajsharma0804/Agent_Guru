@@ -19,10 +19,13 @@ from typing import Any, Dict, List, Optional
 import structlog
 from packaging.version import Version
 
+from Agent_Guru.security.path_utils import safe_path
 from .exceptions import NetworkError, SignatureVerificationError
 from .models import Configuration
 
 logger = structlog.get_logger(__name__)
+
+BASE_DIR = Path(__file__).parent.resolve()
 
 _CHUNK_SIZE = 65536
 
@@ -159,7 +162,7 @@ class UpdateManager:
         # Verify checksum
         if update_info.checksum:
             hasher = hashlib.sha256()
-            with open(update_path, "rb") as fh:
+            with open(safe_path(update_path, BASE_DIR), "rb") as fh:
                 while chunk := fh.read(_CHUNK_SIZE):
                     hasher.update(chunk)
             actual = hasher.hexdigest()
@@ -224,7 +227,7 @@ class UpdateManager:
                     return await resp.json()
         except ImportError:
             import urllib.request
-            with urllib.request.urlopen(url, timeout=self._config.network_timeout) as r:
+            with urllib.request.urlopen(url, timeout=self._config.network_timeout) as r:  # nosec B310
                 return json.loads(r.read().decode())
 
     async def _stream_download(self, url: str, dest: Path) -> None:
@@ -236,9 +239,9 @@ class UpdateManager:
                 async with session.get(url) as resp:
                     if resp.status != 200:
                         raise NetworkError(f"HTTP {resp.status} for {url}")
-                    with open(dest, "wb") as fh:
+                    with open(safe_path(dest, BASE_DIR), "wb") as fh:
                         async for chunk in resp.content.iter_chunked(_CHUNK_SIZE):
                             fh.write(chunk)
         except ImportError:
             import urllib.request
-            urllib.request.urlretrieve(url, str(dest))
+            urllib.request.urlretrieve(url, str(dest))  # nosec B310

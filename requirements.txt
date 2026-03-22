@@ -108,6 +108,8 @@ gputil>=1.4.0
 # Security
 cryptography>=41.0.0
 pyjwt>=2.8.0
+defusedxml>=0.7.1
+packaging>=23.0
 
 # Database (for memory system)
 sqlalchemy>=2.0.0

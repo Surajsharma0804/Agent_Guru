@@ -21,6 +21,7 @@ Date: 2026-02-21
 Version: 1.0.0
 """
 
+import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -29,6 +30,9 @@ from typing import Any
 
 from Agent_Guru.reasoning.execution.executor import SyncExecutor
 from Agent_Guru.reasoning.models.action import Action
+from Agent_Guru.security.redaction import redact
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -283,6 +287,12 @@ class MultiStepExecutor:
                         "recoverable": False,
                     },
                 )
+
+            # Log step result (redact sensitive fields before logging)
+            if isinstance(step_result.result_data, dict):
+                logger.info("Result: %s", redact(step_result.result_data))
+            else:
+                logger.info("Result: %s", step_result.result_data)
 
             # Store result in context if output binding specified
             if step.output_binding:

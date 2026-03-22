@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 class AuthMethod(Enum):
     """Git authentication methods."""
     SSH = "ssh"
-    TOKEN = "token"
+    TOKEN = "token"  # nosec B105
     NONE = "none"
 
 

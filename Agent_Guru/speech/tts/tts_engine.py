@@ -64,6 +64,8 @@ logging.getLogger('matplotlib').setLevel(logging.ERROR)
 import ctypes
 import platform as _platform_module
 
+_logger = logging.getLogger(__name__)
+
 
 def suppress_c_stderr():
     """Suppress C-level stderr output (for cuDNN warnings).
@@ -75,16 +77,16 @@ def suppress_c_stderr():
     if _platform_module.system() == 'Windows':
         try:
             libc = ctypes.CDLL('msvcrt')
-            devnull = open(os.devnull, 'w')
-            os.dup2(devnull.fileno(), 2)  # Redirect stderr (fd=2) to devnull
-        except Exception:
-            pass  # Fallback: continue without suppression
+            with open(os.devnull, 'w') as devnull:
+                os.dup2(devnull.fileno(), 2)  # Redirect stderr (fd=2) to devnull
+        except OSError as exc:  # noqa: BLE001
+            _logger.debug("stderr suppression skipped on Windows: %s", exc)  # Fallback: continue without suppression
     else:
         try:
-            devnull = open(os.devnull, 'w')
-            os.dup2(devnull.fileno(), 2)
-        except Exception:
-            pass
+            with open(os.devnull, 'w') as devnull:
+                os.dup2(devnull.fileno(), 2)
+        except OSError as exc:  # noqa: BLE001
+            _logger.debug("stderr suppression skipped: %s", exc)
 
 # NOTE: suppress_c_stderr() is NOT called at import time.
 # It is called lazily inside _ensure_model_loaded() only when TTS is used.
@@ -210,8 +212,8 @@ class CoquiTTSEngine:
                         device = "cuda"
                         gpu_name = torch.cuda.get_device_name(0)
                         print(f"[TTS] GPU detected: {gpu_name}")
-                except Exception:
-                    pass  # Silently fallback to CPU
+                except RuntimeError as exc:
+                    _logger.warning("GPU detection failed, falling back to CPU: %s", exc)
 
             print(f"[TTS] Using device: {device}")
 

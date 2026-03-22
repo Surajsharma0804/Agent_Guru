@@ -247,10 +247,11 @@ class PolicyStorage:
 
         Validates: Requirement 1.6
         """
+        # where is built from hardcoded strings only — no user data in SQL structure
         where = "WHERE active = 1" if active_only else ""
         with self._conn() as conn:
             rows = conn.execute(
-                f"SELECT * FROM policies {where} ORDER BY priority DESC"
+                "SELECT * FROM policies " + where + " ORDER BY priority DESC",  # nosec B608
             ).fetchall()
 
         policies = [self._row_to_policy(r) for r in rows]

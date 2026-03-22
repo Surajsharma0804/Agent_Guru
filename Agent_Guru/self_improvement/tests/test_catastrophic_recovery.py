@@ -45,6 +45,9 @@ from Agent_Guru.self_improvement.degradation_detector import (
 from Agent_Guru.self_improvement.performance_tracker import PerformanceTracker
 from Agent_Guru.self_improvement.strategy_optimizer import StrategyOptimizer
 from Agent_Guru.self_improvement.prompt_evolution import PromptEvolutionSystem
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -61,8 +64,8 @@ def temp_db():
     # Cleanup
     try:
         os.unlink(path)
-    except Exception:
-        pass
+    except OSError as exc:
+        logger.debug("Cleanup skipped: %s", exc)
 
 
 @pytest.fixture

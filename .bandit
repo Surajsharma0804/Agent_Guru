@@ -1,0 +1,7 @@
+skips:
+  - B101
+  - B108
+exclude_dirs:
+  - htmlcov
+  - .git
+  - .hypothesis

@@ -23,6 +23,7 @@ from Agent_Guru.llm.models import (
     TokenUsage,
 )
 from Agent_Guru.llm.providers.base import ProviderAdapter
+from Agent_Guru.security.embedding_auth import RETRIEVAL_THRESHOLD, verify_embedding
 
 # Pricing per 1K tokens (prompt / completion)
 _PRICING: Dict[str, Dict[str, float]] = {
@@ -180,6 +181,35 @@ class OpenAIAdapter(ProviderAdapter):
 
         response = await client.embeddings.create(model=model, input=text)
         return [item.embedding for item in response.data]
+
+    def find_similar(
+        self,
+        query_embedding: List[float],
+        candidate_embeddings: List[List[float]],
+        threshold: float = RETRIEVAL_THRESHOLD,
+    ) -> List[int]:
+        """Return indices of *candidate_embeddings* that are similar to *query_embedding*.
+
+        Uses :func:`~Agent_Guru.security.embedding_auth.verify_embedding` to
+        enforce the retrieval threshold (CWE-200/284/20 fix).
+
+        Args:
+            query_embedding: Query embedding vector.
+            candidate_embeddings: List of candidate embedding vectors.
+            threshold: Minimum cosine similarity for a match.
+                Defaults to :data:`~Agent_Guru.security.embedding_auth.RETRIEVAL_THRESHOLD` (0.85).
+
+        Returns:
+            List of indices (into *candidate_embeddings*) that meet the threshold.
+        """
+        import numpy as np
+
+        q = np.array(query_embedding, dtype=np.float32)
+        return [
+            i
+            for i, cand in enumerate(candidate_embeddings)
+            if verify_embedding(q, np.array(cand, dtype=np.float32), threshold)
+        ]
 
     # ------------------------------------------------------------------
     # Helpers

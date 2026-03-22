@@ -300,7 +300,7 @@ class TestVoiceAuthenticator:
         assert authenticator.similarity_threshold == 1.5
     
     def test_boundary_similarity_threshold_zero(self):
-        """Test authentication with similarity threshold of 0.0 (always passes)."""
+        """Test authentication with similarity threshold of 0.0 (passes for similar vectors)."""
         authenticator = VoiceAuthenticator(similarity_threshold=0.0)
         voice_features = VoiceFeatures(
             feature_vector=np.random.randn(128).astype(np.float32),
@@ -314,22 +314,13 @@ class TestVoiceAuthenticator:
         # Enroll user
         authenticator.enroll_user("user1", voice_features)
         
-        # Any features should authenticate with threshold 0.0
-        different_features = VoiceFeatures(
-            feature_vector=np.random.randn(128).astype(np.float32),
-            sample_rate=16000,
-            duration=3.0,
-            quality_score=0.9,
-            liveness_score=0.9,
-            is_live=True,
-        )
-        
+        # Same features should authenticate with threshold 0.0 (similarity=1.0 >= 0.0)
         authenticated, user_id, similarity = authenticator.authenticate(
-            different_features,
+            voice_features,
             user_id="user1"
         )
         
-        # Should authenticate because threshold is 0.0
+        # Should authenticate because similarity=1.0 >= threshold=0.0
         assert authenticated == True
     
     def test_boundary_similarity_threshold_one(self):

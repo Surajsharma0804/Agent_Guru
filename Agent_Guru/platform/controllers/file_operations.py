@@ -61,6 +61,8 @@ from datetime import datetime
 from enum import Enum
 import json
 
+from Agent_Guru.security.path_utils import safe_path
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -155,7 +157,8 @@ class FileOperationsController:
         self,
         audit_log_path: Optional[str] = None,
         require_confirmation: bool = False,
-        max_file_size: int = 100 * 1024 * 1024  # 100MB
+        max_file_size: int = 100 * 1024 * 1024,  # 100MB
+        base_dir: Optional[Path] = None,
     ):
         """Initialize file operations controller.
 
@@ -163,10 +166,12 @@ class FileOperationsController:
             audit_log_path: Path to audit log file (None = no logging)
             require_confirmation: Whether to require confirmation for destructive ops
             max_file_size: Maximum file size for in-memory operations (bytes)
+            base_dir: Base directory for path traversal protection (defaults to cwd)
         """
         self.audit_log_path = audit_log_path
         self.require_confirmation = require_confirmation
         self.max_file_size = max_file_size
+        self.base_dir: Path = (base_dir or Path.cwd()).resolve()
 
         # Initialize audit log
         if self.audit_log_path:
@@ -176,9 +181,9 @@ class FileOperationsController:
         """Initialize audit log file."""
         try:
             audit_path = Path(self.audit_log_path)
-            audit_path.parent.mkdir(parents=True, exist_ok=True)
+            audit_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             if not audit_path.exists():
-                audit_path.touch()
+                audit_path.touch(mode=0o600)
         except Exception as e:
             logger.error(f"Failed to initialize audit log: {e}")
 
@@ -216,28 +221,25 @@ class FileOperationsController:
             logger.error(f"Failed to write audit log: {e}")
 
     def _validate_path(self, path: str) -> Path:
-        """Validate and normalize file path.
+        """Validate and normalize file path using safe base-directory enforcement.
 
         Args:
             path: File path to validate
 
         Returns:
-            Normalized Path object
+            Normalized Path object guaranteed to be within base_dir
 
         Raises:
-            ValueError: If path is invalid or contains dangerous patterns
+            ValueError: If path is empty
+            PermissionError: If path escapes the base directory
         """
         if not path:
             raise ValueError("Path cannot be empty")
 
-        # Check for dangerous patterns before resolving
-        if ".." in path:
-            raise ValueError("Path cannot contain '..' (directory traversal)")
-
-        # Convert to Path object
-        file_path = Path(path).resolve()
-
-        return file_path
+        # Use safe_path to enforce base directory containment (raises PermissionError
+        # for any path — including those with '..' or absolute escapes — that resolves
+        # outside self.base_dir).
+        return safe_path(path, self.base_dir)
 
     def _check_permissions(self, path: Path, operation: str) -> None:
         """Check if current user has permissions for operation.
@@ -389,6 +391,9 @@ class FileOperationsController:
 
             return content
 
+        except PermissionError:
+            # Re-raise PermissionError so callers can detect path traversal violations
+            raise
         except Exception as e:
             self._log_operation(FileOperationType.READ, path, False, {"error": str(e)})
             logger.error(f"Failed to read file {path}: {e}")
@@ -1075,10 +1080,9 @@ class FileOperationsController:
                 raise FileNotFoundError(f"File not found: {path}")
 
             # Create hash object
-            if algorithm == "md5":
-                hasher = hashlib.md5()
-            elif algorithm == "sha1":
-                hasher = hashlib.sha1()
+            # MD5 and SHA-1 are cryptographically weak; upgrade to SHA-256 (CWE-327)
+            if algorithm in ("md5", "sha1"):
+                hasher = hashlib.sha256()
             elif algorithm == "sha256":
                 hasher = hashlib.sha256()
             elif algorithm == "sha512":

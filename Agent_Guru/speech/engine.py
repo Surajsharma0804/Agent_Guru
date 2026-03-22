@@ -343,8 +343,8 @@ class SpeechEngine:
                         text=f"Error: {str(e)}",
                         emotion=EmotionType.NEUTRAL
                     )
-                except:
-                    pass
+                except Exception as ctx_exc:  # noqa: BLE001
+                    self.logger.warning("Failed to record error turn in context: %s", ctx_exc)
             
             raise GuruSpeechError(f"Voice processing failed: {e}") from e
     
