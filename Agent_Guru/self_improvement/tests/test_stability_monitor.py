@@ -7,12 +7,10 @@ Coverage Target: >80% (enforced by CI/CD)
 """
 
 import pytest
-import time
-from datetime import datetime
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema
-from Agent_Guru.self_improvement.stability_monitor import StabilityMonitor, StabilityMetrics
+from Agent_Guru.self_improvement.stability_monitor import StabilityMonitor
 
 
 @pytest.fixture

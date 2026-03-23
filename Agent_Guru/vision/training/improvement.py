@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -18,7 +18,7 @@ from .failure_analysis import FailureAnalysis
 logger = logging.getLogger("guruvision.training.improvement")
 
 # Backbone upgrade path
-BACKBONE_UPGRADE_PATH: Dict[str, Optional[str]] = {
+BACKBONE_UPGRADE_PATH: dict[str, Optional[str]] = {
     "resnet50": "resnet100",
     "resnet100": "vit",
     "vit": None,  # Already at top
@@ -34,10 +34,10 @@ class ImprovementStrategy:
     """An improvement strategy to apply."""
     name: str
     description: str
-    target_categories: List[str] = field(default_factory=list)
+    target_categories: list[str] = field(default_factory=list)
     expected_improvement: float = 0.0
     requires_retraining: bool = True
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -48,7 +48,7 @@ class AppliedStrategy:
     )
     success: bool = False
     new_model_path: Optional[str] = None
-    improvement_metrics: Dict[str, float] = field(default_factory=dict)
+    improvement_metrics: dict[str, float] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -69,7 +69,7 @@ class ImprovementStrategyManager:
         self,
         failure_analysis: FailureAnalysis,
         current_backbone: Optional[str] = None,
-    ) -> List[ImprovementStrategy]:
+    ) -> list[ImprovementStrategy]:
         """Recommend strategies based on failure analysis.
 
         Args:
@@ -80,7 +80,7 @@ class ImprovementStrategyManager:
             List of recommended ImprovementStrategy objects.
         """
         backbone = current_backbone or self.current_backbone
-        strategies: List[ImprovementStrategy] = []
+        strategies: list[ImprovementStrategy] = []
 
         top_cats = failure_analysis.top_categories
 
@@ -245,7 +245,7 @@ class ImprovementStrategyManager:
         failure_analyze_fn: Any,
         retrain_fn: Any,
         max_iterations: int = 3,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run iterative improvement loop.
 
         Args:

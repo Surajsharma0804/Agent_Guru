@@ -34,11 +34,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from .message_generator import (
-    CommitMessageGenerator,
-    TaskContext,
-    CommitMessageTemplate
-)
+from .message_generator import CommitMessageGenerator, CommitMessageTemplate, TaskContext
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +112,7 @@ class GitRepositoryStatus:
 @dataclass
 class PullRequestResult:
     """Result of pull request creation.
-    
+
     Attributes:
         success: Whether PR was created successfully
         pr_number: Pull request number
@@ -134,7 +130,7 @@ class PullRequestResult:
 @dataclass
 class BranchInfo:
     """Information about a Git branch.
-    
+
     Attributes:
         name: Branch name
         exists_locally: Whether branch exists locally
@@ -242,7 +238,7 @@ class GitHubIntegrator:
         self.default_branch = default_branch
         self.max_retries = max_retries
         self.timeout = timeout
-        
+
         # Initialize message generator
         self.message_generator = CommitMessageGenerator(repo_root=self.repo_path)
 
@@ -777,7 +773,7 @@ class GitHubIntegrator:
         """Get hash of last commit."""
         result = self._run_git_command(["rev-parse", "HEAD"])
         return result.stdout.strip() if result.success else ""
-    
+
     def generate_commit_message(
         self,
         task_id: str,
@@ -786,23 +782,23 @@ class GitHubIntegrator:
         task_type: str = "Task"
     ) -> str:
         """Generate descriptive commit message from task context.
-        
+
         Time Complexity: O(n) where n is number of changed files
         Space Complexity: O(n) for file analysis
-        
+
         Args:
             task_id: Task identifier (e.g., "24.3")
             task_description: Human-readable task description
             changed_files: List of changed files (None = auto-detect)
             task_type: Type of task (Task, Feature, Bugfix, etc.)
-        
+
         Returns:
             Formatted commit message
-        
+
         Raises:
             ValueError: If task_id or task_description is empty
             GitError: If auto-detection fails
-        
+
         Example:
             >>> integrator = GitHubIntegrator("/path/to/repo")
             >>> message = integrator.generate_commit_message(
@@ -812,12 +808,12 @@ class GitHubIntegrator:
             ... )
             >>> print(message)
             [Task 24.3] Implement commit message generation
-            
+
             Changes:
             - 1 file(s) changed
             - Components: github
             - File types: .py
-            
+
             Auto-committed by Agent_Guru
         """
         # Validate inputs
@@ -825,7 +821,7 @@ class GitHubIntegrator:
             raise ValueError("Task ID cannot be empty")
         if not task_description or not task_description.strip():
             raise ValueError("Task description cannot be empty")
-        
+
         # Auto-detect changed files if not provided
         if changed_files is None:
             status = self.get_status()
@@ -834,50 +830,50 @@ class GitHubIntegrator:
                 status.unstaged_files +
                 status.untracked_files
             )
-            
+
             if not changed_files:
                 raise GitError(
                     "No changed files detected. "
                     "Remediation: Make changes or provide file list explicitly"
                 )
-        
+
         # Build file stats for better analysis
         file_stats = self._get_file_stats(changed_files)
-        
+
         # Create task context
         context = TaskContext(
             task_id=task_id,
             task_description=task_description,
             task_type=task_type
         )
-        
+
         # Generate message
         message = self.message_generator.generate_message(
             context=context,
             changed_files=changed_files,
             file_stats=file_stats
         )
-        
+
         logger.info(
             f"Generated commit message: task_id={task_id}, "
             f"files={len(changed_files)}"
         )
-        
+
         return message
-    
+
     def set_message_template(self, template: CommitMessageTemplate) -> None:
         """Set custom commit message template.
-        
+
         Args:
             template: Custom message template
-        
+
         Example:
             >>> from agent_guru.platform.github.message_generator import DETAILED_TEMPLATE
             >>> integrator.set_message_template(DETAILED_TEMPLATE)
         """
         self.message_generator.set_template(template)
         logger.info("Commit message template updated")
-    
+
     def auto_commit_and_push(
         self,
         task_id: str,
@@ -887,22 +883,22 @@ class GitHubIntegrator:
         branch: Optional[str] = None
     ) -> GitOperationResult:
         """Automatically generate commit message, commit, and push.
-        
+
         Convenience method that combines message generation with commit and push.
-        
+
         Time Complexity: O(n) where n is number of files
         Space Complexity: O(n) for file list
-        
+
         Args:
             task_id: Task identifier
             task_description: Task description
             changed_files: Files to commit (None = all changes)
             task_type: Type of task
             branch: Branch to push to (None = current branch)
-        
+
         Returns:
             GitOperationResult with combined operation status
-        
+
         Example:
             >>> result = integrator.auto_commit_and_push(
             ...     task_id="24.3",
@@ -919,14 +915,14 @@ class GitHubIntegrator:
                 changed_files=changed_files,
                 task_type=task_type
             )
-            
+
             # Commit and push
             return self.commit_and_push(
                 message=message,
                 files=changed_files,
                 branch=branch
             )
-            
+
         except Exception as e:
             logger.error(f"Auto commit and push failed: {e}")
             return GitOperationResult(
@@ -934,30 +930,30 @@ class GitHubIntegrator:
                 message=f"Auto commit and push failed: {e}",
                 stderr=str(e)
             )
-    
+
     def _get_file_stats(self, files: list[str]) -> dict[str, str]:
         """Get file status for each file (A=added, M=modified, D=deleted).
-        
+
         Args:
             files: List of file paths
-        
+
         Returns:
             Dict mapping file path to status code
         """
         file_stats = {}
-        
+
         try:
             # Get status for all files
             status_result = self._run_git_command(["status", "--porcelain"])
-            
+
             if status_result.success:
                 for line in status_result.stdout.splitlines():
                     if not line:
                         continue
-                    
+
                     status_code = line[:2].strip()
                     file_path = line[3:].strip()
-                    
+
                     # Map status codes
                     if status_code in ('A', 'AM'):
                         file_stats[file_path] = 'A'
@@ -967,30 +963,30 @@ class GitHubIntegrator:
                         file_stats[file_path] = 'M'
                     else:
                         file_stats[file_path] = 'M'  # Default to modified
-            
+
             # Fill in missing files with default status
             for file_path in files:
                 if file_path not in file_stats:
                     file_stats[file_path] = 'M'
-        
+
         except Exception as e:
             logger.warning(f"Failed to get file stats: {e}")
             # Return default stats
-            file_stats = {f: 'M' for f in files}
-        
+            file_stats = dict.fromkeys(files, 'M')
+
         return file_stats
-    
+
     def detect_conflicts(self) -> tuple[bool, list[str]]:
         """Detect if there are merge conflicts in the repository.
-        
+
         Time Complexity: O(n) where n is number of conflicted files
         Space Complexity: O(n) for conflict list
-        
+
         Returns:
             Tuple of (has_conflicts, conflicted_files)
             - has_conflicts: True if conflicts exist
             - conflicted_files: List of files with conflicts
-        
+
         Example:
             >>> has_conflicts, files = integrator.detect_conflicts()
             >>> if has_conflicts:
@@ -999,62 +995,62 @@ class GitHubIntegrator:
         try:
             # Check for conflict markers in status
             status_result = self._run_git_command(["status", "--porcelain"])
-            
+
             if not status_result.success:
                 logger.warning("Failed to check conflict status")
                 return False, []
-            
+
             conflicted_files = []
-            
+
             for line in status_result.stdout.splitlines():
                 if not line:
                     continue
-                
+
                 status_code = line[:2]
                 file_path = line[3:].strip()
-                
+
                 # Check for conflict markers (UU, AA, DD, AU, UA, DU, UD)
                 if status_code in ('UU', 'AA', 'DD', 'AU', 'UA', 'DU', 'UD'):
                     conflicted_files.append(file_path)
-            
+
             has_conflicts = len(conflicted_files) > 0
-            
+
             if has_conflicts:
                 logger.warning(f"Detected {len(conflicted_files)} conflicted file(s)")
-            
+
             return has_conflicts, conflicted_files
-            
+
         except Exception as e:
             logger.error(f"Failed to detect conflicts: {e}")
             return False, []
-    
+
     def resolve_conflicts_with_rebase(
         self,
         branch: Optional[str] = None,
         max_attempts: int = 3
     ) -> GitOperationResult:
         """Attempt to resolve conflicts using pull-rebase strategy.
-        
+
         This method implements the conflict resolution workflow:
         1. Detect if conflicts exist
         2. Attempt pull with rebase
         3. If conflicts occur, abort and retry
         4. Retry up to max_attempts times
         5. If all attempts fail, notify and return error
-        
+
         Time Complexity: O(1) per attempt (network operation)
         Space Complexity: O(1)
-        
+
         Args:
             branch: Branch to pull from (None = current branch)
             max_attempts: Maximum retry attempts (default: 3)
-        
+
         Returns:
             GitOperationResult with resolution status
-        
+
         Raises:
             GitConflictError: If conflicts cannot be resolved automatically
-        
+
         Example:
             >>> result = integrator.resolve_conflicts_with_rebase()
             >>> if result.success:
@@ -1063,18 +1059,18 @@ class GitHubIntegrator:
             ...     print(f"Failed to resolve: {result.message}")
         """
         start_time = datetime.now()
-        
+
         try:
             # Get current branch if not specified
             if branch is None:
                 status = self.get_status()
                 branch = status.current_branch
-            
+
             logger.info(
                 f"Starting conflict resolution: branch={branch}, "
                 f"max_attempts={max_attempts}"
             )
-            
+
             # Check if conflicts already exist
             has_conflicts, conflicted_files = self.detect_conflicts()
             if has_conflicts:
@@ -1084,14 +1080,14 @@ class GitHubIntegrator:
                 )
                 # Abort any in-progress rebase
                 self._run_git_command(["rebase", "--abort"])
-            
+
             # Attempt pull-rebase with retry logic
             last_error = None
             attempt_details = []
-            
+
             for attempt in range(1, max_attempts + 1):
                 logger.info(f"Conflict resolution attempt {attempt}/{max_attempts}")
-                
+
                 try:
                     # Fetch latest changes
                     fetch_result = self._run_git_command([
@@ -1099,14 +1095,14 @@ class GitHubIntegrator:
                         self.remote_name,
                         branch
                     ])
-                    
+
                     if not fetch_result.success:
                         error_msg = f"Fetch failed: {fetch_result.stderr}"
                         attempt_details.append(f"Attempt {attempt}: {error_msg}")
                         last_error = error_msg
                         logger.warning(error_msg)
                         continue
-                    
+
                     # Attempt pull with rebase
                     pull_result = self._run_git_command([
                         "pull",
@@ -1114,7 +1110,7 @@ class GitHubIntegrator:
                         self.remote_name,
                         branch
                     ])
-                    
+
                     if pull_result.success:
                         # Success! Check if there are any remaining conflicts
                         has_conflicts, _ = self.detect_conflicts()
@@ -1131,44 +1127,44 @@ class GitHubIntegrator:
                                 return_code=pull_result.return_code,
                                 duration_ms=duration_ms
                             )
-                    
+
                     # Check for conflicts in output
                     stderr_lower = pull_result.stderr.lower()
                     stdout_lower = pull_result.stdout.lower()
-                    
+
                     if "conflict" in stderr_lower or "conflict" in stdout_lower:
                         # Conflicts detected - abort rebase
                         logger.warning(f"Conflicts detected on attempt {attempt}")
-                        abort_result = self._run_git_command(["rebase", "--abort"])
-                        
+                        self._run_git_command(["rebase", "--abort"])
+
                         error_msg = f"Conflicts during rebase: {pull_result.stderr}"
                         attempt_details.append(f"Attempt {attempt}: {error_msg}")
                         last_error = error_msg
-                        
+
                         # Wait before retry (exponential backoff)
                         if attempt < max_attempts:
                             import time
                             wait_time = 2 ** (attempt - 1)  # 1s, 2s, 4s
                             logger.info(f"Waiting {wait_time}s before retry...")
                             time.sleep(wait_time)
-                        
+
                         continue
-                    
+
                     # Other error
                     error_msg = f"Pull-rebase failed: {pull_result.stderr}"
                     attempt_details.append(f"Attempt {attempt}: {error_msg}")
                     last_error = error_msg
                     logger.warning(error_msg)
-                    
+
                 except Exception as e:
                     error_msg = f"Exception during attempt: {str(e)}"
                     attempt_details.append(f"Attempt {attempt}: {error_msg}")
                     last_error = str(e)
                     logger.error(error_msg)
-            
+
             # All attempts failed
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
-            
+
             # Build detailed error message
             error_details = "\n".join(attempt_details)
             error_message = (
@@ -1181,39 +1177,39 @@ class GitHubIntegrator:
                 f"3. Verify network connectivity to remote repository\n"
                 f"4. Contact repository administrator if access issues persist"
             )
-            
+
             logger.error(error_message)
-            
+
             # Notify Goal Manager (if available)
             self._notify_goal_manager_of_failure(
                 operation="conflict_resolution",
                 error_message=error_message,
                 attempt_count=max_attempts
             )
-            
+
             raise GitConflictError(error_message)
-            
+
         except GitConflictError:
             raise
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             error_message = f"Conflict resolution failed with exception: {e}"
             logger.error(error_message)
-            
+
             # Notify Goal Manager
             self._notify_goal_manager_of_failure(
                 operation="conflict_resolution",
                 error_message=error_message,
                 attempt_count=max_attempts
             )
-            
+
             return GitOperationResult(
                 success=False,
                 message=error_message,
                 stderr=str(e),
                 duration_ms=duration_ms
             )
-    
+
     def push_with_conflict_resolution(
         self,
         branch: Optional[str] = None,
@@ -1221,24 +1217,24 @@ class GitHubIntegrator:
         max_retries: int = 3
     ) -> GitOperationResult:
         """Push with automatic conflict resolution using pull-rebase.
-        
+
         This method implements the complete push workflow with conflict handling:
         1. Attempt push
         2. If rejected due to conflicts, pull-rebase
         3. Retry push
         4. Repeat up to max_retries times
-        
+
         Time Complexity: O(1) per attempt (network operation)
         Space Complexity: O(1)
-        
+
         Args:
             branch: Branch to push (None = current branch)
             force: Force push (use with caution)
             max_retries: Maximum retry attempts (default: 3)
-        
+
         Returns:
             GitOperationResult with push status
-        
+
         Example:
             >>> result = integrator.push_with_conflict_resolution()
             >>> if result.success:
@@ -1247,27 +1243,27 @@ class GitHubIntegrator:
             ...     print(f"Push failed: {result.message}")
         """
         start_time = datetime.now()
-        
+
         try:
             # Get current branch if not specified
             if branch is None:
                 status = self.get_status()
                 branch = status.current_branch
-            
+
             logger.info(
                 f"Starting push with conflict resolution: branch={branch}, "
                 f"max_retries={max_retries}"
             )
-            
+
             last_error = None
-            
+
             for attempt in range(1, max_retries + 1):
                 logger.info(f"Push attempt {attempt}/{max_retries}")
-                
+
                 try:
                     # Attempt push
                     push_result = self.push(branch=branch, force=force)
-                    
+
                     if push_result.success:
                         duration_ms = (datetime.now() - start_time).total_seconds() * 1000
                         logger.info(f"Push successful on attempt {attempt}")
@@ -1279,33 +1275,33 @@ class GitHubIntegrator:
                             return_code=push_result.return_code,
                             duration_ms=duration_ms
                         )
-                    
+
                     # Check if rejection is due to conflicts
                     stderr_lower = push_result.stderr.lower()
                     if "rejected" in stderr_lower and not force:
                         logger.warning(
                             f"Push rejected on attempt {attempt}, attempting conflict resolution"
                         )
-                        
+
                         # Attempt conflict resolution
                         resolve_result = self.resolve_conflicts_with_rebase(
                             branch=branch,
                             max_attempts=2  # Fewer attempts for nested resolution
                         )
-                        
+
                         if not resolve_result.success:
                             last_error = resolve_result.message
                             logger.error(f"Conflict resolution failed: {last_error}")
                             continue
-                        
+
                         # Conflict resolved, retry push on next iteration
                         logger.info("Conflict resolved, will retry push")
                         continue
-                    
+
                     # Other push error
                     last_error = push_result.message
                     logger.warning(f"Push failed on attempt {attempt}: {last_error}")
-                    
+
                 except GitAuthenticationError as e:
                     # Don't retry authentication errors
                     logger.error(f"Authentication error: {e}")
@@ -1313,7 +1309,7 @@ class GitHubIntegrator:
                 except Exception as e:
                     last_error = str(e)
                     logger.error(f"Exception during push attempt {attempt}: {e}")
-            
+
             # All attempts failed
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             error_message = (
@@ -1325,44 +1321,44 @@ class GitHubIntegrator:
                 f"3. Manually resolve any conflicts\n"
                 f"4. Try force push if appropriate (use with caution)"
             )
-            
+
             logger.error(error_message)
-            
+
             # Notify Goal Manager
             self._notify_goal_manager_of_failure(
                 operation="push_with_conflict_resolution",
                 error_message=error_message,
                 attempt_count=max_retries
             )
-            
+
             return GitOperationResult(
                 success=False,
                 message=error_message,
                 stderr=last_error or "Unknown error",
                 duration_ms=duration_ms
             )
-            
+
         except GitAuthenticationError:
             raise
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             error_message = f"Push with conflict resolution failed: {e}"
             logger.error(error_message)
-            
+
             # Notify Goal Manager
             self._notify_goal_manager_of_failure(
                 operation="push_with_conflict_resolution",
                 error_message=error_message,
                 attempt_count=max_retries
             )
-            
+
             return GitOperationResult(
                 success=False,
                 message=error_message,
                 stderr=str(e),
                 duration_ms=duration_ms
             )
-    
+
     def _notify_goal_manager_of_failure(
         self,
         operation: str,
@@ -1370,15 +1366,15 @@ class GitHubIntegrator:
         attempt_count: int
     ) -> None:
         """Notify Goal Manager of operation failure.
-        
+
         This method sends a notification to the Goal Manager component
         when a Git operation fails after all retry attempts.
-        
+
         Args:
             operation: Name of the failed operation
             error_message: Detailed error message
             attempt_count: Number of attempts made
-        
+
         Note:
             This is a placeholder for integration with Goal Manager.
             Actual implementation will depend on Goal Manager API.
@@ -1392,7 +1388,7 @@ class GitHubIntegrator:
                 f"attempts={attempt_count}, "
                 f"error={error_message[:200]}"
             )
-            
+
             # Future implementation:
             # from agent_guru.agents.goal_manager import GoalManager
             # goal_manager = GoalManager()
@@ -1403,7 +1399,7 @@ class GitHubIntegrator:
             #     attempt_count=attempt_count,
             #     timestamp=datetime.now()
             # )
-            
+
         except Exception as e:
             logger.warning(f"Failed to notify Goal Manager: {e}")
 
@@ -1566,7 +1562,7 @@ class GitHubIntegrator:
                     if "conflict" in stderr_lower or "conflict" in stdout_lower:
                         # Conflicts detected - abort rebase
                         logger.warning(f"Conflicts detected on attempt {attempt}")
-                        abort_result = self._run_git_command(["rebase", "--abort"])
+                        self._run_git_command(["rebase", "--abort"])
 
                         error_msg = f"Conflicts during rebase: {pull_result.stderr}"
                         attempt_details.append(f"Attempt {attempt}: {error_msg}")
@@ -1841,21 +1837,21 @@ class GitHubIntegrator:
         base_branch: Optional[str] = None
     ) -> GitOperationResult:
         """Create a new branch.
-        
+
         Time Complexity: O(1)
         Space Complexity: O(1)
-        
+
         Args:
             branch_name: Name of the new branch
             base_branch: Base branch to create from (None = current branch)
-        
+
         Returns:
             GitOperationResult with branch creation status
-        
+
         Raises:
             ValueError: If branch_name is empty
             GitError: If branch creation fails
-        
+
         Example:
             >>> result = integrator.create_branch("feature/new-feature")
             >>> if result.success:
@@ -1863,9 +1859,9 @@ class GitHubIntegrator:
         """
         if not branch_name or not branch_name.strip():
             raise ValueError("Branch name cannot be empty")
-        
+
         start_time = datetime.now()
-        
+
         try:
             # Check if branch already exists
             branch_info = self.get_branch_info(branch_name)
@@ -1875,16 +1871,16 @@ class GitHubIntegrator:
                     message=f"Branch '{branch_name}' already exists locally",
                     stderr=f"Branch exists: {branch_name}"
                 )
-            
+
             # Create branch
             cmd = ["checkout", "-b", branch_name]
             if base_branch:
                 cmd.append(base_branch)
-            
+
             result = self._run_git_command(cmd)
-            
+
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
-            
+
             if result.success:
                 logger.info(f"Created branch: {branch_name}")
                 return GitOperationResult(
@@ -1897,7 +1893,7 @@ class GitHubIntegrator:
                 )
             else:
                 raise GitError(f"Failed to create branch: {result.stderr}")
-        
+
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
             logger.error(f"Failed to create branch: {e}")
@@ -1907,19 +1903,19 @@ class GitHubIntegrator:
                 stderr=str(e),
                 duration_ms=duration_ms
             )
-    
+
     def get_branch_info(self, branch_name: str) -> BranchInfo:
         """Get information about a branch.
-        
+
         Time Complexity: O(1)
         Space Complexity: O(1)
-        
+
         Args:
             branch_name: Name of the branch
-        
+
         Returns:
             BranchInfo with branch details
-        
+
         Example:
             >>> info = integrator.get_branch_info("main")
             >>> print(f"Exists locally: {info.exists_locally}")
@@ -1928,7 +1924,7 @@ class GitHubIntegrator:
             # Check if branch exists locally
             local_result = self._run_git_command(["branch", "--list", branch_name])
             exists_locally = bool(local_result.stdout.strip())
-            
+
             # Check if branch exists remotely
             remote_result = self._run_git_command([
                 "ls-remote",
@@ -1937,18 +1933,18 @@ class GitHubIntegrator:
                 f"refs/heads/{branch_name}"
             ])
             exists_remotely = bool(remote_result.stdout.strip())
-            
+
             # Check if it's the current branch
             status = self.get_status()
             is_current = status.current_branch == branch_name
-            
+
             # Get commit hash if branch exists
             commit_hash = None
             if exists_locally:
                 hash_result = self._run_git_command(["rev-parse", branch_name])
                 if hash_result.success:
                     commit_hash = hash_result.stdout.strip()
-            
+
             return BranchInfo(
                 name=branch_name,
                 exists_locally=exists_locally,
@@ -1956,7 +1952,7 @@ class GitHubIntegrator:
                 is_current=is_current,
                 commit_hash=commit_hash
             )
-        
+
         except Exception as e:
             logger.error(f"Failed to get branch info: {e}")
             return BranchInfo(
@@ -1965,7 +1961,7 @@ class GitHubIntegrator:
                 exists_remotely=False,
                 is_current=False
             )
-    
+
     def generate_pr_description(
         self,
         task_id: str,
@@ -1974,19 +1970,19 @@ class GitHubIntegrator:
         task_type: str = "Task"
     ) -> str:
         """Generate pull request description from task context.
-        
+
         Time Complexity: O(n) where n is number of changed files
         Space Complexity: O(n) for file analysis
-        
+
         Args:
             task_id: Task identifier (e.g., "24.5")
             task_description: Human-readable task description
             changed_files: List of changed files (None = auto-detect)
             task_type: Type of task (Task, Feature, Bugfix, etc.)
-        
+
         Returns:
             Formatted PR description in Markdown
-        
+
         Example:
             >>> description = integrator.generate_pr_description(
             ...     task_id="24.5",
@@ -2002,10 +1998,10 @@ class GitHubIntegrator:
                 status.unstaged_files +
                 status.untracked_files
             )
-        
+
         # Analyze files
         file_stats = self._get_file_stats(changed_files)
-        
+
         # Group files by component
         components = set()
         file_types = set()
@@ -2014,12 +2010,12 @@ class GitHubIntegrator:
             parts = Path(file_path).parts
             if len(parts) >= 3 and parts[0] == "Agent_Guru":
                 components.add(parts[2])
-            
+
             # Extract file extension
             ext = Path(file_path).suffix
             if ext:
                 file_types.add(ext)
-        
+
         # Build description
         description_parts = [
             f"## [{task_type} {task_id}] {task_description}",
@@ -2034,7 +2030,7 @@ class GitHubIntegrator:
             "",
             "### Files Modified",
         ]
-        
+
         # Add file list with status
         for file_path in sorted(changed_files)[:20]:  # Limit to 20 files
             status_symbol = {
@@ -2043,10 +2039,10 @@ class GitHubIntegrator:
                 'D': '🗑️'   # Deleted
             }.get(file_stats.get(file_path, 'M'), '📝')
             description_parts.append(f"- {status_symbol} `{file_path}`")
-        
+
         if len(changed_files) > 20:
             description_parts.append(f"- ... and {len(changed_files) - 20} more files")
-        
+
         description_parts.extend([
             "",
             "### Testing",
@@ -2062,9 +2058,9 @@ class GitHubIntegrator:
             "---",
             "*Auto-generated by Agent_Guru*"
         ])
-        
+
         return "\n".join(description_parts)
-    
+
     def create_pull_request(
         self,
         title: str,
@@ -2074,26 +2070,26 @@ class GitHubIntegrator:
         draft: bool = False
     ) -> PullRequestResult:
         """Create a pull request using GitHub CLI.
-        
+
         This method requires GitHub CLI (gh) to be installed and authenticated.
-        
+
         Time Complexity: O(1) (network operation)
         Space Complexity: O(1)
-        
+
         Args:
             title: PR title
             description: PR description (Markdown supported)
             source_branch: Source branch (head)
             target_branch: Target branch (base)
             draft: Create as draft PR
-        
+
         Returns:
             PullRequestResult with PR details
-        
+
         Raises:
             ValueError: If title or source_branch is empty
             GitError: If PR creation fails
-        
+
         Example:
             >>> result = integrator.create_pull_request(
             ...     title="[Task 24.5] Implement PR creation",
@@ -2108,9 +2104,9 @@ class GitHubIntegrator:
             raise ValueError("PR title cannot be empty")
         if not source_branch or not source_branch.strip():
             raise ValueError("Source branch cannot be empty")
-        
+
         start_time = datetime.now()
-        
+
         try:
             # Validate source branch exists
             source_info = self.get_branch_info(source_branch)
@@ -2120,7 +2116,7 @@ class GitHubIntegrator:
                     message=f"Source branch '{source_branch}' does not exist",
                     error=f"Branch not found: {source_branch}"
                 )
-            
+
             # Push source branch if not on remote
             if source_info.exists_locally and not source_info.exists_remotely:
                 logger.info(f"Pushing source branch '{source_branch}' to remote")
@@ -2131,7 +2127,7 @@ class GitHubIntegrator:
                         message=f"Failed to push source branch: {push_result.message}",
                         error=push_result.stderr
                     )
-            
+
             # Check if GitHub CLI is available
             gh_check = subprocess.run(
                 ["gh", "--version"],
@@ -2139,7 +2135,7 @@ class GitHubIntegrator:
                 text=True,
                 timeout=5
             )
-            
+
             if gh_check.returncode != 0:
                 return PullRequestResult(
                     success=False,
@@ -2150,7 +2146,7 @@ class GitHubIntegrator:
                         "Then authenticate with: gh auth login"
                     )
                 )
-            
+
             # Build gh pr create command
             cmd = [
                 "gh", "pr", "create",
@@ -2159,10 +2155,10 @@ class GitHubIntegrator:
                 "--base", target_branch,
                 "--head", source_branch
             ]
-            
+
             if draft:
                 cmd.append("--draft")
-            
+
             # Create PR
             result = subprocess.run(
                 cmd,
@@ -2171,13 +2167,13 @@ class GitHubIntegrator:
                 text=True,
                 timeout=self.timeout
             )
-            
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
-            
+
+            (datetime.now() - start_time).total_seconds() * 1000
+
             if result.returncode == 0:
                 # Extract PR URL from output
                 pr_url = result.stdout.strip()
-                
+
                 # Extract PR number from URL (e.g., https://github.com/user/repo/pull/123)
                 pr_number = None
                 if "/pull/" in pr_url:
@@ -2185,9 +2181,9 @@ class GitHubIntegrator:
                         pr_number = int(pr_url.split("/pull/")[-1])
                     except (ValueError, IndexError):
                         pass
-                
+
                 logger.info(f"PR created successfully: {pr_url}")
-                
+
                 return PullRequestResult(
                     success=True,
                     pr_number=pr_number,
@@ -2197,13 +2193,13 @@ class GitHubIntegrator:
             else:
                 error_msg = result.stderr.strip() or result.stdout.strip()
                 logger.error(f"Failed to create PR: {error_msg}")
-                
+
                 return PullRequestResult(
                     success=False,
                     message=f"Failed to create pull request: {error_msg}",
                     error=error_msg
                 )
-        
+
         except subprocess.TimeoutExpired:
             return PullRequestResult(
                 success=False,
@@ -2211,14 +2207,14 @@ class GitHubIntegrator:
                 error="Timeout"
             )
         except Exception as e:
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            (datetime.now() - start_time).total_seconds() * 1000
             logger.error(f"Failed to create PR: {e}")
             return PullRequestResult(
                 success=False,
                 message=f"PR creation failed: {e}",
                 error=str(e)
             )
-    
+
     def create_pr_from_task(
         self,
         task_id: str,
@@ -2229,13 +2225,13 @@ class GitHubIntegrator:
         draft: bool = False
     ) -> PullRequestResult:
         """Create a pull request from task context (convenience method).
-        
+
         This method combines branch creation, commit, push, and PR creation
         into a single workflow.
-        
+
         Time Complexity: O(n) where n is number of changed files
         Space Complexity: O(n) for file analysis
-        
+
         Args:
             task_id: Task identifier
             task_description: Task description
@@ -2243,10 +2239,10 @@ class GitHubIntegrator:
             target_branch: Target branch (default: "main")
             task_type: Type of task
             draft: Create as draft PR
-        
+
         Returns:
             PullRequestResult with PR details
-        
+
         Example:
             >>> result = integrator.create_pr_from_task(
             ...     task_id="24.5",
@@ -2262,7 +2258,7 @@ class GitHubIntegrator:
                 # Convert task_id to branch name (e.g., "24.5" -> "task-24-5")
                 safe_task_id = task_id.replace(".", "-").replace(" ", "-").lower()
                 source_branch = f"task-{safe_task_id}"
-            
+
             # Check if we're already on the source branch
             status = self.get_status()
             if status.current_branch != source_branch:
@@ -2285,7 +2281,7 @@ class GitHubIntegrator:
                             message=f"Failed to checkout branch: {checkout_result.stderr}",
                             error=checkout_result.stderr
                         )
-            
+
             # Generate PR title and description
             pr_title = f"[{task_type} {task_id}] {task_description}"
             pr_description = self.generate_pr_description(
@@ -2293,7 +2289,7 @@ class GitHubIntegrator:
                 task_description=task_description,
                 task_type=task_type
             )
-            
+
             # Create PR
             return self.create_pull_request(
                 title=pr_title,
@@ -2302,7 +2298,7 @@ class GitHubIntegrator:
                 target_branch=target_branch,
                 draft=draft
             )
-        
+
         except Exception as e:
             logger.error(f"Failed to create PR from task: {e}")
             return PullRequestResult(

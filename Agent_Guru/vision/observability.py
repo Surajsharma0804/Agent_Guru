@@ -27,7 +27,7 @@ logger: structlog.BoundLogger = structlog.get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 try:
-    from prometheus_client import Counter, Gauge, Histogram, REGISTRY  # type: ignore[import]
+    from prometheus_client import REGISTRY, Counter, Gauge, Histogram  # type: ignore[import]
 
     _PROM_AVAILABLE = True
 

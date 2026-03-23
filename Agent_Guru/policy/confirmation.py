@@ -11,10 +11,11 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class ConfirmationRequest:
     resource_id: str
     action: str
     description: str
-    context: Dict[str, Any]
+    context: dict[str, Any]
     status: ConfirmationStatus
     created_at: datetime
     expires_at: datetime
@@ -77,9 +78,9 @@ class ConfirmationPolicy:
 
     id: str
     name: str
-    principals: List[str]
-    resources: List[str]
-    actions: List[str]
+    principals: list[str]
+    resources: list[str]
+    actions: list[str]
     description_template: str = "Confirm operation: {action} on {resource_id}"
     timeout_seconds: int = 60
     active: bool = True
@@ -113,8 +114,8 @@ class ConfirmationHandler:
         """
         self.default_timeout_seconds = default_timeout_seconds
         self._on_request = on_request
-        self._policies: Dict[str, ConfirmationPolicy] = {}
-        self._pending: Dict[str, ConfirmationRequest] = {}
+        self._policies: dict[str, ConfirmationPolicy] = {}
+        self._pending: dict[str, ConfirmationRequest] = {}
 
     # ------------------------------------------------------------------
     # Policy management
@@ -146,7 +147,7 @@ class ConfirmationHandler:
         principal_id: str,
         resource_id: str,
         action: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
         description: Optional[str] = None,
     ) -> ConfirmationRequest:
         """Create a new confirmation request.
@@ -242,7 +243,7 @@ class ConfirmationHandler:
             req.resolved_at = datetime.utcnow()
         return req.status
 
-    def get_pending(self, principal_id: Optional[str] = None) -> List[ConfirmationRequest]:
+    def get_pending(self, principal_id: Optional[str] = None) -> list[ConfirmationRequest]:
         """Return all pending (non-expired) confirmation requests.
 
         Args:

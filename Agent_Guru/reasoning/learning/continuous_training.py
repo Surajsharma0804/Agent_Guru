@@ -24,10 +24,11 @@ from __future__ import annotations
 import hashlib
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from Agent_Guru.reasoning.learning.online_learner import OnlineLearner
 
@@ -61,7 +62,7 @@ class TrainingRun:
     accuracy_delta: float = 0.0
     was_deployed: bool = False
     rollback_reason: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def improved(self) -> bool:
@@ -138,11 +139,11 @@ class DataCollectionPipeline:
         user_id: str,
         original_input: str,
         predicted_intent: str,
-        predicted_entities: Dict[str, Any],
+        predicted_entities: dict[str, Any],
         predicted_confidence: float,
         correct_intent: Optional[str] = None,
-        correct_entities: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        correct_entities: Optional[dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> bool:
         """
         Collect a user interaction for training.
@@ -257,7 +258,7 @@ class RetrainingScheduler:
         self._learner = learner
         self._config = config or RetrainingConfig()
         self._train_fn = train_fn  # Pluggable training function
-        self._training_history: List[TrainingRun] = []
+        self._training_history: list[TrainingRun] = []
         self._last_check: Optional[datetime] = None
 
     async def check_and_retrain(self) -> Optional[TrainingRun]:
@@ -344,7 +345,7 @@ class RetrainingScheduler:
         self._training_history.append(run)
         return run
 
-    def get_training_history(self) -> List[TrainingRun]:
+    def get_training_history(self) -> list[TrainingRun]:
         """Return all training runs."""
         return list(self._training_history)
 
@@ -380,9 +381,9 @@ class DriftMonitor:
         self._learner = learner
         self._config = config or DriftConfig()
         self._alert_fn = alert_fn
-        self._drift_history: List[Tuple[datetime, float, bool]] = []
+        self._drift_history: list[tuple[datetime, float, bool]] = []
 
-    async def check(self) -> Tuple[bool, float]:
+    async def check(self) -> tuple[bool, float]:
         """
         Check for model drift.
 
@@ -419,7 +420,7 @@ class DriftMonitor:
 
         return has_drifted, current_accuracy
 
-    def get_drift_trend(self, last_n: int = 10) -> List[Tuple[datetime, float]]:
+    def get_drift_trend(self, last_n: int = 10) -> list[tuple[datetime, float]]:
         """Return recent accuracy trend."""
         return [(ts, acc) for ts, acc, _ in self._drift_history[-last_n:]]
 
@@ -428,7 +429,7 @@ class DriftMonitor:
         if len(self._drift_history) < window:
             return False
         recent = [acc for _, acc, _ in self._drift_history[-window:]]
-        return all(recent[i] >= recent[i + 1] for i in range(len(recent) - 1))
+        return all(recent[i] > recent[i + 1] for i in range(len(recent) - 1))
 
 
 # ---------------------------------------------------------------------------
@@ -487,10 +488,10 @@ class ContinuousTrainingPipeline:
         user_id: str,
         original_input: str,
         predicted_intent: str,
-        predicted_entities: Dict[str, Any],
+        predicted_entities: dict[str, Any],
         predicted_confidence: float,
         correct_intent: Optional[str] = None,
-        correct_entities: Optional[Dict[str, Any]] = None,
+        correct_entities: Optional[dict[str, Any]] = None,
     ) -> bool:
         """Collect a user interaction for training data."""
         if not self._initialized:
@@ -505,7 +506,7 @@ class ContinuousTrainingPipeline:
             correct_entities=correct_entities,
         )
 
-    async def run_scheduled_check(self) -> Dict[str, Any]:
+    async def run_scheduled_check(self) -> dict[str, Any]:
         """
         Run scheduled drift check and retraining if needed.
 
@@ -534,7 +535,7 @@ class ContinuousTrainingPipeline:
             } if training_run else None,
         }
 
-    async def get_status(self) -> Dict[str, Any]:
+    async def get_status(self) -> dict[str, Any]:
         """Get full pipeline status."""
         if not self._initialized:
             await self.initialize()

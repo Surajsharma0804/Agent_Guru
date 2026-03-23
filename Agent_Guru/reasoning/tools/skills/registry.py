@@ -5,8 +5,8 @@ Provides registration, discovery, and management of skills.
 """
 
 import asyncio
-from typing import Dict, List, Optional
 from pathlib import Path
+from typing import Optional
 
 from Agent_Guru.reasoning.models.skill import (
     InstalledSkill,
@@ -29,7 +29,7 @@ class SkillRegistry:
             storage_path: Path to persist registry data
         """
         self.storage_path = storage_path
-        self.skills: Dict[str, InstalledSkill] = {}
+        self.skills: dict[str, InstalledSkill] = {}
         self._lock = asyncio.Lock()
 
     async def register_skill(
@@ -106,7 +106,7 @@ class SkillRegistry:
 
     def list_skills(
         self, status: Optional[SkillStatus] = None
-    ) -> List[InstalledSkill]:
+    ) -> list[InstalledSkill]:
         """List installed skills.
 
         Args:
@@ -120,7 +120,7 @@ class SkillRegistry:
             skills = [s for s in skills if s.status == status]
         return skills
 
-    def find_skills_by_capability(self, capability: str) -> List[InstalledSkill]:
+    def find_skills_by_capability(self, capability: str) -> list[InstalledSkill]:
         """Find skills by capability.
 
         Args:
@@ -157,7 +157,7 @@ class SkillRegistry:
             if self.storage_path:
                 await self._persist()
 
-    def validate_manifest(self, manifest: SkillManifest) -> List[str]:
+    def validate_manifest(self, manifest: SkillManifest) -> list[str]:
         """Validate a skill manifest.
 
         Args:
@@ -171,12 +171,10 @@ class SkillRegistry:
     async def _persist(self) -> None:
         """Persist registry to storage."""
         # Note: In a real implementation, this would save to database
-        pass
 
     async def _load(self) -> None:
         """Load registry from storage."""
         # Note: In a real implementation, this would load from database
-        pass
 
 
 # Global registry instance

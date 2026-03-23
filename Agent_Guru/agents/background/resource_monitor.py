@@ -19,10 +19,11 @@ Validates: Requirement 12.9, 12.10, 12.15, 12.16
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Callable, Coroutine, List, Optional, Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +114,7 @@ class ResourceMonitor:
         self._network_state: NetworkState = NetworkState.ONLINE
         self._audio_focus: AudioFocusState = AudioFocusState.GAINED
 
-        self._callbacks: List[ResourceCallback] = []
+        self._callbacks: list[ResourceCallback] = []
 
     # ------------------------------------------------------------------
     # Callback management

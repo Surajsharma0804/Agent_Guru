@@ -211,6 +211,7 @@ def mock_intent_engine():
     Override mock_intent_engine.detect_intent_async.return_value to change.
     """
     from unittest.mock import AsyncMock, MagicMock
+
     from Agent_Guru.reasoning.models.intent import Intent, IntentType
 
     mock = MagicMock()
@@ -337,7 +338,6 @@ async def register_example_tools(shared_intent_engine):
     Yields the registry. Tools are cleaned up automatically by
     _isolate_tool_registry after the test.
     """
-    from Agent_Guru.reasoning.tools.registry import get_registry
     from Agent_Guru.reasoning.tools.examples import (
         CalendarTool,
         CancelTimerTool,
@@ -346,6 +346,7 @@ async def register_example_tools(shared_intent_engine):
         SetTimerTool,
         WeatherTool,
     )
+    from Agent_Guru.reasoning.tools.registry import get_registry
 
     registry = get_registry()
 

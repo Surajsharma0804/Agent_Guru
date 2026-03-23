@@ -9,12 +9,13 @@ Provides intelligent recovery strategies:
 """
 
 import asyncio
-import structlog
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Optional
 
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -58,8 +59,8 @@ class RetryHandler:
             config: Retry configuration
         """
         self.config = config or RetryConfig()
-        self._retry_counts: Dict[str, int] = {}
-        self._success_counts: Dict[str, int] = {}
+        self._retry_counts: dict[str, int] = {}
+        self._success_counts: dict[str, int] = {}
 
     async def execute_with_retry(
         self,
@@ -209,7 +210,7 @@ class RetryHandler:
 
         return delay
 
-    def get_retry_stats(self, operation_id: str) -> Dict[str, int]:
+    def get_retry_stats(self, operation_id: str) -> dict[str, int]:
         """Get retry statistics for an operation.
 
         Args:
@@ -362,7 +363,7 @@ class CircuitBreaker:
         """
         return self._state
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get circuit breaker statistics.
 
         Returns:
@@ -387,9 +388,9 @@ class FailoverManager:
 
     def __init__(self):
         """Initialize failover manager."""
-        self._backends: Dict[str, list[str]] = {}
-        self._current_backend: Dict[str, int] = {}
-        self._backend_health: Dict[str, Dict[str, bool]] = {}
+        self._backends: dict[str, list[str]] = {}
+        self._current_backend: dict[str, int] = {}
+        self._backend_health: dict[str, dict[str, bool]] = {}
 
     def register_backends(
         self, service_type: str, backends: list[str]
@@ -402,9 +403,7 @@ class FailoverManager:
         """
         self._backends[service_type] = backends
         self._current_backend[service_type] = 0
-        self._backend_health[service_type] = {
-            backend: True for backend in backends
-        }
+        self._backend_health[service_type] = dict.fromkeys(backends, True)
 
     async def execute_with_failover(
         self,
@@ -507,7 +506,7 @@ class FailoverManager:
         index = self._current_backend.get(service_type, 0)
         return backends[index] if index < len(backends) else None
 
-    def get_health_status(self) -> Dict[str, Dict[str, bool]]:
+    def get_health_status(self) -> dict[str, dict[str, bool]]:
         """Get health status of all backends.
 
         Returns:
@@ -518,7 +517,7 @@ class FailoverManager:
 
 # Global instances
 _global_retry_handler: Optional[RetryHandler] = None
-_global_circuit_breakers: Dict[str, CircuitBreaker] = {}
+_global_circuit_breakers: dict[str, CircuitBreaker] = {}
 _global_failover_manager: Optional[FailoverManager] = None
 
 

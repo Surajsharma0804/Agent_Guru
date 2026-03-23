@@ -20,7 +20,6 @@ from Agent_Guru.speech.background_service import (
     ServiceState,
     ServiceMetrics
 )
-from Agent_Guru.speech.battery_monitor import BatteryMonitor
 
 
 class TestBackgroundServiceManager:
@@ -1023,7 +1022,7 @@ class TestBackgroundServiceManager:
         # Collect metrics many times
         start_time = time.time()
         for _ in range(100):  # Reduced from 1000 due to psutil overhead
-            metrics = service.get_metrics()
+            service.get_metrics()
         elapsed = time.time() - start_time
         
         # Should be reasonably fast (<100ms per call on average)

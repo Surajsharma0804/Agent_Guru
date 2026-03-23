@@ -4,15 +4,14 @@ AutoGen benchmark implementation.
 Benchmarks Microsoft AutoGen framework for comparison with Agent Guru.
 """
 
-from typing import Any
 import time
+from typing import Any
 
 from Agent_Guru.self_improvement.benchmarks.base_benchmark import (
     BaseBenchmark,
-    TestScenario,
     ScenarioType,
+    TestScenario,
 )
-
 
 # Check if AutoGen is installed
 try:
@@ -27,21 +26,21 @@ except ImportError:
 class AutoGenBenchmark(BaseBenchmark):
     """
     Benchmark for Microsoft AutoGen framework.
-    
+
     Measures performance of AutoGen agents on standard test scenarios.
     Falls back to simulation mode if AutoGen is not installed.
     """
-    
+
     def __init__(self):
         """Initialize AutoGen benchmark."""
         super().__init__("AutoGen")
         self.simulation_mode = not AUTOGEN_AVAILABLE
-        
+
         if not self.simulation_mode:
             self._init_autogen()
         else:
             print("Running in simulation mode (AutoGen not installed)")
-    
+
     def _init_autogen(self) -> None:
         """Initialize AutoGen agents."""
         try:
@@ -50,14 +49,14 @@ class AutoGenBenchmark(BaseBenchmark):
                 "model": "gpt-4",
                 "api_key": "mock_key",  # Not actually used in simulation
             }
-            
+
             # Create assistant agent
             self.assistant = AssistantAgent(
                 name="assistant",
                 llm_config=llm_config,
                 system_message="You are a helpful AI assistant.",
             )
-            
+
             # Create user proxy agent
             self.user_proxy = UserProxyAgent(
                 name="user_proxy",
@@ -65,65 +64,65 @@ class AutoGenBenchmark(BaseBenchmark):
                 max_consecutive_auto_reply=1,
                 code_execution_config=False,
             )
-            
+
         except Exception as e:
             print(f"Error initializing AutoGen: {e}")
             self.simulation_mode = True
-    
+
     def execute_scenario(self, scenario: TestScenario) -> Any:
         """
         Execute a test scenario using AutoGen.
-        
+
         Args:
             scenario: Test scenario to execute
-            
+
         Returns:
             Result of scenario execution
         """
         if self.simulation_mode:
             return self._simulate_execution(scenario)
-        
+
         try:
             # Extract question from input data
             question = scenario.input_data.get("question", "")
-            
+
             # Track API call (AutoGen typically uses LLM)
             self.track_api_call(tokens=110)  # Estimate
-            
+
             # Initiate chat
             self.user_proxy.initiate_chat(
                 self.assistant,
                 message=question,
             )
-            
+
             # Get last message as result
             result = self.assistant.last_message()["content"]
-            
+
             return result
-            
+
         except Exception as e:
             print(f"Error executing AutoGen scenario: {e}")
             return None
-    
+
     def _simulate_execution(self, scenario: TestScenario) -> Any:
         """
         Simulate AutoGen execution when not installed.
-        
+
         Args:
             scenario: Test scenario to execute
-            
+
         Returns:
             Simulated result
         """
         # Simulate processing time
         time.sleep(0.055)  # 55ms (slightly slower than Agent Guru)
-        
+
         # Track simulated API call
         self.track_api_call(tokens=110)  # AutoGen uses moderate tokens
-        
+
         # Get question
         question = scenario.input_data.get("question", "").lower()
-        
+
         # Pattern-based responses for different scenario types
         if scenario.scenario_type == ScenarioType.SIMPLE:
             return self._simulate_simple_scenario(question)
@@ -135,9 +134,9 @@ class AutoGenBenchmark(BaseBenchmark):
             return self._simulate_error_scenario(question)
         elif scenario.scenario_type == ScenarioType.LEARNING:
             return self._simulate_learning_scenario(question)
-        
+
         return "I don't know"
-    
+
     def _simulate_simple_scenario(self, question: str) -> str:
         """Simulate simple scenario response."""
         if "2+2" in question or "2 + 2" in question:
@@ -155,7 +154,7 @@ class AutoGenBenchmark(BaseBenchmark):
         elif "concatenate" in question or "combine" in question:
             return "hello world"
         return "42"
-    
+
     def _simulate_complex_scenario(self, question: str) -> str:
         """Simulate complex scenario response."""
         if "fibonacci" in question:
@@ -169,7 +168,7 @@ class AutoGenBenchmark(BaseBenchmark):
         elif "word problem" in question:
             return "The answer is 15 apples"
         return "Let me break this down step by step..."
-    
+
     def _simulate_tool_scenario(self, question: str) -> str:
         """Simulate tool usage scenario response."""
         if "read file" in question:
@@ -183,7 +182,7 @@ class AutoGenBenchmark(BaseBenchmark):
         elif "calculator" in question:
             return "The calculation result is 156"
         return "Tool operation completed successfully"
-    
+
     def _simulate_error_scenario(self, question: str) -> str:
         """Simulate error recovery scenario response."""
         if "divide by zero" in question:
@@ -197,7 +196,7 @@ class AutoGenBenchmark(BaseBenchmark):
         elif "not available" in question:
             return "The resource is not available. I'll use cached data."
         return "I've handled the error appropriately"
-    
+
     def _simulate_learning_scenario(self, question: str) -> str:
         """Simulate learning scenario response."""
         # AutoGen doesn't have built-in learning like Agent Guru
@@ -210,7 +209,7 @@ class AutoGenBenchmark(BaseBenchmark):
 def create_autogen_benchmark() -> AutoGenBenchmark:
     """
     Create AutoGen benchmark instance.
-    
+
     Returns:
         AutoGenBenchmark instance
     """

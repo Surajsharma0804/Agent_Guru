@@ -398,7 +398,7 @@ class ProactiveSuggestionGenerator:
             ]
 
             # If user is repeating similar actions, suggest batch operation
-            if len(set(str(i) for i in recent_intents)) == 1:
+            if len({str(i) for i in recent_intents}) == 1:
                 suggestions.append(
                     Suggestion(
                         text="Do multiple at once?",

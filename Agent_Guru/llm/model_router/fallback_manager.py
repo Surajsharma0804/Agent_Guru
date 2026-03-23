@@ -9,8 +9,9 @@ from __future__ import annotations
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Callable, Deque, Dict, List, Optional, Tuple
+from typing import Optional
 
 import structlog
 
@@ -41,20 +42,20 @@ class FallbackManager:
         circuit_breaker_window: int = _CIRCUIT_BREAKER_WINDOW,
         circuit_breaker_timeout: float = _CIRCUIT_BREAKER_TIMEOUT_S,
     ) -> None:
-        self._events: Deque[FallbackEvent] = deque(maxlen=max_events)
+        self._events: deque[FallbackEvent] = deque(maxlen=max_events)
         self._lock = threading.RLock()
 
         # task_type → ordered fallback sequence
-        self._strategies: Dict[str, List[str]] = {}
+        self._strategies: dict[str, list[str]] = {}
 
         # model_id → deque of (timestamp, success) for circuit breaker
-        self._model_outcomes: Dict[str, Deque[Tuple[float, bool]]] = {}
+        self._model_outcomes: dict[str, deque[tuple[float, bool]]] = {}
 
         # model_id → timestamp when circuit was opened (None = closed)
-        self._circuit_open_at: Dict[str, Optional[float]] = {}
+        self._circuit_open_at: dict[str, Optional[float]] = {}
 
         # model_id → deprioritized until timestamp
-        self._deprioritized_until: Dict[str, float] = {}
+        self._deprioritized_until: dict[str, float] = {}
 
         self._cb_threshold = circuit_breaker_threshold
         self._cb_window = circuit_breaker_window
@@ -65,7 +66,7 @@ class FallbackManager:
     # ------------------------------------------------------------------
 
     def set_fallback_sequence(self, task_type: TaskType,
-                              sequence: List[str]) -> None:
+                              sequence: list[str]) -> None:
         """Configure the fallback sequence for a task type.
 
         Args:
@@ -76,7 +77,7 @@ class FallbackManager:
             self._strategies[task_type.value] = list(sequence)
 
     def get_fallback_sequence(self, task_type: TaskType,
-                              exclude: Optional[str] = None) -> List[str]:
+                              exclude: Optional[str] = None) -> list[str]:
         """Get the fallback sequence for a task type, excluding a model.
 
         Args:
@@ -226,7 +227,7 @@ class FallbackManager:
     # ------------------------------------------------------------------
 
     def get_events(self, model_id: Optional[str] = None,
-                   task_type: Optional[TaskType] = None) -> List[FallbackEvent]:
+                   task_type: Optional[TaskType] = None) -> list[FallbackEvent]:
         """Retrieve recorded fallback events with optional filtering.
 
         Args:

@@ -3,7 +3,6 @@ Integration tests for command permission checking with command executor
 """
 
 import pytest
-from pathlib import Path
 from Agent_Guru.platform.permissions.command_checker import (
     CommandPermissionChecker,
     CommandCategory,

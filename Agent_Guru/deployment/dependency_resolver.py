@@ -11,7 +11,7 @@ Space Complexity: O(V + E) for the dependency graph
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Optional
 
 import structlog
 from packaging.requirements import Requirement
@@ -32,14 +32,14 @@ class DependencyResolver:
 
     def __init__(self) -> None:
         # Cache: (package_name, version) -> DependencyGraph
-        self._cache: Dict[Tuple[str, str], DependencyGraph] = {}
+        self._cache: dict[tuple[str, str], DependencyGraph] = {}
 
     def resolve_dependencies(
         self,
         package_name: str,
         version: str,
-        installed_packages: List[PackageInfo],
-        available_packages: Optional[Dict[str, List[str]]] = None,
+        installed_packages: list[PackageInfo],
+        available_packages: Optional[dict[str, list[str]]] = None,
     ) -> DependencyGraph:
         """
         Resolve all dependencies for a package.
@@ -62,7 +62,7 @@ class DependencyResolver:
             logger.debug("dependency_cache_hit", package=package_name, version=version)
             return self._cache[cache_key]
 
-        installed_map: Dict[str, str] = {p.name: p.version for p in installed_packages}
+        installed_map: dict[str, str] = {p.name: p.version for p in installed_packages}
         graph = DependencyGraph()
         self._build_graph(package_name, version, installed_map,
                           available_packages or {}, graph, set())
@@ -79,16 +79,16 @@ class DependencyResolver:
 
     def check_conflicts(
         self,
-        packages: List[Tuple[str, str]],
-        installed_packages: List[PackageInfo],
-    ) -> List[Conflict]:
+        packages: list[tuple[str, str]],
+        installed_packages: list[PackageInfo],
+    ) -> list[Conflict]:
         """
         Check for version conflicts in a list of packages.
 
         Returns a list of Conflict objects (empty if no conflicts).
         """
         # Build a map: package_name -> list of (required_version, required_by)
-        requirements: Dict[str, List[Tuple[str, str]]] = defaultdict(list)
+        requirements: dict[str, list[tuple[str, str]]] = defaultdict(list)
         for pkg_name, pkg_version in packages:
             requirements[pkg_name].append((pkg_version, "requested"))
 
@@ -110,7 +110,7 @@ class DependencyResolver:
                     )
         return conflicts
 
-    def get_installation_order(self, dependency_graph: DependencyGraph) -> List[str]:
+    def get_installation_order(self, dependency_graph: DependencyGraph) -> list[str]:
         """
         Compute topological sort of the dependency graph.
 
@@ -124,14 +124,14 @@ class DependencyResolver:
     def find_dependents(
         self,
         package_name: str,
-        installed_packages: List[PackageInfo],
-    ) -> List[str]:
+        installed_packages: list[PackageInfo],
+    ) -> list[str]:
         """
         Find all packages that depend on the given package.
 
         Returns list of dependent package names.
         """
-        dependents: Set[str] = set()
+        dependents: set[str] = set()
         for pkg in installed_packages:
             if package_name in pkg.dependencies:
                 dependents.add(pkg.name)
@@ -152,10 +152,10 @@ class DependencyResolver:
         self,
         package_name: str,
         version: str,
-        installed_map: Dict[str, str],
-        available_packages: Dict[str, List[str]],
+        installed_map: dict[str, str],
+        available_packages: dict[str, list[str]],
         graph: DependencyGraph,
-        visiting: Set[str],
+        visiting: set[str],
     ) -> None:
         """Recursively build the dependency graph using DFS."""
         if package_name in visiting:
@@ -183,9 +183,9 @@ class DependencyResolver:
         self,
         package_name: str,
         version: str,
-        installed_map: Dict[str, str],
-        available_packages: Dict[str, List[str]],
-    ) -> List[Tuple[str, str]]:
+        installed_map: dict[str, str],
+        available_packages: dict[str, list[str]],
+    ) -> list[tuple[str, str]]:
         """
         Get direct dependencies for a package.
 
@@ -216,10 +216,10 @@ class DependencyResolver:
         return deps
 
     @staticmethod
-    def _versions_compatible(versions: List[str]) -> bool:
+    def _versions_compatible(versions: list[str]) -> bool:
         """Check if all versions in the list are the same (simple compatibility check)."""
         try:
             parsed = [Version(v) for v in versions]
-            return len(set(str(v) for v in parsed)) <= 1
+            return len({str(v) for v in parsed}) <= 1
         except Exception:
             return len(set(versions)) <= 1

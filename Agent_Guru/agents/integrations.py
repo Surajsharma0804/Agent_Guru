@@ -5,15 +5,14 @@ Verifier System, Memory System, and Self-Improvement Engine.
 Validates: Requirements 15.x, 16.x, 17.x, 18.x, 19.x
 """
 
-from typing import Dict, Any, List, TYPE_CHECKING
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .orchestration_system import OrchestrationSystem
+    from .orchestration_system import OrchestrationSystem, TaskResult
     from .performance_tracker import PerformanceMetrics
     from .task_decomposer import Task
-    from .orchestration_system import TaskResult
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ class ModelSelection:
     """Model selection result from Model Router."""
 
     model_id: str
-    configuration: Dict[str, Any]
+    configuration: dict[str, Any]
 
 
 @dataclass
@@ -45,8 +44,8 @@ class AgentContext:
 
     agent_id: str
     task_type: str
-    experiences: List[Dict[str, Any]]
-    knowledge: Dict[str, Any]
+    experiences: list[dict[str, Any]]
+    knowledge: dict[str, Any]
 
 
 # ---------------------------------------------------------------------------
@@ -89,13 +88,13 @@ class ModelRouterIntegration:
 
     def __init__(self, model_router_client: Any = None) -> None:
         self._client = model_router_client
-        self._cache: Dict[str, ModelSelection] = {}
+        self._cache: dict[str, ModelSelection] = {}
 
     async def request_model_selection(
         self,
         agent_id: str,
         task_type: str,
-        specialization: Dict[str, float],
+        specialization: dict[str, float],
     ) -> ModelSelection:
         """Request model selection, using cache when available."""
         cache_key = f"{agent_id}:{task_type}"
@@ -166,7 +165,7 @@ class MemorySystemIntegration:
         self._client = memory_client
 
     async def store_agent_knowledge(
-        self, agent_id: str, knowledge: Dict[str, Any]
+        self, agent_id: str, knowledge: dict[str, Any]
     ) -> None:
         """Store agent knowledge in Memory System."""
         if self._client:
@@ -217,7 +216,7 @@ class SelfImprovementIntegration:
             except Exception as exc:
                 logger.warning("SIE metrics report failed: %s", exc)
 
-    async def report_evolution_event(self, event: Dict[str, Any]) -> None:
+    async def report_evolution_event(self, event: dict[str, Any]) -> None:
         """Report agent evolution event to Self-Improvement Engine."""
         if self._client:
             try:

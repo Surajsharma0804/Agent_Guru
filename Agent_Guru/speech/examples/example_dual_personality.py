@@ -5,9 +5,11 @@ Demonstrates switching between Guru (professional) and Maya (warm) personalities
 """
 
 import asyncio
+
 import numpy as np
+
 from Agent_Guru.speech.engine import SpeechEngine
-from Agent_Guru.speech.models import PersonalityType, EmotionType
+from Agent_Guru.speech.models import EmotionType, PersonalityType
 
 
 async def main():

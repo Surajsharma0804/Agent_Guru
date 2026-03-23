@@ -16,9 +16,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Coroutine, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class ComponentInfo:
 
     name: str
     status: ComponentStatus
-    capabilities: List[str]
+    capabilities: list[str]
     error_count: int = 0
     handler: Optional[Callable[[str, Any], Coroutine[Any, Any, Any]]] = field(
         default=None, repr=False
@@ -105,9 +106,9 @@ class ComponentCoordinator:
             raise ValueError("max_retries must be >= 0")
 
         self.max_retries = max_retries
-        self._components: Dict[str, ComponentInfo] = {}
+        self._components: dict[str, ComponentInfo] = {}
         # capability → component name
-        self._capability_index: Dict[str, str] = {}
+        self._capability_index: dict[str, str] = {}
 
     # ------------------------------------------------------------------
     # Registration
@@ -116,7 +117,7 @@ class ComponentCoordinator:
     def register(
         self,
         name: str,
-        capabilities: List[str],
+        capabilities: list[str],
         handler: Callable[[str, Any], Coroutine[Any, Any, Any]],
     ) -> None:
         """Register a component with the coordinator.
@@ -279,7 +280,7 @@ class ComponentCoordinator:
         """
         return self._components.get(name)
 
-    def list_components(self) -> List[ComponentInfo]:
+    def list_components(self) -> list[ComponentInfo]:
         """Return info for all registered components.
 
         Returns:
@@ -287,7 +288,7 @@ class ComponentCoordinator:
         """
         return list(self._components.values())
 
-    def healthy_components(self) -> List[str]:
+    def healthy_components(self) -> list[str]:
         """Return names of components in READY status.
 
         Returns:

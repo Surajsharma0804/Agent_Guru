@@ -1,7 +1,6 @@
 """Comprehensive unit tests for error models - 100% coverage."""
 
 import pytest
-from datetime import datetime
 
 from Agent_Guru.reasoning.models.error import (
     Error,

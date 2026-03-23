@@ -79,6 +79,24 @@ class FaceRecognizer:
         score = float(np.dot(emb1, emb2))
         return float(np.clip(score, -1.0, 1.0))
 
+    def compute_similarity_batch(
+        self, query: np.ndarray, gallery: np.ndarray
+    ) -> np.ndarray:
+        """Vectorized cosine similarity between one query and N gallery embeddings.
+
+        Uses matrix multiplication instead of a Python loop — O(n) with a
+        single BLAS call, ~100x faster than iterating compute_similarity().
+
+        Args:
+            query: L2-normalised embedding, shape (512,).
+            gallery: L2-normalised embeddings, shape (N, 512).
+
+        Returns:
+            Similarity scores, shape (N,), values in [-1.0, 1.0].
+        """
+        scores = gallery @ query  # (N, 512) @ (512,) → (N,)
+        return np.clip(scores, -1.0, 1.0)
+
     def verify(
         self,
         emb1: np.ndarray,

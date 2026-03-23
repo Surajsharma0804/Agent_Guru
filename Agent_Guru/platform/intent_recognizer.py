@@ -34,8 +34,8 @@ import json
 import logging
 import platform
 import re
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 # Intent types
 # ---------------------------------------------------------------------------
 
-INTENT_TYPES: List[str] = [
+INTENT_TYPES: list[str] = [
     "system_control",
     "information",
     "communication",
@@ -118,7 +118,7 @@ class IntentResult:
     """
 
     intent_type: str
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
     confidence: float
     raw_text: str
     platform: str
@@ -143,7 +143,7 @@ class IntentResult:
 # Each entry: (pattern, intent_type, param_extractor_fn)
 # param_extractor_fn receives the re.Match and returns a dict of parameters.
 
-_SYSTEM_CONTROL_PATTERNS: List[Tuple[re.Pattern[str], str]] = [
+_SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(open|launch|start|run)\b.+", re.I), "open_app"),
     (re.compile(r"\b(close|quit|exit|kill)\b.+", re.I), "close_app"),
     (re.compile(r"\b(volume|sound)\b.*(up|down|mute|unmute|\d+)", re.I), "volume"),
@@ -156,7 +156,7 @@ _SYSTEM_CONTROL_PATTERNS: List[Tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(wifi|bluetooth|airplane mode|do not disturb)\b", re.I), "settings"),
 ]
 
-_INFORMATION_PATTERNS: List[Tuple[re.Pattern[str], str]] = [
+_INFORMATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(what|who|where|when|why|how)\b.+\??\s*$", re.I), "question"),
     (re.compile(r"\b(search|look up|find|google)\b.+", re.I), "search"),
     (re.compile(r"\b(weather|temperature|forecast)\b", re.I), "weather"),
@@ -167,7 +167,7 @@ _INFORMATION_PATTERNS: List[Tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(define|definition|meaning of)\b.+", re.I), "definition"),
 ]
 
-_COMMUNICATION_PATTERNS: List[Tuple[re.Pattern[str], str]] = [
+_COMMUNICATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(send|write|compose)\b.*(message|text|sms|whatsapp|telegram|email|mail)\b", re.I), "send_message"),
     (re.compile(r"\b(call|phone|dial|ring)\b.+", re.I), "make_call"),
     (re.compile(r"\b(reply|respond|answer)\b.+", re.I), "reply"),
@@ -175,7 +175,7 @@ _COMMUNICATION_PATTERNS: List[Tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(message|text)\b.+", re.I), "send_message"),
 ]
 
-_FILE_OPS_PATTERNS: List[Tuple[re.Pattern[str], str]] = [
+_FILE_OPS_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(create|make|new)\b.*(file|folder|directory|document)\b", re.I), "create"),
     (re.compile(r"\b(delete|remove|trash)\b.*(file|folder|directory)\b", re.I), "delete"),
     (re.compile(r"\b(move|cut)\b.*(file|folder)\b", re.I), "move"),
@@ -185,7 +185,7 @@ _FILE_OPS_PATTERNS: List[Tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(save|export)\b.+", re.I), "save"),
 ]
 
-_CONVERSATION_PATTERNS: List[Tuple[re.Pattern[str], str]] = [
+_CONVERSATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(hello|hi|hey|good morning|good evening|good night)\b", re.I), "greeting"),
     (re.compile(r"\b(thank|thanks|thank you)\b", re.I), "thanks"),
     (re.compile(r"\b(joke|funny|laugh|humor)\b", re.I), "joke"),
@@ -292,7 +292,7 @@ class _RuleEngine:
     def _try_system_control(self, text: str, plat: str) -> Optional[IntentResult]:
         for pattern, action in _SYSTEM_CONTROL_PATTERNS:
             if pattern.search(text):
-                params: Dict[str, Any] = {"action": action}
+                params: dict[str, Any] = {"action": action}
                 if action in ("open_app", "close_app", "switch_app"):
                     params["app"] = _extract_app_name(text)
                 return IntentResult(
@@ -518,7 +518,7 @@ class IntentRecognizer:
 
         if self._llm_manager is None:
             try:
-                from Agent_Guru.llm.llm_manager import LLMManager, LLMConfig  # type: ignore[import]
+                from Agent_Guru.llm.llm_manager import LLMManager  # type: ignore[import]
 
                 self._llm_manager = LLMManager()
                 await self._llm_manager.initialize()

@@ -14,16 +14,13 @@ Tests cover:
 
 import pytest
 import time
-from typing import Dict, Any
 
 from Agent_Guru.speech.model_router_client import (
     ModelRouterClient,
     ModelType,
     ModelLocation,
     CloudProvider,
-    NetworkState,
-    ModelInfo,
-    ModelPerformanceMetrics
+    NetworkState
 )
 
 

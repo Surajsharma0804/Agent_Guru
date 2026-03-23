@@ -10,8 +10,7 @@ from Agent_Guru.platform.permissions.command_checker import (
     CommandCategory,
     DangerLevel,
     is_dangerous_command,
-    sanitize_command_args,
-    parse_command_safely
+    sanitize_command_args
 )
 
 

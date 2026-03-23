@@ -7,18 +7,16 @@ import logging
 import sqlite3
 import time
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
 try:
+    pass
+
     from cryptography.hazmat.primitives.asymmetric.ed25519 import (
         Ed25519PrivateKey,
-        Ed25519PublicKey,
     )
-    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-    import base64
     _CRYPTO_AVAILABLE = True
 except ImportError:
     _CRYPTO_AVAILABLE = False
@@ -33,7 +31,7 @@ class AuditEntry:
     action: str
     actor: str
     timestamp: float
-    details: Dict[str, Any]
+    details: dict[str, Any]
     confidence: float = 1.0
     prev_hash: str = ""
     signature: str = ""
@@ -54,7 +52,7 @@ class AuditEntry:
         }, sort_keys=True)
         return hashlib.sha256(data.encode()).hexdigest()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "entry_id": self.entry_id,
             "action": self.action,
@@ -133,10 +131,10 @@ class AuditTrail:
         min_confidence: Optional[float] = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[AuditEntry]:
+    ) -> list[AuditEntry]:
         """Query audit entries with filters and pagination."""
         conditions = []
-        params: List[Any] = []
+        params: list[Any] = []
         if action:
             conditions.append("action = ?")
             params.append(action)

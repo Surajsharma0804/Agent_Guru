@@ -13,7 +13,7 @@ Validates: Requirement 5 (Conflict Resolution)
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from Agent_Guru.policy.models import (
     ConflictStrategy,
@@ -47,7 +47,7 @@ class ConflictResolver:
 
     def resolve(
         self,
-        policies: List[EvaluatedPolicy],
+        policies: list[EvaluatedPolicy],
         strategy: Optional[ConflictStrategy] = None,
     ) -> PolicyDecision:
         """Resolve conflicts among evaluated policies.
@@ -100,7 +100,7 @@ class ConflictResolver:
     # Strategies
     # ------------------------------------------------------------------
 
-    def _deny_overrides(self, policies: List[EvaluatedPolicy]) -> PolicyDecision:
+    def _deny_overrides(self, policies: list[EvaluatedPolicy]) -> PolicyDecision:
         """Any DENY overrides all ALLOWs. Validates: Req 5.3, 5.6"""
         deny_policies = [p for p in policies if p.effect == PolicyEffect.DENY]
         allow_policies = [p for p in policies if p.effect == PolicyEffect.ALLOW]
@@ -125,7 +125,7 @@ class ConflictResolver:
 
         return self._abstain(policies)
 
-    def _allow_overrides(self, policies: List[EvaluatedPolicy]) -> PolicyDecision:
+    def _allow_overrides(self, policies: list[EvaluatedPolicy]) -> PolicyDecision:
         """Any ALLOW overrides all DENYs. Validates: Req 5.3"""
         allow_policies = [p for p in policies if p.effect == PolicyEffect.ALLOW]
         deny_policies = [p for p in policies if p.effect == PolicyEffect.DENY]
@@ -150,7 +150,7 @@ class ConflictResolver:
 
         return self._abstain(policies)
 
-    def _first_applicable(self, policies: List[EvaluatedPolicy]) -> PolicyDecision:
+    def _first_applicable(self, policies: list[EvaluatedPolicy]) -> PolicyDecision:
         """First matching policy wins (list order). Validates: Req 5.3"""
         winner = policies[0]
         return PolicyDecision(
@@ -160,7 +160,7 @@ class ConflictResolver:
             resolution_strategy=ConflictStrategy.FIRST_APPLICABLE.value,
         )
 
-    def _priority_based(self, policies: List[EvaluatedPolicy]) -> PolicyDecision:
+    def _priority_based(self, policies: list[EvaluatedPolicy]) -> PolicyDecision:
         """Highest priority wins. Validates: Req 5.2"""
         winner = max(policies, key=lambda p: p.priority)
         return PolicyDecision(
@@ -171,7 +171,7 @@ class ConflictResolver:
         )
 
     @staticmethod
-    def _abstain(policies: List[EvaluatedPolicy]) -> PolicyDecision:
+    def _abstain(policies: list[EvaluatedPolicy]) -> PolicyDecision:
         """No applicable policies — default deny."""
         return PolicyDecision(
             effect=PolicyEffect.DENY,

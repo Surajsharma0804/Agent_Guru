@@ -1,6 +1,5 @@
 """Property-based tests for emotion detection."""
 
-import pytest
 import numpy as np
 from hypothesis import given, strategies as st, settings
 import time

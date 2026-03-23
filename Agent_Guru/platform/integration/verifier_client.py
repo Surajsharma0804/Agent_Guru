@@ -13,7 +13,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import UUID, uuid4
 
 import aiohttp
@@ -37,12 +37,12 @@ class ValidationRequest:
     request_id: UUID = field(default_factory=uuid4)
     operation_id: str = ""
     operation_type: str = ""
-    output_data: Dict[str, Any] = field(default_factory=dict)
-    expected_schema: Optional[Dict[str, Any]] = None
-    validation_rules: List[str] = field(default_factory=list)
+    output_data: dict[str, Any] = field(default_factory=dict)
+    expected_schema: Optional[dict[str, Any]] = None
+    validation_rules: list[str] = field(default_factory=list)
     timestamp: datetime = field(default_factory=datetime.now)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "request_id": str(self.request_id),
             "operation_id": self.operation_id,
@@ -61,10 +61,10 @@ class ValidationResult:
     request_id: UUID = field(default_factory=uuid4)
     status: ValidationStatus = ValidationStatus.UNCERTAIN
     is_valid: bool = False
-    violations: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    violations: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     validation_time_ms: float = 0.0
-    details: Optional[Dict[str, Any]] = None
+    details: Optional[dict[str, Any]] = None
 
 
 class VerifierClient:
@@ -180,8 +180,8 @@ class VerifierClient:
         )
 
     async def validate_batch(
-        self, requests: List[ValidationRequest]
-    ) -> List[ValidationResult]:
+        self, requests: list[ValidationRequest]
+    ) -> list[ValidationResult]:
         """
         Validate multiple outputs concurrently.
 
@@ -194,7 +194,7 @@ class VerifierClient:
         tasks = [self.validate_output(req) for req in requests]
         return list(await asyncio.gather(*tasks, return_exceptions=False))
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Get client statistics."""
         return {
             "validations_requested": self._validations_requested,

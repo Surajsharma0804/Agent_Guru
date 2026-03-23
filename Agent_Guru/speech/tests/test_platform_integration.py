@@ -5,12 +5,10 @@ Tests audio device access and system control operations.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from typing import List
+from unittest.mock import Mock, patch
 
 from Agent_Guru.speech.platform_integration import (
-    PlatformIntegration,
-    AudioDeviceInfo
+    PlatformIntegration
 )
 from Agent_Guru.speech.exceptions import AudioInputError, GuruSpeechError
 from Agent_Guru.platform.os_controller import OperationResult, OperationCategory
@@ -253,14 +251,14 @@ class TestPlatformIntegrationSystemControl:
                 category=OperationCategory.SCREEN_CAPTURE,
                 operation="take_screenshot",
                 message="Screenshot saved",
-                metadata={'path': '/tmp/screenshot.png'}
+                metadata={'path': '/tmp/screenshot.png'}  # nosec B108
             )
             
-            result = integration.take_screenshot('/tmp/screenshot.png')
+            result = integration.take_screenshot('/tmp/screenshot.png')  # nosec B108
             
             assert result.success is True
-            assert result.metadata['path'] == '/tmp/screenshot.png'
-            mock_screenshot.assert_called_once_with('/tmp/screenshot.png')
+            assert result.metadata['path'] == '/tmp/screenshot.png'  # nosec B108
+            mock_screenshot.assert_called_once_with('/tmp/screenshot.png')  # nosec B108
 
 
 class TestPlatformIntegrationHardwareMonitoring:

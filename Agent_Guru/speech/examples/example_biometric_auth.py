@@ -5,6 +5,7 @@ Demonstrates extracting voice features for biometric authentication.
 """
 
 import numpy as np
+
 from Agent_Guru.speech.engine import SpeechEngine
 
 

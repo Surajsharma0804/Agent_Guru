@@ -4,16 +4,16 @@ Pytest fixtures for Goal Manager tests.
 Provides common fixtures and test utilities.
 """
 
-import pytest
-import tempfile
 import os
-from pathlib import Path
-from typing import Generator
+import tempfile
+from collections.abc import Generator
 from datetime import datetime
+from pathlib import Path
 
-from Agent_Guru.platform.subprocess_utils import run_cmd
+import pytest
 
 from Agent_Guru.goal_manager.models import Goal, GoalStatus, Priority
+from Agent_Guru.platform.subprocess_utils import run_cmd
 
 
 @pytest.fixture
@@ -21,9 +21,9 @@ def temp_db_path() -> Generator[str, None, None]:
     """Provide a temporary database path for testing."""
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = f.name
-    
+
     yield db_path
-    
+
     # Cleanup
     if os.path.exists(db_path):
         os.unlink(db_path)
@@ -34,12 +34,12 @@ def temp_git_repo() -> Generator[Path, None, None]:
     """Provide a temporary git repository for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_path = Path(tmpdir)
-        
+
         # Initialize git repo
         run_cmd(["git", "init"], cwd=repo_path)
         run_cmd(["git", "config", "user.email", "test@example.com"], cwd=repo_path)
         run_cmd(["git", "config", "user.name", "Test User"], cwd=repo_path)
-        
+
         yield repo_path
 
 
@@ -65,7 +65,7 @@ def sample_goal_with_subgoals() -> Goal:
         progress=0.0,
         created_at=datetime.now(),
     )
-    
+
     # Create sub-goals
     sub1 = Goal(
         description="Sub-goal 1",
@@ -75,7 +75,7 @@ def sample_goal_with_subgoals() -> Goal:
         progress=0.0,
         created_at=datetime.now(),
     )
-    
+
     sub2 = Goal(
         description="Sub-goal 2",
         parent_id=parent.id,
@@ -84,9 +84,9 @@ def sample_goal_with_subgoals() -> Goal:
         progress=0.0,
         created_at=datetime.now(),
     )
-    
+
     parent.sub_goal_ids = [sub1.id, sub2.id]
-    
+
     return parent
 
 

@@ -35,22 +35,19 @@ Date: 2026-02-22
 
 import pytest
 import time
-import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 from datetime import datetime
 from hypothesis import given, strategies as st, settings, HealthCheck
-from hypothesis import assume
 
 # Import all necessary modules
 from Agent_Guru.reasoning.input.normalizer import InputNormalizer, NormalizedInput, RawInput, InputSource
 from Agent_Guru.reasoning.response.template_generator import TemplateGenerator
-from Agent_Guru.reasoning.response.llm_generator import LLMResponseGenerator
 from Agent_Guru.reasoning.response.error_response_generator import ErrorResponseGenerator
 from Agent_Guru.reasoning.error.error_manager import ErrorManager, ErrorType
 from Agent_Guru.reasoning.error.fallback import FallbackRegistry, FallbackStrategy
 from Agent_Guru.reasoning.error.degradation import DegradationManager
 from Agent_Guru.reasoning.latency.controller import LatencyController
-from Agent_Guru.reasoning.models.error import Error, FallbackStrategy as ModelFallbackStrategy
+from Agent_Guru.reasoning.models.error import Error
 from Agent_Guru.reasoning.models.result import Response, ResponseModality, ExecutionResult
 from Agent_Guru.reasoning.models.intent import Intent, IntentType, Entity
 
@@ -278,7 +275,7 @@ class TestInputNormalizationProperties:
                 user_id="test_user",
                 metadata={}
             )
-            result = normalizer.normalize(raw_input)
+            normalizer.normalize(raw_input)
             
             # If it succeeds with empty/whitespace input, that's acceptable
             # as long as it doesn't crash
@@ -497,7 +494,7 @@ class TestLatencyProperties:
         time.sleep(min((budget_ms + 100) / 1000.0, 0.01))
         
         # Check if timeout detected
-        timed_out = controller.check_timeout(timer)
+        controller.check_timeout(timer)
         
         # End stage
         metrics = controller.end_stage(timer)
@@ -564,7 +561,7 @@ class TestErrorHandlingProperties:
         For any known error type, the registered fallback strategy must
         be applied automatically.
         """
-        registry = FallbackRegistry()
+        FallbackRegistry()
         
         # Create error manager error
         error_manager = ErrorManager()
@@ -747,7 +744,7 @@ class TestEdgeCases:
         """Test that multiple errors are handled correctly in sequence."""
         from Agent_Guru.reasoning.models.error import ErrorType as ModelErrorType, FallbackStrategy as ModelFallbackStrategy, Error
         
-        error_manager = ErrorManager()
+        ErrorManager()
         
         errors = []
         for i in range(error_count):

@@ -26,9 +26,10 @@ import platform
 import signal
 import threading
 import time
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from typing import Any, Optional
 
-from Agent_Guru.core.voice_pipeline import PipelineEvent, PipelineState, VoicePipeline
+from Agent_Guru.core.voice_pipeline import PipelineState, VoicePipeline
 
 logger = logging.getLogger(__name__)
 

@@ -15,14 +15,19 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import load_der_public_key
 
-from .exceptions import InvalidKeyError, KeyNotFoundError, SignatureVerificationError, UnsignedPackageError
+from .exceptions import (
+    InvalidKeyError,
+    KeyNotFoundError,
+    SignatureVerificationError,
+    UnsignedPackageError,
+)
 from .models import AuditLogEntry, Configuration, OperationType, TrustedKey, VerificationPolicy
 
 logger = structlog.get_logger(__name__)
@@ -43,7 +48,7 @@ class CryptoVerifier:
         self._db_path = db_path or (config.cache_dir / "trust_store.db")
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
-        self._audit_entries: List[AuditLogEntry] = []
+        self._audit_entries: list[AuditLogEntry] = []
 
     # ------------------------------------------------------------------
     # Public API
@@ -100,7 +105,7 @@ class CryptoVerifier:
         self,
         key_id: str,
         public_key: bytes,
-        metadata: Optional[Dict[str, str]] = None,
+        metadata: Optional[dict[str, str]] = None,
     ) -> None:
         """
         Add a public key to the trust store.
@@ -142,7 +147,7 @@ class CryptoVerifier:
                 raise KeyNotFoundError(f"Key '{key_id}' not found in trust store")
         logger.info("trusted_key_removed", key_id=key_id)
 
-    def get_trusted_keys(self) -> List[TrustedKey]:
+    def get_trusted_keys(self) -> list[TrustedKey]:
         """Return all trusted keys."""
         with self._connect() as conn:
             rows = conn.execute(
@@ -174,7 +179,7 @@ class CryptoVerifier:
                 hasher.update(chunk)
         return hasher.digest()
 
-    def get_audit_entries(self) -> List[AuditLogEntry]:
+    def get_audit_entries(self) -> list[AuditLogEntry]:
         """Return in-memory audit entries (for testing/inspection)."""
         return list(self._audit_entries)
 
@@ -197,7 +202,7 @@ class CryptoVerifier:
         operation: OperationType,
         package_name: str,
         result: str,
-        details: Dict,
+        details: dict,
     ) -> None:
         entry = AuditLogEntry(
             timestamp=datetime.now(timezone.utc),

@@ -15,7 +15,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.llm.models import (
     AnthropicConfig,
@@ -94,9 +94,9 @@ def load_config_from_file(path: str) -> RuntimeConfig:
             import yaml  # type: ignore[import]
 
             with open(config_path) as f:
-                data: Dict[str, Any] = yaml.safe_load(f) or {}
-        except ImportError:
-            raise ImportError("PyYAML is required for YAML config files: pip install pyyaml")
+                data: dict[str, Any] = yaml.safe_load(f) or {}
+        except ImportError as e:
+            raise ImportError("PyYAML is required for YAML config files: pip install pyyaml") from e
     elif suffix == ".json":
         with open(config_path) as f:
             data = json.load(f)
@@ -106,7 +106,7 @@ def load_config_from_file(path: str) -> RuntimeConfig:
     return _dict_to_config(data)
 
 
-def _dict_to_config(data: Dict[str, Any]) -> RuntimeConfig:
+def _dict_to_config(data: dict[str, Any]) -> RuntimeConfig:
     """Convert a raw dictionary to RuntimeConfig."""
     openai_data = data.get("openai", {})
     anthropic_data = data.get("anthropic", {})

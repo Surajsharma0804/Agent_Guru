@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional
+from typing import Optional
 
 from Agent_Guru.skills.manifest import (
     InstallResult,
-    ResourceLimits,
     SkillManifest,
     ValidationError,
 )
@@ -29,15 +28,15 @@ class SkillRegistry:
     """Registry for managing skills: discover, install, validate, conflict resolution."""
 
     def __init__(self) -> None:
-        self._skills: Dict[str, SkillManifest] = {}
+        self._skills: dict[str, SkillManifest] = {}
 
-    async def discover(self, source: str = "marketplace") -> List[SkillManifest]:
+    async def discover(self, source: str = "marketplace") -> list[SkillManifest]:
         """Discover available skills from a source."""
         return list(self._skills.values())
 
-    def validate(self, manifest: SkillManifest) -> List[ValidationError]:
+    def validate(self, manifest: SkillManifest) -> list[ValidationError]:
         """Validate a skill manifest. Returns list of errors (empty = valid)."""
-        errors: List[ValidationError] = []
+        errors: list[ValidationError] = []
         if not manifest.skill_id:
             errors.append(ValidationError("skill_id", "skill_id is required"))
         if not manifest.name:
@@ -89,5 +88,5 @@ class SkillRegistry:
     def get(self, skill_id: str) -> Optional[SkillManifest]:
         return self._skills.get(skill_id)
 
-    def list_skills(self) -> List[SkillManifest]:
+    def list_skills(self) -> list[SkillManifest]:
         return list(self._skills.values())

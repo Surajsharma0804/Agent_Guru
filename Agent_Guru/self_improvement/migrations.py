@@ -22,13 +22,13 @@ Design Decisions:
 - Schema validated after each migration
 """
 
-import sqlite3
 import logging
-from typing import Callable, Dict, List, Optional, Tuple
+import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 class Migration:
     """
     A single database migration.
-    
+
     Attributes:
         version: Migration version number (must be sequential)
         description: Human-readable description of migration
@@ -53,67 +53,67 @@ class Migration:
 class MigrationSystem:
     """
     Database migration system for schema evolution.
-    
+
     Manages versioned migrations with:
     - Forward migration (upgrade)
     - Backward migration (rollback)
     - Migration tracking
     - Schema validation
     - Transaction safety
-    
+
     Time Complexity: O(n) where n is number of migrations
     Space Complexity: O(1) - migrations applied sequentially
-    
+
     Example:
         >>> system = MigrationSystem("data/self_improvement.db")
         >>> system.migrate_to_latest()
         >>> print(f"Current version: {system.get_current_version()}")
     """
-    
+
     def __init__(self, db_path: str):
         """
         Initialize migration system.
-        
+
         Args:
             db_path: Path to SQLite database file
         """
         self.db_path = db_path
         self._ensure_migrations_table()
         self._register_migrations()
-    
+
     def _ensure_migrations_table(self) -> None:
         """
         Ensure schema_migrations table exists.
-        
+
         Creates table to track applied migrations if it doesn't exist.
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS schema_migrations (
                 version INTEGER PRIMARY KEY,
                 description TEXT NOT NULL,
                 applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 execution_time_ms REAL NOT NULL,
-                
+
                 CHECK (version > 0),
                 CHECK (execution_time_ms >= 0)
             )
         """)
-        
+
         conn.commit()
         conn.close()
-    
+
     def _register_migrations(self) -> None:
         """
         Register all available migrations.
-        
+
         Migrations are registered in order by version number.
         Each migration must have both upgrade and downgrade functions.
         """
-        self.migrations: Dict[int, Migration] = {}
-        
+        self.migrations: dict[int, Migration] = {}
+
         # Migration 1: Initial schema (already applied by database_schema.py)
         # This is a placeholder for tracking purposes
         self.migrations[1] = Migration(
@@ -122,7 +122,7 @@ class MigrationSystem:
             upgrade=self._migration_1_upgrade,
             downgrade=self._migration_1_downgrade
         )
-        
+
         # Migration 2: Add execution context indexes for faster pattern matching
         self.migrations[2] = Migration(
             version=2,
@@ -130,7 +130,7 @@ class MigrationSystem:
             upgrade=self._migration_2_upgrade,
             downgrade=self._migration_2_downgrade
         )
-        
+
         # Migration 3: Add strategy performance history table
         self.migrations[3] = Migration(
             version=3,
@@ -138,65 +138,64 @@ class MigrationSystem:
             upgrade=self._migration_3_upgrade,
             downgrade=self._migration_3_downgrade
         )
-    
+
     # Migration 1: Initial schema (placeholder)
     def _migration_1_upgrade(self, cursor: sqlite3.Cursor) -> None:
         """Migration 1 upgrade: Initial schema (already applied)."""
         # This migration is handled by database_schema.py
         # Just mark as applied
-        pass
-    
+
     def _migration_1_downgrade(self, cursor: sqlite3.Cursor) -> None:
         """Migration 1 downgrade: Cannot downgrade from initial schema."""
         raise ValueError("Cannot downgrade from initial schema (version 1)")
-    
+
     # Migration 2: Add execution context indexes
     def _migration_2_upgrade(self, cursor: sqlite3.Cursor) -> None:
         """
         Migration 2 upgrade: Add indexes for execution context.
-        
+
         Adds indexes to improve pattern matching performance:
         - Index on failures.execution_context for JSON queries
         - Composite index on (task_type, failure_type) for filtering
         """
         logger.info("Applying migration 2: Adding execution context indexes")
-        
+
         # Add composite index for common query pattern
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_failures_task_failure_type
             ON failures(task_type, failure_type)
         """)
-        
+
         # Add index on created_at for temporal queries
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_failures_created_at
             ON failures(created_at)
         """)
-        
+
         logger.info("Migration 2 applied successfully")
-    
+
     def _migration_2_downgrade(self, cursor: sqlite3.Cursor) -> None:
         """
         Migration 2 downgrade: Remove execution context indexes.
         """
         logger.info("Rolling back migration 2: Removing execution context indexes")
-        
+
         cursor.execute("DROP INDEX IF EXISTS idx_failures_task_failure_type")
         cursor.execute("DROP INDEX IF EXISTS idx_failures_created_at")
-        
+
         logger.info("Migration 2 rolled back successfully")
-    
+
     # Migration 3: Add strategy performance history
     def _migration_3_upgrade(self, cursor: sqlite3.Cursor) -> None:
         """
         Migration 3 upgrade: Add strategy performance history table.
-        
+
         Creates table to track strategy performance over time:
         - Enables temporal analysis of strategy effectiveness
         - Supports trend detection and performance degradation alerts
         """
         logger.info("Applying migration 3: Adding strategy_performance_history table")
-        
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS strategy_performance_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -206,51 +205,51 @@ class MigrationSystem:
                 total_executions INTEGER NOT NULL,
                 avg_execution_time_ms REAL NOT NULL,
                 window_size INTEGER NOT NULL DEFAULT 10,
-                
+
                 FOREIGN KEY (strategy_id) REFERENCES strategies(strategy_id),
-                
+
                 CHECK (success_rate >= 0.0 AND success_rate <= 1.0),
                 CHECK (total_executions >= 0),
                 CHECK (avg_execution_time_ms >= 0.0),
                 CHECK (window_size > 0)
             )
         """)
-        
+
         # Add index for temporal queries
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_strategy_history_timestamp
             ON strategy_performance_history(strategy_id, timestamp)
         """)
-        
+
         logger.info("Migration 3 applied successfully")
-    
+
     def _migration_3_downgrade(self, cursor: sqlite3.Cursor) -> None:
         """
         Migration 3 downgrade: Remove strategy performance history table.
         """
         logger.info("Rolling back migration 3: Removing strategy_performance_history table")
-        
+
         cursor.execute("DROP INDEX IF EXISTS idx_strategy_history_timestamp")
         cursor.execute("DROP TABLE IF EXISTS strategy_performance_history")
-        
+
         logger.info("Migration 3 rolled back successfully")
-    
+
     def get_current_version(self) -> int:
         """
         Get current database schema version.
-        
+
         Returns:
             Current version number, or 0 if no migrations applied
-            
+
         Time Complexity: O(1)
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         try:
             cursor.execute("""
-                SELECT version FROM schema_migrations 
-                ORDER BY version DESC 
+                SELECT version FROM schema_migrations
+                ORDER BY version DESC
                 LIMIT 1
             """)
             result = cursor.fetchone()
@@ -260,199 +259,199 @@ class MigrationSystem:
             version = 0
         finally:
             conn.close()
-        
+
         return version
-    
+
     def get_latest_version(self) -> int:
         """
         Get latest available migration version.
-        
+
         Returns:
             Highest migration version number
-            
+
         Time Complexity: O(1)
         """
         return max(self.migrations.keys()) if self.migrations else 0
-    
-    def get_pending_migrations(self) -> List[Migration]:
+
+    def get_pending_migrations(self) -> list[Migration]:
         """
         Get list of pending migrations.
-        
+
         Returns:
             List of migrations not yet applied, in order
-            
+
         Time Complexity: O(n) where n is number of migrations
         """
         current_version = self.get_current_version()
-        
+
         pending = [
             migration
             for version, migration in sorted(self.migrations.items())
             if version > current_version
         ]
-        
+
         return pending
-    
-    def get_applied_migrations(self) -> List[Tuple[int, str, str]]:
+
+    def get_applied_migrations(self) -> list[tuple[int, str, str]]:
         """
         Get list of applied migrations.
-        
+
         Returns:
             List of (version, description, applied_at) tuples
-            
+
         Time Complexity: O(n) where n is number of applied migrations
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         cursor.execute("""
             SELECT version, description, applied_at
             FROM schema_migrations
             ORDER BY version ASC
         """)
-        
+
         applied = cursor.fetchall()
         conn.close()
-        
+
         return applied
-    
+
     def migrate_to_version(self, target_version: int) -> None:
         """
         Migrate database to specific version.
-        
+
         Applies all migrations from current version to target version.
         If target is lower than current, performs rollback.
-        
+
         Args:
             target_version: Target schema version
-            
+
         Raises:
             ValueError: If target version is invalid
             sqlite3.Error: If migration fails
-            
+
         Time Complexity: O(n) where n is number of migrations to apply
         """
         current_version = self.get_current_version()
-        
+
         if target_version == current_version:
             logger.info(f"Already at version {target_version}")
             return
-        
+
         if target_version not in self.migrations and target_version != 0:
             raise ValueError(f"Invalid target version: {target_version}")
-        
+
         if target_version > current_version:
             # Forward migration (upgrade)
             self._migrate_forward(current_version, target_version)
         else:
             # Backward migration (rollback)
             self._migrate_backward(current_version, target_version)
-    
+
     def migrate_to_latest(self) -> None:
         """
         Migrate database to latest version.
-        
+
         Applies all pending migrations.
-        
+
         Time Complexity: O(n) where n is number of pending migrations
         """
         latest_version = self.get_latest_version()
         self.migrate_to_version(latest_version)
-    
+
     def _migrate_forward(self, from_version: int, to_version: int) -> None:
         """
         Apply forward migrations (upgrade).
-        
+
         Args:
             from_version: Current version
             to_version: Target version
-            
+
         Time Complexity: O(n) where n is number of migrations
         """
         logger.info(f"Migrating forward from version {from_version} to {to_version}")
-        
+
         # Get migrations to apply
         migrations_to_apply = [
             migration
             for version, migration in sorted(self.migrations.items())
             if from_version < version <= to_version
         ]
-        
+
         # Apply each migration in transaction
         for migration in migrations_to_apply:
             self._apply_migration(migration)
-    
+
     def _migrate_backward(self, from_version: int, to_version: int) -> None:
         """
         Apply backward migrations (rollback).
-        
+
         Args:
             from_version: Current version
             to_version: Target version
-            
+
         Time Complexity: O(n) where n is number of migrations
         """
         logger.info(f"Migrating backward from version {from_version} to {to_version}")
-        
+
         # Get migrations to rollback (in reverse order)
         migrations_to_rollback = [
             migration
             for version, migration in sorted(self.migrations.items(), reverse=True)
             if to_version < version <= from_version
         ]
-        
+
         # Rollback each migration in transaction
         for migration in migrations_to_rollback:
             self._rollback_migration(migration)
-    
+
     def _apply_migration(self, migration: Migration) -> None:
         """
         Apply a single migration.
-        
+
         Runs migration in transaction with timing and error handling.
-        
+
         Args:
             migration: Migration to apply
-            
+
         Raises:
             sqlite3.Error: If migration fails
         """
         logger.info(f"Applying migration {migration.version}: {migration.description}")
-        
+
         # Connect with explicit transaction mode
         conn = sqlite3.connect(self.db_path)
         conn.isolation_level = None  # Autocommit off - manual transaction control
         cursor = conn.cursor()
-        
+
         start_time = datetime.now()
-        
+
         try:
             # Explicitly begin transaction
             cursor.execute("BEGIN")
-            
+
             # Apply migration
             migration.upgrade(cursor)
-            
+
             # Calculate execution time
             execution_time = (datetime.now() - start_time).total_seconds() * 1000
-            
+
             # Record migration
             cursor.execute("""
                 INSERT INTO schema_migrations (version, description, execution_time_ms)
                 VALUES (?, ?, ?)
             """, (migration.version, migration.description, execution_time))
-            
+
             # Validate schema integrity
             self._validate_schema(cursor)
-            
+
             # Commit transaction
             cursor.execute("COMMIT")
-            
+
             logger.info(
                 f"Migration {migration.version} applied successfully "
                 f"in {execution_time:.2f}ms"
             )
-            
+
         except Exception as e:
             # Rollback on error
             try:
@@ -463,47 +462,47 @@ class MigrationSystem:
             raise
         finally:
             conn.close()
-    
+
     def _rollback_migration(self, migration: Migration) -> None:
         """
         Rollback a single migration.
-        
+
         Runs downgrade in transaction with error handling.
-        
+
         Args:
             migration: Migration to rollback
-            
+
         Raises:
             sqlite3.Error: If rollback fails
         """
         logger.info(f"Rolling back migration {migration.version}: {migration.description}")
-        
+
         # Connect with manual transaction control
         conn = sqlite3.connect(self.db_path)
         conn.isolation_level = None  # Autocommit off - manual transaction control
         cursor = conn.cursor()
-        
+
         try:
             # Explicitly begin transaction
             cursor.execute("BEGIN")
-            
+
             # Rollback migration
             migration.downgrade(cursor)
-            
+
             # Remove migration record
             cursor.execute("""
                 DELETE FROM schema_migrations
                 WHERE version = ?
             """, (migration.version,))
-            
+
             # Validate schema integrity
             self._validate_schema(cursor)
-            
+
             # Commit transaction
             cursor.execute("COMMIT")
-            
+
             logger.info(f"Migration {migration.version} rolled back successfully")
-            
+
         except Exception as e:
             # Rollback on error
             try:
@@ -514,43 +513,43 @@ class MigrationSystem:
             raise
         finally:
             conn.close()
-    
+
     def _validate_schema(self, cursor: sqlite3.Cursor) -> None:
         """
         Validate schema integrity after migration.
-        
+
         Checks that all expected tables exist and have correct structure.
-        
+
         Args:
             cursor: Database cursor
-            
+
         Raises:
             ValueError: If schema validation fails
         """
         # Check that core tables exist
         cursor.execute("""
-            SELECT name FROM sqlite_master 
+            SELECT name FROM sqlite_master
             WHERE type='table'
         """)
-        
+
         tables = {row[0] for row in cursor.fetchall()}
-        
+
         # Minimum required tables
         required_tables = {'schema_migrations'}
-        
+
         missing_tables = required_tables - tables
         if missing_tables:
             raise ValueError(f"Schema validation failed: missing tables {missing_tables}")
-        
+
         logger.debug("Schema validation passed")
-    
-    def get_migration_status(self) -> Dict[str, any]:
+
+    def get_migration_status(self) -> dict[str, any]:
         """
         Get comprehensive migration status.
-        
+
         Returns:
             Dictionary with current version, latest version, and pending migrations
-            
+
         Example:
             >>> status = system.get_migration_status()
             >>> print(f"Current: {status['current_version']}")
@@ -561,7 +560,7 @@ class MigrationSystem:
         latest_version = self.get_latest_version()
         pending = self.get_pending_migrations()
         applied = self.get_applied_migrations()
-        
+
         return {
             'current_version': current_version,
             'latest_version': latest_version,
@@ -587,19 +586,19 @@ class MigrationSystem:
 def migrate_database(db_path: str, target_version: Optional[int] = None) -> None:
     """
     Migrate database to target version or latest.
-    
+
     Convenience function for running migrations.
-    
+
     Args:
         db_path: Path to SQLite database file
         target_version: Target version (None for latest)
-        
+
     Example:
         >>> migrate_database("data/self_improvement.db")  # Migrate to latest
         >>> migrate_database("data/self_improvement.db", 2)  # Migrate to v2
     """
     system = MigrationSystem(db_path)
-    
+
     if target_version is None:
         system.migrate_to_latest()
     else:
@@ -609,42 +608,42 @@ def migrate_database(db_path: str, target_version: Optional[int] = None) -> None
 if __name__ == "__main__":
     # Example usage and testing
     import sys
-    
+
     # Configure logging
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    
+
     if len(sys.argv) > 1:
         db_path = sys.argv[1]
     else:
         db_path = "data/self_improvement.db"
-    
+
     # Ensure database exists
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    
+
     # Create migration system
     system = MigrationSystem(db_path)
-    
+
     # Show status
     status = system.get_migration_status()
-    print(f"\n=== Migration Status ===")
+    print("\n=== Migration Status ===")
     print(f"Current version: {status['current_version']}")
     print(f"Latest version: {status['latest_version']}")
     print(f"Up to date: {status['is_up_to_date']}")
-    
+
     if status['applied_migrations']:
-        print(f"\nApplied migrations:")
+        print("\nApplied migrations:")
         for m in status['applied_migrations']:
             print(f"  v{m['version']}: {m['description']}")
             print(f"    Applied at: {m['applied_at']}")
-    
+
     if status['pending_migrations']:
-        print(f"\nPending migrations:")
+        print("\nPending migrations:")
         for m in status['pending_migrations']:
             print(f"  v{m['version']}: {m['description']}")
-        
+
         # Ask to apply
         response = input("\nApply pending migrations? (y/n): ")
         if response.lower() == 'y':

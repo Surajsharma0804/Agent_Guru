@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 import networkx as nx
 
@@ -89,7 +89,7 @@ class DelegationManager:
         # Directed graph: edge (A → B) means A delegated to B
         self._graph: nx.DiGraph = nx.DiGraph()
         # task_id -> ordered list of agent IDs in the delegation chain
-        self._chains: Dict[str, List[str]] = {}
+        self._chains: dict[str, list[str]] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -172,7 +172,7 @@ class DelegationManager:
             self._graph.remove_edge(from_agent, to_agent)
         return has_cycle
 
-    def get_delegation_chain(self, task_id: str) -> List[str]:
+    def get_delegation_chain(self, task_id: str) -> list[str]:
         """Return the ordered delegation chain for a task.
 
         Args:

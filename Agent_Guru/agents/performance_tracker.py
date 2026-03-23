@@ -4,10 +4,10 @@ Performance Tracker - Tracks agent performance metrics using sliding window.
 Validates: Requirements 12.1, 12.2, 12.3, 12.4, 12.5
 """
 
-from typing import Dict, List, TYPE_CHECKING
+import statistics
 from dataclasses import dataclass
 from datetime import datetime
-import statistics
+from typing import TYPE_CHECKING
 
 from .agent_lifecycle import PerformanceRecord
 
@@ -23,7 +23,7 @@ class PerformanceMetrics:
     task_type: str
     success_rate: float
     average_completion_time_ms: float
-    average_resource_usage: Dict[str, float]
+    average_resource_usage: dict[str, float]
     sample_size: int
     last_updated: datetime
 
@@ -58,7 +58,7 @@ class PerformanceTracker:
         task_type: str,
         success: bool,
         completion_time_ms: float,
-        resource_usage: Dict[str, float],
+        resource_usage: dict[str, float],
     ) -> None:
         """
         Record agent performance on a task.
@@ -116,7 +116,7 @@ class PerformanceTracker:
         success_rate = sum(1 for r in records if r.success) / len(records)
         avg_time = statistics.mean(r.completion_time_ms for r in records)
 
-        avg_resources: Dict[str, float] = {}
+        avg_resources: dict[str, float] = {}
         if records[0].resource_usage:
             for key in records[0].resource_usage:
                 avg_resources[key] = statistics.mean(
@@ -134,8 +134,8 @@ class PerformanceTracker:
         )
 
     async def compare_agents(
-        self, agent_ids: List[str], task_type: str
-    ) -> List[PerformanceMetrics]:
+        self, agent_ids: list[str], task_type: str
+    ) -> list[PerformanceMetrics]:
         """
         Compare multiple agents on a task type, sorted by success rate descending.
 

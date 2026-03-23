@@ -15,8 +15,9 @@ Version: 1.0.0
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Any, AsyncIterator, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from Agent_Guru.llm.models import (
     CompletionRequest,
@@ -71,7 +72,7 @@ class OllamaAdapter(ProviderAdapter):
         client = self._get_client()
         messages = [{"role": m.role, "content": m.content} for m in request.messages]
 
-        options: Dict[str, Any] = {"temperature": request.temperature}
+        options: dict[str, Any] = {"temperature": request.temperature}
         if request.max_tokens is not None:
             options["num_predict"] = request.max_tokens
 
@@ -110,7 +111,7 @@ class OllamaAdapter(ProviderAdapter):
         client = self._get_client()
         messages = [{"role": m.role, "content": m.content} for m in request.messages]
 
-        options: Dict[str, Any] = {"temperature": request.temperature}
+        options: dict[str, Any] = {"temperature": request.temperature}
         if request.max_tokens is not None:
             options["num_predict"] = request.max_tokens
 
@@ -129,15 +130,15 @@ class OllamaAdapter(ProviderAdapter):
                 )
 
     async def embed(
-        self, text: Union[str, List[str]], model: str
-    ) -> List[List[float]]:
+        self, text: Union[str, list[str]], model: str
+    ) -> list[list[float]]:
         """Generate embeddings using an Ollama embedding model."""
         client = self._get_client()
 
         if isinstance(text, str):
             text = [text]
 
-        embeddings: List[List[float]] = []
+        embeddings: list[list[float]] = []
         for t in text:
             response = await client.embeddings(model=model, prompt=t)
             embeddings.append(response["embedding"])

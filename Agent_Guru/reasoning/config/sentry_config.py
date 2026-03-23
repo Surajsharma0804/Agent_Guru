@@ -1,16 +1,16 @@
 """Sentry error tracking configuration."""
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import sentry_sdk
-from sentry_sdk.integrations.logging import LoggingIntegration
 from sentry_sdk.integrations.asyncio import AsyncioIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 
 class SentryConfig:
     """Configuration for Sentry error tracking."""
-    
+
     def __init__(
         self,
         dsn: Optional[str] = None,
@@ -25,7 +25,7 @@ class SentryConfig:
     ):
         """
         Initialize Sentry configuration.
-        
+
         Args:
             dsn: Sentry DSN (Data Source Name)
             environment: Environment name (development, staging, production)
@@ -51,23 +51,23 @@ class SentryConfig:
 def configure_sentry(config: SentryConfig) -> None:
     """
     Configure Sentry error tracking.
-    
+
     Args:
         config: Sentry configuration
     """
     if not config.dsn:
         # Sentry not configured, skip initialization
         return
-    
+
     # Configure logging integration
     logging_integration = LoggingIntegration(
         level=None,  # Capture all log levels
         event_level=None,  # Don't send logs as events by default
     )
-    
+
     # Configure asyncio integration
     asyncio_integration = AsyncioIntegration()
-    
+
     # Initialize Sentry SDK
     sentry_sdk.init(
         dsn=config.dsn,
@@ -88,23 +88,23 @@ def configure_sentry(config: SentryConfig) -> None:
     )
 
 
-def before_send_filter(event: Dict[str, Any], hint: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def before_send_filter(event: dict[str, Any], hint: dict[str, Any]) -> Optional[dict[str, Any]]:
     """
     Filter and modify events before sending to Sentry.
-    
+
     Args:
         event: Event dictionary
         hint: Hint dictionary with additional context
-        
+
     Returns:
         Modified event or None to drop the event
     """
     # Add custom tags
     if "tags" not in event:
         event["tags"] = {}
-    
+
     event["tags"]["component"] = "reasoning_engine"
-    
+
     # Filter out sensitive information
     if "request" in event:
         # Remove sensitive headers
@@ -112,25 +112,25 @@ def before_send_filter(event: Dict[str, Any], hint: Dict[str, Any]) -> Optional[
             sensitive_headers = ["authorization", "cookie", "x-api-key"]
             for header in sensitive_headers:
                 event["request"]["headers"].pop(header, None)
-    
+
     # Group similar errors
     if "exception" in event and "values" in event["exception"]:
         for exception in event["exception"]["values"]:
             if exception.get("type") == "TimeoutError":
                 # Group all timeout errors together
                 event["fingerprint"] = ["timeout-error"]
-    
+
     return event
 
 
-def before_breadcrumb_filter(crumb: Dict[str, Any], hint: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def before_breadcrumb_filter(crumb: dict[str, Any], hint: dict[str, Any]) -> Optional[dict[str, Any]]:
     """
     Filter and modify breadcrumbs before adding to event.
-    
+
     Args:
         crumb: Breadcrumb dictionary
         hint: Hint dictionary with additional context
-        
+
     Returns:
         Modified breadcrumb or None to drop it
     """
@@ -138,13 +138,13 @@ def before_breadcrumb_filter(crumb: Dict[str, Any], hint: Dict[str, Any]) -> Opt
     if crumb.get("category") == "query" and crumb.get("message", "").startswith("SELECT"):
         # Skip SELECT queries to reduce noise
         return None
-    
+
     return crumb
 
 
 class SentryContextManager:
     """Manager for Sentry context and error capture."""
-    
+
     @staticmethod
     def set_user_context(
         user_id: Optional[str] = None,
@@ -154,7 +154,7 @@ class SentryContextManager:
     ) -> None:
         """
         Set user context for error tracking.
-        
+
         Args:
             user_id: User ID
             username: Username
@@ -169,9 +169,9 @@ class SentryContextManager:
         if email:
             user_data["email"] = email
         user_data.update(kwargs)
-        
+
         sentry_sdk.set_user(user_data)
-    
+
     @staticmethod
     def set_conversation_context(
         conversation_id: str,
@@ -181,7 +181,7 @@ class SentryContextManager:
     ) -> None:
         """
         Set conversation context for error tracking.
-        
+
         Args:
             conversation_id: Conversation ID
             turn_id: Turn ID
@@ -195,7 +195,7 @@ class SentryContextManager:
                 "intent_type": intent_type,
                 **kwargs,
             })
-    
+
     @staticmethod
     def set_input_context(
         input_text: str,
@@ -204,7 +204,7 @@ class SentryContextManager:
     ) -> None:
         """
         Set input context for error tracking.
-        
+
         Args:
             input_text: User input text (will be truncated)
             input_source: Input source (voice, text, etc.)
@@ -212,24 +212,24 @@ class SentryContextManager:
         """
         # Truncate input to avoid sending too much data
         truncated_input = input_text[:200] + "..." if len(input_text) > 200 else input_text
-        
+
         with sentry_sdk.configure_scope() as scope:
             scope.set_context("input", {
                 "text": truncated_input,
                 "source": input_source,
                 **kwargs,
             })
-    
+
     @staticmethod
     def add_breadcrumb(
         message: str,
         category: str = "default",
         level: str = "info",
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
     ) -> None:
         """
         Add a breadcrumb for error context.
-        
+
         Args:
             message: Breadcrumb message
             category: Breadcrumb category
@@ -242,23 +242,23 @@ class SentryContextManager:
             level=level,
             data=data or {},
         )
-    
+
     @staticmethod
     def capture_exception(
         error: Exception,
         level: str = "error",
-        tags: Optional[Dict[str, str]] = None,
-        extras: Optional[Dict[str, Any]] = None,
+        tags: Optional[dict[str, str]] = None,
+        extras: Optional[dict[str, Any]] = None,
     ) -> str:
         """
         Capture an exception and send to Sentry.
-        
+
         Args:
             error: Exception to capture
             level: Error level (debug, info, warning, error, fatal)
             tags: Additional tags
             extras: Additional extra data
-            
+
         Returns:
             Event ID
         """
@@ -266,31 +266,31 @@ class SentryContextManager:
             if tags:
                 for key, value in tags.items():
                     scope.set_tag(key, value)
-            
+
             if extras:
                 for key, value in extras.items():
                     scope.set_extra(key, value)
-            
+
             scope.level = level
-            
+
             return sentry_sdk.capture_exception(error)
-    
+
     @staticmethod
     def capture_message(
         message: str,
         level: str = "info",
-        tags: Optional[Dict[str, str]] = None,
-        extras: Optional[Dict[str, Any]] = None,
+        tags: Optional[dict[str, str]] = None,
+        extras: Optional[dict[str, Any]] = None,
     ) -> str:
         """
         Capture a message and send to Sentry.
-        
+
         Args:
             message: Message to capture
             level: Message level (debug, info, warning, error, fatal)
             tags: Additional tags
             extras: Additional extra data
-            
+
         Returns:
             Event ID
         """
@@ -298,15 +298,15 @@ class SentryContextManager:
             if tags:
                 for key, value in tags.items():
                     scope.set_tag(key, value)
-            
+
             if extras:
                 for key, value in extras.items():
                     scope.set_extra(key, value)
-            
+
             scope.level = level
-            
+
             return sentry_sdk.capture_message(message)
-    
+
     @staticmethod
     def clear_context() -> None:
         """Clear all Sentry context."""

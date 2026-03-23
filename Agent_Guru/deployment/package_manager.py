@@ -19,11 +19,12 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 
 from Agent_Guru.security.path_utils import safe_path
+
 from .exceptions import (
     InstallationError,
     NetworkError,
@@ -53,7 +54,7 @@ class PackageManager:
         self._cache_dir.mkdir(parents=True, exist_ok=True)
         self._db_path = db_path or (config.cache_dir / "package_registry.db")
         self._init_db()
-        self._audit_entries: List[AuditLogEntry] = []
+        self._audit_entries: list[AuditLogEntry] = []
 
     # ------------------------------------------------------------------
     # Public API
@@ -170,7 +171,7 @@ class PackageManager:
         self._audit(OperationType.REMOVE, package_name, None, "SUCCESS", {})
         logger.info("package_removed", package=package_name)
 
-    def get_installed_packages(self, target_env: Path) -> List[PackageInfo]:
+    def get_installed_packages(self, target_env: Path) -> list[PackageInfo]:
         """Return list of installed packages from the registry."""
         with self._connect() as conn:
             rows = conn.execute(
@@ -205,7 +206,7 @@ class PackageManager:
         actual = hasher.hexdigest()
         return actual == expected_hash
 
-    def get_audit_entries(self) -> List[AuditLogEntry]:
+    def get_audit_entries(self) -> list[AuditLogEntry]:
         """Return in-memory audit entries."""
         return list(self._audit_entries)
 
@@ -290,7 +291,7 @@ class PackageManager:
         package_name: str,
         version: Optional[str],
         result: str,
-        details: Dict,
+        details: dict,
     ) -> None:
         self._audit_entries.append(
             AuditLogEntry(
@@ -320,4 +321,6 @@ class PackageManager:
             )
 
     def _connect(self) -> sqlite3.Connection:
-        return sqlite3.connect(str(self._db_path))
+        conn = sqlite3.connect(str(self._db_path))
+        conn.isolation_level = None  # autocommit for context manager usage
+        return conn

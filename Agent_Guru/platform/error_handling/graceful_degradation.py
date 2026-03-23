@@ -56,9 +56,11 @@ Version: 1.0.0
 import asyncio
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Callable
+from typing import Optional
+
 import psutil
 
 logger = logging.getLogger(__name__)
@@ -141,8 +143,8 @@ class DegradationEvent:
     from_mode: OperationMode
     to_mode: OperationMode
     reason: str
-    resource_stats: Dict[str, float]
-    disabled_features: List[str] = field(default_factory=list)
+    resource_stats: dict[str, float]
+    disabled_features: list[str] = field(default_factory=list)
 
 
 class DegradationManager:
@@ -179,10 +181,10 @@ class DegradationManager:
         self._validate_config(config)
         self.config = config
         self._mode = OperationMode.NORMAL
-        self._features: Dict[str, FeatureConfig] = {}
+        self._features: dict[str, FeatureConfig] = {}
         self._monitoring_task: Optional[asyncio.Task] = None
         self._degraded_since: Optional[float] = None
-        self._event_history: List[DegradationEvent] = []
+        self._event_history: list[DegradationEvent] = []
         self._max_history_size = 100
 
         # Initialize default features
@@ -292,7 +294,7 @@ class DegradationManager:
 
         return self._features[name].enabled
 
-    def get_enabled_features(self) -> List[str]:
+    def get_enabled_features(self) -> list[str]:
         """Get list of currently enabled features.
 
         Time Complexity: O(n) where n is number of features
@@ -305,7 +307,7 @@ class DegradationManager:
             if feature.enabled
         ]
 
-    def get_disabled_features(self) -> List[str]:
+    def get_disabled_features(self) -> list[str]:
         """Get list of currently disabled features.
 
         Time Complexity: O(n) where n is number of features
@@ -395,7 +397,7 @@ class DegradationManager:
         self._monitoring_task = None
         logger.info("Resource monitoring stopped")
 
-    def get_resource_stats(self) -> Dict[str, float]:
+    def get_resource_stats(self) -> dict[str, float]:
         """Get current resource usage statistics.
 
         Time Complexity: O(1)
@@ -409,7 +411,7 @@ class DegradationManager:
             "disk_percent": psutil.disk_usage('/').percent
         }
 
-    def get_event_history(self, limit: Optional[int] = None) -> List[DegradationEvent]:
+    def get_event_history(self, limit: Optional[int] = None) -> list[DegradationEvent]:
         """Get degradation event history.
 
         Args:
@@ -505,7 +507,7 @@ class DegradationManager:
         )
         self._add_event(event)
 
-    def _apply_mode_constraints(self, mode: OperationMode) -> List[str]:
+    def _apply_mode_constraints(self, mode: OperationMode) -> list[str]:
         """Apply feature constraints for operation mode.
 
         Time Complexity: O(n) where n is number of features

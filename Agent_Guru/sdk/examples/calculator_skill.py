@@ -8,7 +8,8 @@ external dependencies or permissions required.
 import ast
 import math
 import operator as op
-from typing import Dict, Union
+from typing import Union
+
 from Agent_Guru.sdk import Skill, skill_capability
 
 # Allowlist of safe AST node types and their corresponding operators
@@ -115,7 +116,7 @@ class CalculatorSkill(Skill):
         super().__init__()
 
     @skill_capability("calculate", "Perform mathematical calculations")
-    async def calculate(self, expression: str) -> Dict[str, Union[float, str]]:
+    async def calculate(self, expression: str) -> dict[str, Union[float, str]]:
         """Evaluate a mathematical expression.
 
         Args:
@@ -137,7 +138,7 @@ class CalculatorSkill(Skill):
     @skill_capability("convert_units", "Convert between units")
     async def convert_units(
         self, value: float, from_unit: str, to_unit: str
-    ) -> Dict[str, Union[float, str]]:
+    ) -> dict[str, Union[float, str]]:
         """Convert a value from one unit to another.
 
         Args:
@@ -242,6 +243,7 @@ class CalculatorSkill(Skill):
 # Generate manifest when run as script
 if __name__ == "__main__":
     from pathlib import Path
+
     from Agent_Guru.sdk import ManifestGenerator
 
     manifest = ManifestGenerator.generate_and_save(

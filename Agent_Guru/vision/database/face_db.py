@@ -23,7 +23,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -51,7 +51,7 @@ class Embedding:
     timestamp: str  # ISO format
     angle_category: str  # "frontal", "profile", "45_degree"
     lighting_condition: str  # "normal", "low_light", "bright"
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -67,10 +67,10 @@ class Identity:
     """
 
     name: str
-    embeddings: List[Embedding]
+    embeddings: list[Embedding]
     permission_level: str  # "admin", "user", "guest", "denied"
     date_added: str  # ISO format
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -146,7 +146,7 @@ class FaceDatabase:
             db_path: Path to the JSON persistence file.
         """
         self._db_path = db_path
-        self._identities: Dict[str, Identity] = {}
+        self._identities: dict[str, Identity] = {}
 
         # Ensure parent directory exists
         parent = os.path.dirname(db_path)
@@ -162,9 +162,9 @@ class FaceDatabase:
     def add_identity(
         self,
         name: str,
-        embeddings: List[np.ndarray],
+        embeddings: list[np.ndarray],
         permission_level: str = "user",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> bool:
         """Add a new identity with one or more embeddings.
 
@@ -220,7 +220,7 @@ class FaceDatabase:
         embedding: np.ndarray,
         angle_category: str = "frontal",
         lighting_condition: str = "normal",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> bool:
         """Append a single embedding to an existing identity.
 
@@ -261,7 +261,7 @@ class FaceDatabase:
         """
         return self._identities.get(name)
 
-    def get_all_identities(self) -> List[Identity]:
+    def get_all_identities(self) -> list[Identity]:
         """Return all stored identities.
 
         Returns:
@@ -408,7 +408,7 @@ class FaceDatabase:
             return
 
         try:
-            with open(self._db_path, "r", encoding="utf-8") as fh:
+            with open(self._db_path, encoding="utf-8") as fh:
                 data = json.load(fh)
             self._identities = self._deserialise(data)
             logger.info(
@@ -460,7 +460,7 @@ class FaceDatabase:
     # Internal serialisation helpers
     # ------------------------------------------------------------------
 
-    def _serialise(self) -> Dict[str, Any]:
+    def _serialise(self) -> dict[str, Any]:
         """Convert in-memory state to a JSON-serialisable dict."""
         identities_list = []
         for identity in self._identities.values():
@@ -489,9 +489,9 @@ class FaceDatabase:
         return {"version": "1.0", "identities": identities_list}
 
     @staticmethod
-    def _deserialise(data: Dict[str, Any]) -> Dict[str, Identity]:
+    def _deserialise(data: dict[str, Any]) -> dict[str, Identity]:
         """Reconstruct in-memory state from a JSON-deserialised dict."""
-        identities: Dict[str, Identity] = {}
+        identities: dict[str, Identity] = {}
         for id_data in data.get("identities", []):
             embeddings = []
             for emb_data in id_data.get("embeddings", []):

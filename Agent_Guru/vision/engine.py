@@ -22,27 +22,28 @@ import logging
 import signal
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Optional
 
 import numpy as np
 
+from Agent_Guru.vision.alignment.aligner import FaceAligner
 from Agent_Guru.vision.config import GuruVisionConfig
 from Agent_Guru.vision.database.face_db import FaceDatabase, MatchResult
 from Agent_Guru.vision.detection.detector import Detection, FaceDetector
-from Agent_Guru.vision.alignment.aligner import FaceAligner
-from Agent_Guru.vision.recognition.recognizer import FaceRecognizer
-from Agent_Guru.vision.liveness.detector import LivenessDetector, LivenessResult
 from Agent_Guru.vision.emotion.recognizer import EmotionRecognizer, EmotionResult
-from Agent_Guru.vision.tracking.tracker import FaceTracker, TrackedFace
-from Agent_Guru.vision.utils.logging import setup_logging
-from Agent_Guru.vision.utils.preprocessing import enhance_low_light, is_low_light
 from Agent_Guru.vision.exceptions import (
     DatabaseError,
     InitializationError,
     InvalidImageError,
 )
+from Agent_Guru.vision.liveness.detector import LivenessDetector, LivenessResult
+from Agent_Guru.vision.recognition.recognizer import FaceRecognizer
+from Agent_Guru.vision.tracking.tracker import FaceTracker, TrackedFace
+from Agent_Guru.vision.utils.logging import setup_logging
+from Agent_Guru.vision.utils.preprocessing import enhance_low_light, is_low_light
 
 logger = logging.getLogger("guruvision.engine")
 
@@ -88,7 +89,7 @@ class RecognitionResult:
         frame_enhanced: True if low-light enhancement was applied.
     """
 
-    faces: List[FaceResult]
+    faces: list[FaceResult]
     frame_timestamp: str
     processing_time_ms: float
     frame_enhanced: bool = False
@@ -143,7 +144,7 @@ class GuruVisionEngine:
         self._database: Optional[FaceDatabase] = None
 
         # Event callbacks: event_type → list of callables
-        self._callbacks: Dict[str, List[Callable[..., None]]] = {
+        self._callbacks: dict[str, list[Callable[..., None]]] = {
             "identity_recognized": [],
             "new_identity": [],
             "permission_changed": [],
@@ -317,14 +318,16 @@ class GuruVisionEngine:
 
         # Step 2: Face detection
         try:
-            detections: List[Detection] = self._detector.detect(frame)
+            if self._detector is None:
+                raise RuntimeError("FaceDetector not initialized")
+            detections: list[Detection] = self._detector.detect(frame)
         except Exception as exc:
             logger.error("Detection failed: %s", exc)
             self._emit("error", {"stage": "detection", "error": str(exc)})
             detections = []
 
         # Step 3: Tracker update — failure degrades gracefully to per-frame processing
-        active_tracks: List[TrackedFace] = []
+        active_tracks: list[TrackedFace] = []
         if self._tracker is not None:
             try:
                 active_tracks = self._tracker.update(detections)
@@ -334,7 +337,7 @@ class GuruVisionEngine:
                 active_tracks = []
 
         # Step 4–6: Per-face processing
-        face_results: List[FaceResult] = []
+        face_results: list[FaceResult] = []
         for i, detection in enumerate(detections):
             face_result = self._process_single_face(frame, detection, i, active_tracks)
             if face_result is not None:
@@ -364,7 +367,7 @@ class GuruVisionEngine:
         frame: np.ndarray,
         detection: Detection,
         det_index: int,
-        active_tracks: List[TrackedFace],
+        active_tracks: list[TrackedFace],
     ) -> Optional[FaceResult]:
         """Run the full per-face pipeline for one detection."""
         # Find matching track
@@ -464,7 +467,7 @@ class GuruVisionEngine:
     def add_identity(
         self,
         name: str,
-        images: List[np.ndarray],
+        images: list[np.ndarray],
         permission_level: str = "user",
     ) -> bool:
         """Add a new identity from a list of face images.
@@ -481,7 +484,7 @@ class GuruVisionEngine:
             True if at least one embedding was successfully extracted and stored.
         """
         self._require_initialized()
-        embeddings: List[np.ndarray] = []
+        embeddings: list[np.ndarray] = []
 
         for i, img in enumerate(images):
             try:
@@ -519,7 +522,7 @@ class GuruVisionEngine:
         self._require_initialized()
         return self._database.remove_identity(name)
 
-    def get_identities(self) -> List[IdentityInfo]:
+    def get_identities(self) -> list[IdentityInfo]:
         """Return summary info for all stored identities."""
         self._require_initialized()
         return [
@@ -631,7 +634,7 @@ class GuruVisionEngine:
         source: Optional[Any] = None,
         max_frames: Optional[int] = None,
         on_result: Optional[Callable[["RecognitionResult"], None]] = None,
-    ) -> List["RecognitionResult"]:
+    ) -> list["RecognitionResult"]:
         """Process all frames from a video source.
 
         Opens the source, reads frames in a loop, calls :meth:`process_frame`
@@ -654,7 +657,7 @@ class GuruVisionEngine:
         self._require_initialized()
         cap = self.open_video_source(source)
 
-        results: List[RecognitionResult] = []
+        results: list[RecognitionResult] = []
         frame_count = 0
 
         try:
@@ -695,7 +698,7 @@ class GuruVisionEngine:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _emit(self, event_type: str, data: Dict[str, Any]) -> None:
+    def _emit(self, event_type: str, data: dict[str, Any]) -> None:
         """Fire all registered callbacks for event_type."""
         for cb in self._callbacks.get(event_type, []):
             try:

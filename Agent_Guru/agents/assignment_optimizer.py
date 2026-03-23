@@ -4,10 +4,10 @@ Assignment Optimizer - Verifies task assignment optimality vs random baseline.
 Validates: Requirements 24.1, 24.2, 24.3, 24.4, 24.5
 """
 
-from typing import Dict, List, Any, TYPE_CHECKING
+import logging
 from dataclasses import dataclass
 from datetime import datetime
-import logging
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .agent_storage import AgentStorage
@@ -58,7 +58,7 @@ class AssignmentOptimizer:
         self.baseline_success_rate = baseline_success_rate
         self.degradation_threshold = degradation_threshold
         self.window_size = window_size
-        self._outcomes: List[AssignmentOutcome] = []
+        self._outcomes: list[AssignmentOutcome] = []
 
     async def compute_expected_success_probability(
         self, agent_id: str, task_type: str
@@ -84,7 +84,7 @@ class AssignmentOptimizer:
         task_type: str,
         expected_probability: float,
         actual_success: bool,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Record actual outcome and compare to expected probability.
 
@@ -130,7 +130,7 @@ class AssignmentOptimizer:
         actual_rate = sum(1 for o in recent if o.actual_success) / len(recent)
         return (self.baseline_success_rate - actual_rate) >= self.degradation_threshold
 
-    def maintain_baseline_comparison(self) -> Dict[str, Any]:
+    def maintain_baseline_comparison(self) -> dict[str, Any]:
         """
         Return running comparison of specialization-based vs random assignment.
 

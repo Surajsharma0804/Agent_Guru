@@ -23,7 +23,6 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from Agent_Guru.memory.models import SyncOperation, SyncStatus
-
 from Agent_Guru.security.path_utils import safe_path
 
 logger = logging.getLogger(__name__)

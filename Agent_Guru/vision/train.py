@@ -33,14 +33,14 @@ from pathlib import Path
 
 from Agent_Guru.security.path_utils import safe_path
 from Agent_Guru.training.seed_utils import set_deterministic_seeds
-from Agent_Guru.vision.utils.logging import setup_logging
+from Agent_Guru.vision.training.export import export_to_onnx, validate_onnx_equivalence
 from Agent_Guru.vision.training.preprocess import (
-    validate_dataset_structure,
-    check_minimum_images,
     MIN_IMAGES_PER_IDENTITY,
+    check_minimum_images,
+    validate_dataset_structure,
 )
 from Agent_Guru.vision.training.train import TrainingConfig, train_arcface_model
-from Agent_Guru.vision.training.export import export_to_onnx, validate_onnx_equivalence
+from Agent_Guru.vision.utils.logging import setup_logging
 
 BASE_DIR = Path(__file__).parent.resolve()
 

@@ -241,7 +241,7 @@ class AdvancedNoiseCancellation:
         """
         try:
             # Detect current noise type
-            noise_type = self.detect_noise_type(audio)
+            self.detect_noise_type(audio)
 
             # Compute current SNR
             snr = self.compute_snr(audio)

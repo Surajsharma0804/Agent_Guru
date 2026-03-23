@@ -8,10 +8,9 @@ Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 3.9
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import numpy as np
 
@@ -44,11 +43,11 @@ class BoundingBox:
 @dataclass
 class Landmarks:
     """Five facial landmarks."""
-    left_eye: Tuple[float, float] = (0.0, 0.0)
-    right_eye: Tuple[float, float] = (0.0, 0.0)
-    nose: Tuple[float, float] = (0.0, 0.0)
-    left_mouth: Tuple[float, float] = (0.0, 0.0)
-    right_mouth: Tuple[float, float] = (0.0, 0.0)
+    left_eye: tuple[float, float] = (0.0, 0.0)
+    right_eye: tuple[float, float] = (0.0, 0.0)
+    nose: tuple[float, float] = (0.0, 0.0)
+    left_mouth: tuple[float, float] = (0.0, 0.0)
+    right_mouth: tuple[float, float] = (0.0, 0.0)
 
 
 @dataclass
@@ -56,9 +55,9 @@ class DatasetStats:
     """Dataset statistics."""
     num_identities: int = 0
     num_images: int = 0
-    images_per_identity: Dict[str, int] = field(default_factory=dict)
-    resolution_distribution: Dict[Tuple[int, int], int] = field(default_factory=dict)
-    failed_images: List[str] = field(default_factory=list)
+    images_per_identity: dict[str, int] = field(default_factory=dict)
+    resolution_distribution: dict[tuple[int, int], int] = field(default_factory=dict)
+    failed_images: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -78,7 +77,7 @@ class VerificationResult:
     dataset_path: str
     num_identities: int = 0
     num_images: int = 0
-    errors: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -88,7 +87,7 @@ class PreprocessResult:
     output_dir: str
     num_processed: int = 0
     num_failed: int = 0
-    failed_images: List[str] = field(default_factory=list)
+    failed_images: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +100,7 @@ class FaceAligner:
     Uses InsightFace RetinaFace when available, falls back to stub.
     """
 
-    TARGET_SIZE: Tuple[int, int] = (112, 112)
+    TARGET_SIZE: tuple[int, int] = (112, 112)
 
     # Reference landmarks for 112x112 alignment (ArcFace standard)
     _REFERENCE_LANDMARKS = np.array([
@@ -130,7 +129,7 @@ class FaceAligner:
             logger.debug("InsightFace not available: %s", exc)
             return None
 
-    def detect_faces(self, image: np.ndarray) -> List[BoundingBox]:
+    def detect_faces(self, image: np.ndarray) -> list[BoundingBox]:
         """Detect faces in an image.
 
         Args:
@@ -265,8 +264,8 @@ class FaceDataset:
         self.root_dir = root_dir
         self.augment = augment
         self.image_size = image_size
-        self.samples: List[Tuple[str, int]] = []
-        self.identity_to_label: Dict[str, int] = {}
+        self.samples: list[tuple[str, int]] = []
+        self.identity_to_label: dict[str, int] = {}
         self._load_samples()
 
     def _load_samples(self) -> None:
@@ -281,9 +280,8 @@ class FaceDataset:
     def __len__(self) -> int:
         return len(self.samples)
 
-    def __getitem__(self, idx: int) -> Tuple[Any, int]:
+    def __getitem__(self, idx: int) -> tuple[Any, int]:
         """Return (tensor, label) for the given index."""
-        import torch
         path, label = self.samples[idx]
         image = self._load_image(path)
         tensor = self._to_tensor(image)
@@ -383,7 +381,7 @@ class DatasetManager:
         Returns:
             VerificationResult with counts and any errors.
         """
-        errors: List[str] = []
+        errors: list[str] = []
         root = Path(dataset_path)
 
         if not root.exists():
@@ -435,7 +433,7 @@ class DatasetManager:
         _aligner = aligner or FaceAligner(use_insightface=False)
         root = Path(dataset_path)
         out_root = Path(output_dir)
-        failed: List[str] = []
+        failed: list[str] = []
         num_processed = 0
 
         identity_dirs = sorted(p for p in root.iterdir() if p.is_dir())

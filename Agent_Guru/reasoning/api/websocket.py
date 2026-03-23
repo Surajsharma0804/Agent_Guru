@@ -33,7 +33,7 @@ import asyncio
 import json
 import time
 from datetime import datetime
-from typing import Dict, Optional, Set
+from typing import Optional
 
 import structlog
 from fastapi import WebSocket, WebSocketDisconnect
@@ -44,20 +44,20 @@ logger = structlog.get_logger(__name__)
 
 class WebSocketMessage(BaseModel):
     """WebSocket message model.
-    
+
     Attributes:
         type: Message type (request, response, progress, error, ping, pong)
         data: Message data
         timestamp: Message timestamp
         request_id: Optional request ID for correlation
     """
-    
+
     type: str = Field(
         ...,
         description="Message type",
         pattern="^(request|response|progress|error|ping|pong|connected|disconnected)$",
     )
-    data: Dict = Field(
+    data: dict = Field(
         default_factory=dict,
         description="Message data",
     )
@@ -73,15 +73,15 @@ class WebSocketMessage(BaseModel):
 
 class ConnectionManager:
     """Manages WebSocket connections.
-    
+
     Time Complexity:
         - connect: O(1)
         - disconnect: O(1)
         - send_message: O(1)
         - broadcast: O(n) where n is number of connections
-    
+
     Space Complexity: O(n) where n is number of active connections
-    
+
     Features:
         - Connection tracking per user
         - Heartbeat monitoring
@@ -89,23 +89,23 @@ class ConnectionManager:
         - Message broadcasting
         - Connection state recovery
     """
-    
+
     def __init__(self, heartbeat_interval: float = 30.0) -> None:
         """Initialize connection manager.
-        
+
         Args:
             heartbeat_interval: Heartbeat interval in seconds
         """
-        self.active_connections: Dict[str, Set[WebSocket]] = {}  # user_id -> {websockets}
-        self.connection_metadata: Dict[WebSocket, Dict] = {}  # websocket -> metadata
+        self.active_connections: dict[str, set[WebSocket]] = {}  # user_id -> {websockets}
+        self.connection_metadata: dict[WebSocket, dict] = {}  # websocket -> metadata
         self.heartbeat_interval = heartbeat_interval
         self._heartbeat_task: Optional[asyncio.Task] = None
-        
+
         logger.info(
             "connection_manager_initialized",
             heartbeat_interval=heartbeat_interval,
         )
-    
+
     async def connect(
         self,
         websocket: WebSocket,
@@ -113,21 +113,21 @@ class ConnectionManager:
         conversation_id: Optional[str] = None,
     ) -> None:
         """Accept and register a new WebSocket connection.
-        
+
         Time Complexity: O(1)
-        
+
         Args:
             websocket: WebSocket connection
             user_id: User identifier
             conversation_id: Optional conversation ID
         """
         await websocket.accept()
-        
+
         # Register connection
         if user_id not in self.active_connections:
             self.active_connections[user_id] = set()
         self.active_connections[user_id].add(websocket)
-        
+
         # Store metadata
         self.connection_metadata[websocket] = {
             "user_id": user_id,
@@ -135,7 +135,7 @@ class ConnectionManager:
             "connected_at": time.time(),
             "last_heartbeat": time.time(),
         }
-        
+
         # Send connected message
         await self.send_message(
             websocket,
@@ -147,55 +147,55 @@ class ConnectionManager:
                 },
             ),
         )
-        
+
         # Start heartbeat task if not running
         if self._heartbeat_task is None or self._heartbeat_task.done():
             self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
-        
+
         logger.info(
             "websocket_connected",
             user_id=user_id,
             conversation_id=conversation_id,
             total_connections=sum(len(conns) for conns in self.active_connections.values()),
         )
-    
+
     async def disconnect(self, websocket: WebSocket) -> None:
         """Disconnect and unregister a WebSocket connection.
-        
+
         Time Complexity: O(1)
-        
+
         Args:
             websocket: WebSocket connection
         """
         # Get metadata
         metadata = self.connection_metadata.get(websocket, {})
         user_id = metadata.get("user_id")
-        
+
         # Remove from active connections
         if user_id and user_id in self.active_connections:
             self.active_connections[user_id].discard(websocket)
             if not self.active_connections[user_id]:
                 del self.active_connections[user_id]
-        
+
         # Remove metadata
         if websocket in self.connection_metadata:
             del self.connection_metadata[websocket]
-        
+
         logger.info(
             "websocket_disconnected",
             user_id=user_id,
             total_connections=sum(len(conns) for conns in self.active_connections.values()),
         )
-    
+
     async def send_message(
         self,
         websocket: WebSocket,
         message: WebSocketMessage,
     ) -> None:
         """Send message to a specific WebSocket connection.
-        
+
         Time Complexity: O(1)
-        
+
         Args:
             websocket: WebSocket connection
             message: Message to send
@@ -209,23 +209,23 @@ class ConnectionManager:
                 exc_info=True,
             )
             await self.disconnect(websocket)
-    
+
     async def send_to_user(
         self,
         user_id: str,
         message: WebSocketMessage,
     ) -> None:
         """Send message to all connections for a user.
-        
+
         Time Complexity: O(k) where k is number of user's connections
-        
+
         Args:
             user_id: User identifier
             message: Message to send
         """
         if user_id not in self.active_connections:
             return
-        
+
         # Send to all user's connections
         disconnected = []
         for websocket in self.active_connections[user_id]:
@@ -238,21 +238,21 @@ class ConnectionManager:
                     error=str(e),
                 )
                 disconnected.append(websocket)
-        
+
         # Clean up disconnected connections
         for websocket in disconnected:
             await self.disconnect(websocket)
-    
+
     async def broadcast(self, message: WebSocketMessage) -> None:
         """Broadcast message to all connections.
-        
+
         Time Complexity: O(n) where n is total connections
-        
+
         Args:
             message: Message to broadcast
         """
         disconnected = []
-        
+
         for user_id, connections in self.active_connections.items():
             for websocket in connections:
                 try:
@@ -264,11 +264,11 @@ class ConnectionManager:
                         error=str(e),
                     )
                     disconnected.append(websocket)
-        
+
         # Clean up disconnected connections
         for websocket in disconnected:
             await self.disconnect(websocket)
-    
+
     async def send_progress(
         self,
         user_id: str,
@@ -277,7 +277,7 @@ class ConnectionManager:
         message: str = "",
     ) -> None:
         """Send progress update to user.
-        
+
         Args:
             user_id: User identifier
             request_id: Request ID
@@ -295,15 +295,15 @@ class ConnectionManager:
                 request_id=request_id,
             ),
         )
-    
+
     async def send_response(
         self,
         user_id: str,
         request_id: str,
-        response: Dict,
+        response: dict,
     ) -> None:
         """Send response to user.
-        
+
         Args:
             user_id: User identifier
             request_id: Request ID
@@ -317,7 +317,7 @@ class ConnectionManager:
                 request_id=request_id,
             ),
         )
-    
+
     async def send_error(
         self,
         user_id: str,
@@ -325,7 +325,7 @@ class ConnectionManager:
         error: str,
     ) -> None:
         """Send error to user.
-        
+
         Args:
             user_id: User identifier
             request_id: Request ID
@@ -339,26 +339,26 @@ class ConnectionManager:
                 request_id=request_id,
             ),
         )
-    
+
     async def _heartbeat_loop(self) -> None:
         """Heartbeat loop to monitor connections.
-        
+
         Sends ping messages and removes stale connections.
         """
         while True:
             try:
                 await asyncio.sleep(self.heartbeat_interval)
-                
+
                 # Send ping to all connections
                 now = time.time()
                 stale_connections = []
-                
+
                 for websocket, metadata in self.connection_metadata.items():
                     # Check if connection is stale (no heartbeat for 2x interval)
                     if now - metadata["last_heartbeat"] > self.heartbeat_interval * 2:
                         stale_connections.append(websocket)
                         continue
-                    
+
                     # Send ping
                     try:
                         await websocket.send_json({
@@ -371,7 +371,7 @@ class ConnectionManager:
                             error=str(e),
                         )
                         stale_connections.append(websocket)
-                
+
                 # Clean up stale connections
                 for websocket in stale_connections:
                     logger.warning(
@@ -379,20 +379,20 @@ class ConnectionManager:
                         user_id=self.connection_metadata.get(websocket, {}).get("user_id"),
                     )
                     await self.disconnect(websocket)
-                
+
             except Exception as e:
                 logger.error(
                     "heartbeat_loop_error",
                     error=str(e),
                     exc_info=True,
                 )
-    
+
     def get_connection_count(self, user_id: Optional[str] = None) -> int:
         """Get connection count.
-        
+
         Args:
             user_id: Optional user ID to filter by
-        
+
         Returns:
             Number of active connections
         """
@@ -407,7 +407,7 @@ _connection_manager: Optional[ConnectionManager] = None
 
 def get_connection_manager() -> ConnectionManager:
     """Get global connection manager instance.
-    
+
     Returns:
         Connection manager
     """
@@ -423,28 +423,28 @@ async def websocket_endpoint(
     conversation_id: Optional[str] = None,
 ) -> None:
     """WebSocket endpoint handler.
-    
+
     This function handles WebSocket connections for real-time updates.
     It supports:
     - Streaming responses
     - Progress updates
     - Heartbeat monitoring
     - State recovery
-    
+
     Args:
         websocket: WebSocket connection
         user_id: User identifier
         conversation_id: Optional conversation ID
-    
+
     Example:
         ```javascript
         const ws = new WebSocket('ws://localhost:8000/v1/ws?user_id=user_123');
-        
+
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
             console.log('Received:', message);
         };
-        
+
         ws.send(JSON.stringify({
             type: 'request',
             data: {
@@ -455,29 +455,29 @@ async def websocket_endpoint(
         ```
     """
     manager = get_connection_manager()
-    
+
     try:
         # Connect
         await manager.connect(websocket, user_id, conversation_id)
-        
+
         # Message loop
         while True:
             try:
                 # Receive message
                 data = await websocket.receive_text()
                 message_dict = json.loads(data)
-                
+
                 # Update heartbeat
                 if websocket in manager.connection_metadata:
                     manager.connection_metadata[websocket]["last_heartbeat"] = time.time()
-                
+
                 # Handle message types
                 message_type = message_dict.get("type")
-                
+
                 if message_type == "pong":
                     # Heartbeat response - already updated above
                     continue
-                
+
                 elif message_type == "request":
                     # Process request (handled by application logic)
                     logger.info(
@@ -486,21 +486,21 @@ async def websocket_endpoint(
                         request_id=message_dict.get("request_id"),
                     )
                     # Application should handle this via the reasoning engine
-                
+
                 else:
                     logger.warning(
                         "unknown_message_type",
                         user_id=user_id,
                         message_type=message_type,
                     )
-                
+
             except WebSocketDisconnect:
                 logger.info(
                     "websocket_disconnect_received",
                     user_id=user_id,
                 )
                 break
-            
+
             except json.JSONDecodeError as e:
                 logger.error(
                     "invalid_json_received",
@@ -512,7 +512,7 @@ async def websocket_endpoint(
                     message_dict.get("request_id", "unknown"),
                     "Invalid JSON format",
                 )
-            
+
             except Exception as e:
                 logger.error(
                     "websocket_message_error",
@@ -525,7 +525,7 @@ async def websocket_endpoint(
                     message_dict.get("request_id", "unknown"),
                     f"Error processing message: {str(e)}",
                 )
-    
+
     except Exception as e:
         logger.error(
             "websocket_connection_error",
@@ -533,7 +533,7 @@ async def websocket_endpoint(
             error=str(e),
             exc_info=True,
         )
-    
+
     finally:
         # Disconnect
         await manager.disconnect(websocket)

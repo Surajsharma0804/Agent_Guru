@@ -14,7 +14,6 @@ Note: These tests require torch, torchvision, and onnxruntime to be installed.
 from __future__ import annotations
 
 import os
-import tempfile
 
 import numpy as np
 import pytest
@@ -27,7 +26,6 @@ ort = pytest.importorskip("onnxruntime")
 import torch.nn as nn
 import torchvision.models as models  # type: ignore[import]
 
-from Agent_Guru.vision.training.export import export_to_onnx, validate_onnx_equivalence
 
 _EMBEDDING_DIM = 16   # tiny dim for fast property tests
 _TOLERANCE = 1e-3

@@ -20,14 +20,15 @@ Date: 2026-02-28
 Version: 1.0.0
 """
 
-from typing import Dict, List, Tuple, TYPE_CHECKING
-from datetime import datetime
 import uuid
+from datetime import datetime
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 if TYPE_CHECKING:
+    from .agent_lifecycle import Agent, AgentLifecycleManager
     from .agent_storage import AgentStorage
-    from .agent_lifecycle import AgentLifecycleManager, Agent
 
 
 class AgentMerger:
@@ -82,9 +83,9 @@ class AgentMerger:
         self.lifecycle_manager = lifecycle_manager
         self.similarity_threshold = similarity_threshold
         # Cache similarity results for the same pair within a detection pass
-        self._similarity_cache: Dict[tuple, float] = {}
+        self._similarity_cache: dict[tuple, float] = {}
 
-    async def detect_merge_candidates(self) -> List[Tuple[str, str, float]]:
+    async def detect_merge_candidates(self) -> list[tuple[str, str, float]]:
         """
         Detect pairs of agents with overlapping specializations.
 
@@ -245,7 +246,7 @@ class AgentMerger:
 
         return merged_agent
 
-    def _calculate_similarity(self, spec1: Dict[str, float], spec2: Dict[str, float]) -> float:
+    def _calculate_similarity(self, spec1: dict[str, float], spec2: dict[str, float]) -> float:
         """
         Calculate cosine similarity between specialization vectors.
 

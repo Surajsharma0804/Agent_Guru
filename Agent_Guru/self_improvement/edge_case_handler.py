@@ -182,7 +182,7 @@ class EdgeCaseHandler:
         sample_size = successes + failures
 
         # Calculate raw success rate
-        raw_success_rate = successes / sample_size if sample_size > 0 else 0.0
+        successes / sample_size if sample_size > 0 else 0.0
 
         # Apply Bayesian smoothing to prevent overfitting to small samples
         smoothed_successes = successes + self.bayesian_prior_successes

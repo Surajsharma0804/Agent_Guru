@@ -11,8 +11,7 @@ Tests cover:
 """
 
 import pytest
-from unittest.mock import patch, MagicMock
-import platform as platform_module
+from unittest.mock import patch
 
 from Agent_Guru.platform.platform_detector import (
     PlatformDetector,

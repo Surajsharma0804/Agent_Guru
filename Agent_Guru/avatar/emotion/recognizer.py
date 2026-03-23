@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import deque
-from typing import Deque, Dict, List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -117,10 +117,10 @@ class EmotionRecognizer:
         self._map_to_27 = map_to_27
 
         # Temporal smoothing state
-        self._history: Deque[EmotionState] = deque(maxlen=smoothing_window)
-        self._ema_scores: Dict[str, float] = {e: 0.0 for e in EMOTION_CATEGORIES}
+        self._history: deque[EmotionState] = deque(maxlen=smoothing_window)
+        self._ema_scores: dict[str, float] = dict.fromkeys(EMOTION_CATEGORIES, 0.0)
         self._ema_alpha = 2.0 / (smoothing_window + 1)  # EMA decay factor
-        self._kalman: Dict[str, _KalmanFilter1D] = {
+        self._kalman: dict[str, _KalmanFilter1D] = {
             e: _KalmanFilter1D() for e in EMOTION_CATEGORIES
         }
 
@@ -211,7 +211,7 @@ class EmotionRecognizer:
             raise ValueError(f"Threshold {threshold} out of [0.0, 1.0]")
         self._confidence_threshold = threshold
 
-    def get_emotion_scores(self, frame: np.ndarray) -> Dict[str, float]:
+    def get_emotion_scores(self, frame: np.ndarray) -> dict[str, float]:
         """Return raw confidence scores for all emotion categories.
 
         Args:
@@ -221,7 +221,7 @@ class EmotionRecognizer:
             Dict mapping emotion name → confidence score [0.0, 1.0].
         """
         if not self._deepface_available:
-            return {e: 0.0 for e in EMOTION_CATEGORIES}
+            return dict.fromkeys(EMOTION_CATEGORIES, 0.0)
         try:
             from deepface import DeepFace  # type: ignore[import]
             results = DeepFace.analyze(
@@ -229,12 +229,12 @@ class EmotionRecognizer:
             )
             if isinstance(results, list):
                 results = self._select_primary_face(results)
-            raw_scores: Dict[str, float] = results.get("emotion", {})
+            raw_scores: dict[str, float] = results.get("emotion", {})
             # Normalize to [0,1]
             return {k.lower(): v / 100.0 for k, v in raw_scores.items()}
         except Exception as exc:
             logger.debug("get_emotion_scores failed: %s", exc)
-            return {e: 0.0 for e in EMOTION_CATEGORIES}
+            return dict.fromkeys(EMOTION_CATEGORIES, 0.0)
 
     # ------------------------------------------------------------------
     # Backend implementations
@@ -257,7 +257,7 @@ class EmotionRecognizer:
                 results = self._select_primary_face(results)
 
             dominant: str = results.get("dominant_emotion", "neutral").lower()
-            scores: Dict[str, float] = {
+            scores: dict[str, float] = {
                 k.lower(): v / 100.0
                 for k, v in results.get("emotion", {}).items()
             }
@@ -284,7 +284,7 @@ class EmotionRecognizer:
 
             # Select primary face (largest bounding box)
             primary = max(result, key=lambda r: r["box"][2] * r["box"][3])
-            emotions: Dict[str, float] = primary.get("emotions", {})
+            emotions: dict[str, float] = primary.get("emotions", {})
             if not emotions:
                 return None
 
@@ -327,7 +327,7 @@ class EmotionRecognizer:
         self,
         dominant: str,
         confidence: float,
-        all_scores: Dict[str, float],
+        all_scores: dict[str, float],
     ) -> EmotionState:
         """Build an EmotionState from detection results.
 
@@ -360,8 +360,8 @@ class EmotionRecognizer:
         )
 
     def _estimate_va_from_scores(
-        self, scores: Dict[str, float]
-    ) -> Tuple[float, float]:
+        self, scores: dict[str, float]
+    ) -> tuple[float, float]:
         """Estimate valence/arousal from a weighted sum of emotion scores."""
         total_weight = sum(scores.values()) + 1e-9
         valence = 0.0
@@ -418,7 +418,7 @@ class EmotionRecognizer:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _select_primary_face(results: List[dict]) -> dict:
+    def _select_primary_face(results: list[dict]) -> dict:
         """Select the primary face (largest bounding box area)."""
         return max(
             results,

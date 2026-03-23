@@ -99,7 +99,7 @@ def convert_to_onnx(
             print("Optimizing ONNX model...")
 
             # Load ONNX model
-            onnx_model = onnx.load(output_path)
+            onnx.load(output_path)
 
             # Optimize (DeBERTa-v3 uses similar architecture to BERT)
             optimized_model = optimizer.optimize_model(

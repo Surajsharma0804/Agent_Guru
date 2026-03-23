@@ -12,7 +12,7 @@ It integrates:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from Agent_Guru.security.audit.logger import AuditLogger, EventType, LogQuery
 from Agent_Guru.security.crypto.errors import (
@@ -136,7 +136,7 @@ class GuruSecuritySystem:
         self._ensure_initialized()
         return self._identity_manager.get_identity(profile_id)  # type: ignore[union-attr]
 
-    def list_identities(self) -> List[IdentityProfile]:
+    def list_identities(self) -> list[IdentityProfile]:
         """List all identity profiles."""
         self._ensure_initialized()
         return self._identity_manager.list_identities()  # type: ignore[union-attr]
@@ -189,7 +189,7 @@ class GuruSecuritySystem:
         actor_id: Optional[str],
         target_id: Optional[str],
         outcome: str,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
     ) -> None:
         """Log a security event to the audit log."""
         self._ensure_initialized()
@@ -237,7 +237,7 @@ class GuruSecuritySystem:
 
     def get_trust_relationships(
         self, profile_id: str, transitive: bool = False
-    ) -> List[TrustRelationship]:
+    ) -> list[TrustRelationship]:
         """Get trust relationships for an identity."""
         self._ensure_initialized()
         return self._trust_manager.get_relationships(profile_id, transitive)  # type: ignore[union-attr]

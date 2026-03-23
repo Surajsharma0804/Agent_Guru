@@ -311,7 +311,7 @@ class LocalLLMServer:
                 raise RuntimeError(f"Generation failed: {response.status_code} - {response.text}")
 
         except requests.RequestException as e:
-            raise RuntimeError(f"Generation error: {str(e)}")
+            raise RuntimeError(f"Generation error: {str(e)}") from e
 
     async def stop(self) -> None:
         """Stop llama.cpp server process.

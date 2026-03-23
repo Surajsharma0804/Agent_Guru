@@ -21,14 +21,15 @@ Date: 2026-03-13
 Version: 1.0.0
 """
 
-from typing import Dict, List, Tuple, TYPE_CHECKING
-from datetime import datetime
 import uuid
+from datetime import datetime
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 if TYPE_CHECKING:
+    from .agent_lifecycle import Agent, AgentLifecycleManager, PerformanceRecord
     from .agent_storage import AgentStorage
-    from .agent_lifecycle import AgentLifecycleManager, Agent, PerformanceRecord
 
 
 class AgentSplitter:
@@ -82,7 +83,7 @@ class AgentSplitter:
                 f"divergence_threshold must be in range [0.0, 1.0], "
                 f"got {divergence_threshold}"
             )
-        
+
         if min_task_count < 1:
             raise ValueError(f"min_task_count must be >= 1, got {min_task_count}")
 
@@ -91,7 +92,7 @@ class AgentSplitter:
         self.divergence_threshold = divergence_threshold
         self.min_task_count = min_task_count
 
-    async def detect_split_candidates(self) -> List[Tuple[str, float]]:
+    async def detect_split_candidates(self) -> list[tuple[str, float]]:
         """
         Detect agents with divergent specializations.
 
@@ -133,7 +134,7 @@ class AgentSplitter:
 
         return candidates
 
-    async def split_agent(self, agent_id: str) -> List["Agent"]:
+    async def split_agent(self, agent_id: str) -> list["Agent"]:
         """
         Split agent into multiple focused agents.
 
@@ -164,7 +165,7 @@ class AgentSplitter:
         Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5
         """
         agent = await self.storage.get_agent(agent_id)
-        
+
         if not agent:
             raise ValueError(f"Agent not found: {agent_id}")
 
@@ -255,7 +256,7 @@ class AgentSplitter:
 
         return new_agents
 
-    def _calculate_divergence(self, specializations: Dict[str, float]) -> float:
+    def _calculate_divergence(self, specializations: dict[str, float]) -> float:
         """
         Calculate divergence score for specializations.
 
@@ -294,12 +295,12 @@ class AgentSplitter:
         # Calculate pairwise dissimilarity based on task type names
         # In production, would use semantic similarity or co-occurrence data
         dissimilarities = []
-        
+
         for i in range(n):
             for j in range(i + 1, n):
                 type1 = task_types[i]
                 type2 = task_types[j]
-                
+
                 # Simple heuristic: dissimilarity based on string distance
                 # In production: use semantic embeddings or co-occurrence stats
                 dissimilarity = self._task_type_dissimilarity(type1, type2)
@@ -310,7 +311,7 @@ class AgentSplitter:
 
         # Average dissimilarity is the divergence score
         divergence = float(np.mean(dissimilarities))
-        
+
         return np.clip(divergence, 0.0, 1.0)
 
     # Domain synonym groups: terms in the same group are semantically similar
@@ -376,8 +377,8 @@ class AgentSplitter:
         return 1.0 - similarity
 
     def _partition_specializations(
-        self, specializations: Dict[str, float]
-    ) -> Dict[Tuple[str, ...], Dict[str, float]]:
+        self, specializations: dict[str, float]
+    ) -> dict[tuple[str, ...], dict[str, float]]:
         """
         Partition specializations into clusters.
 
@@ -412,7 +413,7 @@ class AgentSplitter:
                     similarity_matrix[i][j] = 1.0 - dissim
 
         # Simple clustering: group by similarity threshold
-        clusters: Dict[int, List[int]] = {}
+        clusters: dict[int, list[int]] = {}
         assigned = set()
         cluster_id = 0
 
@@ -428,10 +429,10 @@ class AgentSplitter:
             for j in range(i + 1, n):
                 if j in assigned:
                     continue
-                
+
                 # Check similarity with cluster members
                 avg_similarity = np.mean([similarity_matrix[i][j] for i in clusters[cluster_id]])
-                
+
                 if avg_similarity > 0.5:  # Similarity threshold
                     clusters[cluster_id].append(j)
                     assigned.add(j)
@@ -452,9 +453,9 @@ class AgentSplitter:
 
     def _partition_history(
         self,
-        history: List["PerformanceRecord"],
-        clusters: Dict[Tuple[str, ...], Dict[str, float]],
-    ) -> Dict[Tuple[str, ...], List["PerformanceRecord"]]:
+        history: list["PerformanceRecord"],
+        clusters: dict[tuple[str, ...], dict[str, float]],
+    ) -> dict[tuple[str, ...], list["PerformanceRecord"]]:
         """
         Partition performance history by task type clusters.
 
@@ -477,7 +478,7 @@ class AgentSplitter:
 
         Validates: Requirement 4.2
         """
-        partitions: Dict[Tuple[str, ...], List["PerformanceRecord"]] = {
+        partitions: dict[tuple[str, ...], list["PerformanceRecord"]] = {
             cluster_types: [] for cluster_types in clusters.keys()
         }
 

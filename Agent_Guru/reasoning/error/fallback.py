@@ -10,9 +10,9 @@ Provides intelligent fallback mechanisms for different error types:
 import logging
 import time
 from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Optional
 
 from Agent_Guru.reasoning.error.error_manager import ErrorType, StructuredError
 
@@ -61,7 +61,7 @@ class FallbackHandler(ABC):
     async def handle(
         self,
         error: StructuredError,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> FallbackResult:
         """Handle error with fallback strategy.
 
@@ -72,7 +72,6 @@ class FallbackHandler(ABC):
         Returns:
             Fallback result
         """
-        pass
 
 
 class LLMFallbackHandler(FallbackHandler):
@@ -81,7 +80,7 @@ class LLMFallbackHandler(FallbackHandler):
     async def handle(
         self,
         error: StructuredError,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> FallbackResult:
         """Handle LLM errors with fallback chain.
 
@@ -146,7 +145,7 @@ class LLMFallbackHandler(FallbackHandler):
                 fallback_count=3,
             )
 
-    async def _try_local_llm(self, context: Dict[str, Any]) -> Any:
+    async def _try_local_llm(self, context: dict[str, Any]) -> Any:
         """Try local LLM.
 
         Args:
@@ -168,7 +167,7 @@ class LLMFallbackHandler(FallbackHandler):
         # For now, raise to continue fallback chain
         raise NotImplementedError("Local LLM execution not implemented")
 
-    async def _try_rule_based(self, context: Dict[str, Any]) -> Any:
+    async def _try_rule_based(self, context: dict[str, Any]) -> Any:
         """Try rule-based processing.
 
         Args:
@@ -192,7 +191,7 @@ class LLMFallbackHandler(FallbackHandler):
             "message": "Using rule-based fallback",
         }
 
-    async def _try_cache(self, context: Dict[str, Any]) -> Any:
+    async def _try_cache(self, context: dict[str, Any]) -> Any:
         """Try cached response.
 
         Args:
@@ -218,7 +217,7 @@ class ToolFallbackHandler(FallbackHandler):
     async def handle(
         self,
         error: StructuredError,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> FallbackResult:
         """Handle tool errors with fallback chain.
 
@@ -269,7 +268,7 @@ class ToolFallbackHandler(FallbackHandler):
             fallback_count=3,
         )
 
-    async def _try_alternative_tool(self, context: Dict[str, Any]) -> Any:
+    async def _try_alternative_tool(self, context: dict[str, Any]) -> Any:
         """Try alternative tool.
 
         Args:
@@ -294,7 +293,7 @@ class ToolFallbackHandler(FallbackHandler):
             "used_tool": alternative_tools[0],
         }
 
-    async def _try_simplified_request(self, context: Dict[str, Any]) -> Any:
+    async def _try_simplified_request(self, context: dict[str, Any]) -> Any:
         """Try simplified request.
 
         Args:
@@ -318,7 +317,7 @@ class TimeoutFallbackHandler(FallbackHandler):
     async def handle(
         self,
         error: StructuredError,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> FallbackResult:
         """Handle timeout errors with fallback chain.
 
@@ -368,7 +367,7 @@ class TimeoutFallbackHandler(FallbackHandler):
             fallback_count=3,
         )
 
-    async def _execute_async(self, context: Dict[str, Any]) -> Any:
+    async def _execute_async(self, context: dict[str, Any]) -> Any:
         """Execute asynchronously.
 
         Args:
@@ -392,8 +391,8 @@ class FallbackRegistry:
 
     def __init__(self):
         """Initialize fallback registry."""
-        self._handlers: Dict[ErrorType, List[FallbackHandler]] = {}
-        self._fallback_metrics: Dict[FallbackStrategy, int] = {}
+        self._handlers: dict[ErrorType, list[FallbackHandler]] = {}
+        self._fallback_metrics: dict[FallbackStrategy, int] = {}
 
         # Register default handlers
         self._register_default_handlers()
@@ -435,7 +434,7 @@ class FallbackRegistry:
     async def handle_error(
         self,
         error: StructuredError,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> FallbackResult:
         """Handle error with registered fallback handlers.
 
@@ -482,7 +481,7 @@ class FallbackRegistry:
             error="All fallback strategies failed",
         )
 
-    def get_metrics(self) -> Dict[str, int]:
+    def get_metrics(self) -> dict[str, int]:
         """Get fallback usage metrics.
 
         Returns:

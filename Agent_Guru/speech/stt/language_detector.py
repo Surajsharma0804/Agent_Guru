@@ -12,9 +12,9 @@ This module provides automatic language detection from audio/text including:
 """
 
 import re
-from typing import Optional, List, Dict, Tuple, Union
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional, Union
 
 
 class Language(Enum):
@@ -35,7 +35,7 @@ class Language(Enum):
     FINNISH = "fi"
     GREEK = "el"
     TURKISH = "tr"
-    
+
     # Asian Languages
     CHINESE = "zh"
     JAPANESE = "ja"
@@ -55,16 +55,16 @@ class Language(Enum):
     VIETNAMESE = "vi"
     INDONESIAN = "id"
     MALAY = "ms"
-    
+
     # Middle Eastern Languages
     ARABIC = "ar"
     HEBREW = "he"
     PERSIAN = "fa"
-    
+
     # Other Languages
     SWAHILI = "sw"
     AFRIKAANS = "af"
-    
+
     UNKNOWN = "unknown"
 
 
@@ -73,8 +73,8 @@ class LanguageDetectionResult:
     """Language detection result."""
     language: Language
     confidence: float  # 0.0 to 1.0
-    alternative_languages: Optional[List[Tuple[Language, float]]] = None  # (language, confidence)
-    
+    alternative_languages: Optional[list[tuple[Language, float]]] = None  # (language, confidence)
+
     def __post_init__(self):
         if self.alternative_languages is None:
             self.alternative_languages = []
@@ -83,25 +83,25 @@ class LanguageDetectionResult:
 class LanguageDetector:
     """
     Detect language from text or audio.
-    
+
     Features:
     - Automatic language detection
     - Support for 8+ languages
     - Code-switching detection
     - Confidence scoring
     - Character-based and word-based detection
-    
+
     Uses heuristics based on:
     - Character sets (Unicode ranges)
     - Common words and patterns
     - N-gram analysis
     """
-    
+
     def __init__(self):
         """Initialize language detector."""
         # Character ranges for different scripts
         # Type: Dict[Language, Union[Tuple[int, int], List[Tuple[int, int]]]]
-        self._char_ranges: Dict[Language, Union[Tuple[int, int], List[Tuple[int, int]]]] = {
+        self._char_ranges: dict[Language, Union[tuple[int, int], list[tuple[int, int]]]] = {
             Language.CHINESE: (0x4E00, 0x9FFF),  # CJK Unified Ideographs
             Language.JAPANESE: [(0x3040, 0x309F), (0x30A0, 0x30FF)],  # Hiragana, Katakana
             Language.KOREAN: (0xAC00, 0xD7AF),  # Hangul Syllables
@@ -121,7 +121,7 @@ class LanguageDetector:
             Language.GREEK: (0x0370, 0x03FF),  # Greek
             Language.RUSSIAN: (0x0400, 0x04FF),  # Cyrillic
         }
-        
+
         # Common words for language detection
         self._common_words = {
             Language.ENGLISH: [
@@ -202,7 +202,7 @@ class LanguageDetector:
                 'habari', 'jambo', 'ujumbe', 'kiswahili'
             ],
         }
-        
+
         # Language-specific patterns
         self._patterns = {
             Language.SPANISH: [
@@ -234,7 +234,7 @@ class LanguageDetector:
                 r'ă|â|đ|ê|ô|ơ|ư',  # Vietnamese special characters
             ],
         }
-    
+
     def detect_language(
         self,
         text: str,
@@ -242,11 +242,11 @@ class LanguageDetector:
     ) -> LanguageDetectionResult:
         """
         Detect language from text.
-        
+
         Args:
             text: Input text
             min_confidence: Minimum confidence threshold (0.0-1.0)
-            
+
         Returns:
             LanguageDetectionResult with detected language and confidence
         """
@@ -255,13 +255,13 @@ class LanguageDetector:
                 language=Language.UNKNOWN,
                 confidence=0.0
             )
-        
+
         text_original = text.strip()
         text = text_original.lower()
-        
+
         # Score each language
-        scores: Dict[Language, float] = {}
-        
+        scores: dict[Language, float] = {}
+
         # Check character-based languages first (Chinese, Japanese, Hindi, Punjabi, etc.)
         char_lang, char_conf = self._detect_by_characters(text_original)
         if char_lang != Language.UNKNOWN and char_conf > 0.3:
@@ -270,55 +270,55 @@ class LanguageDetector:
                 arabic_urdu_lang = self._disambiguate_arabic_script(text_original)
                 if arabic_urdu_lang != Language.UNKNOWN:
                     char_lang = arabic_urdu_lang
-            
+
             # High confidence character-based detection (>50% of characters)
             if char_conf > 0.5:
                 return LanguageDetectionResult(
                     language=char_lang,
                     confidence=char_conf
                 )
-            
+
             # Medium confidence - add to scores but continue checking
             scores[char_lang] = char_conf * 1.2  # Boost character-based detection
-        
+
         # Check word-based languages (English, Spanish, French, German, etc.)
         word_scores = self._detect_by_words(text)
-        
+
         # Check pattern-based detection (special characters)
         pattern_scores = self._detect_by_patterns(text_original)
-        
+
         # Combine scores with proper weighting
         # Word matches are strongest signal for Latin-script languages
         for lang, score in word_scores.items():
             scores[lang] = scores.get(lang, 0.0) + score * 1.0  # Full weight for word matches
-        
+
         # Pattern matches add bonus but don't dominate
         for lang, score in pattern_scores.items():
             scores[lang] = scores.get(lang, 0.0) + score * 0.4
-        
+
         # Find best match
         if not scores:
             return LanguageDetectionResult(
                 language=Language.UNKNOWN,
                 confidence=0.0
             )
-        
+
         # Sort by score
         sorted_langs = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        
+
         best_lang, best_score = sorted_langs[0]
-        
+
         # Normalize confidence to [0, 1]
         max_possible_score = 1.0
         confidence = min(1.0, best_score / max_possible_score)
-        
+
         # Get alternatives
         alternatives = [
             (lang, min(1.0, score / max_possible_score))
             for lang, score in sorted_langs[1:4]  # Top 3 alternatives
             if score > 0.1
         ]
-        
+
         # Check minimum confidence
         if confidence < min_confidence:
             return LanguageDetectionResult(
@@ -326,169 +326,169 @@ class LanguageDetector:
                 confidence=confidence,
                 alternative_languages=alternatives
             )
-        
+
         return LanguageDetectionResult(
             language=best_lang,
             confidence=confidence,
             alternative_languages=alternatives
         )
-    
+
     def detect_code_switching(
         self,
         text: str
-    ) -> List[Tuple[str, Language]]:
+    ) -> list[tuple[str, Language]]:
         """
         Detect code-switching (mixed languages) in text.
-        
+
         Args:
             text: Input text
-            
+
         Returns:
             List of (text_segment, language) tuples
         """
         if not text or not text.strip():
             return []
-        
+
         # Split into sentences
         sentences = re.split(r'[.!?]+', text)
-        
+
         segments = []
         for sentence in sentences:
             sentence = sentence.strip()
             if not sentence:
                 continue
-            
+
             # Detect language for each sentence
             result = self.detect_language(sentence)
             segments.append((sentence, result.language))
-        
+
         return segments
-    
-    def _detect_by_characters(self, text: str) -> Tuple[Language, float]:
+
+    def _detect_by_characters(self, text: str) -> tuple[Language, float]:
         """
         Detect language by character ranges.
-        
+
         Args:
             text: Input text
-            
+
         Returns:
             Tuple of (language, confidence)
         """
-        char_counts: Dict[Language, int] = {lang: 0 for lang in self._char_ranges.keys()}
+        char_counts: dict[Language, int] = dict.fromkeys(self._char_ranges.keys(), 0)
         total_chars = 0
-        
+
         for char in text:
             code_point = ord(char)
             total_chars += 1
-            
+
             for lang, ranges in self._char_ranges.items():
                 # Normalize ranges to list of tuples
-                ranges_list: List[Tuple[int, int]]
+                ranges_list: list[tuple[int, int]]
                 if isinstance(ranges, tuple):
                     ranges_list = [ranges]
                 else:
                     ranges_list = ranges
-                
+
                 for start, end in ranges_list:
                     if start <= code_point <= end:
                         char_counts[lang] += 1
                         break
-        
+
         if total_chars == 0:
             return Language.UNKNOWN, 0.0
-        
+
         # Find language with most matching characters
         best_lang = Language.UNKNOWN
         best_count = 0
-        
+
         for lang, count in char_counts.items():
             if count > best_count:
                 best_count = count
                 best_lang = lang
-        
+
         confidence = best_count / total_chars if total_chars > 0 else 0.0
-        
+
         return best_lang, confidence
-    
-    def _detect_by_words(self, text: str) -> Dict[Language, float]:
+
+    def _detect_by_words(self, text: str) -> dict[Language, float]:
         """
         Detect language by common words.
-        
+
         Args:
             text: Input text (lowercase)
-            
+
         Returns:
             Dictionary of language scores
         """
         words = text.split()
         if not words:
             return {}
-        
-        scores: Dict[Language, float] = {}
-        
+
+        scores: dict[Language, float] = {}
+
         for lang, common_words in self._common_words.items():
             matches = sum(1 for word in words if word in common_words)
             score = matches / len(words) if words else 0.0
             if score > 0:
                 scores[lang] = score
-        
+
         return scores
-    
-    def _detect_by_patterns(self, text: str) -> Dict[Language, float]:
+
+    def _detect_by_patterns(self, text: str) -> dict[Language, float]:
         """
         Detect language by regex patterns.
-        
+
         Args:
             text: Input text
-            
+
         Returns:
             Dictionary of language scores
         """
-        scores: Dict[Language, float] = {}
-        
+        scores: dict[Language, float] = {}
+
         for lang, patterns in self._patterns.items():
             matches = 0
             for pattern in patterns:
                 if re.search(pattern, text, re.IGNORECASE):
                     matches += 1
-            
+
             if matches > 0:
                 scores[lang] = matches / len(patterns)
-        
+
         return scores
-    
+
     def _disambiguate_arabic_script(self, text: str) -> Language:
         """
         Disambiguate between Arabic, Urdu, and Persian (all use Arabic script).
-        
+
         Args:
             text: Input text
-            
+
         Returns:
             Detected language (ARABIC, URDU, or UNKNOWN)
         """
         text_lower = text.lower()
-        
+
         # Urdu-specific characters (not in Arabic)
         urdu_chars = ['ٹ', 'ڈ', 'ڑ', 'ں', 'ے', 'ہ']
         urdu_count = sum(1 for char in urdu_chars if char in text)
-        
+
         # Persian-specific characters (not in Arabic)
         persian_chars = ['پ', 'چ', 'ژ', 'گ']
         persian_count = sum(1 for char in persian_chars if char in text)
-        
+
         # Arabic-specific words
         arabic_words = ['مرحبا', 'كيف', 'حالك', 'هذه', 'رسالة', 'باللغة', 'العربية']
         arabic_word_count = sum(1 for word in arabic_words if word in text_lower)
-        
+
         # Urdu-specific words
         urdu_words = ['سلام', 'کیسے', 'ہیں', 'آپ', 'یہ', 'پیغام', 'اردو']
         urdu_word_count = sum(1 for word in urdu_words if word in text_lower)
-        
+
         # Persian-specific words
         persian_words = ['سلام', 'چطور', 'هستید', 'این', 'پیام', 'فارسی']
         persian_word_count = sum(1 for word in persian_words if word in text_lower)
-        
+
         # Decide based on evidence
         if urdu_count > 0 or urdu_word_count > arabic_word_count:
             return Language.URDU
@@ -496,14 +496,14 @@ class LanguageDetector:
             return Language.PERSIAN
         elif arabic_word_count > 0:
             return Language.ARABIC
-        
+
         # Default to Arabic if no clear evidence
         return Language.ARABIC
-    
-    def get_supported_languages(self) -> List[Language]:
+
+    def get_supported_languages(self) -> list[Language]:
         """
         Get list of supported languages.
-        
+
         Returns:
             List of supported Language enums (40+ languages for international scale)
         """

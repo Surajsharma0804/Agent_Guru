@@ -16,11 +16,12 @@ import pickle
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import structlog
 
 from Agent_Guru.security.path_utils import safe_path
+
 from .exceptions import InsufficientSpaceError, RestoreError, SnapshotNotFoundError
 from .models import (
     AuditLogEntry,
@@ -50,7 +51,7 @@ class RollbackManager:
         self._config = config
         self._snapshot_dir = config.cache_dir / "snapshots"
         self._snapshot_dir.mkdir(parents=True, exist_ok=True)
-        self._audit_entries: List[AuditLogEntry] = []
+        self._audit_entries: list[AuditLogEntry] = []
 
     # ------------------------------------------------------------------
     # Public API
@@ -59,7 +60,7 @@ class RollbackManager:
     def create_snapshot(
         self,
         snapshot_id: str,
-        packages: List[PackageInfo],
+        packages: list[PackageInfo],
         target_env: Optional[Path] = None,
     ) -> Snapshot:
         """
@@ -131,7 +132,7 @@ class RollbackManager:
         self,
         snapshot_id: str,
         target_env: Optional[Path] = None,
-    ) -> List[PackageInfo]:
+    ) -> list[PackageInfo]:
         """
         Restore system to a previous snapshot.
 
@@ -151,7 +152,7 @@ class RollbackManager:
 
         try:
             with open(safe_path(pkl_path, BASE_DIR), "rb") as fh:
-                packages: List[PackageInfo] = pickle.load(fh)  # nosec B301
+                packages: list[PackageInfo] = pickle.load(fh)  # nosec B301
         except Exception as exc:
             raise RestoreError(f"Failed to load snapshot '{html.escape(str(snapshot_id))}': {exc}") from exc
 
@@ -167,7 +168,7 @@ class RollbackManager:
             shutil.rmtree(snap_dir)
             logger.info("snapshot_deleted", snapshot_id=snapshot_id)
 
-    def list_snapshots(self) -> List[Snapshot]:
+    def list_snapshots(self) -> list[Snapshot]:
         """List all available snapshots sorted by timestamp (newest first)."""
         snapshots = []
         for snap_dir in self._snapshot_dir.iterdir():
@@ -219,7 +220,7 @@ class RollbackManager:
             return False
         return (snap_dir / "metadata.json").exists() and (snap_dir / "packages.pkl").exists()
 
-    def get_audit_entries(self) -> List[AuditLogEntry]:
+    def get_audit_entries(self) -> list[AuditLogEntry]:
         """Return in-memory audit entries."""
         return list(self._audit_entries)
 

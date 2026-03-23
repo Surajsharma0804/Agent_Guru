@@ -2,8 +2,6 @@
 Tests for example tools.
 """
 
-import pytest
-from typing import Any
 
 from Agent_Guru.reasoning.tools.examples.timer_tool import SetTimerTool, CancelTimerTool
 from Agent_Guru.reasoning.tools.examples.weather_tool import WeatherTool

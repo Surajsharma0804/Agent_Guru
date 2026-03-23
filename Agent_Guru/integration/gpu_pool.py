@@ -20,12 +20,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Dict
 
 logger = logging.getLogger(__name__)
 
 # Budget fractions — must sum to 1.0
-_BUDGETS: Dict[str, float] = {
+_BUDGETS: dict[str, float] = {
     "whisper": 0.30,
     "onnx": 0.30,
     "torch": 0.40,

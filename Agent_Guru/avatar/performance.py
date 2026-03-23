@@ -14,7 +14,7 @@ import logging
 import threading
 import time
 from collections import deque
-from typing import Deque, Dict, Optional
+from typing import Optional
 
 logger = logging.getLogger("guruvision.avatar.performance")
 
@@ -40,10 +40,10 @@ class PerformanceMonitor:
         self._max_memory = max_memory_mb
         self._sample_interval = sample_interval
 
-        self._cpu_history: Deque[float] = deque(maxlen=history_size)
-        self._memory_history: Deque[float] = deque(maxlen=history_size)
-        self._fps_history: Deque[float] = deque(maxlen=history_size)
-        self._latency_history: Deque[float] = deque(maxlen=history_size)
+        self._cpu_history: deque[float] = deque(maxlen=history_size)
+        self._memory_history: deque[float] = deque(maxlen=history_size)
+        self._fps_history: deque[float] = deque(maxlen=history_size)
+        self._latency_history: deque[float] = deque(maxlen=history_size)
 
         self._running = False
         self._stop_event = threading.Event()
@@ -97,7 +97,7 @@ class PerformanceMonitor:
     # Metrics retrieval
     # ------------------------------------------------------------------
 
-    def get_metrics(self) -> Dict[str, float]:
+    def get_metrics(self) -> dict[str, float]:
         """Return current performance metrics.
 
         Returns:
@@ -173,13 +173,13 @@ class PerformanceMonitor:
             return 0.0
 
     @staticmethod
-    def _avg(history: Deque[float]) -> float:
+    def _avg(history: deque[float]) -> float:
         if not history:
             return 0.0
         return float(sum(history) / len(history))
 
     @staticmethod
-    def _percentile(history: Deque[float], p: int) -> float:
+    def _percentile(history: deque[float], p: int) -> float:
         if not history:
             return 0.0
         import numpy as np

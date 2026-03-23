@@ -11,8 +11,9 @@ Version: 1.0.0
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Any, AsyncIterator, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from Agent_Guru.llm.models import (
     CompletionRequest,
@@ -86,7 +87,7 @@ class GoogleAdapter(ProviderAdapter):
         genai = self._get_genai()
         system_instruction, history = self._to_gemini_history(request.messages)
 
-        model_kwargs: Dict[str, Any] = {}
+        model_kwargs: dict[str, Any] = {}
         if system_instruction:
             model_kwargs["system_instruction"] = system_instruction
 
@@ -139,7 +140,7 @@ class GoogleAdapter(ProviderAdapter):
         genai = self._get_genai()
         system_instruction, history = self._to_gemini_history(request.messages)
 
-        model_kwargs: Dict[str, Any] = {}
+        model_kwargs: dict[str, Any] = {}
         if system_instruction:
             model_kwargs["system_instruction"] = system_instruction
 
@@ -170,15 +171,15 @@ class GoogleAdapter(ProviderAdapter):
         yield StreamChunk(content="", finish_reason="stop")
 
     async def embed(
-        self, text: Union[str, List[str]], model: str
-    ) -> List[List[float]]:
+        self, text: Union[str, list[str]], model: str
+    ) -> list[list[float]]:
         """Generate embeddings using Google's embedding models."""
         genai = self._get_genai()
 
         if isinstance(text, str):
             text = [text]
 
-        embeddings: List[List[float]] = []
+        embeddings: list[list[float]] = []
         for t in text:
             result = genai.embed_content(model=model, content=t)
             embeddings.append(result["embedding"])

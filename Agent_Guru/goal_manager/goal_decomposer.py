@@ -18,11 +18,11 @@ import asyncio
 import json
 import uuid
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import Any
 
-from Agent_Guru.goal_manager.models import Goal, GoalStatus
 from Agent_Guru.goal_manager.exceptions import DecompositionError
 from Agent_Guru.goal_manager.logging_config import get_logger
+from Agent_Guru.goal_manager.models import Goal, GoalStatus
 
 # Initialize structured logger
 logger = get_logger(__name__)
@@ -31,77 +31,77 @@ logger = get_logger(__name__)
 class GoalDecomposer:
     """
     Decomposes high-level goals into actionable sub-goals using LLM.
-    
+
     Uses LLM Runtime to analyze goals and generate sub-goals with:
     - Context from Memory System (similar past goals)
     - Structured prompts for consistent output
     - Retry logic with exponential backoff
     - Quality validation (3-7 sub-goals, meaningful descriptions)
-    
+
     Example:
         >>> decomposer = GoalDecomposer(llm_runtime, memory_system)
         >>> parent_goal = Goal(description="Build user authentication")
         >>> sub_goals = await decomposer.decompose(parent_goal)
         >>> print(f"Generated {len(sub_goals)} sub-goals")
     """
-    
+
     def __init__(self, llm_runtime: Any, memory_system: Any):
         """
         Initialize with LLM Runtime and Memory System.
-        
+
         Args:
             llm_runtime: LLM Runtime instance with generate() method
             memory_system: Memory System instance with query_similar() method
         """
         self.llm_runtime = llm_runtime
         self.memory_system = memory_system
-    
-    async def decompose(self, goal: Goal) -> List[Goal]:
+
+    async def decompose(self, goal: Goal) -> list[Goal]:
         """
         Decompose goal into sub-goals.
-        
+
         Process:
         1. Query Memory System for relevant context
         2. Build structured decomposition prompt
         3. Call LLM with retry logic (exponential backoff)
         4. Parse JSON response into Goal objects
         5. Validate sub-goals meet quality criteria
-        
+
         Args:
             goal: Goal to decompose
-            
+
         Returns:
             List of sub-goals (3-7 goals typically)
-            
+
         Raises:
             DecompositionError: If LLM fails after retries or returns invalid response
         """
         # Get relevant context from memory
         context = await self._get_context(goal)
-        
+
         # Build decomposition prompt
         prompt = self._build_prompt(goal, context)
-        
+
         # Call LLM with retry logic
         response = await self._call_llm_with_retry(prompt)
-        
+
         # Parse response into sub-goals
         sub_goals = self._parse_response(response, goal)
-        
+
         # Validate sub-goals
         self._validate_subgoals(sub_goals)
-        
+
         return sub_goals
-    
-    async def _get_context(self, goal: Goal) -> Dict[str, Any]:
+
+    async def _get_context(self, goal: Goal) -> dict[str, Any]:
         """
         Get relevant context from Memory System.
-        
+
         Queries for similar past goals to provide context for decomposition.
-        
+
         Args:
             goal: Goal to get context for
-            
+
         Returns:
             Dictionary with similar_goals and metadata
         """
@@ -112,7 +112,7 @@ class GoalDecomposer:
                 limit=5,
                 metadata_filter={"type": "goal"}
             )
-            
+
             return {
                 "similar_goals": [g.content for g in similar_goals],
                 "metadata": goal.metadata
@@ -123,21 +123,21 @@ class GoalDecomposer:
                 "similar_goals": [],
                 "metadata": goal.metadata
             }
-    
-    def _build_prompt(self, goal: Goal, context: Dict[str, Any]) -> str:
+
+    def _build_prompt(self, goal: Goal, context: dict[str, Any]) -> str:
         """
         Build decomposition prompt for LLM.
-        
+
         Creates a structured prompt that:
         - Explains the task clearly
         - Provides goal description and context
         - Specifies output format (JSON array)
         - Sets quality criteria (3-7 sub-goals, specific, actionable)
-        
+
         Args:
             goal: Goal to decompose
             context: Context from Memory System
-            
+
         Returns:
             Formatted prompt string
         """
@@ -164,9 +164,9 @@ Return your response as a JSON array of objects with this structure:
 ]
 
 Sub-goals:"""
-        
+
         return prompt
-    
+
     async def _call_llm_with_retry(
         self,
         prompt: str,
@@ -174,20 +174,20 @@ Sub-goals:"""
     ) -> str:
         """
         Call LLM with exponential backoff retry.
-        
+
         Retry strategy:
         - Attempt 1: Immediate
         - Attempt 2: Wait 1s (2^0)
         - Attempt 3: Wait 2s (2^1)
         - Attempt 4: Wait 4s (2^2)
-        
+
         Args:
             prompt: Prompt to send to LLM
             max_retries: Maximum number of retry attempts (default: 3)
-            
+
         Returns:
             LLM response string
-            
+
         Raises:
             DecompositionError: If all retries fail
         """
@@ -213,7 +213,7 @@ Sub-goals:"""
                     raise DecompositionError(
                         f"LLM failed after {max_retries} attempts: {e}"
                     )
-                
+
                 # Log retry attempt
                 logger.warning(
                     "llm_decomposition_retry",
@@ -223,31 +223,31 @@ Sub-goals:"""
                     delay_seconds=2 ** attempt,
                     error=str(e)
                 )
-                
+
                 # Exponential backoff: 2^attempt seconds
                 delay = 2 ** attempt
                 await asyncio.sleep(delay)
-        
+
         # Should never reach here, but for type safety
         raise DecompositionError("Unexpected error in retry logic")
-    
-    def _parse_response(self, response: str, parent_goal: Goal) -> List[Goal]:
+
+    def _parse_response(self, response: str, parent_goal: Goal) -> list[Goal]:
         """
         Parse LLM response into Goal objects.
-        
+
         Extracts JSON array from response and creates Goal objects with:
         - Unique IDs
         - Parent reference
         - Metadata from LLM response
         - Same priority as parent
-        
+
         Args:
             response: LLM response string
             parent_goal: Parent goal for reference
-            
+
         Returns:
             List of Goal objects
-            
+
         Raises:
             DecompositionError: If response cannot be parsed
         """
@@ -255,7 +255,7 @@ Sub-goals:"""
             # Extract JSON from response (find first [ to last ])
             json_start = response.find('[')
             json_end = response.rfind(']') + 1
-            
+
             if json_start == -1 or json_end == 0:
                 logger.error(
                     "llm_response_parse_failed",
@@ -265,10 +265,10 @@ Sub-goals:"""
                     response_preview=response[:200] if len(response) > 200 else response
                 )
                 raise DecompositionError("No JSON array found in LLM response")
-            
+
             json_str = response[json_start:json_end]
             sub_goals_data = json.loads(json_str)
-            
+
             # Create Goal objects
             sub_goals = []
             for data in sub_goals_data:
@@ -292,9 +292,9 @@ Sub-goals:"""
                     error_message=None
                 )
                 sub_goals.append(sub_goal)
-            
+
             return sub_goals
-        
+
         except json.JSONDecodeError as e:
             logger.error(
                 "llm_response_json_decode_failed",
@@ -312,7 +312,7 @@ Sub-goals:"""
                 error=str(e),
                 error_type="KeyError"
             )
-            raise DecompositionError(f"Missing required field in LLM response: {e}")
+            raise DecompositionError(f"Missing required field in LLM response: {e}") from e
         except Exception as e:
             logger.error(
                 "llm_response_parse_error",
@@ -321,21 +321,21 @@ Sub-goals:"""
                 error=str(e),
                 error_type=type(e).__name__
             )
-            raise DecompositionError(f"Failed to parse LLM response: {e}")
-    
-    def _validate_subgoals(self, sub_goals: List[Goal]) -> None:
+            raise DecompositionError(f"Failed to parse LLM response: {e}") from e
+
+    def _validate_subgoals(self, sub_goals: list[Goal]) -> None:
         """
         Validate sub-goals meet quality criteria.
-        
+
         Quality criteria:
         - At least 1 sub-goal generated
         - At most 10 sub-goals (to prevent over-decomposition)
         - Each description is at least 10 characters
         - Recommended: 3-7 sub-goals for optimal granularity
-        
+
         Args:
             sub_goals: List of sub-goals to validate
-            
+
         Raises:
             DecompositionError: If validation fails
         """
@@ -346,7 +346,7 @@ Sub-goals:"""
                 error="No sub-goals generated"
             )
             raise DecompositionError("No sub-goals generated")
-        
+
         if len(sub_goals) > 10:
             logger.error(
                 "subgoal_validation_failed",
@@ -358,7 +358,7 @@ Sub-goals:"""
             raise DecompositionError(
                 f"Too many sub-goals generated ({len(sub_goals)}), maximum is 10"
             )
-        
+
         for sub_goal in sub_goals:
             if len(sub_goal.description) < 10:
                 logger.error(

@@ -9,13 +9,13 @@ This module provides security and audit functionality including:
 """
 
 from Agent_Guru.platform.security.auditor import (
-    SecurityAuditor,
-    AuditLogEntry,
-    SecurityAlert,
-    ViolationType,
     AlertSeverity,
+    AuditLogEntry,
     OperationType,
     ResultStatus,
+    SecurityAlert,
+    SecurityAuditor,
+    ViolationType,
 )
 
 __all__ = [

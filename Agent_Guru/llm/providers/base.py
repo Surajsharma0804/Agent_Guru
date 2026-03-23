@@ -12,7 +12,8 @@ Version: 1.0.0
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import AsyncIterator, List, Union
+from collections.abc import AsyncIterator
+from typing import Union
 
 from Agent_Guru.llm.models import CompletionRequest, CompletionResponse, StreamChunk
 
@@ -48,8 +49,8 @@ class ProviderAdapter(ABC):
 
     @abstractmethod
     async def embed(
-        self, text: Union[str, List[str]], model: str
-    ) -> List[List[float]]:
+        self, text: Union[str, list[str]], model: str
+    ) -> list[list[float]]:
         """
         Generate embeddings for text.
 

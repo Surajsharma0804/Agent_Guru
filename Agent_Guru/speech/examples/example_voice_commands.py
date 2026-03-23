@@ -5,8 +5,9 @@ Demonstrates parsing voice commands and routing them to the system.
 """
 
 import asyncio
-from Agent_Guru.speech.commands.command_parser import CommandParser
+
 from Agent_Guru.speech.agent_orchestration_client import AgentOrchestrationClient
+from Agent_Guru.speech.commands.command_parser import CommandParser
 from Agent_Guru.speech.goal_manager_client import GoalManagerClient
 
 

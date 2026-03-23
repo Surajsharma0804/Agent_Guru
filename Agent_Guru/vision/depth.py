@@ -16,7 +16,8 @@ Requirements: 2.1–2.7
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import structlog

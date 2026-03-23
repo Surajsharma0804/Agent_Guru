@@ -23,7 +23,6 @@ from Agent_Guru.vision.vision_models import (
     VisionEvent,
 )
 
-
 # ---------------------------------------------------------------------------
 # Class-level cache isolation — prevents test order-dependent failures
 # ---------------------------------------------------------------------------

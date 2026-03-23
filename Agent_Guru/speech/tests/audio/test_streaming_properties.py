@@ -13,7 +13,7 @@ import time
 import pytest
 import numpy as np
 from hypothesis import given, strategies as st, settings, assume
-from typing import AsyncIterator, List
+from typing import AsyncIterator
 
 from Agent_Guru.speech.audio.streaming import (
     StreamingAudioManager,

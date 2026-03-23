@@ -7,10 +7,9 @@ Platform-specific implementations for Windows, macOS, and Linux.
 import logging
 import platform
 import subprocess
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.platform.subprocess_utils import run_cmd
-
 from Agent_Guru.reasoning.tools.base import (
     Tool,
     ToolParameter,
@@ -32,7 +31,7 @@ class PlatformAppController:
         return platform.system().lower()
 
     @staticmethod
-    async def open_app(app_name: str) -> Dict[str, Any]:
+    async def open_app(app_name: str) -> dict[str, Any]:
         """Open an application (platform-specific).
 
         Args:
@@ -81,7 +80,7 @@ class PlatformAppController:
             }
 
     @staticmethod
-    async def close_app(app_name: str) -> Dict[str, Any]:
+    async def close_app(app_name: str) -> dict[str, Any]:
         """Close an application (platform-specific).
 
         Args:
@@ -152,7 +151,7 @@ class PlatformAppController:
             }
 
     @staticmethod
-    async def switch_app(app_name: str) -> Dict[str, Any]:
+    async def switch_app(app_name: str) -> dict[str, Any]:
         """Switch to an application (bring to foreground).
 
         Args:
@@ -252,7 +251,7 @@ class PlatformAppController:
 class OpenAppTool(Tool):
     """Tool for opening applications."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute application opening.
 
         Args:
@@ -297,7 +296,7 @@ class OpenAppTool(Tool):
 class CloseAppTool(Tool):
     """Tool for closing applications."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute application closing.
 
         Args:
@@ -342,7 +341,7 @@ class CloseAppTool(Tool):
 class SwitchAppTool(Tool):
     """Tool for switching to applications."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute application switching.
 
         Args:

@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -21,8 +21,8 @@ class SkillManifest:
     skill_id: str
     name: str
     version: str
-    intents: List[str]
-    permissions: List[str]
+    intents: list[str]
+    permissions: list[str]
     resource_limits: ResourceLimits
     entry_point: str
     description: str = ""
@@ -30,7 +30,7 @@ class SkillManifest:
     verified: bool = False
     user_installed: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "skill_id": self.skill_id,
             "name": self.name,
@@ -50,7 +50,7 @@ class SkillManifest:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> SkillManifest:
+    def from_dict(cls, data: dict[str, Any]) -> SkillManifest:
         rl = data.get("resource_limits", {})
         return cls(
             skill_id=data["skill_id"],

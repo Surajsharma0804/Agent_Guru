@@ -1,6 +1,5 @@
 """Comprehensive unit tests for Sentry configuration - 100% coverage."""
 
-import pytest
 import os
 from unittest.mock import patch, MagicMock
 

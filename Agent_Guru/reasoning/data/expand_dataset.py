@@ -10,7 +10,7 @@ Date: 2026
 
 import random
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any
 
 import yaml
 
@@ -181,7 +181,7 @@ def expand_dataset():
         seen_utterances.add(item["utterance"].lower().strip())
 
     # Group by intent
-    intent_groups: Dict[str, List[Dict[str, Any]]] = {}
+    intent_groups: dict[str, list[dict[str, Any]]] = {}
     for item in train_data:
         intent = item["intent"]
         if intent not in intent_groups:
@@ -265,7 +265,7 @@ def expand_dataset():
     print("✓ NO duplicate files created")
 
     # Update stats
-    intent_counts: Dict[str, int] = {}
+    intent_counts: dict[str, int] = {}
     for item in expanded_data:
         intent = item["intent"]
         intent_counts[intent] = intent_counts.get(intent, 0) + 1

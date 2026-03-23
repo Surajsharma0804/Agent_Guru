@@ -15,7 +15,8 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, List, Pattern
+from re import Pattern
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 # Credential patterns to redact
 # ---------------------------------------------------------------------------
 
-_CREDENTIAL_PATTERNS: List[Pattern[str]] = [
+_CREDENTIAL_PATTERNS: list[Pattern[str]] = [
     # Patterns with no capture group → entire match replaced with [REDACTED]
     re.compile(r"sk-[A-Za-z0-9]{20,}", re.IGNORECASE),          # OpenAI keys
     re.compile(r"sk-ant-[A-Za-z0-9\-]{20,}", re.IGNORECASE),    # Anthropic keys
@@ -40,7 +41,7 @@ _CREDENTIAL_PATTERNS: List[Pattern[str]] = [
 # PII patterns to redact
 # ---------------------------------------------------------------------------
 
-_PII_PATTERNS: List[tuple[Pattern[str], str]] = [
+_PII_PATTERNS: list[tuple[Pattern[str], str]] = [
     (re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Z|a-z]{2,}\b"), "[EMAIL]"),
     (re.compile(r"\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"), "[PHONE]"),
     (re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "[SSN]"),  # US SSN

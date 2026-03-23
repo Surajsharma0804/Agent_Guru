@@ -9,16 +9,17 @@ Provides real-time monitoring and alerting for latency violations:
 """
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Callable, Dict, List, Optional, Any
+from typing import Any, Optional
 
 from Agent_Guru.reasoning.latency.tracker import (
-    PipelineStage,
     LATENCY_BUDGETS,
-    LatencyTracker,
     DegradedModeManager,
+    LatencyTracker,
+    PipelineStage,
 )
 
 
@@ -48,7 +49,7 @@ class Alert:
     stage: PipelineStage
     message: str
     timestamp: datetime
-    metrics: Dict[str, float]
+    metrics: dict[str, float]
 
 
 class LatencyMonitor:
@@ -70,10 +71,10 @@ class LatencyMonitor:
         self.tracker = tracker
         self.degraded_manager = degraded_manager
         self.alert_callback = alert_callback
-        self._alerts: List[Alert] = []
+        self._alerts: list[Alert] = []
         self._last_check_time = time.time()
 
-    def check_latency_budgets(self) -> List[Alert]:
+    def check_latency_budgets(self) -> list[Alert]:
         """Check all stages against latency budgets.
 
         Returns:
@@ -109,7 +110,7 @@ class LatencyMonitor:
 
         return alerts
 
-    def check_timeout_rates(self) -> List[Alert]:
+    def check_timeout_rates(self) -> list[Alert]:
         """Check timeout rates for all stages.
 
         Returns:
@@ -142,7 +143,7 @@ class LatencyMonitor:
 
         return alerts
 
-    def check_degraded_mode_frequency(self) -> List[Alert]:
+    def check_degraded_mode_frequency(self) -> list[Alert]:
         """Check degraded mode activation frequency.
 
         Returns:
@@ -175,7 +176,7 @@ class LatencyMonitor:
 
         return alerts
 
-    def check_all(self) -> List[Alert]:
+    def check_all(self) -> list[Alert]:
         """Run all monitoring checks.
 
         Returns:
@@ -189,13 +190,13 @@ class LatencyMonitor:
         self._last_check_time = time.time()
         return alerts
 
-    def get_monitoring_summary(self) -> Dict[str, Any]:
+    def get_monitoring_summary(self) -> dict[str, Any]:
         """Get monitoring summary for all stages.
 
         Returns:
             Summary dictionary
         """
-        summary: Dict[str, Any] = {
+        summary: dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
             "stages": {},
             "alerts": len(self._alerts),
@@ -260,7 +261,7 @@ class LatencyMonitor:
                 # Don't let alert callback failures break monitoring
                 pass
 
-    def get_recent_alerts(self, limit: int = 100) -> List[Alert]:
+    def get_recent_alerts(self, limit: int = 100) -> list[Alert]:
         """Get recent alerts.
 
         Args:
@@ -299,8 +300,8 @@ def get_latency_monitor(
 
     if _global_monitor is None:
         from Agent_Guru.reasoning.latency.tracker import (
-            get_latency_tracker,
             get_degraded_mode_manager,
+            get_latency_tracker,
         )
 
         if tracker is None:

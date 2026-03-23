@@ -19,7 +19,7 @@ from typing import Any
 
 import numpy as np
 
-from Agent_Guru.security.embedding_auth import RETRIEVAL_THRESHOLD, verify_embedding
+
 from ..exceptions import GuruSpeechError
 from ..models import PersonalityType, WakeWordDetection
 

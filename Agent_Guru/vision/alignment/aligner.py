@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -93,7 +93,7 @@ class FaceAligner:
         assert aligned.shape == (112, 112, 3)
     """
 
-    def __init__(self, output_size: Tuple[int, int] = (112, 112)) -> None:
+    def __init__(self, output_size: tuple[int, int] = (112, 112)) -> None:
         if len(output_size) != 2 or output_size[0] <= 0 or output_size[1] <= 0:
             raise ValueError(
                 f"output_size must be a tuple of two positive integers, got {output_size}"
@@ -207,7 +207,7 @@ class FaceAligner:
             return None
 
     def _align_with_bbox(
-        self, frame: np.ndarray, bbox: Tuple[int, int, int, int]
+        self, frame: np.ndarray, bbox: tuple[int, int, int, int]
     ) -> np.ndarray:
         """Crop the bounding-box region and resize to output_size.
 

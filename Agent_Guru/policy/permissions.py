@@ -12,8 +12,10 @@ from __future__ import annotations
 import html
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
+from Agent_Guru.policy.access_controller import AccessController
+from Agent_Guru.policy.conflict_resolver import ConflictResolver
 from Agent_Guru.policy.models import (
     ConflictStrategy,
     MissingAttributeStrategy,
@@ -24,8 +26,6 @@ from Agent_Guru.policy.models import (
 )
 from Agent_Guru.policy.policy_storage import PolicyStorage
 from Agent_Guru.policy.rule_evaluator import RuleEvaluator
-from Agent_Guru.policy.conflict_resolver import ConflictResolver
-from Agent_Guru.policy.access_controller import AccessController
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +62,8 @@ class PermissionManager:
         self,
         principal_id: str,
         resource_id: str,
-        actions: List[str],
-        conditions: Optional[Dict[str, Any]] = None,
+        actions: list[str],
+        conditions: Optional[dict[str, Any]] = None,
         priority: int = 0,
         name: Optional[str] = None,
     ) -> str:
@@ -87,7 +87,7 @@ class PermissionManager:
             id=policy_id,
             version=1,
             name=name or f"Grant {html.escape(str(principal_id))} on {html.escape(str(resource_id))}",
-            description=f"Auto-generated permission grant",
+            description="Auto-generated permission grant",
             effect=PolicyEffect.ALLOW,
             priority=priority,
             principals=[principal_id],
@@ -109,8 +109,8 @@ class PermissionManager:
         self,
         principal_id: str,
         resource_id: str,
-        actions: List[str],
-        conditions: Optional[Dict[str, Any]] = None,
+        actions: list[str],
+        conditions: Optional[dict[str, Any]] = None,
         priority: int = 100,
         name: Optional[str] = None,
     ) -> str:
@@ -152,7 +152,7 @@ class PermissionManager:
             self.storage.create_policy(policy)
         return policy_id
 
-    def revoke(self, principal_id: str, resource_id: str, actions: List[str]) -> None:
+    def revoke(self, principal_id: str, resource_id: str, actions: list[str]) -> None:
         """Revoke a previously granted permission.
 
         Args:
@@ -172,7 +172,7 @@ class PermissionManager:
         principal: Principal,
         resource: Resource,
         action: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
     ) -> bool:
         """Check if a principal has permission to perform an action on a resource.
 
@@ -197,8 +197,8 @@ class PermissionManager:
         self,
         principal: Principal,
         resource: Resource,
-        candidate_actions: Optional[List[str]] = None,
-    ) -> Set[str]:
+        candidate_actions: Optional[list[str]] = None,
+    ) -> set[str]:
         """Return the set of actions a principal is allowed on a resource.
 
         Args:
@@ -212,7 +212,7 @@ class PermissionManager:
         if candidate_actions is None:
             candidate_actions = ["read", "write", "delete", "execute", "admin"]
 
-        allowed: Set[str] = set()
+        allowed: set[str] = set()
         for action in candidate_actions:
             if self.check(principal, resource, action):
                 allowed.add(action)

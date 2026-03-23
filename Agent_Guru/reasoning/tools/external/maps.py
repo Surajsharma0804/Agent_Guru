@@ -4,7 +4,7 @@ Maps and location tools for weather, directions, and place search.
 Integrates with weather APIs, mapping services, and location databases.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -46,7 +46,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class GetWeatherTool(Tool):
     """Tool for getting weather information."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute weather retrieval.
 
         Args:
@@ -135,7 +135,7 @@ class GetWeatherTool(Tool):
 class GetDirectionsTool(Tool):
     """Tool for getting directions."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute directions retrieval.
 
         Args:
@@ -236,7 +236,7 @@ class GetDirectionsTool(Tool):
 class SearchPlacesTool(Tool):
     """Tool for searching places."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute place search.
 
         Args:

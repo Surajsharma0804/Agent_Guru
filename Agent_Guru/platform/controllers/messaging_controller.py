@@ -497,7 +497,7 @@ class MessagingController:
         """Send SMS on Android via adb intent."""
         digits_only = contact.replace("+", "").replace("-", "").replace(" ", "")
         phone = digits_only if digits_only.isdigit() else contact
-        encoded = urllib.parse.quote(message)
+        urllib.parse.quote(message)
         url = f"smsto:{phone}"
         return await self._adb_start_intent(
             action="android.intent.action.SENDTO",

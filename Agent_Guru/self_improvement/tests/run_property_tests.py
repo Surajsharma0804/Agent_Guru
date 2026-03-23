@@ -9,6 +9,7 @@ Usage:
 """
 
 import sys
+
 import pytest
 
 
@@ -27,7 +28,7 @@ def main():
     print()
     print("Running 100+ examples per property...")
     print()
-    
+
     # Run tests with verbose output
     exit_code = pytest.main([
         "Agent_Guru/self_improvement/tests/test_database_constraints_property.py",
@@ -36,7 +37,7 @@ def main():
         "--hypothesis-show-statistics",
         "-x"  # Stop on first failure
     ])
-    
+
     print()
     print("=" * 80)
     if exit_code == 0:
@@ -44,7 +45,7 @@ def main():
     else:
         print("✗ Some tests failed. See output above for details.")
     print("=" * 80)
-    
+
     return exit_code
 
 

@@ -18,9 +18,10 @@ import json
 import logging
 import sqlite3
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Optional
 
 from Agent_Guru.policy.models import AccessDecision, AuditRecord, PolicyEffect
 
@@ -111,7 +112,7 @@ class AuditLogger:
         resource_type: str,
         action: str,
         decision: AccessDecision,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> str:
         """Log an access decision.
 
@@ -171,15 +172,15 @@ class AuditLogger:
         action: Optional[str] = None,
         effect: Optional[str] = None,
         limit: int = 1000,
-    ) -> List[AuditRecord]:
+    ) -> list[AuditRecord]:
         """Query audit logs with optional filters.
 
         Returns records ordered by timestamp descending.
 
         Validates: Requirement 6.3
         """
-        clauses: List[str] = []
-        params: List[Any] = []
+        clauses: list[str] = []
+        params: list[Any] = []
 
         if start_time:
             clauses.append("timestamp >= ?")
@@ -261,7 +262,7 @@ class AuditLogger:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _hash_context(context: Dict[str, Any]) -> str:
+    def _hash_context(context: dict[str, Any]) -> str:
         """Compute SHA256 hash of context dict."""
         serialized = json.dumps(context, sort_keys=True, default=str)
         return hashlib.sha256(serialized.encode()).hexdigest()

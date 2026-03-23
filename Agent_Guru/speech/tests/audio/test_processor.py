@@ -6,7 +6,6 @@ from hypothesis import given, strategies as st, settings
 
 from Agent_Guru.speech.audio.processor import AudioProcessor
 from Agent_Guru.speech.config import AudioProcessingConfig
-from Agent_Guru.speech.exceptions import AudioProcessingError
 
 
 class TestAudioProcessor:

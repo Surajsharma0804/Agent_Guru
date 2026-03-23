@@ -14,12 +14,13 @@ import asyncio
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from packaging.version import Version
 
 from Agent_Guru.security.path_utils import safe_path
+
 from .exceptions import NetworkError, SignatureVerificationError
 from .models import Configuration
 
@@ -84,7 +85,7 @@ class UpdateManager:
         self._update_url = update_url.rstrip("/")
         self._cache_dir = cache_dir or config.cache_dir / "updates"
         self._cache_dir.mkdir(parents=True, exist_ok=True)
-        self._applied_updates: List[Dict[str, Any]] = []
+        self._applied_updates: list[dict[str, Any]] = []
 
     # ------------------------------------------------------------------
     # Public API
@@ -207,7 +208,7 @@ class UpdateManager:
         """Return the current installed version."""
         return self._current_version
 
-    def get_applied_updates(self) -> List[Dict[str, Any]]:
+    def get_applied_updates(self) -> list[dict[str, Any]]:
         """Return list of applied updates (for testing/audit)."""
         return list(self._applied_updates)
 
@@ -215,7 +216,7 @@ class UpdateManager:
     # Private helpers
     # ------------------------------------------------------------------
 
-    async def _fetch_json(self, url: str) -> Dict[str, Any]:
+    async def _fetch_json(self, url: str) -> dict[str, Any]:
         """Fetch JSON from a URL."""
         try:
             import aiohttp  # type: ignore[import]

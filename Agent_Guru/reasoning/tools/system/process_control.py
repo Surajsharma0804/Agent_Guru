@@ -7,7 +7,7 @@ Platform-specific implementations for Windows, macOS, and Linux.
 import logging
 import platform
 import subprocess
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -30,7 +30,7 @@ class PlatformProcessController:
         return platform.system().lower()
 
     @staticmethod
-    async def list_processes() -> Dict[str, Any]:
+    async def list_processes() -> dict[str, Any]:
         """List running processes (platform-specific).
 
         Returns:
@@ -119,7 +119,7 @@ class PlatformProcessController:
             }
 
     @staticmethod
-    async def kill_process(pid: int, force: bool = False) -> Dict[str, Any]:
+    async def kill_process(pid: int, force: bool = False) -> dict[str, Any]:
         """Kill a process by PID (platform-specific).
 
         Args:
@@ -205,7 +205,7 @@ class PlatformProcessController:
 class ProcessListTool(Tool):
     """Tool for listing processes."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute process listing.
 
         Returns:
@@ -245,7 +245,7 @@ class ProcessListTool(Tool):
 class ProcessKillTool(Tool):
     """Tool for killing processes."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute process killing.
 
         Args:

@@ -4,9 +4,10 @@ Skill manifest schema and validation.
 Defines the structure and validation rules for skill manifests.
 """
 
-import yaml
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
+
+import yaml
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -18,15 +19,15 @@ class SkillManifest(BaseModel):
     version: str = Field(..., description="Skill version (semver)")
     author: str = Field(..., description="Skill author")
     description: str = Field(..., description="Skill description")
-    permissions: List[str] = Field(
+    permissions: list[str] = Field(
         default_factory=list, description="Required permissions"
     )
-    tools: List[Dict[str, Any]] = Field(
+    tools: list[dict[str, Any]] = Field(
         default_factory=list, description="Tool definitions"
     )
     entry_point: str = Field(..., description="Entry point module path")
     runtime: str = Field(default="python", description="Runtime environment")
-    dependencies: List[str] = Field(
+    dependencies: list[str] = Field(
         default_factory=list, description="Required dependencies"
     )
     min_agent_version: Optional[str] = Field(
@@ -38,7 +39,7 @@ class SkillManifest(BaseModel):
     homepage: Optional[str] = Field(None, description="Skill homepage URL")
     repository: Optional[str] = Field(None, description="Source repository URL")
     license: Optional[str] = Field(None, description="License identifier")
-    tags: List[str] = Field(default_factory=list, description="Skill tags")
+    tags: list[str] = Field(default_factory=list, description="Skill tags")
 
     @field_validator("skill_id")
     @classmethod
@@ -88,7 +89,7 @@ class SkillManifestParser:
             ValueError: If parsing fails
         """
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
 
             if not data:
@@ -97,12 +98,12 @@ class SkillManifestParser:
             return SkillManifest(**data)
 
         except yaml.YAMLError as e:
-            raise ValueError(f"Invalid YAML format: {str(e)}")
+            raise ValueError(f"Invalid YAML format: {str(e)}") from e
         except Exception as e:
-            raise ValueError(f"Failed to parse manifest: {str(e)}")
+            raise ValueError(f"Failed to parse manifest: {str(e)}") from e
 
     @staticmethod
-    def parse_dict(data: Dict[str, Any]) -> SkillManifest:
+    def parse_dict(data: dict[str, Any]) -> SkillManifest:
         """Parse skill manifest from dictionary.
 
         Args:
@@ -117,14 +118,14 @@ class SkillManifestParser:
         try:
             return SkillManifest(**data)
         except Exception as e:
-            raise ValueError(f"Failed to parse manifest: {str(e)}")
+            raise ValueError(f"Failed to parse manifest: {str(e)}") from e
 
 
 class SkillManifestValidator:
     """Validator for skill manifests."""
 
     @staticmethod
-    def validate(manifest: SkillManifest) -> List[str]:
+    def validate(manifest: SkillManifest) -> list[str]:
         """Validate skill manifest.
 
         Args:
@@ -181,7 +182,7 @@ class SkillManifestValidator:
         return errors
 
     @staticmethod
-    def validate_file(file_path: Path) -> List[str]:
+    def validate_file(file_path: Path) -> list[str]:
         """Validate skill manifest file.
 
         Args:

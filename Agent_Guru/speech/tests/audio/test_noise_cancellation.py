@@ -3,7 +3,6 @@
 import pytest
 import numpy as np
 from hypothesis import given, strategies as st, settings
-import asyncio
 
 from Agent_Guru.speech.audio.noise_cancellation import (
     AdvancedNoiseCancellation,
@@ -102,7 +101,7 @@ class TestAdvancedNoiseCancellation:
         
         # Reduced signal should have lower noise energy
         # (comparing to the noise component, not the clean speech)
-        noise_energy_before = np.mean(white_noise ** 2)
+        np.mean(white_noise ** 2)
         # Estimate remaining noise
         noise_estimate = reduced - clean_speech
         noise_energy_after = np.mean(noise_estimate ** 2)
@@ -127,7 +126,7 @@ class TestAdvancedNoiseCancellation:
         assert aggressive.shape == noisy.shape
         
         # Aggressive should reduce more than medium, medium more than light
-        light_energy = np.mean(light ** 2)
+        np.mean(light ** 2)
         medium_energy = np.mean(medium ** 2)
         aggressive_energy = np.mean(aggressive ** 2)
         
@@ -330,7 +329,7 @@ class TestNoiseReductionProperties:
         
         # Verify noise reduction improves SNR
         # Compute SNR before and after
-        snr_before = canceller.compute_snr(noisy)
+        canceller.compute_snr(noisy)
         snr_after = canceller.compute_snr(reduced)
         
         # SNR should improve or stay similar (allowing for some variance)

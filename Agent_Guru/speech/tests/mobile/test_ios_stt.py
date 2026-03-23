@@ -8,8 +8,7 @@ import pytest
 import numpy as np
 
 from Agent_Guru.speech.mobile.ios_stt import (
-    IOSSpeechRecognizer,
-    IOSSTTError
+    IOSSpeechRecognizer
 )
 from Agent_Guru.speech.models import TranscriptionResult
 

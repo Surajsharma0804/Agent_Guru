@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Optional
+
 import numpy as np
 
 
@@ -49,7 +50,7 @@ class TranscriptionResult:
     text: str
     language: str
     confidence: float
-    segments: List[TranscriptionSegment] = field(default_factory=list)
+    segments: list[TranscriptionSegment] = field(default_factory=list)
     duration: float = 0.0
 
 
@@ -88,7 +89,7 @@ class VoiceFeatures:
 class EmotionResult:
     """Emotion detection result."""
     primary_emotion: EmotionType
-    emotion_scores: Dict[EmotionType, float]
+    emotion_scores: dict[EmotionType, float]
     confidence: float
     timestamp: float
     audio_quality: float
@@ -97,9 +98,9 @@ class EmotionResult:
 @dataclass
 class EmotionHistory:
     """Emotion history over time."""
-    emotions: List[EmotionResult]
+    emotions: list[EmotionResult]
     dominant_emotion: EmotionType
-    emotion_transitions: List[tuple[EmotionType, EmotionType, float]]
+    emotion_transitions: list[tuple[EmotionType, EmotionType, float]]
 
 
 @dataclass
@@ -107,7 +108,7 @@ class VoiceModel:
     """Voice cloning model."""
     model_id: str
     user_id: str
-    voice_characteristics: Dict[str, float]
+    voice_characteristics: dict[str, float]
     training_duration_seconds: float
     similarity_score: float
     created_at: float
@@ -147,9 +148,9 @@ class ConversationTurn:
 class ConversationContext:
     """Conversation context state."""
     personality: PersonalityType
-    turns: List[ConversationTurn]
+    turns: list[ConversationTurn]
     current_topic: Optional[str] = None
-    user_preferences: Dict[str, Any] = field(default_factory=dict)
+    user_preferences: dict[str, Any] = field(default_factory=dict)
     created_at: float = 0.0
     updated_at: float = 0.0
 
@@ -170,6 +171,6 @@ class CommandResult:
     """Command interpretation result."""
     is_command: bool
     action_id: Optional[str]
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
     confidence: float
     raw_text: str

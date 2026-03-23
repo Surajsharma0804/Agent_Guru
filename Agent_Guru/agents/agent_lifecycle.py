@@ -17,11 +17,11 @@ Date: 2026-02-28
 Version: 1.0.0
 """
 
-from typing import Dict, Any, List, TYPE_CHECKING
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import uuid
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .agent_storage import AgentStorage
@@ -47,7 +47,7 @@ class PerformanceRecord:
     task_type: str
     success: bool
     completion_time_ms: float
-    resource_usage: Dict[str, float]
+    resource_usage: dict[str, float]
     timestamp: datetime
 
 
@@ -77,14 +77,14 @@ class Agent:
 
     id: str
     status: AgentStatus
-    capabilities: Dict[str, float]
-    specializations: Dict[str, float]
-    performance_history: List[PerformanceRecord]
+    capabilities: dict[str, float]
+    specializations: dict[str, float]
+    performance_history: list[PerformanceRecord]
     created_at: datetime
     last_active: datetime
     total_tasks: int
     successful_tasks: int
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class AgentLifecycleManager:
@@ -145,7 +145,7 @@ class AgentLifecycleManager:
         }
 
     async def create_agent(
-        self, task_requirements: Dict[str, Any], initial_capabilities: Dict[str, float]
+        self, task_requirements: dict[str, Any], initial_capabilities: dict[str, float]
     ) -> Agent:
         """
         Create new agent based on task requirements.
@@ -262,7 +262,7 @@ class AgentLifecycleManager:
 
         # Note: Performance history is NOT deleted (Requirement 5.4)
 
-    async def get_active_agents(self) -> List[Agent]:
+    async def get_active_agents(self) -> list[Agent]:
         """
         Get all active agents.
 
@@ -277,7 +277,7 @@ class AgentLifecycleManager:
         return await self.storage.query_agents(status=AgentStatus.ACTIVE)
 
     async def _record_evolution_event(
-        self, event_type: str, agent_ids: List[str], reason: str, details: Dict[str, Any]
+        self, event_type: str, agent_ids: list[str], reason: str, details: dict[str, Any]
     ) -> None:
         """
         Record evolution event for GitHub sync.

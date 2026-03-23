@@ -10,7 +10,7 @@ import random
 import threading
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 
@@ -75,10 +75,10 @@ class ModelSelector:
 
     def select(
         self,
-        candidates: List[ModelMetadata],
+        candidates: list[ModelMetadata],
         analysis: TaskAnalysis,
-        performance_map: Optional[Dict[str, PerformanceMetrics]] = None,
-        learning_weights: Optional[Dict[str, float]] = None,
+        performance_map: Optional[dict[str, PerformanceMetrics]] = None,
+        learning_weights: Optional[dict[str, float]] = None,
         exploration_rate: float = 0.0,
     ) -> Optional[SelectionResult]:
         """Select the best model from candidates for the given task.
@@ -147,8 +147,8 @@ class ModelSelector:
     # ------------------------------------------------------------------
 
     def _filter_candidates(
-        self, candidates: List[ModelMetadata], analysis: TaskAnalysis
-    ) -> List[ModelMetadata]:
+        self, candidates: list[ModelMetadata], analysis: TaskAnalysis
+    ) -> list[ModelMetadata]:
         """Filter candidates to those meeting hard constraints."""
         eligible = []
         for model in candidates:
@@ -178,11 +178,11 @@ class ModelSelector:
 
     def _score_models(
         self,
-        models: List[ModelMetadata],
+        models: list[ModelMetadata],
         analysis: TaskAnalysis,
-        performance_map: Optional[Dict[str, PerformanceMetrics]],
-        learning_weights: Optional[Dict[str, float]],
-    ) -> List[ModelScore]:
+        performance_map: Optional[dict[str, PerformanceMetrics]],
+        learning_weights: Optional[dict[str, float]],
+    ) -> list[ModelScore]:
         scores = []
         for model in models:
             est_cost = model.estimated_cost(
@@ -227,7 +227,7 @@ class ModelSelector:
     @staticmethod
     def _performance_score(
         model_id: str,
-        performance_map: Optional[Dict[str, PerformanceMetrics]],
+        performance_map: Optional[dict[str, PerformanceMetrics]],
     ) -> float:
         """Compute performance score from historical metrics."""
         if not performance_map or model_id not in performance_map:
@@ -261,7 +261,7 @@ class ModelSelector:
 
     @staticmethod
     def _explore_or_exploit(
-        scores: List[ModelScore], exploration_rate: float
+        scores: list[ModelScore], exploration_rate: float
     ) -> ModelScore:
         """Epsilon-greedy: exploit top model or explore top-3."""
         if len(scores) == 1 or random.random() > exploration_rate:

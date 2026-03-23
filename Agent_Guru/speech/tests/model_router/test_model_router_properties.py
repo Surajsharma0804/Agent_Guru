@@ -6,7 +6,6 @@ Property 24: Model Router Fallback
 Validates: Requirements 20.2, 20.3, 20.5
 """
 
-import pytest
 import time
 from hypothesis import given, strategies as st, settings
 

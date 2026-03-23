@@ -28,7 +28,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import platform
-import sys
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -387,8 +386,8 @@ class DesktopApplicationController:
     async def _close_windows_win32(self, app_name: str) -> bool:
         """Graceful close via win32api (optional dependency)."""
         try:
-            import win32gui  # type: ignore[import]
             import win32con  # type: ignore[import]
+            import win32gui  # type: ignore[import]
 
             hwnd = self._find_window_win32(app_name)
             if hwnd:
@@ -423,8 +422,8 @@ class DesktopApplicationController:
         """Minimize a window on Windows."""
         # Try win32api
         try:
-            import win32gui  # type: ignore[import]
             import win32con  # type: ignore[import]
+            import win32gui  # type: ignore[import]
 
             hwnd = self._find_window_win32(app_name)
             if hwnd:
@@ -441,8 +440,8 @@ class DesktopApplicationController:
     async def _maximize_windows(self, app_name: str) -> bool:
         """Maximize a window on Windows."""
         try:
-            import win32gui  # type: ignore[import]
             import win32con  # type: ignore[import]
+            import win32gui  # type: ignore[import]
 
             hwnd = self._find_window_win32(app_name)
             if hwnd:
@@ -458,8 +457,8 @@ class DesktopApplicationController:
     async def _restore_windows(self, app_name: str) -> bool:
         """Restore a window on Windows."""
         try:
-            import win32gui  # type: ignore[import]
             import win32con  # type: ignore[import]
+            import win32gui  # type: ignore[import]
 
             hwnd = self._find_window_win32(app_name)
             if hwnd:
@@ -595,7 +594,7 @@ class DesktopApplicationController:
         """Launch an application on Linux."""
         # Try direct executable first
         try:
-            proc = await asyncio.create_subprocess_exec(
+            await asyncio.create_subprocess_exec(
                 app_name,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
@@ -609,7 +608,7 @@ class DesktopApplicationController:
 
         # Fallback: xdg-open
         try:
-            proc = await asyncio.create_subprocess_exec(
+            await asyncio.create_subprocess_exec(
                 "xdg-open", app_name,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,

@@ -4,15 +4,14 @@ AutoGPT benchmark implementation.
 Benchmarks AutoGPT framework for comparison with Agent Guru.
 """
 
-from typing import Any
 import time
+from typing import Any
 
 from Agent_Guru.self_improvement.benchmarks.base_benchmark import (
     BaseBenchmark,
-    TestScenario,
     ScenarioType,
+    TestScenario,
 )
-
 
 # Check if AutoGPT is installed
 try:
@@ -29,48 +28,48 @@ print("AutoGPT benchmark running in simulation mode")
 class AutoGPTBenchmark(BaseBenchmark):
     """
     Benchmark for AutoGPT framework.
-    
+
     Measures performance of AutoGPT agents on standard test scenarios.
     Runs in simulation mode (AutoGPT is complex to integrate).
     """
-    
+
     def __init__(self):
         """Initialize AutoGPT benchmark."""
         super().__init__("AutoGPT")
         self.simulation_mode = True  # Always simulate for AutoGPT
         print("Running in simulation mode (AutoGPT integration complex)")
-    
+
     def execute_scenario(self, scenario: TestScenario) -> Any:
         """
         Execute a test scenario using AutoGPT simulation.
-        
+
         Args:
             scenario: Test scenario to execute
-            
+
         Returns:
             Result of scenario execution
         """
         return self._simulate_execution(scenario)
-    
+
     def _simulate_execution(self, scenario: TestScenario) -> Any:
         """
         Simulate AutoGPT execution.
-        
+
         Args:
             scenario: Test scenario to execute
-            
+
         Returns:
             Simulated result
         """
         # Simulate processing time (AutoGPT is typically slower)
         time.sleep(0.08)  # 80ms (slower due to more planning)
-        
+
         # Track simulated API call (AutoGPT uses more tokens for planning)
         self.track_api_call(tokens=150)  # Higher token usage
-        
+
         # Get question
         question = scenario.input_data.get("question", "").lower()
-        
+
         # Pattern-based responses for different scenario types
         if scenario.scenario_type == ScenarioType.SIMPLE:
             return self._simulate_simple_scenario(question)
@@ -82,9 +81,9 @@ class AutoGPTBenchmark(BaseBenchmark):
             return self._simulate_error_scenario(question)
         elif scenario.scenario_type == ScenarioType.LEARNING:
             return self._simulate_learning_scenario(question)
-        
+
         return "Task completed"
-    
+
     def _simulate_simple_scenario(self, question: str) -> str:
         """Simulate simple scenario response."""
         if "2+2" in question or "2 + 2" in question:
@@ -102,7 +101,7 @@ class AutoGPTBenchmark(BaseBenchmark):
         elif "concatenate" in question or "combine" in question:
             return "Combined result: hello world"
         return "42"
-    
+
     def _simulate_complex_scenario(self, question: str) -> str:
         """Simulate complex scenario response."""
         if "fibonacci" in question:
@@ -116,7 +115,7 @@ class AutoGPTBenchmark(BaseBenchmark):
         elif "word problem" in question:
             return "Solved word problem. Answer: 15 apples"
         return "Completed multi-step reasoning"
-    
+
     def _simulate_tool_scenario(self, question: str) -> str:
         """Simulate tool usage scenario response."""
         if "read file" in question:
@@ -130,7 +129,7 @@ class AutoGPTBenchmark(BaseBenchmark):
         elif "calculator" in question:
             return "Used calculator tool. Result: 156"
         return "Tool execution completed"
-    
+
     def _simulate_error_scenario(self, question: str) -> str:
         """Simulate error recovery scenario response."""
         if "divide by zero" in question:
@@ -145,7 +144,7 @@ class AutoGPTBenchmark(BaseBenchmark):
         elif "not available" in question:
             return "Resource unavailable. Trying alternative"
         return "Error handling attempted"
-    
+
     def _simulate_learning_scenario(self, question: str) -> str:
         """Simulate learning scenario response."""
         # AutoGPT doesn't have built-in learning like Agent Guru
@@ -158,7 +157,7 @@ class AutoGPTBenchmark(BaseBenchmark):
 def create_autogpt_benchmark() -> AutoGPTBenchmark:
     """
     Create AutoGPT benchmark instance.
-    
+
     Returns:
         AutoGPTBenchmark instance
     """

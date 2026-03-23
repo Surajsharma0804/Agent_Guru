@@ -5,10 +5,11 @@ Demonstrates detecting user emotion and adapting the response accordingly.
 """
 
 import asyncio
-import numpy as np
-from Agent_Guru.speech.engine import SpeechEngine
-from Agent_Guru.speech.models import PersonalityType, EmotionType
 
+import numpy as np
+
+from Agent_Guru.speech.engine import SpeechEngine
+from Agent_Guru.speech.models import EmotionType, PersonalityType
 
 EMOTION_RESPONSES = {
     EmotionType.HAPPY: ("Great to hear you're in a good mood!", EmotionType.HAPPY),

@@ -20,7 +20,8 @@ Requirements: 7.1–7.9
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import structlog
@@ -61,8 +62,9 @@ class ScreenAnalyzer:
             return self._infer_fn(screenshot)
 
         try:
-            from Agent_Guru.vision.model_manager import ModelManager
             import os
+
+            from Agent_Guru.vision.model_manager import ModelManager
 
             model_path = os.path.join("models", "yolov8_ui.onnx")
             if not os.path.exists(model_path):
@@ -118,8 +120,9 @@ class ScreenAnalyzer:
     def _extract_text(self, screenshot: np.ndarray, bbox: BoundingBox) -> str | None:
         """Extract text from a UI element region using OCR."""
         try:
-            from Agent_Guru.vision.ocr import OCREngine
             import asyncio
+
+            from Agent_Guru.vision.ocr import OCREngine
 
             h, w = screenshot.shape[:2]
             x1 = max(0, int(bbox.x))

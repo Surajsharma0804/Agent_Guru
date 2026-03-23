@@ -171,7 +171,7 @@ class FastIntentRouter:
         for pattern_data in self._patterns:
             pattern = pattern_data["pattern"].lower()
             intent_type = pattern_data["intent"]
-            entities = pattern_data.get("entities", {})
+            pattern_data.get("entities", {})
 
             # Split pattern into words and track entity positions
             words = pattern.split()

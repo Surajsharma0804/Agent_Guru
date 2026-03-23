@@ -30,7 +30,7 @@ def run_command(cmd: list[str], description: str) -> bool:
     print(f"{'='*80}\n")
 
     try:
-        result = subprocess.run(cmd, check=True, capture_output=False, text=True)
+        subprocess.run(cmd, check=True, capture_output=False, text=True)
         print(f"\n✅ {description} - SUCCESS\n")
         return True
     except subprocess.CalledProcessError as e:

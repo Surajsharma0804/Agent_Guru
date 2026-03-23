@@ -1069,7 +1069,6 @@ class TestBatteryMonitor:
     def test_coverage_real_psutil_windows(self, monitor: BatteryMonitor):
         """ZERO COMPROMISE: Test real psutil on Windows if available."""
         try:
-            import psutil
             monitor._platform = "windows"
             
             # Try to get real battery status
@@ -1085,7 +1084,6 @@ class TestBatteryMonitor:
     def test_coverage_real_psutil_macos(self, monitor: BatteryMonitor):
         """ZERO COMPROMISE: Test real psutil on macOS if available."""
         try:
-            import psutil
             monitor._platform = "darwin"
             
             # Try to get real battery status
@@ -1101,7 +1099,6 @@ class TestBatteryMonitor:
     def test_coverage_real_psutil_linux(self, monitor: BatteryMonitor):
         """ZERO COMPROMISE: Test real psutil on Linux if available."""
         try:
-            import psutil
             monitor._platform = "linux"
             
             # Try to get real battery status

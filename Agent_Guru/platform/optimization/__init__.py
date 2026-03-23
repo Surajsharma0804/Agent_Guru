@@ -6,23 +6,23 @@ caching strategies, and performance enhancements.
 """
 
 from Agent_Guru.platform.optimization.duplicate_detector import (
-    DuplicateOperationDetector,
     CacheEntry,
     CacheStats,
+    DuplicateOperationDetector,
     Operation,
-    OperationType,
     OperationResult,
-)
-from Agent_Guru.platform.optimization.lru_cache import (
-    LRUCache,
-    CacheStatistics,
-    get_global_cache,
+    OperationType,
 )
 from Agent_Guru.platform.optimization.integration import (
-    DuplicateAwareFileOperations,
     DuplicateAwareCommandExecutor,
+    DuplicateAwareFileOperations,
     DuplicateAwareGitOperations,
     DuplicateStats,
+)
+from Agent_Guru.platform.optimization.lru_cache import (
+    CacheStatistics,
+    LRUCache,
+    get_global_cache,
 )
 
 __all__ = [

@@ -12,8 +12,7 @@ Test Categories:
 
 import pytest
 import sys
-import os
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 from hypothesis import given, strategies as st
 
 from Agent_Guru.platform.controllers.messaging import (

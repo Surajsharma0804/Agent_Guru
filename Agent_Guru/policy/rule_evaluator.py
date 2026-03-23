@@ -17,7 +17,7 @@ import hashlib
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from Agent_Guru.policy.models import EvaluationContext, MissingAttributeStrategy
 
@@ -94,9 +94,9 @@ class RuleEvaluator:
 
     def evaluate(
         self,
-        rule: Dict[str, Any],
+        rule: dict[str, Any],
         context: EvaluationContext,
-        memo_cache: Optional[Dict[str, bool]] = None,
+        memo_cache: Optional[dict[str, bool]] = None,
     ) -> bool:
         """Evaluate a rule against a context.
 
@@ -134,7 +134,7 @@ class RuleEvaluator:
 
         return result
 
-    def validate_rule(self, rule: Dict[str, Any]) -> List[str]:
+    def validate_rule(self, rule: dict[str, Any]) -> list[str]:
         """Validate rule structure.
 
         Args:
@@ -143,7 +143,7 @@ class RuleEvaluator:
         Returns:
             List of error messages (empty if valid).
         """
-        errors: List[str] = []
+        errors: list[str] = []
         self._validate_node(rule, errors, path="rule")
         return errors
 
@@ -151,7 +151,7 @@ class RuleEvaluator:
     # Internal evaluation
     # ------------------------------------------------------------------
 
-    def _evaluate_node(self, node: Dict[str, Any], context: EvaluationContext) -> bool:
+    def _evaluate_node(self, node: dict[str, Any], context: EvaluationContext) -> bool:
         """Recursively evaluate a rule node."""
         operator = node.get("operator", "").upper()
 
@@ -169,7 +169,7 @@ class RuleEvaluator:
             )
 
     def _evaluate_boolean(
-        self, operator: str, node: Dict[str, Any], context: EvaluationContext
+        self, operator: str, node: dict[str, Any], context: EvaluationContext
     ) -> bool:
         """Evaluate a boolean (AND/OR/NOT) node."""
         conditions = node.get("conditions", [])
@@ -186,7 +186,7 @@ class RuleEvaluator:
             raise RuleEvaluationError(f"Unknown boolean operator: {operator}")
 
     def _evaluate_comparison(
-        self, operator: str, node: Dict[str, Any], context: EvaluationContext
+        self, operator: str, node: dict[str, Any], context: EvaluationContext
     ) -> bool:
         """Evaluate a comparison leaf node."""
         attribute_path = node.get("attribute")
@@ -264,7 +264,7 @@ class RuleEvaluator:
     # ------------------------------------------------------------------
 
     def _validate_node(
-        self, node: Any, errors: List[str], path: str
+        self, node: Any, errors: list[str], path: str
     ) -> None:
         """Recursively validate a rule node."""
         if not isinstance(node, dict):
@@ -300,7 +300,7 @@ class RuleEvaluator:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _rule_cache_key(rule: Dict[str, Any]) -> str:
+    def _rule_cache_key(rule: dict[str, Any]) -> str:
         """Compute a stable cache key for a rule expression."""
         serialized = json.dumps(rule, sort_keys=True)
         return hashlib.sha256(serialized.encode()).hexdigest()

@@ -4,7 +4,7 @@ Information tools for news and stock prices.
 Provides access to news APIs and financial data.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -54,7 +54,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class GetNewsTool(Tool):
     """Tool for getting news articles."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute news retrieval.
 
         Args:
@@ -138,7 +138,7 @@ class GetNewsTool(Tool):
 class GetStockPriceTool(Tool):
     """Tool for getting stock prices."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute stock price retrieval.
 
         Args:

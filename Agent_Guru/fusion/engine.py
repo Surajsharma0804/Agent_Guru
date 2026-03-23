@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class ModalityInput:
     intent: str
     confidence: float
     timestamp_ms: float
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -27,14 +27,14 @@ class FusedIntent:
     """Result of fusing multiple modality inputs."""
     intent: str
     confidence: float
-    modalities_used: List[str]
+    modalities_used: list[str]
     timestamp_ms: float
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class ClarificationRequired(Exception):
     """Raised when all modality confidences are below threshold."""
-    def __init__(self, inputs: List[ModalityInput]) -> None:
+    def __init__(self, inputs: list[ModalityInput]) -> None:
         self.inputs = inputs
         super().__init__("All modality confidences below threshold; clarification required")
 
@@ -44,9 +44,9 @@ class FusionEngine:
 
     def __init__(self, window_ms: float = FUSION_WINDOW_MS) -> None:
         self.window_ms = window_ms
-        self._buffer: List[ModalityInput] = []
+        self._buffer: list[ModalityInput] = []
 
-    def fuse(self, inputs: List[ModalityInput]) -> FusedIntent:
+    def fuse(self, inputs: list[ModalityInput]) -> FusedIntent:
         """Fuse modality inputs within the fusion window.
 
         Raises ClarificationRequired if all confidences < 0.4.
@@ -65,7 +65,7 @@ class FusionEngine:
             raise ClarificationRequired(windowed)
 
         # Confidence-weighted intent merging
-        intent_scores: Dict[str, float] = {}
+        intent_scores: dict[str, float] = {}
         for inp in windowed:
             intent_scores[inp.intent] = intent_scores.get(inp.intent, 0.0) + inp.confidence
 
@@ -86,14 +86,14 @@ class FusionEngine:
         self._log_fusion(fused, windowed)
         return fused
 
-    def resolve_deictic(self, reference: str, context: Dict[str, Any]) -> Optional[str]:
+    def resolve_deictic(self, reference: str, context: dict[str, Any]) -> Optional[str]:
         """Resolve deictic references like 'this'/'that' using context."""
         # Stub: in production uses CLIP embeddings
         if reference in ("this", "that", "it"):
             return context.get("last_object")
         return reference
 
-    def _log_fusion(self, fused: FusedIntent, inputs: List[ModalityInput]) -> None:
+    def _log_fusion(self, fused: FusedIntent, inputs: list[ModalityInput]) -> None:
         logger.debug(
             "Fused intent=%s confidence=%.2f modalities=%s",
             fused.intent, fused.confidence, fused.modalities_used,

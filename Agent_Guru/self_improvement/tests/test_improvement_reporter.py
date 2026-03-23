@@ -23,7 +23,6 @@ from Agent_Guru.self_improvement.database_schema import DatabaseSchema
 from Agent_Guru.self_improvement.performance_tracker import PerformanceTracker
 from Agent_Guru.self_improvement.improvement_reporter import (
     ImprovementReporter,
-    ImprovementReport,
 )
 
 
@@ -605,11 +604,9 @@ def test_hardest_15_percent_improvement_guarantee(reporter, tracker):
     Validates Requirement 7.3: 15% improvement guarantee
     """
     # Baseline: 30% success rate (3/10 tasks)
-    baseline_success_rate = 0.3
     
     # Target: 15% relative improvement = 30% * 1.15 = 34.5% minimum
     # We'll aim for 100% to ensure statistical significance (233% relative improvement)
-    target_success_rate = 1.0
     
     # Record 100 tasks with dramatic improvement
     for i in range(100):

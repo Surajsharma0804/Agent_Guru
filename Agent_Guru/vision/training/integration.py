@@ -11,7 +11,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger("guruvision.training.integration")
 
@@ -35,8 +35,8 @@ class DeploymentArtifacts:
 class ModelMetadataFile:
     """Preprocessing metadata for the deployed model."""
     image_size: int = 112
-    normalization_mean: List[float] = field(default_factory=lambda: [0.5, 0.5, 0.5])
-    normalization_std: List[float] = field(default_factory=lambda: [0.5, 0.5, 0.5])
+    normalization_mean: list[float] = field(default_factory=lambda: [0.5, 0.5, 0.5])
+    normalization_std: list[float] = field(default_factory=lambda: [0.5, 0.5, 0.5])
     alignment_required: bool = True
     embedding_dim: int = 512
     architecture: str = "resnet50"
@@ -184,7 +184,7 @@ class GuruVisionIntegration:
     @staticmethod
     def _write_config(config: Optional[Any], path: str) -> None:
         if config is None:
-            data: Dict[str, Any] = {"note": "No configuration provided"}
+            data: dict[str, Any] = {"note": "No configuration provided"}
         elif hasattr(config, "__dict__"):
             try:
                 from dataclasses import asdict

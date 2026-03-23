@@ -25,7 +25,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import UUID, uuid4
 
 import aiohttp
@@ -55,9 +55,9 @@ class OperationMetadata:
     operation_id: str
     operation_type: str
     timestamp: datetime
-    parameters: Dict[str, Any] = field(default_factory=dict)
+    parameters: dict[str, Any] = field(default_factory=dict)
     result_summary: Optional[str] = None
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     duration_ms: float = 0.0
     success: bool = True
 
@@ -67,7 +67,7 @@ class OperationMetadata:
         if not self.operation_type:
             raise ValueError("operation_type cannot be empty")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to JSON-safe dictionary."""
         return {
             "operation_id": self.operation_id,
@@ -96,7 +96,7 @@ class MemoryQueryResult:
     """
 
     query_id: UUID = field(default_factory=uuid4)
-    entries: List[Dict[str, Any]] = field(default_factory=list)
+    entries: list[dict[str, Any]] = field(default_factory=list)
     total_count: int = 0
     query_time_ms: float = 0.0
     has_more: bool = False
@@ -194,7 +194,7 @@ class CircuitBreaker:
                     f"Circuit breaker OPENED after {self._failure_count} failures"
                 )
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return circuit breaker statistics."""
         return {
             "state": self._state.value,
@@ -364,7 +364,7 @@ ize
         return await self._store_batch([metadata])
 
     async def store_operations_bulk(
-        self, metadata_list: List[OperationMetadata]
+        self, metadata_list: list[OperationMetadata]
     ) -> int:
         """
         Bulk store multiple operation records in a single request.
@@ -396,7 +396,7 @@ ize
                 total_stored += len(chunk)
         return total_stored
 
-    async def _store_batch(self, batch: List[OperationMetadata]) -> bool:
+    async def _store_batch(self, batch: list[OperationMetadata]) -> bool:
         """Internal: store a batch with circuit breaker + retry."""
         self._require_connected()
 
@@ -408,7 +408,7 @@ ize
             return False
 
         url = f"{self.base_url}/api/v1/memory/operations"
-        payload: Dict[str, Any] = (
+        payload: dict[str, Any] = (
             {"operations": [m.to_dict() for m in batch]}
             if len(batch) > 1
             else batch[0].to_dict()
@@ -483,7 +483,7 @@ ize
     # ─── Historical Data ──────────────────────────────────────────────────
 
     async def store_historical_data(
-        self, data_type: str, data: Dict[str, Any]
+        self, data_type: str, data: dict[str, Any]
     ) -> bool:
         """
         Store arbitrary historical data (metrics, snapshots, etc.).
@@ -544,7 +544,7 @@ ize
         operation_type: Optional[str] = None,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         success_only: Optional[bool] = None,
         limit: int = 100,
         cursor: Optional[str] = None,
@@ -578,7 +578,7 @@ ize
             self._circuit_rejected_count += 1
             return MemoryQueryResult()
 
-        params: Dict[str, Any] = {"limit": limit}
+        params: dict[str, Any] = {"limit": limit}
         if operation_type:
             params["operation_type"] = operation_type
         if start_time:
@@ -632,7 +632,7 @@ ize
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         max_records: int = 10_000,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Fetch all pages of query results up to max_records.
 
@@ -645,7 +645,7 @@ ize
         Returns:
             All matching records across pages
         """
-        all_entries: List[Dict[str, Any]] = []
+        all_entries: list[dict[str, Any]] = []
         cursor: Optional[str] = None
 
         while len(all_entries) < max_records:
@@ -689,7 +689,7 @@ ize
 
     # ─── Observability ────────────────────────────────────────────────────
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """
         Return client statistics for monitoring.
 

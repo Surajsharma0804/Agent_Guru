@@ -22,8 +22,7 @@ from dataclasses import dataclass, field
 
 _logger = logging.getLogger(__name__)
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Set
-
+from typing import Any, Optional
 
 _DEFAULT_TRUST = 0.5
 _TRANSITIVE_DECAY = 0.8
@@ -39,7 +38,7 @@ class TrustRelationship:
     to_id: str
     trust_level: float  # 0.0 to 1.0
     created_at: datetime
-    metadata: Dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -49,7 +48,7 @@ class TrustScore:
     profile_id: str
     score: float  # 0.0 to 1.0
     computed_at: datetime
-    factors: Dict[str, float]  # Breakdown of score components
+    factors: dict[str, float]  # Breakdown of score components
 
 
 class TrustManager:
@@ -95,7 +94,7 @@ class TrustManager:
         Returns:
             TrustScore with breakdown.
         """
-        factors: Dict[str, float] = {}
+        factors: dict[str, float] = {}
 
         # Authentication history factor
         auth_factor = self._compute_auth_factor(profile_id)
@@ -185,7 +184,7 @@ class TrustManager:
         from_id: str,
         to_id: str,
         trust_level: float,
-        metadata: Optional[Dict[str, str]] = None,
+        metadata: Optional[dict[str, str]] = None,
     ) -> TrustRelationship:
         """Create trust relationship.
 
@@ -279,7 +278,7 @@ class TrustManager:
 
     def get_relationships(
         self, profile_id: str, transitive: bool = False
-    ) -> List[TrustRelationship]:
+    ) -> list[TrustRelationship]:
         """Get trust relationships for identity.
 
         Args:
@@ -301,7 +300,7 @@ class TrustManager:
 
         # BFS for transitive relationships
         all_rels = {(r.from_id, r.to_id): r for r in direct}
-        visited: Set[str] = {profile_id}
+        visited: set[str] = {profile_id}
         frontier = [r.to_id for r in direct]
 
         for _ in range(_MAX_HOPS - 1):
@@ -341,7 +340,7 @@ class TrustManager:
         """
         # BFS with trust decay
         # State: (current_node, accumulated_trust)
-        visited: Set[str] = {from_id}
+        visited: set[str] = {from_id}
         frontier = [(from_id, 1.0)]
         best_trust = 0.0
 

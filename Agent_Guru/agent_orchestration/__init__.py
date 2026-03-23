@@ -18,22 +18,22 @@ the complete public API for backward compatibility.
 from Agent_Guru.agent_orchestration.models import (
     Agent,
     AgentStatus,
+    EvolutionEvent,
+    PerformanceRecord,
     Task,
     TaskType,
-    PerformanceRecord,
-    EvolutionEvent,
 )
 
 # Full orchestration system from agents module
 from Agent_Guru.agents import (
-    OrchestrationSystem,
-    TaskResult,
-    AgentOrchestrator,
-    TaskStatus,
-    TaskDecomposer,
-    TaskAssigner,
     AgentLifecycleManager,
+    AgentOrchestrator,
+    OrchestrationSystem,
     PerformanceTracker,
+    TaskAssigner,
+    TaskDecomposer,
+    TaskResult,
+    TaskStatus,
 )
 
 __all__ = [

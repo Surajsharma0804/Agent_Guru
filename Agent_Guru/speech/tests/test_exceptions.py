@@ -1,6 +1,5 @@
 """Unit tests for speech engine exceptions."""
 
-import pytest
 from Agent_Guru.speech.exceptions import (
     GuruSpeechError,
     AudioInputError,

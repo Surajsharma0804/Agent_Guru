@@ -22,7 +22,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -67,14 +67,14 @@ class MacOSControllerResult:
     operation: str
     message: str
     error: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     latency_ms: float = 0.0
 
 
 # ---------------------------------------------------------------------------
 # Known application aliases
 # ---------------------------------------------------------------------------
-_APP_ALIASES: Dict[str, str] = {
+_APP_ALIASES: dict[str, str] = {
     # Browsers
     "chrome": "Google Chrome",
     "google chrome": "Google Chrome",
@@ -175,7 +175,7 @@ class MacOSController:
     def launch_app(
         self,
         app_name: str,
-        args: Optional[List[str]] = None,
+        args: Optional[list[str]] = None,
     ) -> MacOSControllerResult:
         """
         Launch an application by name.
@@ -508,7 +508,7 @@ class MacOSController:
     # Window management via NSWorkspace / AppleScript
     # ------------------------------------------------------------------
 
-    def get_running_apps(self) -> List[str]:
+    def get_running_apps(self) -> list[str]:
         """Return list of running application names."""
         if _APPKIT_AVAILABLE:
             try:

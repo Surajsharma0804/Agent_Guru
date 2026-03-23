@@ -48,16 +48,15 @@ Date: 2026-02-24
 Version: 1.0.0
 """
 
+import logging
 import os
+import subprocess
 import sys
 import time
-import logging
-import subprocess
 import urllib.parse
-from typing import Optional, List, Dict
 from dataclasses import dataclass
 from enum import Enum
-
+from typing import Optional
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -182,7 +181,7 @@ class MessagingController:
     def __init__(self):
         """Initialize messaging controller."""
         self.platform = sys.platform
-        self._app_paths: Dict[MessagingApp, Optional[str]] = {}
+        self._app_paths: dict[MessagingApp, Optional[str]] = {}
         self._text_input_controller = None
         logger.info(f"MessagingController initialized for platform: {self.platform}")
 
@@ -385,7 +384,7 @@ class MessagingController:
 
         except Exception as e:
             logger.error(f"Failed to launch app {app_path}: {e}")
-            raise RuntimeError(f"Failed to launch app: {e}")
+            raise RuntimeError(f"Failed to launch app: {e}") from e
 
     def _open_web_version(self, app: MessagingApp) -> bool:
         """Open web version of messaging app.
@@ -408,7 +407,7 @@ class MessagingController:
             return True
         except Exception as e:
             logger.error(f"Failed to open web version: {e}")
-            raise RuntimeError(f"Failed to open web version: {e}")
+            raise RuntimeError(f"Failed to open web version: {e}") from e
 
     def send_message(
         self,
@@ -446,7 +445,7 @@ class MessagingController:
         try:
             app = MessagingApp(app_name_lower)
         except ValueError:
-            raise ValueError(f"Unsupported messaging app: {app_name}")
+            raise ValueError(f"Unsupported messaging app: {app_name}") from e
 
         logger.info(f"Sending message via {app.value} to {recipient}")
 
@@ -472,7 +471,7 @@ class MessagingController:
             elif app == MessagingApp.TEAMS:
                 success = self._send_teams_message(recipient, message)
             else:
-                raise RuntimeError(f"Message sending not implemented for: {app.value}")
+                raise RuntimeError(f"Message sending not implemented for: {app.value}") from e
 
             return MessageInfo(
                 app=app,
@@ -522,7 +521,7 @@ class MessagingController:
             url = f"https://web.whatsapp.com/send?text={encoded_message}"
 
         webbrowser.open(url)
-        logger.info(f"Opened WhatsApp with message URL")
+        logger.info("Opened WhatsApp with message URL")
 
         # Note: This opens WhatsApp but doesn't automatically send
         # User must click send button
@@ -553,7 +552,7 @@ class MessagingController:
 
         url = f"https://t.me/{username}?text={encoded_message}"
         webbrowser.open(url)
-        logger.info(f"Opened Telegram with message URL")
+        logger.info("Opened Telegram with message URL")
 
         return True
 
@@ -576,7 +575,7 @@ class MessagingController:
         # For now, open Slack web
         url = "https://slack.com/signin"
         webbrowser.open(url)
-        logger.info(f"Opened Slack (manual message sending required)")
+        logger.info("Opened Slack (manual message sending required)")
 
         return True
 
@@ -599,7 +598,7 @@ class MessagingController:
         # For now, open Discord web
         url = "https://discord.com/app"
         webbrowser.open(url)
-        logger.info(f"Opened Discord (manual message sending required)")
+        logger.info("Opened Discord (manual message sending required)")
 
         return True
 
@@ -622,7 +621,7 @@ class MessagingController:
         # For now, open Teams web
         url = "https://teams.microsoft.com"
         webbrowser.open(url)
-        logger.info(f"Opened Teams (manual message sending required)")
+        logger.info("Opened Teams (manual message sending required)")
 
         return True
 
@@ -631,7 +630,7 @@ class MessagingController:
         app_name: str,
         query: str,
         limit: int = 10
-    ) -> List[ContactInfo]:
+    ) -> list[ContactInfo]:
         """Search for contacts in messaging app.
 
         Time Complexity: O(n) where n is number of contacts
@@ -661,7 +660,7 @@ class MessagingController:
         try:
             app = MessagingApp(app_name_lower)
         except ValueError:
-            raise ValueError(f"Unsupported messaging app: {app_name}")
+            raise ValueError(f"Unsupported messaging app: {app_name}") from e
 
         logger.info(f"Searching contacts in {app.value} for: {query}")
 
@@ -677,7 +676,7 @@ class MessagingController:
         self,
         app_name: str,
         limit: int = 10
-    ) -> List[ContactInfo]:
+    ) -> list[ContactInfo]:
         """Get recent contacts from messaging app.
 
         Time Complexity: O(n) where n is number of recent contacts
@@ -703,7 +702,7 @@ class MessagingController:
         try:
             app = MessagingApp(app_name_lower)
         except ValueError:
-            raise ValueError(f"Unsupported messaging app: {app_name}")
+            raise ValueError(f"Unsupported messaging app: {app_name}") from e
 
         logger.info(f"Getting recent contacts from {app.value}")
 
@@ -746,7 +745,7 @@ class MessagingController:
 
         return False
 
-    def list_installed_apps(self) -> List[str]:
+    def list_installed_apps(self) -> list[str]:
         """List all installed messaging apps.
 
         Time Complexity: O(n) where n is number of supported apps

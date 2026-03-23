@@ -15,9 +15,10 @@ Validates: Requirements 2, 7 (Task Execution and Coordination)
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable, Coroutine
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Coroutine, Dict, List, Optional
+from typing import Any, Optional
 
 from .task_decomposer import Task
 
@@ -115,14 +116,14 @@ class TaskExecutor:
         self.default_timeout = default_timeout_seconds
         self.max_parallel = max_parallel
 
-        self._statuses: Dict[str, ExecutionStatus] = {}
-        self._results: Dict[str, ExecutionResult] = {}
+        self._statuses: dict[str, ExecutionStatus] = {}
+        self._results: dict[str, ExecutionResult] = {}
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    async def execute(self, tasks: List[Task]) -> List[ExecutionResult]:
+    async def execute(self, tasks: list[Task]) -> list[ExecutionResult]:
         """Execute a list of tasks respecting their dependency order.
 
         Tasks with no unmet dependencies are run in parallel (up to
@@ -146,7 +147,7 @@ class TaskExecutor:
             self._statuses[task.id] = ExecutionStatus.PENDING
 
         # Build id → task map for dependency lookup
-        task_map: Dict[str, Task] = {t.id: t for t in tasks}
+        {t.id: t for t in tasks}
 
         # Execute in waves: each wave contains tasks whose deps are done
         completed_ids: set[str] = set()

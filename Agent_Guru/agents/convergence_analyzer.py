@@ -4,10 +4,10 @@ Convergence Analyzer - Tracks specialization convergence and system improvement.
 Validates: Requirements 21.1, 21.2, 21.3, 21.4
 """
 
-from typing import Dict, List, Any, TYPE_CHECKING
+import statistics
 from dataclasses import dataclass
 from datetime import datetime
-import statistics
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .agent_storage import AgentStorage
@@ -54,8 +54,8 @@ class ConvergenceAnalyzer:
         self.tracker = tracker
         self.stability_window = stability_window
         self.stability_threshold = stability_threshold
-        self._history: Dict[str, List[ConvergenceMetrics]] = {}
-        self._reassignment_counts: Dict[str, int] = {}
+        self._history: dict[str, list[ConvergenceMetrics]] = {}
+        self._reassignment_counts: dict[str, int] = {}
 
     async def track_success_rates_over_time(
         self, task_type: str, current_success_rate: float
@@ -118,7 +118,7 @@ class ConvergenceAnalyzer:
         if not self._history:
             return False
 
-        for task_type, snapshots in self._history.items():
+        for _task_type, snapshots in self._history.items():
             if len(snapshots) < self.stability_window:
                 return False
             recent_rates = [s.success_rate for s in snapshots[-self.stability_window :]]
@@ -127,13 +127,13 @@ class ConvergenceAnalyzer:
 
         return True
 
-    def get_convergence_report(self) -> Dict[str, Any]:
+    def get_convergence_report(self) -> dict[str, Any]:
         """
         Return convergence metrics for reporting to Self-Improvement Engine.
 
         Validates: Requirement 21.5
         """
-        report: Dict[str, Any] = {}
+        report: dict[str, Any] = {}
         for task_type, snapshots in self._history.items():
             if not snapshots:
                 continue

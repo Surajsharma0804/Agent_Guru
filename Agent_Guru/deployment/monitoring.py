@@ -12,11 +12,11 @@ Data is encrypted in transit (TLS 1.3) and at rest (AES-256).
 
 from __future__ import annotations
 
-import logging
 import platform
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -32,9 +32,9 @@ class AnalyticsEvent:
     event_type: str
     platform: str
     timestamp: float = field(default_factory=time.time)
-    properties: Dict[str, Any] = field(default_factory=dict)
+    properties: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "event_type": self.event_type,
             "platform": self.platform,
@@ -67,10 +67,10 @@ class MonitoringManager:
         self._sentry_dsn = sentry_dsn
         self._prometheus_port = prometheus_port
         self._initialized = False
-        self._events: List[AnalyticsEvent] = []
+        self._events: list[AnalyticsEvent] = []
         self._error_count = 0
-        self._performance_samples: Dict[str, List[float]] = {}
-        self._listeners: List[Callable[[AnalyticsEvent], None]] = []
+        self._performance_samples: dict[str, list[float]] = {}
+        self._listeners: list[Callable[[AnalyticsEvent], None]] = []
 
     def initialize(self) -> None:
         """Initialize monitoring subsystems."""
@@ -88,7 +88,7 @@ class MonitoringManager:
     def record_error(
         self,
         error_message: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
     ) -> None:
         """Record an error for crash reporting.
 
@@ -131,9 +131,9 @@ class MonitoringManager:
 
         logger.debug("performance_sample", stage=stage, latency_ms=latency_ms)
 
-    def get_performance_summary(self) -> Dict[str, Dict[str, float]]:
+    def get_performance_summary(self) -> dict[str, dict[str, float]]:
         """Return mean and p95 latency for all tracked stages."""
-        summary: Dict[str, Dict[str, float]] = {}
+        summary: dict[str, dict[str, float]] = {}
         for stage, samples in self._performance_samples.items():
             if not samples:
                 continue
@@ -153,7 +153,7 @@ class MonitoringManager:
     def record_event(
         self,
         event_type: str,
-        properties: Optional[Dict[str, Any]] = None,
+        properties: Optional[dict[str, Any]] = None,
     ) -> None:
         """Record a usage analytics event (only if user consented).
 
@@ -183,7 +183,7 @@ class MonitoringManager:
         """Register a callback for analytics events."""
         self._listeners.append(callback)
 
-    def get_events(self) -> List[AnalyticsEvent]:
+    def get_events(self) -> list[AnalyticsEvent]:
         """Return all collected analytics events."""
         return list(self._events)
 
@@ -251,7 +251,7 @@ class MonitoringManager:
         return text
 
     @staticmethod
-    def _sanitize_dict(d: Dict[str, Any]) -> Dict[str, Any]:
+    def _sanitize_dict(d: dict[str, Any]) -> dict[str, Any]:
         """Remove PII keys from a properties dict."""
         _pii_keys = {"name", "email", "phone", "address", "user_id", "ip"}
         return {k: v for k, v in d.items() if k.lower() not in _pii_keys}

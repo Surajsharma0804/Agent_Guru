@@ -169,12 +169,10 @@ class BaseLLMProvider(ABC):
         Raises:
             Exception: On API errors
         """
-        pass
 
     @abstractmethod
     def get_provider_type(self) -> LLMProvider:
         """Get provider type enum value."""
-        pass
 
     async def generate(self, request: LLMRequest) -> LLMResponse:
         """

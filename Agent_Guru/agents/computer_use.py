@@ -6,7 +6,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -60,14 +60,14 @@ class AgenticTask:
     task_id: str
     description: str
     task_type: str = "general"
-    actions: List[UIAction] = field(default_factory=list)
+    actions: list[UIAction] = field(default_factory=list)
     status: str = "pending"
     result: Optional[str] = None
     created_at: float = field(default_factory=time.time)
 
 
 # Task templates for common service categories
-TASK_TEMPLATES: Dict[str, List[str]] = {
+TASK_TEMPLATES: dict[str, list[str]] = {
     "ride_booking": ["open_app", "enter_destination", "select_ride", "confirm"],
     "food_ordering": ["open_app", "browse_menu", "add_to_cart", "checkout"],
     "restaurant_reservation": ["search_restaurant", "select_date", "enter_party_size", "confirm"],
@@ -82,9 +82,9 @@ class ComputerUseAgent:
 
     def __init__(self) -> None:
         self._cancelled = False
-        self._audit_log: List[Dict[str, Any]] = []
+        self._audit_log: list[dict[str, Any]] = []
 
-    async def perceive(self, screenshot: Optional[bytes] = None) -> Dict[str, Any]:
+    async def perceive(self, screenshot: Optional[bytes] = None) -> dict[str, Any]:
         """Identify UI elements from screenshot within 200ms."""
         start = time.perf_counter()
         # Stub: in production uses GPT-4V/Gemini Vision
@@ -96,7 +96,7 @@ class ComputerUseAgent:
             "latency_ms": elapsed_ms,
         }
 
-    def decompose(self, task: AgenticTask) -> List[UIAction]:
+    def decompose(self, task: AgenticTask) -> list[UIAction]:
         """Decompose task into UIAction sequence using ReAct-style prompting."""
         template = TASK_TEMPLATES.get(task.task_type, [])
         actions = []
@@ -201,5 +201,5 @@ class ComputerUseAgent:
             "ts": time.time(),
         })
 
-    def get_audit_log(self) -> List[Dict[str, Any]]:
+    def get_audit_log(self) -> list[dict[str, Any]]:
         return list(self._audit_log)

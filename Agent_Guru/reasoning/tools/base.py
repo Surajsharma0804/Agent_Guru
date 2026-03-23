@@ -6,7 +6,8 @@ This module defines the abstract base class for all tools and related data struc
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -53,17 +54,17 @@ class ToolMetadata(BaseModel):
     tool_id: str = Field(..., description="Unique tool identifier")
     name: str = Field(..., description="Human-readable tool name")
     description: str = Field(..., description="Tool description")
-    parameters: List[ToolParameter] = Field(default_factory=list, description="Tool parameters")
+    parameters: list[ToolParameter] = Field(default_factory=list, description="Tool parameters")
     sensitivity: ToolSensitivity = Field(
         default=ToolSensitivity.SAFE, description="Tool sensitivity level"
     )
     estimated_latency_ms: int = Field(
         default=1000, description="Estimated execution latency in milliseconds"
     )
-    capabilities: List[str] = Field(
+    capabilities: list[str] = Field(
         default_factory=list, description="Tool capabilities for matching"
     )
-    examples: List[str] = Field(default_factory=list, description="Example usage scenarios")
+    examples: list[str] = Field(default_factory=list, description="Example usage scenarios")
 
     @field_validator("estimated_latency_ms")
     @classmethod
@@ -93,7 +94,7 @@ class Tool(ABC):
         return self._metadata
 
     @abstractmethod
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute the tool with given parameters.
 
         Args:
@@ -109,7 +110,6 @@ class Tool(ABC):
         Raises:
             ValueError: If required parameters are missing or invalid
         """
-        pass
 
     def validate_parameters(self, **kwargs: Any) -> None:
         """Validate that all required parameters are present and valid.

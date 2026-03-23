@@ -21,8 +21,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any, Optional
 
 from Agent_Guru.llm.context_manager import ContextManager
 from Agent_Guru.llm.models import Message
@@ -187,8 +187,8 @@ class VoiceContextManager:
     def get_context_messages(
         self,
         session_id: str,
-        new_messages: Optional[List[Message]] = None,
-    ) -> List[Message]:
+        new_messages: Optional[list[Message]] = None,
+    ) -> list[Message]:
         """
         Get full context for a session including system prompt.
 
@@ -223,7 +223,7 @@ class VoiceContextManager:
         """Clear all history for a session."""
         self._context_manager.clear_context(session_id)
 
-    def get_token_usage(self, session_id: str) -> Dict[str, Any]:
+    def get_token_usage(self, session_id: str) -> dict[str, Any]:
         """Return token usage statistics for a session."""
         return self._context_manager.get_context_usage(session_id, "gpt-3.5-turbo")
 
@@ -242,6 +242,6 @@ class VoiceContextManager:
         """Return the current system prompt."""
         return self._system_prompt
 
-    def list_sessions(self) -> List[str]:
+    def list_sessions(self) -> list[str]:
         """Return all active session IDs."""
         return list(self._context_manager.sessions.keys())

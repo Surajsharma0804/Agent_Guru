@@ -13,7 +13,7 @@ Usage:
     import re
     if re.match(r'\d+', text):
         ...
-    
+
     # Use:
     from Agent_Guru.reasoning.utils.regex_patterns import DIGITS_PATTERN
     if DIGITS_PATTERN.match(text):
@@ -21,7 +21,7 @@ Usage:
 """
 
 import re
-from typing import Pattern
+from re import Pattern
 
 # ============================================================================
 # TIME PATTERNS
@@ -172,13 +172,13 @@ NEGATION_PATTERN: Pattern = re.compile(
 def extract_time(text: str) -> list[tuple[str, ...]]:
     """
     Extract time expressions from text.
-    
+
     Args:
         text: Input text
-        
+
     Returns:
         List of time matches
-        
+
     Example:
         >>> extract_time("Meet at 3pm tomorrow")
         [('3', '', 'pm')]
@@ -189,13 +189,13 @@ def extract_time(text: str) -> list[tuple[str, ...]]:
 def extract_duration(text: str) -> list[tuple[str, str]]:
     """
     Extract duration expressions from text.
-    
+
     Args:
         text: Input text
-        
+
     Returns:
         List of (amount, unit) tuples
-        
+
     Example:
         >>> extract_duration("Set timer for 5 minutes")
         [('5', 'minute')]
@@ -206,13 +206,13 @@ def extract_duration(text: str) -> list[tuple[str, str]]:
 def extract_emails(text: str) -> list[str]:
     """
     Extract email addresses from text.
-    
+
     Args:
         text: Input text
-        
+
     Returns:
         List of email addresses
-        
+
     Example:
         >>> extract_emails("Contact me at user@example.com")
         ['user@example.com']
@@ -223,13 +223,13 @@ def extract_emails(text: str) -> list[str]:
 def extract_phones(text: str) -> list[tuple[str, str, str]]:
     """
     Extract phone numbers from text.
-    
+
     Args:
         text: Input text
-        
+
     Returns:
         List of (area_code, prefix, line) tuples
-        
+
     Example:
         >>> extract_phones("Call me at (555) 123-4567")
         [('555', '123', '4567')]
@@ -240,13 +240,13 @@ def extract_phones(text: str) -> list[tuple[str, str, str]]:
 def extract_urls(text: str) -> list[str]:
     """
     Extract URLs from text.
-    
+
     Args:
         text: Input text
-        
+
     Returns:
         List of URLs
-        
+
     Example:
         >>> extract_urls("Visit https://example.com")
         ['https://example.com']
@@ -257,13 +257,13 @@ def extract_urls(text: str) -> list[str]:
 def is_question(text: str) -> bool:
     """
     Check if text is a question.
-    
+
     Args:
         text: Input text
-        
+
     Returns:
         True if text appears to be a question
-        
+
     Example:
         >>> is_question("What time is it?")
         True
@@ -276,13 +276,13 @@ def is_question(text: str) -> bool:
 def has_negation(text: str) -> bool:
     """
     Check if text contains negation.
-    
+
     Args:
         text: Input text
-        
+
     Returns:
         True if text contains negation words
-        
+
     Example:
         >>> has_negation("Don't do that")
         True
@@ -295,13 +295,13 @@ def has_negation(text: str) -> bool:
 def normalize_whitespace(text: str) -> str:
     """
     Normalize whitespace in text.
-    
+
     Args:
         text: Input text
-        
+
     Returns:
         Text with normalized whitespace
-        
+
     Example:
         >>> normalize_whitespace("Hello    world\\n\\n")
         'Hello world'
@@ -316,34 +316,34 @@ def normalize_whitespace(text: str) -> str:
 def benchmark_regex_performance():
     """Benchmark compiled vs non-compiled regex performance."""
     import time
-    
+
     test_text = "Set a timer for 5 minutes at 3pm tomorrow"
     iterations = 10000
-    
+
     print("Regex Pattern Performance Benchmark")
     print("=" * 80)
     print(f"Test text: {test_text}")
     print(f"Iterations: {iterations}")
     print()
-    
+
     # Benchmark non-compiled
     pattern_str = r'\b(\d+)\s*(second|minute|hour|day|week|month|year)s?\b'
     start = time.perf_counter()
     for _ in range(iterations):
         re.findall(pattern_str, test_text, re.IGNORECASE)
     non_compiled_time = time.perf_counter() - start
-    
+
     # Benchmark compiled
     start = time.perf_counter()
     for _ in range(iterations):
         DURATION_PATTERN.findall(test_text)
     compiled_time = time.perf_counter() - start
-    
+
     print(f"Non-compiled: {non_compiled_time*1000:.1f}ms total, {non_compiled_time/iterations*1000000:.1f}μs avg")
     print(f"Compiled: {compiled_time*1000:.1f}ms total, {compiled_time/iterations*1000000:.1f}μs avg")
     print(f"Speedup: {non_compiled_time/compiled_time:.1f}x faster")
     print()
-    
+
     # Test extraction functions
     print("Extraction Results:")
     print(f"  Time: {extract_time(test_text)}")

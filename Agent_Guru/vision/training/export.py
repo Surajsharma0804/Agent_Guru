@@ -54,8 +54,8 @@ def export_to_onnx(
         raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
 
     import torch
-    import torchvision.models as models  # type: ignore[import]
     import torch.nn as nn
+    import torchvision.models as models  # type: ignore[import]
 
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
     saved_embedding_dim = checkpoint.get("embedding_dim", embedding_dim)
@@ -124,10 +124,10 @@ def validate_onnx_equivalence(
         if not os.path.isfile(path):
             raise FileNotFoundError(f"File not found: {path}")
 
+    import onnxruntime as ort  # type: ignore[import]
     import torch
     import torch.nn as nn
     import torchvision.models as models  # type: ignore[import]
-    import onnxruntime as ort  # type: ignore[import]
 
     # Load PyTorch model
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)

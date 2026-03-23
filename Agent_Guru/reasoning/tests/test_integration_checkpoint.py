@@ -17,15 +17,12 @@ Version: 1.0.0
 """
 
 import time
-from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
 from Agent_Guru.reasoning.engine import ReasoningEngine
 from Agent_Guru.reasoning.input.normalizer import RawInput, InputSource
-from Agent_Guru.reasoning.models.intent import Intent, IntentType
-from Agent_Guru.reasoning.models.task import Task, TaskType, TaskStatus
 from Agent_Guru.reasoning.pipeline import ReasoningPipeline
 
 
@@ -228,7 +225,7 @@ class TestLatencyTargets:
         result = await engine.process(raw_input)
         end_time = time.perf_counter()
         
-        latency_ms = (end_time - start_time) * 1000
+        (end_time - start_time) * 1000
         
         # Verify result
         assert result is not None
@@ -254,7 +251,7 @@ class TestLatencyTargets:
             result = pipeline.process(query, user_id="test_user")
             end_time = time.perf_counter()
             
-            latency_ms = (end_time - start_time) * 1000
+            (end_time - start_time) * 1000
             
             # Verify result
             assert result is not None
@@ -643,7 +640,7 @@ class TestCheckpointValidation:
         result = await engine.process(raw_input)
         end_time = time.perf_counter()
         
-        latency_ms = (end_time - start_time) * 1000
+        (end_time - start_time) * 1000
         
         # Verify result
         assert result is not None

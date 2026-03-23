@@ -11,7 +11,8 @@ Provides centralized error management with:
 import traceback
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -83,7 +84,7 @@ class ErrorContext(BaseModel):
     action_id: Optional[str] = None
     tool_id: Optional[str] = None
     stack_trace: Optional[str] = None
-    additional_data: Dict[str, Any] = Field(default_factory=dict)
+    additional_data: dict[str, Any] = Field(default_factory=dict)
 
 
 class StructuredError(BaseModel):
@@ -95,7 +96,7 @@ class StructuredError(BaseModel):
     user_message: str  # User-friendly message
     context: ErrorContext
     recoverable: bool = True
-    suggested_actions: List[str] = Field(default_factory=list)
+    suggested_actions: list[str] = Field(default_factory=list)
     error_id: Optional[str] = None
 
 
@@ -215,7 +216,7 @@ class ErrorManager:
     def __init__(self):
         """Initialize error manager."""
         self._error_count = 0
-        self._error_history: List[StructuredError] = []
+        self._error_history: list[StructuredError] = []
 
     def create_error(
         self,
@@ -350,7 +351,7 @@ class ErrorManager:
 
         return messages.get(error_type, "An error occurred. Please try again.")
 
-    def _generate_suggested_actions(self, error_type: ErrorType) -> List[str]:
+    def _generate_suggested_actions(self, error_type: ErrorType) -> list[str]:
         """Generate suggested actions for error recovery.
 
         Args:
@@ -396,7 +397,7 @@ class ErrorManager:
 
         return suggestions.get(error_type, ["Try again", "Contact support if issue persists"])
 
-    def get_error_statistics(self) -> Dict[str, Any]:
+    def get_error_statistics(self) -> dict[str, Any]:
         """Get error statistics.
 
         Returns:
@@ -410,13 +411,13 @@ class ErrorManager:
             }
 
         # Count by type
-        by_type: Dict[str, int] = {}
+        by_type: dict[str, int] = {}
         for error in self._error_history:
             error_type = error.error_type.value
             by_type[error_type] = by_type.get(error_type, 0) + 1
 
         # Count by severity
-        by_severity: Dict[str, int] = {}
+        by_severity: dict[str, int] = {}
         for error in self._error_history:
             severity = error.severity.value
             by_severity[severity] = by_severity.get(severity, 0) + 1

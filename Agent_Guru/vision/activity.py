@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import time
 from collections import deque
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import structlog
@@ -89,8 +90,9 @@ class ActivityRecognizer:
         else:
             # Real ONNX inference path
             try:
-                from Agent_Guru.vision.model_manager import ModelManager
                 import os
+
+                from Agent_Guru.vision.model_manager import ModelManager
 
                 model_path = os.path.join("models", "activity_slowfast.onnx")
                 if not os.path.exists(model_path):

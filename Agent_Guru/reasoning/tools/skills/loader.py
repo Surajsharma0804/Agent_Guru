@@ -7,7 +7,7 @@ Handles skill discovery, validation, and registration with the tool registry.
 import importlib.util
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from Agent_Guru.reasoning.error.error_manager import (
     ErrorContext,
@@ -33,7 +33,7 @@ class SkillLoader:
             plugins_dir: Directory containing skill plugins
         """
         self.plugins_dir = Path(plugins_dir)
-        self.loaded_skills: Dict[str, SkillManifest] = {}
+        self.loaded_skills: dict[str, SkillManifest] = {}
         self.registry = get_registry()
 
     async def load_skill(self, skill_dir: Path) -> SkillManifest:
@@ -49,7 +49,7 @@ class SkillLoader:
             ValueError: If loading fails (with user-friendly message)
         """
         error_manager = get_error_manager()
-        
+
         # Find manifest file
         manifest_path = skill_dir / "skill.yaml"
         if not manifest_path.exists():
@@ -77,7 +77,7 @@ class SkillLoader:
                 message=f"Failed to parse manifest: {str(e)}",
                 context=context,
             )
-            raise ValueError(error.user_message)
+            raise ValueError(error.user_message) from e
 
         # Validate manifest
         errors = SkillManifestValidator.validate(manifest)
@@ -90,7 +90,7 @@ class SkillLoader:
                 message=f"Manifest validation failed: {', '.join(errors)}",
                 context=context,
             )
-            raise ValueError(error.user_message)
+            raise ValueError(error.user_message) from e
 
         # Check if already loaded
         if manifest.skill_id in self.loaded_skills:
@@ -102,7 +102,7 @@ class SkillLoader:
                 message=f"Skill '{manifest.skill_id}' already loaded",
                 context=context,
             )
-            raise ValueError(error.user_message)
+            raise ValueError(error.user_message) from e
 
         # Load skill module
         try:
@@ -117,7 +117,7 @@ class SkillLoader:
                 message=f"Failed to load skill module: {str(e)}",
                 context=context,
             )
-            raise ValueError(error.user_message)
+            raise ValueError(error.user_message) from e
 
         # Register tools
         try:
@@ -131,7 +131,7 @@ class SkillLoader:
                 message=f"Failed to register tools: {str(e)}",
                 context=context,
             )
-            raise ValueError(error.user_message)
+            raise ValueError(error.user_message) from e
 
         # Mark as loaded
         self.loaded_skills[manifest.skill_id] = manifest
@@ -199,7 +199,7 @@ class SkillLoader:
                 # Ensure tool is registered
                 await tool_instance.ensure_registered()
 
-    async def load_all_skills(self) -> List[SkillManifest]:
+    async def load_all_skills(self) -> list[SkillManifest]:
         """Load all skills from plugins directory.
 
         Returns:
@@ -222,7 +222,7 @@ class SkillLoader:
 
         return loaded
 
-    def get_loaded_skills(self) -> List[SkillManifest]:
+    def get_loaded_skills(self) -> list[SkillManifest]:
         """Get list of loaded skills.
 
         Returns:

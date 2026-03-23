@@ -17,13 +17,13 @@ class AudioCapture:
     def capture(self, duration: float | None = None) -> tuple[np.ndarray, int]:
         """
         Capture audio.
-        
+
         Args:
             duration: Duration in seconds (None for continuous)
-            
+
         Returns:
             Tuple of (audio_data, sample_rate)
-            
+
         Raises:
             NotImplementedError: Must be implemented by subclasses
         """
@@ -41,7 +41,7 @@ class MicrophoneCapture(AudioCapture):
     ):
         """
         Initialize microphone capture.
-        
+
         Args:
             sample_rate: Sample rate in Hz
             channels: Number of audio channels (1=mono, 2=stereo)
@@ -64,13 +64,13 @@ class MicrophoneCapture(AudioCapture):
     def capture(self, duration: float | None = None) -> tuple[np.ndarray, int]:
         """
         Capture audio from microphone.
-        
+
         Args:
             duration: Duration in seconds (required for microphone)
-            
+
         Returns:
             Tuple of (audio_data, sample_rate)
-            
+
         Raises:
             AudioInputError: If capture fails or duration not provided
         """
@@ -107,7 +107,7 @@ class MicrophoneCapture(AudioCapture):
     def list_devices() -> list:
         """
         List available audio input devices.
-        
+
         Returns:
             List of device information dictionaries
         """
@@ -135,7 +135,7 @@ class FileCapture(AudioCapture):
     def __init__(self, file_path: str):
         """
         Initialize file capture.
-        
+
         Args:
             file_path: Path to audio file
         """
@@ -145,13 +145,13 @@ class FileCapture(AudioCapture):
     def capture(self, duration: float | None = None) -> tuple[np.ndarray, int]:
         """
         Load audio from file.
-        
+
         Args:
             duration: Duration in seconds (None loads entire file)
-            
+
         Returns:
             Tuple of (audio_data, sample_rate)
-            
+
         Raises:
             AudioInputError: If file loading fails
         """
@@ -164,16 +164,16 @@ class FileCapture(AudioCapture):
     ) -> tuple[np.ndarray, int]:
         """
         Load audio from file.
-        
+
         Supports WAV, FLAC, OGG, and other formats via soundfile.
-        
+
         Args:
             file_path: Path to audio file
             duration: Duration in seconds (None loads entire file)
-            
+
         Returns:
             Tuple of (audio_data, sample_rate)
-            
+
         Raises:
             AudioInputError: If file loading fails
         """
@@ -199,8 +199,8 @@ class FileCapture(AudioCapture):
 
             return audio, sample_rate
 
-        except FileNotFoundError:
-            raise AudioInputError(f"Audio file not found: {file_path}")
+        except FileNotFoundError as e:
+            raise AudioInputError(f"Audio file not found: {file_path}") from e
         except Exception as e:
             raise AudioInputError(f"Failed to load audio file: {e}") from e
 
@@ -208,13 +208,13 @@ class FileCapture(AudioCapture):
     def get_file_info(file_path: str) -> dict:
         """
         Get information about an audio file.
-        
+
         Args:
             file_path: Path to audio file
-            
+
         Returns:
             Dictionary with file information
-            
+
         Raises:
             AudioInputError: If file cannot be read
         """

@@ -7,7 +7,6 @@ Run:
 
 from __future__ import annotations
 
-
 from Agent_Guru.avatar import GuruAvatarSystem
 
 

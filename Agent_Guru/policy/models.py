@@ -14,8 +14,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
-
+from typing import Any, Optional
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -62,7 +61,7 @@ class Principal:
     """
 
     id: str
-    attributes: Dict[str, Any] = field(default_factory=dict)
+    attributes: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -77,7 +76,7 @@ class Resource:
 
     id: str
     type: str
-    attributes: Dict[str, Any] = field(default_factory=dict)
+    attributes: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -106,10 +105,10 @@ class Policy:
     description: str
     effect: PolicyEffect
     priority: int
-    principals: List[str]
-    resources: List[str]
-    actions: List[str]
-    conditions: Dict[str, Any]
+    principals: list[str]
+    resources: list[str]
+    actions: list[str]
+    conditions: dict[str, Any]
     created_at: datetime
     updated_at: datetime
     active: bool = True
@@ -150,7 +149,7 @@ class Role:
 
     id: str
     name: str
-    permissions: List[str]
+    permissions: list[str]
     created_at: datetime
     parent_role_id: Optional[str] = None
 
@@ -169,7 +168,7 @@ class EvaluationContext:
     principal: Principal
     resource: Resource
     action: str
-    environment: Dict[str, Any] = field(default_factory=dict)
+    environment: dict[str, Any] = field(default_factory=dict)
 
     def get_attribute(self, path: str) -> Any:
         """Get attribute by dot-notation path.
@@ -232,7 +231,7 @@ class AccessDecision:
 
     effect: PolicyEffect
     reason: str
-    applicable_policies: List[str] = field(default_factory=list)
+    applicable_policies: list[str] = field(default_factory=list)
     evaluation_time_ms: float = 0.0
 
 
@@ -266,7 +265,7 @@ class PolicyDecision:
 
     effect: PolicyEffect
     winning_policy_id: str
-    conflicting_policies: List[str]
+    conflicting_policies: list[str]
     resolution_strategy: str
 
 
@@ -295,7 +294,7 @@ class AuditRecord:
     resource_type: str
     action: str
     effect: PolicyEffect
-    applicable_policies: List[str]
+    applicable_policies: list[str]
     context_hash: str
     evaluation_time_ms: float
     decision_reason: str
@@ -342,7 +341,7 @@ class TestCase:
     principal: Principal
     resource: Resource
     action: str
-    context: Dict[str, Any]
+    context: dict[str, Any]
     expected_effect: PolicyEffect
 
 
@@ -375,4 +374,4 @@ class TestResults:
 
     passed: int
     failed: int
-    failures: List[TestFailure] = field(default_factory=list)
+    failures: list[TestFailure] = field(default_factory=list)

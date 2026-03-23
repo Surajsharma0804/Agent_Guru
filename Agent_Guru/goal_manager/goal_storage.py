@@ -31,16 +31,16 @@ Date: 2024-01-15
 Version: 1.0.0
 """
 
-import sqlite3
 import json
+import sqlite3
 import threading
-from typing import List, Optional
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
-from .models import Goal, GoalStatus, Priority
 from .exceptions import StorageError
 from .logging_config import get_logger
+from .models import Goal, GoalStatus, Priority
 
 # Initialize structured logger
 logger = get_logger(__name__)
@@ -49,18 +49,18 @@ logger = get_logger(__name__)
 class GoalStorage:
     """
     Persistent storage for goals using SQLite.
-    
+
     Provides ACID transactions and immediate persistence with O(1) retrieval
     by ID and O(log n) filtered queries using indexes.
-    
+
     Time Complexity:
         - store_goal: O(1) - single INSERT with index update
         - update_goal: O(1) - single UPDATE with index update
         - get_goal: O(1) - indexed lookup by primary key
         - query_goals: O(log n) - indexed scan with filters
-    
+
     Space Complexity: O(n) where n is number of goals
-    
+
     Example:
         >>> storage = GoalStorage("goals.db")
         >>> goal = Goal(description="Test goal")
@@ -68,16 +68,16 @@ class GoalStorage:
         >>> retrieved = await storage.get_goal(goal.id)
         >>> assert retrieved.id == goal.id
     """
-    
+
     def __init__(self, db_path: str):
         """
         Initialize storage with database path.
-        
+
         Creates database file and schema if they don't exist.
-        
+
         Args:
             db_path: Path to SQLite database file
-            
+
         Raises:
             StorageError: If database initialization fails
         """
@@ -120,7 +120,6 @@ class GoalStorage:
         """
         # Schema is already set up synchronously in __init__.
         # This method exists so callers can await it without error.
-        pass
 
     async def update_goal_status(self, goal_id: str, status: "GoalStatus") -> None:
         """
@@ -155,7 +154,7 @@ class GoalStorage:
         except _StorageError:
             raise
         except Exception as e:
-            raise _StorageError(f"Failed to update goal status: {e}")
+            raise _StorageError(f"Failed to update goal status: {e}") from e
 
     def _connect(self) -> sqlite3.Connection:
         """Return the persistent connection."""
@@ -163,7 +162,6 @@ class GoalStorage:
 
     def _close(self, conn: sqlite3.Connection) -> None:
         """No-op: we keep the persistent connection open."""
-        pass
 
     def _init_schema(self) -> None:
         """
@@ -220,26 +218,26 @@ class GoalStorage:
                 error=str(e),
                 error_type=type(e).__name__
             )
-            raise StorageError(f"Failed to initialize database schema: {e}")
-    
+            raise StorageError(f"Failed to initialize database schema: {e}") from e
+
     async def store_goal(self, goal: Goal) -> None:
         """
         Store goal with immediate persistence.
-        
+
         Uses ACID transaction to ensure goal is persisted before returning.
-        
+
         Time Complexity: O(1) - single INSERT with index updates
         Space Complexity: O(1) - no additional memory allocation
-        
+
         Args:
             goal: Goal to store
-            
+
         Raises:
             StorageError: If persistence fails
         """
         conn = self._connect()
         cursor = conn.cursor()
-        
+
         try:
             with self._lock:
                 cursor.execute("""
@@ -267,7 +265,7 @@ class GoalStorage:
                     goal.retry_count if hasattr(goal, 'retry_count') else 0,
                 ))
                 conn.commit()
-        
+
         except sqlite3.IntegrityError as e:
             conn.rollback()
             logger.error(
@@ -277,8 +275,8 @@ class GoalStorage:
                 error=str(e),
                 error_type="IntegrityError"
             )
-            raise StorageError(f"Goal with ID {goal.id} already exists: {e}")
-        
+            raise StorageError(f"Goal with ID {goal.id} already exists: {e}") from e
+
         except StorageError:
             raise
 
@@ -291,29 +289,29 @@ class GoalStorage:
                 error=str(e),
                 error_type=type(e).__name__
             )
-            raise StorageError(f"Failed to store goal: {e}")
-        
+            raise StorageError(f"Failed to store goal: {e}") from e
+
         finally:
             self._close(conn)
-    
+
     async def update_goal(self, goal: Goal) -> None:
         """
         Update goal with immediate persistence.
-        
+
         Uses ACID transaction to ensure changes are persisted before returning.
-        
+
         Time Complexity: O(1) - single UPDATE with index updates
         Space Complexity: O(1) - no additional memory allocation
-        
+
         Args:
             goal: Goal with updated fields
-            
+
         Raises:
             StorageError: If persistence fails
         """
         conn = self._connect()
         cursor = conn.cursor()
-        
+
         try:
             with self._lock:
                 cursor.execute("""
@@ -358,7 +356,7 @@ class GoalStorage:
                     raise StorageError(f"Goal with ID {goal.id} not found")
 
                 conn.commit()
-        
+
         except StorageError:
             raise
 
@@ -371,26 +369,26 @@ class GoalStorage:
                 error=str(e),
                 error_type=type(e).__name__
             )
-            raise StorageError(f"Failed to update goal: {e}")
-        
+            raise StorageError(f"Failed to update goal: {e}") from e
+
         finally:
             self._close(conn)
-    
+
     async def get_goal(self, goal_id: str) -> Optional[Goal]:
         """
         Retrieve goal by ID.
-        
+
         Uses primary key index for O(1) lookup.
-        
+
         Time Complexity: O(1) - indexed lookup by primary key
         Space Complexity: O(1) - single goal object
-        
+
         Args:
             goal_id: Goal identifier
-            
+
         Returns:
             Goal if found, None otherwise
-            
+
         Raises:
             StorageError: If retrieval fails
         """
@@ -398,22 +396,22 @@ class GoalStorage:
             with self._lock:
                 conn = self._connect()
                 cursor = conn.cursor()
-                
+
                 cursor.execute("""
                     SELECT id, description, status, priority, goal_type, progress,
                            created_at, started_at, completed_at, deadline, parent_id,
                            sub_goal_ids, dependency_ids, metadata, error_message, retry_count
                     FROM goals WHERE id = ?
                 """, (goal_id,))
-                
+
                 row = cursor.fetchone()
                 self._close(conn)
-            
+
             if not row:
                 return None
-            
+
             return self._row_to_goal(row)
-        
+
         except Exception as e:
             logger.error(
                 "goal_retrieval_failed",
@@ -422,28 +420,28 @@ class GoalStorage:
                 error=str(e),
                 error_type=type(e).__name__
             )
-            raise StorageError(f"Failed to retrieve goal: {e}")
-    
+            raise StorageError(f"Failed to retrieve goal: {e}") from e
+
     async def query_goals(
         self,
         status: Optional[GoalStatus] = None,
         priority: Optional[Priority] = None
-    ) -> List[Goal]:
+    ) -> list[Goal]:
         """
         Query goals with optional filters.
-        
+
         Uses indexes on status and priority for O(log n) filtered queries.
-        
+
         Time Complexity: O(log n + k) where k is number of matching goals
         Space Complexity: O(k) for result list
-        
+
         Args:
             status: Optional status filter
             priority: Optional priority filter
-            
+
         Returns:
             List of goals matching filters
-            
+
         Raises:
             StorageError: If query fails
         """
@@ -451,7 +449,7 @@ class GoalStorage:
             with self._lock:
                 conn = self._connect()
                 cursor = conn.cursor()
-                
+
                 # Build query with filters
                 query = """
                     SELECT id, description, status, priority, goal_type, progress,
@@ -460,21 +458,21 @@ class GoalStorage:
                     FROM goals WHERE 1=1
                 """
                 params = []
-                
+
                 if status:
                     query += " AND status = ?"
                     params.append(status.value)
-                
+
                 if priority:
                     query += " AND priority = ?"
                     params.append(priority.value)
-                
+
                 cursor.execute(query, params)
                 rows = cursor.fetchall()
                 self._close(conn)
-            
+
             return [self._row_to_goal(row) for row in rows]
-        
+
         except Exception as e:
             logger.error(
                 "goal_query_failed",
@@ -484,21 +482,21 @@ class GoalStorage:
                 error=str(e),
                 error_type=type(e).__name__
             )
-            raise StorageError(f"Failed to query goals: {e}")
-    
+            raise StorageError(f"Failed to query goals: {e}") from e
+
     def _row_to_goal(self, row: tuple) -> Goal:
         """
         Convert database row to Goal object.
-        
+
         Time Complexity: O(1) - fixed number of field conversions
         Space Complexity: O(1) - single goal object
-        
+
         Args:
             row: Database row tuple
-            
+
         Returns:
             Goal object
-            
+
         Raises:
             StorageError: If conversion fails
         """
@@ -522,7 +520,7 @@ class GoalStorage:
                 error_message=row[14],
                 retry_count=row[15] if row[15] is not None else 0,
             )
-        
+
         except Exception as e:
             logger.error(
                 "row_conversion_failed",
@@ -530,31 +528,31 @@ class GoalStorage:
                 error=str(e),
                 error_type=type(e).__name__
             )
-            raise StorageError(f"Failed to convert row to goal: {e}")
-    
+            raise StorageError(f"Failed to convert row to goal: {e}") from e
+
     async def export_to_json(self, output_path: str) -> None:
         """
         Export all goals to JSON file.
-        
+
         Time Complexity: O(n) where n is number of goals
         Space Complexity: O(n) for in-memory goal list
-        
+
         Args:
             output_path: Path to output JSON file
-            
+
         Raises:
             StorageError: If export fails
         """
         try:
             goals = await self.query_goals()
-            
+
             with open(output_path, 'w') as f:
                 json.dump(
                     [self._goal_to_dict(g) for g in goals],
                     f,
                     indent=2
                 )
-        
+
         except Exception as e:
             logger.error(
                 "goal_export_failed",
@@ -563,28 +561,28 @@ class GoalStorage:
                 error=str(e),
                 error_type=type(e).__name__
             )
-            raise StorageError(f"Failed to export goals: {e}")
-    
+            raise StorageError(f"Failed to export goals: {e}") from e
+
     async def import_from_json(self, input_path: str) -> int:
         """
         Import goals from JSON file.
-        
+
         Time Complexity: O(n) where n is number of goals
         Space Complexity: O(1) - processes one goal at a time
-        
+
         Args:
             input_path: Path to input JSON file
-            
+
         Returns:
             Number of goals imported
-            
+
         Raises:
             StorageError: If import fails
         """
         try:
-            with open(input_path, 'r') as f:
+            with open(input_path) as f:
                 goals_data = json.load(f)
-            
+
             count = 0
             for goal_dict in goals_data:
                 goal = self._dict_to_goal(goal_dict)
@@ -594,9 +592,9 @@ class GoalStorage:
                 except StorageError:
                     # Skip duplicates
                     pass
-            
+
             return count
-        
+
         except Exception as e:
             logger.error(
                 "goal_import_failed",
@@ -605,18 +603,18 @@ class GoalStorage:
                 error=str(e),
                 error_type=type(e).__name__
             )
-            raise StorageError(f"Failed to import goals: {e}")
-    
+            raise StorageError(f"Failed to import goals: {e}") from e
+
     def _goal_to_dict(self, goal: Goal) -> dict:
         """
         Convert Goal to dictionary for JSON serialization.
-        
+
         Time Complexity: O(1) - fixed number of field conversions
         Space Complexity: O(1) - single dictionary
-        
+
         Args:
             goal: Goal to convert
-            
+
         Returns:
             Dictionary representation
         """
@@ -638,36 +636,36 @@ class GoalStorage:
             "error_message": goal.error_message,
             "retry_count": goal.retry_count if hasattr(goal, 'retry_count') else 0,
         }
-    
+
     @staticmethod
     def _get_enum_value(enum_field):
         """
         Extract value from enum field (handles both Enum objects and strings).
-        
+
         Time Complexity: O(1)
         Space Complexity: O(1)
-        
+
         Args:
             enum_field: Enum object or string value
-            
+
         Returns:
             String value of the enum
         """
         return enum_field.value if hasattr(enum_field, 'value') else enum_field
-    
+
     def _dict_to_goal(self, data: dict) -> Goal:
         """
         Convert dictionary to Goal object.
-        
+
         Time Complexity: O(1) - fixed number of field conversions
         Space Complexity: O(1) - single goal object
-        
+
         Args:
             data: Dictionary representation
-            
+
         Returns:
             Goal object
-            
+
         Raises:
             StorageError: If conversion fails
         """
@@ -687,7 +685,7 @@ class GoalStorage:
                 metadata=data["metadata"],
                 error_message=data["error_message"]
             )
-        
+
         except Exception as e:
             logger.error(
                 "dict_conversion_failed",
@@ -695,4 +693,4 @@ class GoalStorage:
                 error=str(e),
                 error_type=type(e).__name__
             )
-            raise StorageError(f"Failed to convert dict to goal: {e}")
+            raise StorageError(f"Failed to convert dict to goal: {e}") from e

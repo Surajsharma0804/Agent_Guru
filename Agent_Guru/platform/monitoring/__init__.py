@@ -23,23 +23,22 @@ Version: 1.0.0
 """
 
 from .resource_monitor import (
+    AlertSeverity,
+    DiskUsage,
+    GPUUsage,
+    NetworkIO,
+    ProcessResourceUsage,
+    ResourceAlert,
+    ResourceLimits,
     ResourceMonitor,
     ResourceMonitorConfig,
     ResourceSnapshot,
-    ResourceLimits,
-    ResourceAlert,
     ResourceType,
-    AlertSeverity,
-    ProcessResourceUsage,
-    DiskUsage,
-    NetworkIO,
-    GPUUsage,
 )
-
 from .self_improvement_integration import (
+    MetricType,
     SelfImprovementIntegration,
     SelfImprovementMetric,
-    MetricType,
 )
 
 __all__ = [

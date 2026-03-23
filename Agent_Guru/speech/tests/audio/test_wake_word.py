@@ -3,12 +3,10 @@
 import pytest
 import numpy as np
 from hypothesis import given, strategies as st, settings
-import asyncio
 
 from Agent_Guru.speech.audio.wake_word import (
     WakeWordDetector,
-    WakeWordConfig,
-    WakeWordError
+    WakeWordConfig
 )
 from Agent_Guru.speech.models import PersonalityType, WakeWordDetection
 
@@ -314,7 +312,7 @@ class TestWakeWordDetectorProperties:
         audio = np.random.randn(audio_length).astype(np.float32) * 0.3
         
         start_time = time.time()
-        result = detector.detect_sync(audio)
+        detector.detect_sync(audio)
         elapsed_ms = (time.time() - start_time) * 1000
         
         # Should complete within 200ms (being generous for test environment)

@@ -20,7 +20,6 @@ Requirements: 2.18
 
 from __future__ import annotations
 
-import io
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import IO, Union

@@ -4,7 +4,7 @@ Email tool for sending emails via Gmail, Outlook, or IMAP.
 Supports multiple email providers with API key management.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -65,7 +65,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class SendEmailTool(Tool):
     """Tool for sending emails."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute email sending.
 
         Args:

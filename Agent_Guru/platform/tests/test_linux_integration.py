@@ -11,13 +11,11 @@ Tests cover:
 
 import pytest
 import sys
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from Agent_Guru.platform.linux.integration import (
     LinuxIntegration,
     DBusError,
     CommandResult,
-    ProcessInfo,
-    ServiceStatus,
     SystemInfo
 )
 
@@ -92,7 +90,7 @@ class TestSystemdServiceManagement:
                 returncode=0
             )
             
-            status = integration.get_systemd_service_status("ssh")
+            integration.get_systemd_service_status("ssh")
             
             # Check that systemctl was called with .service suffix
             call_args = mock_run.call_args_list[0][0][0]

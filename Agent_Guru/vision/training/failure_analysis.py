@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import numpy as np
 
@@ -28,13 +28,13 @@ FAILURE_CATEGORIES = [
 @dataclass
 class BenchmarkMetadata:
     """Metadata for benchmark dataset pairs."""
-    pair_indices: List[Tuple[int, int]] = field(default_factory=list)
-    pose_angles: Optional[Dict[int, float]] = None
-    age_differences: Optional[Dict[Tuple[int, int], int]] = None
-    has_accessories: Optional[Dict[int, bool]] = None
-    lighting_conditions: Optional[Dict[int, str]] = None
-    blur_scores: Optional[Dict[int, float]] = None
-    occlusion_masks: Optional[Dict[int, np.ndarray]] = None
+    pair_indices: list[tuple[int, int]] = field(default_factory=list)
+    pose_angles: Optional[dict[int, float]] = None
+    age_differences: Optional[dict[tuple[int, int], int]] = None
+    has_accessories: Optional[dict[int, bool]] = None
+    lighting_conditions: Optional[dict[int, str]] = None
+    blur_scores: Optional[dict[int, float]] = None
+    occlusion_masks: Optional[dict[int, np.ndarray]] = None
 
 
 @dataclass
@@ -44,14 +44,14 @@ class FailureCategory:
     pair_idx: int
     score: float
     ground_truth: bool
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class CategoryStats:
     """Statistics for failure categories."""
-    category_counts: Dict[str, int] = field(default_factory=dict)
-    category_rates: Dict[str, float] = field(default_factory=dict)
+    category_counts: dict[str, int] = field(default_factory=dict)
+    category_rates: dict[str, float] = field(default_factory=dict)
     total_failures: int = 0
 
 
@@ -59,10 +59,10 @@ class CategoryStats:
 class FailureAnalysis:
     """Complete failure analysis result."""
     total_failures: int = 0
-    category_counts: Dict[str, int] = field(default_factory=dict)
-    category_rates: Dict[str, float] = field(default_factory=dict)
-    top_categories: List[str] = field(default_factory=list)
-    failure_examples: Dict[str, List[FailureCategory]] = field(default_factory=dict)
+    category_counts: dict[str, int] = field(default_factory=dict)
+    category_rates: dict[str, float] = field(default_factory=dict)
+    top_categories: list[str] = field(default_factory=list)
+    failure_examples: dict[str, list[FailureCategory]] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +98,7 @@ class FailureAnalyzer:
             FailureAnalysis with category breakdown.
         """
         failure_indices = np.where(predictions != labels)[0]
-        failures: List[FailureCategory] = []
+        failures: list[FailureCategory] = []
 
         for idx in failure_indices:
             score = float(scores[idx]) if scores is not None else 0.0
@@ -114,7 +114,7 @@ class FailureAnalyzer:
         top_cats = self.identify_top_failures(stats, self.top_k)
 
         # Group examples by category
-        examples: Dict[str, List[FailureCategory]] = {c: [] for c in FAILURE_CATEGORIES}
+        examples: dict[str, list[FailureCategory]] = {c: [] for c in FAILURE_CATEGORIES}
         for f in failures:
             examples.setdefault(f.category, []).append(f)
 
@@ -183,7 +183,7 @@ class FailureAnalyzer:
         return "unknown"
 
     def compute_category_stats(
-        self, failures: List[FailureCategory]
+        self, failures: list[FailureCategory]
     ) -> CategoryStats:
         """Compute failure rates per category.
 
@@ -193,12 +193,12 @@ class FailureAnalyzer:
         Returns:
             CategoryStats with counts and rates.
         """
-        counts: Dict[str, int] = {c: 0 for c in FAILURE_CATEGORIES}
+        counts: dict[str, int] = dict.fromkeys(FAILURE_CATEGORIES, 0)
         for f in failures:
             counts[f.category] = counts.get(f.category, 0) + 1
 
         total = len(failures)
-        rates: Dict[str, float] = {
+        rates: dict[str, float] = {
             c: counts[c] / max(total, 1) for c in counts
         }
 
@@ -210,7 +210,7 @@ class FailureAnalyzer:
 
     def identify_top_failures(
         self, stats: CategoryStats, top_k: int = 3
-    ) -> List[str]:
+    ) -> list[str]:
         """Rank categories by failure frequency.
 
         Args:

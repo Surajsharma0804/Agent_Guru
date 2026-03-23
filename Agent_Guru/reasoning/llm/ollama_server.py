@@ -20,7 +20,7 @@ Requirements: 4.2, 4.5
 import asyncio
 import time
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Any, Optional
 
 import requests
 
@@ -172,7 +172,7 @@ class OllamaServer:
                 raise RuntimeError(f"Failed to list models: {response.status_code}")
 
         except requests.RequestException as e:
-            raise RuntimeError(f"Error listing models: {str(e)}")
+            raise RuntimeError(f"Error listing models: {str(e)}") from e
 
     async def health_check(self) -> ServerHealth:
         """Check Ollama server health and availability.
@@ -260,7 +260,7 @@ class OllamaServer:
 
         try:
             # Build request payload for Ollama API
-            payload: Dict[str, Any] = {
+            payload: dict[str, Any] = {
                 "model": model_name,
                 "prompt": request.prompt,
                 "stream": False,  # Non-streaming for now
@@ -320,7 +320,7 @@ class OllamaServer:
                 raise RuntimeError(f"Generation failed: {response.status_code} - {response.text}")
 
         except requests.RequestException as e:
-            raise RuntimeError(f"Generation error: {str(e)}")
+            raise RuntimeError(f"Generation error: {str(e)}") from e
 
     def select_model_for_task(self, complexity: str) -> str:
         """Select optimal model based on task complexity.

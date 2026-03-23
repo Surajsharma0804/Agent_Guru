@@ -6,13 +6,11 @@ These tests run on the actual platform without mocking to verify
 real-world behavior.
 """
 
-import pytest
 import platform as platform_module
 
 from Agent_Guru.platform.platform_detector import (
     PlatformDetector,
-    PlatformInfo,
-    UnsupportedPlatformError
+    PlatformInfo
 )
 
 
@@ -187,7 +185,7 @@ class TestPlatformDetectorPerformance:
         
         # Measure uncached detection time
         start = time.perf_counter()
-        info = PlatformDetector.detect()
+        PlatformDetector.detect()
         elapsed = time.perf_counter() - start
         
         # Should complete in <10ms (target from design doc)
@@ -202,7 +200,7 @@ class TestPlatformDetectorPerformance:
         
         # Measure cached detection time
         start = time.perf_counter()
-        info = PlatformDetector.detect()
+        PlatformDetector.detect()
         elapsed = time.perf_counter() - start
         
         # Cached should be <1ms
@@ -217,7 +215,7 @@ class TestPlatformDetectorPerformance:
         
         # Measure is_windows() time
         start = time.perf_counter()
-        result = PlatformDetector.is_windows()
+        PlatformDetector.is_windows()
         elapsed = time.perf_counter() - start
         
         # Should be <1ms

@@ -11,8 +11,9 @@ Version: 1.0.0
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Any, AsyncIterator, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from Agent_Guru.llm.models import (
     AnthropicConfig,
@@ -25,7 +26,7 @@ from Agent_Guru.llm.models import (
 from Agent_Guru.llm.providers.base import ProviderAdapter
 
 # Pricing per 1K tokens (input / output)
-_PRICING: Dict[str, Dict[str, float]] = {
+_PRICING: dict[str, dict[str, float]] = {
     "claude-3-opus": {"input": 0.015, "output": 0.075},
     "claude-3-sonnet": {"input": 0.003, "output": 0.015},
     "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
@@ -108,7 +109,7 @@ class AnthropicAdapter(ProviderAdapter):
         client = self._get_client()
         system_prompt, anthropic_messages = self._to_anthropic_messages(request.messages)
 
-        kwargs: Dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
         if system_prompt:
             kwargs["system"] = system_prompt
         if request.functions:
@@ -124,7 +125,7 @@ class AnthropicAdapter(ProviderAdapter):
 
         # Extract text content
         content = ""
-        function_call: Optional[Dict[str, Any]] = None
+        function_call: Optional[dict[str, Any]] = None
         for block in response.content:
             if block.type == "text":
                 content += block.text
@@ -158,7 +159,7 @@ class AnthropicAdapter(ProviderAdapter):
         client = self._get_client()
         system_prompt, anthropic_messages = self._to_anthropic_messages(request.messages)
 
-        kwargs: Dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
         if system_prompt:
             kwargs["system"] = system_prompt
         if request.functions:
@@ -178,8 +179,8 @@ class AnthropicAdapter(ProviderAdapter):
         yield StreamChunk(content="", finish_reason="stop")
 
     async def embed(
-        self, text: Union[str, List[str]], model: str
-    ) -> List[List[float]]:
+        self, text: Union[str, list[str]], model: str
+    ) -> list[list[float]]:
         """Anthropic does not provide an embeddings API."""
         raise NotImplementedError(
             "Anthropic does not provide an embeddings API. "

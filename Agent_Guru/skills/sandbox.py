@@ -4,7 +4,8 @@ from __future__ import annotations
 import logging
 import multiprocessing
 import time
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from typing import Any, Optional
 
 from Agent_Guru.skills.manifest import ResourceLimits, ResourceUsage, SkillResult
 
@@ -20,7 +21,7 @@ except ImportError:
 def _worker(
     func_module: str,
     func_name: str,
-    kwargs: Dict[str, Any],
+    kwargs: dict[str, Any],
     result_queue: "multiprocessing.Queue[Any]",
 ) -> None:
     """Worker function executed in subprocess."""
@@ -44,7 +45,7 @@ class SkillSandbox:
         self,
         skill_id: str,
         func: Callable[..., Any],
-        kwargs: Optional[Dict[str, Any]] = None,
+        kwargs: Optional[dict[str, Any]] = None,
     ) -> SkillResult:
         """Execute a callable in a sandboxed subprocess."""
         kwargs = kwargs or {}
@@ -143,7 +144,7 @@ class SkillSandbox:
 
 def _sandbox_target(
     func: Callable[..., Any],
-    kwargs: Dict[str, Any],
+    kwargs: dict[str, Any],
     result_queue: "multiprocessing.Queue[Any]",
 ) -> None:
     try:

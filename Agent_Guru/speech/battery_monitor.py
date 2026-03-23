@@ -11,11 +11,11 @@ This module provides battery monitoring and optimization:
 - Battery optimization levels
 """
 
-import time
 import platform
-from typing import Optional, Dict, Any
+import time
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Optional
 
 
 class BatteryOptimizationLevel(Enum):
@@ -49,52 +49,52 @@ class BatteryUsageStats:
 class BatteryMonitor:
     """
     Monitor battery usage and provide optimization.
-    
+
     Features:
     - Track battery usage per mode
     - Low battery detection
     - Battery usage statistics
     - Platform-specific battery APIs
     - Optimization recommendations
-    
+
     Targets:
     - <5% battery per hour in sleep mode
     - <10% battery per hour in wake mode
     """
-    
+
     def __init__(
         self,
         optimization_level: BatteryOptimizationLevel = BatteryOptimizationLevel.BALANCED
     ):
         """
         Initialize Battery Monitor.
-        
+
         Args:
             optimization_level: Battery optimization level
         """
         self.optimization_level = optimization_level
-        
+
         # Battery usage tracking
         self._sleep_mode_start_battery: Optional[float] = None
         self._sleep_mode_start_time: Optional[float] = None
         self._sleep_mode_total_time: float = 0.0
         self._sleep_mode_total_battery_used: float = 0.0
-        
+
         self._wake_mode_start_battery: Optional[float] = None
         self._wake_mode_start_time: Optional[float] = None
         self._wake_mode_total_time: float = 0.0
         self._wake_mode_total_battery_used: float = 0.0
-        
+
         # Current mode
         self._in_sleep_mode = False
-        
+
         # Platform detection
         self._platform = platform.system().lower()
-    
+
     def get_battery_status(self) -> BatteryStatus:
         """
         Get current battery status.
-        
+
         Returns:
             BatteryStatus with current battery information
         """
@@ -112,53 +112,53 @@ class BatteryMonitor:
         except Exception:
             # Fallback to mock for testing
             return self._get_battery_status_mock()
-    
+
     def start_sleep_mode_tracking(self):
         """Start tracking battery usage in sleep mode."""
         status = self.get_battery_status()
         self._sleep_mode_start_battery = status.percentage
         self._sleep_mode_start_time = time.time()
         self._in_sleep_mode = True
-    
+
     def stop_sleep_mode_tracking(self):
         """Stop tracking battery usage in sleep mode."""
         if self._sleep_mode_start_battery is not None and self._sleep_mode_start_time is not None:
             status = self.get_battery_status()
             battery_used = self._sleep_mode_start_battery - status.percentage
             time_elapsed = time.time() - self._sleep_mode_start_time
-            
+
             self._sleep_mode_total_battery_used += max(0, battery_used)
             self._sleep_mode_total_time += time_elapsed
-            
+
             self._sleep_mode_start_battery = None
             self._sleep_mode_start_time = None
-        
+
         self._in_sleep_mode = False
-    
+
     def start_wake_mode_tracking(self):
         """Start tracking battery usage in wake mode."""
         status = self.get_battery_status()
         self._wake_mode_start_battery = status.percentage
         self._wake_mode_start_time = time.time()
         self._in_sleep_mode = False
-    
+
     def stop_wake_mode_tracking(self):
         """Stop tracking battery usage in wake mode."""
         if self._wake_mode_start_battery is not None and self._wake_mode_start_time is not None:
             status = self.get_battery_status()
             battery_used = self._wake_mode_start_battery - status.percentage
             time_elapsed = time.time() - self._wake_mode_start_time
-            
+
             self._wake_mode_total_battery_used += max(0, battery_used)
             self._wake_mode_total_time += time_elapsed
-            
+
             self._wake_mode_start_battery = None
             self._wake_mode_start_time = None
-    
+
     def get_usage_stats(self) -> BatteryUsageStats:
         """
         Get battery usage statistics.
-        
+
         Returns:
             BatteryUsageStats with usage information
         """
@@ -166,18 +166,18 @@ class BatteryMonitor:
         sleep_per_hour = 0.0
         if self._sleep_mode_total_time > 0:
             sleep_per_hour = (self._sleep_mode_total_battery_used / self._sleep_mode_total_time) * 3600
-        
+
         wake_per_hour = 0.0
         if self._wake_mode_total_time > 0:
             wake_per_hour = (self._wake_mode_total_battery_used / self._wake_mode_total_time) * 3600
-        
+
         total_time = self._sleep_mode_total_time + self._wake_mode_total_time
         total_battery = self._sleep_mode_total_battery_used + self._wake_mode_total_battery_used
-        
+
         total_per_hour = 0.0
         if total_time > 0:
             total_per_hour = (total_battery / total_time) * 3600
-        
+
         return BatteryUsageStats(
             sleep_mode_percent_per_hour=sleep_per_hour,
             wake_mode_percent_per_hour=wake_per_hour,
@@ -186,77 +186,77 @@ class BatteryMonitor:
             wake_time_seconds=self._wake_mode_total_time,
             total_time_seconds=total_time
         )
-    
+
     def should_pause_service(self) -> bool:
         """
         Check if service should be paused due to low battery.
-        
+
         Returns:
             True if battery is critical (<5%)
         """
         status = self.get_battery_status()
         return status.is_critical and not status.is_charging
-    
+
     def should_reduce_frequency(self) -> bool:
         """
         Check if wake word detection frequency should be reduced.
-        
+
         Returns:
             True if battery is low (<20%)
         """
         status = self.get_battery_status()
         return status.is_low and not status.is_charging
-    
-    def get_optimization_recommendations(self) -> Dict[str, Any]:
+
+    def get_optimization_recommendations(self) -> dict[str, Any]:
         """
         Get battery optimization recommendations.
-        
+
         Returns:
             Dictionary with optimization recommendations
         """
-        status = self.get_battery_status()
+        self.get_battery_status()
         stats = self.get_usage_stats()
-        
-        recommendations: Dict[str, Any] = {
+
+        recommendations: dict[str, Any] = {
             "pause_service": self.should_pause_service(),
             "reduce_frequency": self.should_reduce_frequency(),
             "warnings": []
         }
-        
+
         # Check if usage exceeds targets
         if stats.sleep_mode_percent_per_hour > 5.0:
             recommendations["warnings"].append(
                 f"Sleep mode using {stats.sleep_mode_percent_per_hour:.1f}% per hour (target: <5%)"
             )
-        
+
         if stats.wake_mode_percent_per_hour > 10.0:
             recommendations["warnings"].append(
                 f"Wake mode using {stats.wake_mode_percent_per_hour:.1f}% per hour (target: <10%)"
             )
-        
+
         if stats.total_usage_percent_per_hour > 15.0:
             recommendations["warnings"].append(
                 f"Total usage {stats.total_usage_percent_per_hour:.1f}% per hour exceeds 15%"
             )
-        
+
         return recommendations
-    
+
     def reset_stats(self):
         """Reset battery usage statistics."""
         self._sleep_mode_total_time = 0.0
         self._sleep_mode_total_battery_used = 0.0
         self._wake_mode_total_time = 0.0
         self._wake_mode_total_battery_used = 0.0
-    
+
     def _get_battery_status_windows(self) -> BatteryStatus:
         """Get battery status on Windows."""
         try:
             import psutil
             battery = psutil.sensors_battery()
-            
+
             if battery is None:
                 return self._get_battery_status_mock()
-            
+
             return BatteryStatus(
                 percentage=battery.percent,
                 is_charging=battery.power_plugged,
@@ -266,16 +266,16 @@ class BatteryMonitor:
             )
         except ImportError:
             return self._get_battery_status_mock()
-    
+
     def _get_battery_status_macos(self) -> BatteryStatus:
         """Get battery status on macOS."""
         try:
             import psutil
             battery = psutil.sensors_battery()
-            
+
             if battery is None:
                 return self._get_battery_status_mock()
-            
+
             return BatteryStatus(
                 percentage=battery.percent,
                 is_charging=battery.power_plugged,
@@ -285,16 +285,16 @@ class BatteryMonitor:
             )
         except ImportError:
             return self._get_battery_status_mock()
-    
+
     def _get_battery_status_linux(self) -> BatteryStatus:
         """Get battery status on Linux."""
         try:
             import psutil
             battery = psutil.sensors_battery()
-            
+
             if battery is None:
                 return self._get_battery_status_mock()
-            
+
             return BatteryStatus(
                 percentage=battery.percent,
                 is_charging=battery.power_plugged,
@@ -304,7 +304,7 @@ class BatteryMonitor:
             )
         except ImportError:
             return self._get_battery_status_mock()
-    
+
     def _get_battery_status_mock(self) -> BatteryStatus:
         """Get mock battery status for testing."""
         return BatteryStatus(

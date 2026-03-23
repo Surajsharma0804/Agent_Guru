@@ -10,17 +10,13 @@ Demonstrates how to:
 This example shows the core functionality of the failure analysis system.
 """
 
-import tempfile
 import os
+import tempfile
 from datetime import datetime
 
-from Agent_Guru.self_improvement.database_schema import DatabaseSchema
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
-from Agent_Guru.self_improvement.failure_analyzer import (
-    FailureAnalyzer,
-    FailureType,
-    TaskExecution
-)
+from Agent_Guru.self_improvement.database_schema import DatabaseSchema
+from Agent_Guru.self_improvement.failure_analyzer import FailureAnalyzer, FailureType, TaskExecution
 
 
 def main():
@@ -29,29 +25,29 @@ def main():
     print("FailureAnalyzer Example")
     print("=" * 60)
     print()
-    
+
     # Create temporary database
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "example.db")
-        
+
         # Initialize database schema
         print("1. Initializing database...")
         DatabaseSchema.create_schema(db_path)
         print(f"   ✓ Database created at: {db_path}")
         print()
-        
+
         # Create connection pool
         print("2. Creating connection pool...")
         pool = ConnectionPool(db_path, min_size=2, max_size=10)
-        print(f"   ✓ Pool created (min_size=2, max_size=10)")
+        print("   ✓ Pool created (min_size=2, max_size=10)")
         print()
-        
+
         # Create failure analyzer
         print("3. Creating failure analyzer...")
         analyzer = FailureAnalyzer(pool)
         print("   ✓ Analyzer initialized")
         print()
-        
+
         # Example 1: Record reasoning error
         print("4. Recording reasoning error...")
         reasoning_failure = TaskExecution(
@@ -77,7 +73,7 @@ def main():
         print(f"      Type: {reasoning_failure.failure_type.value}")
         print(f"      Step: {reasoning_failure.error_details['reasoning_step']}")
         print()
-        
+
         # Example 2: Record tool error
         print("5. Recording tool error...")
         tool_failure = TaskExecution(
@@ -102,7 +98,7 @@ def main():
         print(f"      Task: {tool_failure.task_id}")
         print(f"      Tool: {tool_failure.error_details['tool_name']}")
         print()
-        
+
         # Example 3: Record hallucination
         print("6. Recording hallucination...")
         hallucination_failure = TaskExecution(
@@ -128,7 +124,7 @@ def main():
         print(f"      Fabricated: {hallucination_failure.error_details['hallucination_content']}")
         print(f"      Correct: {hallucination_failure.error_details['correct_information']}")
         print()
-        
+
         # Example 4: Record multiple similar failures to create pattern
         print("7. Recording similar failures to create pattern...")
         for i in range(5):
@@ -150,9 +146,9 @@ def main():
                 }
             )
             analyzer.analyze_failure(similar_failure)
-        print(f"   ✓ Recorded 5 similar timeout failures")
+        print("   ✓ Recorded 5 similar timeout failures")
         print()
-        
+
         # Example 5: Query failure statistics
         print("8. Querying failure statistics...")
         total_failures = analyzer.get_failure_count()
@@ -160,14 +156,14 @@ def main():
         tool_errors = analyzer.get_failure_count(failure_type=FailureType.TOOL_ERROR)
         hallucinations = analyzer.get_failure_count(failure_type=FailureType.HALLUCINATION)
         timeouts = analyzer.get_failure_count(failure_type=FailureType.TIMEOUT)
-        
+
         print(f"   Total failures: {total_failures}")
         print(f"   Reasoning errors: {reasoning_errors}")
         print(f"   Tool errors: {tool_errors}")
         print(f"   Hallucinations: {hallucinations}")
         print(f"   Timeouts: {timeouts}")
         print()
-        
+
         # Example 6: Get identified patterns
         print("9. Retrieving identified patterns...")
         patterns = analyzer.get_failure_patterns(min_occurrences=2)
@@ -179,7 +175,7 @@ def main():
             print(f"        Confidence: {pattern.confidence_score:.2f}")
             print(f"        Features: {pattern.common_features}")
             print()
-        
+
         # Example 7: Get recent failures
         print("10. Retrieving recent failures...")
         recent = analyzer.get_recent_failures(limit=3)
@@ -189,7 +185,7 @@ def main():
             print(f"         Type: {failure['failure_type']}")
             print(f"         Time: {failure['execution_time_ms']:.1f}ms")
             print()
-        
+
         # Example 8: Record hallucination from LLM Runtime
         print("11. Recording hallucination from LLM Runtime...")
         analyzer.record_hallucination(
@@ -201,7 +197,7 @@ def main():
         print("       Prompt: prompt_v1_001")
         print("       Content: Python was invented in 1995")
         print()
-        
+
         # Example 9: Get connection pool statistics
         print("12. Connection pool statistics...")
         stats = pool.get_stats()
@@ -211,13 +207,13 @@ def main():
         print(f"    Total acquisitions: {stats.total_acquisitions}")
         print(f"    Avg acquisition time: {stats.avg_acquisition_time_ms:.2f}ms")
         print()
-        
+
         # Cleanup
         print("13. Cleaning up...")
         pool.close_all()
         print("    ✓ Connection pool closed")
         print()
-        
+
         print("=" * 60)
         print("Example completed successfully!")
         print("=" * 60)

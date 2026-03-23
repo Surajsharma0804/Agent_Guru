@@ -16,9 +16,8 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from Agent_Guru.deployment.installer_builder import (
     AndroidBuildConfig,
@@ -97,7 +96,7 @@ def build_macos(output_dir: Path) -> Path:
     return plist_path
 
 
-def build_linux(output_dir: Path) -> List[Path]:
+def build_linux(output_dir: Path) -> list[Path]:
     """Task 24: Build Linux packages (DEB + AppImage)."""
     logger.info("Building Linux packages...")
     builder = InstallerBuilder(output_dir / "linux")
@@ -116,7 +115,7 @@ def build_linux(output_dir: Path) -> List[Path]:
     return [desktop_path, control_path]
 
 
-def build_android(output_dir: Path) -> List[Path]:
+def build_android(output_dir: Path) -> list[Path]:
     """Task 25: Build Android APK/AAB."""
     logger.info("Building Android package...")
     builder = InstallerBuilder(output_dir / "android")

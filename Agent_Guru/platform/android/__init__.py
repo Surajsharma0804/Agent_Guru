@@ -20,18 +20,17 @@ Example:
 from .integration import (
     AndroidIntegration,
     AndroidIntegrationError,
-    PermissionDeniedError,
     AppNotFoundError,
-    PermissionStatus,
     BatteryInfo,
     NotificationConfig,
+    PermissionDeniedError,
+    PermissionStatus,
 )
-
 from .service import (
     AndroidForegroundService,
     AndroidServiceError,
-    ServiceState,
     ServiceConfig,
+    ServiceState,
     create_foreground_service,
     start_background_service,
 )

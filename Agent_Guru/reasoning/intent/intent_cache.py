@@ -216,7 +216,7 @@ class IntentDetectionCache:
         else:
             # If context is string, use it directly
             context_str = str(context)
-        
+
         return hashlib.sha256(context_str.encode()).hexdigest()
 
     def _is_expired(self, entry: CachedIntent) -> bool:
@@ -296,7 +296,7 @@ class IntentDetectionCache:
         self.stats.record_hit()
 
         # Log cache hit latency
-        latency_ms = (time.perf_counter() - start_time) * 1000
+        (time.perf_counter() - start_time) * 1000
         # Should be <1ms
 
         return entry.intent

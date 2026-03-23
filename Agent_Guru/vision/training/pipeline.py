@@ -11,15 +11,15 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
-from .config_manager import Config, ConfigManager
+from .config_manager import Config
 from .dataset_manager import DatasetManager
-from .evaluation import EvaluationEngine, BenchmarkResult
-from .failure_analysis import FailureAnalyzer, FailureAnalysis
+from .evaluation import BenchmarkResult, EvaluationEngine
+from .failure_analysis import FailureAnalysis, FailureAnalyzer
 from .improvement import ImprovementStrategyManager
-from .stress_test import StressTester, StressTestResult, StressCondition
-from .report import ReportGenerator, Report, ModelMetadata, TrainingSummary
+from .report import ModelMetadata, Report, ReportGenerator
+from .stress_test import StressCondition, StressTester, StressTestResult
 
 logger = logging.getLogger("guruvision.training.pipeline")
 
@@ -37,16 +37,16 @@ class PipelineResult:
     report_path: str = ""
     all_targets_met: bool = False
     total_time: float = 0.0
-    stages_completed: List[str] = field(default_factory=list)
+    stages_completed: list[str] = field(default_factory=list)
 
 
 @dataclass
 class ImprovementResult:
     """Result of the improvement loop."""
     iterations: int = 0
-    final_benchmark_results: List[BenchmarkResult] = field(default_factory=list)
+    final_benchmark_results: list[BenchmarkResult] = field(default_factory=list)
     all_targets_met: bool = False
-    history: List[Dict[str, Any]] = field(default_factory=list)
+    history: list[dict[str, Any]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -78,9 +78,9 @@ class PipelineOrchestrator:
 
         self._model_path: str = ""
         self._onnx_path: str = ""
-        self._benchmark_results: List[BenchmarkResult] = []
+        self._benchmark_results: list[BenchmarkResult] = []
         self._failure_analysis: Optional[FailureAnalysis] = None
-        self._stress_results: List[StressTestResult] = []
+        self._stress_results: list[StressTestResult] = []
 
     def run_full_pipeline(self) -> PipelineResult:
         """Execute all pipeline stages in sequence.
@@ -89,11 +89,11 @@ class PipelineOrchestrator:
             PipelineResult with paths and status.
         """
         start = time.time()
-        stages: List[str] = []
+        stages: list[str] = []
 
         try:
             # Stage 1: Training
-            training_result = self.run_training_stage()
+            self.run_training_stage()
             stages.append("training")
 
             # Stage 2: Evaluation
@@ -186,7 +186,7 @@ class PipelineOrchestrator:
 
     def run_evaluation_stage(
         self, model_path: str
-    ) -> List[BenchmarkResult]:
+    ) -> list[BenchmarkResult]:
         """Run evaluation on all configured benchmarks.
 
         Args:
@@ -196,7 +196,7 @@ class PipelineOrchestrator:
             List of BenchmarkResult objects.
         """
         logger.info("Starting evaluation stage")
-        results: List[BenchmarkResult] = []
+        results: list[BenchmarkResult] = []
 
         benchmarks = list(self.config.evaluation.targets.keys())
         if not benchmarks:
@@ -241,7 +241,7 @@ class PipelineOrchestrator:
         logger.info("Starting improvement loop (max_iterations=%d)", max_iterations)
         import numpy as np
 
-        history: List[Dict[str, Any]] = []
+        history: list[dict[str, Any]] = []
         current_results = self._benchmark_results or self.run_evaluation_stage(
             self._model_path
         )
@@ -289,7 +289,7 @@ class PipelineOrchestrator:
 
     def run_stress_testing_stage(
         self, model_path: str
-    ) -> List[StressTestResult]:
+    ) -> list[StressTestResult]:
         """Run stress testing on the model.
 
         Args:
@@ -311,7 +311,7 @@ class PipelineOrchestrator:
         images = rng.integers(0, 256, (n, 112, 112, 3), dtype=np.uint8)
         labels = rng.integers(0, 2, n)
 
-        conditions: List[StressCondition] = []
+        conditions: list[StressCondition] = []
         for cond_cfg in self.config.stress_testing.conditions:
             ctype = cond_cfg.get("type", "blur")
             params = cond_cfg.get("params", {})

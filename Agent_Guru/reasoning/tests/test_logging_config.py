@@ -1,6 +1,5 @@
 """Comprehensive unit tests for logging configuration - 100% coverage."""
 
-import pytest
 import logging
 import tempfile
 from pathlib import Path

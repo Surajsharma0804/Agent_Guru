@@ -28,12 +28,12 @@ Date: 2026-02-26
 Version: 1.0.0
 """
 
+import logging
 import re
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-from typing import List, Optional, Set, Dict, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
-import logging
+from typing import Any, Optional
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 logger = logging.getLogger(__name__)
 
@@ -76,18 +76,17 @@ class NetworkValidationResult:
     port: Optional[int]
     path: str
     sanitized_url: Optional[str]
-    warnings: List[str]
+    warnings: list[str]
 
 
 class NetworkValidationError(Exception):
     """Raised when network validation fails."""
-    pass
 
 
 class NetworkPermissionChecker:
     """
     Network permission checker with domain whitelist and method validation.
-    
+
     Features:
     - Domain whitelist (exact and wildcard matching)
     - HTTP method validation
@@ -95,10 +94,10 @@ class NetworkPermissionChecker:
     - Protocol validation (HTTPS enforcement)
     - Port validation
     - Query parameter sanitization
-    
+
     Time Complexity: O(n) where n is number of allowed domains
     Space Complexity: O(1) for validation
-    
+
     Example:
         >>> checker = NetworkPermissionChecker()
         >>> checker.add_allowed_domain("api.github.com")
@@ -110,10 +109,10 @@ class NetworkPermissionChecker:
         ... )
         >>> print(f"Allowed: {result.allowed}")
     """
-    
+
     # Default allowed ports
     DEFAULT_ALLOWED_PORTS = {80, 443, 8080, 8443}
-    
+
     # Dangerous query parameters (potential security risks)
     DANGEROUS_PARAMS = [
         "eval",
@@ -124,50 +123,50 @@ class NetworkPermissionChecker:
         "__import__",
         "compile",
     ]
-    
+
     def __init__(
         self,
         enforce_https: bool = True,
-        allowed_ports: Optional[Set[int]] = None
+        allowed_ports: Optional[set[int]] = None
     ):
         """
         Initialize network permission checker.
-        
+
         Args:
             enforce_https: Whether to enforce HTTPS in production
             allowed_ports: Set of allowed ports (defaults to 80, 443, 8080, 8443)
         """
-        self._allowed_domains: Set[str] = set()
-        self._wildcard_domains: List[str] = []  # Domains with * prefix
-        self._allowed_methods: Set[HttpMethod] = set()
-        self._allowed_patterns: List[re.Pattern] = []
-        self._blocked_patterns: List[re.Pattern] = []
+        self._allowed_domains: set[str] = set()
+        self._wildcard_domains: list[str] = []  # Domains with * prefix
+        self._allowed_methods: set[HttpMethod] = set()
+        self._allowed_patterns: list[re.Pattern] = []
+        self._blocked_patterns: list[re.Pattern] = []
         self._enforce_https = enforce_https
         self._allowed_ports = allowed_ports or self.DEFAULT_ALLOWED_PORTS
-        
+
         logger.debug(
             f"NetworkPermissionChecker initialized "
             f"(enforce_https={enforce_https}, "
             f"allowed_ports={self._allowed_ports})"
         )
-    
+
     def add_allowed_domain(self, domain: str) -> None:
         """
         Add allowed domain to whitelist.
-        
+
         Supports wildcards:
         - *.example.com matches any subdomain of example.com
         - example.com matches exactly example.com
-        
+
         Args:
             domain: Domain name (e.g., "api.github.com", "*.googleapis.com")
-            
+
         Example:
             >>> checker.add_allowed_domain("api.github.com")
             >>> checker.add_allowed_domain("*.googleapis.com")
         """
         domain = domain.lower().strip()
-        
+
         if domain.startswith("*."):
             # Wildcard subdomain
             self._wildcard_domains.append(domain[2:])  # Store without *.
@@ -176,28 +175,28 @@ class NetworkPermissionChecker:
             # Exact domain
             self._allowed_domains.add(domain)
             logger.debug(f"Added exact domain: {domain}")
-    
+
     def add_allowed_method(self, method: HttpMethod) -> None:
         """
         Add allowed HTTP method.
-        
+
         Args:
             method: HTTP method to allow
-            
+
         Example:
             >>> checker.add_allowed_method(HttpMethod.GET)
             >>> checker.add_allowed_method(HttpMethod.POST)
         """
         self._allowed_methods.add(method)
         logger.debug(f"Added allowed method: {method.value}")
-    
+
     def add_allowed_pattern(self, pattern: str) -> None:
         """
         Add allowed URL pattern (regex).
-        
+
         Args:
             pattern: Regular expression pattern
-            
+
         Example:
             >>> checker.add_allowed_pattern(r"^https://api\.github\.com/repos/.*")
         """
@@ -207,17 +206,17 @@ class NetworkPermissionChecker:
             logger.debug(f"Added allowed URL pattern: {pattern}")
         except re.error as e:
             logger.error(f"Invalid regex pattern: {pattern} ({e})")
-            raise NetworkValidationError(f"Invalid regex pattern: {pattern}")
-    
+            raise NetworkValidationError(f"Invalid regex pattern: {pattern}") from e
+
     def add_blocked_pattern(self, pattern: str) -> None:
         """
         Add blocked URL pattern (regex).
-        
+
         Blocked patterns take precedence over allowed patterns.
-        
+
         Args:
             pattern: Regular expression pattern
-            
+
         Example:
             >>> checker.add_blocked_pattern(r".*admin.*")
         """
@@ -227,8 +226,8 @@ class NetworkPermissionChecker:
             logger.debug(f"Added blocked URL pattern: {pattern}")
         except re.error as e:
             logger.error(f"Invalid regex pattern: {pattern} ({e})")
-            raise NetworkValidationError(f"Invalid regex pattern: {pattern}")
-    
+            raise NetworkValidationError(f"Invalid regex pattern: {pattern}") from e
+
     def validate_url(
         self,
         url: str,
@@ -237,20 +236,20 @@ class NetworkPermissionChecker:
     ) -> NetworkValidationResult:
         """
         Validate URL against allowed domains, methods, and patterns.
-        
+
         Time Complexity: O(n) where n is number of allowed domains
         Space Complexity: O(1)
-        
+
         Args:
             url: URL to validate
             method: HTTP method
             validate_query_params: Whether to validate query parameters
-            
+
         Returns:
             NetworkValidationResult with validation details
         """
         warnings = []
-        
+
         # Basic validation
         if not url or not url.strip():
             return NetworkValidationResult(
@@ -268,7 +267,7 @@ class NetworkPermissionChecker:
                 sanitized_url=None,
                 warnings=[]
             )
-        
+
         # Parse URL
         try:
             parsed_url = urlparse(url)
@@ -288,17 +287,17 @@ class NetworkPermissionChecker:
                 sanitized_url=None,
                 warnings=[]
             )
-        
+
         # Extract components
         protocol = parsed_url.scheme.lower()
         domain = parsed_url.netloc.lower()
         port = parsed_url.port
         path = parsed_url.path
-        
+
         # Remove port from domain if present
         if ":" in domain:
             domain = domain.split(":")[0]
-        
+
         # Validate protocol
         if self._enforce_https and protocol != "https":
             logger.warning(f"Non-HTTPS protocol denied: {url}")
@@ -317,12 +316,12 @@ class NetworkPermissionChecker:
                 sanitized_url=None,
                 warnings=[]
             )
-        
+
         # Validate port
         if port is not None and port not in self._allowed_ports:
             logger.warning(f"Port not allowed: {port} in {url}")
             warnings.append(f"Port {port} not in allowed ports: {self._allowed_ports}")
-        
+
         # Check blocked patterns first (security priority)
         for pattern in self._blocked_patterns:
             if pattern.search(url):
@@ -342,7 +341,7 @@ class NetworkPermissionChecker:
                     sanitized_url=None,
                     warnings=[]
                 )
-        
+
         # Validate HTTP method
         if method not in self._allowed_methods:
             logger.warning(f"HTTP method not allowed: {method.value}")
@@ -361,7 +360,7 @@ class NetworkPermissionChecker:
                 sanitized_url=None,
                 warnings=[]
             )
-        
+
         # Validate domain
         domain_match = self._check_domain(domain)
         if not domain_match[0]:
@@ -381,9 +380,9 @@ class NetworkPermissionChecker:
                 sanitized_url=None,
                 warnings=[]
             )
-        
+
         matched_domain = domain_match[1]
-        
+
         # Check URL patterns if any
         matched_pattern = None
         if self._allowed_patterns:
@@ -393,7 +392,7 @@ class NetworkPermissionChecker:
                     matched_pattern = pattern.pattern
                     pattern_matched = True
                     break
-            
+
             if not pattern_matched:
                 logger.warning(f"URL does not match any allowed pattern: {url}")
                 return NetworkValidationResult(
@@ -411,21 +410,21 @@ class NetworkPermissionChecker:
                     sanitized_url=None,
                     warnings=[]
                 )
-        
+
         # Validate query parameters
         if validate_query_params and parsed_url.query:
             param_validation = self._validate_query_params(parsed_url.query)
             if not param_validation[0]:
                 warnings.append(param_validation[1])
-        
+
         # Sanitize URL
         sanitized_url = self._sanitize_url(parsed_url)
-        
+
         logger.debug(
             f"URL allowed: {url} -> {matched_domain} "
             f"(method: {method.value}, protocol: {protocol})"
         )
-        
+
         return NetworkValidationResult(
             allowed=True,
             url=url,
@@ -441,26 +440,26 @@ class NetworkPermissionChecker:
             sanitized_url=sanitized_url,
             warnings=warnings
         )
-    
-    def _check_domain(self, domain: str) -> Tuple[bool, Optional[str]]:
+
+    def _check_domain(self, domain: str) -> tuple[bool, Optional[str]]:
         """
         Check if domain is in whitelist.
-        
+
         Time Complexity: O(1) for exact match, O(n) for wildcard match
         Space Complexity: O(1)
-        
+
         Args:
             domain: Domain to check
-            
+
         Returns:
             Tuple of (is_allowed, matched_domain)
         """
         domain = domain.lower()
-        
+
         # Check exact match first (O(1))
         if domain in self._allowed_domains:
             return (True, domain)
-        
+
         # Check wildcard matches (O(n))
         for wildcard_base in self._wildcard_domains:
             # Wildcard should only match subdomains, not the base domain itself
@@ -469,58 +468,58 @@ class NetworkPermissionChecker:
             # and "notexample.com" does NOT match "*.example.com"
             if domain.endswith("." + wildcard_base):
                 return (True, f"*.{wildcard_base}")
-        
+
         return (False, None)
-    
-    def _validate_query_params(self, query_string: str) -> Tuple[bool, str]:
+
+    def _validate_query_params(self, query_string: str) -> tuple[bool, str]:
         """
         Validate query parameters for suspicious patterns.
-        
+
         Args:
             query_string: URL query string
-            
+
         Returns:
             Tuple of (is_valid, warning_message)
         """
         warnings = []
-        
+
         try:
             params = parse_qs(query_string)
         except Exception as e:
             return (False, f"Failed to parse query parameters: {e}")
-        
+
         for param_name, param_values in params.items():
             # Check for dangerous parameter names
             if param_name.lower() in self.DANGEROUS_PARAMS:
                 warnings.append(f"Dangerous parameter name: {param_name}")
-            
+
             # Check parameter values
             for value in param_values:
                 # Check for code injection patterns
                 if any(pattern in value.lower() for pattern in ["<script", "javascript:", "eval(", "exec("]):
                     warnings.append(f"Suspicious parameter value: {param_name}={value}")
-                
+
                 # Check for SQL injection patterns
                 if any(pattern in value.lower() for pattern in ["' or ", "'; drop", "union select"]):
                     warnings.append(f"Potential SQL injection: {param_name}={value}")
-        
+
         if warnings:
             return (False, "; ".join(warnings))
         return (True, "")
-    
+
     def _sanitize_url(self, parsed_url: Any) -> str:
         """
         Sanitize URL by removing potentially dangerous elements.
-        
+
         Args:
             parsed_url: Parsed URL object
-            
+
         Returns:
             Sanitized URL
         """
         # Reconstruct URL with sanitized components
         sanitized_parts = list(parsed_url)
-        
+
         # Sanitize query parameters
         if parsed_url.query:
             try:
@@ -534,12 +533,12 @@ class NetworkPermissionChecker:
             except Exception:
                 # If sanitization fails, remove query string entirely
                 sanitized_parts[4] = ""
-        
+
         # Remove fragment (not needed for API calls)
         sanitized_parts[5] = ""
-        
+
         return urlunparse(sanitized_parts)
-    
+
     def is_url_allowed(
         self,
         url: str,
@@ -547,63 +546,63 @@ class NetworkPermissionChecker:
     ) -> bool:
         """
         Quick check if URL is allowed.
-        
+
         Time Complexity: O(n)
         Space Complexity: O(1)
-        
+
         Args:
             url: URL to check
             method: HTTP method
-            
+
         Returns:
             True if URL is allowed
         """
         result = self.validate_url(url, method, validate_query_params=False)
         return result.allowed
-    
+
     def is_domain_allowed(self, domain: str) -> bool:
         """
         Check if domain is in whitelist.
-        
+
         Time Complexity: O(n)
         Space Complexity: O(1)
-        
+
         Args:
             domain: Domain to check
-            
+
         Returns:
             True if domain is allowed
         """
         return self._check_domain(domain.lower())[0]
-    
+
     def is_method_allowed(self, method: HttpMethod) -> bool:
         """
         Check if HTTP method is allowed.
-        
+
         Time Complexity: O(1)
         Space Complexity: O(1)
-        
+
         Args:
             method: HTTP method to check
-            
+
         Returns:
             True if method is allowed
         """
         return method in self._allowed_methods
-    
-    def get_url_info(self, url: str, method: HttpMethod) -> Dict[str, Any]:
+
+    def get_url_info(self, url: str, method: HttpMethod) -> dict[str, Any]:
         """
         Get detailed information about URL validation.
-        
+
         Args:
             url: URL to analyze
             method: HTTP method
-            
+
         Returns:
             Dictionary with URL validation information
         """
         result = self.validate_url(url, method)
-        
+
         return {
             "allowed": result.allowed,
             "url": result.url,
@@ -618,39 +617,39 @@ class NetworkPermissionChecker:
             "sanitized_url": result.sanitized_url,
             "warnings": result.warnings
         }
-    
+
     def clear_domains(self) -> None:
         """Clear all allowed domains."""
         self._allowed_domains.clear()
         self._wildcard_domains.clear()
         logger.debug("All allowed domains cleared")
-    
+
     def clear_methods(self) -> None:
         """Clear all allowed methods."""
         self._allowed_methods.clear()
         logger.debug("All allowed methods cleared")
-    
+
     def clear_patterns(self) -> None:
         """Clear all URL patterns."""
         self._allowed_patterns.clear()
         self._blocked_patterns.clear()
         logger.debug("All URL patterns cleared")
-    
+
     @property
     def allowed_domain_count(self) -> int:
         """Get number of allowed domains (exact + wildcard)."""
         return len(self._allowed_domains) + len(self._wildcard_domains)
-    
+
     @property
     def allowed_method_count(self) -> int:
         """Get number of allowed methods."""
         return len(self._allowed_methods)
-    
+
     @property
     def allowed_pattern_count(self) -> int:
         """Get number of allowed patterns."""
         return len(self._allowed_patterns)
-    
+
     @property
     def blocked_pattern_count(self) -> int:
         """Get number of blocked patterns."""
@@ -660,13 +659,13 @@ class NetworkPermissionChecker:
 def is_valid_url(url: str) -> bool:
     """
     Quick validation that URL is well-formed.
-    
+
     Time Complexity: O(1)
     Space Complexity: O(1)
-    
+
     Args:
         url: URL to validate
-        
+
     Returns:
         True if URL is well-formed
     """
@@ -680,13 +679,13 @@ def is_valid_url(url: str) -> bool:
 def extract_domain(url: str) -> Optional[str]:
     """
     Extract domain from URL.
-    
+
     Time Complexity: O(1)
     Space Complexity: O(1)
-    
+
     Args:
         url: URL to parse
-        
+
     Returns:
         Domain name or None if parsing fails
     """
@@ -705,13 +704,13 @@ def extract_domain(url: str) -> Optional[str]:
 def is_https_url(url: str) -> bool:
     """
     Check if URL uses HTTPS protocol.
-    
+
     Time Complexity: O(1)
     Space Complexity: O(1)
-    
+
     Args:
         url: URL to check
-        
+
     Returns:
         True if URL uses HTTPS
     """
@@ -725,13 +724,13 @@ def is_https_url(url: str) -> bool:
 def sanitize_url_simple(url: str) -> str:
     """
     Simple URL sanitization (remove fragment, normalize).
-    
+
     Time Complexity: O(n) where n is URL length
     Space Complexity: O(n)
-    
+
     Args:
         url: URL to sanitize
-        
+
     Returns:
         Sanitized URL
     """

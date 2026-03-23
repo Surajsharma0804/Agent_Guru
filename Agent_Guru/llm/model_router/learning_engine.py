@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import threading
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import structlog
 
@@ -55,7 +55,7 @@ class LearningEngine:
         min_exploration_rate: float = _MIN_EXPLORATION_RATE,
     ) -> None:
         # (model_id, task_type.value) → LearningWeights
-        self._weights: Dict[Tuple[str, str], LearningWeights] = {}
+        self._weights: dict[tuple[str, str], LearningWeights] = {}
         self._lock = threading.RLock()
         self._learning_rate = learning_rate
         self._min_samples = min_samples_for_confidence
@@ -119,7 +119,7 @@ class LearningEngine:
             w = self._weights.get(key)
         return w.weight if w is not None else 1.0
 
-    def get_weights_for_task(self, task_type: TaskType) -> Dict[str, float]:
+    def get_weights_for_task(self, task_type: TaskType) -> dict[str, float]:
         """Get all model weights for a given task type.
 
         Returns:
@@ -133,7 +133,7 @@ class LearningEngine:
             }
 
     def initialize_new_model(self, model_id: str,
-                             similar_model_ids: Optional[List[str]] = None) -> None:
+                             similar_model_ids: Optional[list[str]] = None) -> None:
         """Initialize weights for a new model based on similar models.
 
         If similar models are provided, the new model starts with their

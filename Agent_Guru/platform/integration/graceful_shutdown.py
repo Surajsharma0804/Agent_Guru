@@ -25,10 +25,11 @@ import json
 import logging
 import signal
 import time
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Coroutine, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -57,10 +58,10 @@ class ShutdownState:
     reason: str = "normal"
     in_flight_at_shutdown: int = 0
     cleanup_handlers_run: int = 0
-    cleanup_errors: List[str] = field(default_factory=list)
+    cleanup_errors: list[str] = field(default_factory=list)
     duration_seconds: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "shutdown_time": self.shutdown_time.isoformat() + "Z",
             "reason": self.reason,
@@ -143,7 +144,7 @@ class GracefulShutdownManager:
         self.default_handler_timeout = default_handler_timeout
 
         self._phase = ShutdownPhase.RUNNING
-        self._cleanup_entries: List[_CleanupEntry] = []
+        self._cleanup_entries: list[_CleanupEntry] = []
         self._in_flight: int = 0
         self._lock: Optional[asyncio.Lock] = None  # Lazy init
         self._shutdown_event: Optional[asyncio.Event] = None  # Lazy init
@@ -361,7 +362,7 @@ class GracefulShutdownManager:
 
     # ─── Observability ────────────────────────────────────────────────────
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Return current manager status for health checks."""
         elapsed = (
             time.monotonic() - self._shutdown_start

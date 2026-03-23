@@ -11,8 +11,9 @@ Version: 1.0.0
 
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Optional
 
 from Agent_Guru.llm.models import Message, ModelProvider, RuntimeConfig
 
@@ -21,12 +22,12 @@ from Agent_Guru.llm.models import Message, ModelProvider, RuntimeConfig
 class LLMRequest:
     """Synchronous LLM request model."""
 
-    messages: List[Message]
+    messages: list[Message]
     model: str
     provider: "ModelProvider" = None  # type: ignore[assignment]
     max_tokens: int = 1024
     temperature: float = 0.7
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.provider is None:
@@ -44,7 +45,7 @@ class LLMResponse:
     total_tokens: int
     prompt_tokens: int = 0
     completion_tokens: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class _StandalonePromptVersion:
@@ -66,7 +67,7 @@ class _StandalonePromptEvolution:
     """Lightweight prompt registry used when no external engine is provided."""
 
     def __init__(self) -> None:
-        self._prompts: Dict[str, _StandalonePromptVersion] = {}
+        self._prompts: dict[str, _StandalonePromptVersion] = {}
         self._lock = threading.Lock()
 
     def register_prompt(
@@ -144,8 +145,9 @@ class LLMRuntime:
         self.degradation_controller = degradation_controller
 
         # Session history: session_id -> List[Message]
-        self.active_sessions: Dict[str, List[Message]] = {}
+        self.active_sessions: dict[str, list[Message]] = {}
         self._sessions_lock = threading.Lock()
+        self._max_session_history: int = 100  # Prevent unbounded growth
 
         # Prompt evolution — use engine's if available, else standalone
         if self_improvement_engine is not None and hasattr(
@@ -208,7 +210,7 @@ class LLMRuntime:
         messages = self._build_messages(request, session_id)
 
         try:
-            content = self._execute_llm(request, messages)
+            content = self._call_llm_api(request, messages)
             latency_ms = (time.perf_counter() - start) * 1000
 
             # Detect hallucinations
@@ -257,7 +259,7 @@ class LLMRuntime:
 
             raise
 
-    def _execute_llm(self, request: LLMRequest, messages: List[Message]) -> str:
+    def _call_llm_api(self, request: LLMRequest, messages: list[Message]) -> str:
         """Execute the actual LLM call via the async LLMRuntime (llm_runtime.py).
 
         Runs the async ``complete()`` coroutine in a thread-safe way so this
@@ -273,8 +275,8 @@ class LLMRuntime:
         import asyncio
 
         try:
-            from Agent_Guru.llm.llm_runtime import LLMRuntime as AsyncLLMRuntime
-            from Agent_Guru.llm.models import CompletionRequest, Message as LLMMessage, RuntimeConfig
+            from Agent_Guru.llm.models import CompletionRequest
+            from Agent_Guru.llm.models import Message as LLMMessage
         except ImportError:
             # Fallback when llm_runtime not available
             last_content = messages[-1].content if messages else "empty"
@@ -323,7 +325,7 @@ class LLMRuntime:
 
     def _build_messages(
         self, request: LLMRequest, session_id: Optional[str]
-    ) -> List[Message]:
+    ) -> list[Message]:
         if session_id is None:
             return list(request.messages)
         with self._sessions_lock:
@@ -333,7 +335,7 @@ class LLMRuntime:
     def _update_session(
         self,
         session_id: str,
-        user_messages: List[Message],
+        user_messages: list[Message],
         assistant_content: str,
     ) -> None:
         with self._sessions_lock:
@@ -343,8 +345,11 @@ class LLMRuntime:
             self.active_sessions[session_id].append(
                 Message(role="assistant", content=assistant_content)
             )
+            # Trim to max history to prevent unbounded memory growth
+            if len(self.active_sessions[session_id]) > self._max_session_history:
+                self.active_sessions[session_id] = self.active_sessions[session_id][-self._max_session_history:]
 
-    def get_session_history(self, session_id: str) -> List[Message]:
+    def get_session_history(self, session_id: str) -> list[Message]:
         """Get message history for a session."""
         with self._sessions_lock:
             return list(self.active_sessions.get(session_id, []))
@@ -356,7 +361,31 @@ class LLMRuntime:
 
     def close(self) -> None:
         """Release resources."""
-        pass
+
+    async def execute_async(
+        self,
+        request: LLMRequest,
+        session_id: Optional[str] = None,
+        prompt_type: Optional[str] = None,
+    ) -> LLMResponse:
+        """Async wrapper around execute() — runs in a thread pool executor.
+
+        Use this when calling from an async context to avoid blocking the
+        event loop.
+
+        Args:
+            request: LLM request to execute
+            session_id: Optional session ID for history tracking
+            prompt_type: Optional prompt type for evolution tracking
+
+        Returns:
+            LLM response
+        """
+        import asyncio
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None, lambda: self.execute(request, session_id, prompt_type)
+        )
 
 
 _async_llm_runtime_instance: Any = None
@@ -373,8 +402,8 @@ def _get_async_llm_runtime() -> Any:
         return _async_llm_runtime_instance
 
     try:
-        from Agent_Guru.llm.llm_runtime import LLMRuntime as AsyncLLMRuntime
         from Agent_Guru.llm import load_config_from_env
+        from Agent_Guru.llm.llm_runtime import LLMRuntime as AsyncLLMRuntime
         cfg = load_config_from_env()
         if not cfg.ollama_config.host:
             cfg.ollama_config.host = "http://localhost:11434"

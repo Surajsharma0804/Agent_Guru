@@ -21,8 +21,9 @@ Version: 1.0.0
 
 import asyncio
 from collections import defaultdict, deque
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from Agent_Guru.reasoning.execution.executor import ExecutionResult
 
@@ -130,7 +131,7 @@ class ParallelExecutor:
         step_results: dict[str, ExecutionResult] = {}
         failed_steps: list[str] = []
 
-        for batch_idx, batch in enumerate(batches):
+        for _batch_idx, batch in enumerate(batches):
             # Execute all steps in this batch concurrently
             batch_results = await self._execute_batch(batch, fail_fast)
 

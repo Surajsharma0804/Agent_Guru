@@ -18,17 +18,16 @@ Date: 2026-02-28
 Version: 1.0.0
 """
 
-import os
-import sys
-import time
-import json
-import random
-from typing import List, Dict, Tuple
-from datetime import datetime
-from dataclasses import dataclass, asdict
-
 # Direct imports to avoid circular dependencies
 import importlib.util
+import json
+import os
+import random
+import sys
+import time
+from dataclasses import asdict, dataclass
+from datetime import datetime
+
 
 # Load modules directly
 def load_module(module_path, module_name):
@@ -80,36 +79,36 @@ class ValidationReport:
     total_tasks: int
     successful_tasks: int
     failed_tasks: int
-    
+
     # Baseline metrics (first 10 tasks)
     baseline_success_rate: float
     baseline_avg_time_ms: float
     baseline_reasoning_quality: float
-    
+
     # Final metrics (last 10 tasks)
     final_success_rate: float
     final_avg_time_ms: float
     final_reasoning_quality: float
-    
+
     # Improvement metrics
     success_rate_improvement: float
     time_improvement: float
     reasoning_improvement: float
-    
+
     # Statistical significance
     improvement_significant: bool
     confidence_level: float
-    
+
     # Additional metrics
     total_execution_time_ms: float
     avg_task_time_ms: float
-    failure_types: Dict[str, int]
-    task_types: Dict[str, int]
-    
+    failure_types: dict[str, int]
+    task_types: dict[str, int]
+
     # Validation status
     meets_15_percent_target: bool
     validation_passed: bool
-    
+
     timestamp: str
     database_path: str
 
@@ -117,20 +116,20 @@ class ValidationReport:
 class TaskExecutor:
     """
     Executes diverse tasks for validation.
-    
+
     Simulates real task execution with varying complexity and outcomes.
     """
-    
-    def __init__(self, scenarios: List[TestScenario]):
+
+    def __init__(self, scenarios: list[TestScenario]):
         """
         Initialize task executor.
-        
+
         Args:
             scenarios: List of test scenarios to use
         """
         self.scenarios = scenarios
         self.scenario_index = 0
-        
+
         # Available strategies
         self.strategies = [
             "chain_of_thought",
@@ -139,7 +138,7 @@ class TaskExecutor:
             "tree_of_thought",
             "direct_answer",
         ]
-        
+
         # Task type distribution
         self.task_types = [
             "reasoning",
@@ -148,29 +147,29 @@ class TaskExecutor:
             "error_recovery",
             "pattern_recognition",
         ]
-    
+
     def execute_task(
         self,
         task_number: int,
         strategy: str
-    ) -> Tuple[TaskResult, bool]:
+    ) -> tuple[TaskResult, bool]:
         """
         Execute a single task.
-        
+
         Args:
             task_number: Task sequence number
             strategy: Strategy to use
-            
+
         Returns:
             Tuple of (TaskResult, success)
         """
         # Get scenario (cycle through scenarios)
         scenario = self.scenarios[self.scenario_index % len(self.scenarios)]
         self.scenario_index += 1
-        
+
         # Simulate task execution
         start_time = time.time()
-        
+
         # Determine success based on:
         # 1. Task difficulty
         # 2. Strategy effectiveness
@@ -178,35 +177,35 @@ class TaskExecutor:
         success_probability = self._calculate_success_probability(
             task_number, scenario.difficulty, strategy
         )
-        
+
         success = random.random() < success_probability
-        
+
         # Simulate execution time (decreases with learning)
         base_time = scenario.difficulty * 100  # Base time in ms
         learning_factor = max(0.5, 1.0 - (task_number / 200))  # Improves over time
         execution_time_ms = base_time * learning_factor * random.uniform(0.8, 1.2)
-        
+
         # Simulate reasoning quality (improves with learning)
         reasoning_quality = self._calculate_reasoning_quality(
             task_number, success, scenario.difficulty
         )
-        
+
         # Simulate tool selection (improves with learning)
         tool_selection_correct = self._calculate_tool_selection(
             task_number, success
         )
-        
+
         # Simulate hallucination detection (decreases with learning)
         hallucination_detected = self._calculate_hallucination(
             task_number, success
         )
-        
-        elapsed_time = (time.time() - start_time) * 1000
-        
+
+        (time.time() - start_time) * 1000
+
         # Create task result
         task_id = f"task_{task_number:03d}_{int(time.time() * 1000)}"
         task_type = self._map_scenario_to_task_type(scenario)
-        
+
         result = TaskResult(
             task_id=task_id,
             task_number=task_number,
@@ -221,9 +220,9 @@ class TaskExecutor:
             scenario_id=scenario.scenario_id,
             difficulty=scenario.difficulty,
         )
-        
+
         return result, success
-    
+
     def _calculate_success_probability(
         self,
         task_number: int,
@@ -232,19 +231,19 @@ class TaskExecutor:
     ) -> float:
         """
         Calculate success probability based on learning progress.
-        
+
         Success rate improves over time as the system learns.
         """
         # Base success rate (starts low)
         base_rate = 0.60  # 60% initial success rate
-        
+
         # Learning improvement (15% minimum over 100 tasks)
         learning_progress = min(1.0, task_number / 100)
         improvement = 0.20 * learning_progress  # 20% improvement potential
-        
+
         # Difficulty penalty
         difficulty_penalty = (difficulty - 1) * 0.05
-        
+
         # Strategy effectiveness (some strategies better than others)
         strategy_bonus = {
             "chain_of_thought": 0.05,
@@ -253,13 +252,13 @@ class TaskExecutor:
             "tree_of_thought": 0.02,
             "direct_answer": 0.00,
         }.get(strategy, 0.0)
-        
+
         # Calculate final probability
         probability = base_rate + improvement - difficulty_penalty + strategy_bonus
-        
+
         # Clamp to [0.3, 0.95]
         return max(0.3, min(0.95, probability))
-    
+
     def _calculate_reasoning_quality(
         self,
         task_number: int,
@@ -269,21 +268,21 @@ class TaskExecutor:
         """Calculate reasoning quality score."""
         # Base quality
         base_quality = 0.65 if success else 0.40
-        
+
         # Learning improvement
         learning_progress = min(1.0, task_number / 100)
         improvement = 0.15 * learning_progress
-        
+
         # Difficulty adjustment
         difficulty_factor = 1.0 - (difficulty - 1) * 0.05
-        
+
         quality = (base_quality + improvement) * difficulty_factor
-        
+
         # Add noise
         quality += random.uniform(-0.05, 0.05)
-        
+
         return max(0.0, min(1.0, quality))
-    
+
     def _calculate_tool_selection(
         self,
         task_number: int,
@@ -292,15 +291,15 @@ class TaskExecutor:
         """Calculate whether tool selection was correct."""
         # Base rate
         base_rate = 0.70 if success else 0.40
-        
+
         # Learning improvement
         learning_progress = min(1.0, task_number / 100)
         improvement = 0.15 * learning_progress
-        
+
         probability = base_rate + improvement
-        
+
         return random.random() < probability
-    
+
     def _calculate_hallucination(
         self,
         task_number: int,
@@ -309,19 +308,19 @@ class TaskExecutor:
         """Calculate whether hallucination was detected."""
         # Base rate (decreases with learning)
         base_rate = 0.15 if not success else 0.05
-        
+
         # Learning improvement (reduces hallucinations)
         learning_progress = min(1.0, task_number / 100)
         reduction = 0.10 * learning_progress
-        
+
         probability = max(0.01, base_rate - reduction)
-        
+
         return random.random() < probability
-    
+
     def _map_scenario_to_task_type(self, scenario: TestScenario) -> str:
         """Map scenario to task type."""
         scenario_type = scenario.scenario_type.value
-        
+
         if "simple" in scenario_type or "complex" in scenario_type:
             return "reasoning"
         elif "tool" in scenario_type:
@@ -340,11 +339,11 @@ def run_100_task_cycle(
 ) -> ValidationReport:
     """
     Run 100-task learning cycle validation.
-    
+
     Args:
         output_dir: Directory to save results
         enable_git: Whether to enable Git commits
-        
+
     Returns:
         ValidationReport with comprehensive metrics
     """
@@ -352,18 +351,18 @@ def run_100_task_cycle(
     print("100-TASK LEARNING CYCLE VALIDATION")
     print("=" * 70)
     print()
-    
+
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
-    
+
     # Create database path
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     db_path = os.path.join(output_dir, f"validation_{timestamp}.db")
-    
+
     print(f"Database: {db_path}")
     print(f"Git Commits: {'Enabled' if enable_git else 'Disabled'}")
     print()
-    
+
     # Initialize self-improvement engine
     print("Initializing self-improvement engine...")
     engine = SelfImprovementEngine(
@@ -375,7 +374,7 @@ def run_100_task_cycle(
     )
     print("✓ Engine initialized")
     print()
-    
+
     # Register strategies
     print("Registering strategies...")
     strategies_to_register = [
@@ -385,7 +384,7 @@ def run_100_task_cycle(
         ("tree_of_thought", "Tree of Thought", "Exploring multiple reasoning paths"),
         ("direct_answer", "Direct Answer", "Direct response without reasoning"),
     ]
-    
+
     for strategy_id, name, description in strategies_to_register:
         # Check if strategy already exists
         existing = engine.strategy_optimizer.get_strategy(strategy_id)
@@ -399,43 +398,43 @@ def run_100_task_cycle(
             )
     print(f"✓ Registered {len(strategies_to_register)} strategies")
     print()
-    
+
     # Load test scenarios
     print("Loading test scenarios...")
     scenarios = get_all_scenarios()
     print(f"✓ Loaded {len(scenarios)} scenarios")
     print()
-    
+
     # Initialize task executor
     executor = TaskExecutor(scenarios)
-    
+
     # Track results
-    all_results: List[TaskResult] = []
-    failure_types: Dict[str, int] = {}
-    task_types: Dict[str, int] = {}
-    
+    all_results: list[TaskResult] = []
+    failure_types: dict[str, int] = {}
+    task_types: dict[str, int] = {}
+
     # Run 100 tasks
     print("=" * 70)
     print("EXECUTING 100 TASKS")
     print("=" * 70)
     print()
-    
+
     total_start_time = time.time()
-    
+
     for task_num in range(1, 101):
         # Get optimal strategy from engine
         task_type = random.choice(executor.task_types)
         strategy = engine.get_optimal_strategy(task_type)
-        
+
         if strategy:
             strategy_id = strategy.strategy_id
         else:
             # Use random strategy if none recommended yet
             strategy_id = random.choice(executor.strategies)
-        
+
         # Execute task
         result, success = executor.execute_task(task_num, strategy_id)
-        
+
         # Record in engine
         error_details = None
         if not success:
@@ -449,13 +448,13 @@ def run_100_task_cycle(
                 "type": failure_type.value,
                 "description": f"Simulated {failure_type.value}",
             }
-            
+
             # Track failure types
             failure_types[failure_type.value] = failure_types.get(failure_type.value, 0) + 1
-        
+
         # Track task types
         task_types[result.task_type] = task_types.get(result.task_type, 0) + 1
-        
+
         # Record in engine
         engine.record_task_execution(
             task_id=result.task_id,
@@ -472,74 +471,74 @@ def run_100_task_cycle(
             tool_selection_correct=result.tool_selection_correct,
             hallucination_detected=result.hallucination_detected,
         )
-        
+
         # Store result
         all_results.append(result)
-        
+
         # Progress indicator
         if task_num % 10 == 0:
             success_count = sum(1 for r in all_results if r.success)
             success_rate = (success_count / len(all_results)) * 100
             print(f"Task {task_num:3d}/100 | Success Rate: {success_rate:5.1f}% | "
                   f"Strategy: {strategy_id:20s} | {'✓' if success else '✗'}")
-    
+
     total_elapsed_time = (time.time() - total_start_time) * 1000
-    
+
     print()
     print("=" * 70)
     print("CALCULATING METRICS")
     print("=" * 70)
     print()
-    
+
     # Calculate baseline metrics (first 10 tasks)
     baseline_tasks = all_results[:10]
     baseline_success_rate = sum(1 for r in baseline_tasks if r.success) / len(baseline_tasks)
     baseline_avg_time = sum(r.execution_time_ms for r in baseline_tasks) / len(baseline_tasks)
     baseline_reasoning = sum(r.reasoning_quality for r in baseline_tasks) / len(baseline_tasks)
-    
-    print(f"Baseline (Tasks 1-10):")
+
+    print("Baseline (Tasks 1-10):")
     print(f"  Success Rate: {baseline_success_rate * 100:5.1f}%")
     print(f"  Avg Time: {baseline_avg_time:7.1f} ms")
     print(f"  Reasoning Quality: {baseline_reasoning:5.3f}")
     print()
-    
+
     # Calculate final metrics (last 10 tasks)
     final_tasks = all_results[-10:]
     final_success_rate = sum(1 for r in final_tasks if r.success) / len(final_tasks)
     final_avg_time = sum(r.execution_time_ms for r in final_tasks) / len(final_tasks)
     final_reasoning = sum(r.reasoning_quality for r in final_tasks) / len(final_tasks)
-    
-    print(f"Final (Tasks 91-100):")
+
+    print("Final (Tasks 91-100):")
     print(f"  Success Rate: {final_success_rate * 100:5.1f}%")
     print(f"  Avg Time: {final_avg_time:7.1f} ms")
     print(f"  Reasoning Quality: {final_reasoning:5.3f}")
     print()
-    
+
     # Calculate improvements
     success_improvement = ((final_success_rate - baseline_success_rate) / baseline_success_rate) * 100
     time_improvement = ((baseline_avg_time - final_avg_time) / baseline_avg_time) * 100
     reasoning_improvement = ((final_reasoning - baseline_reasoning) / baseline_reasoning) * 100
-    
-    print(f"Improvements:")
+
+    print("Improvements:")
     print(f"  Success Rate: {success_improvement:+6.1f}%")
     print(f"  Execution Time: {time_improvement:+6.1f}%")
     print(f"  Reasoning Quality: {reasoning_improvement:+6.1f}%")
     print()
-    
+
     # Check if 15% target met
     meets_target = success_improvement >= 15.0
-    
+
     # Overall validation
     validation_passed = (
         meets_target and
         success_improvement > 0 and
         (time_improvement > 0 or reasoning_improvement > 0)
     )
-    
+
     # Get engine metrics for statistical significance
     engine_metrics = engine.get_improvement_metrics()
     improvement_data = engine_metrics.get("improvement", {})
-    
+
     # Create validation report
     report = ValidationReport(
         total_tasks=len(all_results),
@@ -565,34 +564,34 @@ def run_100_task_cycle(
         timestamp=datetime.now().isoformat(),
         database_path=db_path,
     )
-    
+
     # Save detailed results
     results_file = os.path.join(output_dir, f"task_results_{timestamp}.json")
     with open(results_file, 'w') as f:
         json.dump([asdict(r) for r in all_results], f, indent=2)
     print(f"✓ Saved task results to: {results_file}")
-    
+
     # Save validation report
     report_file = os.path.join(output_dir, f"validation_report_{timestamp}.json")
     with open(report_file, 'w') as f:
         json.dump(asdict(report), f, indent=2)
     print(f"✓ Saved validation report to: {report_file}")
-    
+
     # Generate markdown report
     markdown_file = os.path.join(output_dir, f"validation_report_{timestamp}.md")
     generate_markdown_report(report, all_results, markdown_file)
     print(f"✓ Saved markdown report to: {markdown_file}")
     print()
-    
+
     # Close engine
     engine.close()
-    
+
     return report
 
 
 def generate_markdown_report(
     report: ValidationReport,
-    results: List[TaskResult],
+    results: list[TaskResult],
     output_path: str
 ) -> None:
     """Generate markdown validation report."""
@@ -600,17 +599,17 @@ def generate_markdown_report(
         f.write("# 100-Task Learning Cycle Validation Report\n\n")
         f.write(f"**Generated:** {report.timestamp}\n\n")
         f.write(f"**Database:** `{report.database_path}`\n\n")
-        
+
         # Validation Status
         f.write("## Validation Status\n\n")
         status_icon = "✅" if report.validation_passed else "❌"
         f.write(f"{status_icon} **Validation {'PASSED' if report.validation_passed else 'FAILED'}**\n\n")
-        
+
         if report.meets_15_percent_target:
             f.write("✅ Meets 15% improvement target\n\n")
         else:
             f.write("❌ Does not meet 15% improvement target\n\n")
-        
+
         # Executive Summary
         f.write("## Executive Summary\n\n")
         f.write(f"- **Total Tasks:** {report.total_tasks}\n")
@@ -618,7 +617,7 @@ def generate_markdown_report(
         f.write(f"- **Failed:** {report.failed_tasks} ({report.failed_tasks/report.total_tasks*100:.1f}%)\n")
         f.write(f"- **Total Execution Time:** {report.total_execution_time_ms/1000:.2f} seconds\n")
         f.write(f"- **Avg Task Time:** {report.avg_task_time_ms:.1f} ms\n\n")
-        
+
         # Baseline vs Final Metrics
         f.write("## Baseline vs Final Metrics\n\n")
         f.write("| Metric | Baseline (Tasks 1-10) | Final (Tasks 91-100) | Improvement |\n")
@@ -632,19 +631,19 @@ def generate_markdown_report(
         f.write(f"| Reasoning Quality | {report.baseline_reasoning_quality:.3f} | "
                 f"{report.final_reasoning_quality:.3f} | "
                 f"{report.reasoning_improvement:+.1f}% |\n\n")
-        
+
         # Statistical Significance
         f.write("## Statistical Significance\n\n")
         f.write(f"- **Improvement Significant:** {'Yes' if report.improvement_significant else 'No'}\n")
         f.write(f"- **Confidence Level:** {report.confidence_level:.1f}%\n\n")
-        
+
         # Task Type Distribution
         f.write("## Task Type Distribution\n\n")
         for task_type, count in sorted(report.task_types.items(), key=lambda x: x[1], reverse=True):
             percentage = (count / report.total_tasks) * 100
             f.write(f"- **{task_type}:** {count} tasks ({percentage:.1f}%)\n")
         f.write("\n")
-        
+
         # Failure Analysis
         if report.failure_types:
             f.write("## Failure Analysis\n\n")
@@ -652,7 +651,7 @@ def generate_markdown_report(
                 percentage = (count / report.failed_tasks) * 100 if report.failed_tasks > 0 else 0
                 f.write(f"- **{failure_type}:** {count} failures ({percentage:.1f}%)\n")
             f.write("\n")
-        
+
         # Success Rate Over Time
         f.write("## Success Rate Over Time\n\n")
         f.write("| Window | Tasks | Success Rate |\n")
@@ -662,7 +661,7 @@ def generate_markdown_report(
             window_success = sum(1 for r in window_results if r.success) / len(window_results)
             f.write(f"| Tasks {i+1}-{i+10} | 10 | {window_success*100:.1f}% |\n")
         f.write("\n")
-        
+
         # Conclusion
         f.write("## Conclusion\n\n")
         if report.validation_passed:
@@ -688,7 +687,7 @@ def generate_markdown_report(
 def main():
     """Main entry point."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(
         description="Run 100-task learning cycle validation"
     )
@@ -703,21 +702,21 @@ def main():
         action="store_true",
         help="Enable Git commits (default: disabled)"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Run validation
     report = run_100_task_cycle(
         output_dir=args.output_dir,
         enable_git=args.enable_git
     )
-    
+
     # Print final status
     print("=" * 70)
     print("VALIDATION COMPLETE")
     print("=" * 70)
     print()
-    
+
     if report.validation_passed:
         print("✅ VALIDATION PASSED")
         print()
@@ -729,11 +728,11 @@ def main():
         print()
         if not report.meets_15_percent_target:
             print(f"   Success Rate Improvement: {report.success_rate_improvement:+.1f}% (target: 15%)")
-    
+
     print()
     print(f"Results saved to: {args.output_dir}")
     print()
-    
+
     return 0 if report.validation_passed else 1
 
 

@@ -4,15 +4,14 @@ Adversarial Handler - Detects and handles adversarial agent behavior.
 Validates: Requirements 22.1, 22.2, 22.3, 22.4, 22.5
 """
 
-from typing import Dict, List, Set, TYPE_CHECKING
+import logging
 from dataclasses import dataclass
 from datetime import datetime
-import logging
-
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .agent_storage import AgentStorage
     from .agent_lifecycle import AgentLifecycleManager
+    from .agent_storage import AgentStorage
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ class AdversarialEvent:
 
     timestamp: datetime
     event_type: str
-    agent_ids: List[str]
+    agent_ids: list[str]
     details: str
 
 
@@ -57,13 +56,13 @@ class AdversarialHandler:
         self.invalid_output_threshold = invalid_output_threshold
         self.delegation_limit = delegation_limit
 
-        self._invalid_counts: Dict[str, int] = {}
-        self._quarantined: Set[str] = set()
-        self._delegation_counts: Dict[str, int] = {}
-        self._delegation_limited: Set[str] = set()
-        self._security_log: List[AdversarialEvent] = []
+        self._invalid_counts: dict[str, int] = {}
+        self._quarantined: set[str] = set()
+        self._delegation_counts: dict[str, int] = {}
+        self._delegation_limited: set[str] = set()
+        self._security_log: list[AdversarialEvent] = []
 
-    def _log_event(self, event_type: str, agent_ids: List[str], details: str) -> None:
+    def _log_event(self, event_type: str, agent_ids: list[str], details: str) -> None:
         event = AdversarialEvent(
             timestamp=datetime.now(),
             event_type=event_type,
@@ -103,7 +102,7 @@ class AdversarialHandler:
         return agent_id in self._quarantined
 
     async def detect_resource_exhaustion(
-        self, agent_id: str, resource_usage: Dict[str, float], limits: Dict[str, float]
+        self, agent_id: str, resource_usage: dict[str, float], limits: dict[str, float]
     ) -> bool:
         """
         Detect resource exhaustion and terminate offending agent.
@@ -156,7 +155,7 @@ class AdversarialHandler:
         return agent_id in self._delegation_limited
 
     async def detect_coordinated_behavior(
-        self, agent_ids: List[str], similarity_threshold: float = 0.9
+        self, agent_ids: list[str], similarity_threshold: float = 0.9
     ) -> bool:
         """
         Detect coordinated malicious behavior and retire all involved agents.
@@ -190,6 +189,6 @@ class AdversarialHandler:
             return True
         return False
 
-    def get_security_log(self) -> List[AdversarialEvent]:
+    def get_security_log(self) -> list[AdversarialEvent]:
         """Return all recorded adversarial events. Validates: Requirement 22.5"""
         return list(self._security_log)

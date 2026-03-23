@@ -63,7 +63,7 @@ class ToolSelector:
         self._tier2_hits = 0
         self._tier3_hits = 0
         self._total_selections = 0
-        
+
         # Initialize skill tool registry
         from Agent_Guru.reasoning.tools.skills.skill_tool_adapter import (
             get_skill_tool_registry,
@@ -123,40 +123,40 @@ class ToolSelector:
 
         # No suitable tool found
         return None
-    
+
     async def select_tool_by_id(
         self, tool_id: str, parameters: Optional[dict[str, Any]] = None
     ) -> Optional[SelectedTool]:
         """Select tool by ID directly (FAST PATH for LLM-generated plans).
-        
+
         Time Complexity: O(1) - direct lookup
         Target Latency: <5ms
-        
+
         Args:
             tool_id: Tool identifier
             parameters: Optional pre-extracted parameters
-        
+
         Returns:
             SelectedTool if found, None otherwise
         """
         start_time = time.perf_counter()
-        
+
         # Check if it's a skill tool
         if tool_id.startswith("skill."):
             tool_any = self._skill_tool_registry.get_skill_tool(tool_id)
         else:
             tool_any = self.registry.get_tool(tool_id)
-        
+
         if tool_any is None:
             return None
-        
+
         tool = tool_any  # Type narrowing
-        
+
         # Use provided parameters or empty dict
         params = parameters or {}
-        
+
         elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-        
+
         return SelectedTool(
             tool=tool,
             parameters=params,
@@ -219,10 +219,10 @@ class ToolSelector:
         """
         # Get all core tools
         all_tools = self.registry.list_tools()
-        
+
         # Get all skill tools
         skill_tools = self._skill_tool_registry.list_skill_tools()
-        
+
         # Combine core tools and skill tools
         all_tool_metadata = list(all_tools)
         all_tool_metadata.extend([tool.metadata for tool in skill_tools])
@@ -268,7 +268,7 @@ class ToolSelector:
 
         # Get best ranked tool
         best_tool_id, best_score = ranked_tools[0]
-        
+
         # Check if it's a skill tool
         if best_tool_id.startswith("skill."):
             best_tool_any = self._skill_tool_registry.get_skill_tool(best_tool_id)
@@ -277,7 +277,7 @@ class ToolSelector:
 
         if best_tool_any is None:
             return None
-        
+
         best_tool = best_tool_any  # Type narrowing
 
         # Extract parameters

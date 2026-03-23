@@ -1,10 +1,8 @@
 """Empathy Adapter for emotional response adaptation."""
 from __future__ import annotations
 
-import time
 from collections import deque
-from dataclasses import dataclass, field
-from typing import Deque, Dict, Optional
+from dataclasses import dataclass
 
 from Agent_Guru.emotion.detector import EmotionalState
 
@@ -27,7 +25,7 @@ class EmpathyAdapter:
     """Adapts responses based on detected emotional state."""
 
     def __init__(self) -> None:
-        self._recent_states: Deque[EmotionalState] = deque(maxlen=10)
+        self._recent_states: deque[EmotionalState] = deque(maxlen=10)
 
     def adapt_response(self, text: str, state: EmotionalState) -> AdaptedResponse:
         """Adapt response tone, vocabulary, and pacing for emotional state."""

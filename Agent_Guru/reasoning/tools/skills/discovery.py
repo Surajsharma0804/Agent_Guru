@@ -5,7 +5,7 @@ Provides functionality to discover skills in the plugins directory.
 """
 
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from Agent_Guru.reasoning.tools.skills.manifest import (
     SkillManifest,
@@ -24,7 +24,7 @@ class SkillDiscovery:
         """
         self.plugins_dir = Path(plugins_dir)
 
-    def discover_skills(self) -> List[Path]:
+    def discover_skills(self) -> list[Path]:
         """Discover all skill directories.
 
         Returns:
@@ -64,7 +64,7 @@ class SkillDiscovery:
         except Exception:
             return None
 
-    def list_available_skills(self) -> List[SkillManifest]:
+    def list_available_skills(self) -> list[SkillManifest]:
         """List all available skills with valid manifests.
 
         Returns:

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import numpy as np
 
@@ -28,7 +28,7 @@ SUPPORTED_CONDITIONS = {
 class StressCondition:
     """A stress condition to apply to test images."""
     type: str
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=dict)
     description: str = ""
 
     def __post_init__(self) -> None:
@@ -46,7 +46,7 @@ class StressTestResult:
     stressed_accuracy: float = 0.0
     degradation: float = 0.0
     num_samples: int = 0
-    examples: List[Tuple[np.ndarray, np.ndarray]] = field(default_factory=list)
+    examples: list[tuple[np.ndarray, np.ndarray]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -124,7 +124,7 @@ class StressTester:
         model: Any,
         images: np.ndarray,
         labels: np.ndarray,
-        pose_range: Tuple[float, float] = (45.0, 90.0),
+        pose_range: tuple[float, float] = (45.0, 90.0),
     ) -> StressTestResult:
         """Test model with extreme pose variations."""
         condition = StressCondition(
@@ -199,8 +199,8 @@ class StressTester:
         model: Any,
         images: np.ndarray,
         labels: np.ndarray,
-        conditions: Optional[List[StressCondition]] = None,
-    ) -> List[StressTestResult]:
+        conditions: Optional[list[StressCondition]] = None,
+    ) -> list[StressTestResult]:
         """Run all configured stress conditions.
 
         Args:
@@ -351,7 +351,7 @@ class StressTester:
         return image
 
     @staticmethod
-    def _default_conditions() -> List[StressCondition]:
+    def _default_conditions() -> list[StressCondition]:
         return [
             StressCondition("low_light", {"brightness_factor": 0.3}, "Low light"),
             StressCondition("blur", {"kernel_size": 5}, "Motion blur"),

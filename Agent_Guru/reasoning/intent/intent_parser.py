@@ -20,13 +20,12 @@ Date: 2026-03-19
 """
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from Agent_Guru.reasoning.intent.fast_router import FastIntentRouter, PatternMatch
-from Agent_Guru.reasoning.models.intent import Intent, IntentType
-
+from Agent_Guru.reasoning.models.intent import IntentType
 
 # Confidence threshold below which LLM fallback is triggered
 _CONFIDENCE_THRESHOLD = 0.6

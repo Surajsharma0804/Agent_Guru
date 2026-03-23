@@ -13,7 +13,6 @@ Tests cover:
 
 import pytest
 import numpy as np
-import time
 
 from Agent_Guru.speech.engine import (
     SpeechEngine,
@@ -351,7 +350,7 @@ class TestSpeechEngine:
         engine = SpeechEngine()
         
         # Mock a component to fail
-        original_init = engine.initialize
+        engine.initialize
         
         def failing_init():
             raise Exception("Test initialization failure")

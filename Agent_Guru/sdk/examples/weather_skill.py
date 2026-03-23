@@ -5,7 +5,8 @@ This skill demonstrates how to create a simple skill that provides
 weather information.
 """
 
-from typing import Dict, Any
+from typing import Any
+
 from Agent_Guru.sdk import Skill, skill_capability
 
 
@@ -17,7 +18,7 @@ class WeatherSkill(Skill):
         super().__init__()
 
     @skill_capability("get_weather", "Get current weather for a location")
-    async def get_weather(self, location: str) -> Dict[str, Any]:
+    async def get_weather(self, location: str) -> dict[str, Any]:
         """Get current weather for a location.
 
         Args:
@@ -41,7 +42,7 @@ class WeatherSkill(Skill):
     @skill_capability("get_forecast", "Get weather forecast for a location")
     async def get_forecast(
         self, location: str, days: int = 3
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get weather forecast for a location.
 
         Args:
@@ -72,6 +73,7 @@ class WeatherSkill(Skill):
 # Generate manifest when run as script
 if __name__ == "__main__":
     from pathlib import Path
+
     from Agent_Guru.sdk import ManifestGenerator
 
     manifest = ManifestGenerator.generate_and_save(

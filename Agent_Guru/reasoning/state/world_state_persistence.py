@@ -85,7 +85,7 @@ class WorldStatePersistence:
             create_backup: Whether to create backup in history
         """
         async with self._lock:
-            state = await engine.get_state()
+            await engine.get_state()
             state_dict = await engine.persist_state()
             state_json = json.dumps(state_dict, default=str)
 

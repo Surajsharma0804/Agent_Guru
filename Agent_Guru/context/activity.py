@@ -1,7 +1,7 @@
 """Activity classifier for ambient context."""
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class ActivityClassifier:
@@ -9,7 +9,7 @@ class ActivityClassifier:
 
     ACTIVITIES = ["working", "commuting", "exercising", "sleeping", "meeting", "idle"]
 
-    def classify(self, signals: Dict[str, Any]) -> tuple[str, float]:
+    def classify(self, signals: dict[str, Any]) -> tuple[str, float]:
         """Classify current activity. Returns (activity, confidence)."""
         # Stub: simple heuristic classifier
         hour = signals.get("hour", 12)

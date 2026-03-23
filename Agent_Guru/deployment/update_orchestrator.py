@@ -13,7 +13,7 @@ import asyncio
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import structlog
 
@@ -68,13 +68,13 @@ class UpdateOrchestrator:
         self._rm = rollback_manager
         self._active_transaction: Optional[Transaction] = None
         self._lock = asyncio.Lock()
-        self._audit_entries: List[AuditLogEntry] = []
+        self._audit_entries: list[AuditLogEntry] = []
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def begin_update(self, packages: List[Tuple[str, str]]) -> Transaction:
+    def begin_update(self, packages: list[tuple[str, str]]) -> Transaction:
         """
         Create a new update transaction.
 
@@ -100,8 +100,8 @@ class UpdateOrchestrator:
         self,
         transaction: Transaction,
         target_env: Path,
-        package_paths: Optional[Dict[str, Path]] = None,
-        signatures: Optional[Dict[str, Tuple[Optional[bytes], Optional[bytes]]]] = None,
+        package_paths: Optional[dict[str, Path]] = None,
+        signatures: Optional[dict[str, tuple[Optional[bytes], Optional[bytes]]]] = None,
     ) -> TransactionResult:
         """
         Execute an update transaction.
@@ -144,7 +144,7 @@ class UpdateOrchestrator:
         """Return the currently active transaction, if any."""
         return self._active_transaction
 
-    def get_audit_entries(self) -> List[AuditLogEntry]:
+    def get_audit_entries(self) -> list[AuditLogEntry]:
         """Return in-memory audit entries."""
         return list(self._audit_entries)
 
@@ -156,16 +156,16 @@ class UpdateOrchestrator:
         self,
         transaction: Transaction,
         target_env: Path,
-        package_paths: Dict[str, Path],
-        signatures: Dict[str, Tuple[Optional[bytes], Optional[bytes]]],
+        package_paths: dict[str, Path],
+        signatures: dict[str, tuple[Optional[bytes], Optional[bytes]]],
     ) -> TransactionResult:
         transaction.state = TransactionState.EXECUTING
-        installed: List[str] = []
+        installed: list[str] = []
 
         try:
             # Step 1: Resolve dependencies
             installed_pkgs = self._pm.get_installed_packages(target_env)
-            install_order: List[str] = []
+            install_order: list[str] = []
             for pkg_name, pkg_version in transaction.packages:
                 graph = self._dr.resolve_dependencies(
                     pkg_name, pkg_version, installed_pkgs
@@ -188,7 +188,7 @@ class UpdateOrchestrator:
             transaction.snapshot_id = snapshot_id
 
             # Step 4: Install packages in dependency order
-            pkg_map = {name: version for name, version in transaction.packages}
+            pkg_map = dict(transaction.packages)
             for pkg_name in install_order:
                 if pkg_name not in pkg_map:
                     continue

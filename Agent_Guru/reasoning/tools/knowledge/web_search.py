@@ -5,7 +5,7 @@ Supports multiple search engines: Google, Bing, DuckDuckGo.
 """
 
 import urllib.parse
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -54,7 +54,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class WebSearchTool(Tool):
     """Tool for web searching."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute web search.
 
         Args:

@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Optional
 
 from Agent_Guru.policy.access_controller import AccessController
 from Agent_Guru.policy.audit_logger import AuditLogger
@@ -77,14 +78,14 @@ class PolicyEngine:
             resolver=self.resolver,
             cache=self.cache,
         )
-        self._decision_listeners: List[Callable[[Dict[str, Any]], None]] = []
+        self._decision_listeners: list[Callable[[dict[str, Any]], None]] = []
 
     def evaluate_policy(
         self,
         principal: Principal,
         resource: Resource,
         action: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
         strategy: Optional[ConflictStrategy] = None,
         test_mode: bool = False,
         dry_run: bool = False,
@@ -116,7 +117,7 @@ class PolicyEngine:
 
         # Emit decision event to all registered listeners. Validates: Requirement 10.6
         if self._decision_listeners:
-            event: Dict[str, Any] = {
+            event: dict[str, Any] = {
                 "principal_id": principal.id,
                 "resource_id": resource.id,
                 "action": action,
@@ -138,7 +139,7 @@ class PolicyEngine:
         principal: Principal,
         resource: Resource,
         action: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
         strategy: Optional[ConflictStrategy] = None,
         test_mode: bool = False,
     ) -> AccessDecision:
@@ -179,7 +180,7 @@ class PolicyEngine:
         principal: Optional[str] = None,
         resource: Optional[str] = None,
         action: Optional[str] = None,
-    ) -> List[Policy]:
+    ) -> list[Policy]:
         """Find policies matching criteria. Validates: Requirement 1.6"""
         return self.storage.find_policies(principal=principal, resource=resource, action=action)
 
@@ -203,7 +204,7 @@ class PolicyEngine:
         """Check RBAC permission through role hierarchy. Validates: Requirement 3.4"""
         return self.controller.check_rbac(principal, permission)
 
-    def test_policy(self, policy: Policy, test_cases: List[TestCase]) -> TestResults:
+    def test_policy(self, policy: Policy, test_cases: list[TestCase]) -> TestResults:
         """Test a policy against test cases without side effects.
 
         Validates: Requirements 9.1-9.3, 9.5
@@ -215,7 +216,7 @@ class PolicyEngine:
             self.storage.create_policy(policy)
 
         passed = 0
-        failures: List[TestFailure] = []
+        failures: list[TestFailure] = []
 
         for tc in test_cases:
             decision = self.evaluate_policy(
@@ -253,7 +254,7 @@ class PolicyEngine:
         action: Optional[str] = None,
         effect: Optional[str] = None,
         limit: int = 1000,
-    ) -> List[AuditRecord]:
+    ) -> list[AuditRecord]:
         """Query audit logs. Validates: Requirement 6.3"""
         return self.audit_logger.query_logs(
             start_time=start_time,
@@ -275,7 +276,7 @@ class PolicyEngine:
             return self.cache.invalidate()
         return 0
 
-    def on_decision(self, listener: Callable[[Dict[str, Any]], None]) -> None:
+    def on_decision(self, listener: Callable[[dict[str, Any]], None]) -> None:
         """Register a callback invoked after every policy decision.
 
         The callback receives a dict with keys:

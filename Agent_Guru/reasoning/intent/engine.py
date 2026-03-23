@@ -229,15 +229,15 @@ class IntentDetectionEngine:
         if self.config.enable_llm_fallback:
             try:
                 import os
-                
+
                 # Try cloud APIs first (MUCH faster: 200-500ms vs Ollama 15-30s)
                 # Priority: DeepSeek (cheapest, fastest) > Gemini (smart) > OpenAI (expensive)
-                
+
                 # Check which APIs are available
                 deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
                 gemini_key = os.environ.get("GEMINI_API_KEY")
                 openai_key = os.environ.get("OPENAI_API_KEY")
-                
+
                 # Use DeepSeek as primary (fastest and cheapest)
                 if deepseek_key:
                     llm_config = LLMFallbackConfig(
@@ -247,12 +247,12 @@ class IntentDetectionEngine:
                         timeout_ms=2000.0,  # 2 seconds for cloud
                     )
                     self.llm_fallback = LLMFallbackClassifier(llm_config)
-                    
+
                     if gemini_key:
                         print("[OK] LLM Fallback initialized (DeepSeek PRIMARY + Gemini BACKUP - MULTI-API)")
                     else:
                         print("[OK] LLM Fallback initialized (DeepSeek API - FAST)")
-                    
+
                 # Use Gemini as primary if no DeepSeek
                 elif gemini_key:
                     llm_config = LLMFallbackConfig(
@@ -263,7 +263,7 @@ class IntentDetectionEngine:
                     )
                     self.llm_fallback = LLMFallbackClassifier(llm_config)
                     print("[OK] LLM Fallback initialized (Gemini API - FAST)")
-                    
+
                 # Use OpenAI as fallback
                 elif openai_key:
                     llm_config = LLMFallbackConfig(
@@ -274,7 +274,7 @@ class IntentDetectionEngine:
                     )
                     self.llm_fallback = LLMFallbackClassifier(llm_config)
                     print("[OK] LLM Fallback initialized (OpenAI API - FAST)")
-                    
+
                 # Fallback to Ollama (slow but free)
                 else:
                     llm_config = LLMFallbackConfig(
@@ -286,7 +286,7 @@ class IntentDetectionEngine:
                     print("[OK] LLM Fallback initialized (Ollama - mistral:7b-instruct)")
                     print("[WARNING] Ollama is SLOW (15-30s). Use cloud API for fast responses!")
                     print("[TIP] Set DEEPSEEK_API_KEY or GEMINI_API_KEY environment variable")
-                    
+
             except Exception as e:
                 print(f"[WARNING] LLM Fallback initialization failed: {e}")
                 print("[WARNING] LLM Fallback disabled")

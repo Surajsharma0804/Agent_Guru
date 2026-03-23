@@ -12,11 +12,9 @@ This test suite provides comprehensive coverage including:
 
 import pytest
 import sys
-import time
 import subprocess
-from unittest.mock import Mock, patch, MagicMock, call
-from typing import List
-from hypothesis import given, strategies as st, assume
+from unittest.mock import Mock, patch
+from hypothesis import given, strategies as st
 
 from Agent_Guru.platform.controllers.window_management import (
     WindowManager,
@@ -587,7 +585,7 @@ class TestWindowManagerProperties:
     )
     def test_tile_arrangement_covers_screen(self, num_windows):
         """Property: Tile arrangement always covers screen reasonably."""
-        manager = WindowManager()
+        WindowManager()
         screen = ScreenInfo(
             index=0,
             x=0,
@@ -949,17 +947,17 @@ class TestWindowManagerComprehensiveIntegration:
             with patch.object(manager, '_get_screens_windows', return_value=[ScreenInfo(0, 0, 0, 1920, 1080, True)]) as mock_get:
                 # First call
                 mock_time.return_value = 100.0
-                screens1 = manager.get_screens()
+                manager.get_screens()
                 assert mock_get.call_count == 1
 
                 # Second call within TTL
                 mock_time.return_value = 102.0
-                screens2 = manager.get_screens()
+                manager.get_screens()
                 assert mock_get.call_count == 1  # Still cached
 
                 # Third call after TTL
                 mock_time.return_value = 110.0
-                screens3 = manager.get_screens()
+                manager.get_screens()
                 assert mock_get.call_count == 2  # Cache refreshed
 
 

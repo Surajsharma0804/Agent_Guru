@@ -8,7 +8,7 @@ Date: 2026-02-26
 
 import asyncio
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
 import aiohttp
@@ -430,7 +430,7 @@ class TestTaskCompletionNotification:
             start_time=now,
             end_time=now,
             execution_time=0.5,
-            parameters={"path": "/tmp/test.txt"},
+            parameters={"path": "/tmp/test.txt"},  # nosec B108
             result_data={"bytes_written": 1024},
         )
         
@@ -581,7 +581,7 @@ class TestGoalManagerClientIntegration:
                 start_time=datetime.now(),
                 end_time=datetime.now(),
                 execution_time=0.5,
-                parameters={"path": "/tmp/test.txt", "content": "Hello World"},
+                parameters={"path": "/tmp/test.txt", "content": "Hello World"},  # nosec B108
                 result_data={"bytes_written": 11},
             )
             

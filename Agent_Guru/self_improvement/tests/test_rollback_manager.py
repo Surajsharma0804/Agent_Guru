@@ -21,10 +21,8 @@ from Agent_Guru.self_improvement.rollback_manager import (
     RollbackManager,
     ChangeType,
     ChangeRecord,
-    RollbackResult,
 )
 from Agent_Guru.self_improvement.degradation_detector import (
-    DegradationDetector,
     DegradationSeverity,
     DegradationMetric,
     DegradationAlert,

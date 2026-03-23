@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,7 @@ class DegradationController:
     def __init__(self) -> None:
         self._mode = DegradationMode.FULL
         self._online = True
-        self._llm_providers: List[str] = ["ollama", "openai", "gemini", "rule_based"]
+        self._llm_providers: list[str] = ["ollama", "openai", "gemini", "rule_based"]
 
     async def detect_network_state(self) -> bool:
         """Detect network connectivity with 2s timeout."""
@@ -64,7 +63,7 @@ class DegradationController:
     def get_mode(self) -> DegradationMode:
         return self._mode
 
-    def monitor_resources(self) -> Dict[str, float]:
+    def monitor_resources(self) -> dict[str, float]:
         """Check system resources and adjust mode if needed."""
         if not _PSUTIL_AVAILABLE:
             return {"ram_mb": 0.0, "cpu_pct": 0.0}
@@ -78,7 +77,7 @@ class DegradationController:
     async def llm_with_failover(
         self,
         prompt: str,
-        providers: Optional[List[str]] = None,
+        providers: Optional[list[str]] = None,
     ) -> str:
         """Try LLM providers in failover chain with 3s timeout each."""
         chain = providers or self._llm_providers

@@ -7,7 +7,6 @@ Uses keyword pattern matching and heuristics for fast, dependency-free analysis.
 from __future__ import annotations
 
 import re
-from typing import Dict, Set
 
 from Agent_Guru.llm.model_router.models import (
     ModelCapability,
@@ -17,7 +16,7 @@ from Agent_Guru.llm.model_router.models import (
 )
 
 # Keyword patterns for task type classification
-_TASK_PATTERNS: Dict[TaskType, list] = {
+_TASK_PATTERNS: dict[TaskType, list] = {
     TaskType.CODE_GENERATION: [
         r"\bwrite\b.*\b(code|function|class|script|program)\b",
         r"\bimplement\b",
@@ -73,7 +72,7 @@ _TASK_PATTERNS: Dict[TaskType, list] = {
 }
 
 # Task type → required capabilities mapping
-_TASK_CAPABILITIES: Dict[TaskType, Set[ModelCapability]] = {
+_TASK_CAPABILITIES: dict[TaskType, set[ModelCapability]] = {
     TaskType.CODE_GENERATION: {ModelCapability.CODE_GENERATION},
     TaskType.CODE_REVIEW: {ModelCapability.CODE_GENERATION, ModelCapability.REASONING},
     TaskType.REASONING: {ModelCapability.REASONING},
@@ -127,7 +126,7 @@ class TaskAnalyzer:
         Falls back to CONVERSATION if no patterns match.
         """
         content_lower = content.lower()
-        scores: Dict[TaskType, int] = {}
+        scores: dict[TaskType, int] = {}
 
         for task_type, patterns in _TASK_PATTERNS.items():
             score = sum(

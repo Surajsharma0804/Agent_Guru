@@ -16,7 +16,7 @@ import logging
 import threading
 import warnings
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -83,7 +83,7 @@ class Detection:
         confidence: Detection confidence score in [0.0, 1.0].
     """
 
-    bbox: Tuple[int, int, int, int]  # x, y, w, h
+    bbox: tuple[int, int, int, int]  # x, y, w, h
     landmarks: Optional[np.ndarray]  # shape (5, 2) — 5 facial keypoints
     confidence: float  # 0.0 to 1.0
 
@@ -144,7 +144,7 @@ class FaceDetector:
     # Public API
     # ------------------------------------------------------------------
 
-    def detect(self, frame: np.ndarray) -> List[Detection]:
+    def detect(self, frame: np.ndarray) -> list[Detection]:
         """Detect all faces in *frame* and return a list of :class:`Detection` objects.
 
         Returns an empty list when no faces are found.  Never raises an
@@ -171,6 +171,22 @@ class FaceDetector:
         if app is not None:
             return self._detect_insightface(frame, app)
         return self._detect_opencv(frame)
+
+    async def detect_async(self, frame: np.ndarray) -> list[Detection]:
+        """Async wrapper around detect() — runs GPU inference in a thread pool.
+
+        Use this from async contexts to avoid blocking the event loop during
+        GPU/CPU inference.
+
+        Args:
+            frame: BGR image as a NumPy array of shape (H, W, 3), dtype uint8.
+
+        Returns:
+            List of :class:`Detection` objects.
+        """
+        import asyncio
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.detect, frame)
 
     # ------------------------------------------------------------------
     # Lazy model initialisation
@@ -225,7 +241,7 @@ class FaceDetector:
     # Detection backends
     # ------------------------------------------------------------------
 
-    def _detect_insightface(self, frame: np.ndarray, app: object) -> List[Detection]:
+    def _detect_insightface(self, frame: np.ndarray, app: object) -> list[Detection]:
         """Run RetinaFace detection via InsightFace."""
         try:
             faces = app.get(frame)  # type: ignore[union-attr]
@@ -233,7 +249,7 @@ class FaceDetector:
             logger.warning("InsightFace detection failed: %s — returning empty list.", exc)
             return []
 
-        results: List[Detection] = []
+        results: list[Detection] = []
         for face in faces:
             try:
                 box = face.bbox.astype(int)
@@ -262,7 +278,7 @@ class FaceDetector:
 
         return results
 
-    def _detect_opencv(self, frame: np.ndarray) -> List[Detection]:
+    def _detect_opencv(self, frame: np.ndarray) -> list[Detection]:
         """Run OpenCV Haar cascade detection as fallback."""
         if not _CV2_AVAILABLE:
             logger.warning("cv2 unavailable — returning empty detection list.")
@@ -280,7 +296,7 @@ class FaceDetector:
             logger.warning("OpenCV Haar detection failed: %s — returning empty list.", exc)
             return []
 
-        results: List[Detection] = []
+        results: list[Detection] = []
         # detectMultiScale returns an empty tuple when no faces found
         if len(faces) == 0:
             return results

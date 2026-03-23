@@ -4,7 +4,6 @@ Tests for Requirement 3.4: THE Voice_Biometrics SHALL detect and reject
 recorded or synthesized voice attempts.
 """
 
-import pytest
 import numpy as np
 from scipy.signal import butter, filtfilt
 

@@ -124,22 +124,22 @@ class AuditLogger:
 
         # Create indexes for efficient queries
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_audit_timestamp 
+            CREATE INDEX IF NOT EXISTS idx_audit_timestamp
             ON audit_log(timestamp)
         """)
 
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_audit_user 
+            CREATE INDEX IF NOT EXISTS idx_audit_user
             ON audit_log(user_id)
         """)
 
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_audit_tool 
+            CREATE INDEX IF NOT EXISTS idx_audit_tool
             ON audit_log(tool_id)
         """)
 
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_audit_decision 
+            CREATE INDEX IF NOT EXISTS idx_audit_decision
             ON audit_log(decision)
         """)
 
@@ -188,11 +188,11 @@ class AuditLogger:
         # Store in database
         if self._conn is None:
             raise RuntimeError("Database connection not initialized")
-        
+
         cursor = self._conn.cursor()
         cursor.execute("""
-            INSERT INTO audit_log 
-            (timestamp, user_id, tool_id, parameters_encrypted, sensitivity, 
+            INSERT INTO audit_log
+            (timestamp, user_id, tool_id, parameters_encrypted, sensitivity,
              decision, requires_confirmation, reason, validation_time, metadata)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
@@ -251,7 +251,7 @@ class AuditLogger:
         """
         if self._conn is None:
             raise RuntimeError("Database connection not initialized")
-        
+
         cursor = self._conn.cursor()
 
         # Build query with filters
@@ -329,7 +329,7 @@ class AuditLogger:
         """
         if self._conn is None:
             raise RuntimeError("Database connection not initialized")
-        
+
         cursor = self._conn.cursor()
 
         # Build base query
@@ -394,7 +394,7 @@ class AuditLogger:
         """
         if self._conn is None:
             raise RuntimeError("Database connection not initialized")
-        
+
         cutoff_time = time.time() - (self._retention_days * 24 * 60 * 60)
 
         cursor = self._conn.cursor()

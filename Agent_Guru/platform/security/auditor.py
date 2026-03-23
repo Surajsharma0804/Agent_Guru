@@ -44,18 +44,19 @@ Date: 2026-02-25
 Version: 1.0.0
 """
 
-import json
 import gzip
 import hashlib
+import json
 import re
-import time
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Set, Tuple
-from dataclasses import dataclass, asdict, field
-from enum import Enum
-from collections import deque
 import threading
+import time
+from collections import deque
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from pathlib import Path
+from typing import Any, Optional
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -147,11 +148,11 @@ class AuditLogEntry:
     timestamp: str
     operation_type: str  # stored as string value for serialization
     user_id: str
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
     result_status: str  # stored as string value for serialization
     execution_time: float
     resource_usage: ResourceUsage = field(default_factory=ResourceUsage)
-    policy_checks: List[PolicyCheck] = field(default_factory=list)
+    policy_checks: list[PolicyCheck] = field(default_factory=list)
     error_message: Optional[str] = None
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
@@ -166,7 +167,7 @@ class SecurityAlert:
     severity: AlertSeverity
     alert_type: str
     description: str
-    affected_operations: List[str]
+    affected_operations: list[str]
     timestamp: str
     recommended_action: str
 
@@ -177,9 +178,9 @@ class AuditLogFilters:
 
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
-    operation_types: Optional[Set[OperationType]] = None
-    user_ids: Optional[Set[str]] = None
-    result_statuses: Optional[Set[ResultStatus]] = None
+    operation_types: Optional[set[OperationType]] = None
+    user_ids: Optional[set[str]] = None
+    result_statuses: Optional[set[ResultStatus]] = None
     min_execution_time: Optional[float] = None
 
 
@@ -218,7 +219,7 @@ class SecurityAuditor:
 
     # Pre-compiled regex patterns for sensitive data redaction (10x faster)
     # Compiled ONCE at class level for maximum performance
-    SENSITIVE_PATTERNS: List[Tuple[re.Pattern, str]] = [
+    SENSITIVE_PATTERNS: list[tuple[re.Pattern, str]] = [
         (re.compile(r"password[\"']?\s*[:=]\s*[\"']?([^\"'}\s,]+)", re.IGNORECASE), "password"),
         (re.compile(r"token[\"']?\s*[:=]\s*[\"']?([^\"'}\s,]+)", re.IGNORECASE), "token"),
         (re.compile(r"api[_-]?key[\"']?\s*[:=]\s*[\"']?([^\"'}\s,]+)", re.IGNORECASE), "api_key"),
@@ -230,7 +231,7 @@ class SecurityAuditor:
     ]
 
     # Tuple for O(1) membership testing (faster than list)
-    SENSITIVE_KEYWORDS: Tuple[str, ...] = (
+    SENSITIVE_KEYWORDS: tuple[str, ...] = (
         "password",
         "token",
         "secret",
@@ -242,7 +243,7 @@ class SecurityAuditor:
 
     # Dangerous command patterns (pre-compiled for performance)
     # Categorized by severity for better threat assessment
-    DANGEROUS_PATTERNS: Dict[str, List[str]] = {
+    DANGEROUS_PATTERNS: dict[str, list[str]] = {
         "CRITICAL": [
             r"rm\s+-rf\s+/",  # Delete root filesystem
             r":\(\)\{\s*:\|:\&\s*\};:",  # Fork bomb
@@ -283,7 +284,7 @@ class SecurityAuditor:
     }
 
     # SQL Injection patterns
-    SQL_INJECTION_PATTERNS: List[str] = [
+    SQL_INJECTION_PATTERNS: list[str] = [
         r";\s*DROP\s+TABLE",
         r";\s*DELETE\s+FROM",
         r";\s*UPDATE\s+.*SET",
@@ -295,7 +296,7 @@ class SecurityAuditor:
     ]
 
     # Command injection patterns
-    COMMAND_INJECTION_PATTERNS: List[str] = [
+    COMMAND_INJECTION_PATTERNS: list[str] = [
         r";\s*\w+",  # Command chaining
         r"\|\s*\w+",  # Pipe to command
         r"&&\s*\w+",  # AND command
@@ -360,7 +361,7 @@ class SecurityAuditor:
         self._total_violations = 0
 
         # Compile dangerous patterns once (10x faster than runtime compilation)
-        self._dangerous_regex: Dict[str, List[re.Pattern]] = {}
+        self._dangerous_regex: dict[str, list[re.Pattern]] = {}
         for severity, patterns in self.DANGEROUS_PATTERNS.items():
             self._dangerous_regex[severity] = [
                 re.compile(pattern, re.IGNORECASE) for pattern in patterns
@@ -375,11 +376,11 @@ class SecurityAuditor:
         ]
 
         # Suspicious pattern detection state
-        self._failure_tracker: Dict[str, deque] = {}  # user_id -> deque of failure timestamps
-        self._permission_probes: Dict[str, deque] = {}  # user_id -> deque of permission check timestamps
-        self._access_patterns: Dict[str, deque] = {}  # user_id -> deque of access timestamps
+        self._failure_tracker: dict[str, deque] = {}  # user_id -> deque of failure timestamps
+        self._permission_probes: dict[str, deque] = {}  # user_id -> deque of permission check timestamps
+        self._access_patterns: dict[str, deque] = {}  # user_id -> deque of access timestamps
         self._pattern_lock = threading.Lock()
-        
+
         # Pattern detection thresholds
         self._rapid_failure_threshold = 10  # failures
         self._rapid_failure_window = 60.0  # seconds
@@ -401,11 +402,11 @@ class SecurityAuditor:
         self,
         operation_type: OperationType,
         user_id: str,
-        parameters: Dict[str, Any],
+        parameters: dict[str, Any],
         result_status: ResultStatus,
         execution_time: float,
         resource_usage: Optional[ResourceUsage] = None,
-        policy_checks: Optional[List[PolicyCheck]] = None,
+        policy_checks: Optional[list[PolicyCheck]] = None,
         error_message: Optional[str] = None,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
@@ -514,7 +515,7 @@ class SecurityAuditor:
         user_id: str,
         violation_type: ViolationType,
         reason: str,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[dict[str, Any]] = None,
     ) -> AuditLogEntry:
         """
         Log security policy violation.
@@ -555,7 +556,7 @@ class SecurityAuditor:
 
         return entry
 
-    def redact_sensitive_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def redact_sensitive_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         Redact sensitive data from dictionary.
 
@@ -710,7 +711,7 @@ class SecurityAuditor:
 
         return archived_count
 
-    def query_audit_logs(self, filters: AuditLogFilters, limit: int = 100) -> List[AuditLogEntry]:
+    def query_audit_logs(self, filters: AuditLogFilters, limit: int = 100) -> list[AuditLogEntry]:
         """
         Query audit logs with filters.
 
@@ -735,14 +736,14 @@ class SecurityAuditor:
         with self._buffer_lock:
             self._flush_buffer()
 
-        results: List[AuditLogEntry] = []
+        results: list[AuditLogEntry] = []
 
         # Read log files in reverse chronological order
         log_files = sorted(self.log_dir.glob("audit_*.jsonl"), reverse=True)
 
         for log_file in log_files:
             try:
-                with open(log_file, "r", encoding="utf-8") as f:
+                with open(log_file, encoding="utf-8") as f:
                     for line in f:
                         if len(results) >= limit:
                             return results  # Early exit on limit reached
@@ -763,7 +764,7 @@ class SecurityAuditor:
 
         return results
 
-    def detect_dangerous_command(self, command: str) -> Optional[Dict[str, Any]]:
+    def detect_dangerous_command(self, command: str) -> Optional[dict[str, Any]]:
         """
         Detect dangerous command patterns with severity classification.
 
@@ -799,7 +800,7 @@ class SecurityAuditor:
 
         return None
 
-    def detect_sql_injection(self, query: str) -> Optional[Dict[str, Any]]:
+    def detect_sql_injection(self, query: str) -> Optional[dict[str, Any]]:
         """
         Detect SQL injection patterns.
 
@@ -825,7 +826,7 @@ class SecurityAuditor:
 
         return None
 
-    def detect_command_injection(self, input_str: str) -> Optional[Dict[str, Any]]:
+    def detect_command_injection(self, input_str: str) -> Optional[dict[str, Any]]:
         """
         Detect command injection patterns.
 
@@ -888,7 +889,7 @@ class SecurityAuditor:
 
         return sanitized.strip()
 
-    def validate_command_safety(self, command: str) -> Dict[str, Any]:
+    def validate_command_safety(self, command: str) -> dict[str, Any]:
         """
         Comprehensive command safety validation.
 
@@ -1186,7 +1187,7 @@ class SecurityAuditor:
 
     def check_suspicious_patterns(
         self, user_id: str, operation_type: OperationType, result_status: ResultStatus
-    ) -> List[SecurityAlert]:
+    ) -> list[SecurityAlert]:
         """
         Check for all suspicious patterns and generate alerts.
 
@@ -1212,7 +1213,7 @@ class SecurityAuditor:
             >>> for alert in alerts:
             ...     print(f"Alert: {alert.severity.value} - {alert.description}")
         """
-        alerts: List[SecurityAlert] = []
+        alerts: list[SecurityAlert] = []
         current_time = time.time()
 
         # Check for rapid failures
@@ -1239,7 +1240,7 @@ class SecurityAuditor:
         severity: AlertSeverity,
         alert_type: str,
         description: str,
-        affected_operations: List[str],
+        affected_operations: list[str],
         recommended_action: str,
     ) -> SecurityAlert:
         """
@@ -1319,7 +1320,7 @@ class SecurityAuditor:
                 self._access_patterns.pop(user_id, None)
                 logger.info("pattern_tracking_cleared", scope="user", user_id=user_id)
 
-    def get_pattern_statistics(self, user_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_pattern_statistics(self, user_id: Optional[str] = None) -> dict[str, Any]:
         """
         Get pattern detection statistics.
 
@@ -1363,8 +1364,8 @@ class SecurityAuditor:
         principal: str,
         resource: str,
         action: str,
-        environment: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[bool, str, Optional[PolicyCheck]]:
+        environment: Optional[dict[str, Any]] = None,
+    ) -> tuple[bool, str, Optional[PolicyCheck]]:
         """
         Validate operation against Policy Engine.
 
@@ -1505,7 +1506,7 @@ class SecurityAuditor:
 
         return descriptions.get(pattern, f"{severity} severity command detected")
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """
         Get audit statistics.
 
@@ -1535,7 +1536,7 @@ class SecurityAuditor:
             "archives_count": archives_count,
         }
 
-    def get_log_stats(self) -> Dict[str, Any]:
+    def get_log_stats(self) -> dict[str, Any]:
         """
         Get log statistics (alias for get_statistics with extended fields).
 
@@ -1547,7 +1548,7 @@ class SecurityAuditor:
         current_entries = 0
         if self.current_log_file.exists():
             try:
-                with open(self.current_log_file, "r", encoding="utf-8") as f:
+                with open(self.current_log_file, encoding="utf-8") as f:
                     current_entries = sum(1 for line in f if line.strip())
             except IOError:
                 pass
@@ -1675,7 +1676,7 @@ class SecurityAuditor:
 
         return True
 
-    def _dict_to_entry(self, entry_dict: Dict[str, Any]) -> AuditLogEntry:
+    def _dict_to_entry(self, entry_dict: dict[str, Any]) -> AuditLogEntry:
         """Convert dictionary to AuditLogEntry."""
         # Convert string enums back to enum types
         entry_dict["operation_type"] = OperationType(entry_dict["operation_type"])

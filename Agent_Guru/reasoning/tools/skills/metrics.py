@@ -5,8 +5,8 @@ Tracks execution count, success rate, and latency for each skill.
 """
 
 import time
-from typing import Dict, Optional
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
@@ -60,7 +60,7 @@ class SkillMetricsTracker:
 
     def __init__(self):
         """Initialize metrics tracker."""
-        self.metrics: Dict[str, SkillMetrics] = {}
+        self.metrics: dict[str, SkillMetrics] = {}
 
     def get_metrics(self, skill_id: str) -> SkillMetrics:
         """Get metrics for a skill.
@@ -88,7 +88,7 @@ class SkillMetricsTracker:
         metrics = self.get_metrics(skill_id)
         metrics.record_execution(success, latency_ms)
 
-    def get_all_metrics(self) -> Dict[str, SkillMetrics]:
+    def get_all_metrics(self) -> dict[str, SkillMetrics]:
         """Get metrics for all skills.
 
         Returns:

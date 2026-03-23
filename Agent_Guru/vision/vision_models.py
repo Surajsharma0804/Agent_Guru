@@ -19,7 +19,6 @@ from typing import Any, Literal
 import numpy as np
 from pydantic import BaseModel, Field, field_validator
 
-
 # ---------------------------------------------------------------------------
 # Primitive geometry
 # ---------------------------------------------------------------------------

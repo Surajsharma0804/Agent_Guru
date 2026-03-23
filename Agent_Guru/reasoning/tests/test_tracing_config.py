@@ -1,7 +1,7 @@
 """Comprehensive unit tests for tracing configuration - 100% coverage."""
 
 import pytest
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import patch, MagicMock
 
 from Agent_Guru.reasoning.config.tracing import (
     TracingConfig,
@@ -327,7 +327,7 @@ class TestGlobalTracingManager:
         mock_configure.return_value = mock_tracer
         
         config = TracingConfig()
-        manager1 = initialize_tracing(config)
+        initialize_tracing(config)
         reset_tracing()
         manager2 = get_tracing_manager()
         

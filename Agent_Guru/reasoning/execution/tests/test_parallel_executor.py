@@ -4,7 +4,6 @@ Tests for parallel execution engine.
 Coverage Target: 80%+
 """
 
-import asyncio
 import time
 
 import pytest

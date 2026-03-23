@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any, Optional
 
 import numpy as np
 
@@ -26,7 +27,10 @@ from Agent_Guru.avatar.config import AvatarConfig
 from Agent_Guru.avatar.emotion.recognizer import EmotionRecognizer
 from Agent_Guru.avatar.lip_sync.controller import LipSyncController
 from Agent_Guru.avatar.models import (
-    AvatarState, EmotionState, LipSyncState, PersonalityType,
+    AvatarState,
+    EmotionState,
+    LipSyncState,
+    PersonalityType,
 )
 from Agent_Guru.avatar.performance import PerformanceMonitor
 from Agent_Guru.avatar.personality.engine import PersonalityEngine
@@ -73,7 +77,7 @@ class GuruAvatarSystem:
         self._renderer: Optional[AvatarRenderer] = None
         self._perf_monitor: Optional[PerformanceMonitor] = None
 
-        self._error_callbacks: List[Callable[[Exception, str, Dict[str, Any]], None]] = []
+        self._error_callbacks: list[Callable[[Exception, str, dict[str, Any]], None]] = []
         self._start_time = 0.0
 
     # ------------------------------------------------------------------
@@ -280,12 +284,12 @@ class GuruAvatarSystem:
         self._require_initialized()
         return self._state_manager.get_state()
 
-    def get_performance_metrics(self) -> Dict[str, float]:
+    def get_performance_metrics(self) -> dict[str, float]:
         """Return performance metrics."""
         self._require_initialized()
         fps = self._renderer.get_measured_fps() if self._renderer else 0.0
         uptime = time.perf_counter() - self._start_time
-        metrics: Dict[str, float] = {
+        metrics: dict[str, float] = {
             "fps": fps,
             "uptime_seconds": uptime,
         }
@@ -304,7 +308,7 @@ class GuruAvatarSystem:
 
     def register_error_callback(
         self,
-        callback: Callable[[Exception, str, Dict[str, Any]], None],
+        callback: Callable[[Exception, str, dict[str, Any]], None],
     ) -> None:
         """Register a callback for error notifications."""
         self._error_callbacks.append(callback)
@@ -318,7 +322,7 @@ class GuruAvatarSystem:
             raise RuntimeError("GuruAvatarSystem.initialize() must be called first")
 
     def _notify_error(
-        self, exc: Exception, component: str, context: Dict[str, Any]
+        self, exc: Exception, component: str, context: dict[str, Any]
     ) -> None:
         for cb in self._error_callbacks:
             try:

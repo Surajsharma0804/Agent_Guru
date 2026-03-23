@@ -32,18 +32,16 @@ import asyncio
 import logging
 import platform
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from Agent_Guru.llm.context_manager import ContextManager
-from Agent_Guru.llm.error_handler import ErrorHandler
 from Agent_Guru.llm.failover_router import FailoverConfig, FailoverResult, ProviderFailoverRouter
 from Agent_Guru.llm.llm_runtime import LLMRuntime
 from Agent_Guru.llm.models import (
     AnthropicConfig,
     CompletionRequest,
-    CompletionResponse,
     GoogleConfig,
     Message,
     ModelProvider,
@@ -51,7 +49,6 @@ from Agent_Guru.llm.models import (
     OpenAIConfig,
     RuntimeConfig,
 )
-from Agent_Guru.llm.performance_monitor import PerformanceMonitor
 from Agent_Guru.llm.providers.anthropic_adapter import AnthropicAdapter
 from Agent_Guru.llm.providers.google_adapter import GoogleAdapter
 from Agent_Guru.llm.providers.ollama_adapter import OllamaAdapter
@@ -82,13 +79,13 @@ MAYA_SYSTEM_PROMPT = (
     "You are warm, encouraging, and emotionally intelligent."
 )
 
-PERSONALITY_PROMPTS: Dict[str, str] = {
+PERSONALITY_PROMPTS: dict[str, str] = {
     "guru": GURU_SYSTEM_PROMPT,
     "maya": MAYA_SYSTEM_PROMPT,
 }
 
 # Default models per provider
-_DEFAULT_MODELS: Dict[ModelProvider, str] = {
+_DEFAULT_MODELS: dict[ModelProvider, str] = {
     ModelProvider.OLLAMA: "llama3.2",
     ModelProvider.OPENAI: "gpt-4o-mini",
     ModelProvider.ANTHROPIC: "claude-3-haiku-20240307",
@@ -357,7 +354,7 @@ class LLMManager:
         query: str,
         personality: str = "guru",
         session_id: Optional[str] = None,
-        context_messages: Optional[List[Message]] = None,
+        context_messages: Optional[list[Message]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
     ) -> LLMResponse:
@@ -570,7 +567,7 @@ class LLMManager:
     # Context management
     # ------------------------------------------------------------------
 
-    def get_conversation_history(self, session_id: str) -> List[Message]:
+    def get_conversation_history(self, session_id: str) -> list[Message]:
         """Return conversation history for a session.
 
         Args:
@@ -594,7 +591,7 @@ class LLMManager:
             self._context_manager.clear_context(session_id)
             logger.debug("Cleared conversation history for session: %s", session_id)
 
-    def get_context_usage(self, session_id: str, model: str = "gpt-4o-mini") -> Dict[str, Any]:
+    def get_context_usage(self, session_id: str, model: str = "gpt-4o-mini") -> dict[str, Any]:
         """Return context window usage statistics for a session.
 
         Args:
@@ -658,7 +655,7 @@ class LLMManager:
             )
         return PERSONALITY_PROMPTS[key]
 
-    def get_supported_providers(self) -> List[str]:
+    def get_supported_providers(self) -> list[str]:
         """Return list of supported provider names for the current platform.
 
         Returns:
@@ -692,9 +689,9 @@ class LLMManager:
 
     def _build_adapters(
         self, runtime_config: RuntimeConfig
-    ) -> Dict[ModelProvider, Any]:
+    ) -> dict[ModelProvider, Any]:
         """Build provider adapters based on platform constraints."""
-        adapters: Dict[ModelProvider, Any] = {}
+        adapters: dict[ModelProvider, Any] = {}
 
         # Cloud adapters — available on all platforms
         adapters[ModelProvider.OPENAI] = OpenAIAdapter(runtime_config.openai_config)
@@ -751,8 +748,8 @@ class LLMManager:
         query: str,
         personality: str,
         session_id: str,
-        extra_context: Optional[List[Message]] = None,
-    ) -> List[Message]:
+        extra_context: Optional[list[Message]] = None,
+    ) -> list[Message]:
         """Build message list with personality prompt and conversation history.
 
         Args:
@@ -765,7 +762,7 @@ class LLMManager:
             List of :class:`~Agent_Guru.llm.models.Message` objects.
         """
         system_prompt = PERSONALITY_PROMPTS[personality]
-        messages: List[Message] = [Message(role="system", content=system_prompt)]
+        messages: list[Message] = [Message(role="system", content=system_prompt)]
 
         # Inject conversation history
         if self._context_manager is not None:

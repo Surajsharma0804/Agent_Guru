@@ -160,7 +160,7 @@ class ReasoningEngineUser(HttpUser):
             "/api/v1/reason",
             json=payload,
             catch_response=True,
-            name=f"POST /api/v1/reason",
+            name="POST /api/v1/reason",
         ) as response:
             if response.elapsed.total_seconds() * 1000 > LATENCY_TARGET_MS:
                 response.failure(

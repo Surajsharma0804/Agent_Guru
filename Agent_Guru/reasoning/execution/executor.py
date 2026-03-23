@@ -203,7 +203,7 @@ class SyncExecutor:
                         action_id=action.action_id,
                         retries=retries,
                     )
-                
+
                 # Not a cancellation - treat as regular error
                 # Check if error is transient and retryable
                 if retries < self.max_retries and self._is_transient_error(e):
@@ -321,7 +321,7 @@ class SyncExecutor:
 
                     # Timeout exceeded
                     future.cancel()
-                    raise TimeoutError(f"Execution exceeded timeout of {timeout}s")
+                    raise TimeoutError(f"Execution exceeded timeout of {timeout}s") from e
                 else:
                     # No cancellation token, just wait for result
                     result = future.result(timeout=timeout)
@@ -330,7 +330,7 @@ class SyncExecutor:
             except concurrent.futures.TimeoutError:
                 # Cancel the future
                 future.cancel()
-                raise TimeoutError(f"Execution exceeded timeout of {timeout}s")
+                raise TimeoutError(f"Execution exceeded timeout of {timeout}s") from e
 
     def _is_transient_error(self, error: Exception) -> bool:
         """Check if error is transient and retryable.

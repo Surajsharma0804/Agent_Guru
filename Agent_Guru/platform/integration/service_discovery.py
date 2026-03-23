@@ -12,7 +12,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class ServiceEndpoint:
     port: int
     protocol: str = "http"
     version: str = "1.0.0"
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     registered_at: datetime = field(default_factory=datetime.now)
     last_health_check: Optional[datetime] = None
     status: ServiceStatus = ServiceStatus.UNKNOWN
@@ -44,7 +44,7 @@ class ServiceEndpoint:
     def base_url(self) -> str:
         return f"{self.protocol}://{self.host}:{self.port}"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "service_name": self.service_name,
             "host": self.host,
@@ -89,7 +89,7 @@ class ServiceRegistry:
 
         self.health_check_interval = health_check_interval
         self.ttl_seconds = ttl_seconds
-        self._services: Dict[str, ServiceEndpoint] = {}
+        self._services: dict[str, ServiceEndpoint] = {}
         self._health_check_task: Optional[asyncio.Task] = None
         self._running = False
 
@@ -156,7 +156,7 @@ class ServiceRegistry:
 
         return endpoint
 
-    def lookup_all(self, status_filter: Optional[ServiceStatus] = None) -> List[ServiceEndpoint]:
+    def lookup_all(self, status_filter: Optional[ServiceStatus] = None) -> list[ServiceEndpoint]:
         """
         Look up all registered services, optionally filtered by status.
 
@@ -257,9 +257,9 @@ class ServiceRegistry:
         except Exception:
             self.update_health(name, ServiceStatus.UNHEALTHY)
 
-    def get_registry_stats(self) -> Dict[str, Any]:
+    def get_registry_stats(self) -> dict[str, Any]:
         """Get registry statistics."""
-        status_counts: Dict[str, int] = {}
+        status_counts: dict[str, int] = {}
         for ep in self._services.values():
             key = ep.status.value
             status_counts[key] = status_counts.get(key, 0) + 1

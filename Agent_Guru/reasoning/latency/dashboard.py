@@ -13,13 +13,13 @@ import time
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Deque, Dict, List, Optional, Any
+from typing import Any, Optional
 
 from Agent_Guru.reasoning.latency.tracker import (
-    PipelineStage,
     LATENCY_BUDGETS,
-    LatencyTracker,
     DegradedModeManager,
+    LatencyTracker,
+    PipelineStage,
 )
 
 
@@ -62,7 +62,7 @@ class LatencyDashboard:
         self.snapshot_interval = snapshot_interval
 
         # History storage
-        self._snapshots: Dict[PipelineStage, Deque[LatencySnapshot]] = defaultdict(
+        self._snapshots: dict[PipelineStage, deque[LatencySnapshot]] = defaultdict(
             lambda: deque(maxlen=history_duration // snapshot_interval)
         )
         self._last_snapshot_time = time.time()
@@ -94,7 +94,7 @@ class LatencyDashboard:
 
     def get_latency_trends(
         self, stage: PipelineStage, duration_minutes: int = 60
-    ) -> Dict[str, List[tuple[datetime, float]]]:
+    ) -> dict[str, list[tuple[datetime, float]]]:
         """Get latency trends for a stage.
 
         Args:
@@ -126,7 +126,7 @@ class LatencyDashboard:
 
     def get_timeout_trends(
         self, stage: PipelineStage, duration_minutes: int = 60
-    ) -> List[tuple[datetime, float]]:
+    ) -> list[tuple[datetime, float]]:
         """Get timeout rate trends for a stage.
 
         Args:
@@ -145,7 +145,7 @@ class LatencyDashboard:
 
     def get_degraded_trends(
         self, stage: PipelineStage, duration_minutes: int = 60
-    ) -> List[tuple[datetime, float]]:
+    ) -> list[tuple[datetime, float]]:
         """Get degraded mode rate trends for a stage.
 
         Args:
@@ -162,7 +162,7 @@ class LatencyDashboard:
 
         return [(s.timestamp, s.degraded_rate) for s in snapshots]
 
-    def get_budget_comparison(self) -> Dict[str, Dict[str, Any]]:
+    def get_budget_comparison(self) -> dict[str, dict[str, Any]]:
         """Get comparison of current latency vs budget targets.
 
         Returns:
@@ -204,7 +204,7 @@ class LatencyDashboard:
 
         return comparison
 
-    def get_stage_summary(self, stage: PipelineStage) -> Dict[str, Any]:
+    def get_stage_summary(self, stage: PipelineStage) -> dict[str, Any]:
         """Get comprehensive summary for a stage.
 
         Args:
@@ -261,7 +261,7 @@ class LatencyDashboard:
             },
         }
 
-    def get_overall_summary(self) -> Dict[str, Any]:
+    def get_overall_summary(self) -> dict[str, Any]:
         """Get overall system latency summary.
 
         Returns:
@@ -371,7 +371,7 @@ class LatencyDashboard:
             comp_current = comparison.get('current', {})
             comp_budget = comparison.get('budget', {})
             comp_performance = comparison.get('performance', {})
-            
+
             status_icon = "✓" if comp_status.get('meets_target', False) else "✗"
             lines.extend([
                 f"{status_icon} {stage_name.upper()}:",
@@ -408,8 +408,8 @@ def get_latency_dashboard(
 
     if _global_dashboard is None:
         from Agent_Guru.reasoning.latency.tracker import (
-            get_latency_tracker,
             get_degraded_mode_manager,
+            get_latency_tracker,
         )
 
         if tracker is None:

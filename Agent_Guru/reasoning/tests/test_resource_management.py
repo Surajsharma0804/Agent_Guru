@@ -10,28 +10,20 @@ Tests cover:
 import asyncio
 import pytest
 import time
-from unittest.mock import Mock, patch, AsyncMock
 
 from Agent_Guru.reasoning.utils.memory_monitor import (
     MemoryMonitor,
-    MemorySnapshot,
-    ComponentMemoryStats,
-    get_memory_monitor,
-    track_memory
+    ComponentMemoryStats
 )
 from Agent_Guru.reasoning.utils.connection_pool import (
     DatabasePool,
-    RedisPool,
     HTTPPool,
-    get_db_pool,
     get_http_pool
 )
 from Agent_Guru.reasoning.utils.request_queue import (
     RequestQueue,
     Priority,
-    QueuedRequest,
-    get_request_queue,
-    enqueue_request
+    QueuedRequest
 )
 
 

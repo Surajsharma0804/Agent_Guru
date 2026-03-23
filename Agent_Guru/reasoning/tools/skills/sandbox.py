@@ -8,9 +8,9 @@ import asyncio
 import os
 import subprocess
 import tempfile
-from pathlib import Path
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Optional
 
 
 @dataclass
@@ -30,9 +30,9 @@ class SandboxConfig:
 
     skill_id: str
     resource_limits: ResourceLimits
-    allowed_endpoints: List[str]  # Allowed network endpoints
+    allowed_endpoints: list[str]  # Allowed network endpoints
     temp_dir: Path  # Temporary directory for skill
-    read_only_paths: List[Path]  # Read-only filesystem paths
+    read_only_paths: list[Path]  # Read-only filesystem paths
     use_docker: bool = False  # Whether to use Docker for isolation
 
 
@@ -49,8 +49,8 @@ class SkillSandbox:
         self.process: Optional[asyncio.subprocess.Process] = None
 
     async def execute(
-        self, command: List[str], env: Optional[Dict[str, str]] = None
-    ) -> Dict[str, Any]:
+        self, command: list[str], env: Optional[dict[str, str]] = None
+    ) -> dict[str, Any]:
         """Execute a command in the sandbox.
 
         Args:
@@ -70,8 +70,8 @@ class SkillSandbox:
             return await self._execute_process(command, env)
 
     async def _execute_process(
-        self, command: List[str], env: Optional[Dict[str, str]] = None
-    ) -> Dict[str, Any]:
+        self, command: list[str], env: Optional[dict[str, str]] = None
+    ) -> dict[str, Any]:
         """Execute command in isolated process.
 
         Args:
@@ -134,8 +134,8 @@ class SkillSandbox:
             self.process = None
 
     async def _execute_docker(
-        self, command: List[str], env: Optional[Dict[str, str]] = None
-    ) -> Dict[str, Any]:
+        self, command: list[str], env: Optional[dict[str, str]] = None
+    ) -> dict[str, Any]:
         """Execute command in Docker container.
 
         Args:
@@ -237,7 +237,7 @@ class SandboxManager:
 
     def __init__(self):
         """Initialize sandbox manager."""
-        self.sandboxes: Dict[str, SkillSandbox] = {}
+        self.sandboxes: dict[str, SkillSandbox] = {}
         self.temp_base_dir = Path(tempfile.gettempdir()) / "agent_guru_skills"
         self.temp_base_dir.mkdir(parents=True, exist_ok=True)
 
@@ -245,7 +245,7 @@ class SandboxManager:
         self,
         skill_id: str,
         resource_limits: Optional[ResourceLimits] = None,
-        allowed_endpoints: Optional[List[str]] = None,
+        allowed_endpoints: Optional[list[str]] = None,
         use_docker: bool = False,
     ) -> SkillSandbox:
         """Create a sandbox for a skill.

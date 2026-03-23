@@ -19,8 +19,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, Set
-
+from typing import Any
 
 from Agent_Guru.security.crypto.errors import ReplayAttackError, ZKProofError
 
@@ -42,7 +41,7 @@ class ZKProof:
     """Zero-knowledge proof using Ed25519 commitment scheme."""
 
     proof_data: bytes  # Ed25519 signature of commitment
-    public_inputs: Dict[str, Any]  # Public claim info (no private key)
+    public_inputs: dict[str, Any]  # Public claim info (no private key)
     timestamp: datetime
     proof_type: str = "ed25519-commitment"
     nonce: bytes = field(default_factory=lambda: os.urandom(16))
@@ -61,7 +60,7 @@ class ZKProofSystem:
     def __init__(self, identity_manager: Any) -> None:
         self._identity_manager = identity_manager
         # Track seen proof nonces to prevent replay
-        self._seen_nonces: Set[bytes] = set()
+        self._seen_nonces: set[bytes] = set()
 
     def generate_proof(self, claim: IdentityClaim) -> ZKProof:
         """Generate zero-knowledge proof for identity claim.
@@ -80,7 +79,7 @@ class ZKProofSystem:
         try:
             profile = self._identity_manager.get_identity(claim.profile_id)
         except Exception as exc:
-            raise ZKProofError(f"Proof generation failed: identity error") from exc
+            raise ZKProofError("Proof generation failed: identity error") from exc
 
         try:
             timestamp = datetime.now(tz=timezone.utc)
@@ -154,7 +153,7 @@ class ZKProofSystem:
 
         try:
             # Reconstruct commitment hash
-            commitment_data = {
+            {
                 "claim_type": proof.public_inputs["claim_type"],
                 "claim_value": proof.public_inputs["claim_value"],
                 # We need profile_id to reconstruct - it's embedded in commitment

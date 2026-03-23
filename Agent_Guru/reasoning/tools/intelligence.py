@@ -390,7 +390,7 @@ class ToolStats(BaseModel):
             )
             # Send alert (works in both sync and async contexts)
             try:
-                loop = asyncio.get_running_loop()
+                asyncio.get_running_loop()
                 asyncio.create_task(_alert_manager.send_alert(alert))
             except RuntimeError:
                 # No event loop running, send synchronously
@@ -459,7 +459,7 @@ class ToolStats(BaseModel):
                 )
                 # Send alert (works in both sync and async contexts)
                 try:
-                    loop = asyncio.get_running_loop()
+                    asyncio.get_running_loop()
                     asyncio.create_task(_alert_manager.send_alert(alert))
                 except RuntimeError:
                     # No event loop running, send synchronously

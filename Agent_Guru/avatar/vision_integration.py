@@ -13,7 +13,8 @@ Requirements: Req 11.7, Task 17
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any, Optional
 
 import numpy as np
 

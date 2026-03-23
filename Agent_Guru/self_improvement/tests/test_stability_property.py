@@ -15,13 +15,11 @@ Coverage Target: >80%
 
 import os
 import random
-import shutil
 import tempfile
 import time
-from datetime import datetime, timedelta
 
 import pytest
-from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool

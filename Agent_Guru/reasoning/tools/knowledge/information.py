@@ -4,7 +4,7 @@ Information tools for question answering, definitions, calculations, and unit co
 Provides access to knowledge bases and computational tools.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -39,7 +39,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class QuestionAnswerTool(Tool):
     """Tool for answering questions."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute question answering.
 
         Args:
@@ -105,7 +105,7 @@ class QuestionAnswerTool(Tool):
 class DefineWordTool(Tool):
     """Tool for defining words."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute word definition.
 
         Args:
@@ -173,7 +173,7 @@ class DefineWordTool(Tool):
 class CalculateTool(Tool):
     """Tool for calculations."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute calculation.
 
         Args:
@@ -324,7 +324,7 @@ UNIT_CONVERSIONS = {
 class ConvertUnitsTool(Tool):
     """Tool for unit conversion."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute unit conversion.
 
         Args:

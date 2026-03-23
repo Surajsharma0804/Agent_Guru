@@ -15,10 +15,9 @@ Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .agent_lifecycle import Agent  # noqa: F401 – re-exported for convenience
-
 
 # ---------------------------------------------------------------------------
 # Data models
@@ -44,12 +43,12 @@ class Task:
     id: str
     description: str
     task_type: str
-    requirements: Dict[str, Any]
-    success_criteria: List[str]
+    requirements: dict[str, Any]
+    success_criteria: list[str]
     priority: int
-    dependencies: List[str]
+    dependencies: list[str]
     parent_task_id: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -66,8 +65,8 @@ class SubTask:
 
     description: str
     task_type: str
-    requirements: Dict[str, Any]
-    dependencies: List[int]
+    requirements: dict[str, Any]
+    dependencies: list[int]
     can_parallelize: bool
 
 
@@ -96,7 +95,7 @@ _MULTI_STEP_KEYWORDS = frozenset(
 )
 
 # Decomposition templates keyed by task_type
-_DECOMPOSITION_TEMPLATES: Dict[str, List[SubTask]] = {
+_DECOMPOSITION_TEMPLATES: dict[str, list[SubTask]] = {
     "implementation": [
         SubTask(
             description="Design",
@@ -264,7 +263,7 @@ class TaskDecomposer:
         self,
         task: Task,
         current_depth: int = 0,
-    ) -> List[Task]:
+    ) -> list[Task]:
         """Decompose a task into an ordered list of sub-tasks.
 
         If the task does not need decomposition, or the depth limit is
@@ -299,7 +298,7 @@ class TaskDecomposer:
         # Assign stable IDs so dependencies can reference them
         sub_ids = [f"{task.id}_sub_{i}" for i in range(len(raw_subtasks))]
 
-        task_objects: List[Task] = []
+        task_objects: list[Task] = []
         for i, sub in enumerate(raw_subtasks):
             resolved_deps = [sub_ids[dep_idx] for dep_idx in sub.dependencies]
             task_objects.append(
@@ -374,7 +373,7 @@ class TaskDecomposer:
 
         return min(score, 1.0)
 
-    async def _identify_subtasks(self, task: Task) -> List[SubTask]:
+    async def _identify_subtasks(self, task: Task) -> list[SubTask]:
         """Identify sub-tasks for a given task.
 
         Uses a template lookup for known task types, falling back to a

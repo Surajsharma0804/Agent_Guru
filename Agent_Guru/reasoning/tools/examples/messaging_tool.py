@@ -2,7 +2,7 @@
 Messaging tool for sending messages.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -39,7 +39,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class MessagingTool(Tool):
     """Tool for sending messages."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute message sending.
 
         Args:

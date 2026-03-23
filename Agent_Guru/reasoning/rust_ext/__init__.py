@@ -8,7 +8,7 @@ Installation:
     1. Install Rust: https://rustup.rs/
     2. Install maturin: pip install maturin
     3. Build extension: maturin develop --release
-    
+
 Usage:
     from Agent_Guru.reasoning.rust_ext import (
         fast_pattern_match,
@@ -16,7 +16,7 @@ Usage:
         fast_entity_extract,
         fast_similarity_score
     )
-    
+
     # Use Rust functions (10-100x faster)
     result = fast_pattern_match(text, patterns)
 
@@ -31,18 +31,26 @@ Performance Comparison:
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
 # Try to import Rust extension
 try:
     from reasoning_rust import (
-        fast_pattern_match as _rust_pattern_match,
-        fast_normalize as _rust_normalize,
         fast_entity_extract as _rust_entity_extract,
-        fast_similarity_score as _rust_similarity_score,
+    )
+    from reasoning_rust import (
         fast_json_parse as _rust_json_parse,
+    )
+    from reasoning_rust import (
+        fast_normalize as _rust_normalize,
+    )
+    from reasoning_rust import (
+        fast_pattern_match as _rust_pattern_match,
+    )
+    from reasoning_rust import (
+        fast_similarity_score as _rust_similarity_score,
     )
     HAS_RUST = True
     logger.info("Rust extensions loaded successfully (10-100x speedup enabled)")
@@ -58,18 +66,18 @@ except ImportError as e:
 
 def fast_pattern_match(
     text: str,
-    patterns: List[str]
-) -> Optional[Tuple[int, List[str]]]:
+    patterns: list[str]
+) -> Optional[tuple[int, list[str]]]:
     """
     Fast pattern matching using Rust (20x faster than Python regex).
-    
+
     Args:
         text: Input text to match
         patterns: List of regex patterns
-        
+
     Returns:
         Tuple of (pattern_index, captured_groups) or None
-        
+
     Example:
         >>> patterns = [r"set timer (\d+) minutes", r"weather in (\w+)"]
         >>> result = fast_pattern_match("set timer 5 minutes", patterns)
@@ -95,20 +103,20 @@ def fast_pattern_match(
 def fast_normalize(text: str, remove_punctuation: bool = False) -> str:
     """
     Fast string normalization using Rust (10x faster than Python).
-    
+
     Performs:
     - Lowercase conversion
     - Whitespace normalization
     - Punctuation removal (optional)
     - Trimming
-    
+
     Args:
         text: Input text
         remove_punctuation: Whether to remove punctuation
-        
+
     Returns:
         Normalized text
-        
+
     Example:
         >>> fast_normalize("  Hello,  World!  ", True)
         'hello world'
@@ -131,11 +139,11 @@ def fast_normalize(text: str, remove_punctuation: bool = False) -> str:
 
 def fast_entity_extract(
     text: str,
-    entity_types: List[str]
-) -> Dict[str, List[str]]:
+    entity_types: list[str]
+) -> dict[str, list[str]]:
     """
     Fast entity extraction using Rust (20x faster than Python regex).
-    
+
     Supported entity types:
     - phone: Phone numbers
     - email: Email addresses
@@ -143,14 +151,14 @@ def fast_entity_extract(
     - duration: Duration expressions
     - url: URLs
     - money: Money amounts
-    
+
     Args:
         text: Input text
         entity_types: List of entity types to extract
-        
+
     Returns:
         Dictionary mapping entity type to list of matches
-        
+
     Example:
         >>> text = "Call me at 555-1234 or email user@example.com"
         >>> entities = fast_entity_extract(text, ["phone", "email"])
@@ -170,13 +178,13 @@ def fast_entity_extract(
             'url': r'\bhttps?://[^\s]+\b',
             'money': r'\$\d+(?:,\d{3})*(?:\.\d{2})?',
         }
-        
+
         result = {}
         for entity_type in entity_types:
             if entity_type in patterns:
                 matches = re.findall(patterns[entity_type], text, re.IGNORECASE)
                 result[entity_type] = matches
-        
+
         return result
 
 
@@ -186,21 +194,21 @@ def fast_entity_extract(
 
 def fast_similarity_score(
     text: str,
-    patterns: List[str]
-) -> List[Tuple[int, float]]:
+    patterns: list[str]
+) -> list[tuple[int, float]]:
     """
     Fast similarity scoring using Rust (15x faster than Python).
-    
+
     Computes similarity between input text and patterns using
     word overlap scoring.
-    
+
     Args:
         text: Input text
         patterns: List of patterns to match against
-        
+
     Returns:
         List of (pattern_index, similarity_score) tuples, sorted by score
-        
+
     Example:
         >>> text = "set timer 5 minutes"
         >>> patterns = ["set timer", "weather", "play music"]
@@ -214,20 +222,20 @@ def fast_similarity_score(
         # Fallback to Python
         text_lower = text.lower()
         text_words = set(text_lower.split())
-        
+
         scores = []
         for i, pattern in enumerate(patterns):
             pattern_lower = pattern.lower()
             pattern_words = pattern_lower.split()
-            
+
             if not pattern_words:
                 scores.append((i, 0.0))
                 continue
-            
+
             matches = sum(1 for pw in pattern_words if pw in text_words)
             score = matches / len(pattern_words)
             scores.append((i, score))
-        
+
         scores.sort(key=lambda x: x[1], reverse=True)
         return scores
 
@@ -239,13 +247,13 @@ def fast_similarity_score(
 def fast_json_parse(json_str: str) -> Any:
     """
     Fast JSON parsing using Rust (5x faster than Python json).
-    
+
     Args:
         json_str: JSON string to parse
-        
+
     Returns:
         Parsed Python object
-        
+
     Example:
         >>> obj = fast_json_parse('{"key": "value"}')
         >>> obj
@@ -266,12 +274,12 @@ def fast_json_parse(json_str: str) -> Any:
 def benchmark_rust_extensions():
     """Benchmark Rust extensions vs Python implementations."""
     import time
-    
+
     print("Rust Extensions Performance Benchmark")
     print("=" * 80)
     print(f"Rust extensions available: {HAS_RUST}")
     print()
-    
+
     # Test data
     text = "set a timer for 5 minutes at 3pm tomorrow"
     patterns = [
@@ -279,9 +287,9 @@ def benchmark_rust_extensions():
         r"weather in (\w+)",
         r"play (\w+) music"
     ]
-    
+
     iterations = 10000
-    
+
     # Benchmark pattern matching
     print("Pattern Matching:")
     start = time.perf_counter()
@@ -291,7 +299,7 @@ def benchmark_rust_extensions():
     print(f"  {elapsed*1000:.1f}ms for {iterations} iterations")
     print(f"  {elapsed/iterations*1000000:.1f}μs per operation")
     print()
-    
+
     # Benchmark normalization
     print("String Normalization:")
     start = time.perf_counter()
@@ -301,7 +309,7 @@ def benchmark_rust_extensions():
     print(f"  {elapsed*1000:.1f}ms for {iterations} iterations")
     print(f"  {elapsed/iterations*1000000:.1f}μs per operation")
     print()
-    
+
     # Benchmark entity extraction
     print("Entity Extraction:")
     entity_types = ["time", "duration"]
@@ -312,7 +320,7 @@ def benchmark_rust_extensions():
     print(f"  {elapsed*1000:.1f}ms for {iterations} iterations")
     print(f"  {elapsed/iterations*1000000:.1f}μs per operation")
     print()
-    
+
     # Benchmark similarity scoring
     print("Similarity Scoring:")
     similarity_patterns = ["set timer", "weather", "play music"]

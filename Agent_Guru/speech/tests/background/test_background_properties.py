@@ -6,7 +6,6 @@ Property 27: State Transition Latency
 Validates: Requirements 1.5.11
 """
 
-import pytest
 import time
 from hypothesis import given, strategies as st, settings
 

@@ -19,7 +19,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ class GitHubSyncEngine:
         self.max_retries = max_retries
         self.batch_window_s = batch_window_s
 
-        self.pending_operations: List[SyncOperation] = []
+        self.pending_operations: list[SyncOperation] = []
         self._client: Optional[Any] = None
         self._sync_task: Optional[asyncio.Task] = None  # type: ignore[type-arg]
 
@@ -103,7 +103,7 @@ class GitHubSyncEngine:
     # Public API
     # ------------------------------------------------------------------
 
-    async def queue_performance_update(self, metrics: Dict[str, Any]) -> str:
+    async def queue_performance_update(self, metrics: dict[str, Any]) -> str:
         """
         Queue a performance metrics update for GitHub sync.
 
@@ -220,7 +220,7 @@ class GitHubSyncEngine:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _format_metrics_for_readme(metrics: Dict[str, Any]) -> str:
+    def _format_metrics_for_readme(metrics: dict[str, Any]) -> str:
         """Format performance metrics as a Markdown table for README.md."""
         lines = [
             "# LLM Runtime Performance Metrics",
@@ -257,7 +257,7 @@ class GitHubSyncEngine:
         return "\n".join(lines)
 
     @staticmethod
-    def _generate_commit_message(metrics: Dict[str, Any]) -> str:
+    def _generate_commit_message(metrics: dict[str, Any]) -> str:
         """Generate a meaningful commit message."""
         total_requests = 0
         for m in metrics.values():
@@ -272,7 +272,7 @@ class GitHubSyncEngine:
         """Generate a unique operation ID."""
         return str(uuid.uuid4())
 
-    def _batch_operations(self, operations: List[SyncOperation]) -> SyncOperation:
+    def _batch_operations(self, operations: list[SyncOperation]) -> SyncOperation:
         """Combine multiple operations into a single batched operation."""
         # Use the latest content (most up-to-date metrics)
         latest = operations[-1]

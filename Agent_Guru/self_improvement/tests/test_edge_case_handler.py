@@ -12,7 +12,6 @@ from Agent_Guru.self_improvement.database_schema import DatabaseSchema
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 from Agent_Guru.self_improvement.edge_case_handler import (
     EdgeCaseHandler,
-    ConfidenceMetrics,
 )
 
 

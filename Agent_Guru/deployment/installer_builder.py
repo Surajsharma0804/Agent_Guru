@@ -18,7 +18,7 @@ import platform
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 
@@ -65,8 +65,8 @@ class LinuxPackageConfig:
     description: str
     homepage: str = ""
     icon_path: Optional[Path] = None
-    categories: List[str] = field(default_factory=lambda: ["Utility", "AI"])
-    dependencies: List[str] = field(default_factory=list)
+    categories: list[str] = field(default_factory=lambda: ["Utility", "AI"])
+    dependencies: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -79,7 +79,7 @@ class AndroidBuildConfig:
     version_name: str
     min_sdk_version: int = 24
     target_sdk_version: int = 34
-    permissions: List[str] = field(default_factory=list)
+    permissions: list[str] = field(default_factory=list)
     icon_path: Optional[Path] = None
     splash_screen_path: Optional[Path] = None
     enable_crashlytics: bool = True
@@ -95,7 +95,7 @@ class IOSBuildConfig:
     version: str
     build_number: int
     min_ios_version: str = "14.0"
-    permissions: Dict[str, str] = field(default_factory=dict)
+    permissions: dict[str, str] = field(default_factory=dict)
     icon_path: Optional[Path] = None
     launch_screen_path: Optional[Path] = None
     enable_crashlytics: bool = True
@@ -389,7 +389,7 @@ android.enable_androidx = True
         logger.info("ios_info_plist_generated", path=str(out_path))
         return out_path
 
-    def get_supported_platforms(self) -> List[str]:
+    def get_supported_platforms(self) -> list[str]:
         """Return list of platforms this builder can generate configs for."""
         return ["windows", "macos", "linux", "android", "ios"]
 

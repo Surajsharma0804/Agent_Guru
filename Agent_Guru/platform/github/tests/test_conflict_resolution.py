@@ -12,16 +12,13 @@ Coverage Target: >80% (enforced by CI/CD)
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
-from datetime import datetime
+from unittest.mock import Mock, patch
 
 from Agent_Guru.platform.github.integrator import (
     GitHubIntegrator,
     GitOperationResult,
     GitConflictError,
-    GitAuthenticationError,
-    GitRemoteError
+    GitAuthenticationError
 )
 
 

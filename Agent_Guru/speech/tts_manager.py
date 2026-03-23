@@ -31,9 +31,10 @@ import asyncio
 import logging
 import platform
 import time
-from dataclasses import dataclass, field
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Coroutine, Optional
+from typing import Any, Optional
 
 from .exceptions import GuruSpeechError
 from .models import EmotionType, PersonalityType
@@ -225,9 +226,8 @@ class _DesktopTTSBackend:
         if self._engine is None or not self._initialized:
             return self._silence_bytes(text)
         try:
-            import io
-            import tempfile
             import os
+            import tempfile
 
             tmp_fd, tmp_path = tempfile.mkstemp(suffix=".wav")
             os.close(tmp_fd)

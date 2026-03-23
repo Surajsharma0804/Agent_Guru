@@ -15,7 +15,8 @@ Design notes:
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Callable, Coroutine, Optional
+from collections.abc import Callable, Coroutine
+from typing import Any, Optional
 
 import numpy as np
 import structlog

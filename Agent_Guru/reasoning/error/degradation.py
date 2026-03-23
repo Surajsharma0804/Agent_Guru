@@ -11,7 +11,7 @@ Provides intelligent degradation when services fail:
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Set
+from typing import Optional
 
 import structlog
 
@@ -53,8 +53,8 @@ class DegradationConfig:
     """Configuration for degradation behavior."""
 
     # Features available at each level
-    normal_features: Set[FeatureCategory] = field(default_factory=lambda: set(FeatureCategory))
-    degraded_features: Set[FeatureCategory] = field(default_factory=lambda: {
+    normal_features: set[FeatureCategory] = field(default_factory=lambda: set(FeatureCategory))
+    degraded_features: set[FeatureCategory] = field(default_factory=lambda: {
         FeatureCategory.BASIC_INTENT_DETECTION,
         FeatureCategory.SIMPLE_COMMANDS,
         FeatureCategory.ERROR_RESPONSES,
@@ -62,7 +62,7 @@ class DegradationConfig:
         FeatureCategory.TOOL_EXECUTION,
         FeatureCategory.CONVERSATION_CONTEXT,
     })
-    minimal_features: Set[FeatureCategory] = field(default_factory=lambda: {
+    minimal_features: set[FeatureCategory] = field(default_factory=lambda: {
         FeatureCategory.BASIC_INTENT_DETECTION,
         FeatureCategory.SIMPLE_COMMANDS,
         FeatureCategory.ERROR_RESPONSES,
@@ -89,10 +89,10 @@ class DegradationManager:
         """
         self.config = config or DegradationConfig()
         self._current_level = DegradationLevel.NORMAL
-        self._disabled_features: Set[FeatureCategory] = set()
-        self._service_failures: Dict[str, int] = {}
-        self._service_successes: Dict[str, int] = {}
-        self._degradation_history: List[Dict] = []
+        self._disabled_features: set[FeatureCategory] = set()
+        self._service_failures: dict[str, int] = {}
+        self._service_successes: dict[str, int] = {}
+        self._degradation_history: list[dict] = []
         self._last_level_change = datetime.now()
 
     def get_current_level(self) -> DegradationLevel:
@@ -292,7 +292,7 @@ class DegradationManager:
                 "Only essential features are available."
             )
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         """Get degradation status.
 
         Returns:
@@ -326,7 +326,7 @@ class DegradationManager:
         all_features = set(FeatureCategory)
         self._disabled_features = all_features - available
 
-    def _get_available_features(self) -> Set[FeatureCategory]:
+    def _get_available_features(self) -> set[FeatureCategory]:
         """Get set of available features for current level.
 
         Returns:
@@ -341,7 +341,7 @@ class DegradationManager:
         else:  # MINIMAL
             return self.config.minimal_features
 
-    def get_degradation_history(self, limit: int = 10) -> List[Dict]:
+    def get_degradation_history(self, limit: int = 10) -> list[dict]:
         """Get recent degradation history.
 
         Args:

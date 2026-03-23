@@ -3,7 +3,7 @@ Calendar tool for managing calendar events.
 """
 
 import time
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -54,7 +54,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class CalendarTool(Tool):
     """Tool for creating calendar events."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute calendar event creation.
 
         Args:

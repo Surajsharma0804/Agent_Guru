@@ -14,7 +14,6 @@ import pytest
 import tempfile
 import os
 import time
-from typing import List, Dict, Any
 
 from Agent_Guru.self_improvement.self_improvement_engine import SelfImprovementEngine
 from Agent_Guru.self_improvement.failure_analyzer import FailureType
@@ -188,7 +187,7 @@ class TestHardestLearningConvergence:
         for i in range(50):
             # Use better strategies after learning
             strategy_id = strategies[3][0]  # optimal_strategy (90% success)
-            success_rate = strategies[3][1]
+            strategies[3][1]
             
             # Simulate improved success rate
             success = (i % 10) < 9  # 90% success rate

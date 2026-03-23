@@ -5,72 +5,72 @@ This module provides configuration management for deploying the self-improvement
 engine in production environments.
 """
 
-from typing import Dict, Any, Optional
+import os
 from dataclasses import dataclass
 from pathlib import Path
-import os
+from typing import Any, Optional
 
 
 @dataclass
 class DeploymentConfig:
     """Configuration for self-improvement engine deployment."""
-    
+
     # Storage configuration
     storage_path: str = "data/self_improvement/learning.db"
     backup_path: str = "data/self_improvement/backups"
     max_backup_age_days: int = 30
-    
+
     # Git integration
     git_enabled: bool = True
     git_repo_path: str = "."
     git_auto_commit: bool = True
     git_commit_interval: int = 1  # Commit after every N tasks
-    
+
     # Learning parameters
     improvement_threshold: float = 0.15  # 15% minimum improvement
     measurement_window: int = 100  # Measure every 100 tasks
     exploration_rate: float = 0.1  # 10% exploration (epsilon-greedy)
-    
+
     # Performance thresholds
     max_execution_overhead_percent: float = 10.0  # Max 10% overhead
     min_success_rate: float = 0.5  # Alert if below 50%
     max_degradation_percent: float = 20.0  # Alert if 20% degradation
-    
+
     # Monitoring
     health_check_interval_seconds: int = 60
     metrics_retention_days: int = 90
     alert_on_insufficient_improvement: bool = True
-    
+
     # Stability
     rate_limit_prompt_evolution: int = 10  # Max 10 prompt changes per hour
     rollback_on_degradation: bool = True
     ensemble_voting_threshold: int = 3  # Use ensemble for critical tasks
-    
+
     # Resource limits
     max_database_size_mb: int = 1000  # 1GB max
     max_memory_usage_mb: int = 500  # 500MB max
     max_pattern_cache_size: int = 10000
-    
+
     # Environment-specific overrides
     environment: str = "production"  # production, staging, development
     debug_mode: bool = False
     test_mode: bool = False  # Disables Git commits
-    
+
     def __post_init__(self):
         """Validate configuration after initialization."""
         if self.improvement_threshold < 0 or self.improvement_threshold > 1:
             raise ValueError("improvement_threshold must be between 0 and 1")
-        
+
         if self.measurement_window < 10:
             raise ValueError("measurement_window must be at least 10")
-        
+
         if self.exploration_rate < 0 or self.exploration_rate > 1:
             raise ValueError("exploration_rate must be between 0 and 1")
-        
+
         # Create directories if they don't exist
         Path(self.storage_path).parent.mkdir(parents=True, exist_ok=True)
         Path(self.backup_path).mkdir(parents=True, exist_ok=True)
-    
+
     @classmethod
     def from_environment(cls) -> "DeploymentConfig":
         """Create configuration from environment variables."""
@@ -91,7 +91,7 @@ class DeploymentConfig:
             debug_mode=os.getenv("DEBUG", "false").lower() == "true",
             test_mode=os.getenv("TEST_MODE", "false").lower() == "true",
         )
-    
+
     @classmethod
     def for_production(cls) -> "DeploymentConfig":
         """Create production configuration."""
@@ -104,7 +104,7 @@ class DeploymentConfig:
             alert_on_insufficient_improvement=True,
             rollback_on_degradation=True,
         )
-    
+
     @classmethod
     def for_staging(cls) -> "DeploymentConfig":
         """Create staging configuration."""
@@ -117,7 +117,7 @@ class DeploymentConfig:
             alert_on_insufficient_improvement=True,
             rollback_on_degradation=True,
         )
-    
+
     @classmethod
     def for_development(cls) -> "DeploymentConfig":
         """Create development configuration."""
@@ -131,8 +131,8 @@ class DeploymentConfig:
             rollback_on_degradation=False,
             storage_path="data/dev/learning.db",
         )
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert configuration to dictionary."""
         return {
             "storage_path": self.storage_path,
@@ -172,19 +172,19 @@ DEVELOPMENT_CONFIG = DeploymentConfig.for_development()
 def get_config(environment: Optional[str] = None) -> DeploymentConfig:
     """
     Get deployment configuration for specified environment.
-    
+
     Args:
         environment: Environment name (production, staging, development)
                     If None, uses ENVIRONMENT env var or defaults to production
-    
+
     Returns:
         DeploymentConfig instance
     """
     if environment is None:
         environment = os.getenv("ENVIRONMENT", "production")
-    
+
     environment = environment.lower()
-    
+
     if environment == "production":
         return PRODUCTION_CONFIG
     elif environment == "staging":

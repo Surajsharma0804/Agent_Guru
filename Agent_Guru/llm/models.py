@@ -16,7 +16,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -42,7 +42,7 @@ class Message:
     role: str  # "system", "user", "assistant", "function"
     content: str
     name: Optional[str] = None  # For function messages
-    function_call: Optional[Dict[str, Any]] = None
+    function_call: Optional[dict[str, Any]] = None
 
 
 @dataclass
@@ -51,7 +51,7 @@ class FunctionDefinition:
 
     name: str
     description: str
-    parameters: Dict[str, Any]  # JSON schema
+    parameters: dict[str, Any]  # JSON schema
 
 
 @dataclass
@@ -70,7 +70,7 @@ class StreamChunk:
 
     content: str
     finish_reason: Optional[str] = None
-    function_call: Optional[Dict[str, Any]] = None
+    function_call: Optional[dict[str, Any]] = None
 
 
 @dataclass
@@ -78,14 +78,14 @@ class CompletionRequest:
     """Request for text completion or chat."""
 
     model: str
-    messages: List[Message]
+    messages: list[Message]
     temperature: float = 0.7
     max_tokens: Optional[int] = None
     stream: bool = False
-    functions: Optional[List[FunctionDefinition]] = None
-    function_call: Optional[Union[str, Dict[str, str]]] = None
+    functions: Optional[list[FunctionDefinition]] = None
+    function_call: Optional[Union[str, dict[str, str]]] = None
     session_id: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -99,7 +99,7 @@ class CompletionResponse:
     usage: TokenUsage
     latency_ms: float
     timestamp: datetime
-    function_call: Optional[Dict[str, Any]] = None
+    function_call: Optional[dict[str, Any]] = None
     request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
@@ -197,16 +197,13 @@ class RuntimeConfig(BaseModel):
 class ContextWindowExceededError(Exception):
     """Raised when a request would exceed the model's context window."""
 
-    pass
 
 
 class CircuitBreakerOpenError(Exception):
     """Raised when the circuit breaker is open for a provider."""
 
-    pass
 
 
 class ProviderNotSupportedError(Exception):
     """Raised when a feature is not supported by the provider."""
 
-    pass

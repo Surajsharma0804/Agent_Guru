@@ -6,14 +6,16 @@ for all stages of the reasoning pipeline.
 """
 
 import asyncio
+import statistics
 import time
-import structlog
 from collections import defaultdict, deque
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Deque, Dict, List, Optional
-import statistics
+from typing import Any, Optional
+
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -109,12 +111,12 @@ class LatencyTracker:
             max_history: Maximum number of measurements to keep per stage
         """
         self.max_history = max_history
-        self._measurements: Dict[PipelineStage, Deque[float]] = defaultdict(
+        self._measurements: dict[PipelineStage, deque[float]] = defaultdict(
             lambda: deque(maxlen=max_history)
         )
-        self._timeout_counts: Dict[PipelineStage, int] = defaultdict(int)
-        self._degraded_counts: Dict[PipelineStage, int] = defaultdict(int)
-        self._total_counts: Dict[PipelineStage, int] = defaultdict(int)
+        self._timeout_counts: dict[PipelineStage, int] = defaultdict(int)
+        self._degraded_counts: dict[PipelineStage, int] = defaultdict(int)
+        self._total_counts: dict[PipelineStage, int] = defaultdict(int)
 
     def start_stage(self, stage: PipelineStage) -> StageMetrics:
         """Start tracking a pipeline stage.
@@ -217,7 +219,7 @@ class LatencyTracker:
             degraded_rate=degraded_count / total_count if total_count > 0 else 0.0,
         )
 
-    def get_all_statistics(self) -> Dict[PipelineStage, LatencyStatistics]:
+    def get_all_statistics(self) -> dict[PipelineStage, LatencyStatistics]:
         """Get statistics for all stages.
 
         Returns:
@@ -230,7 +232,7 @@ class LatencyTracker:
                 stats[stage] = stage_stats
         return stats
 
-    def check_budget(self, metrics: StageMetrics) -> Dict[str, Any]:
+    def check_budget(self, metrics: StageMetrics) -> dict[str, Any]:
         """Check if stage met its latency budget.
 
         Args:
@@ -404,7 +406,7 @@ class DegradedModeManager:
         """
         return stage in self._degraded_stages
 
-    def get_degraded_stages(self) -> List[PipelineStage]:
+    def get_degraded_stages(self) -> list[PipelineStage]:
         """Get list of degraded stages.
 
         Returns:

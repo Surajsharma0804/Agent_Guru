@@ -8,7 +8,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from Agent_Guru.context.activity import ActivityClassifier
 
@@ -20,8 +20,9 @@ AMBIENT_POLL_INTERVAL_S = 60
 LOW_CONFIDENCE_THRESHOLD = 0.60
 
 try:
+    pass
+
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    import base64
     _CRYPTO_AVAILABLE = True
 except ImportError:
     _CRYPTO_AVAILABLE = False
@@ -47,9 +48,9 @@ class ContextSnapshot:
     output_mode: str = "voice"  # voice/text
     timestamp: float = field(default_factory=time.time)
     signals: SensorSignals = field(default_factory=SensorSignals)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "activity": self.activity,
             "activity_confidence": self.activity_confidence,

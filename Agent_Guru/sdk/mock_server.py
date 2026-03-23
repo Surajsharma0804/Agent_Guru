@@ -4,8 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +18,9 @@ except ImportError:
 class MockServer:
     """Configurable mock server for SDK testing."""
 
-    def __init__(self, fixtures: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, fixtures: Optional[dict[str, Any]] = None) -> None:
         self.fixtures = fixtures or {}
-        self._webhook_deliveries: List[Dict[str, Any]] = []
+        self._webhook_deliveries: list[dict[str, Any]] = []
         self._app: Optional[Any] = None
         self._runner: Optional[Any] = None
         self._port = 0
@@ -60,7 +59,7 @@ class MockServer:
     async def deliver_webhook(
         self,
         url: str,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         max_attempts: int = 3,
     ) -> bool:
         """Deliver webhook with exponential backoff (1s, 2s, 4s)."""
@@ -85,5 +84,5 @@ class MockServer:
         self._webhook_deliveries.append({"url": url, "payload": payload, "delivered": False})
         return False
 
-    def get_deliveries(self) -> List[Dict[str, Any]]:
+    def get_deliveries(self) -> list[dict[str, Any]]:
         return list(self._webhook_deliveries)

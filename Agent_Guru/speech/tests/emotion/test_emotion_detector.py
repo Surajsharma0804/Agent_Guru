@@ -1,12 +1,10 @@
 """Unit tests for emotion detection."""
 
-import pytest
 import numpy as np
 import time
 
 from Agent_Guru.speech.emotion import EmotionDetector
 from Agent_Guru.speech.models import EmotionType, EmotionResult
-from Agent_Guru.speech.exceptions import EmotionDetectionError
 
 
 class TestEmotionDetector:
@@ -80,7 +78,7 @@ class TestEmotionDetector:
         audio = np.random.randn(int(duration * sample_rate)).astype(np.float32) * 0.5
         
         start_time = time.time()
-        result = detector.detect_emotion(audio, sample_rate)
+        detector.detect_emotion(audio, sample_rate)
         processing_time = (time.time() - start_time) * 1000
         
         # Should complete within 200ms (Requirement 13.4)

@@ -12,13 +12,13 @@ are made exclusively here.
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 import numpy as np
 
 from Agent_Guru.security.embedding_auth import BIOMETRIC_THRESHOLD, verify_embedding
 from Agent_Guru.security.models import AuthenticationResult
-from Agent_Guru.security.voice_auth import VoiceAuthenticator, VoiceAuthenticationError
+from Agent_Guru.security.voice_auth import VoiceAuthenticationError, VoiceAuthenticator
 from Agent_Guru.speech.engine import SpeechEngine
 from Agent_Guru.vision.face_features import FaceFeatureExtractor
 from Agent_Guru.vision.models import FaceFeatures
@@ -79,7 +79,7 @@ class BiometricAuthenticator:
         self.voice_threshold = voice_threshold
 
         # In-memory face template store: {profile_id: embedding (512,)}
-        self._face_templates: Dict[str, np.ndarray] = {}
+        self._face_templates: dict[str, np.ndarray] = {}
 
     # ------------------------------------------------------------------
     # Face authentication

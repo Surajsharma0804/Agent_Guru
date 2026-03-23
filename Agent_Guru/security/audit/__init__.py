@@ -1,5 +1,5 @@
 """Audit logging for Agent Guru security system."""
 
-from Agent_Guru.security.audit.logger import AuditLogger, AuditLogEntry, EventType, LogQuery
+from Agent_Guru.security.audit.logger import AuditLogEntry, AuditLogger, EventType, LogQuery
 
 __all__ = ["AuditLogger", "AuditLogEntry", "EventType", "LogQuery"]

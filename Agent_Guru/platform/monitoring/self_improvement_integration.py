@@ -22,12 +22,12 @@ Date: 2026-02-25
 Version: 1.0.0
 """
 
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Optional, Dict, Any
 from enum import Enum
+from typing import Any, Optional
 
-from .resource_monitor import ResourceAlert, ResourceSnapshot, ResourceType, AlertSeverity
+from .resource_monitor import AlertSeverity, ResourceAlert, ResourceSnapshot, ResourceType
 
 
 class MetricType(Enum):
@@ -42,7 +42,7 @@ class MetricType(Enum):
 class SelfImprovementMetric:
     """
     Metric data sent to Self-Improvement Engine.
-    
+
     This structured format enables the Self-Improvement Engine to:
     - Learn resource usage patterns
     - Predict future resource needs
@@ -55,9 +55,9 @@ class SelfImprovementMetric:
     severity: Optional[AlertSeverity]
     current_value: Optional[float]
     threshold_value: Optional[float]
-    metadata: Dict[str, Any]
-    
-    def to_dict(self) -> Dict[str, Any]:
+    metadata: dict[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert metric to dictionary for serialization."""
         data = asdict(self)
         # Convert enums to strings
@@ -73,43 +73,43 @@ class SelfImprovementMetric:
 class SelfImprovementIntegration:
     """
     Integration layer between Resource Monitor and Self-Improvement Engine.
-    
+
     Responsibilities:
     - Convert alerts to structured metrics
     - Aggregate resource snapshots
     - Send notifications to Self-Improvement Engine
     - Handle communication failures gracefully
-    
+
     Time Complexity: O(1) per notification
     Space Complexity: O(1)
-    
+
     Example:
         >>> integration = SelfImprovementIntegration()
         >>> monitor.register_alert_callback(integration.on_alert)
         >>> # Alerts automatically sent to Self-Improvement Engine
     """
-    
+
     def __init__(self, enable_logging: bool = True):
         """
         Initialize Self-Improvement Engine integration.
-        
+
         Args:
             enable_logging: Whether to log notifications (for debugging)
         """
         self.enable_logging = enable_logging
         self._notification_count = 0
         self._error_count = 0
-    
+
     def on_alert(self, alert: ResourceAlert) -> None:
         """
         Handle resource alert from Resource Monitor.
-        
+
         This callback is registered with ResourceMonitor and called
         whenever an alert is triggered.
-        
+
         Time Complexity: O(1)
         Space Complexity: O(1)
-        
+
         Args:
             alert: Resource alert to process
         """
@@ -128,23 +128,23 @@ class SelfImprovementIntegration:
                     'recommended_action': alert.recommended_action
                 }
             )
-            
+
             # Send to Self-Improvement Engine
             self._send_metric(metric)
-            
+
         except Exception as e:
             # Isolate errors - don't let them affect monitoring
             self._error_count += 1
             if self.enable_logging:
                 print(f"Error in Self-Improvement integration: {e}")
-    
+
     def on_resource_snapshot(self, snapshot: ResourceSnapshot) -> None:
         """
         Handle periodic resource snapshot.
-        
+
         Sends aggregated metrics to Self-Improvement Engine for
         pattern analysis and optimization.
-        
+
         Args:
             snapshot: Resource usage snapshot
         """
@@ -177,14 +177,14 @@ class SelfImprovementIntegration:
                     ]
                 }
             )
-            
+
             self._send_metric(metric)
-            
+
         except Exception as e:
             self._error_count += 1
             if self.enable_logging:
                 print(f"Error sending snapshot to Self-Improvement Engine: {e}")
-    
+
     def on_threshold_exceeded(
         self,
         resource_type: ResourceType,
@@ -193,10 +193,10 @@ class SelfImprovementIntegration:
     ) -> None:
         """
         Notify when threshold is exceeded (before alert is triggered).
-        
+
         This enables the Self-Improvement Engine to learn about
         near-threshold conditions and optimize thresholds.
-        
+
         Args:
             resource_type: Type of resource
             current_value: Current resource value
@@ -212,14 +212,14 @@ class SelfImprovementIntegration:
                 threshold_value=threshold_value,
                 metadata={}
             )
-            
+
             self._send_metric(metric)
-            
+
         except Exception as e:
             self._error_count += 1
             if self.enable_logging:
                 print(f"Error notifying threshold exceeded: {e}")
-    
+
     def on_resource_exhaustion_predicted(
         self,
         resource_type: ResourceType,
@@ -228,9 +228,9 @@ class SelfImprovementIntegration:
     ) -> None:
         """
         Notify when resource exhaustion is predicted.
-        
+
         Enables proactive optimization before resources are exhausted.
-        
+
         Args:
             resource_type: Type of resource
             predicted_time: Predicted exhaustion time
@@ -251,31 +251,31 @@ class SelfImprovementIntegration:
                     ).total_seconds()
                 }
             )
-            
+
             self._send_metric(metric)
-            
+
         except Exception as e:
             self._error_count += 1
             if self.enable_logging:
                 print(f"Error notifying resource exhaustion prediction: {e}")
-    
+
     def _send_metric(self, metric: SelfImprovementMetric) -> None:
         """
         Send metric to Self-Improvement Engine.
-        
+
         Currently logs metrics. In production, this would send to
         the actual Self-Improvement Engine via API or message queue.
-        
+
         Args:
             metric: Metric to send
         """
         self._notification_count += 1
-        
+
         if self.enable_logging:
             print(f"[Self-Improvement] {metric.metric_type.value}: "
                   f"{metric.resource_type.value if metric.resource_type else 'N/A'} "
                   f"at {metric.timestamp.isoformat()}")
-        
+
         # TODO: Implement actual Self-Improvement Engine API call
         # Example:
         # async with aiohttp.ClientSession() as session:
@@ -283,11 +283,11 @@ class SelfImprovementIntegration:
         #         'http://self-improvement-engine/api/metrics',
         #         json=metric.to_dict()
         #     )
-    
-    def get_stats(self) -> Dict[str, int]:
+
+    def get_stats(self) -> dict[str, int]:
         """
         Get integration statistics.
-        
+
         Returns:
             Dictionary with notification and error counts
         """

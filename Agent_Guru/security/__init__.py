@@ -1,12 +1,12 @@
 """Security system for Agent Guru."""
 
+from Agent_Guru.security.biometric_auth import BiometricAuthenticator
 from Agent_Guru.security.models import AuthenticationResult
 from Agent_Guru.security.voice_auth import (
+    VoiceAuthenticationError,
     VoiceAuthenticator,
     VoiceProfile,
-    VoiceAuthenticationError,
 )
-from Agent_Guru.security.biometric_auth import BiometricAuthenticator
 
 
 # Conditional import to avoid circular dependencies and torch conflicts during testing

@@ -2,7 +2,6 @@
 
 import time
 
-import pytest
 
 from Agent_Guru.reasoning.safety.permissions import Permission, PermissionManager
 

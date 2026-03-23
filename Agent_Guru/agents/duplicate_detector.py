@@ -20,12 +20,12 @@ Date: 2026-03-13
 Version: 1.0.0
 """
 
-from typing import List, Tuple, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from .agent_storage import AgentStorage
-    from .agent_merger import AgentMerger
     from .agent_lifecycle import Agent
+    from .agent_merger import AgentMerger
+    from .agent_storage import AgentStorage
 
 
 class DuplicateDetector:
@@ -45,7 +45,7 @@ class DuplicateDetector:
         >>> if duplicates:
         ...     agent1_id, agent2_id, similarity = duplicates[0]
         ...     print(f"Duplicates found: {similarity:.2f}")
-        >>> 
+        >>>
         >>> # Pre-creation check
         >>> is_duplicate = await detector.pre_creation_check(new_capabilities)
         >>> if not is_duplicate:
@@ -86,7 +86,7 @@ class DuplicateDetector:
         self.merger = merger
         self.duplication_threshold = duplication_threshold
 
-    async def detect_duplicates(self) -> List[Tuple[str, str, float]]:
+    async def detect_duplicates(self) -> list[tuple[str, str, float]]:
         """
         Detect duplicate agents in the population.
 
@@ -128,7 +128,7 @@ class DuplicateDetector:
         return duplicates
 
     async def pre_creation_check(
-        self, proposed_capabilities: Dict[str, float]
+        self, proposed_capabilities: dict[str, float]
     ) -> Optional[str]:
         """
         Check if proposed agent would be duplicate before creation.
@@ -171,7 +171,7 @@ class DuplicateDetector:
 
         return None
 
-    async def auto_merge_duplicates(self) -> List["Agent"]:
+    async def auto_merge_duplicates(self) -> list["Agent"]:
         """
         Automatically merge all detected duplicates.
 
@@ -195,7 +195,7 @@ class DuplicateDetector:
         merged_agents = []
         merged_ids = set()  # Track already merged agents
 
-        for agent1_id, agent2_id, similarity in duplicates:
+        for agent1_id, agent2_id, _similarity in duplicates:
             # Skip if either agent already merged
             if agent1_id in merged_ids or agent2_id in merged_ids:
                 continue
@@ -215,7 +215,7 @@ class DuplicateDetector:
 
         return merged_agents
 
-    async def get_similarity_matrix(self) -> Dict[Tuple[str, str], float]:
+    async def get_similarity_matrix(self) -> dict[tuple[str, str], float]:
         """
         Compute full similarity matrix for all active agents.
 
@@ -254,7 +254,7 @@ class DuplicateDetector:
 
     async def find_most_similar_agent(
         self, target_agent_id: str
-    ) -> Optional[Tuple[str, float]]:
+    ) -> Optional[tuple[str, float]]:
         """
         Find the most similar agent to a target agent.
 
@@ -301,7 +301,7 @@ class DuplicateDetector:
 
         return None
 
-    async def get_duplicate_clusters(self) -> List[List[str]]:
+    async def get_duplicate_clusters(self) -> list[list[str]]:
         """
         Group agents into duplicate clusters.
 
@@ -326,7 +326,7 @@ class DuplicateDetector:
         duplicates = await self.detect_duplicates()
 
         # Build adjacency list
-        adjacency: Dict[str, List[str]] = {}
+        adjacency: dict[str, list[str]] = {}
         for agent1_id, agent2_id, _ in duplicates:
             if agent1_id not in adjacency:
                 adjacency[agent1_id] = []
@@ -340,7 +340,7 @@ class DuplicateDetector:
         visited = set()
         clusters = []
 
-        def dfs(agent_id: str, cluster: List[str]) -> None:
+        def dfs(agent_id: str, cluster: list[str]) -> None:
             """Depth-first search to find cluster."""
             visited.add(agent_id)
             cluster.append(agent_id)
@@ -351,7 +351,7 @@ class DuplicateDetector:
 
         for agent_id in adjacency.keys():
             if agent_id not in visited:
-                cluster: List[str] = []
+                cluster: list[str] = []
                 dfs(agent_id, cluster)
                 clusters.append(cluster)
 

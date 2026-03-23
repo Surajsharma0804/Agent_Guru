@@ -1,6 +1,5 @@
 """Unit tests for speech engine data models."""
 
-import pytest
 import numpy as np
 from hypothesis import given, strategies as st
 from Agent_Guru.speech.models import (

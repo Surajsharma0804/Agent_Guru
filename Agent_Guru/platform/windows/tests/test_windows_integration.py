@@ -6,7 +6,7 @@ Coverage Target: >80% (enforced by CI/CD)
 import pytest
 import sys
 import winreg
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 from Agent_Guru.platform.windows.integration import (
     WindowsIntegration,
     RegistryKeyNotFoundError,

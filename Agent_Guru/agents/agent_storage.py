@@ -15,12 +15,12 @@ Date: 2026-02-28
 Version: 1.0.0
 """
 
-from contextlib import closing
-from typing import List, Optional, Dict, Any
-from datetime import datetime
-import sqlite3
 import json
+import sqlite3
+from contextlib import closing
+from datetime import datetime
 from pathlib import Path
+from typing import Any, Optional
 
 from .agent_lifecycle import Agent, AgentStatus, PerformanceRecord
 
@@ -56,7 +56,7 @@ class AgentStorage:
         """
         self.db_path = db_path
         # Cache for active agents — invalidated on any write
-        self._active_agents_cache: Optional[List] = None
+        self._active_agents_cache: Optional[list] = None
         self._ensure_database()
 
     def _get_conn(self) -> sqlite3.Connection:
@@ -131,14 +131,14 @@ class AgentStorage:
             # Create indexes for efficient queries
             cursor.execute(
                 """
-                CREATE INDEX IF NOT EXISTS idx_agents_status 
+                CREATE INDEX IF NOT EXISTS idx_agents_status
                 ON agents(status)
             """
             )
 
             cursor.execute(
                 """
-                CREATE INDEX IF NOT EXISTS idx_performance_agent_type 
+                CREATE INDEX IF NOT EXISTS idx_performance_agent_type
                 ON performance_records(agent_id, task_type)
             """
             )
@@ -281,7 +281,7 @@ class AgentStorage:
             conn.commit()
         self._active_agents_cache = None  # Invalidate cache
 
-    async def query_agents(self, status: Optional[AgentStatus] = None) -> List[Agent]:
+    async def query_agents(self, status: Optional[AgentStatus] = None) -> list[Agent]:
         """
         Query agents by status.
 
@@ -338,7 +338,7 @@ class AgentStorage:
 
         return agents
 
-    async def get_active_agents(self) -> List[Agent]:
+    async def get_active_agents(self) -> list[Agent]:
         """
         Get all active agents.
 
@@ -394,7 +394,7 @@ class AgentStorage:
 
     async def get_performance_records(
         self, agent_id: str, task_type: Optional[str] = None, limit: Optional[int] = None
-    ) -> List[PerformanceRecord]:
+    ) -> list[PerformanceRecord]:
         """
         Get performance records for agent.
 
@@ -451,7 +451,7 @@ class AgentStorage:
 
         return records
 
-    async def store_evolution_event(self, event: Dict[str, Any]) -> None:
+    async def store_evolution_event(self, event: dict[str, Any]) -> None:
         """
         Store evolution event.
 
@@ -511,7 +511,7 @@ class AgentStorage:
             await self.update_agent(agent)
 
     async def create_agent_atomic(
-        self, agent: "Agent", task_requirements: Dict[str, Any]
+        self, agent: "Agent", task_requirements: dict[str, Any]
     ) -> None:
         """
         Store a new agent and its creation event in a single transaction.

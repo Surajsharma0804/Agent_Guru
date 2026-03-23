@@ -2,7 +2,7 @@
 Weather tool for querying weather information.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -40,7 +40,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class WeatherTool(Tool):
     """Tool for querying weather information."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute weather query.
 
         Args:

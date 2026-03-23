@@ -364,7 +364,7 @@ class TemplateGenerator:
             # Fallback: use safe_substitute-like behavior
             logger.warning(f"Variable {e} not found in template, using empty string")
             # Replace missing variables with empty strings
-            safe_vars = {k: v for k, v in variables.items()}
+            safe_vars = dict(variables.items())
             for var in template.variables:
                 if var not in safe_vars:
                     safe_vars[var] = ""

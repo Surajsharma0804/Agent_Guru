@@ -4,17 +4,17 @@ Orchestration System - Main API wiring all components together.
 Validates: Requirements 6.1, 7.1, 8.1, 8.2, 8.3, 8.4, 15.1
 """
 
-from typing import Dict, List, Any, Optional, TYPE_CHECKING
-from dataclasses import dataclass, field
-from datetime import datetime
 import asyncio
 import logging
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Optional
 
-from .task_decomposer import Task, TaskDecomposer
-from .task_assigner import TaskAssigner
-from .performance_tracker import PerformanceTracker
 from .delegation_manager import DelegationManager
 from .loop_detector import LoopDetector
+from .performance_tracker import PerformanceTracker
+from .task_assigner import TaskAssigner
+from .task_decomposer import Task, TaskDecomposer
 
 if TYPE_CHECKING:
     from .agent_storage import AgentStorage
@@ -30,7 +30,7 @@ class TaskResult:
     success: bool
     output: Any
     agent_id: Optional[str]
-    sub_results: List["TaskResult"] = field(default_factory=list)
+    sub_results: list["TaskResult"] = field(default_factory=list)
     error: Optional[str] = None
     completed_at: datetime = field(default_factory=datetime.now)
 
@@ -96,14 +96,14 @@ class OrchestrationSystem:
         results = await self._execute_with_dependencies(sub_tasks)
         return self._aggregate_results(task, results)
 
-    async def _execute_with_dependencies(self, tasks: List[Task]) -> List[TaskResult]:
+    async def _execute_with_dependencies(self, tasks: list[Task]) -> list[TaskResult]:
         """
         Execute tasks in dependency order, running independent tasks in parallel.
 
         Validates: Requirement 8.2 (dependency order), 8.3 (parallel execution)
         """
-        task_map = {t.id: t for t in tasks}
-        completed: Dict[str, TaskResult] = {}
+        {t.id: t for t in tasks}
+        completed: dict[str, TaskResult] = {}
 
         # Topological execution using dependency tracking
         remaining = list(tasks)
@@ -172,7 +172,7 @@ class OrchestrationSystem:
             agent_id=agent_id,
         )
 
-    def _aggregate_results(self, parent_task: Task, sub_results: List[TaskResult]) -> TaskResult:
+    def _aggregate_results(self, parent_task: Task, sub_results: list[TaskResult]) -> TaskResult:
         """
         Aggregate sub-task results into a parent result.
 

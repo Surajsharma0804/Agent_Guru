@@ -15,6 +15,18 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
       - LOG_LEVEL=DEBUG
+      # LLM API keys — set in .env or CI secrets (never hardcode)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      # Database connections
+      - DATABASE_URL=${DATABASE_URL:-postgresql://agent_guru:dev_password@postgres:5432/agent_guru}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      # Ollama (local LLM)
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      # App settings
+      - AGENT_GURU_ENV=${AGENT_GURU_ENV:-development}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
     ports:
       - "8000:8000"
       - "9090:9090"  # Prometheus metrics

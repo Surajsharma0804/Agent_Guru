@@ -6,7 +6,7 @@ alongside core tools.
 """
 
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from Agent_Guru.reasoning.models.skill import InstalledSkill, SkillStatus
 from Agent_Guru.reasoning.tools.base import (
@@ -103,7 +103,7 @@ class SkillToolAdapter(Tool):
         else:
             return ToolSensitivity.SAFE
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute the skill.
 
         Args:
@@ -149,7 +149,7 @@ class SkillToolRegistry:
 
     def __init__(self):
         """Initialize skill tool registry."""
-        self._skill_tools: Dict[str, SkillToolAdapter] = {}
+        self._skill_tools: dict[str, SkillToolAdapter] = {}
 
     def register_skill(self, skill: InstalledSkill) -> None:
         """Register a skill and create tool adapters for its entry points.

@@ -45,15 +45,14 @@ Date: 2026-02-24
 Version: 1.0.0
 """
 
+import logging
+import math
+import subprocess
 import sys
 import time
-import logging
-import subprocess
-import math
-from typing import Optional, List, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
-
+from typing import Any, Optional
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -142,7 +141,7 @@ class WindowManager:
         """Initialize window manager."""
         self.platform = sys.platform
         self._platform_integration = self._get_platform_integration()
-        self._screen_cache: Optional[List[ScreenInfo]] = None
+        self._screen_cache: Optional[list[ScreenInfo]] = None
         self._cache_timestamp: float = 0.0
         self._cache_ttl: float = 5.0  # Cache screens for 5 seconds
 
@@ -171,7 +170,7 @@ class WindowManager:
             logger.error(f"Failed to load platform integration: {e}")
             raise
 
-    def get_screens(self, use_cache: bool = True) -> List[ScreenInfo]:
+    def get_screens(self, use_cache: bool = True) -> list[ScreenInfo]:
         """Get information about all display screens.
 
         Time Complexity: O(1) with cache, O(n) without cache
@@ -209,7 +208,7 @@ class WindowManager:
         return screens
 
 
-    def _get_screens_windows(self) -> List[ScreenInfo]:
+    def _get_screens_windows(self) -> list[ScreenInfo]:
         """Get screen information on Windows.
 
         Returns:
@@ -222,7 +221,7 @@ class WindowManager:
             screens = []
             monitor_enum = win32api.EnumDisplayMonitors()
 
-            for i, (hMonitor, hdcMonitor, rect) in enumerate(monitor_enum):  # noqa: N806
+            for i, (hMonitor, _hdcMonitor, rect) in enumerate(monitor_enum):  # noqa: N806
                 monitor_info = win32api.GetMonitorInfo(hMonitor)
                 is_primary = monitor_info['Flags'] & win32con.MONITORINFOF_PRIMARY != 0
 
@@ -253,7 +252,7 @@ class WindowManager:
                 is_primary=True
             )]
 
-    def _get_screens_macos(self) -> List[ScreenInfo]:
+    def _get_screens_macos(self) -> list[ScreenInfo]:
         """Get screen information on macOS.
 
         Returns:
@@ -298,7 +297,7 @@ class WindowManager:
 
         return self._get_fallback_screen()
 
-    def _get_screens_linux(self) -> List[ScreenInfo]:
+    def _get_screens_linux(self) -> list[ScreenInfo]:
         """Get screen information on Linux.
 
         Returns:
@@ -349,7 +348,7 @@ class WindowManager:
 
         return self._get_fallback_screen()
 
-    def _get_fallback_screen(self) -> List[ScreenInfo]:
+    def _get_fallback_screen(self) -> list[ScreenInfo]:
         """Get fallback screen information.
 
         Returns:
@@ -395,7 +394,7 @@ class WindowManager:
         # Input validation
         if not window_identifier or not window_identifier.strip():
             raise ValueError("window_identifier cannot be empty")
-        
+
         logger.info(f"Snapping window '{window_identifier}' to {position.value}")
 
         # Get screen information
@@ -415,7 +414,7 @@ class WindowManager:
         self,
         screen: ScreenInfo,
         position: SnapPosition
-    ) -> Tuple[int, int, int, int]:
+    ) -> tuple[int, int, int, int]:
         """Calculate window position for snap position.
 
         Args:
@@ -463,17 +462,17 @@ class WindowManager:
         height: int
     ) -> bool:
         """Snap window using platform-specific method (DRY helper).
-        
+
         Time Complexity: O(1)
         Space Complexity: O(1)
-        
+
         Args:
             window_identifier: Window title or handle
             x: Target X position
             y: Target Y position
             width: Target width
             height: Target height
-            
+
         Returns:
             True if successful
         """
@@ -505,8 +504,8 @@ class WindowManager:
             True if successful
         """
         try:
-            import win32gui
             import win32con
+            import win32gui
 
             # Find window by title
             hwnd = win32gui.FindWindow(None, window_identifier)
@@ -695,7 +694,7 @@ class WindowManager:
     def arrange_windows(
         self,
         style: ArrangementStyle,
-        window_identifiers: Optional[List[str]] = None
+        window_identifiers: Optional[list[str]] = None
     ) -> bool:
         """Arrange windows in specified style.
 
@@ -745,7 +744,7 @@ class WindowManager:
             logger.error(f"Unknown arrangement style: {style}")
             return False
 
-    def _get_all_visible_windows(self) -> List[str]:
+    def _get_all_visible_windows(self) -> list[str]:
         """Get all visible window titles.
 
         Returns:
@@ -758,7 +757,7 @@ class WindowManager:
         else:
             return self._get_visible_windows_linux()
 
-    def _get_visible_windows_windows(self) -> List[str]:
+    def _get_visible_windows_windows(self) -> list[str]:
         """Get visible windows on Windows.
 
         Returns:
@@ -783,7 +782,7 @@ class WindowManager:
             logger.error("win32gui not available")
             return []
 
-    def _get_visible_windows_macos(self) -> List[str]:
+    def _get_visible_windows_macos(self) -> list[str]:
         """Get visible windows on macOS.
 
         Returns:
@@ -820,7 +819,7 @@ class WindowManager:
             logger.error(f"Failed to get macOS windows: {e}")
             return []
 
-    def _get_visible_windows_linux(self) -> List[str]:
+    def _get_visible_windows_linux(self) -> list[str]:
         """Get visible windows on Linux.
 
         Returns:
@@ -850,7 +849,7 @@ class WindowManager:
             logger.error("wmctrl not installed")
             return []
 
-    def _arrange_tile(self, windows: List[str], screen: ScreenInfo) -> bool:
+    def _arrange_tile(self, windows: list[str], screen: ScreenInfo) -> bool:
         """Arrange windows in tile layout.
 
         Args:
@@ -884,7 +883,7 @@ class WindowManager:
 
         return success
 
-    def _arrange_cascade(self, windows: List[str], screen: ScreenInfo) -> bool:
+    def _arrange_cascade(self, windows: list[str], screen: ScreenInfo) -> bool:
         """Arrange windows in cascade layout.
 
         Args:
@@ -916,7 +915,7 @@ class WindowManager:
 
         return success
 
-    def _arrange_horizontal(self, windows: List[str], screen: ScreenInfo) -> bool:
+    def _arrange_horizontal(self, windows: list[str], screen: ScreenInfo) -> bool:
         """Arrange windows horizontally.
 
         Args:
@@ -943,7 +942,7 @@ class WindowManager:
 
         return success
 
-    def _arrange_vertical(self, windows: List[str], screen: ScreenInfo) -> bool:
+    def _arrange_vertical(self, windows: list[str], screen: ScreenInfo) -> bool:
         """Arrange windows vertically.
 
         Args:
@@ -970,7 +969,7 @@ class WindowManager:
 
         return success
 
-    def tile_windows(self, window_identifiers: Optional[List[str]] = None) -> bool:
+    def tile_windows(self, window_identifiers: Optional[list[str]] = None) -> bool:
         """Tile all windows in grid layout.
 
         Args:
@@ -981,7 +980,7 @@ class WindowManager:
         """
         return self.arrange_windows(ArrangementStyle.TILE, window_identifiers)
 
-    def cascade_windows(self, window_identifiers: Optional[List[str]] = None) -> bool:
+    def cascade_windows(self, window_identifiers: Optional[list[str]] = None) -> bool:
         """Cascade all windows.
 
         Args:
@@ -1358,7 +1357,7 @@ class WindowManager:
             logger.error(f"Failed to close desktop on Linux: {e}")
             return False
 
-    def list_virtual_desktops(self) -> List[VirtualDesktopInfo]:
+    def list_virtual_desktops(self) -> list[VirtualDesktopInfo]:
         """List all virtual desktops.
 
         Time Complexity: O(n) where n is number of desktops
@@ -1382,7 +1381,7 @@ class WindowManager:
         else:
             return self._list_virtual_desktops_linux()
 
-    def _list_virtual_desktops_windows(self) -> List[VirtualDesktopInfo]:
+    def _list_virtual_desktops_windows(self) -> list[VirtualDesktopInfo]:
         """List virtual desktops on Windows.
 
         Returns:
@@ -1397,7 +1396,7 @@ class WindowManager:
             window_count=0
         )]
 
-    def _list_virtual_desktops_macos(self) -> List[VirtualDesktopInfo]:
+    def _list_virtual_desktops_macos(self) -> list[VirtualDesktopInfo]:
         """List virtual desktops on macOS.
 
         Returns:
@@ -1412,7 +1411,7 @@ class WindowManager:
             window_count=0
         )]
 
-    def _list_virtual_desktops_linux(self) -> List[VirtualDesktopInfo]:
+    def _list_virtual_desktops_linux(self) -> list[VirtualDesktopInfo]:
         """List virtual desktops on Linux.
 
         Returns:

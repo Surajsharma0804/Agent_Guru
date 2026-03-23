@@ -17,7 +17,7 @@ import json
 import logging
 import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger("guruvision.avatar.config")
 
@@ -26,8 +26,7 @@ _VALID_EMOTION_MODELS = {"DeepFace", "FER", "heuristic", "auto"}
 
 
 try:
-    from pydantic import BaseModel, Field, field_validator, model_validator
-    from pydantic_settings import BaseSettings
+    from pydantic import BaseModel, Field, field_validator
 
     class AvatarConfig(BaseModel):
         """Complete Pydantic-validated configuration for the avatar system.
@@ -98,7 +97,7 @@ try:
                     with config_path.open() as fh:
                         raw = yaml.safe_load(fh)
                 except ImportError:
-                    raise ImportError("PyYAML required for YAML config files: pip install pyyaml")
+                    raise ImportError("PyYAML required for YAML config files: pip install pyyaml") from e
             else:
                 with config_path.open() as fh:
                     raw = json.load(fh)
@@ -110,11 +109,11 @@ try:
             """Return a default configuration."""
             return cls()
 
-        def to_dict(self) -> Dict[str, Any]:
+        def to_dict(self) -> dict[str, Any]:
             """Serialize config to a plain dictionary."""
             return self.model_dump()
 
-        def validate_config(self) -> List[str]:
+        def validate_config(self) -> list[str]:
             """Validate all fields and return list of warnings."""
             warnings = []
             if self.avatar_model_path and not Path(self.avatar_model_path).exists():
@@ -171,10 +170,10 @@ except ImportError:
         def default(cls) -> "AvatarConfig":
             return cls()
 
-        def to_dict(self) -> Dict[str, Any]:
+        def to_dict(self) -> dict[str, Any]:
             return dataclasses.asdict(self)
 
-        def validate_config(self) -> List[str]:
+        def validate_config(self) -> list[str]:
             return []
 
 

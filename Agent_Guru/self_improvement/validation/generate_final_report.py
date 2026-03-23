@@ -10,23 +10,23 @@ Requirements:
 """
 
 import json
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, List
+from pathlib import Path
+from typing import Any
 
 
-def load_json_file(file_path: Path) -> Dict[str, Any]:
+def load_json_file(file_path: Path) -> dict[str, Any]:
     """Load a JSON file."""
     if not file_path.exists():
         return {}
-    with open(file_path, 'r') as f:
+    with open(file_path) as f:
         return json.load(f)
 
 
-def collect_validation_results() -> Dict[str, Any]:
+def collect_validation_results() -> dict[str, Any]:
     """Collect all validation results from tasks 24.1-24.6."""
     results_dir = Path("Agent_Guru/self_improvement/validation/results")
-    
+
     # Find the latest validation files
     validation_reports = sorted(results_dir.glob("validation_report_*.json"))
     improvement_verifications = sorted(results_dir.glob("improvement_verification_*.json"))
@@ -34,7 +34,7 @@ def collect_validation_results() -> Dict[str, Any]:
     reasoning_accuracy_verifications = sorted(results_dir.glob("reasoning_accuracy_verification_*.json"))
     git_integration_verifications = sorted(results_dir.glob("git_integration_verification_*.json"))
     system_stability_verifications = sorted(results_dir.glob("system_stability_verification_*.json"))
-    
+
     results = {
         "task_24_1": load_json_file(validation_reports[-1]) if validation_reports else {},
         "task_24_2": load_json_file(improvement_verifications[-1]) if improvement_verifications else {},
@@ -43,16 +43,16 @@ def collect_validation_results() -> Dict[str, Any]:
         "task_24_5": load_json_file(git_integration_verifications[-1]) if git_integration_verifications else {},
         "task_24_6": load_json_file(system_stability_verifications[-1]) if system_stability_verifications else {}
     }
-    
+
     return results
 
 
-def generate_final_validation_report() -> Dict[str, Any]:
+def generate_final_validation_report() -> dict[str, Any]:
     """Generate comprehensive final validation report."""
-    
+
     # Collect all validation results
     validation_results = collect_validation_results()
-    
+
     # Extract key metrics
     task_24_1 = validation_results.get("task_24_1", {})
     task_24_2 = validation_results.get("task_24_2", {})
@@ -60,7 +60,7 @@ def generate_final_validation_report() -> Dict[str, Any]:
     task_24_4 = validation_results.get("task_24_4", {})
     task_24_5 = validation_results.get("task_24_5", {})
     task_24_6 = validation_results.get("task_24_6", {})
-    
+
     # Determine overall pass/fail
     all_tasks_passed = all([
         task_24_1.get("validation_passed", False) or task_24_1.get("status") == "PASSED",
@@ -70,7 +70,7 @@ def generate_final_validation_report() -> Dict[str, Any]:
         task_24_5.get("status") == "PASSED",
         task_24_6.get("status") == "PASSED"
     ])
-    
+
     report = {
         "report_type": "Final Validation Report",
         "generated": datetime.now().isoformat(),
@@ -148,18 +148,18 @@ def generate_final_validation_report() -> Dict[str, Any]:
         "recommendations": generate_recommendations(validation_results),
         "conclusion": generate_conclusion(all_tasks_passed, validation_results)
     }
-    
+
     return report
 
 
-def generate_recommendations(validation_results: Dict[str, Any]) -> List[str]:
+def generate_recommendations(validation_results: dict[str, Any]) -> list[str]:
     """Generate recommendations based on validation results."""
     recommendations = []
-    
+
     task_24_2 = validation_results.get("task_24_2", {})
     task_24_3 = validation_results.get("task_24_3", {})
     task_24_4 = validation_results.get("task_24_4", {})
-    
+
     # Success rate recommendations
     improvement = task_24_2.get("improvement_metrics", {}).get("improvement_percentage", 0)
     if improvement >= 15:
@@ -172,7 +172,7 @@ def generate_recommendations(validation_results: Dict[str, Any]) -> List[str]:
             f"⚠️ WARNING: Only achieved {improvement:.1f}% improvement in success rate, "
             f"below the 15% target"
         )
-    
+
     # Execution time recommendations
     exec_improvement = task_24_3.get("improvement", {}).get("percentage_change", 0)
     if exec_improvement > 0:
@@ -180,7 +180,7 @@ def generate_recommendations(validation_results: Dict[str, Any]) -> List[str]:
             f"✅ EXCELLENT: Execution time improved by {exec_improvement:.1f}%, "
             "demonstrating efficiency gains"
         )
-    
+
     # Reasoning accuracy recommendations
     reasoning_improvement = task_24_4.get("improvement", {}).get("percentage_change", 0)
     if reasoning_improvement > 0:
@@ -188,30 +188,30 @@ def generate_recommendations(validation_results: Dict[str, Any]) -> List[str]:
             f"✅ EXCELLENT: Reasoning accuracy improved by {reasoning_improvement:.1f}%, "
             "showing better decision-making"
         )
-    
+
     # General recommendations
     recommendations.append(
         "🚀 READY FOR PRODUCTION: All validation criteria met, "
         "system is ready for deployment"
     )
-    
+
     recommendations.append(
         "📊 NEXT STEPS: Run with Git commits enabled to test version control integration"
     )
-    
+
     recommendations.append(
         "🔬 FUTURE TESTING: Test with larger task sets (500+ tasks) for long-term learning validation"
     )
-    
+
     return recommendations
 
 
-def generate_conclusion(all_passed: bool, validation_results: Dict[str, Any]) -> str:
+def generate_conclusion(all_passed: bool, validation_results: dict[str, Any]) -> str:
     """Generate final conclusion."""
     if all_passed:
         task_24_2 = validation_results.get("task_24_2", {})
         improvement = task_24_2.get("improvement_metrics", {}).get("improvement_percentage", 0)
-        
+
         return (
             f"✅ **VALIDATION COMPLETE: ALL TESTS PASSED**\n\n"
             f"The self-improvement engine successfully demonstrated measurable improvement "
@@ -229,10 +229,10 @@ def generate_conclusion(all_passed: bool, validation_results: Dict[str, Any]) ->
         )
 
 
-def generate_markdown_report(report: Dict[str, Any], output_path: str) -> None:
+def generate_markdown_report(report: dict[str, Any], output_path: str) -> None:
     """Generate comprehensive markdown report."""
     status_emoji = "✅" if report["overall_status"] == "PASSED" else "❌"
-    
+
     markdown = f"""# Final Validation Report: Self-Improvement Engine
 
 **Generated:** {report['generated']}
@@ -254,19 +254,19 @@ This report summarizes the complete validation of the self-improvement engine's 
 ## Validation Tasks Results
 
 """
-    
+
     for task_id, task_data in report["validation_tasks"].items():
         task_emoji = "✅" if task_data["status"] == "PASSED" else "❌"
         markdown += f"### {task_emoji} {task_id.upper()}: {task_data['name']}\n\n"
         markdown += f"**Status:** {task_data['status']}\n\n"
-        
+
         for key, value in task_data.items():
             if key not in ["name", "status"]:
                 formatted_key = key.replace('_', ' ').title()
                 markdown += f"- **{formatted_key}:** {value}\n"
-        
+
         markdown += "\n"
-    
+
     markdown += f"""## Key Metrics Summary
 
 | Metric | Value | Status |
@@ -280,10 +280,10 @@ This report summarizes the complete validation of the self-improvement engine's 
 ## Recommendations
 
 """
-    
+
     for i, recommendation in enumerate(report["recommendations"], 1):
         markdown += f"{i}. {recommendation}\n\n"
-    
+
     markdown += f"""## Conclusion
 
 {report['conclusion']}
@@ -308,13 +308,13 @@ This report summarizes the complete validation of the self-improvement engine's 
 
 ---
 
-**Status:** {status_emoji} {report['overall_status']}  
-**Date:** {datetime.now().strftime('%Y-%m-%d')}  
-**Version:** 1.0.0  
+**Status:** {status_emoji} {report['overall_status']}
+**Date:** {datetime.now().strftime('%Y-%m-%d')}
+**Version:** 1.0.0
 **Author:** Agent Guru Self-Improvement Engine
 
 """
-    
+
     Path(output_path).write_text(markdown, encoding='utf-8')
 
 
@@ -324,27 +324,27 @@ def main():
     print("Task 24.7: Generate Final Validation Report")
     print("=" * 80)
     print()
-    
+
     print("Collecting validation results from tasks 24.1-24.6...")
-    
+
     # Generate final report
     report = generate_final_validation_report()
-    
+
     # Save JSON report
     output_dir = Path("Agent_Guru/self_improvement/validation/results")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     json_path = output_dir / f"final_validation_report_{timestamp}.json"
     md_path = output_dir / f"final_validation_report_{timestamp}.md"
-    
+
     with open(json_path, 'w') as f:
         json.dump(report, f, indent=2)
-    
+
     print(f"✅ JSON report saved to: {json_path}")
-    
+
     # Generate markdown report
     generate_markdown_report(report, str(md_path))
     print(f"✅ Markdown report saved to: {md_path}")
-    
+
     print()
     print("=" * 80)
     print("FINAL VALIDATION RESULTS")
@@ -361,7 +361,7 @@ def main():
     print("Conclusion:")
     print(report['conclusion'])
     print()
-    
+
     if report['overall_status'] == "PASSED":
         print("✅ Task 24.7 COMPLETE: Final validation report generated")
         print("✅ ALL VALIDATION TASKS COMPLETE")

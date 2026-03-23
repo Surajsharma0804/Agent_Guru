@@ -1,15 +1,13 @@
 """Comprehensive unit tests for conversation models - 100% coverage."""
 
 import pytest
-from datetime import datetime
 
 from Agent_Guru.reasoning.models.conversation import (
     ConversationState,
     ConversationTurn,
     TrackedEntity,
 )
-from Agent_Guru.reasoning.models.intent import Intent, IntentType, Entity
-from Agent_Guru.reasoning.models.action import Action
+from Agent_Guru.reasoning.models.intent import Intent, IntentType
 
 
 class TestTrackedEntity:

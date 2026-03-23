@@ -23,15 +23,15 @@ import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
 # Label key type: sorted tuple of (name, value) pairs — no eval() needed
-_LabelKey = Tuple[Tuple[str, str], ...]
+_LabelKey = tuple[tuple[str, str], ...]
 
 
-def _make_label_key(labels: Optional[Dict[str, str]]) -> _LabelKey:
+def _make_label_key(labels: Optional[dict[str, str]]) -> _LabelKey:
     """
     Convert a label dict to a hashable, sorted tuple key.
 
@@ -49,7 +49,7 @@ def _make_label_key(labels: Optional[Dict[str, str]]) -> _LabelKey:
     return tuple(sorted(labels.items()))
 
 
-def _label_key_to_dict(key: _LabelKey) -> Dict[str, str]:
+def _label_key_to_dict(key: _LabelKey) -> dict[str, str]:
     """Convert label key tuple back to dict."""
     return dict(key)
 
@@ -63,7 +63,7 @@ class MetricSample:
 
     name: str
     value: float
-    labels: Dict[str, str] = field(default_factory=dict)
+    labels: dict[str, str] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
 
     def to_prometheus_line(self) -> str:
@@ -98,19 +98,19 @@ class Counter:
         self,
         name: str,
         description: str,
-        labels: Optional[List[str]] = None,
+        labels: Optional[list[str]] = None,
     ) -> None:
         if not name:
             raise ValueError("Counter name cannot be empty")
         self.name = name
         self.description = description
-        self.label_names: List[str] = labels or []
-        self._values: Dict[_LabelKey, float] = defaultdict(float)
+        self.label_names: list[str] = labels or []
+        self._values: dict[_LabelKey, float] = defaultdict(float)
 
     def inc(
         self,
         amount: float = 1.0,
-        labels: Optional[Dict[str, str]] = None,
+        labels: Optional[dict[str, str]] = None,
     ) -> None:
         """
         Increment counter by amount.
@@ -126,7 +126,7 @@ class Counter:
             raise ValueError(f"Counter increment must be >= 0, got {amount}")
         self._values[_make_label_key(labels)] += amount
 
-    def get(self, labels: Optional[Dict[str, str]] = None) -> float:
+    def get(self, labels: Optional[dict[str, str]] = None) -> float:
         """Get current counter value for given labels."""
         return self._values[_make_label_key(labels)]
 
@@ -134,7 +134,7 @@ class Counter:
         """Reset all counter values (for testing only)."""
         self._values.clear()
 
-    def collect(self) -> List[MetricSample]:
+    def collect(self) -> list[MetricSample]:
         """Collect all label combinations as Prometheus samples."""
         return [
             MetricSample(
@@ -162,28 +162,28 @@ class Gauge:
         self,
         name: str,
         description: str,
-        labels: Optional[List[str]] = None,
+        labels: Optional[list[str]] = None,
     ) -> None:
         if not name:
             raise ValueError("Gauge name cannot be empty")
         self.name = name
         self.description = description
-        self.label_names: List[str] = labels or []
-        self._values: Dict[_LabelKey, float] = defaultdict(float)
+        self.label_names: list[str] = labels or []
+        self._values: dict[_LabelKey, float] = defaultdict(float)
 
-    def set(self, value: float, labels: Optional[Dict[str, str]] = None) -> None:
+    def set(self, value: float, labels: Optional[dict[str, str]] = None) -> None:
         """Set gauge to an absolute value."""
         self._values[_make_label_key(labels)] = value
 
-    def inc(self, amount: float = 1.0, labels: Optional[Dict[str, str]] = None) -> None:
+    def inc(self, amount: float = 1.0, labels: Optional[dict[str, str]] = None) -> None:
         """Increment gauge."""
         self._values[_make_label_key(labels)] += amount
 
-    def dec(self, amount: float = 1.0, labels: Optional[Dict[str, str]] = None) -> None:
+    def dec(self, amount: float = 1.0, labels: Optional[dict[str, str]] = None) -> None:
         """Decrement gauge."""
         self._values[_make_label_key(labels)] -= amount
 
-    def get(self, labels: Optional[Dict[str, str]] = None) -> float:
+    def get(self, labels: Optional[dict[str, str]] = None) -> float:
         """Get current gauge value."""
         return self._values[_make_label_key(labels)]
 
@@ -191,7 +191,7 @@ class Gauge:
         """Reset all gauge values (for testing only)."""
         self._values.clear()
 
-    def collect(self) -> List[MetricSample]:
+    def collect(self) -> list[MetricSample]:
         """Collect all label combinations as Prometheus samples."""
         return [
             MetricSample(
@@ -226,8 +226,8 @@ class Histogram:
         self,
         name: str,
         description: str,
-        buckets: Optional[List[float]] = None,
-        labels: Optional[List[str]] = None,
+        buckets: Optional[list[float]] = None,
+        labels: Optional[list[str]] = None,
     ) -> None:
         if not name:
             raise ValueError("Histogram name cannot be empty")
@@ -238,13 +238,13 @@ class Histogram:
 
         self.name = name
         self.description = description
-        self.buckets: Tuple[float, ...] = tuple(raw_buckets)
-        self.label_names: List[str] = labels or []
+        self.buckets: tuple[float, ...] = tuple(raw_buckets)
+        self.label_names: list[str] = labels or []
 
         # Per-label-combo: bucket_counts[key] = list of counts per bucket
-        self._bucket_counts: Dict[_LabelKey, List[int]] = {}
-        self._sums: Dict[_LabelKey, float] = defaultdict(float)
-        self._counts: Dict[_LabelKey, int] = defaultdict(int)
+        self._bucket_counts: dict[_LabelKey, list[int]] = {}
+        self._sums: dict[_LabelKey, float] = defaultdict(float)
+        self._counts: dict[_LabelKey, int] = defaultdict(int)
 
     def _ensure_label(self, key: _LabelKey) -> None:
         """Initialize bucket counters for a new label combination."""
@@ -252,7 +252,7 @@ class Histogram:
             self._bucket_counts[key] = [0] * len(self.buckets)
 
     def observe(
-        self, value: float, labels: Optional[Dict[str, str]] = None
+        self, value: float, labels: Optional[dict[str, str]] = None
     ) -> None:
         """
         Record an observation.
@@ -283,13 +283,13 @@ class Histogram:
         self._sums.clear()
         self._counts.clear()
 
-    def collect(self) -> List[MetricSample]:
+    def collect(self) -> list[MetricSample]:
         """
         Collect histogram samples in Prometheus format.
 
         Returns _bucket, _count, and _sum samples for each label combo.
         """
-        samples: List[MetricSample] = []
+        samples: list[MetricSample] = []
 
         for key in self._counts:
             labels = _label_key_to_dict(key)
@@ -339,7 +339,7 @@ class MetricsRegistry:
     """
 
     def __init__(self) -> None:
-        self._metrics: Dict[str, Any] = {}
+        self._metrics: dict[str, Any] = {}
         self._setup_default_metrics()
 
     def _setup_default_metrics(self) -> None:
@@ -380,7 +380,7 @@ class MetricsRegistry:
         self,
         name: str,
         description: str,
-        labels: Optional[List[str]] = None,
+        labels: Optional[list[str]] = None,
     ) -> Counter:
         """
         Register (or retrieve existing) counter metric.
@@ -411,7 +411,7 @@ class MetricsRegistry:
         self,
         name: str,
         description: str,
-        labels: Optional[List[str]] = None,
+        labels: Optional[list[str]] = None,
     ) -> Gauge:
         """Register (or retrieve existing) gauge metric."""
         if name in self._metrics:
@@ -429,8 +429,8 @@ class MetricsRegistry:
         self,
         name: str,
         description: str,
-        buckets: Optional[List[float]] = None,
-        labels: Optional[List[str]] = None,
+        buckets: Optional[list[float]] = None,
+        labels: Optional[list[str]] = None,
     ) -> Histogram:
         """Register (or retrieve existing) histogram metric."""
         if name in self._metrics:
@@ -451,7 +451,7 @@ class MetricsRegistry:
         Returns:
             Complete metrics page as string, ending with newline
         """
-        lines: List[str] = []
+        lines: list[str] = []
         for metric in self._metrics.values():
             metric_type = type(metric).__name__.lower()
             lines.append(f"# HELP {metric.name} {metric.description}")
@@ -460,7 +460,7 @@ class MetricsRegistry:
                 lines.append(sample.to_prometheus_line())
         return "\n".join(lines) + "\n"
 
-    def get_metric_names(self) -> List[str]:
+    def get_metric_names(self) -> list[str]:
         """Return all registered metric names."""
         return list(self._metrics.keys())
 

@@ -18,7 +18,7 @@ import json
 from datetime import date, datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from pydantic import BaseModel, Field, field_validator
@@ -37,7 +37,7 @@ class OnboardingStep(str, Enum):
     COMPLETE = "complete"
 
 
-_STEP_ORDER: List[OnboardingStep] = [
+_STEP_ORDER: list[OnboardingStep] = [
     OnboardingStep.WELCOME,
     OnboardingStep.PROFILE,
     OnboardingStep.BIOMETRIC,
@@ -90,7 +90,7 @@ class OnboardingState(BaseModel):
     profile: Optional[UserProfile] = None
     llm_config: Optional[LLMConfig] = None
     biometric_enrolled: bool = False
-    permissions_granted: List[str] = Field(default_factory=list)
+    permissions_granted: list[str] = Field(default_factory=list)
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
 
@@ -152,7 +152,7 @@ class OnboardingManager:
     def complete_step(
         self,
         step: OnboardingStep,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
     ) -> OnboardingState:
         """
         Complete a step and advance to the next.
@@ -217,7 +217,7 @@ class OnboardingManager:
         logger.info("onboarding_step_skipped", step=step.value)
         return self.get_state()
 
-    def get_progress(self) -> Dict[str, Any]:
+    def get_progress(self) -> dict[str, Any]:
         """Return progress info: current step index and total steps."""
         current_idx = _STEP_ORDER.index(self._state.current_step)
         return {
@@ -231,7 +231,7 @@ class OnboardingManager:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _apply_step_data(self, step: OnboardingStep, data: Dict[str, Any]) -> None:
+    def _apply_step_data(self, step: OnboardingStep, data: dict[str, Any]) -> None:
         """Validate and apply step-specific data to state."""
         if step == OnboardingStep.PROFILE:
             self._state.profile = UserProfile(**data)

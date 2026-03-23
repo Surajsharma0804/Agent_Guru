@@ -6,8 +6,7 @@ Property 22: Conversation Context Persistence
 Validates: Requirements 18.1, 18.3, 18.5
 """
 
-import pytest
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, strategies as st, settings
 
 from Agent_Guru.speech.context.context_manager import ConversationContextManager
 from Agent_Guru.speech.models import PersonalityType, EmotionType

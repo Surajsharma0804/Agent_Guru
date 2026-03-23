@@ -20,7 +20,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import List, Optional
+from typing import Optional
 
 import aiohttp
 import structlog
@@ -54,23 +54,23 @@ class RollbackConfig:
     health_check_url: str
     health_check_interval: int = 30  # seconds
     health_check_failures_threshold: int = 3  # consecutive failures
-    
+
     # Error rate settings
     error_rate_threshold: float = 5.0  # percentage
     error_rate_window: int = 300  # seconds (5 minutes)
-    
+
     # Latency settings
     latency_baseline_p95: float = 1500.0  # milliseconds
     latency_degradation_multiplier: float = 2.0  # 2x baseline
     latency_window: int = 300  # seconds (5 minutes)
-    
+
     # Kubernetes settings
     namespace: str = "agent-guru-production"
     service_name: str = "agent-guru-reasoning"
-    
+
     # Prometheus settings
     prometheus_url: str = "http://prometheus:9090"
-    
+
     # Notification settings
     slack_webhook_url: Optional[str] = None
 
@@ -78,34 +78,34 @@ class RollbackConfig:
 class RollbackMonitor:
     """
     Monitors deployment health and triggers automatic rollbacks.
-    
+
     Time Complexity: O(1) per monitoring cycle
     Space Complexity: O(n) where n is metrics history size
     """
-    
+
     def __init__(self, config: RollbackConfig):
         """Initialize rollback monitor.
-        
+
         Args:
             config: Rollback configuration
         """
         self.config = config
-        self.metrics_history: List[DeploymentMetrics] = []
+        self.metrics_history: list[DeploymentMetrics] = []
         self.consecutive_health_failures = 0
         self.is_monitoring = False
         self.current_color: Optional[str] = None
-        
+
         logger.info(
             "rollback_monitor_initialized",
             namespace=config.namespace,
             service=config.service_name
         )
-    
+
     async def start_monitoring(self) -> None:
         """Start continuous monitoring of deployment."""
         self.is_monitoring = True
         logger.info("rollback_monitoring_started")
-        
+
         try:
             while self.is_monitoring:
                 await self._monitoring_cycle()
@@ -113,32 +113,32 @@ class RollbackMonitor:
         except Exception as e:
             logger.error("monitoring_error", error=str(e))
             raise
-    
+
     def stop_monitoring(self) -> None:
         """Stop monitoring."""
         self.is_monitoring = False
         logger.info("rollback_monitoring_stopped")
-    
+
     async def _monitoring_cycle(self) -> None:
         """Execute one monitoring cycle."""
         try:
             # Get current deployment color
             self.current_color = await self._get_current_deployment_color()
-            
+
             # Collect metrics
             metrics = await self._collect_metrics()
             self.metrics_history.append(metrics)
-            
+
             # Prune old metrics (keep last hour)
             cutoff_time = datetime.now() - timedelta(hours=1)
             self.metrics_history = [
                 m for m in self.metrics_history
                 if m.timestamp > cutoff_time
             ]
-            
+
             # Check for rollback conditions
             rollback_reason = await self._check_rollback_conditions(metrics)
-            
+
             if rollback_reason:
                 logger.warning(
                     "rollback_triggered",
@@ -153,26 +153,26 @@ class RollbackMonitor:
                     p95_latency=metrics.p95_latency,
                     health_status=metrics.health_check_status
                 )
-        
+
         except Exception as e:
             logger.error("monitoring_cycle_error", error=str(e))
-    
+
     async def _collect_metrics(self) -> DeploymentMetrics:
         """Collect current deployment metrics.
-        
+
         Returns:
             Current deployment metrics
         """
         async with aiohttp.ClientSession() as session:
             # Health check
             health_status = await self._check_health(session)
-            
+
             # Query Prometheus for metrics
             error_rate = await self._query_error_rate(session)
             p95_latency = await self._query_p95_latency(session)
             p99_latency = await self._query_p99_latency(session)
             request_count = await self._query_request_count(session)
-        
+
         return DeploymentMetrics(
             timestamp=datetime.now(),
             error_rate=error_rate,
@@ -181,13 +181,13 @@ class RollbackMonitor:
             request_count=request_count,
             health_check_status=health_status
         )
-    
+
     async def _check_health(self, session: aiohttp.ClientSession) -> bool:
         """Check health endpoint.
-        
+
         Args:
             session: HTTP session
-            
+
         Returns:
             True if healthy, False otherwise
         """
@@ -200,13 +200,13 @@ class RollbackMonitor:
         except Exception as e:
             logger.warning("health_check_failed", error=str(e))
             return False
-    
+
     async def _query_error_rate(self, session: aiohttp.ClientSession) -> float:
         """Query error rate from Prometheus.
-        
+
         Args:
             session: HTTP session
-            
+
         Returns:
             Error rate percentage
         """
@@ -214,7 +214,7 @@ class RollbackMonitor:
             f'sum(rate(reasoning_engine_errors_total{{namespace="{self.config.namespace}"}}[5m])) / '
             f'sum(rate(reasoning_engine_requests_total{{namespace="{self.config.namespace}"}}[5m])) * 100'
         )
-        
+
         try:
             async with session.get(
                 f"{self.config.prometheus_url}/api/v1/query",
@@ -228,20 +228,20 @@ class RollbackMonitor:
         except Exception as e:
             logger.warning("error_rate_query_failed", error=str(e))
             return 0.0
-    
+
     async def _query_p95_latency(self, session: aiohttp.ClientSession) -> float:
         """Query P95 latency from Prometheus.
-        
+
         Args:
             session: HTTP session
-            
+
         Returns:
             P95 latency in milliseconds
         """
         query = (
             f'histogram_quantile(0.95, sum(rate(reasoning_engine_latency_seconds_bucket{{namespace="{self.config.namespace}"}}[5m])) by (le)) * 1000'
         )
-        
+
         try:
             async with session.get(
                 f"{self.config.prometheus_url}/api/v1/query",
@@ -255,20 +255,20 @@ class RollbackMonitor:
         except Exception as e:
             logger.warning("p95_latency_query_failed", error=str(e))
             return 0.0
-    
+
     async def _query_p99_latency(self, session: aiohttp.ClientSession) -> float:
         """Query P99 latency from Prometheus.
-        
+
         Args:
             session: HTTP session
-            
+
         Returns:
             P99 latency in milliseconds
         """
         query = (
             f'histogram_quantile(0.99, sum(rate(reasoning_engine_latency_seconds_bucket{{namespace="{self.config.namespace}"}}[5m])) by (le)) * 1000'
         )
-        
+
         try:
             async with session.get(
                 f"{self.config.prometheus_url}/api/v1/query",
@@ -282,20 +282,20 @@ class RollbackMonitor:
         except Exception as e:
             logger.warning("p99_latency_query_failed", error=str(e))
             return 0.0
-    
+
     async def _query_request_count(self, session: aiohttp.ClientSession) -> int:
         """Query request count from Prometheus.
-        
+
         Args:
             session: HTTP session
-            
+
         Returns:
             Request count in last 5 minutes
         """
         query = (
             f'sum(increase(reasoning_engine_requests_total{{namespace="{self.config.namespace}"}}[5m]))'
         )
-        
+
         try:
             async with session.get(
                 f"{self.config.prometheus_url}/api/v1/query",
@@ -309,16 +309,16 @@ class RollbackMonitor:
         except Exception as e:
             logger.warning("request_count_query_failed", error=str(e))
             return 0
-    
+
     async def _check_rollback_conditions(
         self,
         current_metrics: DeploymentMetrics
     ) -> Optional[RollbackReason]:
         """Check if rollback conditions are met.
-        
+
         Args:
             current_metrics: Current deployment metrics
-            
+
         Returns:
             Rollback reason if conditions met, None otherwise
         """
@@ -329,7 +329,7 @@ class RollbackMonitor:
                 return RollbackReason.HEALTH_CHECK_FAILURE
         else:
             self.consecutive_health_failures = 0
-        
+
         # Check error rate spike
         if current_metrics.error_rate > self.config.error_rate_threshold:
             logger.warning(
@@ -338,7 +338,7 @@ class RollbackMonitor:
                 threshold=self.config.error_rate_threshold
             )
             return RollbackReason.ERROR_RATE_SPIKE
-        
+
         # Check latency degradation
         latency_threshold = (
             self.config.latency_baseline_p95 *
@@ -351,12 +351,12 @@ class RollbackMonitor:
                 threshold=latency_threshold
             )
             return RollbackReason.LATENCY_DEGRADATION
-        
+
         return None
-    
+
     async def _get_current_deployment_color(self) -> str:
         """Get current active deployment color.
-        
+
         Returns:
             Current deployment color (blue or green)
         """
@@ -375,24 +375,24 @@ class RollbackMonitor:
         except subprocess.CalledProcessError as e:
             logger.error("failed_to_get_deployment_color", error=str(e))
             return "blue"
-    
+
     async def _execute_rollback(self, reason: RollbackReason) -> None:
         """Execute automatic rollback.
-        
+
         Args:
             reason: Reason for rollback
         """
         start_time = time.time()
-        
+
         logger.critical(
             "executing_automatic_rollback",
             reason=reason.value,
             current_color=self.current_color
         )
-        
+
         # Determine target color (opposite of current)
         target_color = "blue" if self.current_color == "green" else "green"
-        
+
         try:
             # Send notification before rollback
             await self._send_notification(
@@ -400,7 +400,7 @@ class RollbackMonitor:
                 f"Reason: {reason.value}\n"
                 f"Rolling back from {self.current_color} to {target_color}"
             )
-            
+
             # Scale up target deployment
             subprocess.run(
                 [
@@ -410,7 +410,7 @@ class RollbackMonitor:
                 ],
                 check=True
             )
-            
+
             # Wait for target deployment to be ready
             subprocess.run(
                 [
@@ -421,7 +421,7 @@ class RollbackMonitor:
                 ],
                 check=True
             )
-            
+
             # Switch service to target color
             subprocess.run(
                 [
@@ -431,7 +431,7 @@ class RollbackMonitor:
                 ],
                 check=True
             )
-            
+
             # Scale down failed deployment
             subprocess.run(
                 [
@@ -441,9 +441,9 @@ class RollbackMonitor:
                 ],
                 check=True
             )
-            
+
             elapsed_time = time.time() - start_time
-            
+
             logger.info(
                 "rollback_completed",
                 reason=reason.value,
@@ -451,7 +451,7 @@ class RollbackMonitor:
                 to_color=target_color,
                 elapsed_seconds=elapsed_time
             )
-            
+
             # Send success notification
             await self._send_notification(
                 f"✅ ROLLBACK COMPLETED\n"
@@ -459,13 +459,13 @@ class RollbackMonitor:
                 f"Time: {elapsed_time:.1f}s\n"
                 f"Reason: {reason.value}"
             )
-            
+
             # Update current color
             self.current_color = target_color
-            
+
             # Reset failure counters
             self.consecutive_health_failures = 0
-        
+
         except subprocess.CalledProcessError as e:
             logger.error("rollback_failed", error=str(e))
             await self._send_notification(
@@ -474,17 +474,17 @@ class RollbackMonitor:
                 f"Manual intervention required!"
             )
             raise
-    
+
     async def _send_notification(self, message: str) -> None:
         """Send notification to Slack.
-        
+
         Args:
             message: Notification message
         """
         if not self.config.slack_webhook_url:
             logger.debug("slack_webhook_not_configured")
             return
-        
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -501,7 +501,7 @@ class RollbackMonitor:
                         )
         except Exception as e:
             logger.warning("notification_error", error=str(e))
-    
+
     async def manual_rollback(self) -> None:
         """Trigger manual rollback."""
         logger.info("manual_rollback_triggered")
@@ -524,10 +524,10 @@ async def main():
         namespace=os.getenv("KUBERNETES_NAMESPACE", "agent-guru-production"),
         service_name=os.getenv("SERVICE_NAME", "agent-guru-reasoning")
     )
-    
+
     # Create and start monitor
     monitor = RollbackMonitor(config)
-    
+
     try:
         await monitor.start_monitoring()
     except KeyboardInterrupt:

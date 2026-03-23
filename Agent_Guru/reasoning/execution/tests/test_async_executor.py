@@ -5,7 +5,7 @@ Coverage Target: 80%+
 """
 
 import time
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -389,7 +389,7 @@ class TestIntegration:
 
         # Check status multiple times to simulate progression
         for _ in range(3):
-            status = controller.get_status(result.task_id)
+            controller.get_status(result.task_id)
             time.sleep(0.1)
 
         # Final status should be success

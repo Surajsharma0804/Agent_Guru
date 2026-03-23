@@ -9,12 +9,12 @@ This package provides mobile-specific functionality including:
 """
 
 from Agent_Guru.platform.mobile.background_service import (
+    BatteryUsageStats,
+    BatteryUsageTracker,
     MobileBackgroundService,
     ServiceConfig,
     ServiceState,
     ThermalState,
-    BatteryUsageStats,
-    BatteryUsageTracker,
 )
 
 __all__ = [

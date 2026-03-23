@@ -137,7 +137,7 @@ class TestTimeRangeProperties:
     @given(time_range_strategy())
     def test_time_range_json_round_trip(self, time_range):
         """Property: TimeRange survives JSON serialization round trip."""
-        json_str = time_range.model_dump_json()
+        time_range.model_dump_json()
         data = time_range.model_dump()
         restored = TimeRange(**data)
 

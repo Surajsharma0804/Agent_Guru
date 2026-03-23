@@ -6,7 +6,6 @@ from datetime import datetime
 
 from Agent_Guru.security.voice_auth import (
     VoiceAuthenticator,
-    VoiceProfile,
     VoiceAuthenticationError
 )
 from Agent_Guru.speech.models import VoiceFeatures

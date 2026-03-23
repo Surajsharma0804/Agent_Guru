@@ -30,10 +30,10 @@ Version: 1.0.0
 """
 
 import time
-from typing import Dict, Optional
+from typing import Optional
 
 import structlog
-from fastapi import Depends, FastAPI, HTTPException, status, WebSocket
+from fastapi import Depends, FastAPI, HTTPException, WebSocket, status
 from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry import trace
 from prometheus_client import Counter, Histogram, generate_latest
@@ -47,15 +47,15 @@ from Agent_Guru.reasoning.api.models import (
     ProcessResponse,
     TaskStatusResponse,
 )
+from Agent_Guru.reasoning.api.websocket import (
+    get_connection_manager,
+    websocket_endpoint,
+)
 from Agent_Guru.reasoning.engine import ReasoningEngine, get_reasoning_engine
 from Agent_Guru.reasoning.input.normalizer import InputSource, RawInput
 from Agent_Guru.reasoning.state.conversation_manager import (
     ConversationStateManager,
     get_conversation_manager,
-)
-from Agent_Guru.reasoning.api.websocket import (
-    websocket_endpoint,
-    get_connection_manager,
 )
 
 logger = structlog.get_logger(__name__)
@@ -89,16 +89,16 @@ def create_app(
     conversation_manager: Optional[ConversationStateManager] = None,
 ) -> FastAPI:
     """Create FastAPI application.
-    
+
     Args:
         title: API title
         version: API version
         reasoning_engine: Optional reasoning engine instance
         conversation_manager: Optional conversation manager instance
-    
+
     Returns:
         FastAPI application
-    
+
     Example:
         >>> app = create_app()
         >>> # Run with: uvicorn app:app --host 0.0.0.0 --port 8000
@@ -111,7 +111,7 @@ def create_app(
         redoc_url="/redoc",
         openapi_url="/openapi.json",
     )
-    
+
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -120,28 +120,28 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # Store dependencies
     app.state.reasoning_engine = reasoning_engine or get_reasoning_engine()
     app.state.conversation_manager = conversation_manager or get_conversation_manager()
-    app.state.async_tasks: Dict[str, Dict] = {}  # task_id -> task_info
+    app.state.async_tasks: dict[str, dict] = {}  # task_id -> task_info
     app.state.connection_manager = get_connection_manager()
-    
+
     # Health check endpoint (no auth required)
     @app.get("/health", tags=["Health"])
-    async def health_check() -> Dict[str, str]:
+    async def health_check() -> dict[str, str]:
         """Health check endpoint.
-        
+
         Returns:
             Health status
         """
         return {"status": "healthy", "version": version}
-    
+
     # Metrics endpoint (no auth required)
     @app.get("/metrics", tags=["Monitoring"])
     async def metrics() -> Response:
         """Prometheus metrics endpoint.
-        
+
         Returns:
             Prometheus metrics in text format
         """
@@ -149,7 +149,7 @@ def create_app(
             content=generate_latest(),
             media_type="text/plain; version=0.0.4; charset=utf-8",
         )
-    
+
     # Process endpoint
     @app.post(
         "/v1/process",
@@ -168,24 +168,24 @@ def create_app(
         user_id: str = Depends(get_current_user),
     ) -> ProcessResponse:
         """Process user input through the reasoning pipeline.
-        
+
         This endpoint accepts user input and returns a processed response with
         comprehensive metrics and tracing information.
-        
+
         Args:
             request: Process request
             user_id: Authenticated user ID
-        
+
         Returns:
             Process response with result and metrics
-        
+
         Raises:
             HTTPException: If processing fails
-        
+
         Example:
             ```python
             import requests
-            
+
             response = requests.post(
                 "http://localhost:8000/v1/process",
                 json={
@@ -199,7 +199,7 @@ def create_app(
             ```
         """
         start_time = time.perf_counter()
-        
+
         try:
             # Validate user_id matches token
             if request.user_id != user_id:
@@ -207,7 +207,7 @@ def create_app(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="User ID mismatch",
                 )
-            
+
             # Create raw input
             raw_input = RawInput(
                 content=request.text,
@@ -216,10 +216,10 @@ def create_app(
                 timestamp=datetime.now(),
                 metadata=request.metadata,
             )
-            
+
             # Process through reasoning engine
             result = await app.state.reasoning_engine.process(raw_input)
-            
+
             # Track metrics
             duration = time.perf_counter() - start_time
             request_counter.labels(
@@ -234,7 +234,7 @@ def create_app(
             processing_duration.labels(
                 fast_path=str(result.fast_path),
             ).observe(result.total_latency_ms / 1000.0)
-            
+
             # Log request
             logger.info(
                 "api_request_completed",
@@ -244,7 +244,7 @@ def create_app(
                 fast_path=result.fast_path,
                 trace_id=result.trace_id,
             )
-            
+
             # Return response
             return ProcessResponse(
                 response=result.response,
@@ -257,7 +257,7 @@ def create_app(
                 trace_id=result.trace_id,
                 timestamp=result.timestamp,
             )
-            
+
         except HTTPException:
             raise
         except Exception as e:
@@ -267,7 +267,7 @@ def create_app(
                 method="POST",
                 status="error",
             ).inc()
-            
+
             # Log error
             logger.error(
                 "api_request_failed",
@@ -276,12 +276,12 @@ def create_app(
                 error=str(e),
                 exc_info=True,
             )
-            
+
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Processing failed: {str(e)}",
             )
-    
+
     # Conversations endpoint
     @app.get(
         "/v1/conversations/{conversation_id}",
@@ -298,34 +298,34 @@ def create_app(
         user_id: str = Depends(get_current_user),
     ) -> ConversationResponse:
         """Get conversation state.
-        
+
         Args:
             conversation_id: Conversation identifier
             user_id: Authenticated user ID
-        
+
         Returns:
             Conversation state
-        
+
         Raises:
             HTTPException: If conversation not found
         """
         try:
             # Get conversation state
             state = await app.state.conversation_manager.get_state(conversation_id)
-            
+
             if state is None:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Conversation {conversation_id} not found",
                 )
-            
+
             # Verify user owns conversation
             if state.user_id != user_id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Access denied",
                 )
-            
+
             # Convert to response
             return ConversationResponse(
                 conversation_id=state.conversation_id,
@@ -351,7 +351,7 @@ def create_app(
                 created_at=state.created_at,
                 updated_at=state.updated_at,
             )
-            
+
         except HTTPException:
             raise
         except Exception as e:
@@ -366,7 +366,7 @@ def create_app(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve conversation: {str(e)}",
             )
-    
+
     # List conversations endpoint
     @app.get(
         "/v1/conversations",
@@ -382,11 +382,11 @@ def create_app(
         limit: int = 10,
     ) -> list[ConversationResponse]:
         """List user's conversations.
-        
+
         Args:
             user_id: Authenticated user ID
             limit: Maximum number of conversations to return
-        
+
         Returns:
             List of conversations
         """
@@ -396,7 +396,7 @@ def create_app(
                 user_id=user_id,
                 limit=limit,
             )
-            
+
             # Convert to responses
             return [
                 ConversationResponse(
@@ -410,7 +410,7 @@ def create_app(
                 )
                 for state in conversations
             ]
-            
+
         except Exception as e:
             logger.error(
                 "list_conversations_failed",
@@ -422,7 +422,7 @@ def create_app(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to list conversations: {str(e)}",
             )
-    
+
     # Tasks endpoint
     @app.get(
         "/v1/tasks/{task_id}",
@@ -439,34 +439,34 @@ def create_app(
         user_id: str = Depends(get_current_user),
     ) -> TaskStatusResponse:
         """Get async task status.
-        
+
         Args:
             task_id: Task identifier
             user_id: Authenticated user ID
-        
+
         Returns:
             Task status
-        
+
         Raises:
             HTTPException: If task not found
         """
         try:
             # Get task info
             task_info = app.state.async_tasks.get(task_id)
-            
+
             if task_info is None:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Task {task_id} not found",
                 )
-            
+
             # Verify user owns task
             if task_info["user_id"] != user_id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Access denied",
                 )
-            
+
             # Return status
             return TaskStatusResponse(
                 task_id=task_id,
@@ -477,7 +477,7 @@ def create_app(
                 created_at=task_info["created_at"],
                 updated_at=task_info["updated_at"],
             )
-            
+
         except HTTPException:
             raise
         except Exception as e:
@@ -492,7 +492,7 @@ def create_app(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve task status: {str(e)}",
             )
-    
+
     # Statistics endpoint
     @app.get(
         "/v1/stats",
@@ -504,12 +504,12 @@ def create_app(
     )
     async def get_statistics(
         user_id: str = Depends(get_current_user),
-    ) -> Dict:
+    ) -> dict:
         """Get engine statistics.
-        
+
         Args:
             user_id: Authenticated user ID
-        
+
         Returns:
             Engine statistics
         """
@@ -527,7 +527,7 @@ def create_app(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve statistics: {str(e)}",
             )
-    
+
     # WebSocket endpoint
     @app.websocket("/v1/ws")
     async def websocket_route(
@@ -536,42 +536,42 @@ def create_app(
         conversation_id: Optional[str] = None,
     ) -> None:
         """WebSocket endpoint for real-time updates.
-        
+
         This endpoint provides real-time bidirectional communication for:
         - Streaming responses
         - Progress updates for long-running tasks
         - Connection heartbeat monitoring
         - State recovery on reconnection
-        
+
         Args:
             websocket: WebSocket connection
             user_id: User identifier (query parameter)
             conversation_id: Optional conversation ID (query parameter)
-        
+
         Example:
             ```javascript
             // Connect to WebSocket
             const ws = new WebSocket(
                 'ws://localhost:8000/v1/ws?user_id=user_123&conversation_id=conv_456'
             );
-            
+
             // Handle connection
             ws.onopen = () => {
                 console.log('Connected');
             };
-            
+
             // Handle messages
             ws.onmessage = (event) => {
                 const message = JSON.parse(event.data);
                 console.log('Received:', message);
-                
+
                 if (message.type === 'progress') {
                     console.log('Progress:', message.data.progress);
                 } else if (message.type === 'response') {
                     console.log('Response:', message.data);
                 }
             };
-            
+
             // Send request
             ws.send(JSON.stringify({
                 type: 'request',
@@ -580,7 +580,7 @@ def create_app(
                 },
                 request_id: 'req_123',
             }));
-            
+
             // Handle heartbeat
             ws.onmessage = (event) => {
                 const message = JSON.parse(event.data);
@@ -591,13 +591,13 @@ def create_app(
             ```
         """
         await websocket_endpoint(websocket, user_id, conversation_id)
-    
+
     return app
 
 
 def get_app() -> FastAPI:
     """Get global FastAPI application instance.
-    
+
     Returns:
         FastAPI application
     """

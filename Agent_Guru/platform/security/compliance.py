@@ -35,19 +35,20 @@ Version: 1.0.0
 """
 
 import json
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, asdict
 from enum import Enum
+from pathlib import Path
+from typing import Any, Optional
+
 import structlog
 
 from Agent_Guru.platform.security.auditor import (
-    SecurityAuditor,
     AuditLogEntry,
     AuditLogFilters,
     OperationType,
     ResultStatus,
+    SecurityAuditor,
 )
 
 logger = structlog.get_logger(__name__)
@@ -56,13 +57,13 @@ logger = structlog.get_logger(__name__)
 def get_local_timezone() -> timezone:
     """
     Get the device's local timezone.
-    
+
     Returns timezone-aware datetime in local timezone.
     This automatically detects the system timezone for worldwide deployment.
-    
+
     Returns:
         timezone object representing local timezone
-    
+
     Example:
         >>> tz = get_local_timezone()
         >>> now = datetime.now(tz)
@@ -80,10 +81,10 @@ def get_local_timezone() -> timezone:
 def get_current_time_with_timezone() -> datetime:
     """
     Get current time in device's local timezone.
-    
+
     Returns:
         Timezone-aware datetime in local timezone
-    
+
     Example:
         >>> now = get_current_time_with_timezone()
         >>> print(now.isoformat())  # 2026-02-25T14:30:00+05:30
@@ -122,16 +123,16 @@ class GDPRReport:
     period_end: str
     data_controller: str
     data_processor: str
-    processing_activities: List[Dict[str, Any]]
+    processing_activities: list[dict[str, Any]]
     data_subjects_count: int
-    personal_data_categories: List[str]
-    processing_purposes: List[str]
-    data_recipients: List[str]
-    data_transfers: List[Dict[str, Any]]
-    retention_periods: Dict[str, str]
-    security_measures: List[str]
-    data_breaches: List[Dict[str, Any]]
-    subject_requests: List[Dict[str, Any]]
+    personal_data_categories: list[str]
+    processing_purposes: list[str]
+    data_recipients: list[str]
+    data_transfers: list[dict[str, Any]]
+    retention_periods: dict[str, str]
+    security_measures: list[str]
+    data_breaches: list[dict[str, Any]]
+    subject_requests: list[dict[str, Any]]
 
 
 @dataclass
@@ -144,15 +145,15 @@ class CCPAReport:
     period_end: str
     business_name: str
     consumers_count: int
-    data_collected: List[Dict[str, Any]]
-    data_sold: List[Dict[str, Any]]
-    data_disclosed: List[Dict[str, Any]]
-    consumer_requests: List[Dict[str, Any]]
+    data_collected: list[dict[str, Any]]
+    data_sold: list[dict[str, Any]]
+    data_disclosed: list[dict[str, Any]]
+    consumer_requests: list[dict[str, Any]]
     opt_out_requests: int
     deletion_requests: int
     access_requests: int
-    data_sources: List[str]
-    business_purposes: List[str]
+    data_sources: list[str]
+    business_purposes: list[str]
 
 
 
@@ -165,14 +166,14 @@ class HIPAAReport:
     period_start: str
     period_end: str
     covered_entity: str
-    audit_events: List[Dict[str, Any]]
+    audit_events: list[dict[str, Any]]
     phi_access_count: int
     phi_modifications: int
     phi_disclosures: int
     authentication_events: int
     authorization_failures: int
-    security_incidents: List[Dict[str, Any]]
-    access_controls: List[str]
+    security_incidents: list[dict[str, Any]]
+    access_controls: list[str]
     encryption_status: str
     backup_status: str
 
@@ -186,15 +187,15 @@ class SOC2Report:
     period_start: str
     period_end: str
     service_organization: str
-    trust_services_criteria: List[str]  # Security, Availability, etc.
-    control_activities: List[Dict[str, Any]]
-    security_events: List[Dict[str, Any]]
-    availability_metrics: Dict[str, float]
-    processing_integrity: Dict[str, Any]
-    confidentiality_measures: List[str]
-    privacy_controls: List[str]
-    change_management: List[Dict[str, Any]]
-    incident_response: List[Dict[str, Any]]
+    trust_services_criteria: list[str]  # Security, Availability, etc.
+    control_activities: list[dict[str, Any]]
+    security_events: list[dict[str, Any]]
+    availability_metrics: dict[str, float]
+    processing_integrity: dict[str, Any]
+    confidentiality_measures: list[str]
+    privacy_controls: list[str]
+    change_management: list[dict[str, Any]]
+    incident_response: list[dict[str, Any]]
 
 
 
@@ -253,7 +254,7 @@ class ComplianceReporter:
         self.data_processor = data_processor
         self.covered_entity = covered_entity
         self.service_organization = service_organization
-        
+
         # Detect and store local timezone for worldwide deployment
         self.local_timezone: timezone = get_local_timezone()
 
@@ -267,10 +268,10 @@ class ComplianceReporter:
     def _ensure_timezone_aware(self, dt: datetime) -> datetime:
         """
         Ensure datetime is timezone-aware using local timezone.
-        
+
         Args:
             dt: Datetime object (timezone-aware or naive)
-            
+
         Returns:
             Timezone-aware datetime in local timezone
         """
@@ -278,11 +279,11 @@ class ComplianceReporter:
             # Naive datetime - assume it's in local timezone
             return dt.replace(tzinfo=self.local_timezone)
         return dt
-    
+
     def _get_current_time_local(self) -> datetime:
         """
         Get current time in local timezone.
-        
+
         Returns:
             Current datetime in local timezone
         """
@@ -323,7 +324,7 @@ class ComplianceReporter:
         # Convert to timezone-aware if needed (use local timezone)
         period_start = self._ensure_timezone_aware(period_start)
         period_end = self._ensure_timezone_aware(period_end)
-        
+
         logger.info(
             "generating_gdpr_report",
             period_start=period_start.isoformat(),
@@ -339,7 +340,7 @@ class ComplianceReporter:
         processing_activities = self._analyze_processing_activities(entries)
 
         # Count unique data subjects (users)
-        data_subjects = set(entry.user_id for entry in entries)
+        data_subjects = {entry.user_id for entry in entries}
 
         # Identify personal data categories
         personal_data_categories = self._identify_personal_data_categories(entries)
@@ -437,7 +438,7 @@ class ComplianceReporter:
         # Convert to timezone-aware if needed (use local timezone)
         period_start = self._ensure_timezone_aware(period_start)
         period_end = self._ensure_timezone_aware(period_end)
-        
+
         logger.info(
             "generating_ccpa_report",
             period_start=period_start.isoformat(),
@@ -450,7 +451,7 @@ class ComplianceReporter:
         entries = self.auditor.query_audit_logs(filters, limit=1000000)
 
         # Count unique consumers (California residents)
-        consumers = set(entry.user_id for entry in entries)
+        consumers = {entry.user_id for entry in entries}
 
         # Track data collected
         data_collected = self._track_data_collected(entries)
@@ -539,7 +540,7 @@ class ComplianceReporter:
         # Convert to timezone-aware if needed (use local timezone)
         period_start = self._ensure_timezone_aware(period_start)
         period_end = self._ensure_timezone_aware(period_end)
-        
+
         logger.info(
             "generating_hipaa_report",
             period_start=period_start.isoformat(),
@@ -674,7 +675,7 @@ class ComplianceReporter:
         # Convert to timezone-aware if needed (use local timezone)
         period_start = self._ensure_timezone_aware(period_start)
         period_end = self._ensure_timezone_aware(period_end)
-        
+
         logger.info(
             "generating_soc2_report",
             period_start=period_start.isoformat(),
@@ -830,7 +831,7 @@ class ComplianceReporter:
         batch_size: int = 1000,
         max_retries: int = 3,
         retry_delay: float = 1.0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Export audit logs to SIEM system with automatic retry.
 
@@ -873,7 +874,7 @@ class ComplianceReporter:
             period_end = self._get_current_time_local()
         else:
             period_end = self._ensure_timezone_aware(period_end)
-            
+
         if period_start is None:
             period_start = period_end - timedelta(hours=24)
         else:
@@ -918,7 +919,7 @@ class ComplianceReporter:
                     max_retries=max_retries,
                     error=str(e),
                 )
-                
+
                 if attempt < max_retries - 1:
                     # Wait before retrying (exponential backoff)
                     import time
@@ -939,11 +940,11 @@ class ComplianceReporter:
 
     def _export_to_splunk(
         self,
-        entries: List[AuditLogEntry],
+        entries: list[AuditLogEntry],
         endpoint_url: str,
         auth_token: str,
         batch_size: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Export to Splunk HEC."""
         from Agent_Guru.platform.security.compliance_helpers import export_to_splunk
 
@@ -951,11 +952,11 @@ class ComplianceReporter:
 
     def _export_to_elk(
         self,
-        entries: List[AuditLogEntry],
+        entries: list[AuditLogEntry],
         endpoint_url: str,
         auth_token: Optional[str],
         batch_size: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Export to Elasticsearch."""
         import requests
 
@@ -1011,11 +1012,11 @@ class ComplianceReporter:
 
     def _export_to_datadog(
         self,
-        entries: List[AuditLogEntry],
+        entries: list[AuditLogEntry],
         endpoint_url: str,
         auth_token: str,
         batch_size: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Export to Datadog Logs API."""
         import requests
 
@@ -1069,8 +1070,8 @@ class ComplianceReporter:
         }
 
     def _export_to_syslog(
-        self, entries: List[AuditLogEntry], endpoint_url: str, batch_size: int
-    ) -> Dict[str, Any]:
+        self, entries: list[AuditLogEntry], endpoint_url: str, batch_size: int
+    ) -> dict[str, Any]:
         """Export to Syslog (RFC 5424)."""
         import socket
 
@@ -1117,8 +1118,8 @@ class ComplianceReporter:
 
 
     def _export_to_cef(
-        self, entries: List[AuditLogEntry], endpoint_url: str, batch_size: int
-    ) -> Dict[str, Any]:
+        self, entries: list[AuditLogEntry], endpoint_url: str, batch_size: int
+    ) -> dict[str, Any]:
         """Export to Common Event Format (CEF) for ArcSight."""
         import socket
 
@@ -1159,8 +1160,8 @@ class ComplianceReporter:
         }
 
     def _export_to_leef(
-        self, entries: List[AuditLogEntry], endpoint_url: str, batch_size: int
-    ) -> Dict[str, Any]:
+        self, entries: list[AuditLogEntry], endpoint_url: str, batch_size: int
+    ) -> dict[str, Any]:
         """Export to Log Event Extended Format (LEEF) for QRadar."""
         import socket
 
@@ -1203,8 +1204,8 @@ class ComplianceReporter:
     # Helper methods for GDPR report generation
 
     def _analyze_processing_activities(
-        self, entries: List[AuditLogEntry]
-    ) -> List[Dict[str, Any]]:
+        self, entries: list[AuditLogEntry]
+    ) -> list[dict[str, Any]]:
         """Analyze processing activities from audit logs."""
         activities = {}
 
@@ -1236,8 +1237,8 @@ class ComplianceReporter:
         return purposes.get(operation_type, "Service provision")
 
     def _identify_personal_data_categories(
-        self, entries: List[AuditLogEntry]
-    ) -> List[str]:
+        self, entries: list[AuditLogEntry]
+    ) -> list[str]:
         """Identify personal data categories from audit logs."""
         categories = set()
 
@@ -1256,7 +1257,7 @@ class ComplianceReporter:
 
         return list(categories) if categories else ["User identifiers", "Usage data"]
 
-    def _extract_processing_purposes(self, entries: List[AuditLogEntry]) -> List[str]:
+    def _extract_processing_purposes(self, entries: list[AuditLogEntry]) -> list[str]:
         """Extract processing purposes from audit logs."""
         return [
             "Provide voice assistant services",
@@ -1266,7 +1267,7 @@ class ComplianceReporter:
             "Comply with legal obligations",
         ]
 
-    def _identify_data_recipients(self, entries: List[AuditLogEntry]) -> List[str]:
+    def _identify_data_recipients(self, entries: list[AuditLogEntry]) -> list[str]:
         """Identify data recipients from audit logs."""
         recipients = set()
 
@@ -1279,7 +1280,7 @@ class ComplianceReporter:
 
         return list(recipients) if recipients else ["Internal processing only"]
 
-    def _track_data_transfers(self, entries: List[AuditLogEntry]) -> List[Dict[str, Any]]:
+    def _track_data_transfers(self, entries: list[AuditLogEntry]) -> list[dict[str, Any]]:
         """Track international data transfers."""
         transfers = []
 
@@ -1296,7 +1297,7 @@ class ComplianceReporter:
 
         return transfers[:100]  # Limit for report size
 
-    def _identify_data_breaches(self, entries: List[AuditLogEntry]) -> List[Dict[str, Any]]:
+    def _identify_data_breaches(self, entries: list[AuditLogEntry]) -> list[dict[str, Any]]:
         """Identify potential data breaches from audit logs."""
         breaches = []
 
@@ -1314,7 +1315,7 @@ class ComplianceReporter:
 
         return breaches[:50]  # Limit for report size
 
-    def _track_subject_requests(self, entries: List[AuditLogEntry]) -> List[Dict[str, Any]]:
+    def _track_subject_requests(self, entries: list[AuditLogEntry]) -> list[dict[str, Any]]:
         """Track data subject requests (access, deletion, portability)."""
         requests = []
 
@@ -1340,7 +1341,7 @@ class ComplianceReporter:
 
     # Helper methods for CCPA report generation
 
-    def _track_data_collected(self, entries: List[AuditLogEntry]) -> List[Dict[str, Any]]:
+    def _track_data_collected(self, entries: list[AuditLogEntry]) -> list[dict[str, Any]]:
         """Track data collected from consumers."""
         collected = []
 
@@ -1362,12 +1363,12 @@ class ComplianceReporter:
 
         return collected
 
-    def _track_data_sold(self, entries: List[AuditLogEntry]) -> List[Dict[str, Any]]:
+    def _track_data_sold(self, entries: list[AuditLogEntry]) -> list[dict[str, Any]]:
         """Track data sold to third parties (should be empty for Agent Guru)."""
         # Agent Guru does not sell user data
         return []
 
-    def _track_data_disclosed(self, entries: List[AuditLogEntry]) -> List[Dict[str, Any]]:
+    def _track_data_disclosed(self, entries: list[AuditLogEntry]) -> list[dict[str, Any]]:
         """Track data disclosed to third parties."""
         disclosed = []
 
@@ -1382,7 +1383,7 @@ class ComplianceReporter:
 
         return disclosed[:100]  # Limit for report size
 
-    def _track_consumer_requests(self, entries: List[AuditLogEntry]) -> List[Dict[str, Any]]:
+    def _track_consumer_requests(self, entries: list[AuditLogEntry]) -> list[dict[str, Any]]:
         """Track consumer requests (opt-out, deletion, access)."""
         requests = []
 

@@ -12,12 +12,10 @@ Tests cover:
 """
 
 import pytest
-from typing import List, Tuple
 
 from Agent_Guru.speech.stt.language_detector import (
     LanguageDetector,
-    Language,
-    LanguageDetectionResult
+    Language
 )
 
 

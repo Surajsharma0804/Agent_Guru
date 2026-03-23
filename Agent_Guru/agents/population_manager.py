@@ -4,16 +4,16 @@ Population Manager - Maintains optimal agent population size.
 Validates: Requirements 13.1, 13.2, 13.3, 13.4, 13.5
 """
 
-from typing import List, Dict, Any, TYPE_CHECKING
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-import logging
+from typing import TYPE_CHECKING, Any
 
 from .agent_lifecycle import AgentStatus
 
 if TYPE_CHECKING:
-    from .agent_storage import AgentStorage
     from .agent_merger import AgentMerger
+    from .agent_storage import AgentStorage
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class PopulationSnapshot:
     timestamp: datetime
     total_agents: int
     active_agents: int
-    recommendations: List[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
 
 
 class PopulationManager:
@@ -57,11 +57,11 @@ class PopulationManager:
         self.merger = merger
         self.min_agents = min_agents
         self.max_agents = max_agents
-        self._history: List[PopulationSnapshot] = []
+        self._history: list[PopulationSnapshot] = []
 
     async def evaluate_population_size(
         self, task_diversity: int = 1, workload_volume: int = 1
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Evaluate current population and return status with recommendations.
 
@@ -84,7 +84,7 @@ class PopulationManager:
         effective_max = self.max_agents + max(0, task_diversity - 1) * 5
         effective_min = max(1, self.min_agents - max(0, workload_volume - 1))
 
-        recommendations: List[str] = []
+        recommendations: list[str] = []
 
         if count > effective_max:
             status = "overpopulated"
@@ -159,7 +159,7 @@ class PopulationManager:
             return max(0.0, base_threshold - 0.1)
         return base_threshold
 
-    def track_population_trends(self) -> Dict[str, Any]:
+    def track_population_trends(self) -> dict[str, Any]:
         """
         Return population trend data for reporting.
 

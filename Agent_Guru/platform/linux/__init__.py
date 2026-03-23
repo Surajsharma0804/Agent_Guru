@@ -5,12 +5,12 @@ This module provides Linux-specific operations using dbus-python and subprocess.
 """
 
 from Agent_Guru.platform.linux.integration import (
-    LinuxIntegration,
-    DBusError,
     CommandResult,
+    DBusError,
+    LinuxIntegration,
     ProcessInfo,
     ServiceStatus,
-    SystemInfo
+    SystemInfo,
 )
 
 __all__ = [

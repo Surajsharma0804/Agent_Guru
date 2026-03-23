@@ -62,24 +62,25 @@ Date: 2026-02-25
 Version: 1.0.0
 """
 
-import time
 import logging
-from pathlib import Path
-from typing import Optional, Union, Dict, Any, List
+import time
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Optional, Union
 
+from Agent_Guru.platform.controllers.file_operations import (
+    FileOperationResult,
+    FileOperationsController,
+    FileOperationType,
+)
 from Agent_Guru.platform.optimization.duplicate_detector import (
     DuplicateOperationDetector,
     Operation,
     OperationType,
+)
+from Agent_Guru.platform.optimization.duplicate_detector import (
     OperationResult as DetectorOperationResult,
 )
-from Agent_Guru.platform.controllers.file_operations import (
-    FileOperationsController,
-    FileOperationResult,
-    FileOperationType,
-)
-
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -88,7 +89,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DuplicateStats:
     """Statistics for duplicate detection.
-    
+
     Attributes:
         total_operations: Total operations attempted
         duplicates_prevented: Number of duplicate operations prevented
@@ -104,21 +105,21 @@ class DuplicateStats:
 class DuplicateAwareFileOperations(FileOperationsController):
     """
     File operations controller with integrated duplicate detection.
-    
+
     This class extends FileOperationsController to add duplicate detection for
     file operations. Duplicate operations are detected using SHA-256 content
     hashing and skipped to save time and resources.
-    
+
     Time Complexity: O(1) duplicate check + O(n) file operation
     Space Complexity: O(1) per operation (bounded cache)
-    
+
     Features:
     - Automatic duplicate detection for all file operations
     - Result caching for instant replay of duplicate operations
     - Audit logging of prevented duplicates
     - Configurable duplicate detection (can be disabled)
     - Statistics tracking for monitoring
-    
+
     Example:
         >>> file_ops = DuplicateAwareFileOperations(
         ...     audit_log_path="audit.log",
@@ -130,7 +131,7 @@ class DuplicateAwareFileOperations(FileOperationsController):
         >>> result2 = file_ops.create_file("test.txt", "Hello")
         >>> print(result2.metadata.get("duplicate"))  # True
     """
-    
+
     def __init__(
         self,
         audit_log_path: Optional[str] = None,
@@ -142,7 +143,7 @@ class DuplicateAwareFileOperations(FileOperationsController):
     ):
         """
         Initialize duplicate-aware file operations controller.
-        
+
         Args:
             audit_log_path: Path to audit log file
             require_confirmation: Whether to require confirmation for destructive ops
@@ -152,9 +153,9 @@ class DuplicateAwareFileOperations(FileOperationsController):
             duplicate_ttl: Time-to-live for cached operations (seconds)
         """
         super().__init__(audit_log_path, require_confirmation, max_file_size)
-        
+
         self.enable_duplicate_detection = enable_duplicate_detection
-        
+
         if self.enable_duplicate_detection:
             self.duplicate_detector = DuplicateOperationDetector(
                 max_cache_size=duplicate_cache_size,
@@ -162,12 +163,12 @@ class DuplicateAwareFileOperations(FileOperationsController):
             )
         else:
             self.duplicate_detector = None
-        
+
         # Statistics tracking
         self._total_operations = 0
         self._duplicates_prevented = 0
         self._time_saved_ms = 0.0
-    
+
     def _check_duplicate_and_execute(
         self,
         operation: Operation,
@@ -177,42 +178,42 @@ class DuplicateAwareFileOperations(FileOperationsController):
     ) -> FileOperationResult:
         """
         Check for duplicate operation and execute if not duplicate.
-        
+
         Args:
             operation: Operation to check
             execute_func: Function to execute if not duplicate
             *args: Arguments for execute_func
             **kwargs: Keyword arguments for execute_func
-            
+
         Returns:
             FileOperationResult with duplicate metadata
         """
         self._total_operations += 1
-        
+
         # If duplicate detection disabled, execute directly
         if not self.enable_duplicate_detection or self.duplicate_detector is None:
             return execute_func(*args, **kwargs)
-        
+
         # Compute fingerprint
         start_time = time.perf_counter()
         fingerprint = self.duplicate_detector.compute_fingerprint(operation)
         fingerprint_time = (time.perf_counter() - start_time) * 1000
-        
+
         # Check if duplicate
         if self.duplicate_detector.is_duplicate(operation, fingerprint):
             # Duplicate found - skip execution
             self._duplicates_prevented += 1
-            
+
             # Estimate time saved (typical file operation: 10-100ms)
             estimated_time_saved = 50.0  # Conservative estimate
             self._time_saved_ms += estimated_time_saved
-            
+
             # Log prevented duplicate
             logger.info(
                 f"Duplicate operation prevented: {operation.type.value} "
                 f"(fingerprint: {fingerprint[:16]}...)"
             )
-            
+
             # Log to audit log
             if self.audit_log_path:
                 self._log_operation(
@@ -225,7 +226,7 @@ class DuplicateAwareFileOperations(FileOperationsController):
                         "time_saved_ms": estimated_time_saved
                     }
                 )
-            
+
             # Return cached result
             return FileOperationResult(
                 success=True,
@@ -239,12 +240,12 @@ class DuplicateAwareFileOperations(FileOperationsController):
                     "time_saved_ms": estimated_time_saved
                 }
             )
-        
+
         # Not duplicate - execute operation
         exec_start_time = time.perf_counter()
         result = execute_func(*args, **kwargs)
         exec_time = (time.perf_counter() - exec_start_time) * 1000
-        
+
         # Mark as executed in cache
         detector_result = DetectorOperationResult(
             success=result.success,
@@ -253,15 +254,15 @@ class DuplicateAwareFileOperations(FileOperationsController):
             execution_time=exec_time / 1000  # Convert to seconds
         )
         self.duplicate_detector.mark_executed(operation, fingerprint, detector_result)
-        
+
         # Add duplicate metadata to result
         result.metadata["duplicate"] = False
         result.metadata["fingerprint"] = fingerprint
         result.metadata["fingerprint_time_ms"] = fingerprint_time
         result.metadata["execution_time_ms"] = exec_time
-        
+
         return result
-    
+
     def create_file(
         self,
         path: str,
@@ -270,28 +271,28 @@ class DuplicateAwareFileOperations(FileOperationsController):
     ) -> FileOperationResult:
         """
         Create a new file with duplicate detection.
-        
+
         If an identical file creation was recently performed, this operation
         will be skipped and the cached result returned.
-        
+
         Args:
             path: Path to file to create
             content: Initial file content
             overwrite: Whether to overwrite existing file
-            
+
         Returns:
             FileOperationResult with duplicate metadata
         """
         # Convert content to bytes for fingerprinting
         content_bytes = content.encode('utf-8') if isinstance(content, str) else content
-        
+
         # Create operation for duplicate detection
         operation = Operation(
             type=OperationType.FILE_WRITE,
             path=path,
             content=content_bytes
         )
-        
+
         # Check duplicate and execute
         return self._check_duplicate_and_execute(
             operation,
@@ -300,7 +301,7 @@ class DuplicateAwareFileOperations(FileOperationsController):
             content,
             overwrite
         )
-    
+
     def update_file(
         self,
         path: str,
@@ -309,25 +310,25 @@ class DuplicateAwareFileOperations(FileOperationsController):
     ) -> FileOperationResult:
         """
         Update file content with duplicate detection.
-        
+
         Args:
             path: Path to file to update
             content: New file content
             create_if_missing: Whether to create file if it doesn't exist
-            
+
         Returns:
             FileOperationResult with duplicate metadata
         """
         # Convert content to bytes for fingerprinting
         content_bytes = content.encode('utf-8') if isinstance(content, str) else content
-        
+
         # Create operation for duplicate detection
         operation = Operation(
             type=OperationType.FILE_WRITE,
             path=path,
             content=content_bytes
         )
-        
+
         # Check duplicate and execute
         return self._check_duplicate_and_execute(
             operation,
@@ -336,7 +337,7 @@ class DuplicateAwareFileOperations(FileOperationsController):
             content,
             create_if_missing
         )
-    
+
     def copy_file(
         self,
         source: str,
@@ -345,12 +346,12 @@ class DuplicateAwareFileOperations(FileOperationsController):
     ) -> FileOperationResult:
         """
         Copy file with duplicate detection.
-        
+
         Args:
             source: Source file path
             destination: Destination file path
             overwrite: Whether to overwrite existing file
-            
+
         Returns:
             FileOperationResult with duplicate metadata
         """
@@ -363,14 +364,14 @@ class DuplicateAwareFileOperations(FileOperationsController):
             logger.error(f"Failed to read source file for duplicate detection: {e}")
             # Fall back to execution without duplicate detection
             return super().copy_file(source, destination, overwrite)
-        
+
         # Create operation for duplicate detection
         operation = Operation(
             type=OperationType.FILE_WRITE,
             path=destination,
             content=content
         )
-        
+
         # Check duplicate and execute
         return self._check_duplicate_and_execute(
             operation,
@@ -379,11 +380,11 @@ class DuplicateAwareFileOperations(FileOperationsController):
             destination,
             overwrite
         )
-    
+
     def get_duplicate_stats(self) -> DuplicateStats:
         """
         Get duplicate detection statistics.
-        
+
         Returns:
             DuplicateStats with current statistics
         """
@@ -392,14 +393,14 @@ class DuplicateAwareFileOperations(FileOperationsController):
             if self._total_operations > 0
             else 0.0
         )
-        
+
         return DuplicateStats(
             total_operations=self._total_operations,
             duplicates_prevented=self._duplicates_prevented,
             time_saved_ms=self._time_saved_ms,
             cache_hit_rate=cache_hit_rate
         )
-    
+
     def clear_duplicate_cache(self) -> None:
         """Clear duplicate detection cache."""
         if self.duplicate_detector:
@@ -409,19 +410,19 @@ class DuplicateAwareFileOperations(FileOperationsController):
 class DuplicateAwareCommandExecutor:
     """
     Command executor with integrated duplicate detection.
-    
+
     This class provides command execution with duplicate detection to prevent
     redundant command executions.
-    
+
     Time Complexity: O(1) duplicate check + O(command) execution
     Space Complexity: O(1) per command (bounded cache)
-    
+
     Features:
     - Automatic duplicate detection for command executions
     - Result caching for instant replay
     - Audit logging of prevented duplicates
     - Configurable duplicate detection
-    
+
     Example:
         >>> executor = DuplicateAwareCommandExecutor(
         ...     enable_duplicate_detection=True
@@ -432,7 +433,7 @@ class DuplicateAwareCommandExecutor:
         >>> result2 = executor.execute("echo 'Hello'")
         >>> print(result2.get("duplicate"))  # True
     """
-    
+
     def __init__(
         self,
         enable_duplicate_detection: bool = True,
@@ -441,14 +442,14 @@ class DuplicateAwareCommandExecutor:
     ):
         """
         Initialize duplicate-aware command executor.
-        
+
         Args:
             enable_duplicate_detection: Whether to enable duplicate detection
             duplicate_cache_size: Maximum number of cached commands
             duplicate_ttl: Time-to-live for cached commands (seconds)
         """
         self.enable_duplicate_detection = enable_duplicate_detection
-        
+
         if self.enable_duplicate_detection:
             self.duplicate_detector = DuplicateOperationDetector(
                 max_cache_size=duplicate_cache_size,
@@ -456,35 +457,35 @@ class DuplicateAwareCommandExecutor:
             )
         else:
             self.duplicate_detector = None
-        
+
         # Statistics tracking
         self._total_commands = 0
         self._duplicates_prevented = 0
         self._time_saved_ms = 0.0
-    
+
     def execute(
         self,
         command: str,
-        args: Optional[List[str]] = None,
-        env: Optional[Dict[str, str]] = None
-    ) -> Dict[str, Any]:
+        args: Optional[list[str]] = None,
+        env: Optional[dict[str, str]] = None
+    ) -> dict[str, Any]:
         """
         Execute command with duplicate detection.
-        
+
         Args:
             command: Command to execute
             args: Command arguments
             env: Environment variables
-            
+
         Returns:
             Dictionary with execution result and duplicate metadata
         """
         self._total_commands += 1
-        
+
         # If duplicate detection disabled, execute directly
         if not self.enable_duplicate_detection or self.duplicate_detector is None:
             return self._execute_command(command, args, env)
-        
+
         # Create operation for duplicate detection
         operation = Operation(
             type=OperationType.COMMAND_EXECUTE,
@@ -492,24 +493,24 @@ class DuplicateAwareCommandExecutor:
             args=args or [],
             env=env or {}
         )
-        
+
         # Compute fingerprint
         fingerprint = self.duplicate_detector.compute_fingerprint(operation)
-        
+
         # Check if duplicate
         if self.duplicate_detector.is_duplicate(operation, fingerprint):
             # Duplicate found - skip execution
             self._duplicates_prevented += 1
-            
+
             # Estimate time saved (typical command: 100-1000ms)
             estimated_time_saved = 500.0  # Conservative estimate
             self._time_saved_ms += estimated_time_saved
-            
+
             logger.info(
                 f"Duplicate command prevented: {command} "
                 f"(fingerprint: {fingerprint[:16]}...)"
             )
-            
+
             return {
                 "success": True,
                 "output": "(cached result - duplicate command skipped)",
@@ -517,10 +518,10 @@ class DuplicateAwareCommandExecutor:
                 "fingerprint": fingerprint,
                 "time_saved_ms": estimated_time_saved
             }
-        
+
         # Not duplicate - execute command
         result = self._execute_command(command, args, env)
-        
+
         # Mark as executed in cache
         detector_result = DetectorOperationResult(
             success=result.get("success", False),
@@ -529,40 +530,40 @@ class DuplicateAwareCommandExecutor:
             execution_time=result.get("execution_time_ms", 0) / 1000
         )
         self.duplicate_detector.mark_executed(operation, fingerprint, detector_result)
-        
+
         # Add duplicate metadata
         result["duplicate"] = False
         result["fingerprint"] = fingerprint
-        
+
         return result
-    
+
     def _execute_command(
         self,
         command: str,
-        args: Optional[List[str]],
-        env: Optional[Dict[str, str]]
-    ) -> Dict[str, Any]:
+        args: Optional[list[str]],
+        env: Optional[dict[str, str]]
+    ) -> dict[str, Any]:
         """
         Execute command (placeholder - to be implemented with actual executor).
-        
+
         Args:
             command: Command to execute
             args: Command arguments
             env: Environment variables
-            
+
         Returns:
             Dictionary with execution result
         """
         # Placeholder implementation
         # In production, this would use subprocess or platform-specific executor
         import subprocess
-        
+
         try:
             start_time = time.perf_counter()
-            
+
             # Build command with args
             cmd_list = [command] + (args or [])
-            
+
             # Execute command
             result = subprocess.run(
                 cmd_list,
@@ -571,9 +572,9 @@ class DuplicateAwareCommandExecutor:
                 env=env,
                 timeout=30
             )
-            
+
             exec_time = (time.perf_counter() - start_time) * 1000
-            
+
             return {
                 "success": result.returncode == 0,
                 "output": result.stdout,
@@ -581,7 +582,7 @@ class DuplicateAwareCommandExecutor:
                 "return_code": result.returncode,
                 "execution_time_ms": exec_time
             }
-        
+
         except Exception as e:
             return {
                 "success": False,
@@ -590,7 +591,7 @@ class DuplicateAwareCommandExecutor:
                 "return_code": -1,
                 "execution_time_ms": 0
             }
-    
+
     def get_duplicate_stats(self) -> DuplicateStats:
         """Get duplicate detection statistics."""
         cache_hit_rate = (
@@ -598,7 +599,7 @@ class DuplicateAwareCommandExecutor:
             if self._total_commands > 0
             else 0.0
         )
-        
+
         return DuplicateStats(
             total_operations=self._total_commands,
             duplicates_prevented=self._duplicates_prevented,
@@ -610,19 +611,19 @@ class DuplicateAwareCommandExecutor:
 class DuplicateAwareGitOperations:
     """
     Git operations with integrated duplicate detection.
-    
+
     This class provides Git operations with duplicate detection to prevent
     redundant commits with identical content.
-    
+
     Time Complexity: O(1) duplicate check + O(git) operation
     Space Complexity: O(1) per operation (bounded cache)
-    
+
     Features:
     - Automatic duplicate detection for Git commits
     - Content-based deduplication (same changes = duplicate)
     - Audit logging of prevented duplicates
     - Configurable duplicate detection
-    
+
     Example:
         >>> git_ops = DuplicateAwareGitOperations(
         ...     enable_duplicate_detection=True
@@ -633,7 +634,7 @@ class DuplicateAwareGitOperations:
         >>> result2 = git_ops.commit("Fix bug", ["file.py"])
         >>> print(result2.get("duplicate"))  # True
     """
-    
+
     def __init__(
         self,
         enable_duplicate_detection: bool = True,
@@ -642,14 +643,14 @@ class DuplicateAwareGitOperations:
     ):
         """
         Initialize duplicate-aware Git operations.
-        
+
         Args:
             enable_duplicate_detection: Whether to enable duplicate detection
             duplicate_cache_size: Maximum number of cached operations
             duplicate_ttl: Time-to-live for cached operations (seconds)
         """
         self.enable_duplicate_detection = enable_duplicate_detection
-        
+
         if self.enable_duplicate_detection:
             self.duplicate_detector = DuplicateOperationDetector(
                 max_cache_size=duplicate_cache_size,
@@ -657,62 +658,62 @@ class DuplicateAwareGitOperations:
             )
         else:
             self.duplicate_detector = None
-        
+
         # Statistics tracking
         self._total_commits = 0
         self._duplicates_prevented = 0
         self._time_saved_ms = 0.0
-    
+
     def commit(
         self,
         message: str,
-        files: List[str],
+        files: list[str],
         author: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Commit changes with duplicate detection.
-        
+
         Args:
             message: Commit message
             files: List of files to commit
             author: Commit author (optional)
-            
+
         Returns:
             Dictionary with commit result and duplicate metadata
         """
         self._total_commits += 1
-        
+
         # If duplicate detection disabled, execute directly
         if not self.enable_duplicate_detection or self.duplicate_detector is None:
             return self._execute_commit(message, files, author)
-        
+
         # Create operation for duplicate detection
         # Use message as path and files as content
         files_content = "\n".join(sorted(files)).encode('utf-8')
-        
+
         operation = Operation(
             type=OperationType.GIT_COMMIT,
             path=message,
             content=files_content
         )
-        
+
         # Compute fingerprint
         fingerprint = self.duplicate_detector.compute_fingerprint(operation)
-        
+
         # Check if duplicate
         if self.duplicate_detector.is_duplicate(operation, fingerprint):
             # Duplicate found - skip commit
             self._duplicates_prevented += 1
-            
+
             # Estimate time saved (typical commit: 500-2000ms)
             estimated_time_saved = 1000.0  # Conservative estimate
             self._time_saved_ms += estimated_time_saved
-            
+
             logger.info(
                 f"Duplicate commit prevented: {message[:50]}... "
                 f"(fingerprint: {fingerprint[:16]}...)"
             )
-            
+
             return {
                 "success": True,
                 "commit_hash": "(cached - duplicate commit skipped)",
@@ -721,10 +722,10 @@ class DuplicateAwareGitOperations:
                 "fingerprint": fingerprint,
                 "time_saved_ms": estimated_time_saved
             }
-        
+
         # Not duplicate - execute commit
         result = self._execute_commit(message, files, author)
-        
+
         # Mark as executed in cache
         detector_result = DetectorOperationResult(
             success=result.get("success", False),
@@ -733,49 +734,49 @@ class DuplicateAwareGitOperations:
             execution_time=result.get("execution_time_ms", 0) / 1000
         )
         self.duplicate_detector.mark_executed(operation, fingerprint, detector_result)
-        
+
         # Add duplicate metadata
         result["duplicate"] = False
         result["fingerprint"] = fingerprint
-        
+
         return result
-    
+
     def _execute_commit(
         self,
         message: str,
-        files: List[str],
+        files: list[str],
         author: Optional[str]
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Execute Git commit (placeholder - to be implemented with actual Git client).
-        
+
         Args:
             message: Commit message
             files: List of files to commit
             author: Commit author
-            
+
         Returns:
             Dictionary with commit result
         """
         # Placeholder implementation
         # In production, this would use GitPython or subprocess
         import subprocess
-        
+
         try:
             start_time = time.perf_counter()
-            
+
             # Stage files
             subprocess.run(["git", "add"] + files, check=True, capture_output=True)
-            
+
             # Commit
             cmd = ["git", "commit", "-m", message]
             if author:
                 cmd.extend(["--author", author])
-            
+
             result = subprocess.run(cmd, capture_output=True, text=True)
-            
+
             exec_time = (time.perf_counter() - start_time) * 1000
-            
+
             # Extract commit hash from output
             commit_hash = "unknown"
             if result.returncode == 0 and result.stdout:
@@ -787,7 +788,7 @@ class DuplicateAwareGitOperations:
                         if len(parts) > 1:
                             commit_hash = parts[1][:7]
                             break
-            
+
             return {
                 "success": result.returncode == 0,
                 "commit_hash": commit_hash,
@@ -796,7 +797,7 @@ class DuplicateAwareGitOperations:
                 "error": result.stderr if result.returncode != 0 else None,
                 "execution_time_ms": exec_time
             }
-        
+
         except Exception as e:
             return {
                 "success": False,
@@ -805,7 +806,7 @@ class DuplicateAwareGitOperations:
                 "error": str(e),
                 "execution_time_ms": 0
             }
-    
+
     def get_duplicate_stats(self) -> DuplicateStats:
         """Get duplicate detection statistics."""
         cache_hit_rate = (
@@ -813,7 +814,7 @@ class DuplicateAwareGitOperations:
             if self._total_commits > 0
             else 0.0
         )
-        
+
         return DuplicateStats(
             total_operations=self._total_commits,
             duplicates_prevented=self._duplicates_prevented,

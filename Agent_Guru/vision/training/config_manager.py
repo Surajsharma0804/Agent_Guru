@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger("guruvision.training.config_manager")
 
@@ -25,7 +25,7 @@ class DatasetConfig:
     root_dir: str = "Agent_Guru/vision/data"
     training_name: str = "ms1m-arcface"
     training_path: str = "Agent_Guru/vision/data/training"
-    benchmark_paths: Dict[str, str] = field(default_factory=dict)
+    benchmark_paths: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -56,7 +56,7 @@ class EvaluationConfig:
     """Evaluation configuration."""
     batch_size: int = 64
     use_onnx: bool = False
-    targets: Dict[str, float] = field(default_factory=lambda: {
+    targets: dict[str, float] = field(default_factory=lambda: {
         "lfw": 0.997,
         "cfp_fp": 0.98,
         "agedb_30": 0.97,
@@ -76,14 +76,14 @@ class ExportConfig:
 class StressTestConfig:
     """Stress testing configuration."""
     enabled: bool = True
-    conditions: List[Dict[str, Any]] = field(default_factory=list)
+    conditions: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
 class ReportingConfig:
     """Reporting configuration."""
     output_dir: str = "Agent_Guru/vision/data/reports"
-    formats: List[str] = field(default_factory=lambda: ["json", "html"])
+    formats: list[str] = field(default_factory=lambda: ["json", "html"])
 
 
 @dataclass
@@ -104,8 +104,8 @@ class Config:
 class ValidationResult:
     """Result of configuration validation."""
     valid: bool
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -170,8 +170,8 @@ class ConfigManager:
         Returns:
             ValidationResult with valid flag and any errors/warnings.
         """
-        errors: List[str] = []
-        warnings: List[str] = []
+        errors: list[str] = []
+        warnings: list[str] = []
 
         # Validate training config
         tc = config.training
@@ -296,24 +296,24 @@ class ConfigManager:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _load_yaml(path: Path) -> Dict[str, Any]:
+    def _load_yaml(path: Path) -> dict[str, Any]:
         """Load YAML file, falling back to JSON-compatible loader."""
         try:
             import yaml  # type: ignore[import]
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 return yaml.safe_load(f) or {}
         except ImportError:
             # Fallback: try to parse as JSON (subset of YAML)
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 return json.load(f)
 
     @staticmethod
-    def _load_json(path: Path) -> Dict[str, Any]:
-        with open(path, "r", encoding="utf-8") as f:
+    def _load_json(path: Path) -> dict[str, Any]:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
 
     @staticmethod
-    def _dict_to_config(data: Dict[str, Any]) -> Config:
+    def _dict_to_config(data: dict[str, Any]) -> Config:
         """Convert a raw dict to a Config object."""
         config = Config()
         config.name = data.get("name", config.name)
@@ -386,7 +386,7 @@ class ConfigManager:
         return config
 
     @staticmethod
-    def _config_to_dict(config: Config) -> Dict[str, Any]:
+    def _config_to_dict(config: Config) -> dict[str, Any]:
         """Convert Config to a JSON-serializable dict."""
         return {
             "name": config.name,
@@ -408,14 +408,14 @@ class ConfigManager:
         }
 
 
-def verify_gpu() -> Dict[str, Any]:
+def verify_gpu() -> dict[str, Any]:
     """Verify GPU availability and CUDA compatibility.
 
     Returns:
         Dict with keys: available (bool), device_count (int),
         device_names (list[str]), cuda_version (str | None).
     """
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "available": False,
         "device_count": 0,
         "device_names": [],

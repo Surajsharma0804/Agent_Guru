@@ -20,14 +20,14 @@ Version: 1.0.0
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
 
 class ProcessRequest(BaseModel):
     """Request model for processing user input.
-    
+
     Attributes:
         text: User input text
         user_id: User identifier
@@ -35,7 +35,7 @@ class ProcessRequest(BaseModel):
         source: Input source (voice, text, system_event)
         metadata: Additional request metadata
     """
-    
+
     text: str = Field(
         ...,
         description="User input text to process",
@@ -62,11 +62,11 @@ class ProcessRequest(BaseModel):
         pattern="^(voice|text|system_event)$",
         examples=["text"],
     )
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional request metadata",
     )
-    
+
     @field_validator("text")
     @classmethod
     def validate_text(cls, v: str) -> str:
@@ -74,7 +74,7 @@ class ProcessRequest(BaseModel):
         if not v.strip():
             raise ValueError("Text cannot be empty or whitespace only")
         return v.strip()
-    
+
     class Config:
         """Pydantic configuration."""
         json_schema_extra = {
@@ -90,7 +90,7 @@ class ProcessRequest(BaseModel):
 
 class ProcessResponse(BaseModel):
     """Response model for processed requests.
-    
+
     Attributes:
         response: Generated response text
         confidence: Confidence score (0.0-1.0)
@@ -102,7 +102,7 @@ class ProcessResponse(BaseModel):
         trace_id: Distributed trace ID
         timestamp: Response timestamp
     """
-    
+
     response: str = Field(
         ...,
         description="Generated response text",
@@ -136,7 +136,7 @@ class ProcessResponse(BaseModel):
         ge=0.0,
         examples=[234.5],
     )
-    stage_latencies: Dict[str, float] = Field(
+    stage_latencies: dict[str, float] = Field(
         default_factory=dict,
         description="Latency per pipeline stage",
         examples=[{"intent_detection": 50.2, "tool_selection": 12.3}],
@@ -150,7 +150,7 @@ class ProcessResponse(BaseModel):
         default_factory=datetime.utcnow,
         description="Response timestamp",
     )
-    
+
     class Config:
         """Pydantic configuration."""
         json_schema_extra = {
@@ -173,7 +173,7 @@ class ProcessResponse(BaseModel):
 
 class ConversationResponse(BaseModel):
     """Response model for conversation queries.
-    
+
     Attributes:
         conversation_id: Conversation identifier
         user_id: User identifier
@@ -183,7 +183,7 @@ class ConversationResponse(BaseModel):
         created_at: Conversation creation timestamp
         updated_at: Last update timestamp
     """
-    
+
     conversation_id: str = Field(
         ...,
         description="Conversation identifier",
@@ -200,11 +200,11 @@ class ConversationResponse(BaseModel):
         ge=0,
         examples=[5],
     )
-    recent_turns: List[Dict[str, Any]] = Field(
+    recent_turns: list[dict[str, Any]] = Field(
         default_factory=list,
         description="Recent conversation turns",
     )
-    entities: Dict[str, Any] = Field(
+    entities: dict[str, Any] = Field(
         default_factory=dict,
         description="Tracked entities",
     )
@@ -216,7 +216,7 @@ class ConversationResponse(BaseModel):
         ...,
         description="Last update timestamp",
     )
-    
+
     class Config:
         """Pydantic configuration."""
         json_schema_extra = {
@@ -234,7 +234,7 @@ class ConversationResponse(BaseModel):
 
 class TaskStatusResponse(BaseModel):
     """Response model for async task status.
-    
+
     Attributes:
         task_id: Task identifier
         status: Task status (queued, running, completed, failed)
@@ -244,7 +244,7 @@ class TaskStatusResponse(BaseModel):
         created_at: Task creation timestamp
         updated_at: Last update timestamp
     """
-    
+
     task_id: str = Field(
         ...,
         description="Task identifier",
@@ -279,7 +279,7 @@ class TaskStatusResponse(BaseModel):
         ...,
         description="Last update timestamp",
     )
-    
+
     class Config:
         """Pydantic configuration."""
         json_schema_extra = {
@@ -297,7 +297,7 @@ class TaskStatusResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     """Response model for errors.
-    
+
     Attributes:
         error: Error message
         error_code: Error code
@@ -305,7 +305,7 @@ class ErrorResponse(BaseModel):
         timestamp: Error timestamp
         trace_id: Distributed trace ID
     """
-    
+
     error: str = Field(
         ...,
         description="Error message",
@@ -316,7 +316,7 @@ class ErrorResponse(BaseModel):
         description="Error code",
         examples=["VALIDATION_ERROR"],
     )
-    details: Dict[str, Any] = Field(
+    details: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional error details",
     )
@@ -328,7 +328,7 @@ class ErrorResponse(BaseModel):
         default=None,
         description="Distributed trace ID",
     )
-    
+
     class Config:
         """Pydantic configuration."""
         json_schema_extra = {

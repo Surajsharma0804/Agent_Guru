@@ -1,14 +1,14 @@
 """Action and tool data models."""
 
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
 
 class ActionSensitivity(str, Enum):
     """Enumeration of action sensitivity levels."""
-    
+
     SAFE = "safe"  # No confirmation needed
     SENSITIVE = "sensitive"  # Confirmation required
     DANGEROUS = "dangerous"  # Requires explicit permission
@@ -16,17 +16,17 @@ class ActionSensitivity(str, Enum):
 
 class Parameter(BaseModel):
     """Represents a tool parameter definition."""
-    
+
     name: str = Field(..., description="Parameter name")
     param_type: str = Field(..., description="Parameter type (str, int, float, bool, etc.)")
     required: bool = Field(default=True, description="Whether parameter is required")
     default: Optional[Any] = Field(default=None, description="Default value if not required")
     description: str = Field(default="", description="Parameter description")
-    validation_rules: Dict[str, Any] = Field(
+    validation_rules: dict[str, Any] = Field(
         default_factory=dict,
         description="Validation rules (min, max, pattern, etc.)",
     )
-    
+
     @field_validator("param_type")
     @classmethod
     def validate_param_type(cls, v: str) -> str:
@@ -38,17 +38,17 @@ class Parameter(BaseModel):
         if v not in valid_types:
             raise ValueError(f"Parameter type must be one of {valid_types}, got {v}")
         return v
-    
+
     def __eq__(self, other: object) -> bool:
         """Check equality based on name and type."""
         if not isinstance(other, Parameter):
             return False
         return self.name == other.name and self.param_type == other.param_type
-    
+
     def __hash__(self) -> int:
         """Generate hash for parameter."""
         return hash((self.name, self.param_type))
-    
+
     class Config:
         """Pydantic configuration."""
         json_schema_extra = {
@@ -64,11 +64,11 @@ class Parameter(BaseModel):
 
 class Tool(BaseModel):
     """Represents an executable tool."""
-    
+
     tool_id: str = Field(..., description="Unique tool identifier")
     name: str = Field(..., description="Human-readable tool name")
     description: str = Field(..., description="Tool description")
-    parameters: List[Parameter] = Field(
+    parameters: list[Parameter] = Field(
         default_factory=list,
         description="Tool parameters",
     )
@@ -88,11 +88,11 @@ class Tool(BaseModel):
         default=None,
         description="Permission scope required (e.g., 'messaging', 'smart_home')",
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="Tool tags for categorization",
     )
-    
+
     @field_validator("tool_id")
     @classmethod
     def validate_tool_id(cls, v: str) -> str:
@@ -100,7 +100,7 @@ class Tool(BaseModel):
         if not v or not v.replace("_", "").replace("-", "").replace(".", "").isalnum():
             raise ValueError("Tool ID must be alphanumeric with underscores, hyphens, or dots")
         return v
-    
+
     @field_validator("estimated_latency")
     @classmethod
     def validate_latency(cls, v: float) -> float:
@@ -108,42 +108,42 @@ class Tool(BaseModel):
         if v < 0:
             raise ValueError("Estimated latency must be non-negative")
         return v
-    
-    def get_required_parameters(self) -> List[Parameter]:
+
+    def get_required_parameters(self) -> list[Parameter]:
         """
         Get list of required parameters.
-        
+
         Returns:
             List of required parameters
         """
         return [p for p in self.parameters if p.required]
-    
-    def get_optional_parameters(self) -> List[Parameter]:
+
+    def get_optional_parameters(self) -> list[Parameter]:
         """
         Get list of optional parameters.
-        
+
         Returns:
             List of optional parameters
         """
         return [p for p in self.parameters if not p.required]
-    
-    def validate_parameters(self, provided: Dict[str, Any]) -> tuple[bool, List[str]]:
+
+    def validate_parameters(self, provided: dict[str, Any]) -> tuple[bool, list[str]]:
         """
         Validate provided parameters against tool definition.
-        
+
         Args:
             provided: Dictionary of provided parameter values
-            
+
         Returns:
             Tuple of (is_valid, list_of_errors)
         """
         errors = []
-        
+
         # Check required parameters
         for param in self.get_required_parameters():
             if param.name not in provided:
                 errors.append(f"Missing required parameter: {param.name}")
-        
+
         # Check parameter types (basic validation)
         for name, value in provided.items():
             param = next((p for p in self.parameters if p.name == name), None)
@@ -155,19 +155,19 @@ class Tool(BaseModel):
                 errors.append(f"Parameter {name} must be str, got {type(value).__name__}")
             elif param.param_type == "bool" and not isinstance(value, bool):
                 errors.append(f"Parameter {name} must be bool, got {type(value).__name__}")
-        
+
         return len(errors) == 0, errors
-    
+
     def __eq__(self, other: object) -> bool:
         """Check equality based on tool ID."""
         if not isinstance(other, Tool):
             return False
         return self.tool_id == other.tool_id
-    
+
     def __hash__(self) -> int:
         """Generate hash for tool."""
         return hash(self.tool_id)
-    
+
     class Config:
         """Pydantic configuration."""
         json_schema_extra = {
@@ -193,10 +193,10 @@ class Tool(BaseModel):
 
 class Action(BaseModel):
     """Represents an action to be executed."""
-    
+
     action_id: str = Field(..., description="Unique action identifier")
     tool_id: str = Field(..., description="ID of tool to execute")
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict,
         description="Action parameters",
     )
@@ -216,7 +216,7 @@ class Action(BaseModel):
         default=None,
         description="Message to show for confirmation",
     )
-    
+
     @field_validator("action_id")
     @classmethod
     def validate_action_id(cls, v: str) -> str:
@@ -224,7 +224,7 @@ class Action(BaseModel):
         if not v:
             raise ValueError("Action ID cannot be empty")
         return v
-    
+
     @field_validator("tool_id")
     @classmethod
     def validate_tool_id(cls, v: str) -> str:
@@ -232,7 +232,7 @@ class Action(BaseModel):
         if not v:
             raise ValueError("Tool ID cannot be empty")
         return v
-    
+
     @field_validator("estimated_duration")
     @classmethod
     def validate_duration(cls, v: float) -> float:
@@ -240,17 +240,17 @@ class Action(BaseModel):
         if v < 0:
             raise ValueError("Estimated duration must be non-negative")
         return v
-    
+
     def __eq__(self, other: object) -> bool:
         """Check equality based on action ID."""
         if not isinstance(other, Action):
             return False
         return self.action_id == other.action_id
-    
+
     def __hash__(self) -> int:
         """Generate hash for action."""
         return hash(self.action_id)
-    
+
     class Config:
         """Pydantic configuration."""
         json_schema_extra = {

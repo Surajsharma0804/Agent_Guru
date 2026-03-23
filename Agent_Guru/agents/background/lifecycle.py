@@ -15,8 +15,9 @@ Validates: Requirement 12.4
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Coroutine
 from enum import Enum
-from typing import Callable, Coroutine, Dict, List, Optional, Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -52,14 +53,14 @@ class LifecycleEvent(Enum):
 
 
 # Maps raw platform event strings to normalised LifecycleEvent
-_ANDROID_EVENT_MAP: Dict[str, LifecycleEvent] = {
+_ANDROID_EVENT_MAP: dict[str, LifecycleEvent] = {
     "onPause": LifecycleEvent.PAUSE,
     "onResume": LifecycleEvent.RESUME,
     "onStop": LifecycleEvent.BACKGROUND,
     "onDestroy": LifecycleEvent.TERMINATE,
 }
 
-_IOS_EVENT_MAP: Dict[str, LifecycleEvent] = {
+_IOS_EVENT_MAP: dict[str, LifecycleEvent] = {
     "applicationDidEnterBackground": LifecycleEvent.BACKGROUND,
     "didEnterBackground": LifecycleEvent.BACKGROUND,
     "applicationWillEnterForeground": LifecycleEvent.FOREGROUND,
@@ -68,14 +69,14 @@ _IOS_EVENT_MAP: Dict[str, LifecycleEvent] = {
     "willTerminate": LifecycleEvent.TERMINATE,
 }
 
-_DESKTOP_EVENT_MAP: Dict[str, LifecycleEvent] = {
+_DESKTOP_EVENT_MAP: dict[str, LifecycleEvent] = {
     "minimize": LifecycleEvent.MINIMIZE,
     "restore": LifecycleEvent.RESTORE,
     "close": LifecycleEvent.CLOSE,
 }
 
 # Combined lookup across all platforms
-_ALL_EVENT_MAPS: Dict[Platform, Dict[str, LifecycleEvent]] = {
+_ALL_EVENT_MAPS: dict[Platform, dict[str, LifecycleEvent]] = {
     Platform.ANDROID: _ANDROID_EVENT_MAP,
     Platform.IOS: _IOS_EVENT_MAP,
     Platform.DESKTOP: _DESKTOP_EVENT_MAP,
@@ -115,8 +116,8 @@ class PlatformLifecycleHandler:
             platform: The platform this handler is running on.
         """
         self.platform = platform
-        self._handlers: List[LifecycleHandler] = []
-        self._event_history: List[LifecycleEvent] = []
+        self._handlers: list[LifecycleHandler] = []
+        self._event_history: list[LifecycleEvent] = []
 
     # ------------------------------------------------------------------
     # Handler registration
@@ -215,7 +216,7 @@ class PlatformLifecycleHandler:
     # ------------------------------------------------------------------
 
     @property
-    def event_history(self) -> List[LifecycleEvent]:
+    def event_history(self) -> list[LifecycleEvent]:
         """Ordered list of all lifecycle events received."""
         return list(self._event_history)
 

@@ -11,7 +11,7 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import aiohttp
 
@@ -25,11 +25,11 @@ class PerformanceMetrics:
     operation_type: str
     execution_time_ms: float
     success: bool
-    resource_usage: Dict[str, float] = field(default_factory=dict)
+    resource_usage: dict[str, float] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "operation_type": self.operation_type,
             "execution_time_ms": self.execution_time_ms,
@@ -48,10 +48,10 @@ class ErrorStatistics:
     error_count: int
     operation_type: str
     time_window_minutes: int = 60
-    sample_messages: List[str] = field(default_factory=list)
+    sample_messages: list[str] = field(default_factory=list)
     timestamp: datetime = field(default_factory=datetime.now)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "error_type": self.error_type,
             "error_count": self.error_count,
@@ -71,7 +71,7 @@ class ImprovementSuggestion:
     description: str
     priority: str  # "high", "medium", "low"
     estimated_impact: float  # 0.0 - 1.0
-    implementation_hints: List[str] = field(default_factory=list)
+    implementation_hints: list[str] = field(default_factory=list)
 
 
 class SelfImprovementClient:
@@ -113,7 +113,7 @@ class SelfImprovementClient:
         self._session: Optional[aiohttp.ClientSession] = None
         self._metrics_reported = 0
         self._errors_reported = 0
-        self._pending_metrics: List[PerformanceMetrics] = []
+        self._pending_metrics: list[PerformanceMetrics] = []
 
     async def connect(self) -> None:
         """Establish connection to Self-Improvement Engine."""
@@ -222,7 +222,7 @@ class SelfImprovementClient:
 
     async def get_improvement_suggestions(
         self, category: Optional[str] = None, limit: int = 10
-    ) -> List[ImprovementSuggestion]:
+    ) -> list[ImprovementSuggestion]:
         """
         Retrieve improvement suggestions from Self-Improvement Engine.
 
@@ -236,7 +236,7 @@ class SelfImprovementClient:
         if self._session is None:
             raise RuntimeError("Client not connected. Call connect() first.")
 
-        params: Dict[str, Any] = {"limit": limit}
+        params: dict[str, Any] = {"limit": limit}
         if category:
             params["category"] = category
 
@@ -262,7 +262,7 @@ class SelfImprovementClient:
             logger.error(f"Failed to get suggestions: {e}")
             return []
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Get client statistics."""
         return {
             "metrics_reported": self._metrics_reported,

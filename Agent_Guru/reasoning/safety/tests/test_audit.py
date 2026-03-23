@@ -2,9 +2,7 @@
 
 import json
 import time
-from pathlib import Path
 
-import pytest
 
 from Agent_Guru.reasoning.models.action import ActionSensitivity
 from Agent_Guru.reasoning.safety.audit import AuditLogEntry, AuditLogger
@@ -304,7 +302,7 @@ class TestAuditLogger:
             validation_time=0.001,
         )
 
-        end_time = time.time()
+        time.time()
 
         # Query first entry only
         entries = logger.query_logs(start_time=start_time, end_time=mid_time)

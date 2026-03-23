@@ -15,7 +15,6 @@ from __future__ import annotations
 import os
 import tempfile
 from dataclasses import dataclass
-from pathlib import Path
 from typing import List, Tuple
 
 import numpy as np
@@ -23,8 +22,6 @@ import pytest
 from hypothesis import given, settings, strategies as st
 
 from Agent_Guru.vision.training.preprocess import (
-    MIN_IMAGES_PER_IDENTITY,
-    PreprocessingReport,
     check_minimum_images,
     preprocess_dataset,
     validate_dataset_structure,

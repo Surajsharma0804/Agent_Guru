@@ -97,7 +97,7 @@ class KeyStore:
         ).fetchone()
 
         if row is None:
-            raise KeyNotFoundError(f"Key not found")
+            raise KeyNotFoundError("Key not found")
 
         try:
             aesgcm = AESGCM(self._encryption_key)
@@ -119,7 +119,7 @@ class KeyStore:
             "SELECT COUNT(*) FROM keys WHERE key_id = ?", (key_id,)
         )
         if cursor.fetchone()[0] == 0:
-            raise KeyNotFoundError(f"Key not found")
+            raise KeyNotFoundError("Key not found")
 
         with self._conn:
             self._conn.execute("DELETE FROM keys WHERE key_id = ?", (key_id,))

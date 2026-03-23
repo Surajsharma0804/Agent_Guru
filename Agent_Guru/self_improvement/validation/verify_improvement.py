@@ -17,7 +17,7 @@ Version: 1.0.0
 import json
 import sqlite3
 from pathlib import Path
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Any
 from dataclasses import dataclass
 from datetime import datetime
 import numpy as np
@@ -200,48 +200,47 @@ class ImprovementVerifier:
     
     def _load_tasks(self) -> List[Dict[str, Any]]:
         """Load tasks from database."""
-        conn = sqlite3.connect(self.database_path)
-        cursor = conn.cursor()
-        
-        # Load from metrics table
-        cursor.execute("""
-            SELECT task_id, task_sequence_number, task_type, strategy_id,
-                   success, execution_time_ms, reasoning_quality, timestamp
-            FROM metrics
-            ORDER BY task_sequence_number
-        """)
-        
-        tasks = []
-        for row in cursor.fetchall():
-            task_id = row[0]
-            task_number = row[1]
-            
-            # Get failure type if task failed
-            failure_type = None
-            if not row[4]:  # if not success
-                cursor.execute("""
-                    SELECT failure_type
-                    FROM failures
-                    WHERE task_id = ?
-                    LIMIT 1
-                """, (task_id,))
-                failure_row = cursor.fetchone()
-                if failure_row:
-                    failure_type = failure_row[0]
-            
-            tasks.append({
-                "task_id": task_id,
-                "task_number": task_number,
-                "task_type": row[2],
-                "strategy_id": row[3],
-                "success": bool(row[4]),
-                "execution_time_ms": row[5],
-                "reasoning_quality": row[6],
-                "failure_type": failure_type,
-                "timestamp": row[7]
-            })
-        
-        conn.close()
+        with sqlite3.connect(self.database_path) as conn:
+            cursor = conn.cursor()
+
+            # Load from metrics table
+            cursor.execute("""
+                SELECT task_id, task_sequence_number, task_type, strategy_id,
+                       success, execution_time_ms, reasoning_quality, timestamp
+                FROM metrics
+                ORDER BY task_sequence_number
+            """)
+
+            tasks = []
+            for row in cursor.fetchall():
+                task_id = row[0]
+                task_number = row[1]
+
+                # Get failure type if task failed
+                failure_type = None
+                if not row[4]:  # if not success
+                    cursor.execute("""
+                        SELECT failure_type
+                        FROM failures
+                        WHERE task_id = ?
+                        LIMIT 1
+                    """, (task_id,))
+                    failure_row = cursor.fetchone()
+                    if failure_row:
+                        failure_type = failure_row[0]
+
+                tasks.append({
+                    "task_id": task_id,
+                    "task_number": task_number,
+                    "task_type": row[2],
+                    "strategy_id": row[3],
+                    "success": bool(row[4]),
+                    "execution_time_ms": row[5],
+                    "reasoning_quality": row[6],
+                    "failure_type": failure_type,
+                    "timestamp": row[7]
+                })
+
         return tasks
     
     def _filter_tasks_by_window(

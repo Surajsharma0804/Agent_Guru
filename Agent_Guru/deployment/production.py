@@ -17,10 +17,9 @@ Usage:
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 import structlog
 
@@ -39,7 +38,7 @@ class DeploymentConfig:
     docs_url: str = "https://docs.agentguru.ai"
     sentry_dsn: Optional[str] = None
     analytics_enabled: bool = False
-    platforms: List[str] = field(
+    platforms: list[str] = field(
         default_factory=lambda: ["windows", "macos", "linux", "android", "ios"]
     )
 
@@ -58,9 +57,9 @@ class DeploymentReport:
     """Full deployment report."""
 
     version: str
-    preflight_results: List[PreflightResult] = field(default_factory=list)
-    deployed_platforms: List[str] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
+    preflight_results: list[PreflightResult] = field(default_factory=list)
+    deployed_platforms: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
     @property
     def all_preflight_passed(self) -> bool:
@@ -108,7 +107,6 @@ class ProductionDeployment:
         for check in checks:
             result = check()
             self._report.preflight_results.append(result)
-            status = "✅" if result.passed else "❌"
             logger.info("preflight_check",
                         check=result.check_name,
                         passed=result.passed,

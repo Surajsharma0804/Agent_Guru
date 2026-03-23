@@ -6,13 +6,11 @@ Tests run 100+ iterations with randomly generated test data.
 """
 
 import pytest
-import sys
 from hypothesis import given, strategies as st, assume, settings, HealthCheck
 from unittest.mock import Mock, patch
 from Agent_Guru.platform.linux.integration import (
     LinuxIntegration,
     CommandResult,
-    ProcessInfo,
     ServiceStatus,
     SystemInfo
 )
@@ -141,7 +139,6 @@ class TestProcessManagementProperties:
         For any process termination attempt, the operation should return a boolean
         indicating success or raise an appropriate exception.
         """
-        import psutil
         
         with patch('psutil.Process') as mock_process_class:
             mock_process = Mock()
@@ -167,7 +164,6 @@ class TestProcessManagementProperties:
         For any PID and force flag, termination should use SIGKILL if force=True,
         SIGTERM if force=False.
         """
-        import psutil
         
         with patch('psutil.Process') as mock_process_class:
             mock_process = Mock()

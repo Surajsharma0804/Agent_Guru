@@ -265,7 +265,7 @@ class AutoCommitManager:
 
             # Check if we should force push
             if len(self._pending_commits) >= self.config.max_pending_commits:
-                logger.info(f"Max pending commits reached, forcing push")
+                logger.info("Max pending commits reached, forcing push")
                 await self._process_pending_commits()
 
             return GitOperationResult(

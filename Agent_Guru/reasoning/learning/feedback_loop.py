@@ -25,7 +25,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import structlog
 
@@ -75,7 +75,7 @@ class UserFeedback:
     confidence: float
     correction: Optional[str] = None
     error_description: Optional[str] = None
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate fields after construction."""
@@ -111,8 +111,8 @@ class FailurePattern:
     pattern_id: str
     intent: str
     failure_count: int
-    example_inputs: List[str]
-    common_corrections: List[str]
+    example_inputs: list[str]
+    common_corrections: list[str]
     first_seen: datetime
     last_seen: datetime
     severity: str  # "low", "medium", "high"
@@ -135,7 +135,7 @@ class FeedbackTrend:
     negative_count: int
     correction_count: int
     retry_count: int
-    top_failing_intents: List[Tuple[str, int]]  # (intent, failure_count)
+    top_failing_intents: list[tuple[str, int]]  # (intent, failure_count)
 
     @property
     def satisfaction_rate(self) -> float:
@@ -162,7 +162,7 @@ class ImprovementItem:
     impact_score: float    # Combined priority score in [0, 1]
     description: str
     suggested_action: str
-    example_failures: List[str]
+    example_failures: list[str]
 
 
 # ---------------------------------------------------------------------------
@@ -367,7 +367,7 @@ class FeedbackCollector:
         )
         return feedback
 
-    def get_buffered_feedback(self) -> List[UserFeedback]:
+    def get_buffered_feedback(self) -> list[UserFeedback]:
         """Return a snapshot of all buffered feedback items."""
         return list(self._feedback_buffer)
 
@@ -407,14 +407,14 @@ class FeedbackAnalyzer:
         """Add feedback to the analysis history. O(1) amortized."""
         self._feedback_history.append(feedback)
 
-    def add_batch(self, feedback_list: List[UserFeedback]) -> None:
+    def add_batch(self, feedback_list: list[UserFeedback]) -> None:
         """Add multiple feedback items. O(k) where k = len(feedback_list)."""
         for fb in feedback_list:
             self._feedback_history.append(fb)
 
     def detect_failure_patterns(
         self, min_occurrences: int = 3
-    ) -> List[FailurePattern]:
+    ) -> list[FailurePattern]:
         """
         Detect recurring failure patterns from negative feedback.
 
@@ -426,12 +426,12 @@ class FeedbackAnalyzer:
         Returns:
             List of failure patterns sorted by failure count descending
         """
-        intent_failures: Dict[str, List[UserFeedback]] = collections.defaultdict(list)
+        intent_failures: dict[str, list[UserFeedback]] = collections.defaultdict(list)
         for fb in self._feedback_history:
             if fb.is_negative:
                 intent_failures[fb.intent].append(fb)
 
-        patterns: List[FailurePattern] = []
+        patterns: list[FailurePattern] = []
         for intent, failures in intent_failures.items():
             if len(failures) < min_occurrences:
                 continue
@@ -513,7 +513,7 @@ class FeedbackAnalyzer:
         """Get satisfaction rate over the last N days."""
         return self.compute_trend(window_days).satisfaction_rate
 
-    def get_top_failing_intents(self, top_n: int = 5) -> List[Tuple[str, int]]:
+    def get_top_failing_intents(self, top_n: int = 5) -> list[tuple[str, int]]:
         """Get the most frequently failing intents across all history."""
         intent_failures: collections.Counter[str] = collections.Counter(
             fb.intent for fb in self._feedback_history if fb.is_negative
@@ -540,9 +540,9 @@ class ImprovementPrioritizer:
 
     def prioritize(
         self,
-        patterns: List[FailurePattern],
+        patterns: list[FailurePattern],
         total_feedback: int,
-    ) -> List[ImprovementItem]:
+    ) -> list[ImprovementItem]:
         """
         Generate prioritized improvement items from failure patterns.
 
@@ -559,7 +559,7 @@ class ImprovementPrioritizer:
         max_failures = max(p.failure_count for p in patterns)
         now = _utcnow()
 
-        scored: List[Tuple[float, FailurePattern, str]] = []
+        scored: list[tuple[float, FailurePattern, str]] = []
         for pattern in patterns:
             freq_score = pattern.failure_count / max(max_failures, 1)
             impact_score = min(1.0, pattern.failure_count / max(total_feedback, 1))
@@ -746,7 +746,7 @@ class FeedbackLoop:
         window_days: int = 7,
         min_pattern_occurrences: int = 2,
         top_n: int = 5,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Generate a comprehensive feedback analysis report.
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -12,14 +12,14 @@ class CRDTEntry:
     value: Any
     device_id: str
     timestamp: float
-    vector_clock: Dict[str, int] = field(default_factory=dict)
+    vector_clock: dict[str, int] = field(default_factory=dict)
 
 
 class LWWRegister:
     """Last-Write-Wins Register CRDT."""
 
     def __init__(self) -> None:
-        self._entries: Dict[str, CRDTEntry] = {}
+        self._entries: dict[str, CRDTEntry] = {}
 
     def set(self, entry: CRDTEntry) -> None:
         existing = self._entries.get(entry.key)
@@ -44,11 +44,11 @@ class LWWRegister:
                 merged._entries[key] = a if a.timestamp >= b.timestamp else b
         return merged
 
-    def to_list(self) -> List[CRDTEntry]:
+    def to_list(self) -> list[CRDTEntry]:
         return list(self._entries.values())
 
 
-def resolve_conflict(local: List[CRDTEntry], remote: List[CRDTEntry]) -> List[CRDTEntry]:
+def resolve_conflict(local: list[CRDTEntry], remote: list[CRDTEntry]) -> list[CRDTEntry]:
     """Resolve conflicts using LWW CRDT."""
     reg_local = LWWRegister()
     reg_remote = LWWRegister()

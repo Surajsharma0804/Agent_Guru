@@ -3,7 +3,7 @@ Timer tool for setting and canceling timers.
 """
 
 import time
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -41,7 +41,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class SetTimerTool(Tool):
     """Tool for setting timers."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute timer setting.
 
         Args:
@@ -103,7 +103,7 @@ class SetTimerTool(Tool):
 class CancelTimerTool(Tool):
     """Tool for canceling timers."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute timer cancellation.
 
         Args:

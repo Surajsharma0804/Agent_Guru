@@ -6,7 +6,6 @@ import tempfile
 import os
 
 from Agent_Guru.speech.tts.voice_cloner import VoiceCloner, VoiceCloningError
-from Agent_Guru.speech.models import VoiceModel
 
 
 @pytest.fixture
@@ -511,7 +510,7 @@ def test_incremental_learning_convergence(voice_cloner, sample_audio):
             sample_rate=16000
         )
     
-    final_model = voice_cloner.get_voice_model("test_convergence")
+    voice_cloner.get_voice_model("test_convergence")
     final_profile = voice_cloner._voice_profiles["test_convergence"]
     final_features = final_profile.features
     
@@ -773,7 +772,7 @@ def test_voice_cloner_extreme_memory_stress_10000_features(voice_cloner):
         audio = audio.astype(np.float32)
         
         # Extract features
-        features = voice_cloner._extract_voice_features(audio, sample_rate)
+        voice_cloner._extract_voice_features(audio, sample_rate)
         
         if (i + 1) % 1000 == 0:
             print(f"  Processed {i + 1}/10,000 samples")

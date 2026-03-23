@@ -58,7 +58,7 @@ class TestPIIRedaction:
     def test_redact_phone_simple(self):
         """Test simple phone number redaction."""
         text = "Call me at 5551234567"
-        redacted = redact_pii(text)
+        redact_pii(text)
         # Simple 10-digit phone may not be caught without dashes
         # This is acceptable for privacy-preserving aggregation
 
@@ -466,7 +466,17 @@ class TestAuditLogging:
         )
 
         with patch("Agent_Guru.reasoning.knowledge.synthesizer.logger") as mock_logger:
-            synthesizer.synthesize_answer(query, "user_1")
+            # Patch time.perf_counter to simulate >1500ms elapsed time
+            import time as _time
+            _call_count = [0]
+            _time.perf_counter
+            def _mock_perf_counter():
+                _call_count[0] += 1
+                if _call_count[0] == 1:
+                    return 0.0  # start_time
+                return 2.0  # end_time → 2000ms elapsed
+            with patch("Agent_Guru.reasoning.knowledge.synthesizer.time.perf_counter", side_effect=_mock_perf_counter):
+                synthesizer.synthesize_answer(query, "user_1")
 
             # Verify latency warning was logged
             warning_calls = [call for call in mock_logger.warning.call_args_list]

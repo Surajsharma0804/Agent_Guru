@@ -41,7 +41,7 @@ def run_training_script(script_name: str, description: str) -> bool:
 
     try:
         # Run the training script
-        result = subprocess.run(
+        subprocess.run(
             [sys.executable, str(script_path)],
             check=True,
             cwd=Path(__file__).parent.parent.parent,  # Run from project root

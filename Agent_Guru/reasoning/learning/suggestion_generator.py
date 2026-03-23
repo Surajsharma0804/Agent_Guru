@@ -207,10 +207,9 @@ class SuggestionGenerator:
 
         # Check for activity-based suggestions
         if "activity" in context:
-            activity = context["activity"]
+            context["activity"]
             # Get commands associated with this activity
             # (This would require activity tracking, simplified for now)
-            pass
 
         return suggestions
 
@@ -347,7 +346,6 @@ class SuggestionGenerator:
         # This would update suggestion acceptance rates
         # and adjust future suggestion generation
         # (Implementation would require suggestion storage)
-        pass
 
     async def get_suggestion_stats(self, user_id: str) -> dict:
         """

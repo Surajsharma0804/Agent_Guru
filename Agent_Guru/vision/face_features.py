@@ -16,7 +16,7 @@ import logging
 import threading
 import time
 import warnings
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -150,7 +150,7 @@ class FaceFeatureExtractor:
     # Public API
     # ------------------------------------------------------------------
 
-    def detect_faces(self, image_data: bytes) -> List[FaceDetection]:
+    def detect_faces(self, image_data: bytes) -> list[FaceDetection]:
         """Detect faces in an image. Returns list of FaceDetection. NO auth logic.
 
         Raises:
@@ -192,7 +192,7 @@ class FaceFeatureExtractor:
             quality=quality,
         )
 
-    def detect_liveness(self, image_data: bytes) -> Tuple[bool, float]:
+    def detect_liveness(self, image_data: bytes) -> tuple[bool, float]:
         """Detect whether the face is live (anti-spoofing). Returns (is_live, score).
 
         Raises:
@@ -280,7 +280,7 @@ class FaceFeatureExtractor:
         event.set()  # Unblock any waiting callers.
         return app
 
-    def _run_detection(self, img: "np.ndarray") -> List[FaceDetection]:
+    def _run_detection(self, img: "np.ndarray") -> list[FaceDetection]:
         app = self._get_insightface_app()
         if app is not None:
             return self._insightface_detect(img, app)
@@ -294,12 +294,12 @@ class FaceFeatureExtractor:
             detections = [FaceDetection(bounding_box=bbox, detection_confidence=0.5)]
         return detections
 
-    def _insightface_detect(self, img: "np.ndarray", app: object) -> List[FaceDetection]:
+    def _insightface_detect(self, img: "np.ndarray", app: object) -> list[FaceDetection]:
         try:
             faces = app.get(img)  # type: ignore[union-attr]
         except Exception as exc:
             raise FaceExtractionError(f"InsightFace detection failed: {exc}") from exc
-        results: List[FaceDetection] = []
+        results: list[FaceDetection] = []
         for face in faces:
             box = face.bbox.astype(int)
             x, y, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
@@ -310,7 +310,7 @@ class FaceFeatureExtractor:
             results.append(FaceDetection(bounding_box=bbox, landmarks=lm, detection_confidence=conf))
         return results
 
-    def _opencv_detect(self, img: "np.ndarray") -> List[FaceDetection]:
+    def _opencv_detect(self, img: "np.ndarray") -> list[FaceDetection]:
         if not _CV2_AVAILABLE:
             h, w = img.shape[:2]
             bbox = BoundingBox(x=0, y=0, width=w, height=h, confidence=0.5)
@@ -320,7 +320,7 @@ class FaceFeatureExtractor:
             cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
         )
         faces = cascade.detectMultiScale(grey, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-        results: List[FaceDetection] = []
+        results: list[FaceDetection] = []
         for x, y, w, h in faces:
             bbox = BoundingBox(x=int(x), y=int(y), width=int(w), height=int(h), confidence=0.8)
             results.append(FaceDetection(bounding_box=bbox, detection_confidence=0.8))
@@ -328,7 +328,7 @@ class FaceFeatureExtractor:
 
     def _extract(
         self, img: "np.ndarray", image_data: bytes
-    ) -> Tuple[np.ndarray, BoundingBox, bool, float]:
+    ) -> tuple[np.ndarray, BoundingBox, bool, float]:
         app = self._get_insightface_app()
         if app is not None:
             return self._insightface_extract(img, app)
@@ -336,7 +336,7 @@ class FaceFeatureExtractor:
 
     def _insightface_extract(
         self, img: "np.ndarray", app: object
-    ) -> Tuple[np.ndarray, BoundingBox, bool, float]:
+    ) -> tuple[np.ndarray, BoundingBox, bool, float]:
         try:
             faces = app.get(img)  # type: ignore[union-attr]
         except Exception as exc:
@@ -362,7 +362,7 @@ class FaceFeatureExtractor:
 
     def _stub_extract(
         self, img: "np.ndarray", image_data: bytes
-    ) -> Tuple[np.ndarray, BoundingBox, bool, float]:
+    ) -> tuple[np.ndarray, BoundingBox, bool, float]:
         """Extract stub embedding when InsightFace is unavailable.
 
         In stub mode we cannot reliably detect faces, so we treat the whole
@@ -384,7 +384,7 @@ class FaceFeatureExtractor:
 
     def _liveness_check(
         self, img: "np.ndarray", detection: FaceDetection
-    ) -> Tuple[bool, float]:
+    ) -> tuple[bool, float]:
         """Texture-based liveness heuristic (anti-spoofing)."""
         if not _CV2_AVAILABLE:
             score = 0.7

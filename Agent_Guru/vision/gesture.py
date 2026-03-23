@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import time
 from collections import deque
-from typing import Any, Callable, Literal
+from collections.abc import Callable
+from typing import Any, Literal
 
 import numpy as np
 import structlog
@@ -259,7 +260,7 @@ class GestureRecognizer:
         # Real timing requires timestamps; here we use the window_ms / frame_interval
         # heuristic: assume 30 FPS → 33ms per frame
         ms_per_frame = 1000.0 / 30.0
-        required_frames = int(window_ms / ms_per_frame)
+        int(window_ms / ms_per_frame)
 
         consecutive = 0
         for result in reversed(gesture_history):

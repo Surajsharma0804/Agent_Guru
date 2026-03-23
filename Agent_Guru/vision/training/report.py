@@ -12,7 +12,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .evaluation import BenchmarkResult, TargetComparison
 from .failure_analysis import FailureAnalysis
@@ -54,12 +54,12 @@ class Report:
     timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     model_metadata: ModelMetadata = field(default_factory=ModelMetadata)
     training_summary: TrainingSummary = field(default_factory=TrainingSummary)
-    benchmark_results: List[BenchmarkResult] = field(default_factory=list)
-    target_comparison: Dict[str, TargetComparison] = field(default_factory=dict)
+    benchmark_results: list[BenchmarkResult] = field(default_factory=list)
+    target_comparison: dict[str, TargetComparison] = field(default_factory=dict)
     failure_analysis: Optional[FailureAnalysis] = None
-    stress_test_results: List[StressTestResult] = field(default_factory=list)
-    recommendations: List[str] = field(default_factory=list)
-    visualizations: Dict[str, Any] = field(default_factory=dict)
+    stress_test_results: list[StressTestResult] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
+    visualizations: dict[str, Any] = field(default_factory=dict)
     production_ready: bool = False
 
 
@@ -80,11 +80,11 @@ class ReportGenerator:
     def compile_results(
         self,
         training_result: Optional[Any] = None,
-        benchmark_results: Optional[List[BenchmarkResult]] = None,
+        benchmark_results: Optional[list[BenchmarkResult]] = None,
         failure_analysis: Optional[FailureAnalysis] = None,
-        stress_test_results: Optional[List[StressTestResult]] = None,
+        stress_test_results: Optional[list[StressTestResult]] = None,
         model_metadata: Optional[ModelMetadata] = None,
-        target_comparison: Optional[Dict[str, TargetComparison]] = None,
+        target_comparison: Optional[dict[str, TargetComparison]] = None,
         pipeline_name: str = "guruvision-pipeline",
     ) -> Report:
         """Compile all results into a Report.
@@ -139,7 +139,7 @@ class ReportGenerator:
         )
         return report
 
-    def generate_recommendations(self, report: Report) -> List[str]:
+    def generate_recommendations(self, report: Report) -> list[str]:
         """Generate recommendations based on report results.
 
         Args:
@@ -148,7 +148,7 @@ class ReportGenerator:
         Returns:
             List of recommendation strings.
         """
-        recommendations: List[str] = []
+        recommendations: list[str] = []
 
         if report.production_ready:
             recommendations.append(
@@ -187,7 +187,7 @@ class ReportGenerator:
 
         return recommendations
 
-    def generate_visualizations(self, report: Report) -> Dict[str, Any]:
+    def generate_visualizations(self, report: Report) -> dict[str, Any]:
         """Generate visualization figures for the report.
 
         Args:
@@ -196,7 +196,7 @@ class ReportGenerator:
         Returns:
             Dict mapping figure name to matplotlib Figure.
         """
-        figures: Dict[str, Any] = {}
+        figures: dict[str, Any] = {}
 
         try:
             import matplotlib.pyplot as plt  # type: ignore[import]
@@ -311,8 +311,8 @@ class ReportGenerator:
 
         try:
             from reportlab.lib.pagesizes import letter  # type: ignore[import]
-            from reportlab.platypus import SimpleDocTemplate, Paragraph  # type: ignore[import]
             from reportlab.lib.styles import getSampleStyleSheet  # type: ignore[import]
+            from reportlab.platypus import Paragraph, SimpleDocTemplate  # type: ignore[import]
 
             doc = SimpleDocTemplate(output_path, pagesize=letter)
             styles = getSampleStyleSheet()
@@ -344,7 +344,7 @@ class ReportGenerator:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _report_to_dict(report: Report) -> Dict[str, Any]:
+    def _report_to_dict(report: Report) -> dict[str, Any]:
         """Convert Report to a JSON-serializable dict."""
         import numpy as np
 

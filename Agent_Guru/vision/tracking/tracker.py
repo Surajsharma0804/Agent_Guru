@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -31,7 +31,7 @@ class TrackedFace:
     """
 
     track_id: int
-    bbox: Tuple[int, int, int, int]
+    bbox: tuple[int, int, int, int]
     identity: Optional[str] = None
     confidence: float = 1.0
     age: int = 0
@@ -56,7 +56,7 @@ class FaceTracker:
     def __init__(self, max_age: int = 30, algorithm: str = "iou") -> None:
         self.max_age = max_age
         self.algorithm = algorithm
-        self._tracks: Dict[int, TrackedFace] = {}
+        self._tracks: dict[int, TrackedFace] = {}
         self._next_id: int = 0
         self._lock = threading.Lock()
 
@@ -66,9 +66,9 @@ class FaceTracker:
 
     def update(
         self,
-        detections: List[object],
-        embeddings: Optional[List[np.ndarray]] = None,
-    ) -> List[TrackedFace]:
+        detections: list[object],
+        embeddings: Optional[list[np.ndarray]] = None,
+    ) -> list[TrackedFace]:
         """Update tracks with new detections.
 
         Args:
@@ -159,7 +159,7 @@ class FaceTracker:
             logger.debug("Track %d assigned identity '%s'", track_id, identity)
             return True
 
-    def get_active_tracks(self) -> List[TrackedFace]:
+    def get_active_tracks(self) -> list[TrackedFace]:
         """Return all tracks with age <= max_age (thread-safe snapshot)."""
         with self._lock:
             return self._active_tracks()
@@ -176,13 +176,13 @@ class FaceTracker:
     # Internal helpers (must be called with lock held)
     # ------------------------------------------------------------------
 
-    def _active_tracks(self) -> List[TrackedFace]:
+    def _active_tracks(self) -> list[TrackedFace]:
         return [t for t in self._tracks.values() if t.age <= self.max_age]
 
     @staticmethod
     def _compute_iou(
-        bbox1: Tuple[int, int, int, int],
-        bbox2: Tuple[int, int, int, int],
+        bbox1: tuple[int, int, int, int],
+        bbox2: tuple[int, int, int, int],
     ) -> float:
         """Intersection over Union for two (x, y, w, h) bounding boxes."""
         x1, y1, w1, h1 = bbox1
@@ -198,7 +198,7 @@ class FaceTracker:
         return float(intersection / union)
 
     @staticmethod
-    def _get_bbox(detection: object) -> Tuple[int, int, int, int]:
+    def _get_bbox(detection: object) -> tuple[int, int, int, int]:
         """Extract (x, y, w, h) from a detection object or tuple."""
         if hasattr(detection, "bbox"):
             return tuple(detection.bbox)  # type: ignore[return-value]

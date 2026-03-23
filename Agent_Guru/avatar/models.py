@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import time
 from enum import Enum
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 try:
-    from pydantic import BaseModel, Field, field_validator, model_validator
+    from pydantic import Field, field_validator
     _PYDANTIC_V2 = True
 except ImportError:
     # Fallback: use dataclasses if pydantic not installed
@@ -43,7 +43,7 @@ class PersonalityType(Enum):
 # Cowen & Keltner (2017) — 27 distinct emotion categories
 # ---------------------------------------------------------------------------
 
-EMOTION_CATEGORIES_27: List[str] = [
+EMOTION_CATEGORIES_27: list[str] = [
     "admiration",
     "adoration",
     "aesthetic_appreciation",
@@ -74,7 +74,7 @@ EMOTION_CATEGORIES_27: List[str] = [
 ]
 
 # Legacy 7-emotion set (Ekman) — kept for backward compatibility
-EMOTION_CATEGORIES_7: List[str] = [
+EMOTION_CATEGORIES_7: list[str] = [
     "happy",
     "sad",
     "angry",
@@ -85,10 +85,10 @@ EMOTION_CATEGORIES_7: List[str] = [
 ]
 
 # Full set used by the system (27 + neutral + legacy aliases)
-EMOTION_CATEGORIES: List[str] = EMOTION_CATEGORIES_27 + ["neutral", "happy"]
+EMOTION_CATEGORIES: list[str] = EMOTION_CATEGORIES_27 + ["neutral", "happy"]
 
 # Mapping from legacy 7-emotion labels to 27-emotion equivalents
-LEGACY_EMOTION_MAP: Dict[str, str] = {
+LEGACY_EMOTION_MAP: dict[str, str] = {
     "happy": "joy",
     "sad": "sadness",
     "angry": "anger",
@@ -101,7 +101,7 @@ LEGACY_EMOTION_MAP: Dict[str, str] = {
 # Valence/arousal coordinates for each emotion (Russell's circumplex model)
 # valence: -1.0 (negative) to +1.0 (positive)
 # arousal: -1.0 (calm) to +1.0 (excited)
-EMOTION_VALENCE_AROUSAL: Dict[str, Tuple[float, float]] = {
+EMOTION_VALENCE_AROUSAL: dict[str, tuple[float, float]] = {
     "admiration":             ( 0.7,  0.3),
     "adoration":              ( 0.9,  0.4),
     "aesthetic_appreciation": ( 0.6,  0.2),
@@ -135,7 +135,7 @@ EMOTION_VALENCE_AROUSAL: Dict[str, Tuple[float, float]] = {
 
 # FACS Action Units relevant to facial expression rendering
 # AU number → description
-FACS_ACTION_UNITS: Dict[int, str] = {
+FACS_ACTION_UNITS: dict[int, str] = {
     1:  "Inner Brow Raise",
     2:  "Outer Brow Raise",
     4:  "Brow Lowerer",
@@ -165,7 +165,7 @@ FACS_ACTION_UNITS: Dict[int, str] = {
 }
 
 # Emotion → FACS AU activations (AU_number → intensity 0.0-1.0)
-EMOTION_FACS_MAP: Dict[str, Dict[int, float]] = {
+EMOTION_FACS_MAP: dict[str, dict[int, float]] = {
     "joy":          {6: 0.8, 12: 0.9, 25: 0.3},
     "happy":        {6: 0.8, 12: 0.9, 25: 0.3},
     "sadness":      {1: 0.7, 4: 0.5, 15: 0.6, 17: 0.4},
@@ -197,7 +197,7 @@ EMOTION_FACS_MAP: Dict[str, Dict[int, float]] = {
 }
 
 # MediaPipe Face Mesh landmark indices for mouth region (468-point model)
-MOUTH_LANDMARK_INDICES: List[int] = [
+MOUTH_LANDMARK_INDICES: list[int] = [
     # Upper lip outer
     61, 185, 40, 39, 37, 0, 267, 269, 270, 409,
     # Lower lip outer
@@ -209,7 +209,7 @@ MOUTH_LANDMARK_INDICES: List[int] = [
 ]
 
 # Phoneme → viseme index mapping (Preston Blair's 10-viseme set extended to 15)
-PHONEME_VISEME_MAP: Dict[str, int] = {
+PHONEME_VISEME_MAP: dict[str, int] = {
     # Silence
     "":    0,
     "sil": 0,
@@ -244,7 +244,7 @@ PHONEME_VISEME_MAP: Dict[str, int] = {
 }
 
 # Viseme → mouth_open_ratio and lip_spread (0.0-1.0)
-VISEME_MOUTH_PARAMS: Dict[int, Tuple[float, float]] = {
+VISEME_MOUTH_PARAMS: dict[int, tuple[float, float]] = {
     0:  (0.00, 0.00),  # silence
     1:  (0.00, 0.10),  # P/B/M
     2:  (0.05, 0.20),  # F/V
@@ -268,7 +268,8 @@ VISEME_MOUTH_PARAMS: Dict[int, Tuple[float, float]] = {
 # ---------------------------------------------------------------------------
 
 try:
-    from pydantic import BaseModel as _PydanticBase, Field, field_validator, model_validator
+    from pydantic import BaseModel as _PydanticBase
+    from pydantic import Field, field_validator
 
     class EmotionState(_PydanticBase):
         """Detected or expressed emotion at a point in time.
@@ -288,7 +289,7 @@ try:
         timestamp: float = Field(default_factory=time.time)
         valence: float = Field(default=0.0, ge=-1.0, le=1.0)
         arousal: float = Field(default=0.0, ge=-1.0, le=1.0)
-        action_units: Dict[int, float] = Field(default_factory=dict)
+        action_units: dict[int, float] = Field(default_factory=dict)
 
         @field_validator("emotion")
         @classmethod
@@ -301,7 +302,7 @@ try:
 
         @field_validator("action_units")
         @classmethod
-        def validate_aus(cls, v: Dict[int, float]) -> Dict[int, float]:
+        def validate_aus(cls, v: dict[int, float]) -> dict[int, float]:
             for au, intensity in v.items():
                 if not 0.0 <= intensity <= 1.0:
                     raise ValueError(f"AU {au} intensity {intensity} out of [0,1]")
@@ -344,7 +345,7 @@ try:
             viseme_index: Current viseme index (0-14).
             phoneme: Current phoneme string.
         """
-        landmarks: List[Tuple[float, float]] = Field(default_factory=list)
+        landmarks: list[tuple[float, float]] = Field(default_factory=list)
         timestamp: float = Field(default_factory=time.time)
         audio_position: float = Field(default=0.0, ge=0.0)
         mouth_open_ratio: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -388,15 +389,15 @@ try:
         responsiveness: float = Field(default=0.5, ge=0.0, le=1.0)
         humor: float = Field(default=0.5, ge=0.0, le=1.0)
         empathy: float = Field(default=0.5, ge=0.0, le=1.0)
-        behavior_rules: List[Dict[str, Any]] = Field(default_factory=list)
+        behavior_rules: list[dict[str, Any]] = Field(default_factory=list)
 
         model_config = {"frozen": False}
 
-        def to_dict(self) -> Dict[str, Any]:
+        def to_dict(self) -> dict[str, Any]:
             return self.model_dump()
 
         @classmethod
-        def from_dict(cls, data: Dict[str, Any]) -> "PersonalityProfile":
+        def from_dict(cls, data: dict[str, Any]) -> "PersonalityProfile":
             return cls(**{k: v for k, v in data.items() if k in cls.model_fields})
 
 
@@ -414,11 +415,11 @@ try:
         emotion: EmotionState = Field(default_factory=EmotionState)
         lip_sync: LipSyncState = Field(default_factory=LipSyncState)
         personality: PersonalityProfile = Field(default_factory=PersonalityProfile)
-        rendering_params: Dict[str, Any] = Field(default_factory=dict)
+        rendering_params: dict[str, Any] = Field(default_factory=dict)
 
         model_config = {"frozen": False}
 
-        def to_dict(self) -> Dict[str, Any]:
+        def to_dict(self) -> dict[str, Any]:
             """Serialize state to a plain dictionary."""
             return {
                 "personality_type": self.personality_type.value,
@@ -437,7 +438,7 @@ try:
             }
 
         @classmethod
-        def from_dict(cls, data: Dict[str, Any]) -> "AvatarState":
+        def from_dict(cls, data: dict[str, Any]) -> "AvatarState":
             """Deserialize and validate state from a dictionary."""
             personality_type = PersonalityType(data["personality_type"])
             em = data["emotion"]
@@ -472,7 +473,7 @@ except ImportError:
         timestamp: float = dataclasses.field(default_factory=time.time)
         valence: float = 0.0
         arousal: float = 0.0
-        action_units: Dict[int, float] = dataclasses.field(default_factory=dict)
+        action_units: dict[int, float] = dataclasses.field(default_factory=dict)
 
         def __post_init__(self) -> None:
             if self.emotion not in EMOTION_CATEGORIES:
@@ -494,12 +495,12 @@ except ImportError:
             return cls(emotion=emotion, confidence=confidence, valence=valence,
                        arousal=arousal, action_units=aus)
 
-        def model_dump(self) -> Dict[str, Any]:
+        def model_dump(self) -> dict[str, Any]:
             return dataclasses.asdict(self)
 
     @dataclasses.dataclass
     class LipSyncState:  # type: ignore[no-redef]
-        landmarks: List[Tuple[float, float]] = dataclasses.field(default_factory=list)
+        landmarks: list[tuple[float, float]] = dataclasses.field(default_factory=list)
         timestamp: float = dataclasses.field(default_factory=time.time)
         audio_position: float = 0.0
         mouth_open_ratio: float = 0.0
@@ -520,7 +521,7 @@ except ImportError:
         responsiveness: float = 0.5
         humor: float = 0.5
         empathy: float = 0.5
-        behavior_rules: List[Dict[str, Any]] = dataclasses.field(default_factory=list)
+        behavior_rules: list[dict[str, Any]] = dataclasses.field(default_factory=list)
 
         def __post_init__(self) -> None:
             for trait in ("friendliness", "formality", "expressiveness",
@@ -529,11 +530,11 @@ except ImportError:
                 if not 0.0 <= val <= 1.0:
                     raise ValueError(f"Trait '{trait}' value {val} out of [0,1]")
 
-        def to_dict(self) -> Dict[str, Any]:
+        def to_dict(self) -> dict[str, Any]:
             return dataclasses.asdict(self)
 
         @classmethod
-        def from_dict(cls, data: Dict[str, Any]) -> "PersonalityProfile":
+        def from_dict(cls, data: dict[str, Any]) -> "PersonalityProfile":
             fields = {f.name for f in dataclasses.fields(cls)}
             return cls(**{k: v for k, v in data.items() if k in fields})
 
@@ -543,9 +544,9 @@ except ImportError:
         emotion: EmotionState = dataclasses.field(default_factory=EmotionState)
         lip_sync: LipSyncState = dataclasses.field(default_factory=LipSyncState)
         personality: PersonalityProfile = dataclasses.field(default_factory=PersonalityProfile)
-        rendering_params: Dict[str, Any] = dataclasses.field(default_factory=dict)
+        rendering_params: dict[str, Any] = dataclasses.field(default_factory=dict)
 
-        def to_dict(self) -> Dict[str, Any]:
+        def to_dict(self) -> dict[str, Any]:
             return {
                 "personality_type": self.personality_type.value,
                 "emotion": self.emotion.model_dump(),
@@ -555,7 +556,7 @@ except ImportError:
             }
 
         @classmethod
-        def from_dict(cls, data: Dict[str, Any]) -> "AvatarState":
+        def from_dict(cls, data: dict[str, Any]) -> "AvatarState":
             personality_type = PersonalityType(data["personality_type"])
             emotion = EmotionState(**data["emotion"])
             ls = data["lip_sync"]
@@ -582,7 +583,7 @@ except ImportError:
 # Helper functions
 # ---------------------------------------------------------------------------
 
-def _build_neutral_landmarks() -> List[Tuple[float, float]]:
+def _build_neutral_landmarks() -> list[tuple[float, float]]:
     """Build normalized neutral mouth landmark positions."""
     # 40 landmarks for the full mouth region (upper + lower lip, inner + outer)
     landmarks = []

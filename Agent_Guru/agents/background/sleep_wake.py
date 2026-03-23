@@ -17,10 +17,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Callable, Coroutine, Dict, List, Optional, Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +95,7 @@ class SleepWakeCoordinator:
             raise ValueError("auto_sleep_seconds must be >= 0")
 
         self._auto_sleep_seconds = auto_sleep_seconds
-        self._components: Dict[str, ComponentPowerState] = {}
+        self._components: dict[str, ComponentPowerState] = {}
         self._current_mode: PowerMode = PowerMode.SLEEP
         self._callback: Optional[ModeChangeCallback] = None
         self._auto_sleep_task: Optional[asyncio.Task] = None  # type: ignore[type-arg]
@@ -218,7 +219,7 @@ class SleepWakeCoordinator:
             raise KeyError(f"Component '{name}' is not registered")
         return self._components[name].mode
 
-    def list_components(self) -> List[ComponentPowerState]:
+    def list_components(self) -> list[ComponentPowerState]:
         """Return power state for all registered components."""
         return list(self._components.values())
 

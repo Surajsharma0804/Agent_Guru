@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -43,7 +43,7 @@ logger = logging.getLogger("guruvision.avatar.renderer")
 # ---------------------------------------------------------------------------
 
 # BGR colour palettes for each personality
-_PERSONALITY_PALETTE: Dict[PersonalityType, Dict[str, Tuple[int, int, int]]] = {
+_PERSONALITY_PALETTE: dict[PersonalityType, dict[str, tuple[int, int, int]]] = {
     PersonalityType.GURU: {
         "background": (30, 30, 50),       # Dark navy
         "skin":       (180, 140, 110),     # Warm skin tone
@@ -63,7 +63,7 @@ _PERSONALITY_PALETTE: Dict[PersonalityType, Dict[str, Tuple[int, int, int]]] = {
 }
 
 # Emotion → background tint (BGR)
-_EMOTION_TINT: Dict[str, Tuple[int, int, int]] = {
+_EMOTION_TINT: dict[str, tuple[int, int, int]] = {
     "joy":          (0, 200, 200),
     "happy":        (0, 200, 200),
     "sadness":      (150, 80, 40),
@@ -108,10 +108,10 @@ class FACSExpressionRenderer:
     def apply_aus(
         self,
         frame: np.ndarray,
-        action_units: Dict[int, float],
-        face_center: Tuple[int, int],
+        action_units: dict[int, float],
+        face_center: tuple[int, int],
         face_radius: int,
-        palette: Dict[str, Tuple[int, int, int]],
+        palette: dict[str, tuple[int, int, int]],
     ) -> np.ndarray:
         """Apply FACS action units to a face frame.
 
@@ -190,7 +190,7 @@ class FACSExpressionRenderer:
 
         # --- Draw cheeks (AU6) ---
         if cheek_raise > 0.2:
-            cheek_alpha = int(cheek_raise * 40)
+            int(cheek_raise * 40)
             cheek_color = (80, 80, 200)
             cheek_r = int(r * 0.15)
             overlay = frame.copy()
@@ -263,12 +263,12 @@ class AvatarRenderer:
         self._frame_count = 0
         self._fps_start = time.perf_counter()
         self._measured_fps = 0.0
-        self._frame_times: List[float] = []
+        self._frame_times: list[float] = []
 
         # Transition state
         self._transition_start: Optional[float] = None
         self._prev_emotion: Optional[EmotionState] = None
-        self._prev_aus: Dict[int, float] = {}
+        self._prev_aus: dict[int, float] = {}
 
         # FACS renderer
         self._facs_renderer = FACSExpressionRenderer()
@@ -464,7 +464,7 @@ class AvatarRenderer:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _interpolate_aus(self, emotion: EmotionState) -> Dict[int, float]:
+    def _interpolate_aus(self, emotion: EmotionState) -> dict[int, float]:
         """Interpolate FACS AUs for smooth emotion transitions."""
         target_aus = {
             k: v * emotion.confidence

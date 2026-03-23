@@ -13,9 +13,9 @@ Date: 2026-03-14
 """
 
 import logging
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any, Optional
 
 from .models import EmotionType
 
@@ -69,8 +69,8 @@ class MemoryClient:
         self._system = memory_system
         self._max_buffer = max_buffer_size
         # Local ring-buffer for offline/degraded operation
-        self._emotion_buffer: List[Dict[str, Any]] = []
-        self._conversation_buffer: List[ConversationTurn] = []
+        self._emotion_buffer: list[dict[str, Any]] = []
+        self._conversation_buffer: list[ConversationTurn] = []
         logger.info(
             "MemoryClient initialized (system=%s)",
             "connected" if memory_system else "disabled",
@@ -82,7 +82,7 @@ class MemoryClient:
         emotion: EmotionType,
         timestamp: datetime,
         confidence: float = 1.0,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> bool:
         """
         Store an emotion state observation for a user.
@@ -97,7 +97,7 @@ class MemoryClient:
         Returns:
             True if stored successfully, False on error
         """
-        record: Dict[str, Any] = {
+        record: dict[str, Any] = {
             "user_id": user_id,
             "emotion": emotion.value if hasattr(emotion, "value") else str(emotion),
             "timestamp": timestamp.isoformat(),
@@ -202,7 +202,7 @@ class MemoryClient:
             logger.warning("Failed to store preference: %s", exc)
             return False
 
-    def get_recent_emotions(self, user_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_recent_emotions(self, user_id: str, limit: int = 10) -> list[dict[str, Any]]:
         """
         Get recent emotion records from local buffer for a user.
 
@@ -216,7 +216,7 @@ class MemoryClient:
         user_records = [r for r in self._emotion_buffer if r["user_id"] == user_id]
         return user_records[-limit:]
 
-    def get_recent_turns(self, user_id: str, limit: int = 10) -> List[ConversationTurn]:
+    def get_recent_turns(self, user_id: str, limit: int = 10) -> list[ConversationTurn]:
         """
         Get recent conversation turns from local buffer for a user.
 

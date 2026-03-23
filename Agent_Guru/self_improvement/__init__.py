@@ -52,34 +52,30 @@ __all__ = [
 ]
 
 # Import key classes for convenience
+from Agent_Guru.self_improvement.degradation_detector import (
+    DegradationAlert,
+    DegradationDetector,
+    DegradationMetric,
+    DegradationSeverity,
+)
+from Agent_Guru.self_improvement.edge_case_handler import (
+    ConfidenceMetrics,
+    EdgeCaseHandler,
+)
 from Agent_Guru.self_improvement.failure_analyzer import (
     FailureAnalyzer,
+    FailurePattern,
     FailureType,
     TaskExecution,
-    FailurePattern,
 )
-
 from Agent_Guru.self_improvement.git_integration import (
-    GitIntegration,
     AuthMethod,
     CommitData,
+    GitIntegration,
 )
-
-from Agent_Guru.self_improvement.degradation_detector import (
-    DegradationDetector,
-    DegradationSeverity,
-    DegradationMetric,
-    DegradationAlert,
-)
-
 from Agent_Guru.self_improvement.rollback_manager import (
-    RollbackManager,
-    ChangeType,
     ChangeRecord,
+    ChangeType,
+    RollbackManager,
     RollbackResult,
-)
-
-from Agent_Guru.self_improvement.edge_case_handler import (
-    EdgeCaseHandler,
-    ConfidenceMetrics,
 )

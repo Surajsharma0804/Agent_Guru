@@ -32,12 +32,12 @@ Date: 2026-02-24
 Version: 1.0.0
 """
 
+import logging
 import sys
 import time
-import logging
-from typing import Optional, List
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
 # Lazy imports to avoid cv2 issues
 _pyautogui = None
@@ -226,7 +226,7 @@ class TextInputController:
                 self._restore_clipboard()
             raise RuntimeError(f"Clipboard paste failed: {e}") from e
 
-    def type_special_key(self, key: str, modifiers: Optional[List[str]] = None) -> None:
+    def type_special_key(self, key: str, modifiers: Optional[list[str]] = None) -> None:
         """Type a special key or key combination.
 
         Time Complexity: O(1)
@@ -370,7 +370,7 @@ class TextInputController:
             else:
                 pyautogui.write(part + ' ', interval=interval)
 
-    def _map_modifiers(self, modifiers: List[str]) -> List[str]:
+    def _map_modifiers(self, modifiers: list[str]) -> list[str]:
         """Map platform-specific modifier keys.
 
         Time Complexity: O(n) where n is number of modifiers

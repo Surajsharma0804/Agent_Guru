@@ -281,11 +281,11 @@ class StabilityMonitor:
 
         # Get unique values in recent history
         unique_values = list(set(recent))
-        
+
         # If there are more than 3 unique values, it's likely a trend, not oscillation
         if len(unique_values) > 3:
             return False
-        
+
         # If only 1 unique value, no oscillation
         if len(unique_values) <= 1:
             return False
@@ -301,17 +301,17 @@ class StabilityMonitor:
         # 2. Values must return to previous states (not just changing)
         if transitions < self.oscillation_threshold:
             return False
-        
+
         # Check if values actually return to previous states (true oscillation)
         # Count how many times each unique value appears
         value_counts = {v: recent.count(v) for v in unique_values}
-        
+
         # For oscillation, values should appear multiple times (alternating)
         # If each value appears only once, it's a trend, not oscillation
         min_appearances = min(value_counts.values())
         if min_appearances < 2:
             return False
-        
+
         return True
 
     def apply_dampening(
@@ -485,7 +485,7 @@ class StabilityMonitor:
             )
 
         # Get unique components
-        components = list(set(m.component for m in metrics_list))
+        components = list({m.component for m in metrics_list})
 
         return {
             "components": components,

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import threading
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Optional
 
 import structlog
 
@@ -28,7 +28,7 @@ class ModelRegistry:
     """
 
     def __init__(self, max_models: int = 1000) -> None:
-        self._models: Dict[str, ModelMetadata] = {}
+        self._models: dict[str, ModelMetadata] = {}
         self._lock = threading.RLock()
         self._max_models = max_models
 
@@ -100,7 +100,7 @@ class ModelRegistry:
         with self._lock:
             return self._models.get(model_id)
 
-    def query_models(self, filter: Optional[ModelFilter] = None) -> List[ModelMetadata]:
+    def query_models(self, filter: Optional[ModelFilter] = None) -> list[ModelMetadata]:
         """Query models matching the given filter.
 
         Args:
@@ -158,7 +158,7 @@ class ModelRegistry:
         with self._lock:
             return len(self._models)
 
-    def list_ids(self) -> List[str]:
+    def list_ids(self) -> list[str]:
         """Return all registered model IDs."""
         with self._lock:
             return list(self._models.keys())

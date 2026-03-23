@@ -4,19 +4,18 @@ CrewAI benchmark implementation.
 Benchmarks CrewAI framework for comparison with Agent Guru.
 """
 
-from typing import Any
 import time
+from typing import Any
 
 from Agent_Guru.self_improvement.benchmarks.base_benchmark import (
     BaseBenchmark,
-    TestScenario,
     ScenarioType,
+    TestScenario,
 )
-
 
 # Check if CrewAI is installed
 try:
-    from crewai import Agent, Task, Crew
+    from crewai import Agent, Crew, Task
     CREWAI_AVAILABLE = True
 except ImportError:
     CREWAI_AVAILABLE = False
@@ -27,21 +26,21 @@ except ImportError:
 class CrewAIBenchmark(BaseBenchmark):
     """
     Benchmark for CrewAI framework.
-    
+
     Measures performance of CrewAI agents on standard test scenarios.
     Falls back to simulation mode if CrewAI is not installed.
     """
-    
+
     def __init__(self):
         """Initialize CrewAI benchmark."""
         super().__init__("CrewAI")
         self.simulation_mode = not CREWAI_AVAILABLE
-        
+
         if not self.simulation_mode:
             self._init_crewai()
         else:
             print("Running in simulation mode (CrewAI not installed)")
-    
+
     def _init_crewai(self) -> None:
         """Initialize CrewAI agents and crew."""
         try:
@@ -53,7 +52,7 @@ class CrewAIBenchmark(BaseBenchmark):
                 verbose=False,
                 allow_delegation=False,
             )
-            
+
             # Create crew with the agent
             self.crew = Crew(
                 agents=[self.agent],
@@ -63,65 +62,65 @@ class CrewAIBenchmark(BaseBenchmark):
         except Exception as e:
             print(f"Error initializing CrewAI: {e}")
             self.simulation_mode = True
-    
+
     def execute_scenario(self, scenario: TestScenario) -> Any:
         """
         Execute a test scenario using CrewAI.
-        
+
         Args:
             scenario: Test scenario to execute
-            
+
         Returns:
             Result of scenario execution
         """
         if self.simulation_mode:
             return self._simulate_execution(scenario)
-        
+
         try:
             # Extract question from input data
             question = scenario.input_data.get("question", "")
-            
+
             # Create task for this scenario
             task = Task(
                 description=question,
                 agent=self.agent,
                 expected_output="A clear and accurate answer",
             )
-            
+
             # Update crew with new task
             self.crew.tasks = [task]
-            
+
             # Track API call (CrewAI typically uses LLM)
             self.track_api_call(tokens=100)  # Estimate
-            
+
             # Execute task
             result = self.crew.kickoff()
-            
+
             return result
-            
+
         except Exception as e:
             print(f"Error executing CrewAI scenario: {e}")
             return None
-    
+
     def _simulate_execution(self, scenario: TestScenario) -> Any:
         """
         Simulate CrewAI execution when not installed.
-        
+
         Args:
             scenario: Test scenario to execute
-            
+
         Returns:
             Simulated result
         """
         # Simulate processing time
         time.sleep(0.05)  # 50ms
-        
+
         # Track simulated API call
         self.track_api_call(tokens=120)  # CrewAI typically uses more tokens
-        
+
         # Get question
         question = scenario.input_data.get("question", "").lower()
-        
+
         # Pattern-based responses for different scenario types
         if scenario.scenario_type == ScenarioType.SIMPLE:
             return self._simulate_simple_scenario(question)
@@ -133,9 +132,9 @@ class CrewAIBenchmark(BaseBenchmark):
             return self._simulate_error_scenario(question)
         elif scenario.scenario_type == ScenarioType.LEARNING:
             return self._simulate_learning_scenario(question)
-        
+
         return "I don't know"
-    
+
     def _simulate_simple_scenario(self, question: str) -> str:
         """Simulate simple scenario response."""
         if "2+2" in question or "2 + 2" in question:
@@ -153,7 +152,7 @@ class CrewAIBenchmark(BaseBenchmark):
         elif "concatenate" in question or "combine" in question:
             return "hello world"
         return "42"
-    
+
     def _simulate_complex_scenario(self, question: str) -> str:
         """Simulate complex scenario response."""
         if "fibonacci" in question:
@@ -167,7 +166,7 @@ class CrewAIBenchmark(BaseBenchmark):
         elif "word problem" in question:
             return "15 apples"
         return "The solution involves multiple steps"
-    
+
     def _simulate_tool_scenario(self, question: str) -> str:
         """Simulate tool usage scenario response."""
         if "read file" in question:
@@ -181,7 +180,7 @@ class CrewAIBenchmark(BaseBenchmark):
         elif "calculator" in question:
             return "Calculation result: 156"
         return "Tool executed successfully"
-    
+
     def _simulate_error_scenario(self, question: str) -> str:
         """Simulate error recovery scenario response."""
         if "divide by zero" in question:
@@ -195,7 +194,7 @@ class CrewAIBenchmark(BaseBenchmark):
         elif "not available" in question:
             return "Resource unavailable. Using cached data instead."
         return "Error handled gracefully"
-    
+
     def _simulate_learning_scenario(self, question: str) -> str:
         """Simulate learning scenario response."""
         # CrewAI doesn't have built-in learning like Agent Guru
@@ -208,7 +207,7 @@ class CrewAIBenchmark(BaseBenchmark):
 def create_crewai_benchmark() -> CrewAIBenchmark:
     """
     Create CrewAI benchmark instance.
-    
+
     Returns:
         CrewAIBenchmark instance
     """

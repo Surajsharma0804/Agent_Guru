@@ -39,12 +39,12 @@ logger = get_logger(__name__)
 # Use centralized error management instead of custom exception
 def create_parsing_error(message: str, raw_output: Optional[str] = None, retry_count: int = 0):
     """Create structured parsing error using ErrorManager.
-    
+
     Args:
         message: Error message
         raw_output: Raw LLM output that failed to parse
         retry_count: Number of retries attempted
-        
+
     Returns:
         StructuredError from ErrorManager
     """

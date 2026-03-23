@@ -14,7 +14,6 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple
 
 logger = logging.getLogger("guruvision.training.train")
 
@@ -72,6 +71,7 @@ def _build_arcface_loss(num_classes: int, embedding_dim: int, scale: float, marg
     ImportError so the caller can handle the no-torch case gracefully.
     """
     import math
+
     import torch
     import torch.nn as nn
     import torch.nn.functional as F  # noqa: N812
@@ -110,15 +110,16 @@ def _build_arcface_loss(num_classes: int, embedding_dim: int, scale: float, marg
 # Dataset
 # ---------------------------------------------------------------------------
 
-def _build_dataset(dataset_dir: str, val_split: float, seed: int) -> Tuple[object, object, int]:
+def _build_dataset(dataset_dir: str, val_split: float, seed: int) -> tuple[object, object, int]:
     """Build train/val datasets from an aligned dataset directory.
 
     Returns:
         (train_dataset, val_dataset, num_classes)
     """
+    from pathlib import Path as _Path
+
     import torch
     from torch.utils.data import Dataset, random_split
-    from pathlib import Path as _Path
 
     try:
         import cv2  # type: ignore[import]
@@ -133,7 +134,7 @@ def _build_dataset(dataset_dir: str, val_split: float, seed: int) -> Tuple[objec
         def __len__(self) -> int:
             return len(self.samples)
 
-        def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int]:
+        def __getitem__(self, idx: int) -> tuple[torch.Tensor, int]:
             path, label = self.samples[idx]
             if _has_cv2:
                 import cv2 as _cv2  # type: ignore[import]
@@ -174,7 +175,7 @@ def _build_dataset(dataset_dir: str, val_split: float, seed: int) -> Tuple[objec
 # Public API
 # ---------------------------------------------------------------------------
 
-def setup_arcface_training(config: TrainingConfig) -> Tuple[object, object, object, object]:
+def setup_arcface_training(config: TrainingConfig) -> tuple[object, object, object, object]:
     """Initialise ResNet-50 backbone, ArcFace head, optimiser, and device.
 
     Args:

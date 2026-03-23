@@ -24,8 +24,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
-
+from typing import Any, Optional
 
 # ---------------------------------------------------------------------------
 # Data models
@@ -56,7 +55,7 @@ class FeatureFlag:
     strategy: RolloutStrategy = RolloutStrategy.DISABLED
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def is_enabled_for(self, user_id: str) -> bool:
         """
@@ -122,7 +121,7 @@ class FeatureFlagManager:
     """
 
     def __init__(self) -> None:
-        self._flags: Dict[str, FeatureFlag] = {}
+        self._flags: dict[str, FeatureFlag] = {}
 
     def create_flag(
         self,
@@ -177,7 +176,7 @@ class FeatureFlagManager:
         flag = self._flags.get(name)
         if flag is None:
             return False
-    
+
 
         flag.enabled = percentage > 0.0
         flag.set_rollout(percentage)
@@ -191,11 +190,11 @@ class FeatureFlagManager:
         """Enable a feature flag for all users (100% rollout)."""
         return self.set_rollout(name, 100.0)
 
-    def list_flags(self) -> List[FeatureFlag]:
+    def list_flags(self) -> list[FeatureFlag]:
         """Return all registered flags."""
         return list(self._flags.values())
 
-    def get_enabled_flags(self, user_id: str) -> List[str]:
+    def get_enabled_flags(self, user_id: str) -> list[str]:
         """Return names of all flags enabled for a user."""
         return [
             name for name, flag in self._flags.items()
@@ -247,12 +246,12 @@ class Experiment:
     experiment_id: str
     name: str
     description: str
-    variants: List[ExperimentVariant]
+    variants: list[ExperimentVariant]
     started_at: datetime = field(default_factory=datetime.utcnow)
     ended_at: Optional[datetime] = None
     is_active: bool = True
     winner: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def get_variant_for_user(self, user_id: str) -> ExperimentVariant:
         """
@@ -299,7 +298,7 @@ class StatisticalAnalyzer:
         self,
         control: ExperimentMetrics,
         treatment: ExperimentMetrics,
-    ) -> Tuple[bool, float]:
+    ) -> tuple[bool, float]:
         """
         Test if treatment is statistically significantly different from control.
 
@@ -377,8 +376,8 @@ class ABTestManager:
     """
 
     def __init__(self) -> None:
-        self._experiments: Dict[str, Experiment] = {}
-        self._metrics: Dict[str, Dict[str, ExperimentMetrics]] = {}
+        self._experiments: dict[str, Experiment] = {}
+        self._metrics: dict[str, dict[str, ExperimentMetrics]] = {}
         self._analyzer = StatisticalAnalyzer()
 
     def create_experiment(
@@ -459,11 +458,11 @@ class ABTestManager:
         if metrics:
             metrics.errors += 1
 
-    def get_metrics(self, experiment_name: str) -> Dict[str, ExperimentMetrics]:
+    def get_metrics(self, experiment_name: str) -> dict[str, ExperimentMetrics]:
         """Get metrics for all variants of an experiment."""
         return dict(self._metrics.get(experiment_name, {}))
 
-    def analyze(self, experiment_name: str) -> Dict[str, Any]:
+    def analyze(self, experiment_name: str) -> dict[str, Any]:
         """
         Analyze experiment results for statistical significance.
 
@@ -533,10 +532,10 @@ class ABTestManager:
 
         return experiment.winner
 
-    def list_experiments(self) -> List[Experiment]:
+    def list_experiments(self) -> list[Experiment]:
         """Return all experiments."""
         return list(self._experiments.values())
 
-    def get_active_experiments(self) -> List[Experiment]:
+    def get_active_experiments(self) -> list[Experiment]:
         """Return only active experiments."""
         return [e for e in self._experiments.values() if e.is_active]

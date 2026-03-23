@@ -18,7 +18,7 @@ Version: 1.0.0
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Optional
 
 from Agent_Guru.llm.models import Message
 
@@ -36,14 +36,14 @@ class TokenCounter:
 
     def __init__(self) -> None:
         """Initialize token counter with lazy-loaded encoders."""
-        self._openai_encoders: Dict[str, object] = {}
+        self._openai_encoders: dict[str, object] = {}
         self._anthropic_client: Optional[object] = None
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def count_messages(self, messages: List[Message], model: str) -> int:
+    def count_messages(self, messages: list[Message], model: str) -> int:
         """
         Count tokens in a list of messages.
 
@@ -94,7 +94,7 @@ class TokenCounter:
     # OpenAI (tiktoken)
     # ------------------------------------------------------------------
 
-    def _count_openai_messages(self, messages: List[Message], model: str) -> int:
+    def _count_openai_messages(self, messages: list[Message], model: str) -> int:
         """Count tokens for OpenAI chat messages including format overhead."""
         encoding = self._get_openai_encoder(model)
 
@@ -139,7 +139,7 @@ class TokenCounter:
     # Anthropic
     # ------------------------------------------------------------------
 
-    def _count_anthropic_messages(self, messages: List[Message], model: str) -> int:
+    def _count_anthropic_messages(self, messages: list[Message], model: str) -> int:
         """Count tokens for Anthropic messages."""
         return sum(self._count_anthropic_text(m.content) for m in messages)
 
@@ -158,7 +158,7 @@ class TokenCounter:
     # Google (approximation)
     # ------------------------------------------------------------------
 
-    def _count_google_messages(self, messages: List[Message]) -> int:
+    def _count_google_messages(self, messages: list[Message]) -> int:
         """Count tokens for Google messages (approximation)."""
         return sum(self._count_google_text(m.content) for m in messages)
 
@@ -173,7 +173,7 @@ class TokenCounter:
     # Ollama (approximation)
     # ------------------------------------------------------------------
 
-    def _count_ollama_messages(self, messages: List[Message]) -> int:
+    def _count_ollama_messages(self, messages: list[Message]) -> int:
         """Count tokens for Ollama messages (approximation)."""
         return sum(self._count_ollama_text(m.content) for m in messages)
 
@@ -208,7 +208,7 @@ class TokenCounter:
 class _ApproxEncoder:
     """Fallback encoder that approximates token counts."""
 
-    def encode(self, text: str) -> List[int]:
+    def encode(self, text: str) -> list[int]:
         """Return approximate token list (1 token per ~4 chars)."""
         if not text:
             return []

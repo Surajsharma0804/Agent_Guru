@@ -44,15 +44,14 @@ Date: 2026-02-24
 Version: 1.0.0
 """
 
+import logging
 import os
+import subprocess
 import sys
 import time
-import logging
-import subprocess
-from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
-
+from typing import Any, Optional
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -100,7 +99,7 @@ class ApplicationInfo:
     name: str
     pid: int
     executable: str
-    windows: List[WindowInfo]
+    windows: list[WindowInfo]
 
 
 class ApplicationController:
@@ -157,7 +156,7 @@ class ApplicationController:
     def open_application(
         self,
         app_name: str,
-        args: Optional[List[str]] = None,
+        args: Optional[list[str]] = None,
         wait_for_launch: bool = True
     ) -> int:
         """Open an application by name.
@@ -208,7 +207,7 @@ class ApplicationController:
             raise
         except Exception as e:
             logger.error(f"Failed to launch {app_name}: {e}")
-            raise RuntimeError(f"Failed to launch application: {e}")
+            raise RuntimeError(f"Failed to launch application: {e}") from e
 
 
     def _resolve_application_path(self, app_name: str) -> str:
@@ -473,7 +472,7 @@ class ApplicationController:
             raise
         except Exception as e:
             logger.error(f"Failed to close {app_identifier}: {e}")
-            raise RuntimeError(f"Failed to close application: {e}")
+            raise RuntimeError(f"Failed to close application: {e}") from e
 
 
     def _find_process_by_name(self, app_name: str) -> Optional[int]:
@@ -534,7 +533,7 @@ class ApplicationController:
 
         except Exception as e:
             logger.error(f"Failed to minimize window {window_identifier}: {e}")
-            raise RuntimeError(f"Failed to minimize window: {e}")
+            raise RuntimeError(f"Failed to minimize window: {e}") from e
 
     def _minimize_window_windows(self, window_identifier: str) -> bool:
         """Minimize window on Windows.
@@ -546,8 +545,8 @@ class ApplicationController:
             True if successful
         """
         try:
-            import win32gui
             import win32con
+            import win32gui
 
             # Find window by title
             hwnd = win32gui.FindWindow(None, window_identifier)
@@ -709,13 +708,13 @@ class ApplicationController:
 
         except Exception as e:
             logger.error(f"Failed to maximize window {window_identifier}: {e}")
-            raise RuntimeError(f"Failed to maximize window: {e}")
+            raise RuntimeError(f"Failed to maximize window: {e}") from e
 
     def _maximize_window_windows(self, window_identifier: str) -> bool:
         """Maximize window on Windows."""
         try:
-            import win32gui
             import win32con
+            import win32gui
 
             hwnd = win32gui.FindWindow(None, window_identifier)
             if hwnd == 0:
@@ -820,13 +819,13 @@ class ApplicationController:
 
         except Exception as e:
             logger.error(f"Failed to restore window {window_identifier}: {e}")
-            raise RuntimeError(f"Failed to restore window: {e}")
+            raise RuntimeError(f"Failed to restore window: {e}") from e
 
     def _restore_window_windows(self, window_identifier: str) -> bool:
         """Restore window on Windows."""
         try:
-            import win32gui
             import win32con
+            import win32gui
 
             hwnd = win32gui.FindWindow(None, window_identifier)
             if hwnd == 0:
@@ -924,7 +923,7 @@ class ApplicationController:
 
         except Exception as e:
             logger.error(f"Failed to focus window {window_identifier}: {e}")
-            raise RuntimeError(f"Failed to focus window: {e}")
+            raise RuntimeError(f"Failed to focus window: {e}") from e
 
     def _focus_window_windows(self, window_identifier: str) -> bool:
         """Focus window on Windows."""
@@ -1046,9 +1045,9 @@ class ApplicationController:
 
         except Exception as e:
             logger.error(f"Failed to switch to {app_name}: {e}")
-            raise RuntimeError(f"Failed to switch to application: {e}")
+            raise RuntimeError(f"Failed to switch to application: {e}") from e
 
-    def list_windows(self) -> List[WindowInfo]:
+    def list_windows(self) -> list[WindowInfo]:
         """List all visible application windows.
 
         Time Complexity: O(n) where n is number of windows
@@ -1077,7 +1076,7 @@ class ApplicationController:
             logger.error(f"Failed to list windows: {e}")
             return []
 
-    def _list_windows_windows(self) -> List[WindowInfo]:
+    def _list_windows_windows(self) -> list[WindowInfo]:
         """List windows on Windows."""
         try:
             import win32gui
@@ -1122,7 +1121,7 @@ class ApplicationController:
             return []
 
 
-    def _list_windows_macos(self) -> List[WindowInfo]:
+    def _list_windows_macos(self) -> list[WindowInfo]:
         """List windows on macOS."""
         try:
             script = '''
@@ -1165,7 +1164,7 @@ class ApplicationController:
             logger.error(f"Failed to list windows: {e}")
             return []
 
-    def _list_windows_linux(self) -> List[WindowInfo]:
+    def _list_windows_linux(self) -> list[WindowInfo]:
         """List windows on Linux."""
         try:
             result = subprocess.run(
@@ -1235,7 +1234,7 @@ class ApplicationController:
             logger.error(f"Failed to get active window: {e}")
             return None
 
-    def list_running_applications(self) -> List[ApplicationInfo]:
+    def list_running_applications(self) -> list[ApplicationInfo]:
         """List all running applications.
 
         Time Complexity: O(n) where n is number of processes
@@ -1257,7 +1256,7 @@ class ApplicationController:
             windows = self.list_windows()
 
             # Group windows by PID
-            windows_by_pid: Dict[int, List[WindowInfo]] = {}
+            windows_by_pid: dict[int, list[WindowInfo]] = {}
             for window in windows:
                 if window.pid not in windows_by_pid:
                     windows_by_pid[window.pid] = []

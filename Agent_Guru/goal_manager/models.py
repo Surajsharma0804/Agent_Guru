@@ -4,11 +4,12 @@ Data models for Goal Manager.
 Defines core data structures using Pydantic for validation.
 """
 
+import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Optional
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-import uuid
 
 
 class GoalStatus(str, Enum):
@@ -47,7 +48,7 @@ class GoalType(str, Enum):
 class Goal(BaseModel):
     """
     A goal with hierarchical structure.
-    
+
     Attributes:
         id: Unique identifier (UUID)
         description: High-level goal description
@@ -67,7 +68,7 @@ class Goal(BaseModel):
         error_message: Error message if failed (None otherwise)
         retry_count: Number of retry attempts
     """
-    
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     description: str = Field(min_length=1)
     status: GoalStatus = Field(default=GoalStatus.PENDING)
@@ -79,17 +80,17 @@ class Goal(BaseModel):
     completed_at: Optional[datetime] = None
     deadline: Optional[datetime] = None
     parent_id: Optional[str] = None
-    sub_goal_ids: List[str] = Field(default_factory=list)
-    dependency_ids: List[str] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    sub_goal_ids: list[str] = Field(default_factory=list)
+    dependency_ids: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     error_message: Optional[str] = None
     retry_count: int = Field(default=0)
 
     @property
-    def dependencies(self) -> List[str]:
+    def dependencies(self) -> list[str]:
         """Alias for dependency_ids."""
         return self.dependency_ids
-    
+
     @field_validator('progress')
     @classmethod
     def validate_progress(cls, v: float) -> float:
@@ -112,7 +113,7 @@ class Goal(BaseModel):
                     f"completed_at ({self.completed_at}) must not be before started_at ({self.started_at})"
                 )
         return self
-    
+
     model_config = ConfigDict(use_enum_values=True)
 
 

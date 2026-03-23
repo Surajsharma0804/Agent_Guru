@@ -20,6 +20,12 @@ Date: 2025
 Version: 1.0.0
 """
 
+from Agent_Guru.platform.github.auto_commit import (
+    AutoCommitConfig,
+    AutoCommitManager,
+    PendingCommit,
+    TaskContext,
+)
 from Agent_Guru.platform.github.integrator import (
     GitAuthenticationError,
     GitConflictError,
@@ -27,12 +33,6 @@ from Agent_Guru.platform.github.integrator import (
     GitOperationResult,
     GitRemoteError,
     GitRepositoryStatus,
-)
-from Agent_Guru.platform.github.auto_commit import (
-    AutoCommitConfig,
-    AutoCommitManager,
-    PendingCommit,
-    TaskContext,
 )
 
 __all__ = [

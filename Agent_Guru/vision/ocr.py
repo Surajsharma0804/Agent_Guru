@@ -18,12 +18,13 @@ Requirements: 3.1–3.9
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import structlog
 
-from Agent_Guru.vision.vision_models import DocumentAnalysis, OCRResult, BoundingBox
+from Agent_Guru.vision.vision_models import BoundingBox, DocumentAnalysis, OCRResult
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 

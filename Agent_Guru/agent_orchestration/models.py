@@ -18,7 +18,7 @@ Design Decisions:
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator
@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field, field_validator
 
 class AgentStatus(str, Enum):
     """Agent lifecycle status.
-    
+
     Lifecycle flow:
     CREATED -> ACTIVE -> SPECIALIZING -> ACTIVE
                       -> MERGING -> MERGED
@@ -46,7 +46,7 @@ class AgentStatus(str, Enum):
 
 class TaskType(str, Enum):
     """Task type categories.
-    
+
     Note: These are NOT agent roles. Task types describe the nature of work,
     not the agent performing it. Agents dynamically specialize in task types
     based on performance patterns.
@@ -55,41 +55,41 @@ class TaskType(str, Enum):
     ANALYSIS = "analysis"
     RESEARCH = "research"
     INVESTIGATION = "investigation"
-    
+
     # Design and planning
     DESIGN = "design"
     ARCHITECTURE = "architecture"
     PLANNING = "planning"
-    
+
     # Implementation
     CODING = "coding"
     IMPLEMENTATION = "implementation"
     INTEGRATION = "integration"
-    
+
     # Quality assurance
     TESTING = "testing"
     REVIEW = "review"
     VERIFICATION = "verification"
-    
+
     # Documentation
     DOCUMENTATION = "documentation"
     EXPLANATION = "explanation"
-    
+
     # Optimization
     OPTIMIZATION = "optimization"
     REFACTORING = "refactoring"
-    
+
     # Debugging
     DEBUGGING = "debugging"
     TROUBLESHOOTING = "troubleshooting"
-    
+
     # Generic
     GENERIC = "generic"
 
 
 class PerformanceRecord(BaseModel):
     """Record of agent performance on a task.
-    
+
     Tracks success/failure, timing, and resource usage for performance analysis
     and specialization scoring.
     """
@@ -101,7 +101,7 @@ class PerformanceRecord(BaseModel):
         ge=0.0,
         description="Task completion time in milliseconds"
     )
-    resource_usage: Dict[str, float] = Field(
+    resource_usage: dict[str, float] = Field(
         default_factory=dict,
         description="Resource usage metrics (cpu_ms, memory_mb, api_calls)"
     )
@@ -113,7 +113,7 @@ class PerformanceRecord(BaseModel):
         None,
         description="Error message if task failed"
     )
-    
+
     class Config:
         """Pydantic configuration."""
         json_encoders = {
@@ -123,16 +123,16 @@ class PerformanceRecord(BaseModel):
 
 class Agent(BaseModel):
     """An agent with capabilities and performance history.
-    
+
     Agents are dynamically created entities that emerge from task patterns.
     They are NOT pre-defined roles like "researcher" or "coder".
-    
+
     Key Properties:
     - Unique identifier (UUID)
     - Dynamic capabilities that evolve with experience
     - Specializations based on task success patterns
     - Complete performance history for learning
-    
+
     Performance Characteristics:
     - Memory: ~1KB per agent (excluding history)
     - Creation: O(1)
@@ -146,15 +146,15 @@ class Agent(BaseModel):
         default=AgentStatus.CREATED,
         description="Current lifecycle status"
     )
-    capabilities: Dict[str, float] = Field(
+    capabilities: dict[str, float] = Field(
         default_factory=dict,
         description="Capability name -> proficiency (0.0-1.0)"
     )
-    specializations: Dict[str, float] = Field(
+    specializations: dict[str, float] = Field(
         default_factory=dict,
         description="Task type -> specialization score (0.0-1.0)"
     )
-    performance_history: List[PerformanceRecord] = Field(
+    performance_history: list[PerformanceRecord] = Field(
         default_factory=list,
         description="Historical performance records"
     )
@@ -176,14 +176,14 @@ class Agent(BaseModel):
         ge=0,
         description="Successfully completed tasks"
     )
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional metadata (creation reason, merge history, etc.)"
     )
-    
+
     @field_validator("capabilities", "specializations")
     @classmethod
-    def validate_scores(cls, v: Dict[str, float]) -> Dict[str, float]:
+    def validate_scores(cls, v: dict[str, float]) -> dict[str, float]:
         """Validate that all scores are in range [0.0, 1.0]."""
         for key, value in v.items():
             if not 0.0 <= value <= 1.0:
@@ -191,7 +191,7 @@ class Agent(BaseModel):
                     f"Score for '{key}' must be between 0.0 and 1.0, got {value}"
                 )
         return v
-    
+
     @field_validator("successful_tasks")
     @classmethod
     def validate_successful_tasks(cls, v: int, info) -> int:
@@ -203,14 +203,14 @@ class Agent(BaseModel):
                 f"successful_tasks ({v}) cannot exceed total_tasks ({total})"
             )
         return v
-    
+
     @property
     def success_rate(self) -> float:
         """Calculate overall success rate."""
         if self.total_tasks == 0:
             return 0.0
         return self.successful_tasks / self.total_tasks
-    
+
     class Config:
         """Pydantic configuration."""
         json_encoders = {
@@ -220,7 +220,7 @@ class Agent(BaseModel):
 
 class Task(BaseModel):
     """A task to be executed by an agent.
-    
+
     Tasks are units of work with requirements, dependencies, and success criteria.
     They can be decomposed into sub-tasks for parallel execution.
     """
@@ -237,11 +237,11 @@ class Task(BaseModel):
         ...,
         description="Type of task"
     )
-    requirements: Dict[str, Any] = Field(
+    requirements: dict[str, Any] = Field(
         default_factory=dict,
         description="Task requirements and constraints"
     )
-    success_criteria: List[str] = Field(
+    success_criteria: list[str] = Field(
         default_factory=list,
         description="Criteria for task success"
     )
@@ -251,7 +251,7 @@ class Task(BaseModel):
         le=10,
         description="Task priority (1=lowest, 10=highest)"
     )
-    dependencies: List[str] = Field(
+    dependencies: list[str] = Field(
         default_factory=list,
         description="Task IDs this task depends on"
     )
@@ -279,11 +279,11 @@ class Task(BaseModel):
         None,
         description="Task result if completed"
     )
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional metadata"
     )
-    
+
     class Config:
         """Pydantic configuration."""
         json_encoders = {
@@ -293,7 +293,7 @@ class Task(BaseModel):
 
 class EvolutionEvent(BaseModel):
     """Record of agent evolution event.
-    
+
     Tracks agent creation, merging, splitting, and retirement for GitHub sync
     and system-wide learning.
     """
@@ -305,7 +305,7 @@ class EvolutionEvent(BaseModel):
         ...,
         description="Event type (creation, merge, split, retirement)"
     )
-    agent_ids: List[str] = Field(
+    agent_ids: list[str] = Field(
         ...,
         description="Agent IDs involved in event"
     )
@@ -313,7 +313,7 @@ class EvolutionEvent(BaseModel):
         ...,
         description="Reason for evolution event"
     )
-    details: Dict[str, Any] = Field(
+    details: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional event details"
     )
@@ -325,7 +325,7 @@ class EvolutionEvent(BaseModel):
         default=False,
         description="Whether event has been synced to GitHub"
     )
-    
+
     class Config:
         """Pydantic configuration."""
         json_encoders = {

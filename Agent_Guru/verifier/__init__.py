@@ -5,16 +5,16 @@ loop detection, confidence scoring, and self-correction feedback.
 """
 
 from Agent_Guru.verifier.models import (
+    ConfidenceScore,
+    HallucinationDetectionResult,
+    LoopDetectionResult,
+    OutputValidationResult,
+    SelfCorrectionFeedback,
+    ToolOutputCheckResult,
+    VerificationConfig,
+    VerificationError,
     VerificationResult,
     VerificationStatus,
-    HallucinationDetectionResult,
-    OutputValidationResult,
-    ToolOutputCheckResult,
-    LoopDetectionResult,
-    ConfidenceScore,
-    SelfCorrectionFeedback,
-    VerificationError,
-    VerificationConfig,
 )
 from Agent_Guru.verifier.verifier_system import VerifierSystem
 

@@ -29,14 +29,15 @@ import asyncio
 import logging
 import platform
 import time
-from dataclasses import dataclass, field
+from collections.abc import AsyncIterator, Callable, Coroutine
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, AsyncIterator, Callable, Coroutine, Optional
+from typing import Any, Optional
 
 import numpy as np
 
-from .exceptions import GuruSpeechError, ModelLoadError, TranscriptionError
-from .models import TranscriptionResult, TranscriptionSegment
+from .exceptions import ModelLoadError, TranscriptionError
+from .models import TranscriptionResult
 from .stt.language_detector import Language, LanguageDetector
 from .stt.whisper_stt import WhisperTranscriber
 

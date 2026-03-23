@@ -2,7 +2,7 @@
 Music tool for playing music.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -40,7 +40,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class MusicTool(Tool):
     """Tool for playing music."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute music playback.
 
         Args:

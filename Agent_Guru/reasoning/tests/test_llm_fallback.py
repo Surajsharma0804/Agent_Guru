@@ -36,10 +36,10 @@ class TestLLMFallbackConfig:
         """Test default configuration values."""
         config = LLMFallbackConfig()
 
-        assert config.provider == "openai"
-        assert config.model == "gpt-4-turbo-preview"
+        assert config.provider == "ollama"
+        assert config.model == "qwen2.5:14b-instruct"
         assert config.api_key is None
-        assert config.timeout_ms == 300.0
+        assert config.timeout_ms == 1000.0
         assert config.max_retries == 3
         assert config.temperature == 0.0
         assert config.max_tokens == 512
@@ -169,7 +169,7 @@ class TestLLMFallbackClassifierInit:
 
         classifier = LLMFallbackClassifier()
 
-        assert classifier.config.provider == "openai"
+        assert classifier.config.provider == "ollama"
         assert classifier.total_inferences == 0
         assert classifier.total_latency_ms == 0.0
         assert classifier.successful_inferences == 0
@@ -316,7 +316,7 @@ class TestUnknownResultCreation:
         assert result.reasoning == "Classification failed"
         assert result.inference_time_ms == 100.0
         assert result.retries == 2
-        assert result.provider == "openai"
+        assert result.provider == "ollama"
 
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.intent.llm_fallback.openai")
@@ -465,7 +465,7 @@ class TestAsyncClassification:
         assert result.confidence == 0.95
         assert "duration" in result.entities
         assert result.retries == 0
-        assert result.provider == "openai"
+        assert result.provider == "ollama"
 
     @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
@@ -729,7 +729,8 @@ class TestLLMAPICalls:
     async def test_call_llm_async_openai(self, mock_openai):
         """Test _call_llm_async with OpenAI provider."""
         mock_openai.OpenAI = Mock()
-        classifier = LLMFallbackClassifier()
+        config = LLMFallbackConfig(provider="openai", api_key="test-key")
+        classifier = LLMFallbackClassifier(config)
 
         # Mock _call_openai
         classifier._call_openai = AsyncMock(
@@ -782,7 +783,8 @@ class TestLLMAPICalls:
     async def test_call_llm_async_with_context(self, mock_openai):
         """Test _call_llm_async includes context in prompt."""
         mock_openai.OpenAI = Mock()
-        classifier = LLMFallbackClassifier()
+        config = LLMFallbackConfig(provider="openai", api_key="test-key")
+        classifier = LLMFallbackClassifier(config)
 
         # Mock _call_openai to capture prompt
         captured_prompt = None
@@ -924,7 +926,8 @@ class TestEdgeCases:
     async def test_call_llm_async_no_context(self, mock_openai):
         """Test _call_llm_async without context."""
         mock_openai.OpenAI = Mock()
-        classifier = LLMFallbackClassifier()
+        config = LLMFallbackConfig(provider="openai", api_key="test-key")
+        classifier = LLMFallbackClassifier(config)
 
         # Mock _call_openai to capture prompt
         captured_prompt = None
@@ -1017,7 +1020,8 @@ class TestEndToEndIntegration:
         mock_client.chat.completions.create = Mock(return_value=mock_response)
         mock_openai.OpenAI = Mock(return_value=mock_client)
 
-        classifier = LLMFallbackClassifier()
+        config = LLMFallbackConfig(provider="openai", api_key="test-key")
+        classifier = LLMFallbackClassifier(config)
 
         result = await classifier.classify_async("remind me to call mom tomorrow at 3pm")
 

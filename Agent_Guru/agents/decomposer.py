@@ -16,17 +16,16 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 from .task_decomposer import Task
-
 
 # ---------------------------------------------------------------------------
 # Voice command patterns
 # ---------------------------------------------------------------------------
 
 # Conjunctions / sequencing words that split a command into multiple steps
-_SPLIT_PATTERNS: List[str] = [
+_SPLIT_PATTERNS: list[str] = [
     r"\band\s+then\b",
     r"\bthen\b",
     r"\bafter\s+that\b",
@@ -45,7 +44,7 @@ _SPLIT_RE = re.compile(
 )
 
 # Mapping from action verb → task_type
-_VERB_TO_TASK_TYPE: Dict[str, str] = {
+_VERB_TO_TASK_TYPE: dict[str, str] = {
     # Browser / navigation
     "open": "navigation",
     "launch": "navigation",
@@ -99,7 +98,7 @@ _VERB_TO_TASK_TYPE: Dict[str, str] = {
 }
 
 # Capabilities required per task_type
-_TASK_TYPE_CAPABILITIES: Dict[str, List[str]] = {
+_TASK_TYPE_CAPABILITIES: dict[str, list[str]] = {
     "navigation": ["platform_control", "browser_control"],
     "media_control": ["platform_control", "media_control"],
     "communication": ["platform_control", "messaging"],
@@ -112,7 +111,7 @@ _TASK_TYPE_CAPABILITIES: Dict[str, List[str]] = {
 
 # Dependency rules: task_type → list of task_types it depends on
 # (i.e. these must complete before the current step)
-_DEPENDENCY_RULES: Dict[str, List[str]] = {
+_DEPENDENCY_RULES: dict[str, list[str]] = {
     "media_control": ["navigation"],   # must open app before controlling media
     "search": ["navigation"],          # must open browser before searching
     "file_operation": ["navigation"],  # may need app open first
@@ -141,7 +140,7 @@ class ParsedStep:
     action_verb: str
     task_type: str
     target: str
-    capabilities: List[str]
+    capabilities: list[str]
 
 
 # ---------------------------------------------------------------------------
@@ -210,8 +209,8 @@ class CommandDecomposer:
         self,
         command: str,
         parent_task_id: Optional[str] = None,
-        base_requirements: Optional[Dict[str, object]] = None,
-    ) -> List[Task]:
+        base_requirements: Optional[dict[str, object]] = None,
+    ) -> list[Task]:
         """Decompose a voice command into an ordered list of atomic Tasks.
 
         Args:
@@ -237,7 +236,7 @@ class CommandDecomposer:
         parsed = [self._parse_step(s) for s in steps]
         return self._build_tasks(parsed, parent_task_id, base_requirements or {})
 
-    async def parse_command(self, command: str) -> List[ParsedStep]:
+    async def parse_command(self, command: str) -> list[ParsedStep]:
         """Parse a voice command into intermediate ParsedStep objects.
 
         Useful for inspection / debugging without building full Task objects.
@@ -260,8 +259,8 @@ class CommandDecomposer:
         return [self._parse_step(s) for s in steps]
 
     async def analyze_dependencies(
-        self, tasks: List[Task]
-    ) -> Dict[str, List[str]]:
+        self, tasks: list[Task]
+    ) -> dict[str, list[str]]:
         """Return a dependency map for a list of tasks.
 
         Args:
@@ -292,7 +291,7 @@ class CommandDecomposer:
         """
         return self._WAKE_WORD_RE.sub("", command).strip()
 
-    def _split_into_steps(self, command: str) -> List[str]:
+    def _split_into_steps(self, command: str) -> list[str]:
         """Split a command string into atomic step fragments.
 
         Splits on conjunctions / sequencing words, then strips whitespace
@@ -337,7 +336,7 @@ class CommandDecomposer:
             capabilities=list(capabilities),
         )
 
-    def _identify_verb(self, tokens: List[str]) -> Tuple[str, str]:
+    def _identify_verb(self, tokens: list[str]) -> tuple[str, str]:
         """Identify the action verb and corresponding task_type from tokens.
 
         Checks the first two tokens for a known verb.
@@ -380,10 +379,10 @@ class CommandDecomposer:
 
     def _build_tasks(
         self,
-        parsed_steps: List[ParsedStep],
+        parsed_steps: list[ParsedStep],
         parent_task_id: Optional[str],
-        base_requirements: Dict[str, object],
-    ) -> List[Task]:
+        base_requirements: dict[str, object],
+    ) -> list[Task]:
         """Convert ParsedStep objects into Task objects with dependency edges.
 
         Dependency rules (from ``_DEPENDENCY_RULES``):
@@ -405,13 +404,13 @@ class CommandDecomposer:
         # Assign stable IDs up-front so dependencies can reference them
         step_ids = [str(uuid.uuid4()) for _ in parsed_steps]
 
-        tasks: List[Task] = []
+        tasks: list[Task] = []
         # Track the most recent task ID for each task_type
-        latest_by_type: Dict[str, str] = {}
+        latest_by_type: dict[str, str] = {}
 
         for i, (step, step_id) in enumerate(zip(parsed_steps, step_ids)):
             # Determine dependencies for this step
-            dep_ids: List[str] = []
+            dep_ids: list[str] = []
             required_predecessors = _DEPENDENCY_RULES.get(step.task_type, [])
             for pred_type in required_predecessors:
                 if pred_type in latest_by_type:
@@ -420,11 +419,11 @@ class CommandDecomposer:
                         dep_ids.append(dep_id)
 
             # Build requirements dict
-            requirements: Dict[str, object] = dict(base_requirements)
+            requirements: dict[str, object] = dict(base_requirements)
             requirements["capabilities"] = step.capabilities
             requirements["target"] = step.target
 
-            metadata: Dict[str, str] = {
+            metadata: dict[str, str] = {
                 "step_index": str(i),
                 "can_parallelize": str(len(dep_ids) == 0),
             }

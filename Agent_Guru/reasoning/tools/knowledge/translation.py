@@ -4,7 +4,7 @@ Translation tool for translating text between languages.
 Supports 50+ languages using translation APIs.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -13,7 +13,6 @@ from Agent_Guru.reasoning.tools.base import (
     ToolSensitivity,
 )
 from Agent_Guru.reasoning.tools.registry import tool
-
 
 # Common language codes
 SUPPORTED_LANGUAGES = {
@@ -106,7 +105,7 @@ SUPPORTED_LANGUAGES = {
 class TranslateTool(Tool):
     """Tool for translating text."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute text translation.
 
         Args:

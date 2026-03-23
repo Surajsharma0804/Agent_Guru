@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Deque, Dict, List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -25,7 +25,7 @@ class EmotionalState:
 class EmotionTrend:
     """7-day emotion trend."""
     dominant_emotion: str
-    emotion_counts: Dict[str, int]
+    emotion_counts: dict[str, int]
     period_days: int = 7
 
 
@@ -34,7 +34,7 @@ class EmotionDetector:
 
     def __init__(self, opted_out: bool = False) -> None:
         self._opted_out = opted_out
-        self._history: Deque[EmotionalState] = deque(maxlen=1000)
+        self._history: deque[EmotionalState] = deque(maxlen=1000)
 
     def opt_out(self) -> None:
         self._opted_out = True
@@ -52,7 +52,7 @@ class EmotionDetector:
         if self._opted_out:
             return EmotionalState(emotion="neutral", confidence=1.0, source="opted_out")
 
-        scores: Dict[str, float] = {e: 0.0 for e in EKMAN_EMOTIONS}
+        scores: dict[str, float] = dict.fromkeys(EKMAN_EMOTIONS, 0.0)
 
         if audio is not None:
             voice_scores = self._detect_from_voice(audio)
@@ -85,14 +85,14 @@ class EmotionDetector:
         self._history.append(state)
         return state
 
-    def _detect_from_voice(self, audio: np.ndarray) -> Dict[str, float]:
+    def _detect_from_voice(self, audio: np.ndarray) -> dict[str, float]:
         """Stub: prosody-based emotion detection."""
         energy = float(np.mean(audio ** 2))
         if energy > 0.1:
             return {"happy": 0.5, "neutral": 0.3, "angry": 0.2}
         return {"neutral": 0.7, "sad": 0.2, "fearful": 0.1}
 
-    def _detect_from_text(self, text: str) -> Dict[str, float]:
+    def _detect_from_text(self, text: str) -> dict[str, float]:
         """Stub: VADER-based sentiment."""
         text_lower = text.lower()
         if any(w in text_lower for w in ["happy", "great", "wonderful", "love"]):
@@ -103,7 +103,7 @@ class EmotionDetector:
             return {"angry": 0.8, "neutral": 0.2}
         return {"neutral": 0.8, "happy": 0.1, "sad": 0.1}
 
-    def _detect_from_face(self, features: np.ndarray) -> Dict[str, float]:
+    def _detect_from_face(self, features: np.ndarray) -> dict[str, float]:
         """Stub: facial expression classification."""
         return {"neutral": 0.6, "happy": 0.3, "sad": 0.1}
 
@@ -111,7 +111,7 @@ class EmotionDetector:
         """Get emotion trend over the past N days."""
         cutoff = time.time() - days * 86400
         recent = [s for s in self._history if s.timestamp >= cutoff]
-        counts: Dict[str, int] = {e: 0 for e in EKMAN_EMOTIONS}
+        counts: dict[str, int] = dict.fromkeys(EKMAN_EMOTIONS, 0)
         for s in recent:
             counts[s.emotion] = counts.get(s.emotion, 0) + 1
         dominant = max(counts, key=lambda k: counts[k]) if recent else "neutral"

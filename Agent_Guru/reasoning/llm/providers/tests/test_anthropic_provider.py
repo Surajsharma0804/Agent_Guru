@@ -201,7 +201,7 @@ class TestGeneration:
         provider.client.messages.create = AsyncMock(return_value=mock_message)
 
         # Generate
-        response = await provider.generate(llm_request)
+        await provider.generate(llm_request)
 
         # Verify stop sequences were passed
         call_args = provider.client.messages.create.call_args

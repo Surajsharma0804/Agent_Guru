@@ -25,8 +25,8 @@ from .exceptions import (
 )
 from .installer_builder import (
     AndroidBuildConfig,
-    IOSBuildConfig,
     InstallerBuilder,
+    IOSBuildConfig,
     LinuxPackageConfig,
     MacOSInstallerConfig,
     WindowsInstallerConfig,

@@ -12,50 +12,50 @@ Date: 2026-02-26
 
 from Agent_Guru.platform.integration.goal_manager_client import (
     GoalManagerClient,
-    TaskCompletionNotification,
-    OperationResult,
     NotificationStatus,
-)
-from Agent_Guru.platform.integration.memory_client import (
-    MemorySystemClient,
-    OperationMetadata,
-    MemoryQueryResult,
-)
-from Agent_Guru.platform.integration.verifier_client import (
-    VerifierClient,
-    ValidationRequest,
-    ValidationResult,
-    ValidationStatus,
-)
-from Agent_Guru.platform.integration.self_improvement_client import (
-    SelfImprovementClient,
-    PerformanceMetrics,
-    ErrorStatistics,
-    ImprovementSuggestion,
-)
-from Agent_Guru.platform.integration.service_discovery import (
-    ServiceRegistry,
-    ServiceEndpoint,
-    ServiceStatus,
-)
-from Agent_Guru.platform.integration.tracing import (
-    Tracer,
-    Span,
-    SpanContext,
-    SpanManager,
-)
-from Agent_Guru.platform.integration.metrics_exporter import (
-    MetricsRegistry,
-    Counter,
-    Gauge,
-    Histogram,
-    get_default_registry,
+    OperationResult,
+    TaskCompletionNotification,
 )
 from Agent_Guru.platform.integration.graceful_shutdown import (
     GracefulShutdownManager,
+    OperationTracker,
     ShutdownPhase,
     ShutdownState,
-    OperationTracker,
+)
+from Agent_Guru.platform.integration.memory_client import (
+    MemoryQueryResult,
+    MemorySystemClient,
+    OperationMetadata,
+)
+from Agent_Guru.platform.integration.metrics_exporter import (
+    Counter,
+    Gauge,
+    Histogram,
+    MetricsRegistry,
+    get_default_registry,
+)
+from Agent_Guru.platform.integration.self_improvement_client import (
+    ErrorStatistics,
+    ImprovementSuggestion,
+    PerformanceMetrics,
+    SelfImprovementClient,
+)
+from Agent_Guru.platform.integration.service_discovery import (
+    ServiceEndpoint,
+    ServiceRegistry,
+    ServiceStatus,
+)
+from Agent_Guru.platform.integration.tracing import (
+    Span,
+    SpanContext,
+    SpanManager,
+    Tracer,
+)
+from Agent_Guru.platform.integration.verifier_client import (
+    ValidationRequest,
+    ValidationResult,
+    ValidationStatus,
+    VerifierClient,
 )
 
 __all__ = [

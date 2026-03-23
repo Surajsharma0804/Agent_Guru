@@ -17,8 +17,9 @@ Version: 1.0.0
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import AsyncIterator, Dict, List, Optional, Union
+from typing import Optional, Union
 
 from Agent_Guru.llm.context_manager import ContextManager
 from Agent_Guru.llm.error_handler import ErrorHandler
@@ -42,7 +43,7 @@ from Agent_Guru.llm.token_counter import TokenCounter
 logger = logging.getLogger(__name__)
 
 # Context window limits per model prefix
-_CONTEXT_LIMITS: Dict[str, int] = {
+_CONTEXT_LIMITS: dict[str, int] = {
     "gpt-4-32k": 32768,
     "gpt-4-turbo": 128000,
     "gpt-4": 8192,
@@ -57,7 +58,7 @@ _CONTEXT_LIMITS: Dict[str, int] = {
 }
 
 # Pricing per 1K tokens for cost estimation
-_PRICING: Dict[str, float] = {
+_PRICING: dict[str, float] = {
     "gpt-4": 0.03,
     "gpt-3.5-turbo": 0.002,
     "claude-3-opus": 0.015,
@@ -101,7 +102,7 @@ class LLMRuntime:
         self.performance_monitor = performance_monitor
         self.error_handler = error_handler
 
-        self.adapters: Dict[ModelProvider, ProviderAdapter] = {
+        self.adapters: dict[ModelProvider, ProviderAdapter] = {
             ModelProvider.OLLAMA: OllamaAdapter(config.ollama_config),
             ModelProvider.OPENAI: OpenAIAdapter(config.openai_config),
             ModelProvider.ANTHROPIC: AnthropicAdapter(config.anthropic_config),
@@ -247,7 +248,6 @@ class LLMRuntime:
             )
 
         full_content = ""
-        success = True
         error_msg: Optional[str] = None
 
         try:
@@ -255,7 +255,6 @@ class LLMRuntime:
                 full_content += chunk.content
                 yield chunk
         except Exception as exc:
-            success = False
             error_msg = str(exc)
             latency_ms = (datetime.now() - start_time).total_seconds() * 1000
             await self.performance_monitor.record_request(
@@ -291,8 +290,8 @@ class LLMRuntime:
         )
 
     async def embed(
-        self, text: Union[str, List[str]], model: str
-    ) -> List[List[float]]:
+        self, text: Union[str, list[str]], model: str
+    ) -> list[list[float]]:
         """
         Generate embeddings for text.
 

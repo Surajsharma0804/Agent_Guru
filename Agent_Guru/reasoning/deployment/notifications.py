@@ -11,7 +11,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional
+from typing import Optional
 
 import aiohttp
 import structlog
@@ -47,38 +47,38 @@ class DeploymentInfo:
 class NotificationService:
     """
     Service for sending deployment notifications.
-    
+
     Supports multiple notification channels:
     - Slack
     - Email (future)
     - PagerDuty (future)
     """
-    
+
     def __init__(
         self,
         slack_webhook_url: Optional[str] = None,
         slack_channel: Optional[str] = None
     ):
         """Initialize notification service.
-        
+
         Args:
             slack_webhook_url: Slack webhook URL
             slack_channel: Slack channel name (optional override)
         """
         self.slack_webhook_url = slack_webhook_url
         self.slack_channel = slack_channel
-        
+
         logger.info(
             "notification_service_initialized",
             slack_enabled=bool(slack_webhook_url)
         )
-    
+
     async def send_deployment_notification(
         self,
         deployment: DeploymentInfo
     ) -> None:
         """Send deployment notification to all configured channels.
-        
+
         Args:
             deployment: Deployment information
         """
@@ -88,25 +88,25 @@ class NotificationService:
             status=deployment.status.value,
             version=deployment.version
         )
-        
+
         # Send to Slack
         if self.slack_webhook_url:
             await self._send_slack_notification(deployment)
-        
+
         # Future: Send to email, PagerDuty, etc.
-    
+
     async def _send_slack_notification(
         self,
         deployment: DeploymentInfo
     ) -> None:
         """Send notification to Slack.
-        
+
         Args:
             deployment: Deployment information
         """
         try:
             message = self._format_slack_message(deployment)
-            
+
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     self.slack_webhook_url,
@@ -123,16 +123,16 @@ class NotificationService:
                         )
         except Exception as e:
             logger.error("slack_notification_error", error=str(e))
-    
+
     def _format_slack_message(
         self,
         deployment: DeploymentInfo
-    ) -> Dict:
+    ) -> dict:
         """Format Slack message with rich formatting.
-        
+
         Args:
             deployment: Deployment information
-            
+
         Returns:
             Slack message payload
         """
@@ -157,7 +157,7 @@ class NotificationService:
             emoji = "ℹ️"
             color = "#666666"  # Gray
             title = "Deployment Update"
-        
+
         # Build fields
         fields = [
             {
@@ -186,7 +186,7 @@ class NotificationService:
                 "short": True
             }
         ]
-        
+
         # Add duration if available
         if deployment.duration_seconds is not None:
             fields.append({
@@ -194,7 +194,7 @@ class NotificationService:
                 "value": f"{deployment.duration_seconds:.1f}s",
                 "short": True
             })
-        
+
         # Add commit message
         if deployment.commit_message:
             fields.append({
@@ -202,7 +202,7 @@ class NotificationService:
                 "value": deployment.commit_message[:500],  # Truncate long messages
                 "short": False
             })
-        
+
         # Add error message if failure
         if deployment.error_message:
             fields.append({
@@ -210,31 +210,31 @@ class NotificationService:
                 "value": f"```{deployment.error_message[:1000]}```",
                 "short": False
             })
-        
+
         # Build actions (links)
         actions = []
-        
+
         if deployment.logs_url:
             actions.append({
                 "type": "button",
                 "text": "View Logs",
                 "url": deployment.logs_url
             })
-        
+
         if deployment.metrics_url:
             actions.append({
                 "type": "button",
                 "text": "View Metrics",
                 "url": deployment.metrics_url
             })
-        
+
         if deployment.grafana_url:
             actions.append({
                 "type": "button",
                 "text": "Grafana Dashboard",
                 "url": deployment.grafana_url
             })
-        
+
         # Build attachment
         attachment = {
             "fallback": f"{emoji} {title}: {deployment.environment} - {deployment.version}",
@@ -245,22 +245,22 @@ class NotificationService:
             "footer_icon": "https://agent-guru.example.com/icon.png",
             "ts": int(deployment.timestamp.timestamp())
         }
-        
+
         # Add actions if any
         if actions:
             attachment["actions"] = actions
-        
+
         # Build message
         message = {
             "username": "Agent Guru Deploy Bot",
             "icon_emoji": ":robot_face:",
             "attachments": [attachment]
         }
-        
+
         # Add channel override if specified
         if self.slack_channel:
             message["channel"] = self.slack_channel
-        
+
         return message
 
 
@@ -272,7 +272,7 @@ async def send_deployment_started(
     deployer: str
 ) -> None:
     """Send deployment started notification.
-    
+
     Args:
         environment: Deployment environment
         version: Version being deployed
@@ -283,7 +283,7 @@ async def send_deployment_started(
     service = NotificationService(
         slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL")
     )
-    
+
     deployment = DeploymentInfo(
         environment=environment,
         version=version,
@@ -292,11 +292,11 @@ async def send_deployment_started(
         deployer=deployer,
         timestamp=datetime.utcnow(),
         status=DeploymentStatus.STARTED,
-        logs_url=f"https://github.com/agent-guru/agent-guru/actions",
-        metrics_url=f"https://prometheus.agent-guru.example.com",
+        logs_url="https://github.com/agent-guru/agent-guru/actions",
+        metrics_url="https://prometheus.agent-guru.example.com",
         grafana_url=f"https://grafana.agent-guru.example.com/d/deployment-{environment}"
     )
-    
+
     await service.send_deployment_notification(deployment)
 
 
@@ -309,7 +309,7 @@ async def send_deployment_success(
     duration_seconds: float
 ) -> None:
     """Send deployment success notification.
-    
+
     Args:
         environment: Deployment environment
         version: Version deployed
@@ -321,7 +321,7 @@ async def send_deployment_success(
     service = NotificationService(
         slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL")
     )
-    
+
     deployment = DeploymentInfo(
         environment=environment,
         version=version,
@@ -331,11 +331,11 @@ async def send_deployment_success(
         timestamp=datetime.utcnow(),
         status=DeploymentStatus.SUCCESS,
         duration_seconds=duration_seconds,
-        logs_url=f"https://github.com/agent-guru/agent-guru/actions",
-        metrics_url=f"https://prometheus.agent-guru.example.com",
+        logs_url="https://github.com/agent-guru/agent-guru/actions",
+        metrics_url="https://prometheus.agent-guru.example.com",
         grafana_url=f"https://grafana.agent-guru.example.com/d/deployment-{environment}"
     )
-    
+
     await service.send_deployment_notification(deployment)
 
 
@@ -349,7 +349,7 @@ async def send_deployment_failure(
     error_message: str
 ) -> None:
     """Send deployment failure notification.
-    
+
     Args:
         environment: Deployment environment
         version: Version attempted
@@ -362,7 +362,7 @@ async def send_deployment_failure(
     service = NotificationService(
         slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL")
     )
-    
+
     deployment = DeploymentInfo(
         environment=environment,
         version=version,
@@ -373,11 +373,11 @@ async def send_deployment_failure(
         status=DeploymentStatus.FAILURE,
         duration_seconds=duration_seconds,
         error_message=error_message,
-        logs_url=f"https://github.com/agent-guru/agent-guru/actions",
-        metrics_url=f"https://prometheus.agent-guru.example.com",
+        logs_url="https://github.com/agent-guru/agent-guru/actions",
+        metrics_url="https://prometheus.agent-guru.example.com",
         grafana_url=f"https://grafana.agent-guru.example.com/d/deployment-{environment}"
     )
-    
+
     await service.send_deployment_notification(deployment)
 
 
@@ -388,7 +388,7 @@ async def send_deployment_rollback(
     reason: str
 ) -> None:
     """Send deployment rollback notification.
-    
+
     Args:
         environment: Deployment environment
         version: Version rolled back
@@ -398,7 +398,7 @@ async def send_deployment_rollback(
     service = NotificationService(
         slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL")
     )
-    
+
     deployment = DeploymentInfo(
         environment=environment,
         version=version,
@@ -408,9 +408,9 @@ async def send_deployment_rollback(
         timestamp=datetime.utcnow(),
         status=DeploymentStatus.ROLLBACK,
         error_message=reason,
-        logs_url=f"https://github.com/agent-guru/agent-guru/actions",
-        metrics_url=f"https://prometheus.agent-guru.example.com",
+        logs_url="https://github.com/agent-guru/agent-guru/actions",
+        metrics_url="https://prometheus.agent-guru.example.com",
         grafana_url=f"https://grafana.agent-guru.example.com/d/deployment-{environment}"
     )
-    
+
     await service.send_deployment_notification(deployment)

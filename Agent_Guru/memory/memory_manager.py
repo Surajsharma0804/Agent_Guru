@@ -32,8 +32,7 @@ import asyncio
 import logging
 import platform
 import time
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -117,9 +116,9 @@ class _Interaction:
         self.ai_message = ai_message
         self.timestamp: float = timestamp if timestamp is not None else time.time()
         # Simulated embedding: bag-of-words character frequencies (stub)
-        self.embedding: List[float] = _stub_embed(user_message + " " + ai_message)
+        self.embedding: list[float] = _stub_embed(user_message + " " + ai_message)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "personality": self.personality,
             "user_message": self.user_message,
@@ -133,7 +132,7 @@ class _Interaction:
 # ---------------------------------------------------------------------------
 
 
-def _stub_embed(text: str) -> List[float]:
+def _stub_embed(text: str) -> list[float]:
     """Return a stub embedding vector (character frequency, 26-dim).
 
     This is a placeholder for a real embedding model.  It produces a
@@ -152,7 +151,7 @@ def _stub_embed(text: str) -> List[float]:
     return [c / total for c in counts]
 
 
-def _cosine_similarity(a: List[float], b: List[float]) -> float:
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
     """Return cosine similarity between two equal-length vectors.
 
     Returns 0.0 if either vector is all-zeros.
@@ -215,7 +214,7 @@ class MemoryManager:
         self._initialized: bool = False
 
         # In-memory store: personality → list of _Interaction
-        self._store: Dict[str, List[_Interaction]] = {p: [] for p in PERSONALITIES}
+        self._store: dict[str, list[_Interaction]] = {p: [] for p in PERSONALITIES}
 
         logger.info(
             "MemoryManager created — platform=%s", self._platform
@@ -353,7 +352,7 @@ class MemoryManager:
         self,
         personality: str,
         limit: int = 10,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Retrieve the most recent interactions for the given personality.
 
         Args:
@@ -404,7 +403,7 @@ class MemoryManager:
         query: str,
         limit: int = 5,
         personality: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Semantic search over stored interactions using stub embeddings.
 
         Searches all personalities unless *personality* is specified.
@@ -521,7 +520,7 @@ class MemoryManager:
 
     async def _recall_desktop(
         self, personality: str, limit: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Recall interactions on desktop via SQLite (simulated)."""
         logger.info(
             "Desktop: recalling personality=%s limit=%d via SQLite (simulated)",
@@ -534,7 +533,7 @@ class MemoryManager:
 
     async def _search_desktop(
         self, query: str, limit: int, personality: Optional[str]
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Semantic search on desktop (simulated stub embeddings)."""
         logger.info(
             "Desktop: semantic search query_len=%d limit=%d via SQLite (simulated)",
@@ -576,7 +575,7 @@ class MemoryManager:
 
     async def _recall_android(
         self, personality: str, limit: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Recall interactions on Android via adb (simulated)."""
         logger.info(
             "Android: recalling personality=%s limit=%d via adb (simulated)",
@@ -589,7 +588,7 @@ class MemoryManager:
 
     async def _search_android(
         self, query: str, limit: int, personality: Optional[str]
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Semantic search on Android (simulated)."""
         logger.info(
             "Android: semantic search query_len=%d limit=%d via adb (simulated)",
@@ -631,7 +630,7 @@ class MemoryManager:
 
     async def _recall_ios(
         self, personality: str, limit: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Recall interactions on iOS via xcrun (simulated)."""
         logger.info(
             "iOS: recalling personality=%s limit=%d via xcrun simctl (simulated)",
@@ -644,7 +643,7 @@ class MemoryManager:
 
     async def _search_ios(
         self, query: str, limit: int, personality: Optional[str]
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Semantic search on iOS (simulated)."""
         logger.info(
             "iOS: semantic search query_len=%d limit=%d via xcrun simctl (simulated)",
@@ -662,7 +661,7 @@ class MemoryManager:
         query: str,
         limit: int,
         personality: Optional[str],
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Rank stored interactions by cosine similarity to *query*.
 
         Uses stub character-frequency embeddings.  In production this would
@@ -681,7 +680,7 @@ class MemoryManager:
         """
         query_emb = _stub_embed(query)
 
-        candidates: List[_Interaction] = []
+        candidates: list[_Interaction] = []
         if personality is not None:
             candidates = list(self._store.get(personality, []))
         else:

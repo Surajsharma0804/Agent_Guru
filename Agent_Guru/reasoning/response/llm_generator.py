@@ -404,7 +404,7 @@ Response:"""
                 self.llm_router.generate(llm_request), timeout=self.timeout_seconds
             )
         except asyncio.TimeoutError:
-            raise RuntimeError(f"LLM generation timed out after {self.timeout_seconds}s")
+            raise RuntimeError(f"LLM generation timed out after {self.timeout_seconds}s") from e
 
         # Parse response text
         response_text = llm_response.text.strip()

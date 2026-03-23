@@ -1,9 +1,7 @@
 """Subtitle generation synchronized with translated audio."""
 from __future__ import annotations
 
-import time
-from dataclasses import dataclass, field
-from typing import List
+from dataclasses import dataclass
 
 
 @dataclass
@@ -24,7 +22,7 @@ class SubtitleGenerator:
         audio_start_ms: float,
         language: str = "en",
         words_per_minute: int = 150,
-    ) -> List[SubtitleEntry]:
+    ) -> list[SubtitleEntry]:
         """Generate subtitle entries from translated text."""
         words = translated_text.split()
         if not words:

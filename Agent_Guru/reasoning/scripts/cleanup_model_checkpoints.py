@@ -25,7 +25,6 @@ Date: 2026-02-19
 
 import shutil
 from pathlib import Path
-from typing import List
 
 
 def get_directory_size(path: Path) -> float:
@@ -63,11 +62,6 @@ def cleanup_model_checkpoints(model_dir: str, dry_run: bool = True) -> None:
     print(f"📊 Initial directory size: {initial_size:.2f} GB\n")
 
     # Files and directories to delete
-    patterns_to_delete = [
-        "*.ckpt",  # All checkpoint files
-        "checkpoint-*",  # Checkpoint directories
-        "logs/",  # Training logs
-    ]
 
     # Files to keep (for reference)
     files_to_keep = [
@@ -96,7 +90,7 @@ def cleanup_model_checkpoints(model_dir: str, dry_run: bool = True) -> None:
     print(f"\n{'='*80}\n")
 
     # Find files to delete
-    files_to_delete: List[Path] = []
+    files_to_delete: list[Path] = []
 
     # Find .ckpt files
     for ckpt_file in model_path.glob("*.ckpt"):

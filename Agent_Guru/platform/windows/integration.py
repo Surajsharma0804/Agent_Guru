@@ -16,11 +16,12 @@ Design Decisions:
 - Use psutil for cross-platform process management where possible
 """
 
-import sys
-import subprocess
-from typing import Any, List, Optional
-from dataclasses import dataclass
 import logging
+import subprocess
+import sys
+from dataclasses import dataclass
+from typing import Any, Optional
+
 import psutil
 
 from Agent_Guru.platform.subprocess_utils import run_cmd
@@ -40,12 +41,12 @@ else:
 # Windows-specific imports (only available on Windows)
 if sys.platform == "win32":
     try:
-        import win32service
-        import win32serviceutil
+        import pywintypes
         import win32api
         import win32con
         import win32security
-        import pywintypes
+        import win32service
+        import win32serviceutil
         PYWIN32_AVAILABLE = True
     except ImportError:
         PYWIN32_AVAILABLE = False
@@ -106,22 +107,21 @@ class ServiceStatus:
 
 class RegistryKeyNotFoundError(Exception):
     """Raised when Windows registry key not found."""
-    pass
 
 
 class WindowsIntegration:
     """
     Windows-specific platform integration.
-    
+
     Provides:
     - Registry operations (read, write, delete)
     - Windows service management
     - Process management
     - Permission validation
-    
+
     Time Complexity: O(1) for most operations, O(n) for process listing
     Space Complexity: O(1) for single operations
-    
+
     Example:
         >>> integration = WindowsIntegration()
         >>> value = integration.read_registry_key(
@@ -131,7 +131,7 @@ class WindowsIntegration:
         ... )
         >>> print(f"Program Files: {value}")
     """
-    
+
     def __init__(self):
         """Initialize Windows integration."""
         if not PYWIN32_AVAILABLE:
@@ -139,13 +139,13 @@ class WindowsIntegration:
                 "pywin32 not available - service management features will be limited. "
                 "Install with: pip install pywin32"
             )
-        
+
         self._validate_windows_platform()
-    
+
     def _validate_windows_platform(self) -> None:
         """
         Validate that we're running on Windows.
-        
+
         Raises:
             RuntimeError: If not running on Windows
         """
@@ -155,9 +155,9 @@ class WindowsIntegration:
             raise RuntimeError(
                 f"WindowsIntegration requires Windows, but running on {system_name}"
             )
-    
+
     # Registry Operations
-    
+
     def read_registry_key(
         self,
         hive: int,
@@ -166,22 +166,22 @@ class WindowsIntegration:
     ) -> Any:
         """
         Read a Windows registry key.
-        
+
         Time Complexity: O(1)
         Space Complexity: O(1)
-        
+
         Args:
             hive: Registry hive (e.g., winreg.HKEY_LOCAL_MACHINE)
             key_path: Path to registry key
             value_name: Name of value to read
-            
+
         Returns:
             Registry value (type depends on registry value type)
-            
+
         Raises:
             RegistryKeyNotFoundError: If key doesn't exist
             PermissionError: If insufficient permissions
-            
+
         Example:
             >>> value = integration.read_registry_key(
             ...     winreg.HKEY_LOCAL_MACHINE,
@@ -198,12 +198,12 @@ class WindowsIntegration:
                     f"(type: {value_type})"
                 )
                 return value
-                
+
         except FileNotFoundError as e:
             error_msg = f"Registry key not found: {key_path}\\{value_name}"
             logger.error(error_msg)
             raise RegistryKeyNotFoundError(error_msg) from e
-            
+
         except PermissionError as e:
             error_msg = (
                 f"Permission denied reading registry key: {key_path}\\{value_name}. "
@@ -211,12 +211,12 @@ class WindowsIntegration:
             )
             logger.error(error_msg)
             raise PermissionError(error_msg) from e
-            
+
         except Exception as e:
             error_msg = f"Error reading registry key {key_path}\\{value_name}: {e}"
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
-    
+
     def write_registry_key(
         self,
         hive: int,
@@ -227,20 +227,20 @@ class WindowsIntegration:
     ) -> None:
         """
         Write a Windows registry key.
-        
+
         Time Complexity: O(1)
         Space Complexity: O(1)
-        
+
         Args:
             hive: Registry hive (e.g., winreg.HKEY_LOCAL_MACHINE)
             key_path: Path to registry key
             value_name: Name of value to write
             value: Value to write
             value_type: Registry value type (default: REG_SZ for string)
-            
+
         Raises:
             PermissionError: If insufficient permissions
-            
+
         Example:
             >>> integration.write_registry_key(
             ...     winreg.HKEY_CURRENT_USER,
@@ -257,7 +257,7 @@ class WindowsIntegration:
                     f"Wrote registry key: {key_path}\\{value_name} = {value} "
                     f"(type: {value_type})"
                 )
-                
+
         except PermissionError as e:
             error_msg = (
                 f"Permission denied writing registry key: {key_path}\\{value_name}. "
@@ -265,12 +265,12 @@ class WindowsIntegration:
             )
             logger.error(error_msg)
             raise PermissionError(error_msg) from e
-            
+
         except Exception as e:
             error_msg = f"Error writing registry key {key_path}\\{value_name}: {e}"
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
-    
+
     def delete_registry_key(
         self,
         hive: int,
@@ -279,19 +279,19 @@ class WindowsIntegration:
     ) -> None:
         """
         Delete a Windows registry key or value.
-        
+
         Time Complexity: O(1)
         Space Complexity: O(1)
-        
+
         Args:
             hive: Registry hive (e.g., winreg.HKEY_LOCAL_MACHINE)
             key_path: Path to registry key
             value_name: Name of value to delete (if None, deletes entire key)
-            
+
         Raises:
             PermissionError: If insufficient permissions
             RegistryKeyNotFoundError: If key doesn't exist
-            
+
         Example:
             >>> # Delete a value
             >>> integration.delete_registry_key(
@@ -315,14 +315,14 @@ class WindowsIntegration:
                 # Delete entire key
                 winreg.DeleteKey(hive, key_path)
                 logger.info(f"Deleted registry key: {key_path}")
-                
+
         except FileNotFoundError as e:
             error_msg = f"Registry key not found: {key_path}"
             if value_name:
                 error_msg += f"\\{value_name}"
             logger.error(error_msg)
             raise RegistryKeyNotFoundError(error_msg) from e
-            
+
         except PermissionError as e:
             error_msg = (
                 f"Permission denied deleting registry key: {key_path}. "
@@ -330,30 +330,30 @@ class WindowsIntegration:
             )
             logger.error(error_msg)
             raise PermissionError(error_msg) from e
-            
+
         except Exception as e:
             error_msg = f"Error deleting registry key {key_path}: {e}"
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
-    
+
     # Service Management
-    
+
     def get_service_status(self, service_name: str) -> ServiceStatus:
         """
         Get Windows service status.
-        
+
         Time Complexity: O(1)
         Space Complexity: O(1)
-        
+
         Args:
             service_name: Name of the Windows service
-            
+
         Returns:
             ServiceStatus with current status and startup type
-            
+
         Raises:
             RuntimeError: If pywin32 not available or service not found
-            
+
         Example:
             >>> status = integration.get_service_status("wuauserv")
             >>> print(f"Windows Update: {status.status}")
@@ -363,11 +363,11 @@ class WindowsIntegration:
                 "pywin32 required for service management. "
                 "Install with: pip install pywin32"
             )
-        
+
         try:
             # Query service status
             status = win32serviceutil.QueryServiceStatus(service_name)
-            
+
             # Map Windows service states to our status strings
             state_map = {
                 win32service.SERVICE_STOPPED: "stopped",
@@ -378,40 +378,40 @@ class WindowsIntegration:
                 win32service.SERVICE_PAUSE_PENDING: "paused",
                 win32service.SERVICE_PAUSED: "paused",
             }
-            
+
             service_status = state_map.get(status[1], "unknown")
-            
+
             # Get startup type
             startup_type = self._get_service_startup_type(service_name)
-            
+
             logger.debug(
                 f"Service {service_name}: status={service_status}, "
                 f"startup={startup_type}"
             )
-            
+
             return ServiceStatus(
                 name=service_name,
                 status=service_status,
                 startup_type=startup_type
             )
-            
+
         except pywintypes.error as e:
             error_msg = f"Service not found or access denied: {service_name}"
             logger.error(f"{error_msg}: {e}")
             raise RuntimeError(error_msg) from e
-            
+
         except Exception as e:
             error_msg = f"Error querying service {service_name}: {e}"
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
-    
+
     def _get_service_startup_type(self, service_name: str) -> str:
         """
         Get service startup type from registry.
-        
+
         Args:
             service_name: Name of the service
-            
+
         Returns:
             Startup type: "automatic", "manual", or "disabled"
         """
@@ -424,31 +424,31 @@ class WindowsIntegration:
                 key_path,
                 "Start"
             )
-            
+
             # Map Windows start values to our startup types
             startup_map = {
                 2: "automatic",  # SERVICE_AUTO_START
                 3: "manual",     # SERVICE_DEMAND_START
                 4: "disabled",   # SERVICE_DISABLED
             }
-            
+
             return startup_map.get(start_value, "unknown")
-            
+
         except Exception:
             return "unknown"
-    
+
     # Process Management
-    
-    def get_process_list(self) -> List[ProcessInfo]:
+
+    def get_process_list(self) -> list[ProcessInfo]:
         """
         Get list of running processes.
-        
+
         Time Complexity: O(n) where n is number of processes
         Space Complexity: O(n)
-        
+
         Returns:
             List of ProcessInfo for all running processes
-            
+
         Example:
             >>> processes = integration.get_process_list()
             >>> for proc in processes:
@@ -474,24 +474,24 @@ class WindowsIntegration:
         logger.debug(f"Retrieved {len(processes)} processes")
         return processes
 
-    def start_process(self, executable: str, args: List[str]) -> int:
+    def start_process(self, executable: str, args: list[str]) -> int:
         """
         Start a new process.
-        
+
         Time Complexity: O(1)
         Space Complexity: O(1)
-        
+
         Args:
             executable: Path to executable or bare executable name
             args: Command-line arguments
-            
+
         Returns:
             Process ID of started process
-            
+
         Raises:
             FileNotFoundError: If executable not found
             PermissionError: If insufficient permissions
-            
+
         Example:
             >>> pid = integration.start_process("notepad.exe", [])
             >>> print(f"Started notepad with PID: {pid}")
@@ -517,7 +517,7 @@ class WindowsIntegration:
             # Fallback: use cmd /c to let Windows resolve via App Paths registry
             if not args:
                 try:
-                    result = run_cmd(["cmd", "/c", executable], check=False)
+                    run_cmd(["cmd", "/c", executable], check=False)
                     logger.info(f"Started process via cmd /c: {executable}")
                     return 0
                 except (OSError, FileNotFoundError) as exc:
@@ -542,45 +542,45 @@ class WindowsIntegration:
             error_msg = f"Error starting process {executable}: {e}"
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
-    
+
     def terminate_process(self, pid: int, force: bool = False) -> bool:
         """
         Terminate a process.
-        
+
         Time Complexity: O(1)
         Space Complexity: O(1)
-        
+
         Args:
             pid: Process ID
             force: If True, force kill; if False, graceful termination
-            
+
         Returns:
             True if process was terminated
-            
+
         Raises:
             ProcessLookupError: If process not found
             PermissionError: If insufficient permissions
-            
+
         Example:
             >>> integration.terminate_process(1234, force=False)
         """
         try:
             process = psutil.Process(pid)
-            
+
             if force:
                 process.kill()  # SIGKILL equivalent
                 logger.info(f"Force killed process {pid}")
             else:
                 process.terminate()  # SIGTERM equivalent
                 logger.info(f"Terminated process {pid}")
-            
+
             return True
-            
+
         except psutil.NoSuchProcess as e:
             error_msg = f"Process not found: PID {pid}"
             logger.error(error_msg)
             raise ProcessLookupError(error_msg) from e
-            
+
         except psutil.AccessDenied as e:
             error_msg = (
                 f"Permission denied terminating process {pid}. "
@@ -588,38 +588,47 @@ class WindowsIntegration:
             )
             logger.error(error_msg)
             raise PermissionError(error_msg) from e
-            
+
         except Exception as e:
             error_msg = f"Error terminating process {pid}: {e}"
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
-    
-    def execute_command(self, command: str, args: List[str]) -> CommandResult:
+
+    def execute_command(self, command: str, args: list[str]) -> CommandResult:
         """
         Execute a Windows command.
-        
+
         Time Complexity: O(1) + command execution time
         Space Complexity: O(output_size)
-        
+
         Args:
             command: Command to execute
             args: Command arguments
-            
+
         Returns:
             CommandResult with stdout, stderr, and return code
-            
+
         Example:
             >>> result = integration.execute_command("cmd", ["/c", "echo", "Hello"])
             >>> print(result.stdout)
         """
         import time
-        
+
         try:
             start_time = time.time()
-            
+
             # Build command
             cmd = [command] + args
-            
+
+            # Reject privileged commands unless running as admin (Issue #16)
+            _PRIVILEGED_COMMANDS = {"net", "sc", "reg", "bcdedit", "diskpart", "icacls", "takeown"}
+            if command.lower().rstrip(".exe") in _PRIVILEGED_COMMANDS:
+                if not self.is_admin():
+                    raise PermissionError(
+                        f"Privileged command '{command}' requires administrator rights. "
+                        "Verify permissions before calling execute_command with privileged tools."
+                    )
+
             # Execute command
             result = subprocess.run(
                 cmd,
@@ -627,48 +636,48 @@ class WindowsIntegration:
                 text=True,
                 timeout=30  # 30 second timeout
             )
-            
+
             execution_time = time.time() - start_time
-            
+
             logger.debug(
                 f"Executed command: {command} (return code: {result.returncode}, "
                 f"time: {execution_time:.3f}s)"
             )
-            
+
             return CommandResult(
                 stdout=result.stdout,
                 stderr=result.stderr,
                 return_code=result.returncode,
                 execution_time=execution_time
             )
-            
+
         except subprocess.TimeoutExpired as e:
             error_msg = f"Command timed out: {command}"
             logger.error(error_msg)
             raise TimeoutError(error_msg) from e
-            
+
         except Exception as e:
             error_msg = f"Error executing command {command}: {e}"
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
-    
+
     def get_system_info(self) -> SystemInfo:
         """
         Get Windows system information.
-        
+
         Time Complexity: O(1)
         Space Complexity: O(1)
-        
+
         Returns:
             SystemInfo with system details
-            
+
         Example:
             >>> info = integration.get_system_info()
             >>> print(f"Hostname: {info.hostname}")
         """
         import platform
         import socket
-        
+
         return SystemInfo(
             hostname=socket.gethostname(),
             platform="Windows",
@@ -679,16 +688,16 @@ class WindowsIntegration:
             cpu_count_logical=psutil.cpu_count(logical=True) or 0,
             boot_time=psutil.boot_time()
         )
-    
+
     # Permission Validation
-    
+
     def is_admin(self) -> bool:
         """
         Check if running with administrator privileges.
-        
+
         Returns:
             True if running as administrator
-            
+
         Example:
             >>> if integration.is_admin():
             ...     print("Running as administrator")

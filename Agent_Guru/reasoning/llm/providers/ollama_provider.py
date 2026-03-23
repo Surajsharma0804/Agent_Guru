@@ -19,7 +19,7 @@ Implementation Notes:
 
 import asyncio
 import time
-from typing import Any, Dict
+from typing import Any
 
 import aiohttp
 
@@ -104,7 +104,7 @@ class OllamaProvider(BaseLLMProvider):
         """
         start_time = time.perf_counter()
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": self.ollama_config.model,
             "prompt": request.prompt,
             "stream": False,
@@ -177,7 +177,7 @@ class OllamaProvider(BaseLLMProvider):
                 f"(connect timeout: {self._CONNECT_TIMEOUT_S}s)"
             )
         except aiohttp.ClientError as e:
-            raise RuntimeError(f"Ollama HTTP client error: {e}")
+            raise RuntimeError(f"Ollama HTTP client error: {e}") from e
 
     async def health_check(self) -> bool:
         """Check if Ollama server is available.

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import threading
 from collections import deque
-from typing import Deque, Dict, List, Tuple
 
 import structlog
 
@@ -36,9 +35,9 @@ class PerformanceMonitor:
     def __init__(self, window_size: int = _WINDOW_SIZE) -> None:
         self._window_size = window_size
         # (model_id, task_type) → deque of (success, latency_ms, quality)
-        self._records: Dict[Tuple[str, str], Deque[Tuple[bool, float, float]]] = {}
+        self._records: dict[tuple[str, str], deque[tuple[bool, float, float]]] = {}
         # (model_id, task_type) → EMA latency
-        self._ema_latency: Dict[Tuple[str, str], float] = {}
+        self._ema_latency: dict[tuple[str, str], float] = {}
         self._lock = threading.RLock()
 
     def record(self, record: PerformanceRecord) -> None:
@@ -124,8 +123,8 @@ class PerformanceMonitor:
             return False  # Not enough data
         return metrics.success_rate < threshold
 
-    def compare_models(self, model_ids: List[str],
-                       task_type: TaskType) -> List[PerformanceMetrics]:
+    def compare_models(self, model_ids: list[str],
+                       task_type: TaskType) -> list[PerformanceMetrics]:
         """Compare performance metrics across multiple models.
 
         Args:

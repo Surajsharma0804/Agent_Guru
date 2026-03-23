@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 from Agent_Guru.policy.cache_manager import CacheManager
 from Agent_Guru.policy.conflict_resolver import ConflictResolver
@@ -29,7 +29,7 @@ from Agent_Guru.policy.models import (
     Role,
 )
 from Agent_Guru.policy.policy_storage import PolicyStorage
-from Agent_Guru.policy.rule_evaluator import RuleEvaluator, RuleEvaluationError
+from Agent_Guru.policy.rule_evaluator import RuleEvaluationError, RuleEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class AccessController:
         principal: Principal,
         resource: Resource,
         action: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
         strategy: Optional[ConflictStrategy] = None,
     ) -> AccessDecision:
         """Check if access should be granted.
@@ -118,8 +118,8 @@ class AccessController:
         )
 
         # Evaluate each policy's conditions
-        evaluated: List[EvaluatedPolicy] = []
-        memo_cache: Dict[str, bool] = {}
+        evaluated: list[EvaluatedPolicy] = []
+        memo_cache: dict[str, bool] = {}
 
         for policy in policies:
             try:
@@ -170,13 +170,13 @@ class AccessController:
         effective = self.get_effective_permissions(principal)
         return permission in effective or "*" in effective
 
-    def get_effective_permissions(self, principal: Principal) -> Set[str]:
+    def get_effective_permissions(self, principal: Principal) -> set[str]:
         """Get all permissions for a principal through role hierarchy.
 
         Validates: Requirements 3.2, 3.3, 3.5
         """
         direct_roles = self.storage.get_principal_roles(principal.id)
-        permissions: Set[str] = set()
+        permissions: set[str] = set()
 
         for role in direct_roles:
             self._collect_permissions(role, permissions, depth=0)
@@ -184,7 +184,7 @@ class AccessController:
         return permissions
 
     def _collect_permissions(
-        self, role: Role, permissions: Set[str], depth: int
+        self, role: Role, permissions: set[str], depth: int
     ) -> None:
         """Recursively collect permissions from a role and its ancestors."""
         if depth > MAX_ROLE_DEPTH:

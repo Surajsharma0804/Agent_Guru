@@ -7,7 +7,7 @@ Platform-specific implementations for Windows, macOS, and Linux.
 import logging
 import platform
 import subprocess
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -30,7 +30,7 @@ class PlatformSystemController:
         return platform.system().lower()
 
     @staticmethod
-    async def set_volume(level: int) -> Dict[str, Any]:
+    async def set_volume(level: int) -> dict[str, Any]:
         """Set system volume (platform-specific).
 
         Args:
@@ -86,7 +86,7 @@ class PlatformSystemController:
             return {"success": False, "error": f"Failed to set volume: {str(e)}"}
 
     @staticmethod
-    async def set_brightness(level: int) -> Dict[str, Any]:
+    async def set_brightness(level: int) -> dict[str, Any]:
         """Set screen brightness (platform-specific).
 
         Args:
@@ -147,7 +147,7 @@ class PlatformSystemController:
             return {"success": False, "error": f"Failed to set brightness: {str(e)}"}
 
     @staticmethod
-    async def toggle_wifi(enable: bool) -> Dict[str, Any]:
+    async def toggle_wifi(enable: bool) -> dict[str, Any]:
         """Toggle WiFi on/off (platform-specific).
 
         Args:
@@ -202,7 +202,7 @@ class PlatformSystemController:
             return {"success": False, "error": f"Failed to {action} WiFi: {str(e)}"}
 
     @staticmethod
-    async def toggle_bluetooth(enable: bool) -> Dict[str, Any]:
+    async def toggle_bluetooth(enable: bool) -> dict[str, Any]:
         """Toggle Bluetooth on/off (platform-specific).
 
         Args:
@@ -289,7 +289,7 @@ class PlatformSystemController:
 class SetVolumeTool(Tool):
     """Tool for setting system volume."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute volume setting.
 
         Args:
@@ -329,7 +329,7 @@ class SetVolumeTool(Tool):
 class SetBrightnessTool(Tool):
     """Tool for setting screen brightness."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute brightness setting.
 
         Args:
@@ -369,7 +369,7 @@ class SetBrightnessTool(Tool):
 class ToggleWifiTool(Tool):
     """Tool for toggling WiFi."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute WiFi toggling.
 
         Args:
@@ -407,7 +407,7 @@ class ToggleWifiTool(Tool):
 class ToggleBluetoothTool(Tool):
     """Tool for toggling Bluetooth."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute Bluetooth toggling.
 
         Args:

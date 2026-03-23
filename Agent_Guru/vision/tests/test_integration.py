@@ -11,9 +11,8 @@ Requirements: 1.1, 1.2, 1.3, 3.1, 5.3, 10.1, 16.1, 16.3, 16.6, 28.1
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest

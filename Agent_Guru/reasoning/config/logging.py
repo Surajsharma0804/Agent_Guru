@@ -34,7 +34,7 @@ def configure_logging(
 ) -> None:
     """
     Configure structured logging with structlog.
-    
+
     Args:
         log_level: Logging level (DEBUG, INFO, WARN, ERROR)
         log_file: Optional path to log file for rotation
@@ -43,7 +43,7 @@ def configure_logging(
     """
     # Convert string level to logging constant
     numeric_level = getattr(logging, log_level.upper(), logging.INFO)
-    
+
     # Configure standard library logging
     logging.basicConfig(
         format="%(message)s",
@@ -51,7 +51,7 @@ def configure_logging(
         level=numeric_level,
         force=True,  # Force reconfiguration even if already configured
     )
-    
+
     # Build processor chain
     processors: list[Processor] = [
         structlog.contextvars.merge_contextvars,
@@ -63,7 +63,7 @@ def configure_logging(
         structlog.stdlib.PositionalArgumentsFormatter(),
         structlog.processors.StackInfoRenderer(),
     ]
-    
+
     if json_format:
         # JSON format for production
         processors.extend([
@@ -76,7 +76,7 @@ def configure_logging(
             structlog.processors.ExceptionPrettyPrinter(),
             structlog.dev.ConsoleRenderer(colors=True),
         ])
-    
+
     # Configure structlog
     structlog.configure(
         processors=processors,
@@ -85,11 +85,11 @@ def configure_logging(
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
-    
+
     # Set up file rotation if log file specified
     if log_file:
         from logging.handlers import RotatingFileHandler
-        
+
         log_file.parent.mkdir(parents=True, exist_ok=True)
         file_handler = RotatingFileHandler(
             log_file,
@@ -103,10 +103,10 @@ def configure_logging(
 def get_logger(name: str) -> Any:
     """
     Get a structured logger instance.
-    
+
     Args:
         name: Logger name (typically __name__)
-        
+
     Returns:
         Configured structlog logger
     """
@@ -116,7 +116,7 @@ def get_logger(name: str) -> Any:
 def bind_context(**kwargs: Any) -> None:
     """
     Bind context variables that will be included in all subsequent log entries.
-    
+
     Args:
         **kwargs: Context key-value pairs (user_id, conversation_id, turn_id, etc.)
     """
@@ -127,7 +127,7 @@ def bind_context(**kwargs: Any) -> None:
 def unbind_context(*keys: str) -> None:
     """
     Remove specific context variables.
-    
+
     Args:
         *keys: Context keys to remove
     """

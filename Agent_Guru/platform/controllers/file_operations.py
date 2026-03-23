@@ -50,19 +50,18 @@ Date: 2026-02-24
 Version: 1.0.0
 """
 
+import hashlib
+import json
+import logging
 import os
 import shutil
-import hashlib
-import logging
-from pathlib import Path
-from typing import Optional, List, Dict, Any, Union
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import json
+from pathlib import Path
+from typing import Any, Optional, Union
 
 from Agent_Guru.security.path_utils import safe_path
-
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -98,7 +97,7 @@ class FileOperationResult:
     path: str
     message: str
     error: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -118,7 +117,7 @@ class AuditLogEntry:
     path: str
     success: bool
     user: Optional[str] = None
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
     def to_json(self) -> str:
         """Convert audit entry to JSON string."""
@@ -192,7 +191,7 @@ class FileOperationsController:
         operation: FileOperationType,
         path: str,
         success: bool,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[dict[str, Any]] = None
     ) -> None:
         """Log file operation to audit log.
 
@@ -931,7 +930,7 @@ class FileOperationsController:
         path: str,
         recursive: bool = False,
         pattern: Optional[str] = None
-    ) -> Optional[List[str]]:
+    ) -> Optional[list[str]]:
         """List directory contents.
 
         Time Complexity: O(n) where n is number of entries
@@ -1016,7 +1015,7 @@ class FileOperationsController:
         except Exception:
             return False
 
-    def get_file_info(self, path: str) -> Optional[Dict[str, Any]]:
+    def get_file_info(self, path: str) -> Optional[dict[str, Any]]:
         """Get file metadata.
 
         Time Complexity: O(1)

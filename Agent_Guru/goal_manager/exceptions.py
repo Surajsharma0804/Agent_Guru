@@ -97,7 +97,6 @@ class StorageError(GoalManagerError):
         context: Dictionary with error context (goal_id, operation, error_details)
     """
 
-    pass
 
 
 class DecompositionError(GoalManagerError):
@@ -133,7 +132,6 @@ class DecompositionError(GoalManagerError):
         context: Dictionary with error context (goal_id, llm_response, validation_errors)
     """
 
-    pass
 
 
 class ValidationError(GoalManagerError):
@@ -170,7 +168,6 @@ class ValidationError(GoalManagerError):
         context: Dictionary with error context (goal_id, validation_type, details)
     """
 
-    pass
 
 
 class ExecutionError(GoalManagerError):
@@ -208,7 +205,6 @@ class ExecutionError(GoalManagerError):
         context: Dictionary with error context (goal_id, task_id, error_details)
     """
 
-    pass
 
 
 # Aliases for backward compatibility with tests
@@ -217,14 +213,11 @@ DatabaseError = StorageError
 
 class GoalNotFoundError(GoalManagerError):
     """Raised when a goal cannot be found by ID."""
-    pass
 
 
 class CircularDependencyError(ValidationError):
     """Raised when a circular dependency is detected."""
-    pass
 
 
 class InvalidGoalStateError(ValidationError):
     """Raised when an operation is invalid for the current goal state."""
-    pass

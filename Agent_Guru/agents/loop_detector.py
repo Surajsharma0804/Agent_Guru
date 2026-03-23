@@ -15,7 +15,6 @@ Validates: Requirements 11.3, 11.4, 11.5
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Dict, List, Tuple
 
 
 class LoopDetector:
@@ -67,9 +66,9 @@ class LoopDetector:
         self.pattern_window = pattern_window
         self.repetition_threshold = repetition_threshold
         # agent_id -> recent action list (bounded by pattern_window)
-        self._action_history: Dict[str, List[str]] = defaultdict(list)
+        self._action_history: dict[str, list[str]] = defaultdict(list)
         # task_type -> recent (from, to) delegation pairs
-        self._delegation_history: Dict[str, List[Tuple[str, str]]] = defaultdict(list)
+        self._delegation_history: dict[str, list[tuple[str, str]]] = defaultdict(list)
 
     # ------------------------------------------------------------------
     # Action loop detection

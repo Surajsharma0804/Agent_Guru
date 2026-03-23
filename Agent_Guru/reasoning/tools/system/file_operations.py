@@ -7,7 +7,7 @@ Implements safe file operations with validation and error handling.
 import asyncio
 import shutil
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -16,7 +16,6 @@ from Agent_Guru.reasoning.tools.base import (
     ToolSensitivity,
 )
 from Agent_Guru.reasoning.tools.registry import tool
-
 
 # Maximum file size for read operations (10MB)
 MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
@@ -53,7 +52,7 @@ MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 class FileReadTool(Tool):
     """Tool for reading files."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute file reading.
 
         Args:
@@ -161,7 +160,7 @@ class FileReadTool(Tool):
 class FileWriteTool(Tool):
     """Tool for writing files."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute file writing.
 
         Args:
@@ -238,7 +237,7 @@ class FileWriteTool(Tool):
 class FileDeleteTool(Tool):
     """Tool for deleting files."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute file deletion.
 
         Args:
@@ -314,7 +313,7 @@ class FileDeleteTool(Tool):
 class FileMoveTool(Tool):
     """Tool for moving/renaming files."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute file moving.
 
         Args:
@@ -397,7 +396,7 @@ class FileMoveTool(Tool):
 class FileCopyTool(Tool):
     """Tool for copying files."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute file copying.
 
         Args:

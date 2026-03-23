@@ -48,7 +48,7 @@ class StreamState:
 class StreamingAudioManager:
     """
     Manage real-time audio streaming with <500ms end-to-end latency.
-    
+
     Features:
     - Multiple codec support (PCM, Opus, AAC)
     - Adaptive buffering based on network conditions
@@ -56,7 +56,7 @@ class StreamingAudioManager:
     - Latency, jitter, and packet loss tracking
     - Buffer underrun/overrun handling
     - Dynamic buffer size adaptation
-    
+
     Targets:
     - <500ms end-to-end latency
     - <50ms jitter
@@ -66,7 +66,7 @@ class StreamingAudioManager:
     def __init__(self, config: StreamConfig):
         """
         Initialize streaming audio manager.
-        
+
         Args:
             config: Streaming configuration
         """
@@ -96,16 +96,16 @@ class StreamingAudioManager:
     ) -> AsyncIterator[np.ndarray]:
         """
         Stream audio input with buffering and format conversion.
-        
+
         Processes incoming audio bytes, converts to numpy arrays,
         and yields chunks with latency tracking.
-        
+
         Args:
             audio_source: Async iterator of audio bytes
-            
+
         Yields:
             Audio chunks as numpy arrays
-            
+
         Raises:
             StreamingError: If streaming fails
         """
@@ -156,17 +156,17 @@ class StreamingAudioManager:
     ) -> AsyncIterator[bytes]:
         """
         Stream audio output with encoding.
-        
+
         Encodes numpy arrays to bytes using configured codec
         and yields encoded chunks with latency tracking.
-        
+
         Args:
             audio_data: Async iterator of audio numpy arrays
             sample_rate: Sample rate in Hz
-            
+
         Yields:
             Encoded audio chunks as bytes
-            
+
         Raises:
             StreamingError: If streaming fails
         """
@@ -212,7 +212,7 @@ class StreamingAudioManager:
     async def get_metrics(self) -> StreamMetrics:
         """
         Get streaming performance metrics.
-        
+
         Returns:
             StreamMetrics with latency, jitter, packet loss, buffer stats
         """
@@ -249,11 +249,11 @@ class StreamingAudioManager:
     async def adapt_buffer_size(self, network_latency_ms: float) -> None:
         """
         Adapt buffer size based on network conditions.
-        
+
         Balances latency vs reliability:
         - Low latency: smaller buffer (faster response, more underruns)
         - High latency: larger buffer (slower response, fewer underruns)
-        
+
         Args:
             network_latency_ms: Measured network latency in milliseconds
         """
@@ -334,7 +334,7 @@ class StreamingAudioManager:
     def _encode_opus(self, audio_array: np.ndarray, sample_rate: int) -> bytes:
         """
         Encode to Opus format.
-        
+
         Note: This is a placeholder. In production, use opuslib or similar.
         """
         # For now, fall back to PCM
@@ -344,7 +344,7 @@ class StreamingAudioManager:
     def _decode_opus(self, audio_bytes: bytes) -> np.ndarray:
         """
         Decode from Opus format.
-        
+
         Note: This is a placeholder. In production, use opuslib or similar.
         """
         # For now, fall back to PCM
@@ -354,7 +354,7 @@ class StreamingAudioManager:
     def _encode_aac(self, audio_array: np.ndarray, sample_rate: int) -> bytes:
         """
         Encode to AAC format.
-        
+
         Note: This is a placeholder. In production, use pyaac or similar.
         """
         # For now, fall back to PCM
@@ -364,7 +364,7 @@ class StreamingAudioManager:
     def _decode_aac(self, audio_bytes: bytes) -> np.ndarray:
         """
         Decode from AAC format.
-        
+
         Note: This is a placeholder. In production, use pyaac or similar.
         """
         # For now, fall back to PCM

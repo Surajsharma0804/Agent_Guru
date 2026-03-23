@@ -29,8 +29,7 @@ import pytest
 import tempfile
 import os
 import time
-from datetime import datetime, timedelta
-from typing import Any
+from datetime import datetime
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema

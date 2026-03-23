@@ -13,7 +13,7 @@ import pytest
 import platform
 import subprocess
 import time
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from hypothesis import given, strategies as st
 
 from Agent_Guru.platform.controllers.media_control import (
@@ -23,7 +23,6 @@ from Agent_Guru.platform.controllers.media_control import (
     MacOSMediaBackend,
     LinuxMediaBackend,
     MediaState,
-    MediaControlError,
     UnsupportedMediaOperationError,
     MediaCommandError,
 )
@@ -892,7 +891,7 @@ class TestMediaControllerIntegration:
             
             if state and state.track_title:
                 # Spotify is running, test controls
-                original_playing = state.is_playing
+                state.is_playing
                 
                 # Test play/pause toggle
                 controller.play_pause_toggle()

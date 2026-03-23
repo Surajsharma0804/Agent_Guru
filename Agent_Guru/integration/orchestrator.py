@@ -167,6 +167,7 @@ class IntegrationOrchestrator:
         # Wiring confirmed
         self.is_wired: bool = True
         self._sleeping: bool = False
+        self._sleeping_lock: asyncio.Lock = asyncio.Lock()
 
         # Intent recognizer — initialized lazily on first use
         self._intent_recognizer: Any = None
@@ -254,12 +255,14 @@ class IntegrationOrchestrator:
 
     async def sleep(self) -> None:
         """Enter sleep mode — only wake word detection remains active."""
-        self._sleeping = True
+        async with self._sleeping_lock:
+            self._sleeping = True
         logger.info("IntegrationOrchestrator: sleep mode — wake word detection only")
 
     async def wake(self) -> None:
         """Exit sleep mode — all subsystems active."""
-        self._sleeping = False
+        async with self._sleeping_lock:
+            self._sleeping = False
         logger.info("IntegrationOrchestrator: wake mode — all subsystems active")
 
     # ------------------------------------------------------------------
@@ -823,6 +826,7 @@ class IntegrationOrchestrator:
         try:
             import io
             import wave
+
             import numpy as np
 
             # Convert orchestrator Personality → speech engine PersonalityType

@@ -69,14 +69,14 @@ _logger = logging.getLogger(__name__)
 
 def suppress_c_stderr():
     """Suppress C-level stderr output (for cuDNN warnings).
-    
+
     Production-grade solution that works at the OS level.
     This prevents cuDNN warnings from appearing in console.
     Only applied when TTS model is actually loaded, not at import time.
     """
     if _platform_module.system() == 'Windows':
         try:
-            libc = ctypes.CDLL('msvcrt')
+            ctypes.CDLL('msvcrt')
             with open(os.devnull, 'w') as devnull:
                 os.dup2(devnull.fileno(), 2)  # Redirect stderr (fd=2) to devnull
         except OSError as exc:  # noqa: BLE001
@@ -118,7 +118,7 @@ class TTSError(GuruSpeechError):
 class CoquiTTSEngine:
     """
     Production-grade TTS engine using Coqui TTS.
-    
+
     Features:
     - FREE and runs locally (no API costs)
     - Natural-sounding voices (much better than Windows SAPI)
@@ -127,7 +127,7 @@ class CoquiTTSEngine:
     - GPU acceleration (if available)
     - Thread-safe synthesis
     - Fast synthesis (<1s typical)
-    
+
     Models:
     - tts_models/en/ljspeech/tacotron2-DDC (female, natural)
     - tts_models/en/ljspeech/glow-tts (female, fast)
@@ -161,7 +161,7 @@ class CoquiTTSEngine:
 
     def __init__(self, use_gpu: bool = False):
         """Initialize Coqui TTS engine.
-        
+
         Args:
             use_gpu: Use GPU acceleration if available (default: False)
                     CPU mode is recommended for production (no cuDNN warnings, still fast)
@@ -177,7 +177,7 @@ class CoquiTTSEngine:
 
     def _ensure_model_loaded(self):
         """Ensure TTS model is loaded (lazy loading).
-        
+
         Production-grade implementation with:
         - Proper error handling
         - Clean logging (no warnings)
@@ -239,7 +239,7 @@ class CoquiTTSEngine:
                 self._model_loaded = False
                 return self._ensure_model_loaded()
 
-            raise TTSError(f"Failed to load TTS model: {e}", e)
+            raise TTSError(f"Failed to load TTS model: {e}", e) from e
 
     def synthesize(
         self,
@@ -253,10 +253,10 @@ class CoquiTTSEngine:
     ) -> bytes:
         """
         Synthesize speech from text using Coqui TTS.
-        
+
         Time Complexity: O(n) where n = len(text)
         Space Complexity: O(n) for output audio
-        
+
         Args:
             text: Text to synthesize
             personality: Guru (male) or Maya (female) - can be PersonalityType enum or string
@@ -265,10 +265,10 @@ class CoquiTTSEngine:
             pitch: Pitch multiplier (0.5-2.0)
             volume: Volume multiplier (0.0-1.0)
             use_ssml: SSML markup support (not used)
-            
+
         Returns:
             WAV audio data as bytes
-            
+
         Raises:
             TTSError: On synthesis failure
         """
@@ -299,7 +299,7 @@ class CoquiTTSEngine:
         volume: float
     ) -> bytes:
         """Internal synthesis with lock held.
-        
+
         Production-grade implementation with:
         - Emoji filtering (voice doesn't need emojis)
         - Proper error handling
@@ -373,7 +373,7 @@ class CoquiTTSEngine:
             return audio_data
 
         except Exception as e:
-            raise TTSError(f"Synthesis failed: {e}", e)
+            raise TTSError(f"Synthesis failed: {e}", e) from e
         finally:
             # PRODUCTION: Always cleanup temp files (no resource leaks)
             if tmp_path and os.path.exists(tmp_path):
@@ -387,13 +387,13 @@ class CoquiTTSEngine:
     @staticmethod
     def _remove_emojis(text: str) -> str:
         """Remove emojis from text (production best practice for TTS).
-        
+
         Emojis cause issues with TTS and are not needed for voice conversations.
         This is a two-layer protection (also filtered in reasoning engine).
-        
+
         Args:
             text: Input text possibly containing emojis
-            
+
         Returns:
             Text with emojis removed
         """
@@ -422,15 +422,15 @@ class CoquiTTSEngine:
     @staticmethod
     def _string_to_personality(personality_str: str) -> PersonalityType:
         """Convert string to PersonalityType enum (production helper).
-        
+
         Provides backward compatibility for string-based personality selection.
-        
+
         Args:
             personality_str: "guru", "maya", or PersonalityType enum
-            
+
         Returns:
             PersonalityType enum
-            
+
         Raises:
             TTSError: If personality string is invalid
         """
@@ -450,11 +450,11 @@ class CoquiTTSEngine:
 
     def _adjust_volume(self, audio_bytes: bytes, volume: float) -> bytes:
         """Adjust audio volume.
-        
+
         Args:
             audio_bytes: WAV audio data
             volume: Volume multiplier (0.0-1.0)
-            
+
         Returns:
             Adjusted WAV audio data
         """
@@ -500,13 +500,13 @@ class CoquiTTSEngine:
     ) -> tuple[np.ndarray, int]:
         """
         Synthesize to numpy array.
-        
+
         Time Complexity: O(n) where n = audio length
         Space Complexity: O(n)
-        
+
         Args:
             personality: Can be PersonalityType enum or string ("guru"/"maya")
-        
+
         Returns:
             (audio_array, sample_rate) where audio is float32 in [-1.0, 1.0]
         """
@@ -545,7 +545,7 @@ class CoquiTTSEngine:
     def get_voice_info(self, personality: PersonalityType) -> dict[str, Any]:
         """
         Get voice information.
-        
+
         Returns:
             Dictionary with voice metadata
         """
@@ -567,7 +567,7 @@ class CoquiTTSEngine:
 
     def list_available_speakers(self) -> list[str]:
         """List all available speakers in the model.
-        
+
         Returns:
             List of speaker IDs
         """

@@ -13,9 +13,9 @@ Date: 2026-03-14
 """
 
 import logging
-from typing import Any, Dict, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ class GoalManagerClient:
         self,
         description: str,
         priority: str = "medium",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> TaskCreationResult:
         """
         Create a task from a voice command description.
@@ -170,4 +170,4 @@ class GoalManagerClient:
         """
         if success:
             return f"Task created: {description}"
-        return f"Sorry, I couldn't create the task. Please try again."
+        return "Sorry, I couldn't create the task. Please try again."

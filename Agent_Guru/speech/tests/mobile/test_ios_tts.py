@@ -5,7 +5,7 @@ For real device testing, run on iOS with pyobjus installed.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 import wave
 import io
 

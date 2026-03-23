@@ -4,11 +4,12 @@ Circuit Breaker - Prevents cascading failures from external system outages.
 Validates: Requirements 26.1, 26.2, 26.3, 26.4, 26.5
 """
 
-from typing import Callable, Awaitable, Any, Optional
+import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import logging
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -122,4 +123,3 @@ class CircuitBreaker:
 
 class CircuitOpenError(Exception):
     """Raised when a circuit breaker is open."""
-    pass

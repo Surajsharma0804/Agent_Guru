@@ -323,7 +323,7 @@ class ResponseCache:
         self._update_intent_hit_rate(intent_type, hit=True)
 
         # Log cache hit latency
-        latency_ms = (time.perf_counter() - start_time) * 1000
+        (time.perf_counter() - start_time) * 1000
         # Should be <1ms
 
         return entry.response

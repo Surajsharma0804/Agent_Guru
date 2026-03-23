@@ -14,9 +14,9 @@ from uuid import UUID
 
 from Agent_Guru.memory.models import (
     CausalLink,
+    ExecutionTrace,
     Experience,
     ExperienceQuery,
-    ExecutionTrace,
     Pattern,
     PatternAbstraction,
     PatternType,

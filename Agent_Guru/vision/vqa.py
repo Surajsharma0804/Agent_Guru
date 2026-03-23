@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import base64
 import os
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import structlog
@@ -94,8 +95,9 @@ class VQAEngine:
     def _get_ocr_text(self, image: np.ndarray) -> str | None:
         """Run OCR on the image and return extracted text, or None on failure."""
         try:
-            from Agent_Guru.vision.ocr import OCREngine
             import asyncio
+
+            from Agent_Guru.vision.ocr import OCREngine
 
             engine = OCREngine()
             loop = asyncio.new_event_loop()

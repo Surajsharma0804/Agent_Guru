@@ -13,17 +13,14 @@ Date: 2026-02-28
 import pytest
 import tempfile
 import os
-import time
 import json
 from datetime import datetime, timedelta
 from hypothesis import given, strategies as st, settings, HealthCheck
-from typing import List, Dict, Any
 
 from Agent_Guru.self_improvement.conflict_resolution import (
     ConflictResolver,
     ConflictType,
     QuarantineReason,
-    ConflictDetection,
     TaskExecutionData,
 )
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool

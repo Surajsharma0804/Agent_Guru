@@ -11,7 +11,7 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -26,7 +26,7 @@ from Agent_Guru.avatar.models import (
 logger = logging.getLogger("guruvision.avatar.personality")
 
 # Default profiles embedded so the engine works without config files
-_DEFAULT_PROFILES: Dict[str, Dict[str, Any]] = {
+_DEFAULT_PROFILES: dict[str, dict[str, Any]] = {
     "guru": {
         "name": "guru",
         "friendliness": 0.7, "formality": 0.8, "expressiveness": 0.6,
@@ -63,8 +63,8 @@ class PersonalityEngine:
 
     def __init__(self, profile_path: Optional[str] = None) -> None:
         self._profile_path = profile_path
-        self._profiles: Dict[str, PersonalityProfile] = {}
-        self._behavior_rules: Dict[str, List[Dict[str, Any]]] = {}
+        self._profiles: dict[str, PersonalityProfile] = {}
+        self._behavior_rules: dict[str, list[dict[str, Any]]] = {}
         self._load_defaults()
         if profile_path:
             self._load_from_file(profile_path)

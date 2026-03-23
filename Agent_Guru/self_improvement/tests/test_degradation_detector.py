@@ -9,7 +9,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from datetime import datetime, timedelta
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema

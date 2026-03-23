@@ -53,16 +53,15 @@ Date: 2026-02-25
 Version: 1.0.0
 """
 
+import json
+import logging
 import os
 import sys
-import logging
-from typing import Optional, List, Dict, Any, Union
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import json
 from pathlib import Path
-
+from typing import Any, Optional, Union
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -70,17 +69,17 @@ logger = logging.getLogger(__name__)
 
 # Import controllers (at module level for testability)
 try:
-    from Agent_Guru.platform.controllers.file_operations import FileOperationsController
     from Agent_Guru.platform.controllers.application_control import ApplicationController
-    from Agent_Guru.platform.controllers.text_input import TextInputController
-    from Agent_Guru.platform.controllers.messaging import MessagingController
-    from Agent_Guru.platform.controllers.system_settings import SystemSettingsController
-    from Agent_Guru.platform.controllers.input_control import MouseController, KeyboardController
-    from Agent_Guru.platform.controllers.window_management import WindowManager
+    from Agent_Guru.platform.controllers.file_operations import FileOperationsController
+    from Agent_Guru.platform.controllers.input_control import KeyboardController, MouseController
     from Agent_Guru.platform.controllers.media_control import MediaController
+    from Agent_Guru.platform.controllers.messaging import MessagingController
     from Agent_Guru.platform.controllers.screen_capture import ScreenCaptureController
-    from Agent_Guru.platform.process_manager import ProcessManager
+    from Agent_Guru.platform.controllers.system_settings import SystemSettingsController
+    from Agent_Guru.platform.controllers.text_input import TextInputController
+    from Agent_Guru.platform.controllers.window_management import WindowManager
     from Agent_Guru.platform.hardware.monitor import HardwareMonitor
+    from Agent_Guru.platform.process_manager import ProcessManager
 except ImportError as e:
     logger.warning(f"Some controllers not available: {e}")
 
@@ -119,7 +118,7 @@ class OperationResult:
     operation: str
     message: str
     error: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
 
 
@@ -140,7 +139,7 @@ class AuditLogEntry:
     operation: str
     success: bool
     user: Optional[str] = None
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
     def to_json(self) -> str:
         """Convert audit entry to JSON string."""
@@ -156,17 +155,14 @@ class AuditLogEntry:
 
 class OSControllerError(Exception):
     """Base exception for OS controller errors."""
-    pass
 
 
 class OperationNotSupportedError(OSControllerError):
     """Raised when operation is not supported on current platform."""
-    pass
 
 
 class ConfirmationRequiredError(OSControllerError):
     """Raised when user confirmation is required but not provided."""
-    pass
 
 
 
@@ -261,7 +257,7 @@ class OSController:
 
         except ImportError as e:
             logger.error(f"Failed to import controller: {e}")
-            raise OSControllerError(f"Failed to initialize controllers: {e}")
+            raise OSControllerError(f"Failed to initialize controllers: {e}") from e
 
 
     def _log_operation(
@@ -269,7 +265,7 @@ class OSController:
         category: OperationCategory,
         operation: str,
         success: bool,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[dict[str, Any]] = None
     ) -> None:
         """Log operation to audit log.
 
@@ -536,7 +532,7 @@ class OSController:
     def open_application(
         self,
         app_name: str,
-        args: Optional[List[str]] = None
+        args: Optional[list[str]] = None
     ) -> OperationResult:
         """Open an application by name.
 
@@ -957,7 +953,7 @@ class OSController:
             OperationResult with operation status
         """
         try:
-            result = self._screen_controller.take_screenshot(save_path, region)
+            self._screen_controller.take_screenshot(save_path, region)
             self._log_operation(
                 OperationCategory.SCREEN_CAPTURE,
                 "take_screenshot",
@@ -989,7 +985,7 @@ class OSController:
 
     # ==================== Process Management ====================
 
-    def list_processes(self) -> List[Dict[str, Any]]:
+    def list_processes(self) -> list[dict[str, Any]]:
         """List all running processes.
 
         Time Complexity: O(n) where n is number of processes
@@ -1056,7 +1052,7 @@ class OSController:
             )
             return None
 
-    def get_memory_info(self) -> Optional[Dict[str, Any]]:
+    def get_memory_info(self) -> Optional[dict[str, Any]]:
         """Get current memory usage information.
 
         Time Complexity: O(1)
@@ -1096,7 +1092,7 @@ class OSController:
         self,
         limit: Optional[int] = None,
         category: Optional[OperationCategory] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get operation history from audit log.
 
         Time Complexity: O(n) where n is number of log entries
@@ -1114,7 +1110,7 @@ class OSController:
 
         try:
             entries = []
-            with open(self.audit_log_path, "r") as f:
+            with open(self.audit_log_path) as f:
                 for line in f:
                     try:
                         entry = json.loads(line.strip())
@@ -1133,7 +1129,7 @@ class OSController:
             logger.error(f"Failed to read operation history: {e}")
             return []
 
-    def get_system_info(self) -> Dict[str, Any]:
+    def get_system_info(self) -> dict[str, Any]:
         """Get comprehensive system information.
 
         Time Complexity: O(1)

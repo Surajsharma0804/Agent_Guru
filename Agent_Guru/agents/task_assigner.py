@@ -15,7 +15,7 @@ Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from .agent_lifecycle import Agent, AgentLifecycleManager
 from .task_decomposer import Task
@@ -74,7 +74,7 @@ class TaskAssigner:
         self.lifecycle_manager = lifecycle_manager
         self.max_workload = max_workload_per_agent
         # agent_id -> current active task count
-        self._workloads: Dict[str, int] = {}
+        self._workloads: dict[str, int] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -98,7 +98,7 @@ class TaskAssigner:
         agents = await self.storage.get_active_agents()
 
         # Score and sort agents, excluding the specified agent
-        scored: List[Tuple[str, float]] = [
+        scored: list[tuple[str, float]] = [
             (agent.id, self._score_agent_for_task(agent, task))
             for agent in agents
             if agent.id != exclude_agent_id

@@ -8,7 +8,7 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Optional
 
 from Agent_Guru.reasoning.models.skill import (
     Permission,
@@ -61,9 +61,9 @@ class PermissionManager:
             storage_path: Path to persist permission data
         """
         self.storage_path = storage_path
-        self._permissions: Dict[str, Set[Permission]] = {}  # skill_id -> permissions
-        self._trust_levels: Dict[str, TrustLevel] = {}  # skill_id -> trust_level
-        self._permission_history: List[Dict] = []  # Audit trail
+        self._permissions: dict[str, set[Permission]] = {}  # skill_id -> permissions
+        self._trust_levels: dict[str, TrustLevel] = {}  # skill_id -> trust_level
+        self._permission_history: list[dict] = []  # Audit trail
         self._lock = asyncio.Lock()
 
         # Load persisted data if available
@@ -113,7 +113,7 @@ class PermissionManager:
                 return False
 
             # Create permission request
-            request = PermissionRequest(
+            PermissionRequest(
                 skill_id=skill_id,
                 permission=permission,
                 reason=reason,
@@ -188,7 +188,7 @@ class PermissionManager:
             and permission in self._permissions[skill_id]
         )
 
-    def get_granted_permissions(self, skill_id: str) -> List[Permission]:
+    def get_granted_permissions(self, skill_id: str) -> list[Permission]:
         """Get all granted permissions for a skill.
 
         Args:
@@ -248,7 +248,7 @@ class PermissionManager:
 
     def get_permission_history(
         self, skill_id: Optional[str] = None, limit: int = 100
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Get permission history (audit trail).
 
         Args:
@@ -339,7 +339,7 @@ class PermissionManager:
             return
 
         try:
-            with open(self.storage_path, "r", encoding="utf-8") as f:
+            with open(self.storage_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             # Load permissions

@@ -5,8 +5,9 @@ Demonstrates enrolling a custom voice and synthesizing speech with it.
 """
 
 import numpy as np
+
 from Agent_Guru.speech.engine import SpeechEngine
-from Agent_Guru.speech.models import PersonalityType, EmotionType
+from Agent_Guru.speech.models import EmotionType, PersonalityType
 
 
 def main():

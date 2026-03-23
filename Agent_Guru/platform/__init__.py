@@ -34,18 +34,17 @@ Architecture:
 __version__ = "1.0.0"
 
 # Import platform detector for easy access
-from Agent_Guru.platform.platform_detector import (
-    PlatformDetector,
-    PlatformInfo,
-    UnsupportedPlatformError
-)
-
 # Import integration clients
 from Agent_Guru.platform.integration import (
     GoalManagerClient,
-    TaskCompletionNotification,
-    OperationResult,
     NotificationStatus,
+    OperationResult,
+    TaskCompletionNotification,
+)
+from Agent_Guru.platform.platform_detector import (
+    PlatformDetector,
+    PlatformInfo,
+    UnsupportedPlatformError,
 )
 
 __all__ = [

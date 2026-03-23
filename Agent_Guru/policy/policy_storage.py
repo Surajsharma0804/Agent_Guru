@@ -16,9 +16,10 @@ import json
 import logging
 import sqlite3
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Generator, List, Optional
+from typing import Optional
 
 from Agent_Guru.policy.models import Policy, PolicyEffect, Role
 
@@ -242,7 +243,7 @@ class PolicyStorage:
         resource: Optional[str] = None,
         action: Optional[str] = None,
         active_only: bool = True,
-    ) -> List[Policy]:
+    ) -> list[Policy]:
         """Find active policies. Filters are applied in Python after fetch.
 
         Validates: Requirement 1.6
@@ -266,7 +267,7 @@ class PolicyStorage:
 
         return policies
 
-    def get_policy_versions(self, policy_id: str) -> List[int]:
+    def get_policy_versions(self, policy_id: str) -> list[int]:
         """Return all version numbers for a policy in ascending order.
 
         Validates: Requirement 1.5
@@ -338,7 +339,7 @@ class PolicyStorage:
                 (principal_id, role_id),
             )
 
-    def get_principal_roles(self, principal_id: str) -> List[Role]:
+    def get_principal_roles(self, principal_id: str) -> list[Role]:
         """Get all roles directly assigned to a principal.
 
         Validates: Requirement 3.5
@@ -354,7 +355,7 @@ class PolicyStorage:
             ).fetchall()
         return [self._row_to_role(r) for r in rows]
 
-    def get_all_roles(self) -> List[Role]:
+    def get_all_roles(self) -> list[Role]:
         """Return all roles."""
         with self._conn() as conn:
             rows = conn.execute("SELECT * FROM roles").fetchall()

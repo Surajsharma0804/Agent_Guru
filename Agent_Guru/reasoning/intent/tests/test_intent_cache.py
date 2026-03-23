@@ -5,7 +5,7 @@ Tests cache functionality, TTL expiration, context invalidation, and performance
 """
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import pytest
 

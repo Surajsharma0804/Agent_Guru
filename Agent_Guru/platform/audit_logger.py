@@ -21,11 +21,10 @@ import json
 import logging
 import os
 import threading
-import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +59,7 @@ class AuditEntry:
     component: str
     operation: str
     success: bool
-    parameters: Dict[str, Any] = field(default_factory=dict)
+    parameters: dict[str, Any] = field(default_factory=dict)
     result: Optional[str] = None
     error: Optional[str] = None
     user: Optional[str] = None
@@ -128,7 +127,7 @@ class AuditLogger:
         component: str,
         operation: str,
         success: bool,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[dict[str, Any]] = None,
         result: Optional[str] = None,
         error: Optional[str] = None,
         latency_ms: float = 0.0,
@@ -170,7 +169,7 @@ class AuditLogger:
         component: str,
         operation: str,
         result: Any,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[dict[str, Any]] = None,
         latency_ms: float = 0.0,
     ) -> None:
         """
@@ -219,7 +218,7 @@ class AuditLogger:
         """
         entries: list[AuditEntry] = []
         try:
-            with open(self._log_path, "r", encoding="utf-8") as f:
+            with open(self._log_path, encoding="utf-8") as f:
                 lines = f.readlines()
             for line in reversed(lines[-n:]):
                 line = line.strip()
@@ -330,7 +329,7 @@ _SENSITIVE_KEYS = frozenset({
 })
 
 
-def _sanitize(params: Dict[str, Any]) -> Dict[str, Any]:
+def _sanitize(params: dict[str, Any]) -> dict[str, Any]:
     """
     Remove sensitive keys from parameters dict.
 
@@ -340,7 +339,7 @@ def _sanitize(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Sanitized copy with sensitive values replaced by '***'
     """
-    sanitized: Dict[str, Any] = {}
+    sanitized: dict[str, Any] = {}
     for k, v in params.items():
         if k.lower() in _SENSITIVE_KEYS:
             sanitized[k] = "***"

@@ -1541,7 +1541,7 @@ class TestDataAugmenterNLTKInitialization:
         mock_download.return_value = True
 
         # This should trigger downloads
-        augmenter = DataAugmenter()
+        DataAugmenter()
 
         # Verify downloads were attempted
         assert mock_download.call_count >= 3  # averaged_perceptron_tagger, wordnet, omw-1.4

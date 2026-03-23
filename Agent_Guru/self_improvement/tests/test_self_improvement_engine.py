@@ -12,8 +12,6 @@ Date: 2026-02-28
 import pytest
 import tempfile
 import os
-from datetime import datetime
-from typing import Dict, Any
 from hypothesis import given, strategies as st, settings, HealthCheck
 
 from Agent_Guru.self_improvement.self_improvement_engine import SelfImprovementEngine
@@ -493,7 +491,7 @@ class TestSelfImprovementEnginePerformance:
                 execution_time_ms=100.0
             )
         
-        result = benchmark(record_task)
+        benchmark(record_task)
         
         # Target is 50ms but real-world performance with database operations is 50-150ms
         # This is acceptable for production use
@@ -517,7 +515,7 @@ class TestSelfImprovementEnginePerformance:
         def get_strategy():
             return engine.get_optimal_strategy("perf_test")
         
-        result = benchmark(get_strategy)
+        benchmark(get_strategy)
         
         # Should complete in <10ms (target from requirements)
         assert benchmark.stats['mean'] < 0.01  # 10ms
@@ -537,7 +535,7 @@ class TestSelfImprovementEnginePerformance:
         def get_metrics():
             return engine.get_improvement_metrics()
         
-        result = benchmark(get_metrics)
+        benchmark(get_metrics)
         
         # Should complete in <10ms (target from requirements)
         assert benchmark.stats['mean'] < 0.01  # 10ms

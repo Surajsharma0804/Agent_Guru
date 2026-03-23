@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -44,7 +44,7 @@ class IdentityProfile:
     profile_id: str
     name: str
     key_pair: KeyPair
-    metadata: Dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, str] = field(default_factory=dict)
 
 
 class IdentityManager:
@@ -59,10 +59,10 @@ class IdentityManager:
     def __init__(self, key_store: Any, audit_logger: Optional[Any] = None) -> None:
         self._key_store = key_store
         self._audit_logger = audit_logger
-        self._profiles: Dict[str, IdentityProfile] = {}
+        self._profiles: dict[str, IdentityProfile] = {}
         # Maps profile_id -> currently active KeyPair (may differ from
         # profile.key_pair after rotation).
-        self._active_keys: Dict[str, KeyPair] = {}
+        self._active_keys: dict[str, KeyPair] = {}
 
     # ------------------------------------------------------------------
     # Identity lifecycle
@@ -278,7 +278,7 @@ class IdentityManager:
         """
         return self._get_profile_or_raise(profile_id)
 
-    def list_identities(self) -> List[IdentityProfile]:
+    def list_identities(self) -> list[IdentityProfile]:
         """List all identity profiles."""
         return list(self._profiles.values())
 
@@ -289,5 +289,5 @@ class IdentityManager:
     def _get_profile_or_raise(self, profile_id: str) -> IdentityProfile:
         profile = self._profiles.get(profile_id)
         if profile is None:
-            raise IdentityNotFoundError(f"Identity not found")
+            raise IdentityNotFoundError("Identity not found")
         return profile

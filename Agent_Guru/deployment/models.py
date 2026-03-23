@@ -10,7 +10,7 @@ import enum
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 
 class TransactionState(str, enum.Enum):
@@ -50,8 +50,8 @@ class PackageInfo:
     name: str
     version: str
     install_path: Path
-    dependencies: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    dependencies: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
     install_timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     checksum: str = ""
 
@@ -62,21 +62,21 @@ class PackageNode:
 
     name: str
     version: str
-    dependencies: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    dependencies: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class DependencyGraph:
     """Directed acyclic graph of package dependencies."""
 
-    nodes: Dict[str, PackageNode] = field(default_factory=dict)
-    edges: List[Tuple[str, str]] = field(default_factory=list)
+    nodes: dict[str, PackageNode] = field(default_factory=dict)
+    edges: list[tuple[str, str]] = field(default_factory=list)
 
     def has_cycle(self) -> bool:
         """Detect cycles using DFS with coloring (white=0, gray=1, black=2)."""
-        color: Dict[str, int] = {n: 0 for n in self.nodes}
-        adj: Dict[str, List[str]] = {n: [] for n in self.nodes}
+        color: dict[str, int] = dict.fromkeys(self.nodes, 0)
+        adj: dict[str, list[str]] = {n: [] for n in self.nodes}
         for src, dst in self.edges:
             if dst in adj:
                 adj[src].append(dst)
@@ -93,19 +93,19 @@ class DependencyGraph:
 
         return any(dfs(n) for n in self.nodes if color[n] == 0)
 
-    def topological_sort(self) -> List[str]:
+    def topological_sort(self) -> list[str]:
         """Return packages in installation order (dependencies first)."""
         if self.has_cycle():
             raise ValueError("Dependency graph contains a cycle")
 
         # Build adjacency: src -> [dst] where edge (src, dst) means src depends on dst
-        adj: Dict[str, List[str]] = {n: [] for n in self.nodes}
+        adj: dict[str, list[str]] = {n: [] for n in self.nodes}
         for src, dst in self.edges:
             if dst in adj:
                 adj[src].append(dst)
 
         visited: set[str] = set()
-        order: List[str] = []
+        order: list[str] = []
 
         def dfs(node: str) -> None:
             visited.add(node)
@@ -128,8 +128,8 @@ class Conflict:
     """A version conflict between packages."""
 
     package_name: str
-    required_versions: List[str] = field(default_factory=list)
-    required_by: List[str] = field(default_factory=list)
+    required_versions: list[str] = field(default_factory=list)
+    required_by: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -141,7 +141,7 @@ class TrustedKey:
     owner: str
     added_timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     expiry: Optional[datetime] = None
-    metadata: Dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -150,7 +150,7 @@ class Snapshot:
 
     snapshot_id: str
     timestamp: datetime
-    packages: List[PackageInfo] = field(default_factory=list)
+    packages: list[PackageInfo] = field(default_factory=list)
     registry_state: bytes = b""
     storage_path: Path = field(default_factory=lambda: Path("."))
     size_bytes: int = 0
@@ -161,7 +161,7 @@ class Transaction:
     """An atomic update transaction."""
 
     transaction_id: str
-    packages: List[Tuple[str, str]] = field(default_factory=list)
+    packages: list[tuple[str, str]] = field(default_factory=list)
     snapshot_id: str = ""
     state: TransactionState = TransactionState.PENDING
     start_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -174,7 +174,7 @@ class TransactionResult:
 
     success: bool
     transaction_id: str
-    installed_packages: List[str] = field(default_factory=list)
+    installed_packages: list[str] = field(default_factory=list)
     error: Optional[str] = None
     rollback_performed: bool = False
 
@@ -188,7 +188,7 @@ class AuditLogEntry:
     result: str  # SUCCESS or FAILURE
     package_name: Optional[str] = None
     version: Optional[str] = None
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
     user: str = "system"
     entry_hash: str = ""  # SHA-256 of previous entry + this entry content
 
@@ -201,7 +201,7 @@ class RepositoryConfig:
     url: str
     priority: int = 0
     verify_ssl: bool = True
-    credentials: Optional[Tuple[str, str]] = None
+    credentials: Optional[tuple[str, str]] = None
 
 
 @dataclass
@@ -216,7 +216,7 @@ class RetentionPolicy:
 class Configuration:
     """Deployment system configuration."""
 
-    repositories: List[RepositoryConfig] = field(default_factory=list)
+    repositories: list[RepositoryConfig] = field(default_factory=list)
     verification_policy: VerificationPolicy = VerificationPolicy.STRICT
     rollback_retention: RetentionPolicy = field(default_factory=RetentionPolicy)
     network_timeout: int = 30

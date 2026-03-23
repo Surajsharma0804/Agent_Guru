@@ -12,11 +12,10 @@ Provides a unified permission + safety API for all platforms.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from Agent_Guru.policy.engine import PolicyEngine
 from Agent_Guru.policy.models import (
-    ConflictStrategy,
     PolicyEffect,
     Principal,
     Resource,
@@ -88,9 +87,9 @@ class PolicyManager:
         user_id: str,
         resource_id: str,
         action: str,
-        context: Optional[Dict[str, Any]] = None,
-        roles: Optional[List[str]] = None,
-        attributes: Optional[Dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
+        roles: Optional[list[str]] = None,
+        attributes: Optional[dict[str, Any]] = None,
     ) -> bool:
         """Check if a user has permission to perform an action on a resource.
 
@@ -129,8 +128,8 @@ class PolicyManager:
         self,
         user_id: str,
         resource_id: str,
-        actions: List[str],
-        conditions: Optional[Dict[str, Any]] = None,
+        actions: list[str],
+        conditions: Optional[dict[str, Any]] = None,
     ) -> str:
         """Grant a user permission to perform actions on a resource.
 
@@ -149,7 +148,7 @@ class PolicyManager:
         self,
         user_id: str,
         resource_id: str,
-        actions: List[str],
+        actions: list[str],
     ) -> None:
         """Revoke a user's permission on a resource."""
         self._ensure_initialized()
@@ -212,7 +211,7 @@ class PolicyManager:
         resource_id: Optional[str] = None,
         action: Optional[str] = None,
         limit: int = 100,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """Query the audit log for policy decisions.
 
         Returns:

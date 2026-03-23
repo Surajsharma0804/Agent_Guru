@@ -6,7 +6,6 @@ Property 23: Language Detection and Switching
 Validates: Requirements 19.2, 19.3, 19.4
 """
 
-import pytest
 from hypothesis import given, strategies as st, settings
 
 from Agent_Guru.speech.stt.language_detector import (

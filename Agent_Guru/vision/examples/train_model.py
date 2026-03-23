@@ -44,9 +44,9 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Import here so the example can be imported without heavy deps at module level
+    from Agent_Guru.vision.training.export import export_to_onnx
     from Agent_Guru.vision.training.preprocess import preprocess_dataset, validate_dataset_structure
     from Agent_Guru.vision.training.train import TrainingConfig, train_arcface_model
-    from Agent_Guru.vision.training.export import export_to_onnx
 
     print(f"Step 1/3 — Validating dataset structure in '{dataset_dir}' …")
     issues = validate_dataset_structure(str(dataset_dir))

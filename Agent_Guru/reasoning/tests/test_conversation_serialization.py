@@ -7,7 +7,7 @@
 from typing import Any, Dict
 
 import pytest
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, strategies as st, settings
 
 from Agent_Guru.reasoning.models.conversation import (
     ConversationState,

@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -82,15 +82,15 @@ class PreprocessingReport:
     total_images_processed: int = 0
     total_skipped_no_face: int = 0
     total_skipped_error: int = 0
-    per_identity: Dict[str, IdentityStats] = field(default_factory=dict)
-    warnings: List[str] = field(default_factory=list)
+    per_identity: dict[str, IdentityStats] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
-def validate_dataset_structure(dataset_dir: str) -> Tuple[bool, List[str]]:
+def validate_dataset_structure(dataset_dir: str) -> tuple[bool, list[str]]:
     """Check that dataset_dir follows the expected layout.
 
     Expected: dataset_dir/{IdentityName}/*.{jpg,png,...}
@@ -103,7 +103,7 @@ def validate_dataset_structure(dataset_dir: str) -> Tuple[bool, List[str]]:
         sub-directory containing at least one image file is found.
         errors is a list of human-readable problem descriptions.
     """
-    errors: List[str] = []
+    errors: list[str] = []
     root = Path(dataset_dir)
 
     if not root.exists():
@@ -136,7 +136,7 @@ def validate_dataset_structure(dataset_dir: str) -> Tuple[bool, List[str]]:
     return True, errors
 
 
-def check_minimum_images(dataset_dir: str) -> Dict[str, int]:
+def check_minimum_images(dataset_dir: str) -> dict[str, int]:
     """Return a mapping of identity → image count for all identities.
 
     Identities with fewer than MIN_IMAGES_PER_IDENTITY images are flagged
@@ -149,7 +149,7 @@ def check_minimum_images(dataset_dir: str) -> Dict[str, int]:
         Dict mapping identity name to the number of image files found.
     """
     root = Path(dataset_dir)
-    counts: Dict[str, int] = {}
+    counts: dict[str, int] = {}
 
     for identity_dir in sorted(root.iterdir()):
         if not identity_dir.is_dir():
@@ -278,7 +278,7 @@ def preprocess_dataset(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _list_images(directory: Path) -> List[Path]:
+def _list_images(directory: Path) -> list[Path]:
     """Return sorted list of image files in directory (non-recursive)."""
     return sorted(
         p for p in directory.iterdir()
@@ -299,8 +299,8 @@ def _load_image(path: Path) -> Optional[np.ndarray]:
 
     # Fallback: try PIL
     try:
-        from PIL import Image  # type: ignore[import]
         import numpy as np  # noqa: F811
+        from PIL import Image  # type: ignore[import]
         pil_img = Image.open(path).convert("RGB")
         rgb = np.array(pil_img, dtype=np.uint8)
         return rgb[:, :, ::-1]  # RGB → BGR
@@ -326,7 +326,7 @@ def _save_image(image: np.ndarray, path: Path) -> bool:
         return False
 
 
-def _select_largest(detections: List[object]) -> object:
+def _select_largest(detections: list[object]) -> object:
     """Return the detection with the largest bounding-box area."""
     def _area(det: object) -> int:
         bbox = det.bbox if hasattr(det, "bbox") else det  # type: ignore[union-attr]
@@ -343,7 +343,7 @@ def _select_largest(detections: List[object]) -> object:
 class _StubDetector:
     """Returns an empty detection list — simulates no-face scenario."""
 
-    def detect(self, frame: np.ndarray) -> List[object]:  # noqa: ARG002
+    def detect(self, frame: np.ndarray) -> list[object]:  # noqa: ARG002
         return []
 
 

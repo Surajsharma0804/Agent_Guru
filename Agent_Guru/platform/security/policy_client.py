@@ -42,14 +42,15 @@ Date: 2026-02-25
 Version: 1.0.0
 """
 
-import time
-import hashlib
 import asyncio
-from typing import Dict, Any, List, Optional, Tuple
+import hashlib
+import threading
+import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import Enum
-from collections import OrderedDict
-import threading
+from typing import Any, Optional
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -85,7 +86,7 @@ class PolicyContext:
     principal: str
     resource: str
     action: str
-    environment: Dict[str, Any] = field(default_factory=dict)
+    environment: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -105,7 +106,7 @@ class PolicyEvaluationResult:
     decision: PolicyDecision
     policy_id: Optional[str] = None
     reason: str = ""
-    matched_rules: List[str] = field(default_factory=list)
+    matched_rules: list[str] = field(default_factory=list)
     evaluation_time_ms: float = 0.0
     cached: bool = False
 
@@ -338,8 +339,8 @@ class PolicyEngineClient:
 
     def batch_evaluate_policies(
         self,
-        contexts: List[PolicyContext],
-    ) -> List[PolicyEvaluationResult]:
+        contexts: list[PolicyContext],
+    ) -> list[PolicyEvaluationResult]:
         """
         Batch evaluate multiple policies (optimized).
 
@@ -390,7 +391,7 @@ class PolicyEngineClient:
     def validate_against_policy(
         self,
         context: PolicyContext,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         Validate operation against policy (simplified interface).
 
@@ -450,7 +451,7 @@ class PolicyEngineClient:
                 self._cache.pop(cache_key, None)
                 logger.info("policy_cache_cleared", scope="key", cache_key=cache_key)
 
-    def get_cache_statistics(self) -> Dict[str, Any]:
+    def get_cache_statistics(self) -> dict[str, Any]:
         """
         Get cache statistics.
 
@@ -647,10 +648,8 @@ class PolicyEngineClient:
 class PolicyEngineError(Exception):
     """Base exception for Policy Engine errors."""
 
-    pass
 
 
 class CircuitBreakerOpenError(PolicyEngineError):
     """Raised when circuit breaker is open."""
 
-    pass

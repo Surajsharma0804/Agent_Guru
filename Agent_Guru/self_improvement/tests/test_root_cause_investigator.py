@@ -19,16 +19,13 @@ from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema
 from Agent_Guru.self_improvement.root_cause_investigator import (
     RootCauseInvestigator,
-    RootCause,
     RootCauseReport,
-    RootCauseConfidence,
 )
 from Agent_Guru.self_improvement.rollback_manager import (
     RollbackManager,
     ChangeType,
 )
 from Agent_Guru.self_improvement.degradation_detector import (
-    DegradationDetector,
     DegradationSeverity,
     DegradationMetric,
     DegradationAlert,

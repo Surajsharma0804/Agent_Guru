@@ -25,10 +25,11 @@ Date: 2026-02-28
 import asyncio
 import json
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from Agent_Guru.self_improvement.connection_pool import ConnectionPool

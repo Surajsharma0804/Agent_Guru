@@ -232,7 +232,7 @@ class RootCauseInvestigator:
             ...     performance_metrics={"success_rate": 0.75}
             ... )
         """
-        cutoff = datetime.now() - timedelta(hours=hours)
+        datetime.now() - timedelta(hours=hours)
         changes = self._get_changes_in_window(datetime.now(), hours)
 
         if not changes:
@@ -584,7 +584,7 @@ class RootCauseInvestigator:
 
         # Recommendations based on root causes
         if root_causes:
-            change_types = set(rc.change_type for rc in root_causes)
+            change_types = {rc.change_type for rc in root_causes}
 
             if "strategy_update" in change_types:
                 recommendations.append("Implement A/B testing for strategy changes before full deployment")

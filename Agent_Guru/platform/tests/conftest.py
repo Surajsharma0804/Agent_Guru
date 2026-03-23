@@ -2,8 +2,9 @@
 Pytest configuration and fixtures for platform integration tests.
 """
 
-import pytest
 import platform
+
+import pytest
 
 
 @pytest.fixture

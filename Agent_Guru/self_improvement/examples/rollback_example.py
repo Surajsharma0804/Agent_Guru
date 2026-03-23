@@ -15,20 +15,20 @@ Author: Agent Guru Team
 Date: 2026-02-28
 """
 
-import tempfile
 import os
+import tempfile
 from datetime import datetime, timedelta
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema
-from Agent_Guru.self_improvement.rollback_manager import (
-    RollbackManager,
-    ChangeType,
-)
 from Agent_Guru.self_improvement.degradation_detector import (
-    DegradationSeverity,
-    DegradationMetric,
     DegradationAlert,
+    DegradationMetric,
+    DegradationSeverity,
+)
+from Agent_Guru.self_improvement.rollback_manager import (
+    ChangeType,
+    RollbackManager,
 )
 
 
@@ -155,7 +155,7 @@ def example_degradation_triggered_rollback():
         print(f"  ✓ Changes rolled back: {result.changes_rolled_back}")
         print(f"  ✓ Components affected: {result.components_affected}")
         if result.performance_restored:
-            print(f"  ✓ Performance restored:")
+            print("  ✓ Performance restored:")
             for metric, value in result.performance_restored.items():
                 print(f"      - {metric}: {value:.2f}")
 

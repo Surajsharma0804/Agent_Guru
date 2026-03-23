@@ -656,13 +656,13 @@ class ConversationStateManager:
                 for entry in self._cache.values()
                 if entry.state.user_id == user_id
             ]
-            
+
             # Sort by most recently updated
             user_conversations.sort(
                 key=lambda s: s.updated_at,
                 reverse=True,
             )
-            
+
             # Return limited results
             return user_conversations[:limit]
 
@@ -673,7 +673,7 @@ _manager: Optional[ConversationStateManager] = None
 
 def get_conversation_manager() -> ConversationStateManager:
     """Get global conversation manager instance.
-    
+
     Returns:
         Conversation manager
     """

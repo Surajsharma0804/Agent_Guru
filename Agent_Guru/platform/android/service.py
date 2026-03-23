@@ -21,16 +21,17 @@ Date: 2026-02-24
 Version: 1.0.0
 """
 
-from typing import Optional, Callable
+import logging
+import threading
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-import logging
-import time
-import threading
+from typing import Optional
 
 # Android-specific imports
 try:
-    from jnius import autoclass, cast, PythonJavaClass, java_method
+    from jnius import PythonJavaClass, autoclass, cast, java_method
     ANDROID_AVAILABLE = True
 except ImportError:
     ANDROID_AVAILABLE = False
@@ -70,45 +71,44 @@ class ServiceConfig:
 
 class AndroidServiceError(Exception):
     """Base exception for Android service errors."""
-    pass
 
 
 class AndroidForegroundService:
     """
     Android ForegroundService for always-on operation.
-    
+
     Implements a foreground service that runs continuously in the background,
     providing wake word detection with battery optimization through sleep/wake cycles.
-    
+
     Battery Optimization:
     - Sleep mode: <5% battery per hour (minimal wake word detection)
     - Wake mode: <10% battery per hour (full voice processing)
     - Automatic transitions based on activity
-    
+
     Service Lifecycle:
     1. onCreate() - Initialize service
     2. onStartCommand() - Start foreground operation
     3. onDestroy() - Cleanup resources
-    
+
     Example:
         >>> config = ServiceConfig(wake_word_callback=on_wake_word)
         >>> service = AndroidForegroundService(config)
         >>> service.start()
         >>> # Service runs in background
         >>> service.stop()
-    
+
     Requirements:
         - Android 8.0+ (API level 26+) for ForegroundService
         - FOREGROUND_SERVICE permission in AndroidManifest.xml
         - Notification channel for persistent notification
     """
-    
+
     def __init__(self, config: ServiceConfig):
         """Initialize Android ForegroundService.
-        
+
         Args:
             config: Service configuration
-            
+
         Raises:
             AndroidServiceError: If not running on Android platform
         """
@@ -117,23 +117,23 @@ class AndroidForegroundService:
                 "Android service not available. "
                 "This module requires pyjnius and Android platform."
             )
-        
+
         self.config = config
         self.state = ServiceState.STOPPED
-        
+
         # Service state
         self._service_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self._last_activity_time = time.time()
-        
+
         # Initialize Android classes
         self._init_android_classes()
-        
+
         # Get context
         self.context = self._get_context()
-        
+
         logger.info("Android ForegroundService initialized")
-    
+
     def _init_android_classes(self) -> None:
         """Initialize Android Java class references."""
         try:
@@ -141,21 +141,21 @@ class AndroidForegroundService:
             self.Service = autoclass('android.app.Service')
             self.Intent = autoclass('android.content.Intent')
             self.PythonActivity = autoclass('org.kivy.android.PythonActivity')
-            
+
             # Notification classes
             self.NotificationManager = autoclass('android.app.NotificationManager')
             self.NotificationCompat = autoclass('androidx.core.app.NotificationCompat')
             self.NotificationChannel = autoclass('android.app.NotificationChannel')
-            
+
             # Build info
             self.Build = autoclass('android.os.Build')
-            
+
             logger.debug("Android service classes initialized")
-            
+
         except Exception as e:
             logger.error(f"Failed to initialize Android service classes: {e}")
-            raise AndroidServiceError(f"Failed to initialize service classes: {e}")
-    
+            raise AndroidServiceError(f"Failed to initialize service classes: {e}") from e
+
     def _get_context(self):
         """Get Android application context."""
         try:
@@ -163,33 +163,33 @@ class AndroidForegroundService:
             return activity.getApplicationContext()
         except Exception as e:
             logger.error(f"Failed to get Android context: {e}")
-            raise AndroidServiceError(f"Failed to get Android context: {e}")
-    
+            raise AndroidServiceError(f"Failed to get Android context: {e}") from e
+
     # ========== Service Lifecycle ==========
-    
+
     def start(self) -> None:
         """
         Start foreground service.
-        
+
         Creates persistent notification and starts service thread.
-        
+
         Raises:
             AndroidServiceError: If service start fails
         """
         if self.state != ServiceState.STOPPED:
             logger.warning(f"Service already running (state: {self.state})")
             return
-        
+
         try:
             self.state = ServiceState.STARTING
-            
+
             # Create notification channel
             self._create_notification_channel()
-            
+
             # Create and show notification
             notification = self._create_notification()
             self._show_notification(notification)
-            
+
             # Start service thread
             self._stop_event.clear()
             self._service_thread = threading.Thread(
@@ -197,49 +197,49 @@ class AndroidForegroundService:
                 daemon=True
             )
             self._service_thread.start()
-            
+
             self.state = ServiceState.RUNNING
             logger.info("Foreground service started")
-            
+
         except Exception as e:
             self.state = ServiceState.STOPPED
             logger.error(f"Failed to start service: {e}")
-            raise AndroidServiceError(f"Failed to start service: {e}")
-    
+            raise AndroidServiceError(f"Failed to start service: {e}") from e
+
     def stop(self) -> None:
         """
         Stop foreground service.
-        
+
         Stops service thread and removes notification.
         """
         if self.state == ServiceState.STOPPED:
             logger.warning("Service already stopped")
             return
-        
+
         try:
             self.state = ServiceState.STOPPING
-            
+
             # Signal service thread to stop
             self._stop_event.set()
-            
+
             # Wait for service thread to finish
             if self._service_thread and self._service_thread.is_alive():
                 self._service_thread.join(timeout=5.0)
-            
+
             # Remove notification
             self._remove_notification()
-            
+
             self.state = ServiceState.STOPPED
             logger.info("Foreground service stopped")
-            
+
         except Exception as e:
             logger.error(f"Failed to stop service: {e}")
-            raise AndroidServiceError(f"Failed to stop service: {e}")
-    
+            raise AndroidServiceError(f"Failed to stop service: {e}") from e
+
     def _service_loop(self) -> None:
         """Main service loop running in background thread."""
         logger.info("Service loop started")
-        
+
         try:
             while not self._stop_event.is_set():
                 # Check if should enter sleep mode
@@ -247,90 +247,90 @@ class AndroidForegroundService:
                     self._enter_sleep_mode()
                 else:
                     self._enter_wake_mode()
-                
+
                 # Sleep briefly to avoid busy loop
                 time.sleep(0.1)
-                
+
         except Exception as e:
             logger.error(f"Service loop error: {e}")
         finally:
             logger.info("Service loop stopped")
-    
+
     # ========== Sleep/Wake Management ==========
-    
+
     def _should_enter_sleep(self) -> bool:
         """Check if service should enter sleep mode."""
         if self.state == ServiceState.SLEEP:
             return True
-        
+
         # Enter sleep after timeout of inactivity
         inactive_time = time.time() - self._last_activity_time
         return inactive_time > self.config.sleep_mode_timeout
-    
+
     def _enter_sleep_mode(self) -> None:
         """Enter sleep mode for battery optimization."""
         if self.state == ServiceState.SLEEP:
             return
-        
+
         self.state = ServiceState.SLEEP
         logger.info("Entering sleep mode")
-        
+
         # Update notification
         notification = self._create_notification(
             message="Sleeping (minimal battery usage)..."
         )
         self._show_notification(notification)
-        
+
         # In sleep mode:
         # - Reduce wake word detection sensitivity
         # - Reduce processing frequency
         # - Minimize CPU usage
         # Target: <5% battery per hour
-    
+
     def _enter_wake_mode(self) -> None:
         """Enter wake mode for full functionality."""
         if self.state == ServiceState.WAKE:
             return
-        
+
         self.state = ServiceState.WAKE
         logger.info("Entering wake mode")
-        
+
         # Update notification
         notification = self._create_notification(
             message="Listening for wake word..."
         )
         self._show_notification(notification)
-        
+
         # In wake mode:
         # - Full wake word detection
         # - Full voice processing
         # - LLM inference
         # Target: <10% battery per hour
-    
+
     def on_activity(self) -> None:
         """Called when user activity is detected."""
         self._last_activity_time = time.time()
-        
+
         # Ensure in wake mode
         if self.state == ServiceState.SLEEP:
             self._enter_wake_mode()
-    
+
     def on_wake_word_detected(self) -> None:
         """Called when wake word is detected."""
         logger.info("Wake word detected")
-        
+
         # Update activity time
         self.on_activity()
-        
+
         # Call user callback if provided
         if self.config.wake_word_callback:
             try:
                 self.config.wake_word_callback()
             except Exception as e:
                 logger.error(f"Wake word callback error: {e}")
-    
+
     # ========== Notification Management ==========
-    
+
     def _create_notification_channel(self) -> None:
         """Create notification channel for Android 8.0+."""
         try:
@@ -339,7 +339,7 @@ class AndroidForegroundService:
                     'android.app.NotificationManager',
                     self.context.getSystemService('notification')
                 )
-                
+
                 # Create channel
                 channel = self.NotificationChannel(
                     self.config.notification_channel_id,
@@ -348,12 +348,12 @@ class AndroidForegroundService:
                 )
                 channel.setDescription("Agent Guru background service")
                 nm.createNotificationChannel(channel)
-                
+
                 logger.debug("Notification channel created")
-                
+
         except Exception as e:
             logger.error(f"Failed to create notification channel: {e}")
-    
+
     def _create_notification(self, message: Optional[str] = None):
         """Create notification for foreground service."""
         try:
@@ -367,16 +367,16 @@ class AndroidForegroundService:
             builder.setOngoing(True)  # Cannot be dismissed
             builder.setAutoCancel(False)
             builder.setPriority(0)  # PRIORITY_DEFAULT
-            
+
             # Set small icon (required)
             builder.setSmallIcon(17301543)  # android.R.drawable.ic_dialog_info
-            
+
             return builder.build()
-            
+
         except Exception as e:
             logger.error(f"Failed to create notification: {e}")
-            raise AndroidServiceError(f"Failed to create notification: {e}")
-    
+            raise AndroidServiceError(f"Failed to create notification: {e}") from e
+
     def _show_notification(self, notification) -> None:
         """Show notification."""
         try:
@@ -385,10 +385,10 @@ class AndroidForegroundService:
                 self.context.getSystemService('notification')
             )
             nm.notify(1, notification)
-            
+
         except Exception as e:
             logger.error(f"Failed to show notification: {e}")
-    
+
     def _remove_notification(self) -> None:
         """Remove notification."""
         try:
@@ -397,24 +397,24 @@ class AndroidForegroundService:
                 self.context.getSystemService('notification')
             )
             nm.cancel(1)
-            
+
         except Exception as e:
             logger.error(f"Failed to remove notification: {e}")
-    
+
     # ========== Service Status ==========
-    
+
     def is_running(self) -> bool:
         """Check if service is running."""
         return self.state in (ServiceState.RUNNING, ServiceState.SLEEP, ServiceState.WAKE)
-    
+
     def get_state(self) -> ServiceState:
         """Get current service state."""
         return self.state
-    
+
     def get_battery_usage_estimate(self) -> float:
         """
         Get estimated battery usage per hour.
-        
+
         Returns:
             Estimated battery usage percentage per hour
         """
@@ -433,10 +433,10 @@ def create_foreground_service(
 ) -> AndroidForegroundService:
     """
     Create and configure Android ForegroundService.
-    
+
     Args:
         wake_word_callback: Callback function when wake word is detected
-        
+
     Returns:
         Configured service instance
     """
@@ -449,10 +449,10 @@ def start_background_service(
 ) -> AndroidForegroundService:
     """
     Create and start Android ForegroundService.
-    
+
     Args:
         wake_word_callback: Callback function when wake word is detected
-        
+
     Returns:
         Running service instance
     """

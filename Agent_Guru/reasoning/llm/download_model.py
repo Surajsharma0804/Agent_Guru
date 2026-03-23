@@ -57,7 +57,7 @@ def download_model(output_dir: Path, model_name: str = "llama-3.2-8b-q4_k_m") ->
         return Path(model_file)
 
     except Exception as e:
-        raise RuntimeError(f"Model download failed: {str(e)}")
+        raise RuntimeError(f"Model download failed: {str(e)}") from e
 
 
 def main():

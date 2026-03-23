@@ -25,7 +25,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Deque, Dict, List, Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ class SpanContext:
     trace_id: str
     span_id: str
     parent_span_id: Optional[str] = None
-    baggage: Dict[str, str] = field(default_factory=dict)
+    baggage: dict[str, str] = field(default_factory=dict)
     sampled: bool = True
 
     def __post_init__(self) -> None:
@@ -62,7 +62,7 @@ class SpanContext:
         if not self.span_id:
             raise ValueError("span_id cannot be empty")
 
-    def to_headers(self) -> Dict[str, str]:
+    def to_headers(self) -> dict[str, str]:
         """
         Serialize to W3C traceparent + tracestate headers.
 
@@ -70,7 +70,7 @@ class SpanContext:
         Flags: 01 = sampled, 00 = not sampled
         """
         flags = "01" if self.sampled else "00"
-        headers: Dict[str, str] = {
+        headers: dict[str, str] = {
             "traceparent": f"00-{self.trace_id}-{self.span_id}-{flags}",
         }
         if self.baggage:
@@ -78,7 +78,7 @@ class SpanContext:
         return headers
 
     @classmethod
-    def from_headers(cls, headers: Dict[str, str]) -> Optional["SpanContext"]:
+    def from_headers(cls, headers: dict[str, str]) -> Optional["SpanContext"]:
         """
         Parse SpanContext from W3C traceparent header.
 
@@ -100,7 +100,7 @@ class SpanContext:
         sampled = flags == "01"
 
         # Parse baggage header
-        baggage: Dict[str, str] = {}
+        baggage: dict[str, str] = {}
         baggage_header = headers.get("baggage", "")
         if baggage_header:
             for item in baggage_header.split(","):
@@ -154,8 +154,8 @@ class Span:
     parent_span_id: Optional[str] = None
     start_time: float = field(default_factory=time.monotonic)
     end_time: Optional[float] = None
-    attributes: Dict[str, Any] = field(default_factory=dict)
-    events: List[Dict[str, Any]] = field(default_factory=list)
+    attributes: dict[str, Any] = field(default_factory=dict)
+    events: list[dict[str, Any]] = field(default_factory=list)
     status: str = "OK"
     error: Optional[str] = None
 
@@ -195,7 +195,7 @@ class Span:
     def add_event(
         self,
         name: str,
-        attributes: Optional[Dict[str, Any]] = None,
+        attributes: Optional[dict[str, Any]] = None,
     ) -> None:
         """
         Add a timestamped event to the span.
@@ -225,7 +225,7 @@ class Span:
             self.status = "ERROR"
             self.error = error
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize span to dictionary for export."""
         return {
             "name": self.name,
@@ -300,10 +300,10 @@ class Tracer:
         self.sample_rate = sample_rate
 
         # Active spans: span_id → Span
-        self._active_spans: Dict[str, Span] = {}
+        self._active_spans: dict[str, Span] = {}
 
         # Completed spans ring buffer — O(1) append, O(1) pop from left
-        self._completed_spans: Deque[Span] = deque(maxlen=max_completed_spans)
+        self._completed_spans: deque[Span] = deque(maxlen=max_completed_spans)
 
         # Statistics
         self._spans_started = 0
@@ -314,7 +314,7 @@ class Tracer:
         self,
         name: str,
         parent_context: Optional[SpanContext] = None,
-        attributes: Optional[Dict[str, Any]] = None,
+        attributes: Optional[dict[str, Any]] = None,
     ) -> "SpanManager":
         """
         Start a new span and return a context manager.
@@ -399,11 +399,11 @@ class Tracer:
             parent_span_id=span.parent_span_id,
         )
 
-    def get_active_spans(self) -> List[Span]:
+    def get_active_spans(self) -> list[Span]:
         """Return a snapshot of all currently active spans."""
         return list(self._active_spans.values())
 
-    def get_completed_spans(self, limit: int = 100) -> List[Span]:
+    def get_completed_spans(self, limit: int = 100) -> list[Span]:
         """
         Return recently completed spans (newest last).
 
@@ -416,7 +416,7 @@ class Tracer:
         spans = list(self._completed_spans)
         return spans[-limit:]
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Return tracer statistics for monitoring."""
         return {
             "service_name": self.service_name,

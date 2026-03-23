@@ -10,7 +10,7 @@ import threading
 import uuid
 from collections import deque
 from datetime import datetime, timezone
-from typing import Deque, Dict, List, Optional
+from typing import Optional
 
 import structlog
 
@@ -50,7 +50,7 @@ class CostTracker:
 
     def __init__(self, max_records: int = _MAX_RECORDS,
                  budget_threshold: Optional[float] = None) -> None:
-        self._records: Deque[CostRecord] = deque(maxlen=max_records)
+        self._records: deque[CostRecord] = deque(maxlen=max_records)
         self._lock = threading.RLock()
         self._budget_threshold = budget_threshold
 
@@ -111,8 +111,8 @@ class CostTracker:
         ]
 
         total = 0.0
-        by_model: Dict[str, float] = {}
-        by_task: Dict[str, float] = {}
+        by_model: dict[str, float] = {}
+        by_task: dict[str, float] = {}
 
         for r in filtered:
             total += r.cost
@@ -129,7 +129,7 @@ class CostTracker:
             record_count=len(filtered),
         )
 
-    def check_budget_alerts(self) -> List[BudgetAlert]:
+    def check_budget_alerts(self) -> list[BudgetAlert]:
         """Check if any budget thresholds have been exceeded.
 
         Returns:
@@ -139,7 +139,7 @@ class CostTracker:
             return []
 
         summary = self.get_summary()
-        alerts: List[BudgetAlert] = []
+        alerts: list[BudgetAlert] = []
 
         if summary.total_cost >= self._budget_threshold:
             alerts.append(BudgetAlert(

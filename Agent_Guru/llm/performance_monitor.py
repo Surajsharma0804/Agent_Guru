@@ -20,7 +20,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from Agent_Guru.llm.models import ModelProvider
 
@@ -80,9 +80,9 @@ class PerformanceMonitor:
         self.slow_threshold_ms = slow_threshold_ms
         self.failure_threshold = failure_threshold
 
-        self._metrics: Dict[str, PerformanceMetrics] = {}
-        self._latency_history: Dict[str, List[float]] = defaultdict(list)
-        self._recent_failures: Dict[str, List[datetime]] = defaultdict(list)
+        self._metrics: dict[str, PerformanceMetrics] = {}
+        self._latency_history: dict[str, list[float]] = defaultdict(list)
+        self._recent_failures: dict[str, list[datetime]] = defaultdict(list)
         self._lock = asyncio.Lock()
 
     # ------------------------------------------------------------------
@@ -167,7 +167,7 @@ class PerformanceMonitor:
         self,
         model: Optional[str] = None,
         provider: Optional[ModelProvider] = None,
-    ) -> Dict[str, PerformanceMetrics]:
+    ) -> dict[str, PerformanceMetrics]:
         """
         Return performance metrics, optionally filtered.
 
@@ -189,7 +189,7 @@ class PerformanceMonitor:
             else:
                 return dict(self._metrics)
 
-    async def report_to_self_improvement(self) -> Dict[str, Any]:
+    async def report_to_self_improvement(self) -> dict[str, Any]:
         """
         Format metrics for the Self-Improvement Engine.
 

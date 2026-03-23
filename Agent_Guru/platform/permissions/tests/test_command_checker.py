@@ -6,7 +6,6 @@ Coverage Target: >80% (enforced by CI/CD)
 import pytest
 from Agent_Guru.platform.permissions.command_checker import (
     CommandPermissionChecker,
-    CommandValidationResult,
     CommandCategory,
     DangerLevel,
     CommandValidationError,
@@ -205,7 +204,7 @@ class TestCommandPermissionChecker:
         checker.add_allowed_pattern(r".*")
         
         # Command with suspicious arguments - should have warnings
-        result = checker.validate_command("cat file.txt")
+        checker.validate_command("cat file.txt")
         
         # This command should be allowed but may have warnings
         # The semicolon in "cat file.txt; echo test" would be detected by injection check

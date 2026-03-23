@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -50,7 +50,7 @@ class ModelMetadata(BaseModel):
     model_id: str = Field(..., min_length=1)
     name: str = Field(..., min_length=1)
     provider: Provider
-    capabilities: Set[ModelCapability] = Field(default_factory=set)
+    capabilities: set[ModelCapability] = Field(default_factory=set)
     cost_per_input_token: float = Field(default=0.0, ge=0.0)
     cost_per_output_token: float = Field(default=0.0, ge=0.0)
     max_tokens: int = Field(default=4096, ge=1)
@@ -58,7 +58,7 @@ class ModelMetadata(BaseModel):
     is_available: bool = Field(default=True)
     registered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     model_config = {"frozen": False}
 
@@ -70,7 +70,7 @@ class ModelMetadata(BaseModel):
 
 class ModelFilter(BaseModel):
     """Filter criteria for querying models."""
-    capabilities: Optional[Set[ModelCapability]] = None
+    capabilities: Optional[set[ModelCapability]] = None
     provider: Optional[Provider] = None
     max_cost_per_input_token: Optional[float] = None
     max_cost_per_output_token: Optional[float] = None
@@ -86,8 +86,8 @@ class TaskSpecification(BaseModel):
     explicit_model_id: Optional[str] = None
     max_latency_ms: Optional[float] = None
     max_cost: Optional[float] = None
-    required_capabilities: Set[ModelCapability] = Field(default_factory=set)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    required_capabilities: set[ModelCapability] = Field(default_factory=set)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     model_config = {"frozen": False}
 
@@ -99,7 +99,7 @@ class TaskAnalysis(BaseModel):
     domain: str = Field(default="general")
     estimated_input_tokens: int = Field(default=100, ge=0)
     estimated_output_tokens: int = Field(default=200, ge=0)
-    required_capabilities: Set[ModelCapability] = Field(default_factory=set)
+    required_capabilities: set[ModelCapability] = Field(default_factory=set)
     latency_constraint_ms: Optional[float] = None
     cost_constraint: Optional[float] = None
 
@@ -120,7 +120,7 @@ class SelectionResult(BaseModel):
     estimated_cost: float = Field(default=0.0, ge=0.0)
     estimated_latency_ms: float = Field(default=0.0, ge=0.0)
     confidence: float = Field(default=0.5, ge=0.0, le=1.0)
-    fallback_models: List[str] = Field(default_factory=list)
+    fallback_models: list[str] = Field(default_factory=list)
 
     model_config = {"frozen": False}
 
@@ -141,8 +141,8 @@ class CostRecord(BaseModel):
 class CostSummary(BaseModel):
     """Aggregated cost summary over a period."""
     total_cost: float = Field(default=0.0, ge=0.0)
-    cost_by_model: Dict[str, float] = Field(default_factory=dict)
-    cost_by_task_type: Dict[str, float] = Field(default_factory=dict)
+    cost_by_model: dict[str, float] = Field(default_factory=dict)
+    cost_by_task_type: dict[str, float] = Field(default_factory=dict)
     period_start: datetime
     period_end: datetime
     record_count: int = Field(default=0, ge=0)

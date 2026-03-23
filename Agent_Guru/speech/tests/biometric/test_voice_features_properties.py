@@ -6,7 +6,7 @@
 
 import pytest
 import numpy as np
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, strategies as st, settings
 
 from Agent_Guru.speech.biometric import VoiceFeatureExtractor
 from Agent_Guru.speech.exceptions import VoiceBiometricError

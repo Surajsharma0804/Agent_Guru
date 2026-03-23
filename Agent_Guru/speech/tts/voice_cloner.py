@@ -14,6 +14,7 @@ import librosa
 import numpy as np
 
 from Agent_Guru.security.embedding_auth import BIOMETRIC_THRESHOLD, verify_embedding
+
 from ..exceptions import GuruSpeechError
 from ..models import VoiceModel
 
@@ -22,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 class VoiceCloningError(GuruSpeechError):
     """Voice cloning error."""
-    pass
 
 
 @dataclass
@@ -41,10 +41,10 @@ class VoiceProfile:
 class VoiceCloner:
     """
     Voice cloning and personalization system.
-    
+
     Implements voice enrollment, incremental learning, and personalized
     voice synthesis with target similarity >0.85.
-    
+
     Features:
     - Voice enrollment from 5+ minutes of audio
     - Incremental learning for continuous improvement
@@ -56,7 +56,7 @@ class VoiceCloner:
     def __init__(self, model_path: str | None = None):
         """
         Initialize voice cloner.
-        
+
         Args:
             model_path: Path to voice cloning model (optional)
         """
@@ -84,18 +84,18 @@ class VoiceCloner:
     ) -> VoiceModel:
         """
         Enroll a new voice from audio samples.
-        
+
         Requires 5+ minutes of audio for quality voice cloning.
-        
+
         Args:
             audio_samples: List of audio arrays (each should be clean speech)
             voice_id: Unique identifier for this voice
             sample_rate: Sample rate of audio
             metadata: Optional metadata about the voice
-            
+
         Returns:
             VoiceModel with enrolled voice profile
-            
+
         Raises:
             VoiceCloningError: If enrollment fails or insufficient audio
         """
@@ -207,15 +207,15 @@ class VoiceCloner:
     ) -> VoiceModel:
         """
         Update existing voice model with new samples (incremental learning).
-        
+
         Args:
             voice_id: ID of voice to update
             new_audio_samples: New audio samples to incorporate
             sample_rate: Sample rate of audio
-            
+
         Returns:
             Updated VoiceModel
-            
+
         Raises:
             VoiceCloningError: If voice not found or update fails
         """
@@ -316,22 +316,22 @@ class VoiceCloner:
     ) -> np.ndarray:
         """
         Synthesize speech using cloned voice with REAL neural TTS.
-        
+
         PRODUCTION IMPLEMENTATION - ZERO COMPROMISE:
         Uses state-of-the-art neural voice cloning with:
         - Multi-speaker TTS model (Coqui TTS / XTTS)
         - Voice embedding from enrolled samples
         - Emotion-aware synthesis
         - High-quality 22kHz output
-        
+
         Args:
             text: Text to synthesize
             voice_id: ID of cloned voice to use
             emotion: Optional emotion for synthesis
-            
+
         Returns:
             Audio array with synthesized speech
-            
+
         Raises:
             VoiceCloningError: If voice not found or synthesis fails
         """
@@ -388,13 +388,13 @@ class VoiceCloner:
     def _compute_voice_embedding(self, features: np.ndarray) -> np.ndarray:
         """
         Compute voice embedding from profile features.
-        
+
         PRODUCTION-GRADE: Transforms acoustic features into a dense
         voice embedding suitable for neural TTS conditioning.
-        
+
         Args:
             features: Voice profile features
-            
+
         Returns:
             Voice embedding vector (256-dimensional)
         """
@@ -432,16 +432,16 @@ class VoiceCloner:
     ) -> np.ndarray:
         """
         Neural TTS synthesis with voice embedding conditioning.
-        
+
         PRODUCTION-GRADE: Simulates state-of-the-art neural TTS
         with voice cloning capabilities.
-        
+
         Args:
             text: Text to synthesize
             voice_embedding: Voice embedding vector
             emotion: Optional emotion
             sample_rate: Target sample rate
-            
+
         Returns:
             Synthesized audio
         """
@@ -539,13 +539,13 @@ class VoiceCloner:
     ) -> dict[str, float]:
         """
         Apply emotion-specific modulation to synthesis parameters.
-        
+
         PRODUCTION-GRADE: Emotion-aware voice synthesis.
-        
+
         Args:
             params: Synthesis parameters
             emotion: Emotion type
-            
+
         Returns:
             Modulated parameters
         """
@@ -605,13 +605,13 @@ class VoiceCloner:
     ) -> np.ndarray:
         """
         Enhance audio quality with post-processing.
-        
+
         PRODUCTION-GRADE: Professional audio enhancement.
-        
+
         Args:
             audio: Input audio
             target_quality: Target quality score
-            
+
         Returns:
             Enhanced audio
         """
@@ -658,14 +658,14 @@ class VoiceCloner:
     ) -> float:
         """
         Compute similarity between two voice samples.
-        
+
         Target similarity >0.85 for successful voice cloning.
-        
+
         Args:
             audio1: First audio sample
             audio2: Second audio sample
             sample_rate: Sample rate of audio
-            
+
         Returns:
             Similarity score between 0.0 and 1.0
         """
@@ -725,10 +725,10 @@ class VoiceCloner:
     def get_voice_model(self, voice_id: str) -> VoiceModel | None:
         """
         Get voice model by ID.
-        
+
         Args:
             voice_id: Voice identifier
-            
+
         Returns:
             VoiceModel if found, None otherwise
         """
@@ -754,7 +754,7 @@ class VoiceCloner:
     def list_voices(self) -> list[str]:
         """
         List all enrolled voice IDs.
-        
+
         Returns:
             List of voice IDs
         """
@@ -763,10 +763,10 @@ class VoiceCloner:
     def delete_voice(self, voice_id: str) -> bool:
         """
         Delete a voice profile.
-        
+
         Args:
             voice_id: Voice identifier
-            
+
         Returns:
             True if deleted, False if not found
         """
@@ -779,11 +779,11 @@ class VoiceCloner:
     def save_voice_profile(self, voice_id: str, filepath: str) -> None:
         """
         Save voice profile to file.
-        
+
         Args:
             voice_id: Voice identifier
             filepath: Path to save profile
-            
+
         Raises:
             VoiceCloningError: If voice not found or save fails
         """
@@ -806,13 +806,13 @@ class VoiceCloner:
     def load_voice_profile(self, filepath: str) -> str:
         """
         Load voice profile from file.
-        
+
         Args:
             filepath: Path to profile file
-            
+
         Returns:
             Voice ID of loaded profile
-            
+
         Raises:
             VoiceCloningError: If load fails
         """
@@ -841,11 +841,11 @@ class VoiceCloner:
     ) -> np.ndarray:
         """
         Extract voice features for cloning.
-        
+
         Args:
             audio: Audio data
             sample_rate: Sample rate
-            
+
         Returns:
             Feature vector
         """
@@ -939,11 +939,11 @@ class VoiceCloner:
     ) -> float:
         """
         Compute audio quality score.
-        
+
         Args:
             audio: Audio data
             sample_rate: Sample rate
-            
+
         Returns:
             Quality score between 0.0 and 1.0
         """

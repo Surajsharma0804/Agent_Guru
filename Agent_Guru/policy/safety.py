@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from Agent_Guru.policy.models import AccessDecision, PolicyEffect, Principal, Resource
 
@@ -36,8 +36,8 @@ class SafetyRule:
     id: str
     name: str
     description: str
-    resource_patterns: List[str]
-    action_patterns: List[str]
+    resource_patterns: list[str]
+    action_patterns: list[str]
     severity: str = "high"
     active: bool = True
 
@@ -79,7 +79,7 @@ class SafetyViolation:
 # Built-in dangerous operation rules
 # ---------------------------------------------------------------------------
 
-BUILTIN_SAFETY_RULES: List[SafetyRule] = [
+BUILTIN_SAFETY_RULES: list[SafetyRule] = [
     SafetyRule(
         id="safety:format-drive",
         name="Block Format Drive",
@@ -143,7 +143,7 @@ class SafetyPolicyEngine:
     def __init__(
         self,
         include_builtins: bool = True,
-        custom_rules: Optional[List[SafetyRule]] = None,
+        custom_rules: Optional[list[SafetyRule]] = None,
     ) -> None:
         """Initialise the safety engine.
 
@@ -151,7 +151,7 @@ class SafetyPolicyEngine:
             include_builtins: Whether to include built-in dangerous operation rules.
             custom_rules: Additional custom safety rules.
         """
-        self._rules: Dict[str, SafetyRule] = {}
+        self._rules: dict[str, SafetyRule] = {}
 
         if include_builtins:
             for rule in BUILTIN_SAFETY_RULES:
@@ -191,7 +191,7 @@ class SafetyPolicyEngine:
         principal: Principal,
         resource: Resource,
         action: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
     ) -> AccessDecision:
         """Check if an operation is safe to perform.
 
@@ -225,7 +225,7 @@ class SafetyPolicyEngine:
             evaluation_time_ms=0.0,
         )
 
-    def get_violations(self, resource_id: str, action: str) -> List[SafetyViolation]:
+    def get_violations(self, resource_id: str, action: str) -> list[SafetyViolation]:
         """Return all safety violations for the given resource and action.
 
         Args:
@@ -256,6 +256,6 @@ class SafetyPolicyEngine:
         return len(self.get_violations(resource_id, action)) == 0
 
     @property
-    def active_rules(self) -> List[SafetyRule]:
+    def active_rules(self) -> list[SafetyRule]:
         """Return all currently active safety rules."""
         return [r for r in self._rules.values() if r.active]

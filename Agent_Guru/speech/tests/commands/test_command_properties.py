@@ -8,12 +8,9 @@ Property 21: Command Chaining Support
 Validates: Requirements 6.1, 6.2, 6.4, 17.1, 17.6
 """
 
-import pytest
-from hypothesis import given, strategies as st, settings, assume
-from typing import List
+from hypothesis import given, strategies as st, settings
 
 from Agent_Guru.speech.commands.command_parser import CommandParser
-from Agent_Guru.speech.models import CommandResult
 
 
 class TestCommandParserProperties:

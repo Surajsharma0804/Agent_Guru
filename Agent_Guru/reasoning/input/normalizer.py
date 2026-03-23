@@ -32,13 +32,13 @@ from pydantic import BaseModel, Field, field_validator
 
 class InputSource(str, Enum):
     """Enumeration of input sources.
-    
+
     Sources:
         TEXT: Direct text input from user
         VOICE: Transcribed voice input
         SYSTEM_EVENT: System-generated event
     """
-    
+
     TEXT = "text"
     VOICE = "voice"
     SYSTEM_EVENT = "system_event"
@@ -46,7 +46,7 @@ class InputSource(str, Enum):
 
 class RawInput(BaseModel):
     """Raw input from various sources.
-    
+
     Attributes:
         content: Raw input content (text, bytes, or dict)
         source: Input source type
@@ -54,13 +54,13 @@ class RawInput(BaseModel):
         timestamp: Input timestamp
         metadata: Additional metadata
     """
-    
+
     content: Any = Field(..., description="Raw input content")
     source: InputSource = Field(..., description="Input source type")
     user_id: str = Field(..., description="User identifier")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Input timestamp")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
-    
+
     @field_validator("user_id")
     @classmethod
     def validate_user_id(cls, v: str) -> str:
@@ -72,7 +72,7 @@ class RawInput(BaseModel):
 
 class NormalizedInput(BaseModel):
     """Normalized input with extracted metadata.
-    
+
     Attributes:
         text: Normalized text content
         source: Input source type
@@ -81,14 +81,14 @@ class NormalizedInput(BaseModel):
         metadata: Extracted and preserved metadata
         original_content: Original raw content (for debugging)
     """
-    
+
     text: str = Field(..., description="Normalized text content")
     source: InputSource = Field(..., description="Input source type")
     user_id: str = Field(..., description="User identifier")
     timestamp: datetime = Field(..., description="Input timestamp")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Extracted metadata")
     original_content: Optional[str] = Field(default=None, description="Original raw content")
-    
+
     @field_validator("text")
     @classmethod
     def validate_text(cls, v: str) -> str:
@@ -96,7 +96,7 @@ class NormalizedInput(BaseModel):
         if not v or not v.strip():
             raise ValueError("Normalized text cannot be empty")
         return v
-    
+
     @field_validator("user_id")
     @classmethod
     def validate_user_id(cls, v: str) -> str:
@@ -108,17 +108,17 @@ class NormalizedInput(BaseModel):
 
 class InputNormalizer:
     """Input normalizer for reasoning engine.
-    
+
     This class normalizes inputs from different sources (text, voice, system events)
     into a standardized format with metadata extraction and security sanitization.
-    
+
     Time Complexity:
         - normalize: O(n) where n is input length
         - Latency: <30ms (95th percentile)
-    
+
     Space Complexity:
         - O(n) for normalized output
-    
+
     Features:
         - Text normalization (whitespace, encoding)
         - Voice input handling (already transcribed)
@@ -126,7 +126,7 @@ class InputNormalizer:
         - Metadata extraction and preservation
         - Input validation with descriptive errors
         - Security sanitization (XSS, injection prevention)
-    
+
     Example:
         >>> normalizer = InputNormalizer()
         >>> raw = RawInput(
@@ -138,10 +138,10 @@ class InputNormalizer:
         >>> print(normalized.text)
         "Set a timer for 5 minutes"
     """
-    
+
     # Maximum input length (10KB)
     MAX_INPUT_LENGTH = 10 * 1024
-    
+
     # Dangerous patterns for sanitization
     DANGEROUS_PATTERNS = [
         r"<script[^>]*>.*?</script>",  # Script tags
@@ -149,10 +149,10 @@ class InputNormalizer:
         r"on\w+\s*=",  # Event handlers
         r"<iframe[^>]*>",  # Iframes
     ]
-    
+
     def __init__(self, max_length: int = MAX_INPUT_LENGTH) -> None:
         """Initialize InputNormalizer.
-        
+
         Args:
             max_length: Maximum input length in characters
         """
@@ -161,25 +161,25 @@ class InputNormalizer:
             "|".join(self.DANGEROUS_PATTERNS),
             re.IGNORECASE | re.DOTALL
         )
-    
+
     def normalize(self, raw_input: RawInput) -> NormalizedInput:
         """Normalize raw input into standardized format.
-        
+
         Time Complexity: O(n) where n is input length
         Latency Budget: <30ms
-        
+
         This is the main entry point for input normalization. It handles different
         input sources and applies appropriate normalization strategies.
-        
+
         Args:
             raw_input: Raw input from user or system
-        
+
         Returns:
             NormalizedInput with standardized format
-        
+
         Raises:
             ValueError: If input is invalid or exceeds size limits
-            
+
         Example:
             >>> normalizer = InputNormalizer()
             >>> raw = RawInput(content="hello", source=InputSource.TEXT, user_id="user_123")
@@ -194,18 +194,18 @@ class InputNormalizer:
             return self._normalize_system_event(raw_input)
         else:
             raise ValueError(f"Unknown input source: {raw_input.source}")
-    
+
     def _normalize_text(self, raw_input: RawInput) -> NormalizedInput:
         """Normalize text input.
-        
+
         Time Complexity: O(n) where n is input length
-        
+
         Args:
             raw_input: Raw text input
-        
+
         Returns:
             NormalizedInput with normalized text
-        
+
         Raises:
             ValueError: If text is invalid
         """
@@ -214,33 +214,33 @@ class InputNormalizer:
             raise ValueError(
                 f"Text input content must be string, got {type(raw_input.content).__name__}"
             )
-        
+
         # Check length
         if len(raw_input.content) > self.max_length:
             raise ValueError(
                 f"Input exceeds maximum length of {self.max_length} characters"
             )
-        
+
         # Validate encoding
         try:
             raw_input.content.encode("utf-8")
         except UnicodeEncodeError as e:
-            raise ValueError(f"Invalid text encoding: {e}")
-        
+            raise ValueError(f"Invalid text encoding: {e}") from e
+
         # Sanitize input for security
         sanitized = self._sanitize_input(raw_input.content)
-        
+
         # Normalize whitespace
         normalized_text = self._normalize_whitespace(sanitized)
-        
+
         # Validate not empty after normalization
         if not normalized_text:
             raise ValueError("Input is empty after normalization")
-        
+
         # Extract metadata
         metadata = self._extract_text_metadata(raw_input.content, normalized_text)
         metadata.update(raw_input.metadata)  # Preserve original metadata
-        
+
         return NormalizedInput(
             text=normalized_text,
             source=raw_input.source,
@@ -249,18 +249,18 @@ class InputNormalizer:
             metadata=metadata,
             original_content=raw_input.content[:100],  # Store first 100 chars for debugging
         )
-    
+
     def _normalize_voice(self, raw_input: RawInput) -> NormalizedInput:
         """Normalize voice input (already transcribed by speech engine).
-        
+
         Time Complexity: O(n) where n is input length
-        
+
         Args:
             raw_input: Raw voice input (transcribed text)
-        
+
         Returns:
             NormalizedInput with normalized text
-        
+
         Raises:
             ValueError: If voice input is invalid
         """
@@ -269,24 +269,24 @@ class InputNormalizer:
             raise ValueError(
                 f"Voice input content must be transcribed string, got {type(raw_input.content).__name__}"
             )
-        
+
         # Check length
         if len(raw_input.content) > self.max_length:
             raise ValueError(
                 f"Input exceeds maximum length of {self.max_length} characters"
             )
-        
+
         # Normalize whitespace (voice transcription may have extra spaces)
         normalized_text = self._normalize_whitespace(raw_input.content)
-        
+
         # Validate not empty
         if not normalized_text:
             raise ValueError("Voice input is empty after normalization")
-        
+
         # Extract metadata
         metadata = self._extract_voice_metadata(raw_input.content, normalized_text)
         metadata.update(raw_input.metadata)  # Preserve original metadata
-        
+
         return NormalizedInput(
             text=normalized_text,
             source=raw_input.source,
@@ -295,18 +295,18 @@ class InputNormalizer:
             metadata=metadata,
             original_content=raw_input.content[:100],
         )
-    
+
     def _normalize_system_event(self, raw_input: RawInput) -> NormalizedInput:
         """Normalize system event input.
-        
+
         Time Complexity: O(n) where n is event data size
-        
+
         Args:
             raw_input: Raw system event
-        
+
         Returns:
             NormalizedInput with natural language representation
-        
+
         Raises:
             ValueError: If system event is invalid
         """
@@ -321,15 +321,15 @@ class InputNormalizer:
             raise ValueError(
                 f"System event content must be dict or string, got {type(raw_input.content).__name__}"
             )
-        
+
         # Validate not empty
         if not normalized_text:
             raise ValueError("System event is empty after normalization")
-        
+
         # Extract metadata
         metadata = self._extract_system_event_metadata(raw_input.content)
         metadata.update(raw_input.metadata)  # Preserve original metadata
-        
+
         return NormalizedInput(
             text=normalized_text,
             source=raw_input.source,
@@ -338,55 +338,55 @@ class InputNormalizer:
             metadata=metadata,
             original_content=str(raw_input.content)[:100],
         )
-    
+
     def _normalize_whitespace(self, text: str) -> str:
         """Normalize whitespace in text.
-        
+
         Time Complexity: O(n) where n is text length
-        
+
         Args:
             text: Input text
-        
+
         Returns:
             Text with normalized whitespace
         """
         # Strip leading/trailing whitespace
         text = text.strip()
-        
+
         # Replace multiple spaces with single space
         text = " ".join(text.split())
-        
+
         # Remove control characters except newline and tab
         text = "".join(char for char in text if char.isprintable() or char in "\n\t")
-        
+
         return text
-    
+
     def _sanitize_input(self, text: str) -> str:
         """Sanitize input for security (prevent XSS, injection).
-        
+
         Time Complexity: O(n) where n is text length
-        
+
         Args:
             text: Input text
-        
+
         Returns:
             Sanitized text
         """
         # Remove dangerous patterns
         sanitized = self._dangerous_pattern.sub("", text)
-        
+
         # HTML entity encoding for special characters
         sanitized = sanitized.replace("<", "&lt;").replace(">", "&gt;")
-        
+
         return sanitized
-    
+
     def _extract_text_metadata(self, original: str, normalized: str) -> dict[str, Any]:
         """Extract metadata from text input.
-        
+
         Args:
             original: Original text
             normalized: Normalized text
-        
+
         Returns:
             Dictionary of extracted metadata
         """
@@ -397,55 +397,55 @@ class InputNormalizer:
             "has_numbers": any(c.isdigit() for c in original),
             "has_special_chars": any(not c.isalnum() and not c.isspace() for c in original),
         }
-    
+
     def _extract_voice_metadata(self, original: str, normalized: str) -> dict[str, Any]:
         """Extract metadata from voice input.
-        
+
         Args:
             original: Original transcribed text
             normalized: Normalized text
-        
+
         Returns:
             Dictionary of extracted metadata
         """
         metadata = self._extract_text_metadata(original, normalized)
         metadata["transcribed"] = True
         return metadata
-    
+
     def _extract_system_event_metadata(self, content: Any) -> dict[str, Any]:
         """Extract metadata from system event.
-        
+
         Args:
             content: System event content
-        
+
         Returns:
             Dictionary of extracted metadata
         """
         metadata = {"system_generated": True}
-        
+
         if isinstance(content, dict):
             metadata["event_type"] = content.get("type", "unknown")
             metadata["event_keys"] = list(content.keys())
-        
+
         return metadata
-    
+
     def _event_dict_to_text(self, event: dict[str, Any]) -> str:
         """Convert system event dict to natural language text.
-        
+
         Args:
             event: System event dictionary
-        
+
         Returns:
             Natural language representation
-        
+
         Raises:
             ValueError: If event is empty or has no meaningful content
         """
         if not event:
             raise ValueError("System event dictionary is empty")
-        
+
         event_type = event.get("type", "unknown")
-        
+
         # Handle common event types
         if event_type == "timer_expired":
             return f"Timer expired: {event.get('name', 'unnamed')}"

@@ -19,7 +19,9 @@ Usage:
 """
 
 import asyncio
-from typing import Callable, TypeVar, Any
+from collections.abc import Callable
+from typing import Any, TypeVar
+
 from Agent_Guru.goal_manager.logging_config import get_logger
 
 logger = get_logger(__name__)

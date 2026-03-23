@@ -5,7 +5,7 @@ import logging
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from Agent_Guru.learning.privacy import PrivacyBudget, PrivacyProof
 
@@ -28,11 +28,11 @@ DEFAULT_NOISE_MULTIPLIER = 1.1
 class FederatedUpdate:
     """A differentially-private gradient update."""
     round_id: int
-    gradient_delta: List[float]
+    gradient_delta: list[float]
     epsilon_cost: float
     delta_cost: float
     proof: Optional[PrivacyProof] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class FederatedLearner:
@@ -60,7 +60,7 @@ class FederatedLearner:
 
     def train_round(
         self,
-        local_data: List[Any],
+        local_data: list[Any],
         epsilon_cost: float = 0.1,
         delta_cost: float = 1e-6,
     ) -> Optional[FederatedUpdate]:
@@ -93,16 +93,15 @@ class FederatedLearner:
             proof=proof,
         )
 
-    def _compute_dp_gradient(self, local_data: List[Any]) -> List[float]:
+    def _compute_dp_gradient(self, local_data: list[Any]) -> list[float]:
         """Compute differentially-private gradient (stub)."""
         import random
-        import math
         # Stub: return noisy zero gradient
         n = min(len(local_data), 10)
         noise = self.noise_multiplier * self.max_grad_norm
         return [random.gauss(0, noise) for _ in range(n)]
 
-    def transmit(self, update: FederatedUpdate) -> Dict[str, Any]:
+    def transmit(self, update: FederatedUpdate) -> dict[str, Any]:
         """Transmit only the DP gradient delta, never raw data."""
         return {
             "round_id": update.round_id,

@@ -14,12 +14,11 @@ Performance contract:
 
 import asyncio
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from Agent_Guru.reasoning.engine import (
-    ReasoningEngine,
     ReasoningResult,
     get_reasoning_engine,
 )

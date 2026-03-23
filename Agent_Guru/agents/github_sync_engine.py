@@ -4,11 +4,11 @@ GitHub Sync Engine - Queues and syncs agent evolution events to GitHub.
 Validates: Requirements 20.1, 20.2, 20.3, 20.4, 20.5
 """
 
-from typing import Dict, List, Any
-from dataclasses import dataclass
-from datetime import datetime
 import asyncio
 import logging
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +18,8 @@ class SyncEvent:
     """An evolution event queued for GitHub sync."""
 
     event_type: str  # creation, merge, split, retirement
-    agent_ids: List[str]
-    details: Dict[str, Any]
+    agent_ids: list[str]
+    details: dict[str, Any]
     timestamp: datetime
     attempts: int = 0
 
@@ -53,15 +53,15 @@ class GitHubSyncEngine:
         self.max_retries = max_retries
         self.batch_size = batch_size
         self.base_backoff_seconds = base_backoff_seconds
-        self._queue: List[SyncEvent] = []
-        self._processed: List[SyncEvent] = []
-        self._failed: List[SyncEvent] = []
+        self._queue: list[SyncEvent] = []
+        self._processed: list[SyncEvent] = []
+        self._failed: list[SyncEvent] = []
 
     def queue_evolution_event(
         self,
         event_type: str,
-        agent_ids: List[str],
-        details: Dict[str, Any],
+        agent_ids: list[str],
+        details: dict[str, Any],
     ) -> None:
         """
         Queue an evolution event for GitHub sync.
@@ -77,7 +77,7 @@ class GitHubSyncEngine:
         self._queue.append(event)
         logger.debug("Queued evolution event: %s for agents %s", event_type, agent_ids)
 
-    async def process_sync_queue(self) -> Dict[str, int]:
+    async def process_sync_queue(self) -> dict[str, int]:
         """
         Process all queued events in batches with retry logic.
 
@@ -155,7 +155,7 @@ class GitHubSyncEngine:
             f"**Details**: {event.details}\n"
         )
 
-    def batch_operations(self, events: List[SyncEvent]) -> List[List[SyncEvent]]:
+    def batch_operations(self, events: list[SyncEvent]) -> list[list[SyncEvent]]:
         """Split events into batches of batch_size."""
         return [events[i : i + self.batch_size] for i in range(0, len(events), self.batch_size)]
 

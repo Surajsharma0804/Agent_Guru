@@ -39,12 +39,12 @@ Date: 2024
 Version: 1.0.0
 """
 
+import logging
 import platform
 import subprocess
-import logging
 from abc import ABC, abstractmethod
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MediaState:
     """Current media playback state.
-    
+
     Attributes:
         is_playing: Whether media is currently playing
         volume: Current volume level (0-100)
@@ -73,150 +73,136 @@ class MediaState:
 
 class MediaControlError(Exception):
     """Base exception for media control errors."""
-    pass
 
 
 class UnsupportedMediaOperationError(MediaControlError):
     """Raised when media operation is not supported on current platform."""
-    pass
 
 
 class MediaCommandError(MediaControlError):
     """Raised when media command execution fails."""
-    pass
 
 
 # Backend Interface
 
 class MediaBackend(ABC):
     """Abstract base class for platform-specific media control backends.
-    
+
     All platform-specific implementations must inherit from this class
     and implement all abstract methods.
     """
-    
+
     @abstractmethod
     def play(self) -> None:
         """Start or resume media playback.
-        
+
         Raises:
             MediaCommandError: If play command fails
         """
-        pass
-    
+
     @abstractmethod
     def pause(self) -> None:
         """Pause media playback.
-        
+
         Raises:
             MediaCommandError: If pause command fails
         """
-        pass
-    
+
     @abstractmethod
     def play_pause_toggle(self) -> None:
         """Toggle between play and pause states.
-        
+
         Raises:
             MediaCommandError: If toggle command fails
         """
-        pass
-    
+
     @abstractmethod
     def stop(self) -> None:
         """Stop media playback.
-        
+
         Raises:
             MediaCommandError: If stop command fails
         """
-        pass
-    
+
     @abstractmethod
     def next_track(self) -> None:
         """Skip to next track.
-        
+
         Raises:
             MediaCommandError: If next command fails
         """
-        pass
-    
+
     @abstractmethod
     def previous_track(self) -> None:
         """Go to previous track.
-        
+
         Raises:
             MediaCommandError: If previous command fails
         """
-        pass
-    
+
     @abstractmethod
     def volume_up(self, amount: int = 10) -> None:
         """Increase media volume.
-        
+
         Args:
             amount: Volume increase amount (0-100)
-            
+
         Raises:
             MediaCommandError: If volume up command fails
             InvalidSettingValueError: If amount is invalid
         """
-        pass
-    
+
     @abstractmethod
     def volume_down(self, amount: int = 10) -> None:
         """Decrease media volume.
-        
+
         Args:
             amount: Volume decrease amount (0-100)
-            
+
         Raises:
             MediaCommandError: If volume down command fails
             InvalidSettingValueError: If amount is invalid
         """
-        pass
-    
+
     @abstractmethod
     def mute(self) -> None:
         """Mute media audio.
-        
+
         Raises:
             MediaCommandError: If mute command fails
         """
-        pass
-    
+
     @abstractmethod
     def unmute(self) -> None:
         """Unmute media audio.
-        
+
         Raises:
             MediaCommandError: If unmute command fails
         """
-        pass
-    
+
     @abstractmethod
     def get_state(self) -> Optional[MediaState]:
         """Get current media playback state.
-        
+
         Returns:
             MediaState if available, None if state cannot be determined
-            
+
         Raises:
             MediaCommandError: If state query fails
         """
-        pass
 
 
 # Windows Backend
 
 class WindowsMediaBackend(MediaBackend):
     """Windows media control backend using pywin32 for media key simulation.
-    
+
     Uses Windows API to simulate media key presses (VK_MEDIA_*).
     """
-    
+
     def __init__(self):
         """Initialize Windows media backend.
-        
+
         Raises:
             ImportError: If pywin32 is not installed
         """
@@ -232,13 +218,13 @@ class WindowsMediaBackend(MediaBackend):
                 "pywin32 is required for Windows media control. "
                 "Install with: pip install pywin32"
             ) from e
-    
+
     def _send_media_key(self, key_code: int) -> None:
         """Send media key press event.
-        
+
         Args:
             key_code: Windows virtual key code
-            
+
         Raises:
             MediaCommandError: If key press fails
         """
@@ -256,70 +242,70 @@ class WindowsMediaBackend(MediaBackend):
         except Exception as e:
             logger.error(f"Failed to send media key {key_code}: {e}")
             raise MediaCommandError(f"Failed to send media key: {e}") from e
-    
+
     def play(self) -> None:
         """Start or resume media playback using VK_MEDIA_PLAY_PAUSE."""
         self._send_media_key(0xB3)  # VK_MEDIA_PLAY_PAUSE
-    
+
     def pause(self) -> None:
         """Pause media playback using VK_MEDIA_PLAY_PAUSE."""
         self._send_media_key(0xB3)  # VK_MEDIA_PLAY_PAUSE
-    
+
     def play_pause_toggle(self) -> None:
         """Toggle play/pause using VK_MEDIA_PLAY_PAUSE."""
         self._send_media_key(0xB3)  # VK_MEDIA_PLAY_PAUSE
-    
+
     def stop(self) -> None:
         """Stop media playback using VK_MEDIA_STOP."""
         self._send_media_key(0xB2)  # VK_MEDIA_STOP
-    
+
     def next_track(self) -> None:
         """Skip to next track using VK_MEDIA_NEXT_TRACK."""
         self._send_media_key(0xB0)  # VK_MEDIA_NEXT_TRACK
-    
+
     def previous_track(self) -> None:
         """Go to previous track using VK_MEDIA_PREV_TRACK."""
         self._send_media_key(0xB1)  # VK_MEDIA_PREV_TRACK
-    
+
     def volume_up(self, amount: int = 10) -> None:
         """Increase volume using VK_VOLUME_UP.
-        
+
         Note: Windows media keys don't support custom amounts,
         so this sends multiple key presses.
         """
         if not 0 <= amount <= 100:
             raise MediaCommandError(f"Invalid volume amount: {amount}")
-        
+
         # Each key press increases volume by ~2%, so divide by 2
         presses = max(1, amount // 2)
         for _ in range(presses):
             self._send_media_key(0xAF)  # VK_VOLUME_UP
-    
+
     def volume_down(self, amount: int = 10) -> None:
         """Decrease volume using VK_VOLUME_DOWN.
-        
+
         Note: Windows media keys don't support custom amounts,
         so this sends multiple key presses.
         """
         if not 0 <= amount <= 100:
             raise MediaCommandError(f"Invalid volume amount: {amount}")
-        
+
         # Each key press decreases volume by ~2%, so divide by 2
         presses = max(1, amount // 2)
         for _ in range(presses):
             self._send_media_key(0xAE)  # VK_VOLUME_DOWN
-    
+
     def mute(self) -> None:
         """Mute audio using VK_VOLUME_MUTE."""
         self._send_media_key(0xAD)  # VK_VOLUME_MUTE
-    
+
     def unmute(self) -> None:
         """Unmute audio using VK_VOLUME_MUTE (toggle)."""
         self._send_media_key(0xAD)  # VK_VOLUME_MUTE
-    
+
     def get_state(self) -> Optional[MediaState]:
         """Get current media state.
-        
+
         Note: Windows media keys don't provide state feedback,
         so this returns None.
         """
@@ -331,20 +317,20 @@ class WindowsMediaBackend(MediaBackend):
 
 class MacOSMediaBackend(MediaBackend):
     """macOS media control backend using AppleScript.
-    
+
     Uses AppleScript to control media playback through System Events
     and specific media applications.
     """
-    
+
     def _execute_applescript(self, script: str) -> str:
         """Execute AppleScript command.
-        
+
         Args:
             script: AppleScript code to execute
-            
+
         Returns:
             Script output
-            
+
         Raises:
             MediaCommandError: If script execution fails
         """
@@ -366,16 +352,16 @@ class MacOSMediaBackend(MediaBackend):
         except subprocess.TimeoutExpired as e:
             logger.error("AppleScript timeout")
             raise MediaCommandError("AppleScript execution timeout") from e
-    
+
     def _send_media_key(self, key_code: int) -> None:
         """Send media key using System Events.
-        
+
         Args:
             key_code: macOS key code for media keys
         """
         script = f'tell application "System Events" to key code {key_code}'
         self._execute_applescript(script)
-    
+
     def play(self) -> None:
         """Start or resume media playback."""
         # Try iTunes/Music first, then generic media key
@@ -391,7 +377,7 @@ class MacOSMediaBackend(MediaBackend):
         except MediaCommandError:
             # Fallback to media key
             self._send_media_key(16)  # Play/Pause key
-    
+
     def pause(self) -> None:
         """Pause media playback."""
         try:
@@ -406,11 +392,11 @@ class MacOSMediaBackend(MediaBackend):
         except MediaCommandError:
             # Fallback to media key
             self._send_media_key(16)  # Play/Pause key
-    
+
     def play_pause_toggle(self) -> None:
         """Toggle play/pause."""
         self._send_media_key(16)  # Play/Pause key
-    
+
     def stop(self) -> None:
         """Stop media playback."""
         try:
@@ -424,54 +410,54 @@ class MacOSMediaBackend(MediaBackend):
             self._execute_applescript(script)
         except MediaCommandError:
             logger.warning("Stop command not available via media keys")
-    
+
     def next_track(self) -> None:
         """Skip to next track."""
         self._send_media_key(17)  # Next track key
-    
+
     def previous_track(self) -> None:
         """Go to previous track."""
         self._send_media_key(18)  # Previous track key
-    
+
     def volume_up(self, amount: int = 10) -> None:
         """Increase volume.
-        
+
         Note: macOS media keys don't support custom amounts,
         so this sends multiple key presses.
         """
         if not 0 <= amount <= 100:
             raise MediaCommandError(f"Invalid volume amount: {amount}")
-        
+
         # Each key press increases volume by ~6.25%, so divide by 6
         presses = max(1, amount // 6)
         for _ in range(presses):
             self._send_media_key(72)  # Volume up key
-    
+
     def volume_down(self, amount: int = 10) -> None:
         """Decrease volume.
-        
+
         Note: macOS media keys don't support custom amounts,
         so this sends multiple key presses.
         """
         if not 0 <= amount <= 100:
             raise MediaCommandError(f"Invalid volume amount: {amount}")
-        
+
         # Each key press decreases volume by ~6.25%, so divide by 6
         presses = max(1, amount // 6)
         for _ in range(presses):
             self._send_media_key(73)  # Volume down key
-    
+
     def mute(self) -> None:
         """Mute audio."""
         self._send_media_key(74)  # Mute key
-    
+
     def unmute(self) -> None:
         """Unmute audio."""
         self._send_media_key(74)  # Mute key (toggle)
-    
+
     def get_state(self) -> Optional[MediaState]:
         """Get current media state from Music app.
-        
+
         Returns:
             MediaState if Music app is running, None otherwise
         """
@@ -499,7 +485,7 @@ class MacOSMediaBackend(MediaBackend):
                 )
         except Exception as e:
             logger.debug(f"Could not get media state: {e}")
-        
+
         return None
 
 
@@ -507,14 +493,14 @@ class MacOSMediaBackend(MediaBackend):
 
 class LinuxMediaBackend(MediaBackend):
     """Linux media control backend using D-Bus/playerctl.
-    
+
     Uses playerctl for media control via MPRIS D-Bus interface.
     Falls back to xdotool for key simulation if playerctl unavailable.
     """
-    
+
     def __init__(self):
         """Initialize Linux media backend.
-        
+
         Checks for playerctl availability and falls back to xdotool.
         """
         self.use_playerctl = self._check_playerctl()
@@ -522,10 +508,10 @@ class LinuxMediaBackend(MediaBackend):
             logger.info("Linux media backend using playerctl")
         else:
             logger.info("Linux media backend using xdotool fallback")
-    
+
     def _check_playerctl(self) -> bool:
         """Check if playerctl is available.
-        
+
         Returns:
             True if playerctl is installed and working
         """
@@ -539,16 +525,16 @@ class LinuxMediaBackend(MediaBackend):
             return True
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
             return False
-    
+
     def _execute_playerctl(self, command: str) -> str:
         """Execute playerctl command.
-        
+
         Args:
             command: playerctl command to execute
-            
+
         Returns:
             Command output
-            
+
         Raises:
             MediaCommandError: If command fails
         """
@@ -570,13 +556,13 @@ class LinuxMediaBackend(MediaBackend):
         except subprocess.TimeoutExpired as e:
             logger.error(f"playerctl {command} timeout")
             raise MediaCommandError(f"playerctl {command} timeout") from e
-    
+
     def _send_xdotool_key(self, key: str) -> None:
         """Send media key using xdotool.
-        
+
         Args:
             key: X11 key name
-            
+
         Raises:
             MediaCommandError: If xdotool fails
         """
@@ -591,58 +577,58 @@ class LinuxMediaBackend(MediaBackend):
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
             logger.error(f"xdotool key {key} failed: {e}")
             raise MediaCommandError(f"xdotool key {key} failed: {e}") from e
-    
+
     def play(self) -> None:
         """Start or resume media playback."""
         if self.use_playerctl:
             self._execute_playerctl("play")
         else:
             self._send_xdotool_key("XF86AudioPlay")
-    
+
     def pause(self) -> None:
         """Pause media playback."""
         if self.use_playerctl:
             self._execute_playerctl("pause")
         else:
             self._send_xdotool_key("XF86AudioPause")
-    
+
     def play_pause_toggle(self) -> None:
         """Toggle play/pause."""
         if self.use_playerctl:
             self._execute_playerctl("play-pause")
         else:
             self._send_xdotool_key("XF86AudioPlay")
-    
+
     def stop(self) -> None:
         """Stop media playback."""
         if self.use_playerctl:
             self._execute_playerctl("stop")
         else:
             self._send_xdotool_key("XF86AudioStop")
-    
+
     def next_track(self) -> None:
         """Skip to next track."""
         if self.use_playerctl:
             self._execute_playerctl("next")
         else:
             self._send_xdotool_key("XF86AudioNext")
-    
+
     def previous_track(self) -> None:
         """Go to previous track."""
         if self.use_playerctl:
             self._execute_playerctl("previous")
         else:
             self._send_xdotool_key("XF86AudioPrev")
-    
+
     def volume_up(self, amount: int = 10) -> None:
         """Increase volume.
-        
+
         Note: xdotool doesn't support custom amounts.
         playerctl supports percentage changes.
         """
         if not 0 <= amount <= 100:
             raise MediaCommandError(f"Invalid volume amount: {amount}")
-        
+
         if self.use_playerctl:
             # playerctl supports percentage: volume 0.1+ means +10%
             self._execute_playerctl(f"volume {amount / 100.0}+")
@@ -651,16 +637,16 @@ class LinuxMediaBackend(MediaBackend):
             presses = max(1, amount // 5)
             for _ in range(presses):
                 self._send_xdotool_key("XF86AudioRaiseVolume")
-    
+
     def volume_down(self, amount: int = 10) -> None:
         """Decrease volume.
-        
+
         Note: xdotool doesn't support custom amounts.
         playerctl supports percentage changes.
         """
         if not 0 <= amount <= 100:
             raise MediaCommandError(f"Invalid volume amount: {amount}")
-        
+
         if self.use_playerctl:
             # playerctl supports percentage: volume 0.1- means -10%
             self._execute_playerctl(f"volume {amount / 100.0}-")
@@ -669,30 +655,30 @@ class LinuxMediaBackend(MediaBackend):
             presses = max(1, amount // 5)
             for _ in range(presses):
                 self._send_xdotool_key("XF86AudioLowerVolume")
-    
+
     def mute(self) -> None:
         """Mute audio."""
         self._send_xdotool_key("XF86AudioMute")
-    
+
     def unmute(self) -> None:
         """Unmute audio."""
         self._send_xdotool_key("XF86AudioMute")
-    
+
     def get_state(self) -> Optional[MediaState]:
         """Get current media state via playerctl.
-        
+
         Returns:
             MediaState if playerctl available, None otherwise
         """
         if not self.use_playerctl:
             return None
-        
+
         try:
             status = self._execute_playerctl("status")
             volume = self._execute_playerctl("volume")
             title = self._execute_playerctl("metadata title")
             artist = self._execute_playerctl("metadata artist")
-            
+
             return MediaState(
                 is_playing=(status.lower() == "playing"),
                 volume=int(float(volume) * 100),
@@ -709,28 +695,28 @@ class LinuxMediaBackend(MediaBackend):
 
 class MediaController:
     """Cross-platform media control controller.
-    
+
     Provides unified interface for media control operations across
     Windows, macOS, and Linux platforms.
-    
+
     Time Complexity: O(1) per operation
     Space Complexity: O(1) (no state storage)
-    
+
     Example:
         >>> controller = MediaController()
         >>> controller.play()
         >>> controller.next_track()
         >>> controller.volume_up(20)
     """
-    
+
     def __init__(self):
         """Initialize media controller with platform-specific backend.
-        
+
         Raises:
             UnsupportedMediaOperationError: If platform not supported
         """
         system = platform.system()
-        
+
         if system == "Windows":
             self._backend = WindowsMediaBackend()
         elif system == "Darwin":
@@ -741,12 +727,12 @@ class MediaController:
             raise UnsupportedMediaOperationError(
                 f"Media control not supported on {system}"
             )
-        
+
         logger.info(f"MediaController initialized for {system}")
-    
+
     def play(self) -> None:
         """Start or resume media playback.
-        
+
         Raises:
             MediaCommandError: If play command fails
         """
@@ -756,10 +742,10 @@ class MediaController:
         except Exception as e:
             logger.error(f"Failed to start playback: {e}")
             raise
-    
+
     def pause(self) -> None:
         """Pause media playback.
-        
+
         Raises:
             MediaCommandError: If pause command fails
         """
@@ -769,10 +755,10 @@ class MediaController:
         except Exception as e:
             logger.error(f"Failed to pause playback: {e}")
             raise
-    
+
     def play_pause_toggle(self) -> None:
         """Toggle between play and pause states.
-        
+
         Raises:
             MediaCommandError: If toggle command fails
         """
@@ -782,10 +768,10 @@ class MediaController:
         except Exception as e:
             logger.error(f"Failed to toggle playback: {e}")
             raise
-    
+
     def stop(self) -> None:
         """Stop media playback.
-        
+
         Raises:
             MediaCommandError: If stop command fails
         """
@@ -795,10 +781,10 @@ class MediaController:
         except Exception as e:
             logger.error(f"Failed to stop playback: {e}")
             raise
-    
+
     def next_track(self) -> None:
         """Skip to next track.
-        
+
         Raises:
             MediaCommandError: If next command fails
         """
@@ -808,10 +794,10 @@ class MediaController:
         except Exception as e:
             logger.error(f"Failed to skip to next track: {e}")
             raise
-    
+
     def previous_track(self) -> None:
         """Go to previous track.
-        
+
         Raises:
             MediaCommandError: If previous command fails
         """
@@ -821,13 +807,13 @@ class MediaController:
         except Exception as e:
             logger.error(f"Failed to go to previous track: {e}")
             raise
-    
+
     def volume_up(self, amount: int = 10) -> None:
         """Increase media volume.
-        
+
         Args:
             amount: Volume increase amount (0-100), default 10
-            
+
         Raises:
             MediaCommandError: If volume up command fails
         """
@@ -837,13 +823,13 @@ class MediaController:
         except Exception as e:
             logger.error(f"Failed to increase volume: {e}")
             raise
-    
+
     def volume_down(self, amount: int = 10) -> None:
         """Decrease media volume.
-        
+
         Args:
             amount: Volume decrease amount (0-100), default 10
-            
+
         Raises:
             MediaCommandError: If volume down command fails
         """
@@ -853,10 +839,10 @@ class MediaController:
         except Exception as e:
             logger.error(f"Failed to decrease volume: {e}")
             raise
-    
+
     def mute(self) -> None:
         """Mute media audio.
-        
+
         Raises:
             MediaCommandError: If mute command fails
         """
@@ -866,10 +852,10 @@ class MediaController:
         except Exception as e:
             logger.error(f"Failed to mute: {e}")
             raise
-    
+
     def unmute(self) -> None:
         """Unmute media audio.
-        
+
         Raises:
             MediaCommandError: If unmute command fails
         """
@@ -879,13 +865,13 @@ class MediaController:
         except Exception as e:
             logger.error(f"Failed to unmute: {e}")
             raise
-    
+
     def get_state(self) -> Optional[MediaState]:
         """Get current media playback state.
-        
+
         Returns:
             MediaState if available, None if state cannot be determined
-            
+
         Note:
             State availability depends on platform and media player.
             Windows: Not available (media keys don't provide feedback)

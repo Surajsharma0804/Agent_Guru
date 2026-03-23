@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -25,7 +25,7 @@ def make_policy(
     principals: list | None = None,
     resources: list | None = None,
     actions: list | None = None,
-    conditions: Dict[str, Any] | None = None,
+    conditions: dict[str, Any] | None = None,
     active: bool = True,
 ) -> Policy:
     return Policy(

@@ -14,9 +14,10 @@ Date: 2026-03-14
 """
 
 import logging
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any, Optional
 
 from .models import CommandResult
 
@@ -66,7 +67,7 @@ class AgentOrchestrationClient:
         """
         self._system = orchestration_system
         self._status_callback = status_callback
-        self._pending: Dict[str, RoutingResult] = {}
+        self._pending: dict[str, RoutingResult] = {}
         logger.info(
             "AgentOrchestrationClient initialized (system=%s)",
             "connected" if orchestration_system else "disabled",
@@ -174,7 +175,7 @@ class AgentOrchestrationClient:
             except Exception as exc:
                 logger.warning("Status callback failed: %s", exc)
 
-    def get_pending_tasks(self) -> Dict[str, RoutingResult]:
+    def get_pending_tasks(self) -> dict[str, RoutingResult]:
         """Return snapshot of pending/completed task results."""
         return dict(self._pending)
 

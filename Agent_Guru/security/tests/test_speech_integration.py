@@ -400,7 +400,7 @@ class TestSpeechSecurityIntegration:
         """Test profile quality with progressively worse audio."""
         # Enroll with good quality
         profile = integration.enroll_user_from_audio("user1", sample_audio)
-        initial_quality = profile.quality_score
+        profile.quality_score
         
         # Update with progressively noisier audio
         for i in range(10):

@@ -33,11 +33,11 @@ def __getattr__(name: str):  # noqa: ANN201
         "agents", "memory", "deployment", "policy",
         "security", "avatar",
     }
-    
+
     # Validate input against whitelist only
     if name not in _allowed_subpackages:
         raise AttributeError(f"module 'Agent_Guru' has no attribute {name!r}")
-    
+
     # Safe to import - name is validated against whitelist
     import importlib
     module = importlib.import_module(f"Agent_Guru.{name}")

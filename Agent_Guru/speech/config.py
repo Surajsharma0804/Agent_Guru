@@ -1,9 +1,8 @@
 """Configuration for the speech engine."""
 
 from dataclasses import dataclass, field
-from typing import Optional, List
 from pathlib import Path
-
+from typing import Optional
 
 
 @dataclass
@@ -30,7 +29,7 @@ class AudioProcessingConfig:
 @dataclass
 class WakeWordConfig:
     """Wake word detection configuration."""
-    wake_words: List[str] = field(default_factory=lambda: ["Hey Guru", "Hey Maya"])
+    wake_words: list[str] = field(default_factory=lambda: ["Hey Guru", "Hey Maya"])
     sensitivity: float = 0.5  # 0.0-1.0
     model_path: Optional[str] = None
     detection_timeout_ms: int = 200
@@ -121,7 +120,7 @@ class ContextConfig:
 @dataclass
 class LanguageConfig:
     """Multi-language configuration."""
-    supported_languages: List[str] = field(default_factory=lambda: [
+    supported_languages: list[str] = field(default_factory=lambda: [
         "en", "es", "fr", "de", "zh", "ja", "hi", "pa"
     ])
     auto_detect: bool = True
@@ -134,7 +133,7 @@ class ModelRouterConfig:
     prefer_local: bool = False
     prefer_cloud: bool = False
     enable_fallback: bool = True
-    cloud_providers: List[str] = field(default_factory=lambda: ["google", "azure", "aws"])
+    cloud_providers: list[str] = field(default_factory=lambda: ["google", "azure", "aws"])
 
 
 @dataclass
@@ -177,19 +176,19 @@ class SpeechEngineConfig:
     model_router: ModelRouterConfig = field(default_factory=ModelRouterConfig)
     background_service: BackgroundServiceConfig = field(default_factory=BackgroundServiceConfig)
     battery: BatteryConfig = field(default_factory=BatteryConfig)
-    
+
     # Global settings
     log_level: str = "INFO"
     enable_metrics: bool = True
     data_dir: Path = field(default_factory=lambda: Path.home() / ".guru" / "speech")
-    
+
     @classmethod
     def for_guru_personality(cls) -> "SpeechEngineConfig":
         """Create configuration optimized for Guru (male) personality."""
         config = cls()
         # Guru-specific settings can be added here
         return config
-    
+
     @classmethod
     def for_maya_personality(cls) -> "SpeechEngineConfig":
         """Create configuration optimized for Maya (female) personality."""

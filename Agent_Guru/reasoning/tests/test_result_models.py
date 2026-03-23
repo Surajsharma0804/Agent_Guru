@@ -1,7 +1,6 @@
 """Comprehensive unit tests for result models - 100% coverage."""
 
 import pytest
-from datetime import datetime
 
 from Agent_Guru.reasoning.models.result import (
     ExecutionResult,

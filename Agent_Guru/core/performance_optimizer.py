@@ -22,9 +22,9 @@ import logging
 import platform
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from functools import lru_cache
-from typing import Any, Callable, Deque, Dict, List, Optional, TypeVar
+from typing import Any, Optional, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class LatencyStats:
 
     name: str
     target_ms: float
-    _samples: Deque[float] = field(default_factory=lambda: deque(maxlen=1000))
+    _samples: deque[float] = field(default_factory=lambda: deque(maxlen=1000))
 
     def record(self, latency_ms: float) -> None:
         self._samples.append(latency_ms)
@@ -59,7 +59,7 @@ class LatencyStats:
     def meets_target(self) -> bool:
         return self.p95_ms <= self.target_ms
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "target_ms": self.target_ms,
@@ -89,7 +89,7 @@ class PerformanceOptimizer:
     """
 
     # Latency targets per stage (ms)
-    _TARGETS: Dict[str, float] = {
+    _TARGETS: dict[str, float] = {
         "wake_word": 200.0,
         "stt": 1000.0,
         "intent": 100.0,
@@ -99,11 +99,11 @@ class PerformanceOptimizer:
     }
 
     def __init__(self) -> None:
-        self._stats: Dict[str, LatencyStats] = {
+        self._stats: dict[str, LatencyStats] = {
             name: LatencyStats(name=name, target_ms=target)
             for name, target in self._TARGETS.items()
         }
-        self._response_cache: Dict[str, str] = {}
+        self._response_cache: dict[str, str] = {}
         self._cache_hits = 0
         self._cache_misses = 0
 
@@ -168,11 +168,11 @@ class PerformanceOptimizer:
     # Reporting
     # ------------------------------------------------------------------
 
-    def get_report(self) -> Dict[str, Any]:
+    def get_report(self) -> dict[str, Any]:
         """Return a full performance report for all tracked stages."""
         return {name: stats.summary() for name, stats in self._stats.items()}
 
-    def get_bottlenecks(self) -> List[str]:
+    def get_bottlenecks(self) -> list[str]:
         """Return list of stages that are not meeting their latency targets."""
         return [
             name for name, stats in self._stats.items()

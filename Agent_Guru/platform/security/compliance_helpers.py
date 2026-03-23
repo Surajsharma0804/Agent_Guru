@@ -14,20 +14,21 @@ Version: 1.0.0
 
 import socket
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Any
+
+import structlog
 
 from Agent_Guru.platform.security.auditor import AuditLogEntry
-import structlog
 
 logger = structlog.get_logger(__name__)
 
 
 def export_to_splunk(
-    entries: List[AuditLogEntry],
+    entries: list[AuditLogEntry],
     endpoint_url: str,
     auth_token: str,
     batch_size: int = 1000,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Export to Splunk HTTP Event Collector (HEC).
 

@@ -5,6 +5,7 @@ Demonstrates simple audio transcription using the Speech Engine.
 """
 
 import numpy as np
+
 from Agent_Guru.speech.engine import SpeechEngine
 from Agent_Guru.speech.models import PersonalityType
 

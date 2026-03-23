@@ -16,17 +16,17 @@ Metrics measured:
 
 from Agent_Guru.self_improvement.benchmarks.base_benchmark import (
     BaseBenchmark,
-    BenchmarkResult,
     BenchmarkMetrics,
+    BenchmarkResult,
     TestScenario,
 )
 from Agent_Guru.self_improvement.benchmarks.test_scenarios import (
     get_all_scenarios,
-    get_simple_scenarios,
     get_complex_scenarios,
-    get_tool_usage_scenarios,
     get_error_recovery_scenarios,
     get_learning_scenarios,
+    get_simple_scenarios,
+    get_tool_usage_scenarios,
 )
 
 __all__ = [

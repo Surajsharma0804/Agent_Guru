@@ -98,7 +98,7 @@ class CloudSyncService:
             self._initialized = True
 
         except Exception as e:
-            raise ConnectionError(f"Failed to connect to PostgreSQL: {e}")
+            raise ConnectionError(f"Failed to connect to PostgreSQL: {e}") from e
 
     async def close(self) -> None:
         """Close database connection pool."""
@@ -160,7 +160,7 @@ class CloudSyncService:
             RuntimeError: If service not initialized
         """
         if not self._initialized or not self._pool:
-            raise RuntimeError("CloudSyncService not initialized")
+            raise RuntimeError("CloudSyncService not initialized") from e
 
         try:
             state_json = state.model_dump_json()
@@ -210,7 +210,7 @@ class CloudSyncService:
             RuntimeError: If service not initialized
         """
         if not self._initialized or not self._pool:
-            raise RuntimeError("CloudSyncService not initialized")
+            raise RuntimeError("CloudSyncService not initialized") from e
 
         try:
             async with self._pool.acquire() as conn:
@@ -250,7 +250,7 @@ class CloudSyncService:
             RuntimeError: If service not initialized
         """
         if not self._initialized or not self._pool:
-            raise RuntimeError("CloudSyncService not initialized")
+            raise RuntimeError("CloudSyncService not initialized") from e
 
         try:
             async with self._pool.acquire() as conn:
@@ -288,7 +288,7 @@ class CloudSyncService:
             RuntimeError: If service not initialized
         """
         if not self._initialized or not self._pool:
-            raise RuntimeError("CloudSyncService not initialized")
+            raise RuntimeError("CloudSyncService not initialized") from e
 
         try:
             async with self._pool.acquire() as conn:
@@ -319,7 +319,7 @@ class CloudSyncService:
             Dict with version, updated_at, or None if not found
         """
         if not self._initialized or not self._pool:
-            raise RuntimeError("CloudSyncService not initialized")
+            raise RuntimeError("CloudSyncService not initialized") from e
 
         try:
             async with self._pool.acquire() as conn:

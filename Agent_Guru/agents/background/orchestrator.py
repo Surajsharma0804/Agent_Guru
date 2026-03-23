@@ -16,10 +16,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Callable, Coroutine, Dict, List, Optional, Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,7 @@ class BackgroundServiceOrchestrator:
 
     def __init__(
         self,
-        services: Optional[List[str]] = None,
+        services: Optional[list[str]] = None,
         heartbeat_timeout_seconds: int = HEARTBEAT_TIMEOUT_SECONDS,
         max_backoff_seconds: int = MAX_BACKOFF_SECONDS,
     ) -> None:
@@ -130,7 +131,7 @@ class BackgroundServiceOrchestrator:
         self._heartbeat_timeout = heartbeat_timeout_seconds
         self._max_backoff = max_backoff_seconds
 
-        self.services: Dict[str, ServiceHealth] = {}
+        self.services: dict[str, ServiceHealth] = {}
         self.system_mode: SystemMode = SystemMode.SLEEP
 
         # Optional external command handler (service_name, command) -> None
@@ -270,7 +271,7 @@ class BackgroundServiceOrchestrator:
     # Health monitoring
     # ------------------------------------------------------------------
 
-    async def monitor_service_health(self) -> List[ServiceHealth]:
+    async def monitor_service_health(self) -> list[ServiceHealth]:
         """Check health of all services and restart unresponsive ones.
 
         Returns:

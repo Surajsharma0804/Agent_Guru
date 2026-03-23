@@ -168,7 +168,7 @@ class HallucinationDetector:
             return {"flagged": False, "score": 0.85, "detail": ""}
 
         context_str = str(context).lower()
-        text_lower = text.lower()
+        text.lower()
 
         # Check for claims in text that contradict context
         # Look for contradiction markers followed by context-relevant terms

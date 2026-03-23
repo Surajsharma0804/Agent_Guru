@@ -1,6 +1,7 @@
 """Speech-to-text components."""
 
-from .language_detector import LanguageDetector, Language, LanguageDetectionResult
+from .language_detector import Language, LanguageDetectionResult, LanguageDetector
+
 
 # Lazy import to avoid torch dependency issues
 def get_whisper_transcriber():

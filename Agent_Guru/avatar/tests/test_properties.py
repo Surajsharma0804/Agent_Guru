@@ -14,7 +14,7 @@ from typing import List, Tuple
 
 import numpy as np
 import pytest
-from hypothesis import given, settings, assume
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from Agent_Guru.avatar.avatar_system import GuruAvatarSystem
@@ -25,9 +25,7 @@ from Agent_Guru.avatar.models import (
     EMOTION_CATEGORIES,
     AvatarState,
     EmotionState,
-    LipSyncState,
     PersonalityProfile,
-    PersonalityType,
 )
 from Agent_Guru.avatar.personality.engine import PersonalityEngine
 from Agent_Guru.avatar.rendering.renderer import AvatarRenderer

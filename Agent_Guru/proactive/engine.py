@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from Agent_Guru.proactive.suppression import SuppressionManager
 
@@ -24,7 +24,7 @@ class ProactiveSuggestion:
     suggestion_type: str
     content: str
     priority: float = 0.5
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -62,7 +62,7 @@ class ProactiveEngine:
 
     def __init__(
         self,
-        quiet_hours: Optional[Tuple[int, int]] = None,
+        quiet_hours: Optional[tuple[int, int]] = None,
         suppression_manager: Optional[SuppressionManager] = None,
     ) -> None:
         self.quiet_hours = quiet_hours  # (start_hour, end_hour) in 24h
@@ -70,9 +70,9 @@ class ProactiveEngine:
         self._active_bucket = _TokenBucket(_ACTIVE_RATE, _BUCKET_CAPACITY_ACTIVE)
         self._idle_bucket = _TokenBucket(_IDLE_RATE, _BUCKET_CAPACITY_IDLE)
         self._is_active = True
-        self._dnd_queue: List[ProactiveSuggestion] = []
+        self._dnd_queue: list[ProactiveSuggestion] = []
         # Simple online classifier weights (SGD stub)
-        self._relevance_weights: Dict[str, float] = {}
+        self._relevance_weights: dict[str, float] = {}
 
     def set_active(self, active: bool) -> None:
         self._is_active = active
@@ -91,7 +91,7 @@ class ProactiveEngine:
         bucket = self._active_bucket if self._is_active else self._idle_bucket
         return bucket.consume()
 
-    def evaluate_context(self, context: Dict[str, Any]) -> Optional[ProactiveSuggestion]:
+    def evaluate_context(self, context: dict[str, Any]) -> Optional[ProactiveSuggestion]:
         """Evaluate context and return a suggestion if appropriate."""
         suggestion_type = context.get("type", "general")
         content = context.get("content", "")
@@ -142,7 +142,7 @@ class ProactiveEngine:
         else:
             self.suppression.record_dismissal(stype)
 
-    def flush_dnd_queue(self) -> List[DeliveryResult]:
+    def flush_dnd_queue(self) -> list[DeliveryResult]:
         """Deliver queued suggestions after DND ends."""
         results = []
         remaining = []

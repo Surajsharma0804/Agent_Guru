@@ -28,10 +28,10 @@ Date: 2026-02-24
 Version: 1.0.0
 """
 
-from typing import Optional, Dict, Any
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Optional
 
 # Android-specific imports (only available on Android)
 try:
@@ -82,17 +82,14 @@ class NotificationConfig:
 
 class AndroidIntegrationError(Exception):
     """Base exception for Android integration errors."""
-    pass
 
 
 class PermissionDeniedError(AndroidIntegrationError):
     """Raised when required permission is denied."""
-    pass
 
 
 class AppNotFoundError(AndroidIntegrationError):
     """Raised when app package is not found."""
-    pass
 
 
 class AndroidIntegration:
@@ -149,7 +146,7 @@ class AndroidIntegration:
             logger.debug("Android Java classes initialized")
         except Exception as e:
             logger.error(f"Failed to initialize Android classes: {e}")
-            raise AndroidIntegrationError(f"Failed to initialize Android classes: {e}")
+            raise AndroidIntegrationError(f"Failed to initialize Android classes: {e}") from e
 
     def _get_context(self):
         """Get Android application context."""
@@ -158,7 +155,7 @@ class AndroidIntegration:
             return activity.getApplicationContext()
         except Exception as e:
             logger.error(f"Failed to get Android context: {e}")
-            raise AndroidIntegrationError(f"Failed to get Android context: {e}")
+            raise AndroidIntegrationError(f"Failed to get Android context: {e}") from e
 
     # ========== App Launching ==========
 
@@ -179,11 +176,11 @@ class AndroidIntegration:
             try:
                 pm.getPackageInfo(package_name, 0)
             except Exception:
-                raise AppNotFoundError(f"Package not found: {package_name}")
+                raise AppNotFoundError(f"Package not found: {package_name}") from e
 
             intent = pm.getLaunchIntentForPackage(package_name)
             if intent is None:
-                raise AppNotFoundError(f"No launch intent for package: {package_name}")
+                raise AppNotFoundError(f"No launch intent for package: {package_name}") from e
 
             intent.addFlags(self.Intent.FLAG_ACTIVITY_NEW_TASK)
             self.context.startActivity(intent)
@@ -194,13 +191,13 @@ class AndroidIntegration:
             raise
         except Exception as e:
             logger.error(f"Failed to launch app {package_name}: {e}")
-            raise AndroidIntegrationError(f"Failed to launch app: {e}")
+            raise AndroidIntegrationError(f"Failed to launch app: {e}") from e
 
     def send_intent(
         self,
         action: str,
         data: Optional[str] = None,
-        extras: Optional[Dict[str, Any]] = None,
+        extras: Optional[dict[str, Any]] = None,
     ) -> bool:
         """Send Android Intent.
 
@@ -237,7 +234,7 @@ class AndroidIntegration:
 
         except Exception as e:
             logger.error(f"Failed to send intent {action}: {e}")
-            raise AndroidIntegrationError(f"Failed to send intent: {e}")
+            raise AndroidIntegrationError(f"Failed to send intent: {e}") from e
 
     # ========== UI Automation ==========
 
@@ -302,7 +299,7 @@ class AndroidIntegration:
             raise
         except Exception as e:
             logger.error(f"Failed to get battery info: {e}")
-            raise AndroidIntegrationError(f"Failed to get battery info: {e}")
+            raise AndroidIntegrationError(f"Failed to get battery info: {e}") from e
 
     # ========== Permission Management ==========
 
@@ -326,7 +323,7 @@ class AndroidIntegration:
             return True
         except Exception as e:
             logger.error(f"Failed to request permission {permission}: {e}")
-            raise AndroidIntegrationError(f"Failed to request permission: {e}")
+            raise AndroidIntegrationError(f"Failed to request permission: {e}") from e
 
     # ========== Notification Management ==========
 
@@ -355,7 +352,7 @@ class AndroidIntegration:
 
         except Exception as e:
             logger.error(f"Failed to create notification: {e}")
-            raise AndroidIntegrationError(f"Failed to create notification: {e}")
+            raise AndroidIntegrationError(f"Failed to create notification: {e}") from e
 
     def _create_notification_channel(self, channel_id: str) -> None:
         """Create notification channel for Android 8.0+."""

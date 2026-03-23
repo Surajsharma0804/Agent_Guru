@@ -23,7 +23,8 @@ from __future__ import annotations
 import logging
 import time
 from collections import deque
-from typing import Callable, Deque, Iterator, List, Optional, Tuple
+from collections.abc import Callable, Iterator
+from typing import Optional
 
 import numpy as np
 
@@ -247,7 +248,7 @@ class LandmarkGenerator:
         viseme_index: int,
         mouth_open: float,
         lip_spread: float,
-    ) -> List[Tuple[float, float]]:
+    ) -> list[tuple[float, float]]:
         """Generate mouth landmarks for a given viseme.
 
         Args:
@@ -286,7 +287,7 @@ class LandmarkGenerator:
 
     def extract_from_frame(
         self, frame: np.ndarray
-    ) -> Optional[List[Tuple[float, float]]]:
+    ) -> Optional[list[tuple[float, float]]]:
         """Extract mouth landmarks from a video frame using MediaPipe.
 
         Args:
@@ -299,6 +300,7 @@ class LandmarkGenerator:
             return None
         try:
             import mediapipe as mp  # type: ignore[import]
+
             from Agent_Guru.avatar.models import MOUTH_LANDMARK_INDICES
 
             mp_face_mesh = mp.solutions.face_mesh
@@ -369,7 +371,7 @@ class LipSyncController:
         self._landmark_generator = LandmarkGenerator()
 
         # Ring buffer for streaming audio
-        self._ring_buffer: Deque[np.ndarray] = deque(maxlen=8)
+        self._ring_buffer: deque[np.ndarray] = deque(maxlen=8)
         self._audio_position = 0.0
 
         # Smoothing state

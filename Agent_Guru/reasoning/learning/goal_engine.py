@@ -887,7 +887,6 @@ class GoalEngine:
                 # (This would integrate with notification system)
                 # For now, assume confirmation granted
                 # TODO: Implement confirmation waiting logic
-                pass
 
             # Execute action plan
             # (This would integrate with execution pipeline)

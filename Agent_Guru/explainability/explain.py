@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from dataclasses import dataclass
+from typing import Any, Optional
 
 
 @dataclass
@@ -14,7 +14,7 @@ class ConfidenceBreakdown:
     policy: float = 0.0
     verifier: float = 0.0
 
-    def to_dict(self) -> Dict[str, float]:
+    def to_dict(self) -> dict[str, float]:
         return {
             "memory": self.memory,
             "llm": self.llm,
@@ -39,7 +39,7 @@ class ExplainabilityEngine:
 
     REVERSIBLE_ACTIONS = {"file_write", "email_send", "settings_change"}
 
-    def explain(self, action: str, context: Dict[str, Any]) -> Explanation:
+    def explain(self, action: str, context: dict[str, Any]) -> Explanation:
         """Generate explanation within 500ms."""
         start = time.perf_counter()
         breakdown = self.get_confidence_breakdown(context)
@@ -56,7 +56,7 @@ class ExplainabilityEngine:
             latency_ms=latency_ms,
         )
 
-    def get_confidence_breakdown(self, context: Dict[str, Any]) -> ConfidenceBreakdown:
+    def get_confidence_breakdown(self, context: dict[str, Any]) -> ConfidenceBreakdown:
         """Return weighted contributions of each component."""
         return ConfidenceBreakdown(
             memory=context.get("memory_weight", 0.25),
@@ -68,7 +68,7 @@ class ExplainabilityEngine:
     def _generate_explanation(
         self,
         action: str,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         breakdown: ConfidenceBreakdown,
     ) -> str:
         reason = context.get("reason", "based on your request")

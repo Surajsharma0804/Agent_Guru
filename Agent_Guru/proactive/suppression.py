@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict
-from typing import Dict
-
 
 SUPPRESSION_COOLDOWN_S = 86400  # 24 hours
 DISMISSAL_THRESHOLD = 3
@@ -20,8 +18,8 @@ class SuppressionManager:
     ) -> None:
         self.dismissal_threshold = dismissal_threshold
         self.cooldown_s = cooldown_s
-        self._dismissals: Dict[str, int] = defaultdict(int)
-        self._suppressed_until: Dict[str, float] = {}
+        self._dismissals: dict[str, int] = defaultdict(int)
+        self._suppressed_until: dict[str, float] = {}
 
     def record_dismissal(self, suggestion_type: str) -> None:
         """Record a dismissal for a suggestion type."""

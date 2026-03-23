@@ -291,7 +291,7 @@ class TestDetectPatterns:
 
         # Create memories with monthly pattern (15th of month)
         # Use a fixed date to ensure consistency
-        base_date = datetime(2024, 1, 15, 10, 0, 0)
+        datetime(2024, 1, 15, 10, 0, 0)
         memories = [
             EpisodicMemory(
                 content=f"Action {i}",

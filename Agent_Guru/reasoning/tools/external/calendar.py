@@ -5,7 +5,7 @@ Supports Google Calendar, Outlook Calendar, and other calendar services.
 """
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -66,7 +66,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class CreateCalendarEventTool(Tool):
     """Tool for creating calendar events."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute calendar event creation.
 
         Args:
@@ -172,7 +172,7 @@ class CreateCalendarEventTool(Tool):
 class GetCalendarEventsTool(Tool):
     """Tool for retrieving calendar events."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute calendar event retrieval.
 
         Args:

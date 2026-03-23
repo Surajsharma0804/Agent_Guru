@@ -13,8 +13,9 @@ Usage:
     logger.error("storage_failed", goal_id=goal.id, operation="store", error=str(e))
 """
 
-import structlog
 from typing import Any
+
+import structlog
 
 
 def configure_logging() -> None:

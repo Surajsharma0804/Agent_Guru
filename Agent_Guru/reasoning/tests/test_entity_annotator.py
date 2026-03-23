@@ -333,7 +333,7 @@ class TestEntityAnnotator:
         main()
         
         # Check output was printed
-        captured = capsys.readouterr()
+        capsys.readouterr()
         # Main function should execute without errors
         assert True  # If we get here, main() executed successfully
     

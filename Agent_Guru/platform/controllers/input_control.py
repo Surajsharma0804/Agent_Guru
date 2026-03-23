@@ -36,9 +36,9 @@ Date: 2024
 Version: 1.0.0
 """
 
-from typing import Tuple, Optional, List, Literal, Union
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+from typing import Literal, Optional, Union
 
 try:
     import pyautogui
@@ -124,7 +124,7 @@ class MouseController:
 
         logger.info("MouseController initialized")
 
-    def get_position(self) -> Tuple[int, int]:
+    def get_position(self) -> tuple[int, int]:
         """Get current cursor position.
 
         Time Complexity: O(1)
@@ -374,7 +374,7 @@ class MouseController:
         pyautogui.scroll(clicks, x=x, y=y)
         logger.debug(f"Scrolled {clicks} clicks")
 
-    def get_screen_size(self) -> Tuple[int, int]:
+    def get_screen_size(self) -> tuple[int, int]:
         """Get screen dimensions.
 
         Time Complexity: O(1)
@@ -521,7 +521,7 @@ class KeyboardController:
         pyautogui.hotkey(*keys)
         logger.debug(f"Pressed shortcut: {'+'.join(keys)}")
 
-    def hold_keys(self, keys: List[str]) -> "KeyHoldContext":
+    def hold_keys(self, keys: list[str]) -> "KeyHoldContext":
         """Context manager to hold keys down.
 
         Time Complexity: O(1)
@@ -572,7 +572,7 @@ class KeyboardController:
         """Find shortcut (Ctrl+F)."""
         self.press_shortcut("ctrl", "f")
 
-    def press(self, keys: Union[str, List[str]]) -> None:
+    def press(self, keys: Union[str, list[str]]) -> None:
         """Press key(s).
 
         Args:
@@ -632,7 +632,7 @@ class KeyboardController:
         """Find shortcut (Ctrl+F)."""
         self.press_shortcut("ctrl", "f")
 
-    def press(self, keys: Union[str, List[str]]) -> None:
+    def press(self, keys: Union[str, list[str]]) -> None:
         """Press key(s).
 
         Args:
@@ -669,7 +669,7 @@ class KeyHoldContext:
         ...     keyboard.press_key("c")  # Ctrl+C
     """
 
-    def __init__(self, controller: KeyboardController, keys: List[str]) -> None:
+    def __init__(self, controller: KeyboardController, keys: list[str]) -> None:
         """Initialize key hold context.
 
         Args:

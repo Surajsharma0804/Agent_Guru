@@ -24,9 +24,7 @@ from hypothesis import given, strategies as st, settings, HealthCheck
 
 from Agent_Guru.self_improvement.meta_learner import (
     MetaLearner,
-    TaskFeatures,
-    Pattern,
-    PatternType
+    TaskFeatures
 )
 import logging
 
@@ -595,7 +593,7 @@ class TestPropertyBased:
             
             # Phase 2: Test generalization on similar but unseen task
             # Apply variation to execution time (within reasonable range)
-            test_execution_time = base_execution_time * test_variation
+            base_execution_time * test_variation
             
             # Get recommendations for similar task
             strategies = learner.recommend_strategies(
@@ -1154,7 +1152,7 @@ class TestPatternGeneralization:
             else:
                 # If no predictions made, patterns may not have formed yet
                 # This is acceptable for small training sets or high noise
-                patterns = learner._load_patterns()
+                learner._load_patterns()
                 
                 # Only assert if we have sufficient clean training data
                 min_required_samples = learner.min_samples * 3
@@ -1245,7 +1243,7 @@ class TestPatternGeneralization:
             
             # Phase 2: Test on new unseen task type with similar characteristics
             test_task_type = f"unseen_task_type_{train_task_types + 1}"
-            test_execution_time = base_execution_time * test_variation
+            base_execution_time * test_variation
             
             # Test with successful pattern characteristics
             recommended_strategies = learner.recommend_strategies(

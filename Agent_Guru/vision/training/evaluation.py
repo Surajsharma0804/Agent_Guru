@@ -10,14 +10,14 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import numpy as np
 
 logger = logging.getLogger("guruvision.training.evaluation")
 
 # Performance targets
-DEFAULT_TARGETS: Dict[str, float] = {
+DEFAULT_TARGETS: dict[str, float] = {
     "lfw": 0.997,
     "cfp_fp": 0.98,
     "agedb_30": 0.97,
@@ -54,7 +54,7 @@ class BenchmarkResult:
     accuracy: float = 0.0
     optimal_threshold: float = 0.5
     auc: float = 0.0
-    far_at_frr: Dict[float, float] = field(default_factory=dict)
+    far_at_frr: dict[float, float] = field(default_factory=dict)
     roc_curve: ROCCurve = field(default_factory=ROCCurve)
     num_pairs: int = 0
     inference_time: float = 0.0
@@ -92,7 +92,7 @@ class BenchmarkLoader:
                 f"Supported: {self.SUPPORTED}"
             )
 
-    def load_pairs(self) -> List[Tuple[str, str]]:
+    def load_pairs(self) -> list[tuple[str, str]]:
         """Load image pairs from the benchmark.
 
         Returns:
@@ -105,7 +105,7 @@ class BenchmarkLoader:
         # Return empty list — caller handles missing data
         return []
 
-    def load_labels(self) -> List[bool]:
+    def load_labels(self) -> list[bool]:
         """Load ground truth labels (True = same identity).
 
         Returns:
@@ -123,8 +123,8 @@ class BenchmarkLoader:
         return None
 
     @staticmethod
-    def _parse_pairs_file(pairs_file: Path) -> List[Tuple[str, str]]:
-        pairs: List[Tuple[str, str]] = []
+    def _parse_pairs_file(pairs_file: Path) -> list[tuple[str, str]]:
+        pairs: list[tuple[str, str]] = []
         with open(pairs_file) as f:
             for line in f:
                 parts = line.strip().split()
@@ -147,7 +147,7 @@ class EvaluationEngine:
 
     def __init__(
         self,
-        targets: Optional[Dict[str, float]] = None,
+        targets: Optional[dict[str, float]] = None,
         embedding_dim: int = 512,
     ) -> None:
         self.targets = targets or DEFAULT_TARGETS.copy()
@@ -349,7 +349,7 @@ class EvaluationEngine:
         auc = self._compute_auc(roc)
 
         # FAR at various FRR levels
-        far_at_frr: Dict[float, float] = {}
+        far_at_frr: dict[float, float] = {}
         for frr_target in [0.01, 0.001, 0.0001]:
             far_at_frr[frr_target] = self._far_at_frr(scores, labels, frr_target)
 
@@ -368,8 +368,8 @@ class EvaluationEngine:
         )
 
     def compare_against_targets(
-        self, results: List[BenchmarkResult]
-    ) -> Dict[str, TargetComparison]:
+        self, results: list[BenchmarkResult]
+    ) -> dict[str, TargetComparison]:
         """Compare benchmark results against performance targets.
 
         Args:
@@ -378,7 +378,7 @@ class EvaluationEngine:
         Returns:
             Dict mapping benchmark name to TargetComparison.
         """
-        comparisons: Dict[str, TargetComparison] = {}
+        comparisons: dict[str, TargetComparison] = {}
         for result in results:
             name = result.benchmark_name.lower().replace("-", "_")
             target = self.targets.get(name, 0.0)
@@ -393,7 +393,7 @@ class EvaluationEngine:
         return comparisons
 
     def is_production_ready(
-        self, comparisons: Dict[str, TargetComparison]
+        self, comparisons: dict[str, TargetComparison]
     ) -> bool:
         """Return True if all benchmarks with targets pass.
 
@@ -478,7 +478,7 @@ class EvaluationEngine:
         benchmark_name: str,
         benchmark_path: str,
         num_synthetic: int,
-    ) -> Tuple[List[Tuple[str, str]], List[bool]]:
+    ) -> tuple[list[tuple[str, str]], list[bool]]:
         """Load real benchmark data or generate synthetic pairs."""
         if benchmark_path:
             loader = BenchmarkLoader(benchmark_path, benchmark_name)

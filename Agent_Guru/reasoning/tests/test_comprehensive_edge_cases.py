@@ -23,36 +23,13 @@ Date: 2026-02-22
 Version: 1.0.0
 """
 
-import asyncio
-import time
-from datetime import datetime
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
 from Agent_Guru.reasoning.verification.verifier import ReasoningVerifier
-from Agent_Guru.reasoning.verification.integration import (
-    VerificationIntegration,
-    CircuitBreaker,
-    CircuitState,
-    VerificationMetrics,
-)
-from Agent_Guru.reasoning.models.verification import (
-    VerificationResult,
-    VerificationAction,
-    VerificationIssue,
-    IssueType,
-    IssueSeverity,
-)
-from Agent_Guru.reasoning.models.task import Task, TaskStep, TaskType, TaskStatus
+from Agent_Guru.reasoning.models.task import Task, TaskStep, TaskType
 from Agent_Guru.reasoning.models.action import Tool
-from Agent_Guru.reasoning.conversation.error_strategy import (
-    ErrorResponseStrategy,
-    ErrorClassifier,
-    ErrorCategory,
-)
-from Agent_Guru.reasoning.models.error import Error, ErrorType
 from Agent_Guru.reasoning.llm.client import LLMClient
 from Agent_Guru.reasoning.tools.registry import ToolRegistry
 

@@ -107,7 +107,7 @@ class PersonalityEvolutionEngine:
             FeedbackType.NEUTRAL: 0.0,
         }[feedback.feedback_type]
 
-        delta: dict[str, float] = {p: base for p in _PARAM_NAMES}
+        delta: dict[str, float] = dict.fromkeys(_PARAM_NAMES, base)
         # Amplify aspects mentioned in feedback
         aspect_map = {
             "formal": "formality",

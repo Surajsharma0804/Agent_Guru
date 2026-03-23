@@ -15,7 +15,8 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Any, Callable, Dict, Iterator, List, Optional
+from collections.abc import Callable, Iterator
+from typing import Any, Optional
 
 import numpy as np
 
@@ -25,7 +26,7 @@ from Agent_Guru.avatar.models import LipSyncState, PersonalityType
 logger = logging.getLogger("guruvision.avatar.speech_integration")
 
 # Wake word → personality mapping
-WAKE_WORD_PERSONALITY: Dict[str, PersonalityType] = {
+WAKE_WORD_PERSONALITY: dict[str, PersonalityType] = {
     "hey guru": PersonalityType.GURU,
     "hey maya": PersonalityType.MAYA,
     "guru": PersonalityType.GURU,
@@ -57,7 +58,7 @@ class SpeechAvatarBridge:
         self._personality_callback = personality_callback
         self._sample_rate = sample_rate
         self._buffer = AudioRingBuffer(capacity=buffer_capacity)
-        self._playback_callbacks: List[Callable[[str, Any], None]] = []
+        self._playback_callbacks: list[Callable[[str, Any], None]] = []
         self._is_playing = False
         self._lock = threading.Lock()
 

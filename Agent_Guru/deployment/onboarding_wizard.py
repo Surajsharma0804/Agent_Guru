@@ -28,15 +28,14 @@ from __future__ import annotations
 
 import logging
 import platform
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Optional
 
 from Agent_Guru.deployment.onboarding import (
-    LLMConfig,
     OnboardingManager,
     OnboardingState,
     OnboardingStep,
-    UserProfile,
 )
 
 logger = logging.getLogger(__name__)
@@ -92,7 +91,7 @@ class OnboardingWizard:
     def complete_step(
         self,
         step: OnboardingStep,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
     ) -> OnboardingState:
         """Complete a step and advance to the next.
 
@@ -122,7 +121,7 @@ class OnboardingWizard:
         """Navigate to the previous step."""
         return self._manager.go_back()
 
-    def get_progress(self) -> Dict[str, Any]:
+    def get_progress(self) -> dict[str, Any]:
         """Return progress info: step index, total steps, percent."""
         return self._manager.get_progress()
 
@@ -154,7 +153,7 @@ class OnboardingWizard:
         """Current platform identifier."""
         return _PLATFORM
 
-    def get_llm_options(self) -> Dict[str, Any]:
+    def get_llm_options(self) -> dict[str, Any]:
         """Return available LLM options for the current platform.
 
         Desktop: Ollama (local, recommended) + cloud APIs

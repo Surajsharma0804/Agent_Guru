@@ -29,10 +29,10 @@ Version: 1.0.0
 import base64
 import os
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Any
+from typing import Any, Optional
 
-from cryptography.fernet import Fernet
 import structlog
+from cryptography.fernet import Fernet
 
 logger = structlog.get_logger(__name__)
 
@@ -43,33 +43,33 @@ KEY_ROTATION_DAYS = 90
 
 class EncryptionManager:
     """Manager for encryption operations.
-    
+
     Time Complexity:
         - encrypt: O(n) where n is data size
         - decrypt: O(n) where n is data size
-    
+
     Space Complexity: O(n) where n is data size
-    
+
     Features:
         - AES-256-GCM encryption
         - Secure key derivation
         - Key rotation support
         - Audit logging
-    
+
     Security:
         - Uses Fernet (AES-256-GCM + HMAC)
         - Authenticated encryption
         - Timestamp verification
         - Key rotation every 90 days
     """
-    
+
     def __init__(self, encryption_key: Optional[str] = None) -> None:
         """Initialize encryption manager.
-        
+
         Args:
             encryption_key: Optional encryption key (base64 encoded)
                            If not provided, reads from environment
-        
+
         Example:
             >>> manager = EncryptionManager()
             >>> encrypted = manager.encrypt("sensitive data")
@@ -89,24 +89,24 @@ class EncryptionManager:
                     "encryption_key_generated",
                     message="Generated new encryption key. Store securely!",
                 )
-        
+
         # Create Fernet instance
         self._fernet = Fernet(self._key)
-        
+
         # Track key creation time for rotation
         self._key_created_at = datetime.utcnow()
-    
+
     def encrypt(self, data: str) -> str:
         """Encrypt data.
-        
+
         Time Complexity: O(n) where n is data size
-        
+
         Args:
             data: Plain text data
-        
+
         Returns:
             Encrypted data (base64 encoded)
-        
+
         Example:
             >>> encrypted = manager.encrypt("secret message")
             >>> print(encrypted)
@@ -114,17 +114,17 @@ class EncryptionManager:
         try:
             # Encrypt data
             encrypted_bytes = self._fernet.encrypt(data.encode())
-            
+
             # Encode to base64 string
             encrypted_str = base64.b64encode(encrypted_bytes).decode()
-            
+
             logger.debug(
                 "data_encrypted",
                 size=len(data),
             )
-            
+
             return encrypted_str
-            
+
         except Exception as e:
             logger.error(
                 "encryption_failed",
@@ -132,21 +132,21 @@ class EncryptionManager:
                 exc_info=True,
             )
             raise
-    
+
     def decrypt(self, encrypted_data: str) -> str:
         """Decrypt data.
-        
+
         Time Complexity: O(n) where n is data size
-        
+
         Args:
             encrypted_data: Encrypted data (base64 encoded)
-        
+
         Returns:
             Decrypted plain text
-        
+
         Raises:
             Exception: If decryption fails
-        
+
         Example:
             >>> decrypted = manager.decrypt(encrypted)
             >>> print(decrypted)
@@ -154,20 +154,20 @@ class EncryptionManager:
         try:
             # Decode from base64
             encrypted_bytes = base64.b64decode(encrypted_data.encode())
-            
+
             # Decrypt data
             decrypted_bytes = self._fernet.decrypt(encrypted_bytes)
-            
+
             # Decode to string
             decrypted_str = decrypted_bytes.decode()
-            
+
             logger.debug(
                 "data_decrypted",
                 size=len(decrypted_str),
             )
-            
+
             return decrypted_str
-            
+
         except Exception as e:
             logger.error(
                 "decryption_failed",
@@ -175,13 +175,13 @@ class EncryptionManager:
                 exc_info=True,
             )
             raise
-    
+
     def needs_rotation(self) -> bool:
         """Check if key needs rotation.
-        
+
         Returns:
             True if key should be rotated, False otherwise
-        
+
         Example:
             >>> if manager.needs_rotation():
             ...     # Rotate key
@@ -189,13 +189,13 @@ class EncryptionManager:
         """
         age = datetime.utcnow() - self._key_created_at
         return age > timedelta(days=KEY_ROTATION_DAYS)
-    
+
     def rotate_key(self, new_key: str) -> None:
         """Rotate encryption key.
-        
+
         Args:
             new_key: New encryption key (base64 encoded)
-        
+
         Example:
             >>> new_key = Fernet.generate_key().decode()
             >>> manager.rotate_key(new_key)
@@ -203,7 +203,7 @@ class EncryptionManager:
         self._key = new_key.encode()
         self._fernet = Fernet(self._key)
         self._key_created_at = datetime.utcnow()
-        
+
         logger.info(
             "encryption_key_rotated",
             timestamp=self._key_created_at.isoformat(),
@@ -212,22 +212,22 @@ class EncryptionManager:
 
 class SecretsManager:
     """Manager for secrets (API keys, credentials, etc.).
-    
+
     Time Complexity: O(1) for get/set operations
     Space Complexity: O(n) where n is number of secrets
-    
+
     Features:
         - Secure secret storage
         - Integration with Vault/AWS Secrets Manager
         - In-memory caching
         - Audit logging
-    
+
     Supported Backends:
         - Environment variables (default)
         - HashiCorp Vault
         - AWS Secrets Manager
     """
-    
+
     def __init__(
         self,
         backend: str = "env",
@@ -235,16 +235,16 @@ class SecretsManager:
         vault_token: Optional[str] = None,
     ) -> None:
         """Initialize secrets manager.
-        
+
         Args:
             backend: Secrets backend ("env", "vault", "aws")
             vault_url: Vault server URL (for vault backend)
             vault_token: Vault authentication token (for vault backend)
-        
+
         Example:
             >>> # Use environment variables
             >>> manager = SecretsManager(backend="env")
-            >>> 
+            >>>
             >>> # Use Vault
             >>> manager = SecretsManager(
             ...     backend="vault",
@@ -253,8 +253,8 @@ class SecretsManager:
             ... )
         """
         self.backend = backend
-        self._cache: Dict[str, str] = {}
-        
+        self._cache: dict[str, str] = {}
+
         if backend == "vault":
             # Initialize Vault client
             try:
@@ -266,8 +266,8 @@ class SecretsManager:
                 logger.info("vault_client_initialized")
             except ImportError:
                 logger.error("hvac_not_installed")
-                raise ImportError("hvac library required for Vault backend")
-        
+                raise ImportError("hvac library required for Vault backend") from e
+
         elif backend == "aws":
             # Initialize AWS Secrets Manager client
             try:
@@ -276,20 +276,20 @@ class SecretsManager:
                 logger.info("aws_secrets_manager_initialized")
             except ImportError:
                 logger.error("boto3_not_installed")
-                raise ImportError("boto3 library required for AWS backend")
-    
+                raise ImportError("boto3 library required for AWS backend") from e
+
     def get_secret(self, key: str, default: Optional[str] = None) -> Optional[str]:
         """Get secret value.
-        
+
         Time Complexity: O(1)
-        
+
         Args:
             key: Secret key
             default: Default value if not found
-        
+
         Returns:
             Secret value or default
-        
+
         Example:
             >>> api_key = manager.get_secret("OPENAI_API_KEY")
             >>> print(api_key)
@@ -297,13 +297,13 @@ class SecretsManager:
         # Check cache first
         if key in self._cache:
             return self._cache[key]
-        
+
         # Get from backend
         value = None
-        
+
         if self.backend == "env":
             value = os.getenv(key, default)
-        
+
         elif self.backend == "vault":
             try:
                 secret = self._vault_client.secrets.kv.v2.read_secret_version(
@@ -317,7 +317,7 @@ class SecretsManager:
                     error=str(e),
                 )
                 value = default
-        
+
         elif self.backend == "aws":
             try:
                 response = self._aws_client.get_secret_value(SecretId=key)
@@ -329,54 +329,54 @@ class SecretsManager:
                     error=str(e),
                 )
                 value = default
-        
+
         # Cache value
         if value:
             self._cache[key] = value
-        
+
         return value
-    
+
     def set_secret(self, key: str, value: str) -> bool:
         """Set secret value.
-        
+
         Time Complexity: O(1)
-        
+
         Args:
             key: Secret key
             value: Secret value
-        
+
         Returns:
             True if successful, False otherwise
-        
+
         Example:
             >>> manager.set_secret("API_KEY", "secret_value")
         """
         try:
             if self.backend == "env":
                 os.environ[key] = value
-            
+
             elif self.backend == "vault":
                 self._vault_client.secrets.kv.v2.create_or_update_secret(
                     path=key,
                     secret={"value": value},
                 )
-            
+
             elif self.backend == "aws":
                 self._aws_client.put_secret_value(
                     SecretId=key,
                     SecretString=value,
                 )
-            
+
             # Update cache
             self._cache[key] = value
-            
+
             logger.info(
                 "secret_set",
                 key=key,
             )
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(
                 "secret_set_failed",
@@ -385,15 +385,15 @@ class SecretsManager:
                 exc_info=True,
             )
             return False
-    
+
     def delete_secret(self, key: str) -> bool:
         """Delete secret.
-        
+
         Time Complexity: O(1)
-        
+
         Args:
             key: Secret key
-        
+
         Returns:
             True if successful, False otherwise
         """
@@ -401,29 +401,29 @@ class SecretsManager:
             if self.backend == "env":
                 if key in os.environ:
                     del os.environ[key]
-            
+
             elif self.backend == "vault":
                 self._vault_client.secrets.kv.v2.delete_metadata_and_all_versions(
                     path=key,
                 )
-            
+
             elif self.backend == "aws":
                 self._aws_client.delete_secret(
                     SecretId=key,
                     ForceDeleteWithoutRecovery=True,
                 )
-            
+
             # Remove from cache
             if key in self._cache:
                 del self._cache[key]
-            
+
             logger.info(
                 "secret_deleted",
                 key=key,
             )
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(
                 "secret_delete_failed",
@@ -441,7 +441,7 @@ _secrets_manager: Optional[SecretsManager] = None
 
 def get_encryption_manager() -> EncryptionManager:
     """Get global encryption manager instance.
-    
+
     Returns:
         Encryption manager
     """
@@ -453,7 +453,7 @@ def get_encryption_manager() -> EncryptionManager:
 
 def get_secrets_manager() -> SecretsManager:
     """Get global secrets manager instance.
-    
+
     Returns:
         Secrets manager
     """
@@ -478,12 +478,12 @@ TLS_CONFIG = {
 }
 
 
-def get_tls_config() -> Dict[str, Any]:
+def get_tls_config() -> dict[str, Any]:
     """Get TLS configuration for secure connections.
-    
+
     Returns:
         TLS configuration dict
-    
+
     Example:
         >>> config = get_tls_config()
         >>> # Use with uvicorn:

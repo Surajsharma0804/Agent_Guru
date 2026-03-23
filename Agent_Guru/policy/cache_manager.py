@@ -18,7 +18,8 @@ import json
 import logging
 import time
 from collections import OrderedDict
-from typing import Any, Dict, Optional
+from typing import Any, Optional
+
 from Agent_Guru.policy.models import AccessDecision, CacheStats
 
 logger = logging.getLogger(__name__)
@@ -168,9 +169,9 @@ class CacheManager:
         principal_id: str,
         resource_id: str,
         action: str,
-        context: Dict[str, Any],
-        principal_attrs: Optional[Dict[str, Any]] = None,
-        resource_attrs: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any],
+        principal_attrs: Optional[dict[str, Any]] = None,
+        resource_attrs: Optional[dict[str, Any]] = None,
     ) -> str:
         """Compute a stable cache key from request parameters.
 

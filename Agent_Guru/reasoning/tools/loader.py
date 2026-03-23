@@ -6,66 +6,64 @@ This module discovers and registers all tools from the tools package.
 
 import asyncio
 
+from Agent_Guru.reasoning.tools.external import (
+    CreateCalendarEventTool,
+    GetCalendarEventsTool,
+    GetDirectionsTool,
+    GetNewsTool,
+    GetStockPriceTool,
+    GetWeatherTool,
+    SearchPlacesTool,
+    SendEmailTool,
+    SendSlackTool,
+    SendSMSTool,
+    SendTelegramTool,
+    SendWhatsAppTool,
+)
+from Agent_Guru.reasoning.tools.knowledge import (
+    CalculateTool,
+    ConvertUnitsTool,
+    DefineWordTool,
+    QuestionAnswerTool,
+    SummarizeArticleTool,
+    SummarizeDocumentTool,
+    SummarizeTextTool,
+    TranslateTool,
+    WebSearchTool,
+)
 from Agent_Guru.reasoning.tools.registry import ToolRegistry, get_registry
 
 # Import all tool modules
 from Agent_Guru.reasoning.tools.system import (
-    OpenAppTool,
     CloseAppTool,
-    SwitchAppTool,
-    FileReadTool,
-    FileWriteTool,
+    FileCopyTool,
     FileDeleteTool,
     FileMoveTool,
-    FileCopyTool,
-    SetVolumeTool,
-    SetBrightnessTool,
-    ToggleWifiTool,
-    ToggleBluetoothTool,
-    ProcessListTool,
+    FileReadTool,
+    FileWriteTool,
+    OpenAppTool,
     ProcessKillTool,
-)
-
-from Agent_Guru.reasoning.tools.knowledge import (
-    WebSearchTool,
-    TranslateTool,
-    SummarizeTextTool,
-    SummarizeArticleTool,
-    SummarizeDocumentTool,
-    QuestionAnswerTool,
-    DefineWordTool,
-    CalculateTool,
-    ConvertUnitsTool,
-)
-
-from Agent_Guru.reasoning.tools.external import (
-    SendSMSTool,
-    SendWhatsAppTool,
-    SendTelegramTool,
-    SendSlackTool,
-    GetWeatherTool,
-    GetDirectionsTool,
-    SearchPlacesTool,
-    GetNewsTool,
-    GetStockPriceTool,
-    SendEmailTool,
-    CreateCalendarEventTool,
-    GetCalendarEventsTool,
+    ProcessListTool,
+    SetBrightnessTool,
+    SetVolumeTool,
+    SwitchAppTool,
+    ToggleBluetoothTool,
+    ToggleWifiTool,
 )
 
 
 async def load_all_tools(registry: ToolRegistry | None = None) -> int:
     """Load and register all available tools.
-    
+
     Args:
         registry: Tool registry to use (uses global if None)
-        
+
     Returns:
         Number of tools registered
     """
     if registry is None:
         registry = get_registry()
-    
+
     # List of all tool classes
     tool_classes = [
         # System tools
@@ -107,7 +105,7 @@ async def load_all_tools(registry: ToolRegistry | None = None) -> int:
         CreateCalendarEventTool,
         GetCalendarEventsTool,
     ]
-    
+
     count = 0
     for tool_class in tool_classes:
         try:
@@ -119,13 +117,13 @@ async def load_all_tools(registry: ToolRegistry | None = None) -> int:
             count += 1
         except Exception as e:
             print(f"[WARNING] Failed to register {tool_class.__name__}: {e}")
-    
+
     return count
 
 
 def load_all_tools_sync() -> int:
     """Synchronous version of load_all_tools.
-    
+
     Returns:
         Number of tools registered
     """

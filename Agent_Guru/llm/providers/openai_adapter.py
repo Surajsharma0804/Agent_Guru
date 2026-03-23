@@ -11,8 +11,9 @@ Version: 1.0.0
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Any, AsyncIterator, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from Agent_Guru.llm.models import (
     CompletionRequest,
@@ -26,7 +27,7 @@ from Agent_Guru.llm.providers.base import ProviderAdapter
 from Agent_Guru.security.embedding_auth import RETRIEVAL_THRESHOLD, verify_embedding
 
 # Pricing per 1K tokens (prompt / completion)
-_PRICING: Dict[str, Dict[str, float]] = {
+_PRICING: dict[str, dict[str, float]] = {
     "gpt-4": {"prompt": 0.03, "completion": 0.06},
     "gpt-4-32k": {"prompt": 0.06, "completion": 0.12},
     "gpt-4-turbo": {"prompt": 0.01, "completion": 0.03},
@@ -59,7 +60,7 @@ class OpenAIAdapter(ProviderAdapter):
         if self._client is None:
             from openai import AsyncOpenAI  # type: ignore[import]
 
-            kwargs: Dict[str, Any] = {"api_key": self.config.api_key}
+            kwargs: dict[str, Any] = {"api_key": self.config.api_key}
             if self.config.base_url:
                 kwargs["base_url"] = self.config.base_url
             if self.config.organization:
@@ -76,7 +77,7 @@ class OpenAIAdapter(ProviderAdapter):
             for m in request.messages
         ]
 
-        kwargs: Dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
         if request.functions:
             kwargs["functions"] = [
                 {"name": f.name, "description": f.description, "parameters": f.parameters}
@@ -95,7 +96,7 @@ class OpenAIAdapter(ProviderAdapter):
 
         choice = response.choices[0]
 
-        function_call: Optional[Dict[str, Any]] = None
+        function_call: Optional[dict[str, Any]] = None
         if choice.message.function_call:
             function_call = {
                 "name": choice.message.function_call.name,
@@ -134,7 +135,7 @@ class OpenAIAdapter(ProviderAdapter):
             for m in request.messages
         ]
 
-        kwargs: Dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
         if request.functions:
             kwargs["functions"] = [
                 {"name": f.name, "description": f.description, "parameters": f.parameters}
@@ -157,7 +158,7 @@ class OpenAIAdapter(ProviderAdapter):
             choice = chunk.choices[0]
             delta = choice.delta
 
-            function_call: Optional[Dict[str, Any]] = None
+            function_call: Optional[dict[str, Any]] = None
             if delta.function_call:
                 function_call = {
                     "name": delta.function_call.name,
@@ -171,8 +172,8 @@ class OpenAIAdapter(ProviderAdapter):
             )
 
     async def embed(
-        self, text: Union[str, List[str]], model: str
-    ) -> List[List[float]]:
+        self, text: Union[str, list[str]], model: str
+    ) -> list[list[float]]:
         """Generate embeddings using OpenAI's embedding models."""
         client = self._get_client()
 
@@ -184,10 +185,10 @@ class OpenAIAdapter(ProviderAdapter):
 
     def find_similar(
         self,
-        query_embedding: List[float],
-        candidate_embeddings: List[List[float]],
+        query_embedding: list[float],
+        candidate_embeddings: list[list[float]],
         threshold: float = RETRIEVAL_THRESHOLD,
-    ) -> List[int]:
+    ) -> list[int]:
         """Return indices of *candidate_embeddings* that are similar to *query_embedding*.
 
         Uses :func:`~Agent_Guru.security.embedding_auth.verify_embedding` to

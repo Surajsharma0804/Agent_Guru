@@ -16,10 +16,8 @@ These tests validate:
 """
 
 import pytest
-from typing import Dict, Any
 
-from Agent_Guru.speech.commands.command_parser import CommandParser, CommandPattern
-from Agent_Guru.speech.models import CommandResult
+from Agent_Guru.speech.commands.command_parser import CommandParser
 
 
 class TestCommandParser:
@@ -968,7 +966,6 @@ class TestCommandParser:
     def test_memory_leak_detection(self, parser: CommandParser):
         """Test for memory leaks during repeated interpretation."""
         import gc
-        import sys
         
         # Get initial memory usage
         gc.collect()

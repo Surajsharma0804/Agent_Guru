@@ -8,8 +8,7 @@ import pytest
 import numpy as np
 
 from Agent_Guru.speech.mobile.android_stt import (
-    AndroidSpeechRecognizer,
-    AndroidSTTError
+    AndroidSpeechRecognizer
 )
 from Agent_Guru.speech.models import TranscriptionResult
 

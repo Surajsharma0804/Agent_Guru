@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Optional
 
 from Agent_Guru.translation.subtitles import SubtitleEntry, SubtitleGenerator
 
@@ -21,7 +21,7 @@ except ImportError:
     _SEAMLESS_AVAILABLE = False
 
 # Domain-specific terminology adapters
-DOMAIN_TERMS: Dict[str, Dict[str, str]] = {
+DOMAIN_TERMS: dict[str, dict[str, str]] = {
     "medical": {"heart attack": "myocardial infarction", "blood pressure": "BP"},
     "legal": {"agreement": "contract", "lawsuit": "litigation"},
     "technical": {"bug": "defect", "fix": "patch"},
@@ -36,9 +36,9 @@ class TranslationResult:
     source_language: str
     target_language: str
     confidence: float
-    alternatives: List[str] = field(default_factory=list)
+    alternatives: list[str] = field(default_factory=list)
     latency_ms: float = 0.0
-    subtitles: List[SubtitleEntry] = field(default_factory=list)
+    subtitles: list[SubtitleEntry] = field(default_factory=list)
 
 
 class TranslationEngine:
@@ -46,14 +46,14 @@ class TranslationEngine:
 
     def __init__(self) -> None:
         self._subtitle_gen = SubtitleGenerator()
-        self._session_corrections: Dict[str, str] = {}
+        self._session_corrections: dict[str, str] = {}
         self._domain: Optional[str] = None
 
     def set_domain(self, domain: str) -> None:
         """Set domain for terminology adaptation."""
         self._domain = domain
 
-    def detect_language(self, text: str) -> Tuple[str, float]:
+    def detect_language(self, text: str) -> tuple[str, float]:
         """Detect language with confidence. Prompts user if < 85%."""
         # Stub: simple heuristic
         if any(c in text for c in "áéíóúñ"):
@@ -84,7 +84,7 @@ class TranslationEngine:
         translated = self._do_translate(text, source_language, target_language)
         confidence = 0.85
 
-        alternatives: List[str] = []
+        alternatives: list[str] = []
         if confidence < LOW_CONFIDENCE_THRESHOLD:
             alternatives = [f"[alt1: {translated}]", f"[alt2: {translated}]"]
 
@@ -108,7 +108,7 @@ class TranslationEngine:
         speaker_b_text: str,
         lang_a: str = "en",
         lang_b: str = "es",
-    ) -> Tuple[TranslationResult, TranslationResult]:
+    ) -> tuple[TranslationResult, TranslationResult]:
         """Bidirectional translation for two-speaker mode."""
         result_a = self.translate(speaker_a_text, lang_b, lang_a)
         result_b = self.translate(speaker_b_text, lang_a, lang_b)
@@ -123,7 +123,7 @@ class TranslationEngine:
         translated_text: str,
         audio_start_ms: float,
         language: str,
-    ) -> List[SubtitleEntry]:
+    ) -> list[SubtitleEntry]:
         """Generate subtitles synchronized within 100ms."""
         return self._subtitle_gen.generate(translated_text, audio_start_ms, language)
 

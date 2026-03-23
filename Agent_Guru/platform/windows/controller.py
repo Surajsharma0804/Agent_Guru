@@ -23,7 +23,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -43,17 +43,16 @@ except ImportError:
 
 if sys.platform == "win32":
     try:
+        import pywintypes  # type: ignore[import]
         import win32api  # type: ignore[import]
         import win32con  # type: ignore[import]
         import win32gui  # type: ignore[import]
         import win32process  # type: ignore[import]
-        import pywintypes  # type: ignore[import]
         _PYWIN32_AVAILABLE = True
     except ImportError:
         logger.warning("pywin32 not available – window management limited")
 
     try:
-        import ctypes
         _CTYPES_AVAILABLE = True
     except ImportError:
         pass
@@ -71,7 +70,7 @@ class WindowsControllerResult:
     operation: str
     message: str
     error: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     latency_ms: float = 0.0
 
 
@@ -91,7 +90,7 @@ class WindowInfo:
 # ---------------------------------------------------------------------------
 # Known application aliases → executable mapping
 # ---------------------------------------------------------------------------
-_APP_ALIASES: Dict[str, str] = {
+_APP_ALIASES: dict[str, str] = {
     # Browsers
     "chrome": "chrome.exe",
     "google chrome": "chrome.exe",
@@ -188,7 +187,7 @@ class WindowsController:
     def launch_app(
         self,
         app_name: str,
-        args: Optional[List[str]] = None,
+        args: Optional[list[str]] = None,
     ) -> WindowsControllerResult:
         """
         Launch an application by name or path.
@@ -677,14 +676,14 @@ class WindowsController:
                 latency_ms=latency_ms,
             )
 
-    def list_windows(self) -> List[WindowInfo]:
+    def list_windows(self) -> list[WindowInfo]:
         """
         List all visible windows.
 
         Returns:
             List of WindowInfo for all visible windows
         """
-        windows: List[WindowInfo] = []
+        windows: list[WindowInfo] = []
 
         if not _PYWIN32_AVAILABLE:
             return windows

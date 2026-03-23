@@ -4,12 +4,13 @@ Monitoring and alerting for self-improvement engine.
 Tracks improvement metrics and triggers alerts when thresholds are not met.
 """
 
-from typing import Dict, Any, List, Optional, Callable
+import logging
+import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import sqlite3
-import logging
+from typing import Any, Optional
 
 
 class AlertLevel(Enum):
@@ -26,10 +27,10 @@ class Alert:
     level: AlertLevel
     title: str
     message: str
-    details: Dict[str, Any]
+    details: dict[str, Any]
     timestamp: datetime
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "level": self.level.value,
@@ -43,10 +44,10 @@ class Alert:
 class ImprovementMonitor:
     """
     Monitors improvement metrics and triggers alerts.
-    
+
     Tracks learning progress and alerts when improvement targets are not met.
     """
-    
+
     def __init__(
         self,
         storage_path: str,
@@ -55,7 +56,7 @@ class ImprovementMonitor:
     ):
         """
         Initialize improvement monitor.
-        
+
         Args:
             storage_path: Path to SQLite database
             config: Optional deployment configuration
@@ -65,21 +66,21 @@ class ImprovementMonitor:
         self.config = config
         self.alert_callback = alert_callback or self._default_alert_handler
         self.logger = logging.getLogger(__name__)
-    
+
     def check_improvement(self) -> Optional[Alert]:
         """
         Check if improvement targets are being met.
-        
+
         Returns:
             Alert if improvement is insufficient, None otherwise
         """
         try:
             conn = sqlite3.connect(self.storage_path)
             cursor = conn.cursor()
-            
+
             # Get latest improvement report
             cursor.execute("""
-                SELECT 
+                SELECT
                     relative_improvement,
                     baseline_success_rate,
                     final_success_rate,
@@ -89,16 +90,16 @@ class ImprovementMonitor:
                 ORDER BY timestamp DESC
                 LIMIT 1
             """)
-            
+
             result = cursor.fetchone()
             conn.close()
-            
+
             if not result:
                 return None  # No reports yet
-            
+
             improvement, baseline, final, task_count, timestamp = result
             threshold = self.config.improvement_threshold if self.config else 0.15
-            
+
             if improvement < threshold:
                 alert = Alert(
                     level=AlertLevel.WARNING,
@@ -114,27 +115,27 @@ class ImprovementMonitor:
                     },
                     timestamp=datetime.now()
                 )
-                
+
                 self.alert_callback(alert)
                 return alert
-            
+
             return None
-            
+
         except Exception as e:
             self.logger.error(f"Error checking improvement: {e}")
             return None
-    
+
     def check_performance_degradation(self) -> Optional[Alert]:
         """
         Check for performance degradation.
-        
+
         Returns:
             Alert if degradation detected, None otherwise
         """
         try:
             conn = sqlite3.connect(self.storage_path)
             cursor = conn.cursor()
-            
+
             # Get success rate for last 10 tasks vs previous 10 tasks
             cursor.execute("""
                 WITH recent AS (
@@ -157,21 +158,21 @@ class ImprovementMonitor:
                 SELECT recent.rate, previous.rate
                 FROM recent, previous
             """)
-            
+
             result = cursor.fetchone()
             conn.close()
-            
+
             if not result or result[0] is None or result[1] is None:
                 return None  # Insufficient data
-            
+
             recent_rate, previous_rate = result
-            
+
             if previous_rate == 0:
                 return None  # Avoid division by zero
-            
+
             degradation = (previous_rate - recent_rate) / previous_rate
             max_degradation = self.config.max_degradation_percent / 100 if self.config else 0.20
-            
+
             if degradation > max_degradation:
                 alert = Alert(
                     level=AlertLevel.ERROR,
@@ -185,30 +186,30 @@ class ImprovementMonitor:
                     },
                     timestamp=datetime.now()
                 )
-                
+
                 self.alert_callback(alert)
                 return alert
-            
+
             return None
-            
+
         except Exception as e:
             self.logger.error(f"Error checking degradation: {e}")
             return None
-    
+
     def check_failure_rate(self) -> Optional[Alert]:
         """
         Check if failure rate is too high.
-        
+
         Returns:
             Alert if failure rate is high, None otherwise
         """
         try:
             conn = sqlite3.connect(self.storage_path)
             cursor = conn.cursor()
-            
+
             # Get failure rate for last 100 tasks
             cursor.execute("""
-                SELECT 
+                SELECT
                     SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)
                 FROM (
                     SELECT success FROM task_executions
@@ -216,16 +217,16 @@ class ImprovementMonitor:
                     LIMIT 100
                 )
             """)
-            
+
             failure_rate = cursor.fetchone()[0]
             conn.close()
-            
+
             if failure_rate is None:
                 return None
-            
+
             min_success_rate = self.config.min_success_rate if self.config else 0.5
             max_failure_rate = (1 - min_success_rate) * 100
-            
+
             if failure_rate > max_failure_rate:
                 alert = Alert(
                     level=AlertLevel.WARNING,
@@ -238,66 +239,66 @@ class ImprovementMonitor:
                     },
                     timestamp=datetime.now()
                 )
-                
+
                 self.alert_callback(alert)
                 return alert
-            
+
             return None
-            
+
         except Exception as e:
             self.logger.error(f"Error checking failure rate: {e}")
             return None
-    
-    def check_all(self) -> List[Alert]:
+
+    def check_all(self) -> list[Alert]:
         """
         Run all monitoring checks.
-        
+
         Returns:
             List of alerts (empty if all checks pass)
         """
         alerts = []
-        
+
         # Check improvement
         alert = self.check_improvement()
         if alert:
             alerts.append(alert)
-        
+
         # Check degradation
         alert = self.check_performance_degradation()
         if alert:
             alerts.append(alert)
-        
+
         # Check failure rate
         alert = self.check_failure_rate()
         if alert:
             alerts.append(alert)
-        
+
         return alerts
-    
-    def get_dashboard_metrics(self) -> Dict[str, Any]:
+
+    def get_dashboard_metrics(self) -> dict[str, Any]:
         """
         Get metrics for monitoring dashboard.
-        
+
         Returns:
             Dictionary with dashboard metrics
         """
         try:
             conn = sqlite3.connect(self.storage_path)
             cursor = conn.cursor()
-            
+
             # Overall statistics
             cursor.execute("""
-                SELECT 
+                SELECT
                     COUNT(*) as total_tasks,
                     SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as success_rate,
                     AVG(execution_time_ms) as avg_time
                 FROM task_executions
             """)
             total_tasks, success_rate, avg_time = cursor.fetchone()
-            
+
             # Recent performance (last 100 tasks)
             cursor.execute("""
-                SELECT 
+                SELECT
                     SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as success_rate,
                     AVG(execution_time_ms) as avg_time
                 FROM (
@@ -307,7 +308,7 @@ class ImprovementMonitor:
                 )
             """)
             recent_success, recent_time = cursor.fetchone()
-            
+
             # Latest improvement
             cursor.execute("""
                 SELECT relative_improvement, timestamp
@@ -318,7 +319,7 @@ class ImprovementMonitor:
             improvement_result = cursor.fetchone()
             latest_improvement = improvement_result[0] if improvement_result else None
             improvement_timestamp = improvement_result[1] if improvement_result else None
-            
+
             # Failure breakdown
             cursor.execute("""
                 SELECT failure_type, COUNT(*) as count
@@ -327,7 +328,7 @@ class ImprovementMonitor:
                 ORDER BY count DESC
             """)
             failure_breakdown = dict(cursor.fetchall())
-            
+
             # Top strategies
             cursor.execute("""
                 SELECT strategy_id, success_rate, total_executions
@@ -343,9 +344,9 @@ class ImprovementMonitor:
                 }
                 for row in cursor.fetchall()
             ]
-            
+
             conn.close()
-            
+
             return {
                 "overall": {
                     "total_tasks": total_tasks,
@@ -364,14 +365,14 @@ class ImprovementMonitor:
                 "top_strategies": top_strategies,
                 "timestamp": datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             self.logger.error(f"Error getting dashboard metrics: {e}")
             return {
                 "error": str(e),
                 "timestamp": datetime.now().isoformat()
             }
-    
+
     def _default_alert_handler(self, alert: Alert) -> None:
         """Default alert handler that logs alerts."""
         log_level = {
@@ -380,7 +381,7 @@ class ImprovementMonitor:
             AlertLevel.ERROR: logging.ERROR,
             AlertLevel.CRITICAL: logging.CRITICAL,
         }[alert.level]
-        
+
         self.logger.log(
             log_level,
             f"{alert.title}: {alert.message} | Details: {alert.details}"

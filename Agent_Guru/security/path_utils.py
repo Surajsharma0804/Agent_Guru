@@ -51,7 +51,11 @@ def safe_path(user_input: str | Path, base_dir: Path) -> Path:
         with open(p) as fh:
             ...
     """
-    resolved = Path(user_input).resolve()
+    candidate = Path(user_input)
+    # Relative paths are resolved within base_dir, not the CWD
+    if not candidate.is_absolute():
+        candidate = base_dir / candidate
+    resolved = candidate.resolve()
     resolved_base = base_dir.resolve()
 
     if not resolved.is_relative_to(resolved_base):

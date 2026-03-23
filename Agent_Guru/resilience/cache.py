@@ -6,7 +6,7 @@ import logging
 import sqlite3
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -18,11 +18,11 @@ class CachedCommand:
     response: str
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"command": self.command, "response": self.response, "timestamp": self.timestamp}
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "CachedCommand":
+    def from_dict(cls, d: dict[str, Any]) -> "CachedCommand":
         return cls(command=d["command"], response=d["response"], timestamp=d.get("timestamp", 0.0))
 
     def serialize(self) -> str:
@@ -40,7 +40,7 @@ class OfflineCache:
         self.db_path = db_path
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._setup_schema()
-        self._queued_actions: List[Dict[str, Any]] = []
+        self._queued_actions: list[dict[str, Any]] = []
 
     def _setup_schema(self) -> None:
         self._conn.execute("""
@@ -60,7 +60,7 @@ class OfflineCache:
             pass  # FTS5 not available
         self._conn.commit()
 
-    def precompute(self, commands: List[CachedCommand]) -> None:
+    def precompute(self, commands: list[CachedCommand]) -> None:
         """Store precomputed command responses."""
         for cmd in commands:
             self._conn.execute(
@@ -86,12 +86,12 @@ class OfflineCache:
             return CachedCommand(command=row[0], response=row[1], timestamp=row[2])
         return None
 
-    def queue_action(self, action: Dict[str, Any]) -> None:
+    def queue_action(self, action: dict[str, Any]) -> None:
         """Queue an action for sync when reconnected."""
         action["queued_at"] = time.time()
         self._queued_actions.append(action)
 
-    def sync_queued_actions(self) -> List[Dict[str, Any]]:
+    def sync_queued_actions(self) -> list[dict[str, Any]]:
         """Return and clear queued actions for replay."""
         actions = list(self._queued_actions)
         self._queued_actions.clear()

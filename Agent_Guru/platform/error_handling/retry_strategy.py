@@ -40,12 +40,13 @@ Date: 2026-02-26
 Version: 1.0.0
 """
 
-import time
-import random
 import logging
-from typing import TypeVar, Callable, Any, Optional
+import random
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Optional, TypeVar
 
 logger = logging.getLogger(__name__)
 

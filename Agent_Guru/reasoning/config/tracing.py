@@ -1,21 +1,21 @@
 """Distributed tracing configuration using OpenTelemetry."""
 
-from typing import Optional
 from contextlib import contextmanager
+from typing import Optional
 
 from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider, sampling
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from opentelemetry.sdk.resources import Resource, SERVICE_NAME, SERVICE_VERSION
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from opentelemetry.exporter.zipkin.json import ZipkinExporter
-from opentelemetry.trace import Status, StatusCode, Span
+from opentelemetry.sdk.resources import SERVICE_NAME, SERVICE_VERSION, Resource
+from opentelemetry.sdk.trace import TracerProvider, sampling
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.trace import Span, Status, StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 
 class TracingConfig:
     """Configuration for distributed tracing."""
-    
+
     def __init__(
         self,
         service_name: str = "agent-guru-reasoning",
@@ -28,7 +28,7 @@ class TracingConfig:
     ):
         """
         Initialize tracing configuration.
-        
+
         Args:
             service_name: Name of the service
             service_version: Version of the service
@@ -50,10 +50,10 @@ class TracingConfig:
 def configure_tracing(config: TracingConfig) -> trace.Tracer:
     """
     Configure OpenTelemetry distributed tracing.
-    
+
     Args:
         config: Tracing configuration
-        
+
     Returns:
         Configured tracer instance
     """
@@ -62,19 +62,19 @@ def configure_tracing(config: TracingConfig) -> trace.Tracer:
         SERVICE_NAME: config.service_name,
         SERVICE_VERSION: config.service_version,
     })
-    
+
     # Create sampler with error-aware sampling
     sampler = ErrorAwareSampler(
         success_rate=config.sample_rate_success,
         error_rate=config.sample_rate_error,
     )
-    
+
     # Create tracer provider
     provider = TracerProvider(
         resource=resource,
         sampler=sampler,
     )
-    
+
     # Configure exporter
     if config.exporter_type == "jaeger":
         exporter = JaegerExporter(
@@ -86,32 +86,32 @@ def configure_tracing(config: TracingConfig) -> trace.Tracer:
         )
     else:  # console
         exporter = ConsoleSpanExporter()
-    
+
     # Add span processor
     processor = BatchSpanProcessor(exporter)
     provider.add_span_processor(processor)
-    
+
     # Set global tracer provider
     trace.set_tracer_provider(provider)
-    
+
     # Return tracer
     return trace.get_tracer(__name__)
 
 
 class ErrorAwareSampler(sampling.Sampler):
     """Custom sampler that samples all errors and a percentage of successes."""
-    
+
     def __init__(self, success_rate: float = 0.1, error_rate: float = 1.0):
         """
         Initialize error-aware sampler.
-        
+
         Args:
             success_rate: Sampling rate for successful traces
             error_rate: Sampling rate for error traces
         """
         self.success_sampler = sampling.TraceIdRatioBased(success_rate)
         self.error_sampler = sampling.TraceIdRatioBased(error_rate)
-    
+
     def should_sample(
         self,
         parent_context,
@@ -124,7 +124,7 @@ class ErrorAwareSampler(sampling.Sampler):
     ):
         """
         Determine if a span should be sampled.
-        
+
         Returns:
             Sampling decision
         """
@@ -133,12 +133,12 @@ class ErrorAwareSampler(sampling.Sampler):
             return self.error_sampler.should_sample(
                 parent_context, trace_id, name, kind, attributes, links, trace_state
             )
-        
+
         # Default to success sampling rate
         return self.success_sampler.should_sample(
             parent_context, trace_id, name, kind, attributes, links, trace_state
         )
-    
+
     def get_description(self):
         """Get sampler description."""
         return "ErrorAwareSampler"
@@ -146,17 +146,17 @@ class ErrorAwareSampler(sampling.Sampler):
 
 class TracingManager:
     """Manager for distributed tracing operations."""
-    
+
     def __init__(self, tracer: trace.Tracer):
         """
         Initialize tracing manager.
-        
+
         Args:
             tracer: OpenTelemetry tracer instance
         """
         self.tracer = tracer
         self.propagator = TraceContextTextMapPropagator()
-    
+
     @contextmanager
     def start_span(
         self,
@@ -166,12 +166,12 @@ class TracingManager:
     ):
         """
         Start a new span with context manager.
-        
+
         Args:
             name: Span name
             attributes: Optional span attributes
             set_status_on_exception: Whether to set error status on exception
-            
+
         Yields:
             Span instance
         """
@@ -181,33 +181,33 @@ class TracingManager:
             set_status_on_exception=set_status_on_exception,
         ) as span:
             yield span
-    
+
     def add_event(self, span: Span, name: str, attributes: Optional[dict] = None):
         """
         Add an event to a span.
-        
+
         Args:
             span: Span to add event to
             name: Event name
             attributes: Optional event attributes
         """
         span.add_event(name, attributes=attributes or {})
-    
+
     def set_attribute(self, span: Span, key: str, value):
         """
         Set an attribute on a span.
-        
+
         Args:
             span: Span to set attribute on
             key: Attribute key
             value: Attribute value
         """
         span.set_attribute(key, value)
-    
+
     def set_error(self, span: Span, error: Exception):
         """
         Mark span as error and record exception.
-        
+
         Args:
             span: Span to mark as error
             error: Exception that occurred
@@ -215,41 +215,41 @@ class TracingManager:
         span.set_status(Status(StatusCode.ERROR, str(error)))
         span.record_exception(error)
         span.set_attribute("error", True)
-    
+
     def inject_context(self, carrier: dict):
         """
         Inject trace context into carrier for propagation.
-        
+
         Args:
             carrier: Dictionary to inject context into
         """
         self.propagator.inject(carrier)
-    
+
     def extract_context(self, carrier: dict):
         """
         Extract trace context from carrier.
-        
+
         Args:
             carrier: Dictionary to extract context from
-            
+
         Returns:
             Extracted context
         """
         return self.propagator.extract(carrier)
-    
+
     def get_current_span(self) -> Optional[Span]:
         """
         Get the current active span.
-        
+
         Returns:
             Current span or None
         """
         return trace.get_current_span()
-    
+
     def get_trace_id(self) -> Optional[str]:
         """
         Get the current trace ID.
-        
+
         Returns:
             Trace ID as hex string or None
         """
@@ -257,11 +257,11 @@ class TracingManager:
         if span and span.get_span_context().is_valid:
             return format(span.get_span_context().trace_id, "032x")
         return None
-    
+
     def get_span_id(self) -> Optional[str]:
         """
         Get the current span ID.
-        
+
         Returns:
             Span ID as hex string or None
         """
@@ -278,7 +278,7 @@ _tracing_manager: Optional[TracingManager] = None
 def get_tracing_manager() -> Optional[TracingManager]:
     """
     Get the global tracing manager instance.
-    
+
     Returns:
         TracingManager instance or None if not configured
     """
@@ -288,10 +288,10 @@ def get_tracing_manager() -> Optional[TracingManager]:
 def initialize_tracing(config: TracingConfig) -> TracingManager:
     """
     Initialize global tracing manager.
-    
+
     Args:
         config: Tracing configuration
-        
+
     Returns:
         Initialized TracingManager
     """

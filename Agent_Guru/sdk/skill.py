@@ -7,8 +7,9 @@ capability decorators and parameter validation.
 
 import inspect
 from abc import ABC
-from typing import Any, Callable, Dict, List, Optional, get_type_hints
+from collections.abc import Callable
 from functools import wraps
+from typing import Any, Optional, get_type_hints
 
 
 class SkillMetadata:
@@ -18,7 +19,7 @@ class SkillMetadata:
         self,
         capability: str,
         description: str,
-        parameters: List[Dict[str, Any]],
+        parameters: list[dict[str, Any]],
     ):
         """Initialize skill metadata.
 
@@ -47,7 +48,7 @@ class Skill(ABC):
 
     def __init__(self):
         """Initialize skill."""
-        self._capabilities: Dict[str, SkillMetadata] = {}
+        self._capabilities: dict[str, SkillMetadata] = {}
         self._discover_capabilities()
 
     def _discover_capabilities(self) -> None:
@@ -61,7 +62,7 @@ class Skill(ABC):
                 metadata = attr._skill_capability
                 self._capabilities[metadata.capability] = metadata
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Get list of capability identifiers.
 
         Returns:
@@ -187,7 +188,7 @@ def skill_parameter(
     description: str,
     required: bool = True,
     default: Any = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Define a skill parameter.
 
     This is a helper function for manually defining parameters

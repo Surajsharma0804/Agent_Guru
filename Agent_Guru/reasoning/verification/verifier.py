@@ -223,7 +223,7 @@ Respond in JSON format:
                 )
 
             # Check parameter types (basic validation)
-            for param_name, param_value in step.parameters.items():
+            for param_name, _param_value in step.parameters.items():
                 param_def = next(
                     (p for p in tool_metadata.parameters if p.name == param_name), None
                 )
@@ -507,7 +507,7 @@ Respond in JSON format:
 
             return json.loads(response)
         except json.JSONDecodeError as e:
-            raise ValueError(f"Failed to parse LLM verification response: {e}")
+            raise ValueError(f"Failed to parse LLM verification response: {e}") from e
 
     def _calculate_confidence(self, issues: list[VerificationIssue], task: Task) -> float:
         """Calculate overall confidence in verification result.

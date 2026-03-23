@@ -23,14 +23,13 @@ import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from Agent_Guru.llm.models import (
     CompletionRequest,
     CompletionResponse,
     Message,
     ModelProvider,
-    StreamChunk,
     TokenUsage,
 )
 
@@ -69,7 +68,7 @@ class ProviderHealth:
 # Rule-based fallback responses
 # ---------------------------------------------------------------------------
 
-_RULE_BASED_RESPONSES: Dict[str, str] = {
+_RULE_BASED_RESPONSES: dict[str, str] = {
     "hello": "Hello! I'm Guru. How can I help you today?",
     "hi": "Hi there! I'm Guru. What can I do for you?",
     "help": "I can help you with tasks, answer questions, and control your computer. Just ask!",
@@ -121,7 +120,7 @@ class FailoverConfig:
         enable_rule_based_fallback: Whether to use rule-based fallback
         voice_system_prompt: System prompt for voice interaction personality
     """
-    provider_chain: List[ModelProvider] = field(default_factory=lambda: [
+    provider_chain: list[ModelProvider] = field(default_factory=lambda: [
         ModelProvider.OLLAMA,
         ModelProvider.OPENAI,
         ModelProvider.GOOGLE,
@@ -151,7 +150,7 @@ class FailoverResult:
     """
     response: CompletionResponse
     provider_used: Optional[ModelProvider]
-    providers_tried: List[ModelProvider]
+    providers_tried: list[ModelProvider]
     used_fallback: bool
     latency_ms: float
 
@@ -179,7 +178,7 @@ class ProviderFailoverRouter:
     def __init__(
         self,
         config: FailoverConfig,
-        adapters: Dict[ModelProvider, Any],
+        adapters: dict[ModelProvider, Any],
     ) -> None:
         """
         Initialize the failover router.
@@ -190,7 +189,7 @@ class ProviderFailoverRouter:
         """
         self._config = config
         self._adapters = adapters
-        self._health: Dict[ModelProvider, ProviderHealth] = {
+        self._health: dict[ModelProvider, ProviderHealth] = {
             p: ProviderHealth(provider=p)
             for p in config.provider_chain
         }
@@ -217,7 +216,7 @@ class ProviderFailoverRouter:
             FailoverResult with response and metadata
         """
         start = time.perf_counter()
-        providers_tried: List[ModelProvider] = []
+        providers_tried: list[ModelProvider] = []
 
         # Inject voice system prompt if not already present
         if inject_system_prompt and self._config.voice_system_prompt:
@@ -349,7 +348,7 @@ class ProviderFailoverRouter:
                 self._health[provider].last_error = str(e)
             return ProviderStatus.UNAVAILABLE
 
-    def get_health_status(self) -> Dict[str, Any]:
+    def get_health_status(self) -> dict[str, Any]:
         """Return health status for all providers."""
         return {
             p.value: {

@@ -16,12 +16,12 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
 )
-from cryptography.hazmat.primitives import serialization
 
 from Agent_Guru.security.crypto.errors import AuditLogError
 
@@ -65,7 +65,7 @@ class AuditLogEntry:
     actor_id: Optional[str]
     target_id: Optional[str]
     outcome: str  # "success", "failure", "denied"
-    details: Dict[str, Any]
+    details: dict[str, Any]
     signature: bytes  # Ed25519 signature of entry content
     tampered: bool = False
 
@@ -76,7 +76,7 @@ class LogQuery:
 
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
-    event_types: Optional[List[EventType]] = None
+    event_types: Optional[list[EventType]] = None
     actor_id: Optional[str] = None
     target_id: Optional[str] = None
     outcome: Optional[str] = None
@@ -125,7 +125,7 @@ class AuditLogger:
         actor_id: Optional[str],
         target_id: Optional[str],
         outcome: str,
-        details: Dict[str, Any],
+        details: dict[str, Any],
     ) -> AuditLogEntry:
         """Log security event with cryptographic signature.
 
@@ -172,7 +172,7 @@ class AuditLogger:
         except Exception as exc:
             raise AuditLogError(f"Failed to log event: type={type(exc).__name__}") from exc
 
-    def query_logs(self, query: LogQuery) -> List[AuditLogEntry]:
+    def query_logs(self, query: LogQuery) -> list[AuditLogEntry]:
         """Query audit logs with filters.
 
         Verifies signatures and marks tampered entries.
@@ -330,7 +330,7 @@ class AuditLogger:
         actor_id: Optional[str],
         target_id: Optional[str],
         outcome: str,
-        details: Dict[str, Any],
+        details: dict[str, Any],
     ) -> bytes:
         """Build deterministic bytes to sign."""
         data = {
@@ -344,7 +344,7 @@ class AuditLogger:
         }
         return json.dumps(data, sort_keys=True).encode("utf-8")
 
-    def _sanitize_details(self, details: Dict[str, Any]) -> Dict[str, Any]:
+    def _sanitize_details(self, details: dict[str, Any]) -> dict[str, Any]:
         """Remove secrets and sensitive data from log details."""
         sanitized = {}
         for key, value in details.items():
@@ -356,7 +356,7 @@ class AuditLogger:
                 sanitized[key] = value
         return sanitized
 
-    def _export_json(self, entries: List[AuditLogEntry]) -> str:
+    def _export_json(self, entries: list[AuditLogEntry]) -> str:
         data = []
         for entry in entries:
             data.append(
@@ -374,7 +374,7 @@ class AuditLogger:
             )
         return json.dumps(data, indent=2)
 
-    def _export_csv(self, entries: List[AuditLogEntry]) -> str:
+    def _export_csv(self, entries: list[AuditLogEntry]) -> str:
         output = io.StringIO()
         writer = csv.DictWriter(
             output,

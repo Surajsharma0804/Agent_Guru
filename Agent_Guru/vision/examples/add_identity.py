@@ -54,7 +54,6 @@ def main() -> int:
 
     try:
         import cv2  # type: ignore[import]
-        import numpy as np
     except ImportError:
         print("ERROR: opencv-python is required. Install with: pip install opencv-python", file=sys.stderr)
         return 1

@@ -6,7 +6,7 @@ Provides utilities to generate skill manifests from Skill classes.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Optional
 
 from Agent_Guru.sdk.skill import Skill
 
@@ -16,17 +16,17 @@ class ManifestGenerator:
 
     @staticmethod
     def generate_from_skill(
-        skill_class: Type[Skill],
+        skill_class: type[Skill],
         skill_id: str,
         version: str,
         name: str,
         description: str,
         author: str,
-        required_permissions: Optional[List[str]] = None,
+        required_permissions: Optional[list[str]] = None,
         max_latency: int = 5000,
-        dependencies: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        dependencies: Optional[list[str]] = None,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """Generate manifest from a Skill class.
 
         Args:
@@ -84,7 +84,7 @@ class ManifestGenerator:
         return manifest
 
     @staticmethod
-    def save_manifest(manifest: Dict[str, Any], output_path: Path) -> None:
+    def save_manifest(manifest: dict[str, Any], output_path: Path) -> None:
         """Save manifest to file.
 
         Args:
@@ -98,10 +98,10 @@ class ManifestGenerator:
 
     @staticmethod
     def generate_and_save(
-        skill_class: Type[Skill],
+        skill_class: type[Skill],
         output_path: Path,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate manifest from skill class and save to file.
 
         Args:

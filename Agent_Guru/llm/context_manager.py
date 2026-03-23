@@ -19,13 +19,13 @@ import asyncio
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from Agent_Guru.llm.models import Message
 from Agent_Guru.llm.token_counter import TokenCounter
 
 # Context window limits per model prefix
-_CONTEXT_LIMITS: Dict[str, int] = {
+_CONTEXT_LIMITS: dict[str, int] = {
     "gpt-4-32k": 32768,
     "gpt-4-turbo": 128000,
     "gpt-4": 8192,
@@ -45,11 +45,11 @@ class SessionContext:
     """Context for a single conversation session."""
 
     session_id: str
-    messages: List[Message] = field(default_factory=list)
+    messages: list[Message] = field(default_factory=list)
     token_count: int = 0
     created_at: datetime = field(default_factory=datetime.now)
     last_updated: datetime = field(default_factory=datetime.now)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class ContextManager:
@@ -78,7 +78,7 @@ class ContextManager:
         self.token_counter = token_counter
         self.compression_threshold = compression_threshold
         self.max_history_messages = max_history_messages
-        self.sessions: Dict[str, SessionContext] = {}
+        self.sessions: dict[str, SessionContext] = {}
         self._lock = asyncio.Lock()
 
     # ------------------------------------------------------------------
@@ -86,8 +86,8 @@ class ContextManager:
     # ------------------------------------------------------------------
 
     def inject_context(
-        self, session_id: str, messages: List[Message]
-    ) -> List[Message]:
+        self, session_id: str, messages: list[Message]
+    ) -> list[Message]:
         """
         Inject conversation history into a message list.
 
@@ -146,7 +146,7 @@ class ContextManager:
                 ctx.messages, "gpt-3.5-turbo"
             )
 
-    def get_context_usage(self, session_id: str, model: str) -> Dict[str, Any]:
+    def get_context_usage(self, session_id: str, model: str) -> dict[str, Any]:
         """
         Return context usage statistics for a session.
 

@@ -33,7 +33,7 @@ Version: 2.0.0 (Optimized)
 import hashlib
 import time
 from collections import OrderedDict
-from typing import Optional, Dict, Any
+from typing import Any, Optional
 
 import structlog
 
@@ -42,10 +42,10 @@ logger = structlog.get_logger(__name__)
 
 class ResponseCache:
     """High-performance TTL-based response cache with LRU eviction.
-    
+
     This cache stores responses for fast-path queries, enabling sub-100ms
     response times for repeated queries.
-    
+
     Features:
         - TTL-based expiration (default 5 minutes)
         - LRU eviction when full (better hit rates than FIFO)
@@ -54,15 +54,15 @@ class ResponseCache:
         - Automatic expiration cleanup
         - Cache hit/miss tracking
         - O(1) get/set operations
-    
+
     Time Complexity:
         - get: O(1) average case
         - set: O(1) average case
         - Eviction: O(1) (LRU with OrderedDict)
-    
+
     Space Complexity:
         - O(n) where n is max_size
-    
+
     Example:
         >>> cache = ResponseCache(max_size=1000, ttl_seconds=300)
         >>> cache.set("key", "response")
@@ -72,50 +72,50 @@ class ResponseCache:
         >>> stats = cache.get_statistics()
         >>> print(f"Hit rate: {stats['hit_rate']:.2%}")
     """
-    
+
     def __init__(
         self,
         max_size: int = 1000,
         ttl_seconds: float = 300.0,
     ) -> None:
         """Initialize response cache.
-        
+
         Args:
             max_size: Maximum number of entries (default 1000)
             ttl_seconds: Time-to-live in seconds (default 300 = 5 minutes)
         """
         self.max_size = max_size
         self.ttl_seconds = ttl_seconds
-        
+
         # Cache storage: OrderedDict for O(1) LRU operations
         # key -> (response, timestamp)
         self._cache: OrderedDict[str, tuple[str, float]] = OrderedDict()
-        
+
         # Statistics
         self._hits = 0
         self._misses = 0
         self._evictions = 0
         self._expirations = 0
-        
+
         logger.info(
             "response_cache_initialized",
             max_size=max_size,
             ttl_seconds=ttl_seconds,
         )
-    
+
     def get(self, key: str) -> Optional[str]:
         """Get cached response if available and not expired.
-        
+
         Time Complexity: O(1) average case
-        
+
         Optimization: Uses OrderedDict.move_to_end() for O(1) LRU update
-        
+
         Args:
             key: Cache key
-        
+
         Returns:
             Cached response or None if not found/expired
-        
+
         Example:
             >>> cache = ResponseCache()
             >>> response = cache.get("user_query_hash")
@@ -124,9 +124,9 @@ class ResponseCache:
         if key not in self._cache:
             self._misses += 1
             return None
-        
+
         response, timestamp = self._cache[key]
-        
+
         # Check if expired (lazy expiration)
         if time.time() - timestamp > self.ttl_seconds:
             # Remove expired entry
@@ -135,26 +135,26 @@ class ResponseCache:
             self._misses += 1
             logger.debug("cache_expired", key=key[:16])
             return None
-        
+
         # Move to end (most recently used) - O(1) operation
         self._cache.move_to_end(key)
-        
+
         # Cache hit
         self._hits += 1
         logger.debug("cache_hit", key=key[:16])
         return response
-    
+
     def set(self, key: str, response: str) -> None:
         """Cache response with TTL and LRU eviction.
-        
+
         Time Complexity: O(1) average case
-        
+
         Optimization: Uses OrderedDict for O(1) LRU eviction
-        
+
         Args:
             key: Cache key
             response: Response to cache
-        
+
         Example:
             >>> cache = ResponseCache()
             >>> cache.set("user_query_hash", "Hello, how can I help?")
@@ -165,7 +165,7 @@ class ResponseCache:
             self._cache.move_to_end(key)
             logger.debug("cache_update", key=key[:16])
             return
-        
+
         # Evict least recently used entry if cache is full
         if len(self._cache) >= self.max_size:
             # Remove first item (least recently used) - O(1) operation
@@ -173,14 +173,14 @@ class ResponseCache:
             del self._cache[oldest_key]
             self._evictions += 1
             logger.debug("cache_eviction_lru", evicted_key=oldest_key[:16])
-        
+
         # Store with current timestamp
         self._cache[key] = (response, time.time())
         logger.debug("cache_set", key=key[:16])
-    
+
     def clear(self) -> None:
         """Clear all cached entries.
-        
+
         Example:
             >>> cache = ResponseCache()
             >>> cache.clear()
@@ -188,16 +188,16 @@ class ResponseCache:
         count = len(self._cache)
         self._cache.clear()
         logger.info("cache_cleared", entries_removed=count)
-    
+
     def remove(self, key: str) -> bool:
         """Remove specific entry from cache.
-        
+
         Args:
             key: Cache key to remove
-        
+
         Returns:
             True if entry was removed, False if not found
-        
+
         Example:
             >>> cache = ResponseCache()
             >>> removed = cache.remove("user_query_hash")
@@ -207,13 +207,13 @@ class ResponseCache:
             logger.debug("cache_remove", key=key[:16])
             return True
         return False
-    
-    def get_statistics(self) -> Dict[str, Any]:
+
+    def get_statistics(self) -> dict[str, Any]:
         """Get cache statistics.
-        
+
         Returns:
             Dictionary with cache statistics
-        
+
         Example:
             >>> cache = ResponseCache()
             >>> stats = cache.get_statistics()
@@ -221,7 +221,7 @@ class ResponseCache:
         """
         total_requests = self._hits + self._misses
         hit_rate = self._hits / total_requests if total_requests > 0 else 0.0
-        
+
         return {
             "size": len(self._cache),
             "max_size": self.max_size,
@@ -232,18 +232,18 @@ class ResponseCache:
             "expirations": self._expirations,
             "total_requests": total_requests,
         }
-    
+
     def cleanup_expired(self) -> int:
         """Remove all expired entries (batch cleanup).
-        
+
         This is useful for periodic cleanup to free memory.
         Should be called periodically (e.g., every 60 seconds).
-        
+
         Time Complexity: O(n) where n is cache size
-        
+
         Returns:
             Number of entries removed
-        
+
         Example:
             >>> cache = ResponseCache()
             >>> removed = cache.cleanup_expired()
@@ -255,31 +255,31 @@ class ResponseCache:
             for key, (_, timestamp) in self._cache.items()
             if current_time - timestamp > self.ttl_seconds
         ]
-        
+
         for key in expired_keys:
             del self._cache[key]
             self._expirations += 1
-        
+
         if expired_keys:
             logger.info("cache_cleanup", expired_count=len(expired_keys))
-        
+
         return len(expired_keys)
 
 
 def generate_cache_key(text: str, source: str = "") -> str:
     """Generate cache key from input text and source.
-    
+
     Time Complexity: O(n) where n is text length
-    
+
     Optimization: Uses SHA256 for fast, collision-resistant hashing
-    
+
     Args:
         text: Input text
         source: Input source (optional)
-    
+
     Returns:
         SHA256 hash as cache key (64 hex characters)
-    
+
     Example:
         >>> key = generate_cache_key("set a timer for 5 minutes", "voice")
         >>> print(key)
@@ -295,10 +295,10 @@ _global_cache: Optional[ResponseCache] = None
 
 def get_response_cache() -> ResponseCache:
     """Get the global response cache instance (singleton pattern).
-    
+
     Returns:
         Global ResponseCache instance
-    
+
     Example:
         >>> cache = get_response_cache()
         >>> cache.set("key", "response")

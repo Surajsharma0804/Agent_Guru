@@ -4,7 +4,7 @@ Summarization tools for text, articles, and documents.
 Uses LLM for intelligent summarization.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
     Tool,
@@ -46,7 +46,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class SummarizeTextTool(Tool):
     """Tool for summarizing text."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute text summarization.
 
         Args:
@@ -134,7 +134,7 @@ class SummarizeTextTool(Tool):
 class SummarizeArticleTool(Tool):
     """Tool for summarizing articles."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute article summarization.
 
         Args:
@@ -215,7 +215,7 @@ class SummarizeArticleTool(Tool):
 class SummarizeDocumentTool(Tool):
     """Tool for summarizing documents."""
 
-    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute document summarization.
 
         Args:

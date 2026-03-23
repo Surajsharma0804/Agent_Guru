@@ -10,10 +10,10 @@ Provides functionality to:
 
 import json
 import shutil
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
-from dataclasses import dataclass
+from typing import Optional
 
 from Agent_Guru.reasoning.models.skill import (
     InstalledSkill,
@@ -24,8 +24,8 @@ from Agent_Guru.reasoning.tools.skills.manifest import (
     SkillManifestParser,
     SkillManifestValidator,
 )
-from Agent_Guru.reasoning.tools.skills.registry import get_skill_registry
 from Agent_Guru.reasoning.tools.skills.permissions import get_permission_manager
+from Agent_Guru.reasoning.tools.skills.registry import get_skill_registry
 
 
 @dataclass
@@ -35,7 +35,7 @@ class InstallResult:
     success: bool
     skill_id: Optional[str] = None
     error: Optional[str] = None
-    warnings: List[str] = None
+    warnings: list[str] = None
 
     def __post_init__(self):
         if self.warnings is None:
@@ -68,7 +68,7 @@ class SkillInstaller:
         self.registry = get_skill_registry()
         self.permission_manager = get_permission_manager()
 
-        self._usage_stats: Dict[str, Dict] = {}
+        self._usage_stats: dict[str, dict] = {}
         self._load_usage_stats()
 
     async def install_skill(
@@ -216,7 +216,7 @@ class SkillInstaller:
 
     async def check_for_updates(
         self, skill_id: Optional[str] = None
-    ) -> List[UpdateInfo]:
+    ) -> list[UpdateInfo]:
         """Check for available skill updates.
 
         Args:
@@ -236,7 +236,7 @@ class SkillInstaller:
             skills = self.registry.list_skills(status=SkillStatus.ACTIVE)
 
         # Check each skill for updates
-        for skill in skills:
+        for _skill in skills:
             # In a real implementation, this would query a marketplace API
             # For now, return empty list (no updates available)
             pass
@@ -357,7 +357,7 @@ class SkillInstaller:
 
         await self._save_usage_stats()
 
-    def get_usage_stats(self, skill_id: str) -> Optional[Dict]:
+    def get_usage_stats(self, skill_id: str) -> Optional[dict]:
         """Get usage statistics for a skill.
 
         Args:
@@ -388,8 +388,8 @@ class SkillInstaller:
                 return None
 
             # Parse manifest
-            with open(manifest_path, "r", encoding="utf-8") as f:
-                manifest_data = json.load(f)
+            with open(manifest_path, encoding="utf-8") as f:
+                json.load(f)
 
             return SkillManifestParser().parse  # type: ignore[attr-defined](manifest_data)
 
@@ -408,7 +408,7 @@ class SkillInstaller:
         stats_path = self.skills_dir / "usage_stats.json"
         if stats_path.exists():
             try:
-                with open(stats_path, "r", encoding="utf-8") as f:
+                with open(stats_path, encoding="utf-8") as f:
                     self._usage_stats = json.load(f)
             except Exception as e:
                 print(f"Failed to load usage stats: {e}")

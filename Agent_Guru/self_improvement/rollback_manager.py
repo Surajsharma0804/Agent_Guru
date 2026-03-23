@@ -333,7 +333,7 @@ class RollbackManager:
             change_type = ChangeType(change[1])
             component_id = change[3]
             previous_state = json.loads(change[4])
-            performance_before = json.loads(change[6])
+            json.loads(change[6])
 
             try:
                 # Rollback based on change type
@@ -685,7 +685,6 @@ class RollbackManager:
         """
         # Pattern rollback would be implemented here
         # For now, this is a placeholder
-        pass
 
     def _rollback_configuration(self, config_id: str, previous_state: dict[str, Any]) -> None:
         """
@@ -697,7 +696,6 @@ class RollbackManager:
         """
         # Configuration rollback would be implemented here
         # For now, this is a placeholder
-        pass
 
     def _mark_rolled_back(self, change_id: str) -> None:
         """

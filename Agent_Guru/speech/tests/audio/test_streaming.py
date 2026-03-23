@@ -18,7 +18,7 @@ import asyncio
 import time
 import pytest
 import numpy as np
-from typing import AsyncIterator, List
+from typing import AsyncIterator
 
 from Agent_Guru.speech.audio.streaming import (
     StreamingAudioManager,
@@ -652,7 +652,7 @@ class TestStreamingAudioManager:
         async for _ in manager.stream_input(audio_source1()):
             pass
         
-        metrics1 = await manager.get_metrics()
+        await manager.get_metrics()
         
         # Second stream
         async def audio_source2() -> AsyncIterator[bytes]:

@@ -2,11 +2,12 @@
 Pytest configuration and fixtures for network manager tests.
 """
 
-import pytest
 import asyncio
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
-from Agent_Guru.platform.network.manager import NetworkManager, NetworkConfig
+import pytest
+
+from Agent_Guru.platform.network.manager import NetworkConfig, NetworkManager
 
 
 @pytest.fixture
@@ -25,9 +26,9 @@ async def network_manager(network_config: NetworkConfig) -> AsyncGenerator[Netwo
     """Provide initialized network manager for tests."""
     manager = NetworkManager(network_config)
     await manager.start()
-    
+
     yield manager
-    
+
     await manager.close()
 
 

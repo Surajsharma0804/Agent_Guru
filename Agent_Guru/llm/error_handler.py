@@ -20,10 +20,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Coroutine, Dict, Optional, TypeVar
+from typing import Any, Optional, TypeVar
 
 from Agent_Guru.llm.models import CircuitBreakerOpenError
 
@@ -82,7 +83,7 @@ class ErrorHandler:
         self.circuit_breaker_threshold = circuit_breaker_threshold
         self.circuit_breaker_timeout_s = circuit_breaker_timeout_s
 
-        self._circuit_breakers: Dict[str, CircuitBreakerState] = {}
+        self._circuit_breakers: dict[str, CircuitBreakerState] = {}
         self._lock = asyncio.Lock()
 
     # ------------------------------------------------------------------

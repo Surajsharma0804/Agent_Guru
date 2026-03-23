@@ -6,7 +6,8 @@ Defines data structures for skills, permissions, and installed skills.
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -47,22 +48,22 @@ class SkillManifestModel(BaseModel):
     name: str = Field(..., description="Human-readable skill name")
     description: str = Field(..., description="Skill description")
     author: str = Field(..., description="Skill author")
-    capabilities: List[str] = Field(
+    capabilities: list[str] = Field(
         default_factory=list, description="Skill capabilities"
     )
-    required_permissions: List[Permission] = Field(
+    required_permissions: list[Permission] = Field(
         default_factory=list, description="Required permissions"
     )
-    entry_points: Dict[str, str] = Field(
+    entry_points: dict[str, str] = Field(
         default_factory=dict, description="Entry points for tools"
     )
     max_latency: int = Field(
         default=5000, description="Maximum execution latency in ms"
     )
-    dependencies: List[str] = Field(
+    dependencies: list[str] = Field(
         default_factory=list, description="Required dependencies"
     )
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata"
     )
 
@@ -98,7 +99,7 @@ class InstalledSkill(BaseModel):
     trust_level: TrustLevel = Field(
         default=TrustLevel.RESTRICTED, description="Trust level"
     )
-    granted_permissions: List[Permission] = Field(
+    granted_permissions: list[Permission] = Field(
         default_factory=list, description="Granted permissions"
     )
     install_date: datetime = Field(

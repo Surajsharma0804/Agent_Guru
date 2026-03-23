@@ -2,9 +2,8 @@
 
 import time
 
-import pytest
 
-from Agent_Guru.reasoning.models.action import ActionSensitivity, Tool
+from Agent_Guru.reasoning.models.action import Tool
 from Agent_Guru.reasoning.safety.confirmation import (
     BatchConfirmationRequest,
     ConfirmationManager,

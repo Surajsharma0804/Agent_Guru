@@ -75,12 +75,13 @@ Date: 2026-02-24
 Version: 1.0.0
 """
 
-from typing import List, Optional
-from dataclasses import dataclass
-import psutil
+import logging
 import subprocess
 import time
-import logging
+from dataclasses import dataclass
+from typing import Optional
+
+import psutil
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -125,22 +126,18 @@ class ProcessInfo:
 
 class ProcessManagerError(Exception):
     """Base exception for process manager errors."""
-    pass
 
 
 class ProcessNotFoundError(ProcessManagerError):
     """Raised when process with given PID does not exist."""
-    pass
 
 
 class ProcessStartError(ProcessManagerError):
     """Raised when process creation fails."""
-    pass
 
 
 class ProcessTerminationError(ProcessManagerError):
     """Raised when process termination fails."""
-    pass
 
 
 class ProcessManager:
@@ -169,12 +166,12 @@ class ProcessManager:
             raise ValueError(f"Invalid cache_ttl: {cache_ttl} (must be non-negative)")
 
         self.cache_ttl = cache_ttl
-        self._process_cache: Optional[List[ProcessInfo]] = None
+        self._process_cache: Optional[list[ProcessInfo]] = None
         self._cache_timestamp: float = 0.0
 
         logger.info("ProcessManager initialized with cache_ttl=%.2fs", cache_ttl)
 
-    def list_processes(self, use_cache: bool = True) -> List[ProcessInfo]:
+    def list_processes(self, use_cache: bool = True) -> list[ProcessInfo]:
         """List all running processes.
 
         Time Complexity: O(n) where n is number of processes
@@ -196,7 +193,7 @@ class ProcessManager:
 
         try:
             processes = []
-            
+
             # Use psutil.pids() + individual Process() to avoid process_iter hanging
             # on Windows protected system processes (e.g. System, Idle)
             for pid in psutil.pids():
@@ -251,7 +248,7 @@ class ProcessManager:
             logger.error("Failed to list processes: %s", e)
             raise ProcessManagerError(f"Failed to list processes: {e}") from e
 
-    def start_process(self, executable: str, args: Optional[List[str]] = None) -> int:
+    def start_process(self, executable: str, args: Optional[list[str]] = None) -> int:
         """Start a new process.
 
         Time Complexity: O(1)
@@ -276,7 +273,7 @@ class ProcessManager:
 
         try:
             logger.info("Starting process: %s", " ".join(command))
-            
+
             # Start process using subprocess
             process = subprocess.Popen(
                 command,
@@ -286,7 +283,7 @@ class ProcessManager:
             )
 
             pid = process.pid
-            
+
             # Validate PID
             if pid <= 0:
                 raise ProcessStartError(f"Invalid PID returned: {pid}")
@@ -331,7 +328,7 @@ class ProcessManager:
         try:
             # Get process object
             process = psutil.Process(pid)
-            
+
             logger.info("Terminating process PID=%d (force=%s)", pid, force)
 
             if force:
@@ -360,7 +357,7 @@ class ProcessManager:
 
         except psutil.NoSuchProcess:
             logger.error("Process not found: PID=%d", pid)
-            raise ProcessNotFoundError(f"Process not found: PID={pid}")
+            raise ProcessNotFoundError(f"Process not found: PID={pid}") from e
         except psutil.AccessDenied as e:
             logger.error("Permission denied to terminate process PID=%d", pid)
             raise ProcessTerminationError(f"Permission denied to terminate PID={pid}") from e
@@ -390,16 +387,16 @@ class ProcessManager:
         try:
             process = psutil.Process(pid)
             status = process.status()
-            
+
             # Normalize status
             normalized_status = self._normalize_status(status)
-            
+
             logger.debug("Process PID=%d status: %s", pid, normalized_status)
             return normalized_status
 
         except psutil.NoSuchProcess:
             logger.error("Process not found: PID=%d", pid)
-            raise ProcessNotFoundError(f"Process not found: PID={pid}")
+            raise ProcessNotFoundError(f"Process not found: PID={pid}") from e
         except Exception as e:
             logger.error("Failed to query process status PID=%d: %s", pid, e)
             raise ProcessManagerError(f"Failed to query status for PID={pid}: {e}") from e
@@ -425,7 +422,7 @@ class ProcessManager:
 
         try:
             process = psutil.Process(pid)
-            
+
             # Get process information
             with process.oneshot():
                 name = process.name()
@@ -448,7 +445,7 @@ class ProcessManager:
 
         except psutil.NoSuchProcess:
             logger.error("Process not found: PID=%d", pid)
-            raise ProcessNotFoundError(f"Process not found: PID={pid}")
+            raise ProcessNotFoundError(f"Process not found: PID={pid}") from e
         except Exception as e:
             logger.error("Failed to get process info PID=%d: %s", pid, e)
             raise ProcessManagerError(f"Failed to get info for PID={pid}: {e}") from e
@@ -485,7 +482,7 @@ class ProcessManager:
         # psutil status constants vary by platform
         # Normalize to consistent values
         status_lower = status.lower()
-        
+
         if status_lower in ('running', 'runnable'):
             return 'running'
         elif status_lower in ('sleeping', 'idle', 'disk-sleep'):
@@ -507,7 +504,7 @@ class ProcessManager:
         """
         if self._process_cache is None:
             return False
-        
+
         age = time.time() - self._cache_timestamp
         return age < self.cache_ttl
 

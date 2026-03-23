@@ -204,7 +204,7 @@ class TestGeneration:
         provider.client.chat.completions.create = AsyncMock(return_value=mock_completion)
 
         # Generate
-        response = await provider.generate(llm_request)
+        await provider.generate(llm_request)
 
         # Verify stop sequences were passed
         call_args = provider.client.chat.completions.create.call_args

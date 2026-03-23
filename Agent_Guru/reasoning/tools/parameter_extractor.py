@@ -7,14 +7,14 @@ This module provides parameter extraction from intent entities with:
 - Type conversion and validation
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from Agent_Guru.reasoning.error.error_manager import (
     ErrorContext,
     ErrorType,
     get_error_manager,
 )
-from Agent_Guru.reasoning.models.intent import Intent, Entity
+from Agent_Guru.reasoning.models.intent import Entity, Intent
 from Agent_Guru.reasoning.tools.base import Tool, ToolParameter, ToolParameterType
 
 
@@ -23,7 +23,7 @@ class ParameterExtractor:
 
     def extract_parameters(
         self, tool: Tool, intent: Intent
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Extract parameters from intent entities with validation.
 
         Args:
@@ -38,7 +38,7 @@ class ParameterExtractor:
         """
         error_manager = get_error_manager()
         metadata = tool.metadata
-        parameters: Dict[str, Any] = {}
+        parameters: dict[str, Any] = {}
 
         # Extract each parameter
         for param in metadata.parameters:
@@ -82,7 +82,7 @@ class ParameterExtractor:
                     message=f"Parameter '{param.name}' validation failed: {str(e)}",
                     context=context,
                 )
-                raise ValueError(error.user_message)
+                raise ValueError(error.user_message) from e
 
             parameters[param.name] = value
 
@@ -161,8 +161,8 @@ class ParameterExtractor:
         return value
 
     def validate_parameters(
-        self, tool: Tool, parameters: Dict[str, Any]
-    ) -> List[str]:
+        self, tool: Tool, parameters: dict[str, Any]
+    ) -> list[str]:
         """Validate extracted parameters.
 
         Args:
@@ -172,7 +172,7 @@ class ParameterExtractor:
         Returns:
             List of validation errors (empty if valid)
         """
-        errors: List[str] = []
+        errors: list[str] = []
         metadata = tool.metadata
 
         # Check required parameters

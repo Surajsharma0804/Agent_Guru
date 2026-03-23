@@ -260,7 +260,7 @@ class PatternDetector:
         # Group by command and hour window
         command_hours: dict[str, dict[int, list[datetime]]] = defaultdict(lambda: defaultdict(list))
 
-        for command, hour, day, timestamp_str in history:
+        for command, hour, _day, timestamp_str in history:
             timestamp = datetime.fromisoformat(timestamp_str)
             # Group into time windows (e.g., 8-10am, 10-12pm)
             hour_window = (hour // self.time_window_hours) * self.time_window_hours
@@ -310,7 +310,7 @@ class PatternDetector:
         # Group by command and day of week
         command_days: dict[str, dict[int, list[datetime]]] = defaultdict(lambda: defaultdict(list))
 
-        for command, hour, day, timestamp_str in history:
+        for command, _hour, day, timestamp_str in history:
             timestamp = datetime.fromisoformat(timestamp_str)
             command_days[command][day].append(timestamp)
 

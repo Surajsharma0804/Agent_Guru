@@ -28,11 +28,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import platform
-import sys
 import time
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Coroutine, Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -292,7 +292,6 @@ class _AudioCapture:
         if self._stream is None:
             return np.zeros(n_samples, dtype=np.float32)
         try:
-            from jnius import autoclass  # type: ignore[import]
             buffer = bytearray(n_samples * 2)  # 16-bit PCM
             self._stream.read(buffer, len(buffer))
             audio = np.frombuffer(bytes(buffer), dtype=np.int16).astype(np.float32)
@@ -328,7 +327,7 @@ class _AudioCapture:
         # AVAudioEngine tap-based capture — simplified synchronous read
         try:
             import AVFoundation  # type: ignore[import]
-            buf = AVFoundation.AVAudioPCMBuffer.alloc().initWithPCMFormat_frameCapacity_(
+            AVFoundation.AVAudioPCMBuffer.alloc().initWithPCMFormat_frameCapacity_(
                 self._stream["format"], n_samples
             )
             self._stream["input_node"].installTapOnBus_bufferSize_format_block_(

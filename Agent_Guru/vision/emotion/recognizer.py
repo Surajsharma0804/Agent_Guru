@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Optional
 
 import numpy as np
 
@@ -36,7 +36,7 @@ class EmotionResult:
 
     emotion: str
     confidence: float
-    all_scores: Dict[str, float] = field(default_factory=dict)
+    all_scores: dict[str, float] = field(default_factory=dict)
 
 
 class EmotionRecognizer:

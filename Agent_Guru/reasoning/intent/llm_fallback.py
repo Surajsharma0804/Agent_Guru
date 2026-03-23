@@ -43,8 +43,9 @@ from Agent_Guru.reasoning.models.intent import Entity
 
 # Try to import LLM clients
 try:
-    import openai
     from types import ModuleType
+
+    import openai
     openai_module: ModuleType | None = openai
     OPENAI_AVAILABLE = True
 except ImportError:
@@ -52,8 +53,9 @@ except ImportError:
     openai_module = None
 
 try:
-    import anthropic
     from types import ModuleType
+
+    import anthropic
     anthropic_module: ModuleType | None = anthropic
     ANTHROPIC_AVAILABLE = True
 except ImportError:
@@ -360,9 +362,9 @@ Classify the following input:"""
             LLM response text
         """
         import requests
-        
+
         base_url = f"http://{self.config.ollama_host}:{self.config.ollama_port}"
-        
+
         # Build request payload
         payload = {
             "model": self.config.model,
@@ -374,7 +376,7 @@ Classify the following input:"""
             },
             "format": "json",  # Request JSON output
         }
-        
+
         # Call Ollama generate endpoint (synchronous, run in executor)
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
@@ -385,7 +387,7 @@ Classify the following input:"""
                 timeout=self.config.timeout_ms / 1000.0,
             ),
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             result = data.get("response", "")
@@ -404,7 +406,7 @@ Classify the following input:"""
         """
         if self.client is None:
             raise RuntimeError("OpenAI client not initialized")
-        
+
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
@@ -433,7 +435,7 @@ Classify the following input:"""
         """
         if self.client is None:
             raise RuntimeError("Anthropic client not initialized")
-        
+
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,

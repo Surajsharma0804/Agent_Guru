@@ -13,16 +13,17 @@ Usage:
     import json
     data = json.dumps(obj)
     obj = json.loads(data)
-    
+
     # Use:
     from Agent_Guru.reasoning.utils.serialization import dumps, loads
     data = dumps(obj)
     obj = loads(data)
 """
 
-from typing import Any, Optional, Callable
 import datetime
 import uuid
+from collections.abc import Callable
+from typing import Any, Optional
 
 try:
     import orjson
@@ -35,18 +36,18 @@ except ImportError:
 def _default_serializer(obj: Any) -> Any:
     """
     Default serializer for types not natively supported by orjson.
-    
+
     Handles:
     - datetime objects -> ISO format strings
     - UUID objects -> string representation
     - Custom objects with __dict__ -> dictionary
-    
+
     Args:
         obj: Object to serialize
-        
+
     Returns:
         Serializable representation
-        
+
     Raises:
         TypeError: If object cannot be serialized
     """
@@ -70,15 +71,15 @@ def dumps(
 ) -> bytes:
     """
     Serialize object to JSON bytes using orjson (5-10x faster than json.dumps).
-    
+
     Args:
         obj: Object to serialize
         default: Custom serializer function for unsupported types
         option: orjson options (e.g., orjson.OPT_INDENT_2 for pretty printing)
-        
+
     Returns:
         JSON bytes
-        
+
     Example:
         >>> data = {"name": "test", "value": 123}
         >>> json_bytes = dumps(data)
@@ -102,15 +103,15 @@ def dumps_str(
 ) -> str:
     """
     Serialize object to JSON string using orjson.
-    
+
     Args:
         obj: Object to serialize
         default: Custom serializer function for unsupported types
         option: orjson options
-        
+
     Returns:
         JSON string
-        
+
     Example:
         >>> data = {"name": "test", "value": 123}
         >>> json_str = dumps_str(data)
@@ -123,13 +124,13 @@ def dumps_str(
 def loads(data: bytes | str) -> Any:
     """
     Deserialize JSON bytes/string to Python object using orjson (2-3x faster than json.loads).
-    
+
     Args:
         data: JSON bytes or string
-        
+
     Returns:
         Deserialized Python object
-        
+
     Example:
         >>> json_bytes = b'{"name":"test","value":123}'
         >>> obj = loads(json_bytes)
@@ -150,14 +151,14 @@ def loads(data: bytes | str) -> Any:
 def pretty_dumps(obj: Any, *, default: Optional[Callable[[Any], Any]] = None) -> str:
     """
     Serialize object to pretty-printed JSON string.
-    
+
     Args:
         obj: Object to serialize
         default: Custom serializer function
-        
+
     Returns:
         Pretty-printed JSON string
-        
+
     Example:
         >>> data = {"name": "test", "nested": {"value": 123}}
         >>> print(pretty_dumps(data))
@@ -184,16 +185,16 @@ load = loads
 def benchmark_serialization(obj: Any, iterations: int = 1000) -> dict:
     """
     Benchmark serialization performance.
-    
+
     Args:
         obj: Object to serialize
         iterations: Number of iterations
-        
+
     Returns:
         Dictionary with timing results
     """
     import time
-    
+
     # Benchmark orjson
     if HAS_ORJSON:
         start = time.perf_counter()
@@ -202,25 +203,25 @@ def benchmark_serialization(obj: Any, iterations: int = 1000) -> dict:
         orjson_time = time.perf_counter() - start
     else:
         orjson_time = None
-    
+
     # Benchmark standard json
     import json as std_json
     start = time.perf_counter()
     for _ in range(iterations):
         std_json.dumps(obj, default=_default_serializer).encode('utf-8')
     json_time = time.perf_counter() - start
-    
+
     result = {
         'iterations': iterations,
         'json_time': json_time,
         'json_avg': json_time / iterations * 1000,  # ms
     }
-    
+
     if orjson_time is not None:
         result['orjson_time'] = orjson_time
         result['orjson_avg'] = orjson_time / iterations * 1000  # ms
         result['speedup'] = json_time / orjson_time
-    
+
     return result
 
 
@@ -230,7 +231,7 @@ if __name__ == "__main__":
     print("=" * 80)
     print(f"Using: {'orjson' if HAS_ORJSON else 'standard json (fallback)'}")
     print()
-    
+
     # Example data
     data = {
         "name": "Agent Guru",
@@ -242,15 +243,15 @@ if __name__ == "__main__":
             "metadata": {"key": "value"}
         }
     }
-    
+
     # Serialize
     json_bytes = dumps(data)
     print(f"Serialized size: {len(json_bytes)} bytes")
-    
+
     # Deserialize
     restored = loads(json_bytes)
     print(f"Deserialized keys: {list(restored.keys())}")
-    
+
     # Benchmark
     print("\nBenchmarking (1000 iterations):")
     results = benchmark_serialization(data, iterations=1000)

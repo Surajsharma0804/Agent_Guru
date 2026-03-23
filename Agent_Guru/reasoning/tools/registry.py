@@ -7,8 +7,9 @@ and capability-based matching.
 
 import asyncio
 import time
-from typing import Any, Callable, Dict, List, Optional, Set, Type
+from collections.abc import Callable
 from functools import wraps
+from typing import Any, Optional
 
 from Agent_Guru.reasoning.tools.base import Tool, ToolMetadata, ToolSensitivity
 
@@ -22,9 +23,9 @@ class ToolRegistry:
 
     def __init__(self) -> None:
         """Initialize the tool registry."""
-        self._tools: Dict[str, Tool] = {}
-        self._metadata: Dict[str, ToolMetadata] = {}
-        self._capability_index: Dict[str, Set[str]] = {}  # capability -> tool_ids
+        self._tools: dict[str, Tool] = {}
+        self._metadata: dict[str, ToolMetadata] = {}
+        self._capability_index: dict[str, set[str]] = {}  # capability -> tool_ids
         self._lock = asyncio.Lock()
 
     async def register(self, tool: Tool, metadata: ToolMetadata) -> None:
@@ -99,7 +100,7 @@ class ToolRegistry:
         """
         return self._metadata.get(tool_id)
 
-    def list_tools(self) -> List[ToolMetadata]:
+    def list_tools(self) -> list[ToolMetadata]:
         """List all registered tools.
 
         Returns:
@@ -107,7 +108,7 @@ class ToolRegistry:
         """
         return list(self._metadata.values())
 
-    def find_by_capability(self, capability: str) -> List[ToolMetadata]:
+    def find_by_capability(self, capability: str) -> list[ToolMetadata]:
         """Find tools by capability.
 
         Args:
@@ -119,7 +120,7 @@ class ToolRegistry:
         tool_ids = self._capability_index.get(capability, set())
         return [self._metadata[tool_id] for tool_id in tool_ids if tool_id in self._metadata]
 
-    def find_by_capabilities(self, capabilities: List[str]) -> List[ToolMetadata]:
+    def find_by_capabilities(self, capabilities: list[str]) -> list[ToolMetadata]:
         """Find tools matching any of the given capabilities.
 
         Args:
@@ -129,7 +130,7 @@ class ToolRegistry:
             List of tool metadata matching any capability, sorted by match count
         """
         # Count matches per tool
-        match_counts: Dict[str, int] = {}
+        match_counts: dict[str, int] = {}
         for capability in capabilities:
             tool_ids = self._capability_index.get(capability, set())
             for tool_id in tool_ids:
@@ -142,7 +143,7 @@ class ToolRegistry:
 
     async def execute(
         self, tool_id: str, timeout_ms: Optional[int] = None, **kwargs: Any
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Execute a tool with given parameters.
 
         Args:
@@ -211,12 +212,12 @@ def tool(
     tool_id: str,
     name: str,
     description: str,
-    parameters: Optional[List[Any]] = None,
+    parameters: Optional[list[Any]] = None,
     sensitivity: ToolSensitivity = ToolSensitivity.SAFE,
     estimated_latency_ms: int = 1000,
-    capabilities: Optional[List[str]] = None,
-    examples: Optional[List[str]] = None,
-) -> Callable[[Type[Tool]], Type[Tool]]:
+    capabilities: Optional[list[str]] = None,
+    examples: Optional[list[str]] = None,
+) -> Callable[[type[Tool]], type[Tool]]:
     """Decorator for automatic tool registration.
 
     Args:
@@ -253,7 +254,7 @@ def tool(
                 pass
     """
 
-    def decorator(cls: Type[Tool]) -> Type[Tool]:
+    def decorator(cls: type[Tool]) -> type[Tool]:
         # Create metadata
         metadata = ToolMetadata(
             tool_id=tool_id,

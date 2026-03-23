@@ -91,14 +91,14 @@ class TaskModelGenerator:
         """Initialize the Task Model Generator."""
         self.logger = logger.bind(component="TaskModelGenerator")
         self.error_manager = get_error_manager()
-    
+
     def _raise_generation_error(self, message: str, **context_data) -> None:
         """Helper to raise generation error with ErrorManager.
-        
+
         Args:
             message: Error message
             **context_data: Additional context data
-            
+
         Raises:
             ValueError: With user-friendly message
         """
@@ -109,14 +109,14 @@ class TaskModelGenerator:
             context=context,
         )
         raise ValueError(error.user_message)
-    
+
     def _raise_validation_error(self, message: str, **context_data) -> None:
         """Helper to raise validation error with ErrorManager.
-        
+
         Args:
             message: Error message
             **context_data: Additional context data
-            
+
         Raises:
             ValueError: With user-friendly message
         """

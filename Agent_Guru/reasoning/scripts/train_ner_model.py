@@ -242,7 +242,7 @@ def train_ner_model(config: NERTrainingConfig):
     for example in train_data:
         for ent in example["ner"]:
             entity_types.add(ent["label"])
-    entity_types = sorted(list(entity_types))
+    entity_types = sorted(entity_types)
 
     print(f"Entity types ({len(entity_types)}): {entity_types}\n")
 
