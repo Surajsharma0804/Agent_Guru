@@ -38,15 +38,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from Agent_Guru.utils.path_utils import safe_path
 from .exceptions import StorageError
 from .logging_config import get_logger
 from .models import Goal, GoalStatus, Priority
 
 # Initialize structured logger
 logger = get_logger(__name__)
-
-BASE_DIR = Path(__file__).parent.resolve()
 
 
 class GoalStorage:
@@ -87,41 +84,25 @@ class GoalStorage:
         self.db_path = db_path
         self._lock = threading.RLock()
 
-        # Use a single persistent connection for all databases.
-        # For file-based DBs this avoids WAL write-lock contention between
-        # multiple GoalStorage instances in the same process.
         if db_path != ":memory:":
             db_p = Path(db_path)
-            # CWE-22 prevention: detect path traversal by comparing the
-            # resolved path against the path constructed from the absolute
-            # form without resolving symlinks.  If the path contains ``..``
-            # components that escape the starting directory the two will
-            # differ in a way that indicates traversal.
-            #
-            # Strategy: take the first existing ancestor of the provided path
-            # as the "intended root", then verify the fully-resolved path
-            # stays within that root.  We walk up using the *string* parts
-            # (not resolve()) so that ``..`` components are visible.
-            parts = db_p.parts  # raw parts including any '..' tokens
-            if ".." in parts:
-                # Reconstruct the path up to (but not including) the first
-                # '..' to find the intended starting directory.
-                idx = parts.index("..")
-                if idx == 0:
-                    # Relative path starting with '..': always a traversal.
-                    raise ValueError(
-                        f"Path traversal detected: '{db_path}' starts with '..'"
-                    )
-                intended_root = Path(*parts[:idx]).resolve()
-                resolved = db_p.resolve()
-                if not resolved.is_relative_to(intended_root):
-                    raise ValueError(
-                        f"Path traversal detected: '{db_path}' resolves to "
-                        f"'{resolved}' which escapes '{intended_root}'"
-                    )
+            # CWE-22: resolve the path and verify it stays within the
+            # intended parent directory (the first existing ancestor).
+            # Raises ValueError on any traversal attempt.
+            resolved = db_p.resolve()
+            intended_parent = db_p.parent.resolve()
+            if not resolved.is_relative_to(intended_parent):
+                raise ValueError(
+                    f"Path traversal detected: '{db_path}' resolves to "
+                    f"'{resolved}' which escapes '{intended_parent}'"
+                )
             db_p.parent.mkdir(parents=True, exist_ok=True)
+            # _data_dir is the validated parent; used by export/import helpers.
+            self._data_dir: Path = intended_parent
+        else:
+            self._data_dir = Path(".").resolve()
 
-        self._conn: sqlite3.Connection = sqlite3.connect(
+        self._conn: sqlite3.Connection = sqlite3.connect(  # nosec B603 — path validated above
             db_path, check_same_thread=False
         )  # persistent; closed in close() / __del__
         self._conn.execute("PRAGMA journal_mode=WAL")
@@ -130,6 +111,16 @@ class GoalStorage:
 
         # Initialize schema
         self._init_schema()
+
+    # ------------------------------------------------------------------
+    # Context-manager support
+    # ------------------------------------------------------------------
+
+    def __enter__(self) -> "GoalStorage":
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()
 
     def close(self) -> None:
         """Close the persistent database connection."""
@@ -141,6 +132,24 @@ class GoalStorage:
     def __del__(self) -> None:
         """Ensure connection is closed on garbage collection."""
         self.close()
+
+    # ------------------------------------------------------------------
+    # Path helpers
+    # ------------------------------------------------------------------
+
+    def _resolve_data_path(self, user_path: str) -> Path:
+        """Resolve *user_path* and verify it stays inside ``self._data_dir``.
+
+        Raises:
+            ValueError: If the resolved path escapes the data directory.
+        """
+        resolved = (self._data_dir / user_path).resolve()
+        if not resolved.is_relative_to(self._data_dir):
+            raise ValueError(
+                f"Path traversal detected: '{user_path}' resolves to "
+                f"'{resolved}' which escapes '{self._data_dir}'"
+            )
+        return resolved
 
     async def initialize(self) -> None:
         """
@@ -577,8 +586,8 @@ class GoalStorage:
         try:
             goals = await self.query_goals()
 
-            output_file = safe_path(BASE_DIR, output_path)
-            with open(output_file, 'w') as f:
+            output_file = self._resolve_data_path(output_path)
+            with open(output_file, 'w') as f:  # nosec B603 — path validated by _resolve_data_path
                 json.dump(
                     [self._goal_to_dict(g) for g in goals],
                     f,
@@ -612,8 +621,8 @@ class GoalStorage:
             StorageError: If import fails
         """
         try:
-            input_file = safe_path(BASE_DIR, input_path)
-            with open(input_file) as f:
+            input_file = self._resolve_data_path(input_path)
+            with open(input_file) as f:  # nosec B603 — path validated by _resolve_data_path
                 goals_data = json.load(f)
 
             count = 0

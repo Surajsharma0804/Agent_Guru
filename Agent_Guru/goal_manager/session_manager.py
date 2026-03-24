@@ -141,15 +141,23 @@ class SessionManager:
 
         goals = []
 
-        # Use the storage's persistent connection to avoid creating a new one
-        conn = self.storage._conn
-        try:
-            with conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT id, description, status, priority, goal_type, progress, created_at, started_at, completed_at, deadline, parent_id, sub_goal_ids, dependency_ids, metadata, error_message, retry_count FROM goals")
+        # Query via the storage lock so we don't race with other writers.
+        # We borrow the persistent connection but never close it — ownership
+        # stays with GoalStorage.  The cursor is closed in the finally block.
+        with self.storage._lock:
+            cursor = self.storage._conn.cursor()
+            try:
+                cursor.execute(
+                    "SELECT id, description, status, priority, goal_type, progress,"
+                    " created_at, started_at, completed_at, deadline, parent_id,"
+                    " sub_goal_ids, dependency_ids, metadata, error_message, retry_count"
+                    " FROM goals"
+                )
                 rows = cursor.fetchall()
+            finally:
+                cursor.close()  # release cursor; connection stays open
 
-            for row in rows:
+        for row in rows:
                 try:
                     # Try to convert row to goal
                     goal = self.storage._row_to_goal(row)
@@ -218,9 +226,6 @@ class SessionManager:
                             error="Cannot extract goal ID from corrupted data"
                         )
                         print("Warning: Skipping severely corrupted goal that can't be recovered")
-
-        finally:
-            pass  # Don't close the shared persistent connection
 
         return goals
 

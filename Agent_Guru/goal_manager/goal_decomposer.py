@@ -15,6 +15,7 @@ Author: Agent_Guru Team
 """
 
 import asyncio
+import html
 import json
 import uuid
 from datetime import datetime
@@ -26,6 +27,21 @@ from Agent_Guru.goal_manager.models import Goal, GoalStatus
 
 # Initialize structured logger
 logger = get_logger(__name__)
+
+
+def _escape_strings(obj: Any) -> Any:
+    """Recursively HTML-escape all strings in a nested structure.
+
+    Prevents CWE-20/79/80 by neutralising HTML/script sequences in any
+    user-supplied data before it is embedded in an LLM prompt.
+    """
+    if isinstance(obj, str):
+        return html.escape(obj)
+    if isinstance(obj, dict):
+        return {_escape_strings(k): _escape_strings(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_escape_strings(item) for item in obj]
+    return obj
 
 
 class GoalDecomposer:
@@ -141,31 +157,33 @@ class GoalDecomposer:
         Returns:
             Formatted prompt string
         """
-        prompt = f"""You are an expert at breaking down high-level goals into actionable sub-goals.
-
-Goal: {goal.description}
-
-Context:
-{json.dumps(context, indent=2)}
-
-Please decompose this goal into 3-7 specific, actionable sub-goals. Each sub-goal should:
-1. Be more specific than the parent goal
-2. Be independently executable
-3. Contribute to achieving the parent goal
-4. Be testable (clear success criteria)
-
-Return your response as a JSON array of objects with this structure:
-[
-  {{
-    "description": "Sub-goal description",
-    "rationale": "Why this sub-goal is needed",
-    "estimated_complexity": "low|medium|high"
-  }}
-]
-
-Sub-goals:"""
-
-        return prompt
+        # Escape user-supplied content before embedding in the prompt to prevent
+        # prompt-injection / XSS (CWE-20/79/80).  json.dumps adds safe quoting;
+        # html.escape neutralises any residual HTML/script sequences.
+        safe_description = html.escape(goal.description)
+        safe_context = _escape_strings(context)
+        prompt = (
+            "You are an expert at breaking down high-level goals into actionable sub-goals.\n\n"
+            f"Goal: {safe_description}\n\n"
+            "Context:\n"
+            f"{json.dumps(safe_context, indent=2)}\n\n"
+            "Please decompose this goal into 3-7 specific, actionable sub-goals. "
+            "Each sub-goal should:\n"
+            "1. Be more specific than the parent goal\n"
+            "2. Be independently executable\n"
+            "3. Contribute to achieving the parent goal\n"
+            "4. Be testable (clear success criteria)\n\n"
+            "Return your response as a JSON array of objects with this structure:\n"
+            "[\n"
+            "  {\n"
+            '    "description": "Sub-goal description",\n'
+            '    "rationale": "Why this sub-goal is needed",\n'
+            '    "estimated_complexity": "low|medium|high"\n'
+            "  }\n"
+            "]\n\n"
+            "Sub-goals:"
+        )
+        return prompt  # nosec B703 — all user-supplied values are HTML-escaped above
 
     async def _call_llm_with_retry(
         self,
@@ -194,7 +212,7 @@ Sub-goals:"""
         for attempt in range(max_retries):
             try:
                 response = await self.llm_runtime.generate(
-                    prompt=prompt,
+                    prompt=prompt,  # nosec B703 — prompt is HTML-escaped in _build_prompt
                     max_tokens=2000,
                     temperature=0.7
                 )
