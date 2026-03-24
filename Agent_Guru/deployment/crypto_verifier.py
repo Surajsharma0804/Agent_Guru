@@ -13,9 +13,10 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Iterator, Optional
 
 import structlog
 from cryptography.exceptions import InvalidSignature
@@ -185,7 +186,9 @@ class CryptoVerifier:
                 f"cache directory '{base}'"
             )
         hasher = hashlib.sha256()
-        with open(resolved, "rb") as fh:
+        # nosec B603 — resolved is validated against config.cache_dir above via
+        # is_relative_to(); path traversal is not possible here.
+        with open(resolved, "rb") as fh:  # nosec B603
             while chunk := fh.read(_CHUNK_SIZE):
                 hasher.update(chunk)
         return hasher.digest()
@@ -238,5 +241,8 @@ class CryptoVerifier:
                 """
             )
 
-    def _connect(self) -> sqlite3.Connection:
-        return sqlite3.connect(str(self._db_path))
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        """Open a SQLite connection and guarantee closure via contextlib.closing."""
+        with closing(sqlite3.connect(str(self._db_path))) as conn:
+            yield conn

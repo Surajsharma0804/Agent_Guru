@@ -190,15 +190,16 @@ class InstallerBuilder:
 
         try:
             wixobj = self._output_dir / "installer.wixobj"
-            # shell=False (default) with a list — no shell interpolation possible.
-            # All paths are resolved under _output_dir; no user-controlled shell expansion.
-            subprocess.run(
+            # shell=False (explicit) with a list — no shell interpolation possible.
+            # All paths are resolved under self._output_dir; no user-controlled
+            # shell expansion.  nosec B603: shell=False, args are internally built.
+            subprocess.run(  # nosec B603
                 ["candle.exe", str(wxs_path), "-o", str(wixobj)],
                 check=True,
                 capture_output=True,
                 shell=False,  # explicit — never allow shell=True here
             )
-            subprocess.run(
+            subprocess.run(  # nosec B603
                 ["light.exe", str(wixobj), "-o", str(msi_path)],
                 check=True,
                 capture_output=True,

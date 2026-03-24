@@ -20,8 +20,6 @@ from typing import Optional
 
 import structlog
 
-from Agent_Guru.utils.path_utils import safe_path
-
 from .exceptions import InsufficientSpaceError, RestoreError, SnapshotNotFoundError
 from .models import (
     AuditLogEntry,
@@ -33,8 +31,6 @@ from .models import (
 )
 
 logger = structlog.get_logger(__name__)
-
-BASE_DIR = Path(__file__).parent.resolve()
 
 _MIN_FREE_BYTES = 100 * 1024 * 1024  # 100 MB minimum
 
@@ -116,7 +112,7 @@ class RollbackManager:
         (snap_dir / "metadata.json").write_text(json.dumps(meta, indent=2))
 
         # Persist package list as pickle for fast restore
-        with open(safe_path(BASE_DIR, str(snap_dir / "packages.pkl")), "wb") as fh:
+        with open(self._resolve_snapshot_path(snap_dir / "packages.pkl"), "wb") as fh:  # nosec B603
             pickle.dump(packages, fh)
 
         size = sum(f.stat().st_size for f in snap_dir.rglob("*") if f.is_file())
@@ -151,7 +147,7 @@ class RollbackManager:
             raise RestoreError(f"Snapshot '{html.escape(str(snapshot_id))}' is corrupted (missing packages.pkl)")
 
         try:
-            with open(safe_path(BASE_DIR, str(pkl_path)), "rb") as fh:
+            with open(self._resolve_snapshot_path(pkl_path), "rb") as fh:  # nosec B603
                 packages: list[PackageInfo] = pickle.load(fh)  # nosec B301
         except Exception as exc:
             raise RestoreError(f"Failed to load snapshot '{html.escape(str(snapshot_id))}': {exc}") from exc
@@ -227,6 +223,20 @@ class RollbackManager:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _resolve_snapshot_path(self, path: Path) -> Path:
+        """Resolve and validate that *path* is within the snapshot directory.
+
+        Raises:
+            ValueError: If the resolved path escapes ``self._snapshot_dir``.
+        """
+        base = self._snapshot_dir.resolve()
+        resolved = path.resolve()
+        if not resolved.is_relative_to(base):
+            raise ValueError(
+                f"Path '{path}' resolves outside the allowed snapshot directory '{base}'"
+            )
+        return resolved
 
     def _check_space(self, path: Path) -> None:
         """Raise InsufficientSpaceError if free space is below minimum."""

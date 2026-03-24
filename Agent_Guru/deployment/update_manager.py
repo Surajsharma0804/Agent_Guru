@@ -19,14 +19,10 @@ from typing import Any, Optional
 import structlog
 from packaging.version import Version
 
-from Agent_Guru.utils.path_utils import safe_path
-
 from .exceptions import NetworkError, SignatureVerificationError
 from .models import Configuration
 
 logger = structlog.get_logger(__name__)
-
-BASE_DIR = Path(__file__).parent.resolve()
 
 _CHUNK_SIZE = 65536
 
@@ -163,7 +159,8 @@ class UpdateManager:
         # Verify checksum
         if update_info.checksum:
             hasher = hashlib.sha256()
-            with open(safe_path(BASE_DIR, str(update_path)), "rb") as fh:
+            # nosec B603 — path validated against self._cache_dir via _resolve_cache_path()
+            with open(self._resolve_cache_path(update_path), "rb") as fh:  # nosec B603
                 while chunk := fh.read(_CHUNK_SIZE):
                     hasher.update(chunk)
             actual = hasher.hexdigest()
@@ -216,6 +213,20 @@ class UpdateManager:
     # Private helpers
     # ------------------------------------------------------------------
 
+    def _resolve_cache_path(self, path: Path) -> Path:
+        """Resolve and validate that *path* is within the cache directory.
+
+        Raises:
+            ValueError: If the resolved path escapes ``self._cache_dir``.
+        """
+        base = self._cache_dir.resolve()
+        resolved = path.resolve()
+        if not resolved.is_relative_to(base):
+            raise ValueError(
+                f"Path '{path}' resolves outside the allowed cache directory '{base}'"
+            )
+        return resolved
+
     async def _fetch_json(self, url: str) -> dict[str, Any]:
         """Fetch JSON from a URL."""
         try:
@@ -240,7 +251,7 @@ class UpdateManager:
                 async with session.get(url) as resp:
                     if resp.status != 200:
                         raise NetworkError(f"HTTP {resp.status} for {url}")
-                    with open(safe_path(BASE_DIR, str(dest)), "wb") as fh:
+                    with open(self._resolve_cache_path(dest), "wb") as fh:  # nosec B603
                         async for chunk in resp.content.iter_chunked(_CHUNK_SIZE):
                             fh.write(chunk)
         except ImportError:
