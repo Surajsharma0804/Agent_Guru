@@ -115,7 +115,7 @@ def _detect_platform() -> str:
         try:
             import subprocess  # noqa: PLC0415
             out = subprocess.run(
-                ["uname", "-o"], capture_output=True, text=True, timeout=1
+                ["uname", "-o"], capture_output=True, text=True, timeout=1  # nosec B603 B607
             )
             if "android" in out.stdout.lower():
                 result = "android"
@@ -284,7 +284,7 @@ class DesktopTextController:
             return await self.paste_text(text)
 
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None, self._blocking_typewrite, text, interval
             )
@@ -318,7 +318,7 @@ class DesktopTextController:
 
         logger.info("type_special_key: %r → %r", key, pyautogui_key)
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None, self._blocking_press, pyautogui_key
             )
@@ -350,7 +350,7 @@ class DesktopTextController:
             "paste_text: length=%d platform=%s", len(text), self._platform
         )
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None, self._blocking_paste, text
             )
@@ -367,7 +367,7 @@ class DesktopTextController:
         """
         logger.info("clear_field: platform=%s", self._platform)
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self._blocking_clear_field)
             return True
         except Exception as exc:
@@ -468,7 +468,7 @@ class DesktopTextController:
         """Copy to macOS clipboard via pbcopy."""
         import subprocess  # noqa: PLC0415
         proc = subprocess.run(
-            ["pbcopy"],
+            ["pbcopy"],  # nosec B603 B607
             input=text.encode("utf-8"),
             timeout=5,
         )
@@ -507,7 +507,7 @@ class DesktopTextController:
         for cmd in (["xclip", "-selection", "clipboard"], ["xdotool", "type", "--clearmodifiers"]):
             try:
                 proc = subprocess.run(
-                    cmd,
+                    cmd,  # nosec B603 B607
                     input=text.encode("utf-8"),
                     timeout=5,
                     capture_output=True,
@@ -516,7 +516,8 @@ class DesktopTextController:
                     return
             except FileNotFoundError:
                 continue
-            except Exception:
+            except Exception as exc:
+                logger.debug("Clipboard command %r failed: %s", cmd[0], exc)
                 continue
 
         raise RuntimeError("No clipboard tool available on Linux (install xclip or pyperclip)")

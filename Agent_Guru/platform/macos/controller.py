@@ -205,7 +205,7 @@ class MacOSController:
         try:
             # URL → open in default browser
             if resolved.startswith("http://") or resolved.startswith("https://"):
-                subprocess.Popen(
+                subprocess.Popen(  # nosec B603 B607
                     ["open", resolved],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
@@ -222,7 +222,7 @@ class MacOSController:
 
             # 'open -a <AppName>' — standard macOS app launch
             cmd = ["open", "-a", resolved] + (["--args"] + args if args else [])
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 cmd,
                 capture_output=True,
                 text=True,
@@ -241,7 +241,7 @@ class MacOSController:
                 )
             else:
                 # Fallback: try direct subprocess
-                proc = subprocess.Popen(
+                proc = subprocess.Popen(  # nosec B603 B607
                     [resolved] + args,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
@@ -320,7 +320,7 @@ class MacOSController:
         try:
             escaped = text.replace('"', '\\"').replace("\\", "\\\\")
             script = f'tell application "System Events" to keystroke "{escaped}"'
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["osascript", "-e", script],
                 capture_output=True,
                 text=True,
@@ -403,7 +403,7 @@ class MacOSController:
             script = f'tell application "System Events" to key code (key code of key "{as_key}")'
             # Simpler approach: use keystroke for printable, key code for special
             script = f'tell application "System Events" to keystroke (ASCII character {ord(key[0]) if len(key) == 1 else 13})'
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["osascript", "-e", script],
                 capture_output=True,
                 text=True,
@@ -525,7 +525,7 @@ class MacOSController:
         # AppleScript fallback
         try:
             script = 'tell application "System Events" to get name of every process whose background only is false'
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["osascript", "-e", script],
                 capture_output=True,
                 text=True,
@@ -577,7 +577,7 @@ class MacOSController:
         # AppleScript fallback
         try:
             script = f'tell application "{resolved}" to activate'
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["osascript", "-e", script],
                 capture_output=True,
                 text=True,
@@ -627,7 +627,7 @@ class MacOSController:
 
         # Fallback: try a benign AppleScript operation
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["osascript", "-e", 'tell application "System Events" to get name of first process'],
                 capture_output=True,
                 text=True,

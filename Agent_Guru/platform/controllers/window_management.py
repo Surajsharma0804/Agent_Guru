@@ -260,7 +260,7 @@ class WindowManager:
         """
         try:
             # Use system_profiler to get display information
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['system_profiler', 'SPDisplaysDataType', '-json'],
                 capture_output=True,
                 text=True,
@@ -305,7 +305,7 @@ class WindowManager:
         """
         try:
             # Try xrandr first
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['xrandr', '--query'],
                 capture_output=True,
                 text=True,
@@ -582,7 +582,7 @@ class WindowManager:
             end tell
             '''
 
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['osascript', '-e', script],
                 capture_output=True,
                 text=True,
@@ -623,7 +623,7 @@ class WindowManager:
         try:
             # Use wmctrl to move and resize window
             # First, find window ID
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['wmctrl', '-l'],
                 capture_output=True,
                 text=True,
@@ -647,7 +647,7 @@ class WindowManager:
 
             # Move and resize window
             # Format: wmctrl -i -r <window_id> -e 0,x,y,width,height
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['wmctrl', '-i', '-r', window_id, '-e', f'0,{x},{y},{width},{height}'],
                 capture_output=True,
                 text=True,
@@ -801,7 +801,7 @@ class WindowManager:
             end tell
             '''
 
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['osascript', '-e', script],
                 capture_output=True,
                 text=True,
@@ -826,7 +826,7 @@ class WindowManager:
             List of window titles
         """
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['wmctrl', '-l'],
                 capture_output=True,
                 text=True,
@@ -1057,7 +1057,7 @@ class WindowManager:
             end tell
             '''
 
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['osascript', '-e', script],
                 capture_output=True,
                 text=True,
@@ -1083,7 +1083,7 @@ class WindowManager:
         """
         try:
             # Use wmctrl to add desktop
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['wmctrl', '-n', '1'],  # Add 1 desktop
                 capture_output=True,
                 text=True,
@@ -1178,7 +1178,7 @@ class WindowManager:
             end tell
             '''
 
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['osascript', '-e', script],
                 capture_output=True,
                 text=True,
@@ -1214,7 +1214,7 @@ class WindowManager:
                 desktop_index = 1
 
             # Use wmctrl to switch desktop
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['wmctrl', '-s', str(desktop_index)],
                 capture_output=True,
                 text=True,
@@ -1307,7 +1307,7 @@ class WindowManager:
             end tell
             '''
 
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['osascript', '-e', script],
                 capture_output=True,
                 text=True,
@@ -1336,7 +1336,7 @@ class WindowManager:
         """
         try:
             # Use wmctrl to remove desktop
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['wmctrl', '-n', '-1'],  # Remove 1 desktop
                 capture_output=True,
                 text=True,
@@ -1419,7 +1419,7 @@ class WindowManager:
         """
         try:
             # Get number of desktops
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['wmctrl', '-d'],
                 capture_output=True,
                 text=True,

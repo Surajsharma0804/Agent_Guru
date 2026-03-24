@@ -62,8 +62,15 @@ class DatabaseSchema:
         Time Complexity: O(1) - fixed number of tables
         Space Complexity: O(1) - schema definition only
         """
+        # Validate db_path: must be a plain filename or relative path with no traversal
+        # sequences. safe_path enforces BASE_DIR containment, but we also reject
+        # any path that contains ".." segments before it reaches safe_path.
+        db_path_clean = str(db_path).strip()
+        if ".." in db_path_clean.replace("\\", "/").split("/"):
+            raise ValueError(f"Invalid db_path — path traversal sequences are not allowed: {db_path!r}")
+
         # Ensure directory exists
-        db_file = safe_path(BASE_DIR, db_path)
+        db_file = safe_path(BASE_DIR, db_path_clean)
         db_file.parent.mkdir(parents=True, exist_ok=True)
 
         with sqlite3.connect(str(db_file)) as conn:
@@ -400,48 +407,6 @@ class DatabaseSchema:
                 CHECK (meets_threshold IN (0, 1))
             )
         """)
-    @staticmethod
-    def _create_edge_case_metrics_table(cursor: sqlite3.Cursor) -> None:
-        """
-        Create edge_case_metrics table.
-
-        Stores confidence metrics for patterns to prevent overgeneralization:
-        - Pattern identification
-        - Sample size and success rate
-        - Confidence scores and intervals
-        - Edge case detection flags
-        - Event frequency and weighted scores
-        """
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS edge_case_metrics (
-                metric_id TEXT PRIMARY KEY,
-                pattern_id TEXT NOT NULL,
-                sample_size INTEGER NOT NULL,
-                success_rate REAL NOT NULL,
-                confidence_score REAL NOT NULL,
-                lower_bound REAL NOT NULL,
-                upper_bound REAL NOT NULL,
-                is_edge_case INTEGER NOT NULL,
-                event_frequency REAL NOT NULL,
-                weighted_score REAL NOT NULL,
-                meets_threshold INTEGER NOT NULL,
-                timestamp TEXT NOT NULL,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-                -- Constraints
-                CHECK (sample_size >= 0),
-                CHECK (success_rate >= 0.0 AND success_rate <= 1.0),
-                CHECK (confidence_score >= 0.0 AND confidence_score <= 1.0),
-                CHECK (lower_bound >= 0.0 AND lower_bound <= 1.0),
-                CHECK (upper_bound >= 0.0 AND upper_bound <= 1.0),
-                CHECK (lower_bound <= upper_bound),
-                CHECK (is_edge_case IN (0, 1)),
-                CHECK (event_frequency >= 0.0 AND event_frequency <= 1.0),
-                CHECK (weighted_score >= 0.0 AND weighted_score <= 1.0),
-                CHECK (meets_threshold IN (0, 1))
-            )
-        """)
-
 
     @staticmethod
     def _create_indexes(cursor: sqlite3.Cursor) -> None:

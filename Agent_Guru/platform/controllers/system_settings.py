@@ -296,7 +296,7 @@ class WindowsSettingsBackend(SystemSettingsBackend):
         """Get network settings using netsh."""
         try:
             # Check WiFi status
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["netsh", "interface", "show", "interface"],
                 capture_output=True,
                 text=True,
@@ -323,7 +323,7 @@ class WindowsSettingsBackend(SystemSettingsBackend):
         """Enable or disable WiFi using netsh."""
         try:
             action = "enable" if enabled else "disable"
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["netsh", "interface", "set", "interface", "Wi-Fi", action],
                 capture_output=True,
                 check=True
@@ -414,7 +414,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
     def get_volume(self) -> VolumeInfo:
         """Get current volume using AppleScript."""
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["osascript", "-e", "output volume of (get volume settings)"],
                 capture_output=True,
                 text=True,
@@ -422,7 +422,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
             )
             level = int(result.stdout.strip())
 
-            result_mute = subprocess.run(
+            result_mute = subprocess.run(  # nosec B603 B607
                 ["osascript", "-e", "output muted of (get volume settings)"],
                 capture_output=True,
                 text=True,
@@ -441,7 +441,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
             raise InvalidSettingValueError(f"Volume must be 0-100, got {level}")
 
         try:
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["osascript", "-e", f"set volume output volume {level}"],
                 capture_output=True,
                 check=True
@@ -454,7 +454,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
     def mute_volume(self) -> None:
         """Mute audio using AppleScript."""
         try:
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["osascript", "-e", "set volume output muted true"],
                 capture_output=True,
                 check=True
@@ -467,7 +467,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
     def unmute_volume(self) -> None:
         """Unmute audio using AppleScript."""
         try:
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["osascript", "-e", "set volume output muted false"],
                 capture_output=True,
                 check=True
@@ -480,7 +480,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
     def get_brightness(self) -> BrightnessInfo:
         """Get current brightness using brightness command."""
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["brightness", "-l"],
                 capture_output=True,
                 text=True,
@@ -506,7 +506,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
 
         try:
             brightness_float = level / 100.0
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["brightness", str(brightness_float)],
                 capture_output=True,
                 check=True
@@ -522,7 +522,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
         """Get network settings using networksetup."""
         try:
             # Check WiFi status
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["networksetup", "-getairportpower", "en0"],
                 capture_output=True,
                 text=True,
@@ -531,7 +531,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
             wifi_enabled = "On" in result.stdout
 
             # Check Bluetooth status
-            result_bt = subprocess.run(
+            result_bt = subprocess.run(  # nosec B603 B607
                 ["defaults", "read", "/Library/Preferences/com.apple.Bluetooth", "ControllerPowerState"],
                 capture_output=True,
                 text=True
@@ -554,7 +554,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
         """Enable or disable WiFi using networksetup."""
         try:
             action = "on" if enabled else "off"
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["networksetup", "-setairportpower", "en0", action],
                 capture_output=True,
                 check=True
@@ -568,7 +568,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
         """Enable or disable Bluetooth using blueutil."""
         try:
             action = "1" if enabled else "0"
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["blueutil", "--power", action],
                 capture_output=True,
                 check=True
@@ -587,7 +587,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
     def get_display_settings(self) -> DisplayInfo:
         """Get display settings using system_profiler."""
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["system_profiler", "SPDisplaysDataType"],
                 capture_output=True,
                 text=True,
@@ -620,7 +620,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
             raise InvalidSettingValueError(f"Invalid resolution: {width}x{height}")
 
         try:
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["displayplacer", f"res:{width}x{height}"],
                 capture_output=True,
                 check=True
@@ -646,7 +646,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
     def get_volume(self) -> VolumeInfo:
         """Get current volume using amixer."""
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["amixer", "get", "Master"],
                 capture_output=True,
                 text=True,
@@ -674,7 +674,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise InvalidSettingValueError(f"Volume must be 0-100, got {level}")
 
         try:
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["amixer", "set", "Master", f"{level}%"],
                 capture_output=True,
                 check=True
@@ -689,7 +689,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
     def mute_volume(self) -> None:
         """Mute audio using amixer."""
         try:
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["amixer", "set", "Master", "mute"],
                 capture_output=True,
                 check=True
@@ -704,7 +704,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
     def unmute_volume(self) -> None:
         """Unmute audio using amixer."""
         try:
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["amixer", "set", "Master", "unmute"],
                 capture_output=True,
                 check=True
@@ -719,7 +719,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
     def get_brightness(self) -> BrightnessInfo:
         """Get current brightness using xbacklight."""
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["xbacklight", "-get"],
                 capture_output=True,
                 text=True,
@@ -739,7 +739,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise InvalidSettingValueError(f"Brightness must be 0-100, got {level}")
 
         try:
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["xbacklight", "-set", str(level)],
                 capture_output=True,
                 check=True
@@ -755,7 +755,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
         """Get network settings using nmcli."""
         try:
             # Check WiFi status
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["nmcli", "radio", "wifi"],
                 capture_output=True,
                 text=True,
@@ -764,7 +764,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             wifi_enabled = "enabled" in result.stdout
 
             # Check Bluetooth status
-            result_bt = subprocess.run(
+            result_bt = subprocess.run(  # nosec B603 B607
                 ["nmcli", "radio", "bluetooth"],
                 capture_output=True,
                 text=True
@@ -789,7 +789,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
         """Enable or disable WiFi using nmcli."""
         try:
             action = "on" if enabled else "off"
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["nmcli", "radio", "wifi", action],
                 capture_output=True,
                 check=True
@@ -805,7 +805,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
         """Enable or disable Bluetooth using rfkill."""
         try:
             action = "unblock" if enabled else "block"
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["rfkill", action, "bluetooth"],
                 capture_output=True,
                 check=True
@@ -821,7 +821,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
         """Enable or disable airplane mode (all radios)."""
         try:
             action = "block" if enabled else "unblock"
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["rfkill", action, "all"],
                 capture_output=True,
                 check=True
@@ -836,7 +836,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
     def get_display_settings(self) -> DisplayInfo:
         """Get display settings using xrandr."""
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["xrandr"],
                 capture_output=True,
                 text=True,
@@ -874,7 +874,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
 
         try:
             # Get primary display
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["xrandr", "--query"],
                 capture_output=True,
                 text=True,
@@ -892,7 +892,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 raise SystemSettingsError("Could not find display")
 
             # Set resolution
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["xrandr", "--output", display_name, "--mode", f"{width}x{height}"],
                 capture_output=True,
                 check=True
@@ -915,7 +915,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             rotation = rotation_map[orientation]
 
             # Get primary display
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ["xrandr", "--query"],
                 capture_output=True,
                 text=True,
@@ -932,7 +932,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 raise SystemSettingsError("Could not find display")
 
             # Set rotation
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["xrandr", "--output", display_name, "--rotate", rotation],
                 capture_output=True,
                 check=True

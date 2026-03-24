@@ -104,7 +104,7 @@ def _detect_platform() -> str:
         try:
             import subprocess  # noqa: PLC0415
             out = subprocess.run(
-                ["uname", "-o"], capture_output=True, text=True, timeout=1
+                ["uname", "-o"], capture_output=True, text=True, timeout=1  # nosec B603 B607
             )
             if "android" in out.stdout.lower():
                 result = "android"
@@ -439,7 +439,7 @@ class MobileTextController:
                 "adb", "shell", "input", "text", escaped,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
             success = proc.returncode == 0
             if success:
@@ -468,7 +468,7 @@ class MobileTextController:
                 "-e", "text", text,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
         except Exception as exc:
             logger.debug("adb clipboard set failed: %s — trying alternative", exc)
@@ -484,7 +484,7 @@ class MobileTextController:
                 "adb", "shell", "input", "keyevent", "279",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
             success = proc.returncode == 0
             if success:
@@ -514,7 +514,7 @@ class MobileTextController:
                 "adb", "shell", "input", "keyevent", str(keycode),
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
             success = proc.returncode == 0
             if success:
@@ -538,7 +538,7 @@ class MobileTextController:
                 "adb", "shell", "input", "keyevent", "277",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
             if proc.returncode != 0:
                 logger.warning("adb KEYCODE_CTRL_A returned non-zero")
@@ -553,7 +553,7 @@ class MobileTextController:
                 "adb", "shell", "input", "keyevent", "67",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
             success = proc.returncode == 0
             if success:
@@ -597,7 +597,7 @@ class MobileTextController:
                 "xcrun", "simctl", "pasteboard", "set", "booted", text,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
             if proc.returncode != 0:
                 logger.warning("xcrun simctl pasteboard set returned non-zero")
@@ -613,7 +613,7 @@ class MobileTextController:
                 "--key", "v", "--modifier", "command",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
             success = proc.returncode == 0
             if success:
@@ -667,7 +667,7 @@ class MobileTextController:
                 "--key", ios_key,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
             success = proc.returncode == 0
             if success:
@@ -692,7 +692,7 @@ class MobileTextController:
                 "--key", "a", "--modifier", "command",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
             if proc.returncode != 0:
                 logger.warning("xcrun simctl Cmd+A returned non-zero")
@@ -708,7 +708,7 @@ class MobileTextController:
                 "--key", "delete",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
             success = proc.returncode == 0
             if success:
@@ -737,7 +737,7 @@ class MobileTextController:
                 "adb", "version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
         except Exception:
@@ -756,7 +756,7 @@ class MobileTextController:
                 "xcrun", "--version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
         except Exception:

@@ -29,6 +29,7 @@ from pathlib import Path
 
 import torch
 import yaml
+from Agent_Guru.security.path_utils import safe_path
 from sklearn.metrics import precision_recall_fscore_support  # type: ignore[import-untyped]
 from tqdm import tqdm  # type: ignore[import-untyped]
 
@@ -76,7 +77,7 @@ def load_ner_data(data_path: str) -> list[dict]:
     Returns:
         List of examples in GLiNER format
     """
-    with open(data_path) as f:
+    with open(data_path) as f:  # nosec - path validated by caller via safe_path
         data = yaml.safe_load(f)
 
     training_data = []
@@ -222,9 +223,10 @@ def train_ner_model(config: NERTrainingConfig):
 
     # Load data
     print("Loading training data...")
-    train_data = load_ner_data(Path(config.data_dir) / "train_annotated.yaml")
-    val_data = load_ner_data(Path(config.data_dir) / "val_annotated.yaml")
-    test_data = load_ner_data(Path(config.data_dir) / "test_annotated.yaml")
+    _data_base = Path(config.data_dir).resolve()
+    train_data = load_ner_data(safe_path(Path(config.data_dir) / "train_annotated.yaml", _data_base))  # nosec
+    val_data = load_ner_data(safe_path(Path(config.data_dir) / "val_annotated.yaml", _data_base))  # nosec
+    test_data = load_ner_data(safe_path(Path(config.data_dir) / "test_annotated.yaml", _data_base))  # nosec
 
     print("Original dataset sizes:")
     print(f"  Train: {len(train_data)}")
@@ -325,7 +327,8 @@ def train_ner_model(config: NERTrainingConfig):
     print(f"{'='*80}\n")
 
     # Save final model
-    final_model_path = Path(config.output_dir) / "final_model"
+    _output_base = Path(config.output_dir).resolve()
+    final_model_path = safe_path(Path(config.output_dir) / "final_model", _output_base)  # nosec
     final_model_path.mkdir(parents=True, exist_ok=True)
     model.save_pretrained(str(final_model_path))
 
@@ -338,10 +341,10 @@ def train_ner_model(config: NERTrainingConfig):
         "num_entity_types": len(entity_types),
     }
 
-    with open(final_model_path / "test_results.json", "w") as f:
+    with open(final_model_path / "test_results.json", "w") as f:  # nosec - path validated by safe_path
         json.dump(results, f, indent=2)
 
-    with open(final_model_path / "training_config.json", "w") as f:
+    with open(final_model_path / "training_config.json", "w") as f:  # nosec - path validated by safe_path
         json.dump(vars(config), f, indent=2)
 
     print(f"{'='*80}")

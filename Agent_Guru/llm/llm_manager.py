@@ -36,7 +36,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional
 
-from Agent_Guru.llm.context_manager import ContextManager
 from Agent_Guru.llm.failover_router import FailoverConfig, FailoverResult, ProviderFailoverRouter
 from Agent_Guru.llm.llm_runtime import LLMRuntime
 from Agent_Guru.llm.models import (
@@ -53,7 +52,6 @@ from Agent_Guru.llm.providers.anthropic_adapter import AnthropicAdapter
 from Agent_Guru.llm.providers.google_adapter import GoogleAdapter
 from Agent_Guru.llm.providers.ollama_adapter import OllamaAdapter
 from Agent_Guru.llm.providers.openai_adapter import OpenAIAdapter
-from Agent_Guru.llm.token_counter import TokenCounter
 
 logger = logging.getLogger(__name__)
 
@@ -272,7 +270,6 @@ class LLMManager:
 
         self._runtime: Optional[LLMRuntime] = None
         self._failover_router: Optional[ProviderFailoverRouter] = None
-        self._context_manager: Optional[ContextManager] = None
         self._initialized: bool = False
 
         logger.info(
@@ -321,12 +318,7 @@ class LLMManager:
             adapters=adapters,
         )
 
-        # Build LLM runtime for direct calls
-        token_counter = TokenCounter()
-        self._context_manager = ContextManager(
-            token_counter=token_counter,
-            max_history_messages=self._config.max_context_messages,
-        )
+        # Build LLM runtime for direct calls — context management is owned by LLMRuntime
         self._runtime = LLMRuntime.from_config(runtime_config)
 
         self._initialized = True
@@ -341,7 +333,6 @@ class LLMManager:
         """Release all LLM resources."""
         self._runtime = None
         self._failover_router = None
-        self._context_manager = None
         self._initialized = False
         logger.info("LLMManager shut down")
 
@@ -418,7 +409,8 @@ class LLMManager:
         t_start = time.perf_counter()
 
         # Execute with failover
-        assert self._failover_router is not None
+        if self._failover_router is None:
+            raise RuntimeError("LLMManager not initialized — call initialize() first")
         result: FailoverResult = await self._failover_router.complete_with_failover(
             request=request,
             inject_system_prompt=False,  # We inject personality prompt ourselves
@@ -426,11 +418,11 @@ class LLMManager:
 
         latency_ms = (time.perf_counter() - t_start) * 1000
 
-        # Update conversation context
-        if self._context_manager is not None:
+        # Update conversation context via LLMRuntime's context manager
+        if self._runtime is not None and self._runtime.context_manager is not None:
             user_msg = Message(role="user", content=query)
             assistant_msg = Message(role="assistant", content=result.response.content)
-            await self._context_manager.update_context(
+            await self._runtime.context_manager.update_context(
                 effective_session, user_msg, assistant_msg
             )
 
@@ -576,9 +568,9 @@ class LLMManager:
         Returns:
             List of :class:`~Agent_Guru.llm.models.Message` objects.
         """
-        if self._context_manager is None:
+        if self._runtime is None or self._runtime.context_manager is None:
             return []
-        ctx = self._context_manager.sessions.get(session_id)
+        ctx = self._runtime.context_manager.sessions.get(session_id)
         return list(ctx.messages) if ctx else []
 
     def clear_conversation_history(self, session_id: str) -> None:
@@ -587,8 +579,8 @@ class LLMManager:
         Args:
             session_id: Session identifier to clear.
         """
-        if self._context_manager is not None:
-            self._context_manager.clear_context(session_id)
+        if self._runtime is not None and self._runtime.context_manager is not None:
+            self._runtime.context_manager.clear_context(session_id)
             logger.debug("Cleared conversation history for session: %s", session_id)
 
     def get_context_usage(self, session_id: str, model: str = "gpt-4o-mini") -> dict[str, Any]:
@@ -602,9 +594,9 @@ class LLMManager:
             Dict with ``token_count``, ``message_count``, ``context_limit``,
             ``usage_percentage``.
         """
-        if self._context_manager is None:
+        if self._runtime is None or self._runtime.context_manager is None:
             return {"token_count": 0, "message_count": 0, "context_limit": 4096, "usage_percentage": 0.0}
-        return self._context_manager.get_context_usage(session_id, model)
+        return self._runtime.context_manager.get_context_usage(session_id, model)
 
     # ------------------------------------------------------------------
     # Platform and provider info
@@ -764,9 +756,9 @@ class LLMManager:
         system_prompt = PERSONALITY_PROMPTS[personality]
         messages: list[Message] = [Message(role="system", content=system_prompt)]
 
-        # Inject conversation history
-        if self._context_manager is not None:
-            history = self._context_manager.inject_context(session_id, [])
+        # Inject conversation history via LLMRuntime's context manager
+        if self._runtime is not None and self._runtime.context_manager is not None:
+            history = self._runtime.context_manager.inject_context(session_id, [])
             messages.extend(history)
 
         # Inject extra context if provided

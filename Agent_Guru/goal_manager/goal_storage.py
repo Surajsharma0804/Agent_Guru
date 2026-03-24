@@ -86,20 +86,20 @@ class GoalStorage:
 
         if db_path != ":memory:":
             db_p = Path(db_path)
-            # CWE-22: resolve the path and verify it stays within the
-            # intended parent directory (the first existing ancestor).
-            # Raises ValueError on any traversal attempt.
             resolved = db_p.resolve()
             intended_parent = db_p.parent.resolve()
+            # CWE-22 mitigation: reject any path that escapes the intended
+            # parent directory after full resolution (symlinks expanded).
             if not resolved.is_relative_to(intended_parent):
                 raise ValueError(
-                    f"Path traversal detected: '{db_path}' resolves to "
-                    f"'{resolved}' which escapes '{intended_parent}'"
+                    f"Path traversal detected: '{db_path}' resolves outside "
+                    f"its parent directory '{intended_parent}'"
                 )
             db_p.parent.mkdir(parents=True, exist_ok=True)
             # _data_dir is the validated parent; used by export/import helpers.
             self._data_dir: Path = intended_parent
-            connect_path = str(resolved)
+            # Use the fully-resolved absolute path — never the raw user input.
+            connect_path: str = resolved.as_posix()
         else:
             self._data_dir = Path(".").resolve()
             connect_path = ":memory:"

@@ -32,7 +32,10 @@ import asyncio
 import logging
 import platform
 import time
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from Agent_Guru.memory.config import MemoryConfig
 
 logger = logging.getLogger(__name__)
 
@@ -203,13 +206,21 @@ class MemoryManager:
     They never raise exceptions for normal operational failures.
     """
 
-    def __init__(self, platform_override: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        config: Optional["MemoryConfig"] = None,
+        platform_override: Optional[str] = None,
+    ) -> None:
         """Create the memory manager.
 
         Args:
+            config: Optional MemoryConfig instance (accepted but not required
+                for the in-memory/simulated backend used on all platforms).
+                Stored for future use by persistence backends.
             platform_override: Force a specific platform string (for testing).
                 When ``None`` the platform is auto-detected.
         """
+        self._config: Optional["MemoryConfig"] = config  # stored for future persistence backend use
         self._platform: str = platform_override or _detect_platform()
         self._initialized: bool = False
 

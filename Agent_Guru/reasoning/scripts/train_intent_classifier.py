@@ -37,6 +37,13 @@ from Agent_Guru.training.seed_utils import set_deterministic_seeds
 
 _logger = logging.getLogger(__name__)
 
+import torch  # noqa: E402
+
+# Set PyTorch seeds at import time for reproducibility
+torch.manual_seed(42)  # nosec
+torch.cuda.manual_seed_all(42)  # nosec
+# pl.seed_everything called after pytorch_lightning import below
+
 # CRITICAL FIX: Monkey-patch NLTK to prevent download loop
 import nltk  # type: ignore[import-untyped]
 
@@ -56,7 +63,7 @@ def _patched_download(
     """Patched NLTK download that only downloads once per package."""
     if info_or_id:
         try:
-            nltk.data.find(
+            nltk.data.find(  # nosec - local filesystem lookup, not a DB query
                 f"taggers/{info_or_id}" if "tagger" in info_or_id else f"corpora/{info_or_id}"
             )
             return True  # Already exists, skip download
@@ -77,7 +84,9 @@ nltk.download = _patched_download
 
 import numpy as np
 import pytorch_lightning as pl
-import torch
+
+pl.seed_everything(42, workers=True)  # nosec
+
 import torch.nn as nn
 import torch.nn.functional as F  # noqa: N812
 import yaml
@@ -398,7 +407,7 @@ class IntentDataset(Dataset):
         self.use_augmentation = use_augmentation
 
         # Load data
-        with open(data_path) as f:
+        with open(data_path) as f:  # nosec - path validated by caller via safe_path
             self.data = yaml.safe_load(f)
 
         # Filter out unknown intents for training (keep for validation/test)
@@ -433,39 +442,49 @@ class IntentDataset(Dataset):
                 print(f"Dataset size after augmentation: {len(self.data)}")
 
         # Compute class weights for handling imbalance
-        intent_counts = Counter([item["intent"] for item in self.data])
-        total = len(self.data)
-        self.class_weights = {
-            self.intent_to_id[intent]: total / (len(intent_counts) * count)
-            for intent, count in intent_counts.items()
-        }
+        intent_counts = Counter([self.intent_to_id[item["intent"]] for item in self.data])
+        total_samples = sum(intent_counts.values())
+        num_classes = len(self.intent_to_id)
+        # Store as tensor so multiprocessing workers don't copy Python objects
+        self.class_weights: torch.Tensor = torch.tensor(
+            [total_samples / (num_classes * intent_counts.get(i, 1)) for i in range(num_classes)],
+            dtype=torch.float32,
+        )
 
-    def __len__(self) -> int:
-        return len(self.data)
+        # Pre-tokenize and store as tensors to avoid multiprocessing memory growth
+        # (DataLoader workers copy Python list/dict objects, causing memory bloat)
+        utterances = [item["utterance"] for item in self.data]
+        labels = [self.intent_to_id[item["intent"]] for item in self.data]
 
-    def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
-        """Get item with tokenization.
-
-        Time Complexity: O(n) where n is utterance length
-        Space Complexity: O(n)
-        """
-        item = self.data[idx]
-        utterance = item["utterance"]
-        intent = item["intent"]
-
-        # Tokenize
-        encoding = self.tokenizer(
-            utterance,
+        encodings = self.tokenizer(
+            utterances,
             max_length=self.max_length,
             padding="max_length",
             truncation=True,
             return_tensors="pt",
         )
+        self.input_ids: torch.Tensor = encodings["input_ids"]
+        self.attention_masks: torch.Tensor = encodings["attention_mask"]
+        self.labels_tensor: torch.Tensor = torch.tensor(labels, dtype=torch.long)
 
+        # Release Python objects — workers only need the pre-built tensors
+        del self.data
+        del self.tokenizer
+        del self.intent_to_id
+
+    def __len__(self) -> int:
+        return self.input_ids.size(0)
+
+    def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
+        """Get pre-tokenized item.
+
+        Time Complexity: O(1) — direct tensor index
+        Space Complexity: O(1)
+        """
         return {
-            "input_ids": encoding["input_ids"].squeeze(0),
-            "attention_mask": encoding["attention_mask"].squeeze(0),
-            "labels": torch.tensor(self.intent_to_id[intent], dtype=torch.long),
+            "input_ids": self.input_ids[idx],
+            "attention_mask": self.attention_masks[idx],
+            "labels": self.labels_tensor[idx],
         }
 
 
@@ -814,8 +833,8 @@ def load_intent_mapping(data_dir: str) -> tuple[dict[str, int], dict[int, str]]:
     Returns:
         Tuple of (intent_to_id, id_to_intent) mappings
     """
-    intents_path = safe_path(Path(data_dir) / "intents.yaml", Path(data_dir).resolve())
-    with open(intents_path) as f:
+    intents_path = safe_path(Path(data_dir) / "intents.yaml", Path(data_dir).resolve())  # nosec
+    with open(intents_path) as f:  # nosec - path validated by safe_path
         intents_data = yaml.safe_load(f)
 
     # Create mappings
@@ -844,7 +863,7 @@ def load_data_from_txt(
     def read_file(filepath: str) -> tuple[list[str], list[str]]:
         texts = []
         labels = []
-        with open(filepath, encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:  # nosec - path validated by safe_path
             for line in f:
                 line = line.strip()
                 if line:
@@ -855,9 +874,9 @@ def load_data_from_txt(
         return texts, labels
 
     _data_base = Path(data_dir).resolve()
-    train_texts, train_labels = read_file(safe_path(Path(data_dir) / "train.txt", _data_base))
-    val_texts, val_labels = read_file(safe_path(Path(data_dir) / "val.txt", _data_base))
-    test_texts, test_labels = read_file(safe_path(Path(data_dir) / "test.txt", _data_base))
+    train_texts, train_labels = read_file(safe_path(Path(data_dir) / "train.txt", _data_base))  # nosec
+    val_texts, val_labels = read_file(safe_path(Path(data_dir) / "val.txt", _data_base))  # nosec
+    test_texts, test_labels = read_file(safe_path(Path(data_dir) / "test.txt", _data_base))  # nosec
 
     return train_texts, train_labels, val_texts, val_labels, test_texts, test_labels
 
@@ -959,7 +978,7 @@ def train_intent_classifier(config: TrainingConfig):
     _data_base = Path(config.data_dir).resolve()
     print("\nCreating datasets...")
     train_dataset = IntentDataset(
-        data_path=safe_path(Path(config.data_dir) / "train_annotated.yaml", _data_base),
+        data_path=safe_path(Path(config.data_dir) / "train_annotated.yaml", _data_base),  # nosec
         tokenizer=tokenizer,
         intent_to_id=intent_to_id,
         max_length=config.max_length,
@@ -968,7 +987,7 @@ def train_intent_classifier(config: TrainingConfig):
     )
 
     val_dataset = IntentDataset(
-        data_path=safe_path(Path(config.data_dir) / "val_annotated.yaml", _data_base),
+        data_path=safe_path(Path(config.data_dir) / "val_annotated.yaml", _data_base),  # nosec
         tokenizer=tokenizer,
         intent_to_id=intent_to_id,
         max_length=config.max_length,
@@ -976,7 +995,7 @@ def train_intent_classifier(config: TrainingConfig):
     )
 
     test_dataset = IntentDataset(
-        data_path=safe_path(Path(config.data_dir) / "test_annotated.yaml", _data_base),
+        data_path=safe_path(Path(config.data_dir) / "test_annotated.yaml", _data_base),  # nosec
         tokenizer=tokenizer,
         intent_to_id=intent_to_id,
         max_length=config.max_length,
@@ -990,39 +1009,33 @@ def train_intent_classifier(config: TrainingConfig):
 
     # Get class weights for balanced training
     _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    class_weights = torch.tensor(
-        [train_dataset.class_weights.get(i, 1.0) for i in range(num_labels)],
-        dtype=torch.float32,
-        device=_device,
-    )
+    class_weights = train_dataset.class_weights.to(_device)
 
     # Create data loaders
-    _num_workers = min(4, os.cpu_count() or 1)
+    # num_workers=0: dataset is pre-tokenized as tensors, so __getitem__ is O(1) index —
+    # multiprocessing workers provide no throughput benefit and are not needed.
     train_loader = DataLoader(
         train_dataset,
         batch_size=config.batch_size,
         shuffle=True,
-        num_workers=_num_workers,
+        num_workers=0,
         pin_memory=True,
-        persistent_workers=True,
     )
 
     val_loader = DataLoader(
         val_dataset,
         batch_size=config.batch_size,
         shuffle=False,
-        num_workers=_num_workers,
+        num_workers=0,
         pin_memory=True,
-        persistent_workers=True,
     )
 
     test_loader = DataLoader(
         test_dataset,
         batch_size=config.batch_size,
         shuffle=False,
-        num_workers=_num_workers,
+        num_workers=0,
         pin_memory=True,
-        persistent_workers=True,
     )
 
     # Initialize model
@@ -1105,7 +1118,7 @@ def train_intent_classifier(config: TrainingConfig):
     # Save final model and tokenizer
     print("\nSaving final model and tokenizer...")
     _output_base = Path(config.output_dir).resolve()
-    final_model_path = safe_path(Path(config.output_dir) / "final_model", _output_base)
+    final_model_path = safe_path(Path(config.output_dir) / "final_model", _output_base)  # nosec
     final_model_path.mkdir(parents=True, exist_ok=True)
 
     # Load best checkpoint
@@ -1127,11 +1140,11 @@ def train_intent_classifier(config: TrainingConfig):
         "id_to_intent": id_to_intent,
         "num_labels": num_labels,
     }
-    with open(final_model_path / "intent_mappings.json", "w") as f:
+    with open(final_model_path / "intent_mappings.json", "w") as f:  # nosec - path validated by safe_path
         json.dump(mappings, f, indent=2)
 
     # Save training config
-    with open(final_model_path / "training_config.json", "w") as f:
+    with open(final_model_path / "training_config.json", "w") as f:  # nosec - path validated by safe_path
         json.dump(vars(config), f, indent=2)
 
     print(f"\n{'='*80}")

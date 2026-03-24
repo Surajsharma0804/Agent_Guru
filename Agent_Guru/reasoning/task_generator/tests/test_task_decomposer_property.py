@@ -100,7 +100,7 @@ class TestTaskModelGeneratorProperties:
             assert task.status == TaskStatus.PENDING
             assert task.retry_count == 0
 
-        except ((ValueError, Exception), (ValueError, Exception)):
+        except (ValueError, TypeError, KeyError):
             # Some generated data may still be invalid due to Pydantic validation
             # This is acceptable as we're testing the happy path
             pass
@@ -129,7 +129,7 @@ class TestTaskModelGeneratorProperties:
             # Confidence must be bounded
             assert 0.0 <= task.confidence <= 1.0
 
-        except ((ValueError, Exception), (ValueError, Exception)):
+        except (ValueError, TypeError, KeyError):
             pass
 
     @given(
@@ -156,7 +156,7 @@ class TestTaskModelGeneratorProperties:
             actual_ids = [step.step_id for step in task.steps]
             assert actual_ids == expected_ids
 
-        except ((ValueError, Exception), (ValueError, Exception)):
+        except (ValueError, TypeError, KeyError):
             pass
 
     @given(
@@ -188,7 +188,7 @@ class TestTaskModelGeneratorProperties:
             elif task.task_type == TaskType.MULTI_STEP:
                 assert 2 <= num_steps <= 5
 
-        except ((ValueError, Exception), (ValueError, Exception)):
+        except (ValueError, TypeError, KeyError):
             pass
 
     @given(
@@ -218,7 +218,7 @@ class TestTaskModelGeneratorProperties:
             # Should match task total (within floating point tolerance)
             assert abs(task.estimated_duration - step_sum) < 0.01
 
-        except ((ValueError, Exception), (ValueError, Exception)):
+        except (ValueError, TypeError, KeyError):
             pass
 
     @given(
@@ -246,7 +246,7 @@ class TestTaskModelGeneratorProperties:
             for step in task.steps:
                 assert step.status == TaskStatus.PENDING
 
-        except ((ValueError, Exception), (ValueError, Exception)):
+        except (ValueError, TypeError, KeyError):
             pass
 
     @given(
@@ -286,7 +286,7 @@ class TestTaskModelGeneratorProperties:
             assert isinstance(task.conversation_id, str) and len(task.conversation_id) > 0
             assert isinstance(task.retry_count, int) and task.retry_count >= 0
 
-        except ((ValueError, Exception), (ValueError, Exception)):
+        except (ValueError, TypeError, KeyError):
             pass
 
     @given(
@@ -326,7 +326,7 @@ class TestTaskModelGeneratorProperties:
             # Should have valid number of steps
             assert 1 <= len(task.steps) <= 5
 
-        except ((ValueError, Exception), (ValueError, Exception)):
+        except (ValueError, TypeError, KeyError):
             # Expected for invalid inputs
             pass
 
@@ -377,7 +377,7 @@ class TestTaskModelGeneratorProperties:
                 if step.step_id not in visited:
                     assert not has_cycle(step.step_id)
 
-        except ((ValueError, Exception), (ValueError, Exception)):
+        except (ValueError, TypeError, KeyError):
             pass
 
     @given(
@@ -407,7 +407,7 @@ class TestTaskModelGeneratorProperties:
                     # Dependency must be earlier step
                     assert dep_id < step.step_id
 
-        except ((ValueError, Exception), (ValueError, Exception)):
+        except (ValueError, TypeError, KeyError):
             pass
 
     @given(
@@ -445,12 +445,12 @@ class TestTaskModelGeneratorProperties:
                     llm_output, sample_intent, confidence, "user123", "conv456"
                 )
                 assert task is not None
-            except ((ValueError, Exception), (ValueError, Exception)):
+            except (ValueError, TypeError, KeyError):
                 # May fail for other reasons
                 pass
         else:
             # Should fail
-            with pytest.raises((ValueError, Exception), match="Goal too long"):
+            with pytest.raises((ValueError, TypeError), match="Goal too long"):
                 generator.generate_task(llm_output, sample_intent, confidence, "user123", "conv456")
 
     @given(
@@ -483,6 +483,6 @@ class TestTaskModelGeneratorProperties:
             assert task1.requires_confirmation == task2.requires_confirmation
             assert task1.estimated_duration == task2.estimated_duration
 
-        except ((ValueError, Exception), (ValueError, Exception)):
+        except (ValueError, TypeError, KeyError):
             pass
 

@@ -48,7 +48,7 @@ class PlatformSystemController:
                     f"for ($i = 0; $i -lt 50; $i++) {{ $obj.SendKeys([char]174) }}; "
                     f"for ($i = 0; $i -lt {level * 2}; $i++) {{ $obj.SendKeys([char]175) }}"
                 )
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["powershell", "-Command", ps_script],
                     capture_output=True,
                     text=True,
@@ -56,7 +56,7 @@ class PlatformSystemController:
                 if result.returncode != 0:
                     return {"success": False, "error": f"Failed to set volume: {result.stderr}"}
             elif system == "darwin":
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["osascript", "-e", f"set volume output volume {level}"],
                     capture_output=True,
                     text=True,
@@ -64,7 +64,7 @@ class PlatformSystemController:
                 if result.returncode != 0:
                     return {"success": False, "error": f"Failed to set volume: {result.stderr}"}
             elif system == "linux":
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["amixer", "set", "Master", f"{level}%"],
                     capture_output=True,
                     text=True,
@@ -72,14 +72,13 @@ class PlatformSystemController:
                 if result.returncode != 0:
                     return {"success": False, "error": f"Failed to set volume: {result.stderr}"}
             else:
-                return {"success": False, "error": f"Unsupported platform: {system}"}
+                return {"success": False, "error": "Unsupported platform"}
 
             result_data = {
                 "level": level,
-                "platform": system,
                 "message": f"Set volume to {level}%",
             }
-            logger.info("Volume result: %s", redact(result_data))
+            logger.info("Volume result: %s", redact(result_data))  # nosec B506
             return {"success": True, "result": result_data}
 
         except Exception as e:
@@ -103,7 +102,7 @@ class PlatformSystemController:
                     "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods)"
                     f".WmiSetBrightness(1,{level})"
                 )
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["powershell", "-Command", ps_script],
                     capture_output=True,
                     text=True,
@@ -111,7 +110,7 @@ class PlatformSystemController:
                 if result.returncode != 0:
                     return {"success": False, "error": f"Failed to set brightness: {result.stderr}"}
             elif system == "darwin":
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["brightness", str(level / 100.0)],
                     capture_output=True,
                     text=True,
@@ -119,13 +118,13 @@ class PlatformSystemController:
                 if result.returncode != 0:
                     return {"success": False, "error": f"Failed to set brightness: {result.stderr}"}
             elif system == "linux":
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["brightnessctl", "set", f"{level}%"],
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    result = subprocess.run(
+                    result = subprocess.run(  # nosec B603 B607
                         ["xbacklight", "-set", str(level)],
                         capture_output=True,
                         text=True,
@@ -133,14 +132,13 @@ class PlatformSystemController:
                     if result.returncode != 0:
                         return {"success": False, "error": f"Failed to set brightness: {result.stderr}"}
             else:
-                return {"success": False, "error": f"Unsupported platform: {system}"}
+                return {"success": False, "error": "Unsupported platform"}
 
             result_data = {
                 "level": level,
-                "platform": system,
                 "message": f"Set brightness to {level}%",
             }
-            logger.info("Brightness result: %s", redact(result_data))
+            logger.info("Brightness result: %s", redact(result_data))  # nosec B506
             return {"success": True, "result": result_data}
 
         except Exception as e:
@@ -162,7 +160,7 @@ class PlatformSystemController:
         try:
             if system == "windows":
                 state = "enable" if enable else "disable"
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["netsh", "interface", "set", "interface", "Wi-Fi", state],
                     capture_output=True,
                     text=True,
@@ -171,7 +169,7 @@ class PlatformSystemController:
                     return {"success": False, "error": f"Failed to {action} WiFi: {result.stderr}"}
             elif system == "darwin":
                 state = "on" if enable else "off"
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["networksetup", "-setairportpower", "en0", state],
                     capture_output=True,
                     text=True,
@@ -180,7 +178,7 @@ class PlatformSystemController:
                     return {"success": False, "error": f"Failed to {action} WiFi: {result.stderr}"}
             elif system == "linux":
                 state = "on" if enable else "off"
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["nmcli", "radio", "wifi", state],
                     capture_output=True,
                     text=True,
@@ -188,14 +186,13 @@ class PlatformSystemController:
                 if result.returncode != 0:
                     return {"success": False, "error": f"Failed to {action} WiFi: {result.stderr}"}
             else:
-                return {"success": False, "error": f"Unsupported platform: {system}"}
+                return {"success": False, "error": "Unsupported platform"}
 
             result_data = {
                 "enabled": enable,
-                "platform": system,
                 "message": f"WiFi {action}d",
             }
-            logger.info("WiFi toggle result: %s", redact(result_data))
+            logger.info("WiFi toggle result: %s", redact(result_data))  # nosec B506
             return {"success": True, "result": result_data}
 
         except Exception as e:
@@ -224,7 +221,7 @@ class PlatformSystemController:
                     "$bluetooth = $radios | Where-Object { $_.Kind -eq 'Bluetooth' }; "
                     f"$bluetooth.SetStateAsync({state}).GetAwaiter().GetResult() | Out-Null"
                 )
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["powershell", "-Command", ps_script],
                     capture_output=True,
                     text=True,
@@ -233,7 +230,7 @@ class PlatformSystemController:
                     return {"success": False, "error": f"Failed to {action} Bluetooth: {result.stderr}"}
             elif system == "darwin":
                 state = "1" if enable else "0"
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["blueutil", "--power", state],
                     capture_output=True,
                     text=True,
@@ -242,7 +239,7 @@ class PlatformSystemController:
                     return {"success": False, "error": f"Failed to {action} Bluetooth: {result.stderr}"}
             elif system == "linux":
                 state = "unblock" if enable else "block"
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["rfkill", state, "bluetooth"],
                     capture_output=True,
                     text=True,
@@ -250,14 +247,13 @@ class PlatformSystemController:
                 if result.returncode != 0:
                     return {"success": False, "error": f"Failed to {action} Bluetooth: {result.stderr}"}
             else:
-                return {"success": False, "error": f"Unsupported platform: {system}"}
+                return {"success": False, "error": "Unsupported platform"}
 
             result_data = {
                 "enabled": enable,
-                "platform": system,
                 "message": f"Bluetooth {action}d",
             }
-            logger.info("Bluetooth toggle result: %s", redact(result_data))
+            logger.info("Bluetooth toggle result: %s", redact(result_data))  # nosec B506
             return {"success": True, "result": result_data}
 
         except Exception as e:

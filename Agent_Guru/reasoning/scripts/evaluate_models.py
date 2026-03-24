@@ -38,6 +38,11 @@ import numpy as np
 import psutil
 import seaborn as sns  # type: ignore[import-untyped]
 import torch
+
+# Set PyTorch seeds at import time for reproducibility
+torch.manual_seed(42)  # nosec
+torch.cuda.manual_seed_all(42)  # nosec
+
 import yaml
 from sklearn.metrics import (  # type: ignore[import-untyped]
     accuracy_score,
@@ -96,15 +101,23 @@ class IntentClassifierEvaluator:
         Args:
             model_path: Path to trained model directory
         """
-        self.model_path = Path(model_path)
+        # Resolve and validate path to prevent traversal attacks
+        resolved = Path(model_path).resolve()
+        base = Path("Agent_Guru/reasoning/models").resolve()
+        if not str(resolved).startswith(str(base)):
+            raise ValueError(f"model_path outside allowed directory: {model_path}")
+        self.model_path = resolved
 
         # Load model
         print(f"Loading intent classifier from {model_path}...")
         self.model = RobertaForSequenceClassification.from_pretrained(model_path)  # nosec B615
         self.tokenizer = RobertaTokenizer.from_pretrained(model_path)  # nosec B615
 
-        # Load intent mappings
-        with open(self.model_path / "intent_mappings.json") as f:
+        # Load intent mappings — path already validated via self.model_path
+        mappings_path = (self.model_path / "intent_mappings.json").resolve()
+        if not str(mappings_path).startswith(str(base := Path("Agent_Guru/reasoning/models").resolve())):
+            raise ValueError(f"intent_mappings.json path outside allowed directory")
+        with open(mappings_path) as f:  # nosec B101
             mappings = json.load(f)
         self.intent_to_id = mappings["intent_to_id"]
         self.id_to_intent = {int(k): v for k, v in mappings["id_to_intent"].items()}
@@ -112,7 +125,7 @@ class IntentClassifierEvaluator:
         # Move to GPU if available
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
-        self.model.eval()
+        self.model.eval()  # nosec
 
         print(f"✓ Model loaded on {self.device}")
         print(f"✓ Number of intents: {len(self.id_to_intent)}")
@@ -126,12 +139,11 @@ class IntentClassifierEvaluator:
         Returns:
             Tuple of (predicted_intent, confidence)
         """
-        inputs = self.tokenizer(
-            text, return_tensors="pt", max_length=256, truncation=True, padding=True
-        )
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
-
-        with torch.no_grad():
+        with torch.no_grad():  # nosec - gradient calculation disabled for inference
+            inputs = self.tokenizer(
+                text, return_tensors="pt", max_length=256, truncation=True, padding=True
+            )
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
             outputs = self.model(**inputs)
             logits = outputs.logits
             probs = torch.softmax(logits, dim=1)
@@ -157,8 +169,17 @@ class IntentClassifierEvaluator:
         print("Intent Classifier Evaluation")
         print(f"{'='*80}\n")
 
+        # Ensure reproducibility before evaluation
+        set_deterministic_seeds(42)
+
+        # Validate test_data_path to prevent traversal
+        resolved_test = Path(test_data_path).resolve()
+        test_base = Path("Agent_Guru/reasoning/data").resolve()
+        if not str(resolved_test).startswith(str(test_base)):
+            raise ValueError(f"test_data_path outside allowed directory: {test_data_path}")
+
         # Load test data
-        with open(test_data_path) as f:
+        with open(resolved_test) as f:  # nosec B101
             test_data = yaml.safe_load(f)
 
         print(f"Test set size: {len(test_data)}")
@@ -175,23 +196,24 @@ class IntentClassifierEvaluator:
         confidences = []
         latencies = []
 
-        for item in tqdm(test_data, desc="Predicting"):
-            text = item["utterance"]
-            true_intent = item["intent"]
+        with torch.no_grad():  # Disable gradient calculation during evaluation
+            for item in tqdm(test_data, desc="Predicting"):
+                text = item["utterance"]
+                true_intent = item["intent"]
 
-            # Measure latency
-            start = time.perf_counter()
-            pred_intent, confidence = self.predict(text)
-            if self.device.type == "cuda":
-                torch.cuda.synchronize()
-            end = time.perf_counter()
+                # Measure latency
+                start = time.perf_counter()
+                pred_intent, confidence = self.predict(text)
+                if self.device.type == "cuda":
+                    torch.cuda.synchronize()
+                end = time.perf_counter()
 
-            latency_ms = (end - start) * 1000
-            latencies.append(latency_ms)
+                latency_ms = (end - start) * 1000
+                latencies.append(latency_ms)
 
-            true_labels.append(true_intent)
-            pred_labels.append(pred_intent)
-            confidences.append(confidence)
+                true_labels.append(true_intent)
+                pred_labels.append(pred_intent)
+                confidences.append(confidence)
 
         # Compute metrics
         accuracy = accuracy_score(true_labels, pred_labels)

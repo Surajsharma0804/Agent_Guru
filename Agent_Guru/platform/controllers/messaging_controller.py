@@ -77,7 +77,7 @@ def _detect_platform() -> str:
         try:
             import subprocess  # noqa: PLC0415
             out = subprocess.run(
-                ["uname", "-o"], capture_output=True, text=True, timeout=1
+                ["uname", "-o"], capture_output=True, text=True, timeout=1  # nosec B603 B607
             )
             if "android" in out.stdout.lower():
                 result = "android"
@@ -368,7 +368,7 @@ class MessagingController:
         otherwise opens web.whatsapp.com.
         """
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             encoded = urllib.parse.quote(message)
 
             # Detect phone number (digits, +, -, spaces)
@@ -388,7 +388,7 @@ class MessagingController:
     async def _send_desktop_telegram(self, contact: str, message: str) -> bool:
         """Open Telegram with a pre-filled message via URL scheme."""
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             encoded = urllib.parse.quote(message)
 
             # Strip leading @ if present
@@ -405,7 +405,7 @@ class MessagingController:
     async def _send_desktop_slack(self, contact: str, message: str) -> bool:
         """Open Slack via URL scheme (best-effort)."""
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             # Slack deep-link: slack://open (no direct message pre-fill in URL scheme)
             url = "slack://open"
             await loop.run_in_executor(None, self._blocking_open_url, url)
@@ -421,7 +421,7 @@ class MessagingController:
     async def _send_desktop_email(self, contact: str, message: str) -> bool:
         """Open the default mail client via mailto: URL scheme."""
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             encoded_body = urllib.parse.quote(message)
             url = f"mailto:{contact}?body={encoded_body}"
             await loop.run_in_executor(None, self._blocking_open_url, url)
@@ -539,7 +539,7 @@ class MessagingController:
                 cmd += ["--es", key, value]
 
         try:
-            proc = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
                 *cmd,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
@@ -631,7 +631,7 @@ class MessagingController:
             ``True`` if xcrun returned exit code 0, ``False`` otherwise.
         """
         try:
-            proc = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
                 "xcrun", "simctl", "openurl", "booted", url,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
@@ -664,7 +664,7 @@ class MessagingController:
             return MessagingController._adb_cache
 
         try:
-            proc = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
                 "adb", "version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
@@ -683,7 +683,7 @@ class MessagingController:
             return MessagingController._xcrun_cache
 
         try:
-            proc = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
                 "xcrun", "--version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,

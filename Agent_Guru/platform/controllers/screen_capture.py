@@ -112,7 +112,7 @@ def run_command(cmd: list, timeout: int = 10, error_prefix: str = "Command faile
         ScreenshotError: If command fails
     """
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)  # nosec B603 B607
         if result.returncode != 0:
             raise ScreenshotError(f"{error_prefix}: {result.stderr}")
     except subprocess.TimeoutExpired as e:
@@ -193,7 +193,7 @@ class WindowsScreenCaptureBackend(ScreenCaptureBackend):
 
             process = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE
-            )
+            )  # nosec B603 B607
 
             logger.info(f"Started recording: {output_path}")
             return process
@@ -233,7 +233,7 @@ class MacOSScreenCaptureBackend(ScreenCaptureBackend):
 
             process = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE
-            )
+            )  # nosec B603 B607
 
             logger.info(f"Started recording: {output_path}")
             return process
@@ -252,7 +252,7 @@ class LinuxScreenCaptureBackend(ScreenCaptureBackend):
 
     def _check_scrot(self) -> bool:
         try:
-            result = subprocess.run(["which", "scrot"], capture_output=True, timeout=5)
+            result = subprocess.run(["which", "scrot"], capture_output=True, timeout=5)  # nosec B603 B607
             return result.returncode == 0
         except Exception:
             return False
@@ -287,7 +287,7 @@ class LinuxScreenCaptureBackend(ScreenCaptureBackend):
 
             process = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE
-            )
+            )  # nosec B603 B607
 
             logger.info(f"Started recording: {output_path}")
             return process

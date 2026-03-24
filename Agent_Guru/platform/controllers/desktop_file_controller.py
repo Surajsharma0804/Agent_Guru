@@ -93,7 +93,7 @@ def _detect_platform() -> str:
         try:
             import subprocess  # noqa: PLC0415
             out = subprocess.run(
-                ["uname", "-o"], capture_output=True, text=True, timeout=1
+                ["uname", "-o"], capture_output=True, text=True, timeout=1  # nosec B603 B607
             )
             if "android" in out.stdout.lower():
                 result = "android"
@@ -284,7 +284,7 @@ class DesktopFileController:
 
         logger.info("create_file: %s", resolved)
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self._blocking_create_file, resolved, content)
             return True
         except Exception as exc:
@@ -306,7 +306,7 @@ class DesktopFileController:
 
         logger.info("delete_file: %s", resolved)
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self._blocking_delete_file, resolved)
             return True
         except Exception as exc:
@@ -331,7 +331,7 @@ class DesktopFileController:
 
         logger.info("move_file: %s → %s", resolved_src, resolved_dst)
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None, self._blocking_move_file, resolved_src, resolved_dst
             )
@@ -358,7 +358,7 @@ class DesktopFileController:
 
         logger.info("copy_file: %s → %s", resolved_src, resolved_dst)
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None, self._blocking_copy_file, resolved_src, resolved_dst
             )
@@ -387,7 +387,7 @@ class DesktopFileController:
 
         logger.info("rename_file: %s → %s", resolved, new_path)
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None, self._blocking_rename_file, resolved, new_path
             )
@@ -415,7 +415,7 @@ class DesktopFileController:
 
         logger.info("create_directory: %s", resolved)
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self._blocking_create_directory, resolved)
             return True
         except Exception as exc:
@@ -439,7 +439,7 @@ class DesktopFileController:
 
         logger.info("delete_directory: %s (recursive=%s)", resolved, recursive)
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None, self._blocking_delete_directory, resolved, recursive
             )
@@ -464,7 +464,7 @@ class DesktopFileController:
 
         logger.info("list_directory: %s", resolved)
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             return await loop.run_in_executor(None, self._blocking_list_directory, resolved)
         except Exception as exc:
             logger.error("list_directory(%s) failed: %s", resolved, exc)

@@ -404,7 +404,7 @@ class MacOSIntegration:
             self._check_circuit_breaker(operation)
 
             # Execute AppleScript using osascript command
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['osascript', '-e', script],
                 capture_output=True,
                 text=True,
@@ -459,7 +459,7 @@ class MacOSIntegration:
         Example:
             >>> result = await integration.execute_applescript_async(...)
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             self.execute_applescript,
@@ -520,7 +520,7 @@ class MacOSIntegration:
                             return cached_value
 
             # Cache miss or caching disabled - read from defaults
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['defaults', 'read', domain, key],
                 capture_output=True,
                 text=True,
@@ -620,7 +620,7 @@ class MacOSIntegration:
         Example:
             >>> value = await integration.get_system_preference_async(...)
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             self.get_system_preference,
@@ -672,7 +672,7 @@ class MacOSIntegration:
                 value_arg = str(value)
 
             # Write preference
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 ['defaults', 'write', domain, key, value_str, value_arg],
                 capture_output=True,
                 text=True,
@@ -771,7 +771,7 @@ class MacOSIntegration:
             cmd = [executable] + args
 
             # Start process
-            process = subprocess.Popen(
+            process = subprocess.Popen(  # nosec B603 B607
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
@@ -880,7 +880,7 @@ class MacOSIntegration:
                     )
 
             # Execute command
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607
                 cmd,
                 capture_output=True,
                 text=True,

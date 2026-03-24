@@ -153,6 +153,20 @@ class AgentOrchestrator:
             audit_trail is not None,
         )
 
+    def execute(self, intent: str) -> None:
+        """Accept an encoded intent string from the integration orchestrator.
+
+        The integration orchestrator calls this as the *primary* action path.
+        Returning None signals the orchestrator to fall through to its built-in
+        direct platform control path (OSController), which is where all OS
+        dispatch logic lives.
+
+        Args:
+            intent: Encoded intent string, e.g. 'system_control:open_app:notepad:'
+        """
+        logger.debug("AgentOrchestrator.execute called with intent: %r — delegating to platform control", intent)
+        return None  # Trigger integration orchestrator's direct platform control fallback
+
     def execute_task(
         self,
         task_id: str,

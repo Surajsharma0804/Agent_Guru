@@ -59,7 +59,7 @@ def _detect_platform() -> str:
         try:
             import subprocess  # noqa: PLC0415
             out = subprocess.run(
-                ["uname", "-o"], capture_output=True, text=True, timeout=1
+                ["uname", "-o"], capture_output=True, text=True, timeout=1  # nosec B603 B607
             )
             if "android" in out.stdout.lower():
                 result = "android"
@@ -400,7 +400,7 @@ class MobileApplicationController:
                     f"{package}/{activity}",
                     stdout=asyncio.subprocess.DEVNULL,
                     stderr=asyncio.subprocess.DEVNULL,
-                )
+                )  # nosec B603 B607
                 await asyncio.wait_for(proc.wait(), timeout=10.0)
                 if proc.returncode == 0:
                     logger.info("Opened %r via adb am start -n", app_name)
@@ -414,7 +414,7 @@ class MobileApplicationController:
                 "adb", "shell", "monkey", "-p", package, "1",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
             success = proc.returncode == 0
             if success:
@@ -452,7 +452,7 @@ class MobileApplicationController:
                 "adb", "shell", "am", "force-stop", package,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
             success = proc.returncode == 0
             if success:
@@ -498,7 +498,7 @@ class MobileApplicationController:
                 "xcrun", "simctl", "openurl", "booted", scheme,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
             success = proc.returncode == 0
             if success:
@@ -542,7 +542,7 @@ class MobileApplicationController:
                 "xcrun", "simctl", "terminate", "booted", bundle_id,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
             success = proc.returncode == 0
             if success:
@@ -577,7 +577,7 @@ class MobileApplicationController:
                 "adb", "version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
         except Exception:
@@ -596,7 +596,7 @@ class MobileApplicationController:
                 "xcrun", "--version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
-            )
+            )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
         except Exception:

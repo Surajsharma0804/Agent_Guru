@@ -137,6 +137,11 @@ class IntegrationOrchestrator:
         result = await orch.run_pipeline(WakeWordEvent(wake_word="Hey Guru", audio=b"..."))
     """
 
+    # Explicit wildcard constants — intentional allow-all for the pipeline principal only.
+    # These are NOT applied to any user-facing principal; only "guru_pipeline" is targeted.
+    _PIPELINE_RESOURCES: tuple[str, ...] = ("*",)
+    _PIPELINE_ACTIONS: tuple[str, ...] = ("*",)
+
     def __init__(
         self,
         speech_engine: Any,
@@ -270,9 +275,9 @@ class IntegrationOrchestrator:
                 description="Default allow policy for the assistant pipeline",
                 effect=PolicyEffect.ALLOW,
                 priority=0,
-                principals=["guru_pipeline", "*"],
-                resources=["*"],
-                actions=["*"],
+                principals=["guru_pipeline"],
+                resources=list(self._PIPELINE_RESOURCES),
+                actions=list(self._PIPELINE_ACTIONS),
                 conditions={},
                 created_at=now,
                 updated_at=now,
@@ -438,8 +443,9 @@ class IntegrationOrchestrator:
             )
             result.stages_completed = 4
 
-            # Stage 5: Intent recognition — use transcript for accuracy
-            result.intent = await self._stage_intent(result.transcript or result.llm_response or "")
+            # Stage 5: Intent recognition — ALWAYS use the user's transcript,
+            # never the LLM response (which is conversational and confuses the classifier)
+            result.intent = await self._stage_intent(result.transcript or "")
             result.stages_completed = 5
 
             # Stage 6: Policy check
@@ -594,19 +600,11 @@ class IntegrationOrchestrator:
 
             logger.debug("STT: processing %.2fs of audio (rms=%.4f)", len(audio_np) / 16000, rms)
 
+            # fn is guaranteed synchronous here — async functions returned early above
             loop = asyncio.get_running_loop()
+            params = self._stt_params or []
             try:
-                params = self._stt_params or []
-                if asyncio.iscoroutinefunction(fn):
-                    # AsyncMock or native async function — await directly
-                    if "personality" in params:
-                        from Agent_Guru.speech.models import PersonalityType
-                        result = await fn(audio_np, PersonalityType.GURU)
-                    elif "sample_rate" in params:
-                        result = await fn(audio_np, sample_rate=16000)
-                    else:
-                        result = await fn(audio_np, 16000)
-                elif "personality" in params:
+                if "personality" in params:
                     from Agent_Guru.speech.models import PersonalityType
                     result = await loop.run_in_executor(
                         None, lambda: fn(audio_np, PersonalityType.GURU)
@@ -618,10 +616,7 @@ class IntegrationOrchestrator:
                 else:
                     result = await loop.run_in_executor(None, lambda: fn(audio_np, 16000))
             except Exception:
-                if asyncio.iscoroutinefunction(fn):
-                    result = await fn(audio_np, 16000)
-                else:
-                    result = await loop.run_in_executor(None, lambda: fn(audio_np, 16000))
+                result = await loop.run_in_executor(None, lambda: fn(audio_np, 16000))
 
             if hasattr(result, "text"):
                 text = result.text or ""
@@ -846,7 +841,7 @@ class IntegrationOrchestrator:
             eval_fn = getattr(self.policy, "evaluate_policy_async", None) or \
                       getattr(self.policy, "evaluate_policy", None)
             if eval_fn is None:
-                return True  # No policy engine — allow by default
+                return False  # No policy engine — deny by default (secure)
 
             try:
                 from Agent_Guru.policy.models import Principal, Resource
@@ -863,11 +858,11 @@ class IntegrationOrchestrator:
                     return decision.effect.value.upper() == "ALLOW"
                 return bool(decision)
             except ImportError:
-                return True  # Can't build Principal/Resource — allow by default
+                return False  # Can't build Principal/Resource — deny by default (secure)
 
         except Exception as exc:
-            logger.warning("Policy stage error: %s — defaulting to allow", exc)
-            return True  # Allow by default when policy check fails
+            logger.error("Policy stage error: %s — defaulting to deny for safety", exc)
+            return False  # Deny by default when policy check fails
 
     async def _stage_action(self, intent: str) -> Any:
         """Stage 7: Execute action via agent_orchestrator or OSController.
@@ -884,21 +879,35 @@ class IntegrationOrchestrator:
         if not intent:
             return None
 
+        # Sanitize the full intent string before any use — prevents injection
+        safe_intent = self._sanitize_output(intent)
+
         try:
             # Primary path: delegate to agent_orchestrator.execute(intent)
+            # If it returns None (stub) or raises, fall through to direct platform control
             execute_fn = getattr(self.agent_orchestrator, "execute", None)
             if execute_fn is not None:
-                if asyncio.iscoroutinefunction(execute_fn):
-                    return await execute_fn(intent)
-                loop = asyncio.get_running_loop()
-                return await loop.run_in_executor(None, execute_fn, intent)
+                try:
+                    if asyncio.iscoroutinefunction(execute_fn):
+                        result = await execute_fn(safe_intent)
+                    else:
+                        loop = asyncio.get_running_loop()
+                        result = await loop.run_in_executor(None, execute_fn, safe_intent)
+                    # Only return if we got a real result; otherwise fall through
+                    if result is not None:
+                        return result
+                except AttributeError:
+                    pass  # execute() not found — fall through to direct platform control
+                except Exception as exc:
+                    logger.warning("Agent orchestrator execute failed: %s — trying direct platform control", exc)
         except Exception as exc:
-            logger.warning("Agent orchestrator execute failed: %s — trying direct platform control", exc)
+            logger.warning("Unexpected error in primary action path: %s", exc)
 
         # Fallback: direct OSController calls for system_control intents
         try:
-            # Parse intent string
-            parts = intent.split(":", 3)
+
+            # Parse sanitized intent string — already sanitized above
+            parts = safe_intent.split(":", 3)
             intent_type = parts[0] if len(parts) > 0 else ""
             action = parts[1] if len(parts) > 1 else ""
             param = parts[2] if len(parts) > 2 else ""
@@ -906,6 +915,10 @@ class IntegrationOrchestrator:
 
             # Only act on system_control and file_ops intents
             if intent_type not in ("system_control", "file_ops"):
+                logger.info(
+                    "ACTION SKIPPED — intent_type=%r (not actionable). Full intent: %r",
+                    intent_type, safe_intent
+                )
                 return None
 
             ctrl = self.platform_controller
@@ -918,12 +931,14 @@ class IntegrationOrchestrator:
             if action == "open_app" and param:
                 logger.info("ACTION: open_application('%s')", param)
                 result = await loop.run_in_executor(None, lambda: ctrl.open_application(param))
-                return f"Opened {param}" if getattr(result, "success", True) else f"Failed to open {param}"
+                safe_param = self._sanitize_output(param)
+                return f"Opened {safe_param}" if getattr(result, "success", True) else f"Failed to open {safe_param}"
 
             if action == "close_app" and param:
                 logger.info("ACTION: close_application('%s')", param)
                 result = await loop.run_in_executor(None, lambda: ctrl.close_application(param))
-                return f"Closed {param}" if getattr(result, "success", True) else f"Failed to close {param}"
+                safe_param = self._sanitize_output(param)
+                return f"Closed {safe_param}" if getattr(result, "success", True) else f"Failed to close {safe_param}"
 
             # --- Volume ---
             if action == "volume":
@@ -935,6 +950,7 @@ class IntegrationOrchestrator:
                     logger.info("ACTION: set_volume(%d)", vol)
                     result = await loop.run_in_executor(None, lambda: ctrl.set_volume(vol))
                     return f"Volume set to {vol}%"
+
                 elif "up" in param.lower():
                     logger.info("ACTION: volume up")
                     fn = getattr(ctrl, "volume_up", None) or getattr(
@@ -1001,18 +1017,66 @@ class IntegrationOrchestrator:
                     fn = getattr(ctrl, "create_file", None)
                     if fn:
                         result = await loop.run_in_executor(None, lambda: fn(param))
-                        return f"Created {param}"
+                        return f"Created {self._sanitize_output(param)}"
                 if action == "delete" and param:
                     fn = getattr(ctrl, "delete_file", None)
                     if fn:
                         result = await loop.run_in_executor(None, lambda: fn(param, True))
-                        return f"Deleted {param}"
+                        return f"Deleted {self._sanitize_output(param)}"
 
             return None
 
         except Exception as exc:
             logger.warning("Action stage error: %s", exc)
             return None
+
+    async def _invoke_tts_fn(
+        self,
+        fn: Any,
+        text: str,
+        pt: Any,
+        fn_type: str,
+    ) -> tuple[Any, int]:
+        """Invoke a TTS callable and return (audio_array, sample_rate).
+
+        Handles array, response, and bytes return types uniformly.
+        Returns (None, 22050) when the function produces no usable audio.
+        """
+        import io
+        import wave
+
+        import numpy as np
+
+        loop = asyncio.get_running_loop()
+        sample_rate = 22050
+        audio_array: Any = None
+
+        if fn_type in ("array", "response"):
+            if asyncio.iscoroutinefunction(fn):
+                result = await fn(text, pt)
+            else:
+                result = await loop.run_in_executor(None, lambda: fn(text, pt))
+            if isinstance(result, tuple) and len(result) == 2:
+                audio_array, sample_rate = result
+            elif isinstance(result, np.ndarray):
+                audio_array = result
+
+        elif fn_type == "bytes":
+            if asyncio.iscoroutinefunction(fn):
+                wav_bytes = await fn(text, pt)
+            else:
+                wav_bytes = await loop.run_in_executor(None, lambda: fn(text, pt))
+            if isinstance(wav_bytes, (bytes, bytearray)) and len(wav_bytes) > 44:
+                with io.BytesIO(wav_bytes) as buf:
+                    with wave.open(buf, "rb") as wf:
+                        sample_rate = wf.getframerate()
+                        frames = wf.readframes(wf.getnframes())
+                audio_array = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+            elif isinstance(wav_bytes, (bytes, bytearray)):
+                # Short bytes (e.g. b"<audio>" from mock) — return sentinel
+                return wav_bytes, sample_rate  # type: ignore[return-value]
+
+        return audio_array, sample_rate
 
     async def _stage_tts(self, text: str, personality: Personality) -> Any:
         """Stage 8: TTS synthesis and audio playback.
@@ -1023,9 +1087,6 @@ class IntegrationOrchestrator:
         if not text or not text.strip():
             return text
         try:
-            import io
-            import wave
-
             import numpy as np
 
             # Convert orchestrator Personality → speech engine PersonalityType
@@ -1042,109 +1103,37 @@ class IntegrationOrchestrator:
             audio_array: Any = None
             sample_rate = 22050
 
-            # Use cached TTS function resolved at startup
-            if self._tts_fn is not None and self._tts_fn_type == "array":
-                try:
-                    loop = asyncio.get_running_loop()
-                    fn_array = self._tts_fn
-                    result = await loop.run_in_executor(None, lambda: fn_array(text, pt))
-                    if isinstance(result, tuple) and len(result) == 2:
-                        audio_array, sample_rate = result
-                    elif isinstance(result, np.ndarray):
-                        audio_array = result
-                except Exception as exc:
-                    logger.warning("synthesize_to_array failed: %s — trying synthesize_response", exc)
-
-            elif self._tts_fn is not None and self._tts_fn_type == "response":
-                try:
-                    loop = asyncio.get_running_loop()
-                    fn_resp = self._tts_fn
-                    result = await loop.run_in_executor(None, lambda: fn_resp(text, pt))
-                    if isinstance(result, np.ndarray):
-                        audio_array = result
-                    elif isinstance(result, tuple) and len(result) == 2:
-                        audio_array, sample_rate = result
-                except Exception as exc:
-                    logger.warning("synthesize_response failed: %s — trying synthesize bytes", exc)
-
-            elif self._tts_fn is not None and self._tts_fn_type == "bytes":
-                try:
-                    loop = asyncio.get_running_loop()
-                    fn_bytes = self._tts_fn
-                    if asyncio.iscoroutinefunction(fn_bytes):
-                        wav_bytes = await fn_bytes(text, pt)
-                    else:
-                        wav_bytes = await loop.run_in_executor(None, lambda: fn_bytes(text, pt))
-                    if isinstance(wav_bytes, (bytes, bytearray)) and len(wav_bytes) > 44:
-                        with wave.open(io.BytesIO(wav_bytes), "rb") as wf:
-                            sample_rate = wf.getframerate()
-                            frames = wf.readframes(wf.getnframes())
-                        audio_array = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
-                    elif isinstance(wav_bytes, (bytes, bytearray)):
-                        # Short bytes (e.g. b"<audio>" from mock) — return as-is
-                        return wav_bytes
-                except Exception as exc:
-                    logger.warning("synthesize bytes failed: %s", exc)
-
+            # Build ordered candidate list — cached fn first, then runtime probes
+            tts_eng = getattr(self.speech_engine, "tts_engine", None)
+            if self._tts_fn is not None:
+                candidates = [(self._tts_fn, self._tts_fn_type)]
             else:
-                # Fallback: probe at call time (startup() was not called)
-                loop = asyncio.get_running_loop()
-                fn_array = getattr(self.speech_engine, "synthesize_to_array", None)
-                if fn_array is None:
-                    tts_eng = getattr(self.speech_engine, "tts_engine", None)
-                    if tts_eng is not None:
-                        fn_array = getattr(tts_eng, "synthesize_to_array", None)
+                # startup() was not called — probe at call time
+                candidates = [
+                    (
+                        getattr(self.speech_engine, "synthesize_to_array", None)
+                        or (tts_eng and getattr(tts_eng, "synthesize_to_array", None)),
+                        "array",
+                    ),
+                    (getattr(self.speech_engine, "synthesize_response", None), "response"),
+                    (
+                        getattr(self.speech_engine, "synthesize", None)
+                        or (tts_eng and getattr(tts_eng, "synthesize", None)),
+                        "bytes",
+                    ),
+                ]
 
-                if fn_array is not None:
-                    try:
-                        if asyncio.iscoroutinefunction(fn_array):
-                            result = await fn_array(text, pt)
-                        else:
-                            result = await loop.run_in_executor(None, lambda: fn_array(text, pt))
-                        if isinstance(result, tuple) and len(result) == 2:
-                            audio_array, sample_rate = result
-                        elif isinstance(result, np.ndarray):
-                            audio_array = result
-                    except Exception as exc:
-                        logger.warning("synthesize_to_array failed: %s — trying synthesize_response", exc)
-
-                if audio_array is None:
-                    fn_resp = getattr(self.speech_engine, "synthesize_response", None)
-                    if fn_resp is not None:
-                        try:
-                            if asyncio.iscoroutinefunction(fn_resp):
-                                result = await fn_resp(text, pt)
-                            else:
-                                result = await loop.run_in_executor(None, lambda: fn_resp(text, pt))
-                            if isinstance(result, np.ndarray):
-                                audio_array = result
-                            elif isinstance(result, tuple) and len(result) == 2:
-                                audio_array, sample_rate = result
-                        except Exception as exc:
-                            logger.warning("synthesize_response failed: %s — trying synthesize bytes", exc)
-
-                if audio_array is None:
-                    fn_bytes = getattr(self.speech_engine, "synthesize", None)
-                    if fn_bytes is None:
-                        tts_eng = getattr(self.speech_engine, "tts_engine", None)
-                        if tts_eng is not None:
-                            fn_bytes = getattr(tts_eng, "synthesize", None)
-                    if fn_bytes is not None:
-                        try:
-                            if asyncio.iscoroutinefunction(fn_bytes):
-                                wav_bytes = await fn_bytes(text, pt)
-                            else:
-                                wav_bytes = await loop.run_in_executor(None, lambda: fn_bytes(text, pt))
-                            if isinstance(wav_bytes, (bytes, bytearray)) and len(wav_bytes) > 44:
-                                with wave.open(io.BytesIO(wav_bytes), "rb") as wf:
-                                    sample_rate = wf.getframerate()
-                                    frames = wf.readframes(wf.getnframes())
-                                audio_array = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
-                            elif isinstance(wav_bytes, (bytes, bytearray)):
-                                # Short bytes (e.g. b"<audio>" from mock) — return as-is
-                                return wav_bytes
-                        except Exception as exc:
-                            logger.warning("synthesize bytes failed: %s", exc)
+            for fn_candidate, fn_type in candidates:
+                if fn_candidate is None or audio_array is not None:
+                    continue
+                try:
+                    audio_array, sample_rate = await self._invoke_tts_fn(
+                        fn_candidate, text, pt, fn_type
+                    )
+                    if isinstance(audio_array, (bytes, bytearray)):
+                        return audio_array
+                except Exception as exc:
+                    logger.warning("TTS fn (%s) failed: %s", fn_type, exc)
 
             # --- Play audio through speakers ---
             if audio_array is not None and len(audio_array) > 0:
@@ -1174,6 +1163,24 @@ class IntegrationOrchestrator:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _sanitize_output(text: str) -> str:
+        """Sanitize user-controlled text to prevent XSS attacks.
+
+        Escapes HTML special characters so the text is safe to display
+        in web interfaces, logs, or any HTML context.
+
+        Args:
+            text: Raw user input or derived text.
+
+        Returns:
+            HTML-escaped text safe for display.
+        """
+        if not text:
+            return text
+        import html as _html_mod
+        return _html_mod.escape(str(text), quote=True)
 
     @staticmethod
     def _resolve_personality(wake_word: str) -> Personality:

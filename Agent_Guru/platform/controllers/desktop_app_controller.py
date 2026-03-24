@@ -60,7 +60,7 @@ def _detect_platform() -> str:
         try:
             import subprocess  # noqa: PLC0415
             out = subprocess.run(
-                ["uname", "-o"], capture_output=True, text=True, timeout=1
+                ["uname", "-o"], capture_output=True, text=True, timeout=1  # nosec B603 B607
             )
             if "android" in out.stdout.lower():
                 result = "android"
@@ -343,12 +343,15 @@ class DesktopApplicationController:
         # Try os.startfile first (handles .exe, registered apps, documents)
         try:
             import os  # noqa: PLC0415
-            await asyncio.get_event_loop().run_in_executor(
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(
                 None, os.startfile, app_name
             )
             return True
-        except Exception:
-            pass
+        except (OSError, FileNotFoundError, RuntimeError) as exc:
+            logger.debug("os.startfile failed for %r: %s", app_name, exc)
+        except Exception as exc:
+            logger.warning("Unexpected error in os.startfile for %r: %s", app_name, exc)
 
         # Fallback: shell start command
         try:
@@ -372,7 +375,7 @@ class DesktopApplicationController:
 
         # Fallback: taskkill
         try:
-            proc = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
                 "taskkill", "/F", "/IM", f"{app_name}.exe",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
@@ -516,7 +519,7 @@ class DesktopApplicationController:
     async def _open_macos(self, app_name: str) -> bool:
         """Launch an application on macOS using ``open -a``."""
         try:
-            proc = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
                 "open", "-a", app_name,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
@@ -531,7 +534,7 @@ class DesktopApplicationController:
         """Terminate an application on macOS via AppleScript."""
         script = f'tell application "{app_name}" to quit'
         try:
-            proc = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
                 "osascript", "-e", script,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
@@ -575,7 +578,7 @@ class DesktopApplicationController:
     async def _run_osascript(self, script: str, app_name: str, op: str) -> bool:
         """Run an AppleScript and return True on success."""
         try:
-            proc = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
                 "osascript", "-e", script,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
@@ -608,7 +611,7 @@ class DesktopApplicationController:
 
         # Fallback: xdg-open
         try:
-            await asyncio.create_subprocess_exec(
+            await asyncio.create_subprocess_exec(  # nosec B603 B607
                 "xdg-open", app_name,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
@@ -623,7 +626,7 @@ class DesktopApplicationController:
         # Try wmctrl graceful close
         if await self._wmctrl_available():
             try:
-                proc = await asyncio.create_subprocess_exec(
+                proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
                     "wmctrl", "-c", app_name,
                     stdout=asyncio.subprocess.DEVNULL,
                     stderr=asyncio.subprocess.DEVNULL,
@@ -636,7 +639,7 @@ class DesktopApplicationController:
 
         # Fallback: pkill
         try:
-            proc = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
                 "pkill", "-f", app_name,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
@@ -654,7 +657,7 @@ class DesktopApplicationController:
             return False
         try:
             # wmctrl -r <name> -b add,hidden  (iconify)
-            proc = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
                 "wmctrl", "-r", app_name, "-b", "add,hidden",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
@@ -671,7 +674,7 @@ class DesktopApplicationController:
             logger.debug("wmctrl not available — cannot maximize on Linux")
             return False
         try:
-            proc = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
                 "wmctrl", "-r", app_name, "-b", "add,maximized_vert,maximized_horz",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
@@ -687,7 +690,7 @@ class DesktopApplicationController:
         if not await self._wmctrl_available():
             return False
         try:
-            proc = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
                 "wmctrl", "-r", app_name, "-b",
                 "remove,maximized_vert,maximized_horz,hidden",
                 stdout=asyncio.subprocess.DEVNULL,
@@ -704,7 +707,7 @@ class DesktopApplicationController:
         if not await self._wmctrl_available():
             return False
         try:
-            proc = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
                 "wmctrl", "-a", app_name,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
