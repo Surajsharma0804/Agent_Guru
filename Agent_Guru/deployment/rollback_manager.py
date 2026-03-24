@@ -112,7 +112,7 @@ class RollbackManager:
         (snap_dir / "metadata.json").write_text(json.dumps(meta, indent=2))
 
         # Persist package list as pickle for fast restore
-        with open(self._resolve_snapshot_path(snap_dir / "packages.pkl"), "wb") as fh:  # nosec B603
+        with self._resolve_snapshot_path(snap_dir / "packages.pkl").open("wb") as fh:
             pickle.dump(packages, fh)
 
         size = sum(f.stat().st_size for f in snap_dir.rglob("*") if f.is_file())
@@ -147,7 +147,7 @@ class RollbackManager:
             raise RestoreError(f"Snapshot '{html.escape(str(snapshot_id))}' is corrupted (missing packages.pkl)")
 
         try:
-            with open(self._resolve_snapshot_path(pkl_path), "rb") as fh:  # nosec B603
+            with self._resolve_snapshot_path(pkl_path).open("rb") as fh:
                 packages: list[PackageInfo] = pickle.load(fh)  # nosec B301
         except Exception as exc:
             raise RestoreError(f"Failed to load snapshot '{html.escape(str(snapshot_id))}': {exc}") from exc

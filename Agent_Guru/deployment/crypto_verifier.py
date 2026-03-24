@@ -186,9 +186,7 @@ class CryptoVerifier:
                 f"cache directory '{base}'"
             )
         hasher = hashlib.sha256()
-        # nosec B603 — resolved is validated against config.cache_dir above via
-        # is_relative_to(); path traversal is not possible here.
-        with open(resolved, "rb") as fh:  # nosec B603
+        with resolved.open("rb") as fh:
             while chunk := fh.read(_CHUNK_SIZE):
                 hasher.update(chunk)
         return hasher.digest()

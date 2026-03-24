@@ -112,12 +112,8 @@ class ContextEngine:
     def persist(self, path: str = "~/.agent_guru/context.enc") -> None:
         """Persist encrypted context snapshot."""
         _base = Path("~/.agent_guru").expanduser().resolve()
-        _resolved = Path(path).expanduser().resolve()  # nosec B603
-        if not _resolved.is_relative_to(_base):  # nosec B603
-            raise ValueError(
-                f"Path '{path}' resolves outside the allowed directory '{_base}'"
-            )
-        p = safe_path(_base, _resolved.name)
+        _resolved = Path(path).expanduser().resolve()
+        p = safe_path(_base, _resolved.relative_to(_base))
         p.parent.mkdir(parents=True, exist_ok=True)
         data = json.dumps(self._snapshot.to_dict()).encode()
         if _CRYPTO_AVAILABLE:
@@ -138,16 +134,12 @@ class ContextEngine:
     def restore(self, path: str = "~/.agent_guru/context.enc") -> bool:
         """Restore context from encrypted snapshot."""
         _base = Path("~/.agent_guru").expanduser().resolve()
-        _resolved = Path(path).expanduser().resolve()  # nosec B603
-        if not _resolved.is_relative_to(_base):  # nosec B603
-            raise ValueError(
-                f"Path '{path}' resolves outside the allowed directory '{_base}'"
-            )
-        p = safe_path(_base, _resolved.name)
+        _resolved = Path(path).expanduser().resolve()
+        p = safe_path(_base, _resolved.relative_to(_base))
         if not p.exists():
             return False
         try:
-            raw = p.read_text()  # nosec B603 — path validated against _base via safe_path()
+            raw = p.read_text()
             if _CRYPTO_AVAILABLE:
                 import base64
                 obj = json.loads(raw)

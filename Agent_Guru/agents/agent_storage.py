@@ -69,10 +69,9 @@ class AgentStorage:
 
         Time Complexity: O(1)
         """
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        with closing(conn):
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
             yield conn
 
     def _ensure_database(self) -> None:
@@ -300,17 +299,16 @@ class AgentStorage:
         """
         if not agent_ids:
             return {}
-        # Build placeholder string without f-string to avoid false-positive
-        # SQL injection warnings — only "?" characters are interpolated, never
-        # user data.  nosec B608: no user input reaches the query string.
-        placeholders = ",".join("?" * len(agent_ids))  # nosec B608
+        # Placeholders are a fixed-length sequence of literal "?" tokens —
+        # no user data ever enters the query string itself. Values are bound
+        # via the parameterized execute() call below (CWE-89 safe).
+        placeholders = ",".join(["?"] * len(agent_ids))
         query = (
             "SELECT agent_id, task_id, task_type, success,"
             " completion_time_ms, resource_usage, timestamp"
             " FROM performance_records"
-            " WHERE agent_id IN ("
-            + placeholders
-            + ") ORDER BY timestamp DESC"
+            f" WHERE agent_id IN ({placeholders})"
+            " ORDER BY timestamp DESC"
         )
         with self._get_conn() as conn:
             rows = conn.execute(query, agent_ids).fetchall()

@@ -20,9 +20,10 @@ Version: 1.0.0
 
 import json
 import sqlite3
+from contextlib import closing, contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
 
 from Agent_Guru.utils.path_utils import safe_path
 from Agent_Guru.agent_orchestration.models import (
@@ -115,9 +116,10 @@ class AgentStorage:
         """
         if db_path == ":memory:":
             self.db_path = db_path
-            self._conn: sqlite3.Connection = sqlite3.connect(
+            self._memory_conn: Optional[sqlite3.Connection] = sqlite3.connect(
                 ":memory:", check_same_thread=False
             )
+            self._memory_conn.row_factory = sqlite3.Row
         else:
             # Resolve the full path first — never split off .name before
             # validation, because .name silently discards all directory
@@ -127,9 +129,7 @@ class AgentStorage:
             safe_db_p = safe_path(db_p.parent, db_p.name)
             safe_db_p.parent.mkdir(parents=True, exist_ok=True)
             self.db_path = str(safe_db_p)
-            self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
-
-        self._conn.row_factory = sqlite3.Row
+            self._memory_conn = None
 
         # Initialize database
         self._init_database()
@@ -142,9 +142,9 @@ class AgentStorage:
 
         Time Complexity: O(1)
         """
-        if self._conn is not None:
-            self._conn.close()
-            self._conn = None  # type: ignore[assignment]
+        if self._memory_conn is not None:
+            self._memory_conn.close()
+            self._memory_conn = None
 
     def __enter__(self) -> "AgentStorage":
         """Support use as a context manager."""
@@ -158,6 +158,23 @@ class AgentStorage:
         """Fallback cleanup — prefer explicit close() or context manager."""
         self.close()
 
+    @contextmanager
+    def _get_connection(self) -> Iterator[sqlite3.Connection]:
+        """Yield a connection, guaranteeing closure via contextlib.closing.
+
+        For in-memory databases the single persistent connection is reused.
+        For file-based databases a new connection is opened and closed per call,
+        which satisfies static-analysis resource-leak checks (CWE-400/664).
+
+        Time Complexity: O(1)
+        """
+        if self._memory_conn is not None:
+            yield self._memory_conn
+        else:
+            with closing(sqlite3.connect(self.db_path, check_same_thread=False)) as conn:
+                conn.row_factory = sqlite3.Row
+                yield conn
+
     def _init_database(self) -> None:
         """
         Initialize database schema.
@@ -166,19 +183,9 @@ class AgentStorage:
 
         Time Complexity: O(1)
         """
-        self._conn.executescript(self.SCHEMA)
-        self._conn.commit()
-
-    def _get_connection(self) -> sqlite3.Connection:
-        """
-        Get the shared database connection.
-
-        Returns:
-            SQLite connection
-
-        Time Complexity: O(1)
-        """
-        return self._conn
+        with self._get_connection() as conn:
+            conn.executescript(self.SCHEMA)
+            conn.commit()
 
     async def store_agent(self, agent: Agent) -> None:
         """

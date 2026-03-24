@@ -196,8 +196,7 @@ class PackageManager:
         Streams the file to avoid loading large packages into memory.
         """
         hasher = hashlib.sha256()
-        # nosec B603 — path validated against self._cache_dir via _resolve_cache_path()
-        with open(self._resolve_cache_path(package_path), "rb") as fh:  # nosec B603
+        with self._resolve_cache_path(package_path).open("rb") as fh:
             while chunk := fh.read(_CHUNK_SIZE):
                 hasher.update(chunk)
         actual = hasher.hexdigest()
@@ -225,7 +224,7 @@ class PackageManager:
             async with session.get(url) as resp:
                 if resp.status != 200:
                     raise NetworkError(f"HTTP {resp.status} for {url}")
-                with open(self._resolve_cache_path(dest), "wb") as fh:  # nosec B603
+                with self._resolve_cache_path(dest).open("wb") as fh:
                     async for chunk in resp.content.iter_chunked(_CHUNK_SIZE):
                         fh.write(chunk)
 
@@ -246,8 +245,7 @@ class PackageManager:
         checksum = ""
         if package_path.exists():
             hasher = hashlib.sha256()
-            # nosec B603 — path validated against self._cache_dir via _resolve_cache_path()
-            with open(self._resolve_cache_path(package_path), "rb") as fh:  # nosec B603
+            with self._resolve_cache_path(package_path).open("rb") as fh:
                 while chunk := fh.read(_CHUNK_SIZE):
                     hasher.update(chunk)
             checksum = hasher.hexdigest()
@@ -288,12 +286,8 @@ class PackageManager:
                 f"Path '{path}' resolves outside the allowed cache directory '{base}'"
             )
         return resolved
-        python = target_env / "bin" / "python"
-        if not python.exists():
-            python = target_env / "Scripts" / "python.exe"
-        if not python.exists():
-            python = Path(sys.executable)
-        return python
+
+    def _resolve_python(self, target_env: Path) -> Path:
 
     def _audit(
         self,
