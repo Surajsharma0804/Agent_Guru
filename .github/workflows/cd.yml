@@ -463,21 +463,21 @@ jobs:
     
     - name: Determine Deployment Status
       id: status
+      env:
+        STAGING_RESULT: ${{ needs.deploy-staging.result }}
+        PRODUCTION_RESULT: ${{ needs.deploy-production.result }}
       run: |
-        STAGING_STATUS="${{ needs.deploy-staging.result }}"
-        PRODUCTION_STATUS="${{ needs.deploy-production.result }}"
-        
-        echo "staging_status=$STAGING_STATUS" >> $GITHUB_OUTPUT
-        echo "production_status=$PRODUCTION_STATUS" >> $GITHUB_OUTPUT
+        echo "staging_status=$STAGING_RESULT" >> $GITHUB_OUTPUT
+        echo "production_status=$PRODUCTION_RESULT" >> $GITHUB_OUTPUT
         
         # Determine overall status
-        if [ "$STAGING_STATUS" == "success" ] || [ "$PRODUCTION_STATUS" == "success" ]; then
+        if [ "$STAGING_RESULT" == "success" ] || [ "$PRODUCTION_RESULT" == "success" ]; then
           echo "has_success=true" >> $GITHUB_OUTPUT
         else
           echo "has_success=false" >> $GITHUB_OUTPUT
         fi
         
-        if [ "$STAGING_STATUS" == "failure" ] || [ "$PRODUCTION_STATUS" == "failure" ]; then
+        if [ "$STAGING_RESULT" == "failure" ] || [ "$PRODUCTION_RESULT" == "failure" ]; then
           echo "has_failure=true" >> $GITHUB_OUTPUT
         else
           echo "has_failure=false" >> $GITHUB_OUTPUT
@@ -487,6 +487,10 @@ jobs:
       if: needs.deploy-staging.result == 'success'
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        GH_REF_NAME: ${{ github.ref_name }}
+        GH_SHA: ${{ github.sha }}
+        GH_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        GH_ACTOR: ${{ github.actor }}
       run: |
         python -c "
         import asyncio
@@ -497,10 +501,10 @@ jobs:
         
         asyncio.run(send_deployment_success(
             environment='staging',
-            version='${{ github.ref_name }}',
-            commit_sha='${{ github.sha }}',
-            commit_message='${{ github.event.head_commit.message }}',
-            deployer='${{ github.actor }}',
+            version=os.environ['GH_REF_NAME'],
+            commit_sha=os.environ['GH_SHA'],
+            commit_message=os.environ['GH_COMMIT_MESSAGE'],
+            deployer=os.environ['GH_ACTOR'],
             duration_seconds=0  # Calculate from job duration if needed
         ))
         "
@@ -509,6 +513,10 @@ jobs:
       if: needs.deploy-staging.result == 'failure'
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        GH_REF_NAME: ${{ github.ref_name }}
+        GH_SHA: ${{ github.sha }}
+        GH_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        GH_ACTOR: ${{ github.actor }}
       run: |
         python -c "
         import asyncio
@@ -519,10 +527,10 @@ jobs:
         
         asyncio.run(send_deployment_failure(
             environment='staging',
-            version='${{ github.ref_name }}',
-            commit_sha='${{ github.sha }}',
-            commit_message='${{ github.event.head_commit.message }}',
-            deployer='${{ github.actor }}',
+            version=os.environ['GH_REF_NAME'],
+            commit_sha=os.environ['GH_SHA'],
+            commit_message=os.environ['GH_COMMIT_MESSAGE'],
+            deployer=os.environ['GH_ACTOR'],
             duration_seconds=0,
             error_message='Staging deployment failed. Check logs for details.'
         ))
@@ -532,6 +540,10 @@ jobs:
       if: needs.deploy-production.result == 'success'
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        GH_REF_NAME: ${{ github.ref_name }}
+        GH_SHA: ${{ github.sha }}
+        GH_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        GH_ACTOR: ${{ github.actor }}
       run: |
         python -c "
         import asyncio
@@ -542,10 +554,10 @@ jobs:
         
         asyncio.run(send_deployment_success(
             environment='production',
-            version='${{ github.ref_name }}',
-            commit_sha='${{ github.sha }}',
-            commit_message='${{ github.event.head_commit.message }}',
-            deployer='${{ github.actor }}',
+            version=os.environ['GH_REF_NAME'],
+            commit_sha=os.environ['GH_SHA'],
+            commit_message=os.environ['GH_COMMIT_MESSAGE'],
+            deployer=os.environ['GH_ACTOR'],
             duration_seconds=0
         ))
         "
@@ -554,6 +566,10 @@ jobs:
       if: needs.deploy-production.result == 'failure'
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        GH_REF_NAME: ${{ github.ref_name }}
+        GH_SHA: ${{ github.sha }}
+        GH_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        GH_ACTOR: ${{ github.actor }}
       run: |
         python -c "
         import asyncio
@@ -564,45 +580,54 @@ jobs:
         
         asyncio.run(send_deployment_failure(
             environment='production',
-            version='${{ github.ref_name }}',
-            commit_sha='${{ github.sha }}',
-            commit_message='${{ github.event.head_commit.message }}',
-            deployer='${{ github.actor }}',
+            version=os.environ['GH_REF_NAME'],
+            commit_sha=os.environ['GH_SHA'],
+            commit_message=os.environ['GH_COMMIT_MESSAGE'],
+            deployer=os.environ['GH_ACTOR'],
             duration_seconds=0,
             error_message='Production deployment failed. Check logs for details.'
         ))
         "
     
     - name: Summary
+      env:
+        STAGING_STATUS: ${{ steps.status.outputs.staging_status }}
+        PRODUCTION_STATUS: ${{ steps.status.outputs.production_status }}
+        GH_REF_NAME: ${{ github.ref_name }}
+        GH_SHA: ${{ github.sha }}
+        GH_ACTOR: ${{ github.actor }}
+        GH_IMAGE_TAG: ${{ needs.build-docker.outputs.image-tag }}
+        GH_RUN_ID: ${{ github.run_id }}
+        GH_REPOSITORY: ${{ github.repository }}
       run: |
         echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
-        if [ "${{ steps.status.outputs.staging_status }}" == "success" ]; then
+        if [ "$STAGING_STATUS" == "success" ]; then
           echo "✅ **Staging**: Deployed successfully" >> $GITHUB_STEP_SUMMARY
-        elif [ "${{ steps.status.outputs.staging_status }}" == "failure" ]; then
+        elif [ "$STAGING_STATUS" == "failure" ]; then
           echo "❌ **Staging**: Deployment failed" >> $GITHUB_STEP_SUMMARY
-        elif [ "${{ steps.status.outputs.staging_status }}" == "skipped" ]; then
+        elif [ "$STAGING_STATUS" == "skipped" ]; then
           echo "⏭️ **Staging**: Skipped" >> $GITHUB_STEP_SUMMARY
         fi
         
-        if [ "${{ steps.status.outputs.production_status }}" == "success" ]; then
+        if [ "$PRODUCTION_STATUS" == "success" ]; then
           echo "✅ **Production**: Deployed successfully" >> $GITHUB_STEP_SUMMARY
-        elif [ "${{ steps.status.outputs.production_status }}" == "failure" ]; then
+        elif [ "$PRODUCTION_STATUS" == "failure" ]; then
           echo "❌ **Production**: Deployment failed" >> $GITHUB_STEP_SUMMARY
-        elif [ "${{ steps.status.outputs.production_status }}" == "skipped" ]; then
+        elif [ "$PRODUCTION_STATUS" == "skipped" ]; then
           echo "⏭️ **Production**: Skipped" >> $GITHUB_STEP_SUMMARY
         fi
         
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Deployment Details" >> $GITHUB_STEP_SUMMARY
-        echo "- **Version**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Deployer**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Image**: ${{ needs.build-docker.outputs.image-tag }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: $GH_REF_NAME" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: $GH_SHA" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deployer**: $GH_ACTOR" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image**: $GH_IMAGE_TAG" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Links" >> $GITHUB_STEP_SUMMARY
-        echo "- [Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+        echo "- [Logs](https://github.com/$GH_REPOSITORY/actions/runs/$GH_RUN_ID)" >> $GITHUB_STEP_SUMMARY
         echo "- [Metrics](https://prometheus.agent-guru.example.com)" >> $GITHUB_STEP_SUMMARY
         echo "- [Grafana](https://grafana.agent-guru.example.com)" >> $GITHUB_STEP_SUMMARY
 
