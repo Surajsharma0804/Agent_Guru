@@ -99,11 +99,13 @@ class GoalStorage:
             db_p.parent.mkdir(parents=True, exist_ok=True)
             # _data_dir is the validated parent; used by export/import helpers.
             self._data_dir: Path = intended_parent
+            connect_path = str(resolved)
         else:
             self._data_dir = Path(".").resolve()
+            connect_path = ":memory:"
 
-        self._conn: sqlite3.Connection = sqlite3.connect(  # nosec B603 — path validated above
-            db_path, check_same_thread=False
+        self._conn: sqlite3.Connection = sqlite3.connect(
+            connect_path, check_same_thread=False
         )  # persistent; closed in close() / __del__
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA synchronous=NORMAL")
@@ -587,7 +589,7 @@ class GoalStorage:
             goals = await self.query_goals()
 
             output_file = self._resolve_data_path(output_path)
-            with open(output_file, 'w') as f:  # nosec B603 — path validated by _resolve_data_path
+            with output_file.open('w') as f:
                 json.dump(
                     [self._goal_to_dict(g) for g in goals],
                     f,
@@ -622,7 +624,7 @@ class GoalStorage:
         """
         try:
             input_file = self._resolve_data_path(input_path)
-            with open(input_file) as f:  # nosec B603 — path validated by _resolve_data_path
+            with input_file.open() as f:
                 goals_data = json.load(f)
 
             count = 0

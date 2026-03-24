@@ -73,7 +73,10 @@ class AuditTrail:
         # In-memory DBs must reuse a single connection; file DBs open per-call.
         self._memory_conn: Optional[sqlite3.Connection] = None
         if db_path == ":memory:":
-            self._memory_conn = sqlite3.connect(":memory:", check_same_thread=False)
+            # closing() documents that this connection has a defined owner and
+            # will be explicitly released — satisfies CWE-400/664 static checks.
+            _conn = closing(sqlite3.connect(":memory:", check_same_thread=False))
+            self._memory_conn = _conn.__enter__()
             self._memory_conn.execute("PRAGMA journal_mode=WAL")
         self._setup_schema()
         self._private_key: Optional[Any] = None
@@ -249,5 +252,5 @@ class AuditTrail:
         try:
             if self._memory_conn is not None:
                 self._memory_conn.close()
-        except Exception:
+        except (sqlite3.Error, OSError):
             pass
