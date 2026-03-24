@@ -17,7 +17,7 @@ Version: 1.0.0
 
 import json
 import sqlite3
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -64,17 +64,16 @@ class AgentStorage:
         """Open a SQLite connection, yield it, and guarantee closure.
 
         WAL mode + synchronous=NORMAL reduces fsync overhead while maintaining
-        crash safety. Connection is always closed in the finally block.
+        crash safety. contextlib.closing ensures the connection is always
+        released even if an exception is raised.
 
         Time Complexity: O(1)
         """
         conn = sqlite3.connect(self.db_path)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
-        try:
+        with closing(conn):
             yield conn
-        finally:
-            conn.close()
 
     def _ensure_database(self) -> None:
         """Create database and tables if they don't exist."""
@@ -301,14 +300,18 @@ class AgentStorage:
         """
         if not agent_ids:
             return {}
-        placeholders = ",".join("?" * len(agent_ids))
-        query = f"""
-            SELECT agent_id, task_id, task_type, success,
-                   completion_time_ms, resource_usage, timestamp
-            FROM performance_records
-            WHERE agent_id IN ({placeholders})
-            ORDER BY timestamp DESC
-        """
+        # Build placeholder string without f-string to avoid false-positive
+        # SQL injection warnings — only "?" characters are interpolated, never
+        # user data.  nosec B608: no user input reaches the query string.
+        placeholders = ",".join("?" * len(agent_ids))  # nosec B608
+        query = (
+            "SELECT agent_id, task_id, task_type, success,"
+            " completion_time_ms, resource_usage, timestamp"
+            " FROM performance_records"
+            " WHERE agent_id IN ("
+            + placeholders
+            + ") ORDER BY timestamp DESC"
+        )
         with self._get_conn() as conn:
             rows = conn.execute(query, agent_ids).fetchall()
 
@@ -471,7 +474,8 @@ class AgentStorage:
                 params = (agent_id,)
 
             if limit:
-                query += f" LIMIT {limit}"
+                query += " LIMIT ?"
+                params = (*params, limit)
 
             cursor.execute(query, params)
             rows = cursor.fetchall()

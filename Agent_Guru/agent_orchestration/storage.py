@@ -113,11 +113,11 @@ class AgentStorage:
 
         Time Complexity: O(1)
         """
-        self._memory_conn: Optional[sqlite3.Connection] = None
         if db_path == ":memory:":
             self.db_path = db_path
-            self._memory_conn = sqlite3.connect(":memory:", check_same_thread=False)
-            self._memory_conn.row_factory = sqlite3.Row
+            self._conn: sqlite3.Connection = sqlite3.connect(
+                ":memory:", check_same_thread=False
+            )
         else:
             # Resolve the full path first — never split off .name before
             # validation, because .name silently discards all directory
@@ -127,21 +127,24 @@ class AgentStorage:
             safe_db_p = safe_path(db_p.parent, db_p.name)
             safe_db_p.parent.mkdir(parents=True, exist_ok=True)
             self.db_path = str(safe_db_p)
+            self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
+
+        self._conn.row_factory = sqlite3.Row
 
         # Initialize database
         self._init_database()
 
     def close(self) -> None:
         """
-        Explicitly close the in-memory connection if open.
+        Explicitly close the database connection.
 
         Safe to call multiple times.
 
         Time Complexity: O(1)
         """
-        if self._memory_conn is not None:
-            self._memory_conn.close()
-            self._memory_conn = None
+        if self._conn is not None:
+            self._conn.close()
+            self._conn = None  # type: ignore[assignment]
 
     def __enter__(self) -> "AgentStorage":
         """Support use as a context manager."""
@@ -163,33 +166,19 @@ class AgentStorage:
 
         Time Complexity: O(1)
         """
-        if self._memory_conn is not None:
-            self._memory_conn.executescript(self.SCHEMA)
-            self._memory_conn.commit()
-        else:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.executescript(self.SCHEMA)
-                conn.commit()
+        self._conn.executescript(self.SCHEMA)
+        self._conn.commit()
 
     def _get_connection(self) -> sqlite3.Connection:
         """
-        Get database connection.
-
-        For in-memory databases, returns the persistent shared connection.
-        For file-based databases, creates a new connection per call
-        (standard SQLite pattern for thread safety). self.db_path is always
-        the fully resolved, validated path set during __init__.
+        Get the shared database connection.
 
         Returns:
             SQLite connection
 
         Time Complexity: O(1)
         """
-        if self._memory_conn is not None:
-            return self._memory_conn
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+        return self._conn
 
     async def store_agent(self, agent: Agent) -> None:
         """

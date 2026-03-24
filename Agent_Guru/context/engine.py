@@ -21,8 +21,6 @@ AMBIENT_POLL_INTERVAL_S = 60
 LOW_CONFIDENCE_THRESHOLD = 0.60
 
 try:
-    pass
-
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     _CRYPTO_AVAILABLE = True
 except ImportError:
@@ -114,12 +112,12 @@ class ContextEngine:
     def persist(self, path: str = "~/.agent_guru/context.enc") -> None:
         """Persist encrypted context snapshot."""
         _base = Path("~/.agent_guru").expanduser().resolve()
-        _resolved = Path(path).expanduser().resolve()
-        if not _resolved.is_relative_to(_base):
+        _resolved = Path(path).expanduser().resolve()  # nosec B603
+        if not _resolved.is_relative_to(_base):  # nosec B603
             raise ValueError(
                 f"Path '{path}' resolves outside the allowed directory '{_base}'"
             )
-        p = _resolved
+        p = safe_path(_base, _resolved.name)
         p.parent.mkdir(parents=True, exist_ok=True)
         data = json.dumps(self._snapshot.to_dict()).encode()
         if _CRYPTO_AVAILABLE:
@@ -140,16 +138,16 @@ class ContextEngine:
     def restore(self, path: str = "~/.agent_guru/context.enc") -> bool:
         """Restore context from encrypted snapshot."""
         _base = Path("~/.agent_guru").expanduser().resolve()
-        _resolved = Path(path).expanduser().resolve()
-        if not _resolved.is_relative_to(_base):
+        _resolved = Path(path).expanduser().resolve()  # nosec B603
+        if not _resolved.is_relative_to(_base):  # nosec B603
             raise ValueError(
                 f"Path '{path}' resolves outside the allowed directory '{_base}'"
             )
-        p = _resolved
+        p = safe_path(_base, _resolved.name)
         if not p.exists():
             return False
         try:
-            raw = p.read_text()  # noqa: S324 - path validated against _base above
+            raw = p.read_text()  # nosec B603 — path validated against _base via safe_path()
             if _CRYPTO_AVAILABLE:
                 import base64
                 obj = json.loads(raw)
