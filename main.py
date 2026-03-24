@@ -18,6 +18,13 @@ import signal
 import sys
 from typing import Optional
 
+# Load .env before anything else so OLLAMA_MODEL, API keys, etc. are available
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed — env vars must be set manually
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------

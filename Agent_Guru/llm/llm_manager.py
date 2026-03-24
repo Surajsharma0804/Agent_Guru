@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import platform
 import time
 from dataclasses import dataclass
@@ -178,7 +179,7 @@ class LLMConfig:
     mode: str = "cloud"  # "local" or "cloud"
     provider: LLMProvider = LLMProvider.OPENAI
     ollama_host: str = "http://localhost:11434"
-    ollama_model: str = "llama3.2"
+    ollama_model: str = "mistral:7b-instruct"  # default to what's installed
     cloud_model: Optional[str] = None
     api_key: str = ""
     max_context_messages: int = 20
@@ -268,6 +269,14 @@ class LLMManager:
         self._is_desktop = _is_desktop_platform(self._platform)
         self._is_mobile = _is_mobile_platform(self._platform)
 
+        # Pick up OLLAMA_MODEL / OLLAMA_HOST from env if not explicitly set
+        env_model = os.environ.get("OLLAMA_MODEL", "").strip()
+        if env_model:
+            self._config.ollama_model = env_model
+        env_host = os.environ.get("OLLAMA_HOST", "").strip()
+        if env_host:
+            self._config.ollama_host = env_host
+
         self._runtime: Optional[LLMRuntime] = None
         self._failover_router: Optional[ProviderFailoverRouter] = None
         self._initialized: bool = False
@@ -291,9 +300,12 @@ class LLMManager:
         - Desktop: Ollama → Cloud APIs (with fallback)
         - Mobile: Cloud APIs only
 
+        Auto-fallback: if no cloud API key is found anywhere and we're on
+        desktop, silently switch to local Ollama mode so the assistant still
+        works without any API key configured.
+
         Raises:
             RuntimeError: If already initialized.
-            ValueError: If no valid API key is available for cloud providers.
         """
         if self._initialized:
             logger.warning("LLMManager already initialized")
@@ -304,6 +316,32 @@ class LLMManager:
             self._config.api_key = self._load_api_key_from_keyring(
                 self._config.provider
             )
+
+        # Auto-detect: if no cloud key is set anywhere, fall back to local Ollama.
+        # This lets the assistant work out of the box without any API key.
+        if self._is_desktop and self._config.mode == "cloud":
+            has_openai    = bool(self._config.api_key and self._config.provider == LLMProvider.OPENAI)
+            has_anthropic = bool(self._config.api_key and self._config.provider == LLMProvider.ANTHROPIC)
+            has_google    = bool(self._config.api_key and self._config.provider == LLMProvider.GOOGLE)
+            # also check env vars directly for any provider
+            has_any_cloud_key = (
+                has_openai or has_anthropic or has_google
+                or bool(os.environ.get("OPENAI_API_KEY", "").strip())
+                or bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
+                or bool(os.environ.get("GOOGLE_API_KEY", "").strip())
+                or bool(os.environ.get("GEMINI_API_KEY", "").strip()
+                        and os.environ.get("GEMINI_API_KEY", "") != "your-gemini-api-key-here")
+                or bool(os.environ.get("DEEPSEEK_API_KEY", "").strip())
+            )
+            if not has_any_cloud_key:
+                logger.info(
+                    "No cloud API key found — switching to local Ollama mode "
+                    "(model: %s at %s)",
+                    self._config.ollama_model,
+                    self._config.ollama_host,
+                )
+                self._config.mode = "local"
+                self._config.provider = LLMProvider.OLLAMA
 
         # Build runtime config
         runtime_config = self._build_runtime_config()
