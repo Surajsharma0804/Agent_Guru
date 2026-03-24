@@ -435,7 +435,7 @@ class STTManager:
                 device=self._config.device,
             )
             # Trigger lazy model load now so first transcription is fast
-            await asyncio.get_event_loop().run_in_executor(
+            await asyncio.get_running_loop().run_in_executor(
                 None, self._whisper._load_model
             )
             self._active_backend = STTBackend.WHISPER
@@ -557,7 +557,7 @@ class STTManager:
             :class:`~Agent_Guru.speech.models.TranscriptionResult`.
         """
         if self._active_backend == STTBackend.WHISPER and self._whisper is not None:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             return await loop.run_in_executor(
                 None,
                 lambda: self._whisper.transcribe(audio, sample_rate, language),  # type: ignore[union-attr]
@@ -567,7 +567,7 @@ class STTManager:
             STTBackend.ANDROID_SPEECH,
             STTBackend.IOS_SPEECH,
         ) and self._mobile_backend is not None:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             return await loop.run_in_executor(
                 None,
                 lambda: self._mobile_backend.transcribe(audio, sample_rate, language),  # type: ignore[union-attr]

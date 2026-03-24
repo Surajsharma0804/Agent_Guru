@@ -414,7 +414,7 @@ class ProviderFailoverRouter:
             ModelProvider.OLLAMA: "llama3.2",
             ModelProvider.OPENAI: "gpt-4o-mini",
             ModelProvider.ANTHROPIC: "claude-3-haiku-20240307",
-            ModelProvider.GOOGLE: "gemini-1.5-flash",
+            ModelProvider.GOOGLE: "gemini-2.0-flash",
         }
         return defaults.get(provider, "gpt-4o-mini")
 

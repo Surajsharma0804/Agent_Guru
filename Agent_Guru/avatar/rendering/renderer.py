@@ -311,8 +311,8 @@ class AvatarRenderer:
             try:
                 import cv2  # type: ignore[import]
                 cv2.destroyWindow(self._title)
-            except Exception:
-                pass
+            except cv2.error as exc:
+                logger.debug("cv2.destroyWindow failed during shutdown: %s", exc)
         logger.info("Renderer stopped (measured FPS: %.1f)", self._measured_fps)
 
     def set_target_fps(self, fps: int) -> None:

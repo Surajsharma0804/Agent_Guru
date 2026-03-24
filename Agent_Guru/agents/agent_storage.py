@@ -17,7 +17,7 @@ Version: 1.0.0
 
 import json
 import sqlite3
-from contextlib import closing
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -59,25 +59,28 @@ class AgentStorage:
         self._active_agents_cache: Optional[list] = None
         self._ensure_database()
 
-    def _get_conn(self) -> sqlite3.Connection:
-        """Open a new SQLite connection with WAL mode and NORMAL sync.
+    @contextmanager
+    def _get_conn(self):
+        """Open a SQLite connection, yield it, and guarantee closure.
 
-        WAL mode + synchronous=NORMAL reduces fsync overhead significantly
-        while maintaining crash safety. Each call opens a fresh connection
-        so callers must close it after use.
+        WAL mode + synchronous=NORMAL reduces fsync overhead while maintaining
+        crash safety. Connection is always closed in the finally block.
 
         Time Complexity: O(1)
         """
         conn = sqlite3.connect(self.db_path)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
-        return conn
+        try:
+            yield conn
+        finally:
+            conn.close()
 
     def _ensure_database(self) -> None:
         """Create database and tables if they don't exist."""
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
 
-        with closing(sqlite3.connect(self.db_path)) as conn:
+        with self._get_conn() as conn:
             cursor = conn.cursor()
 
             # Agents table
@@ -181,7 +184,7 @@ class AgentStorage:
 
         Validates: Requirement 1.1
         """
-        with closing(self._get_conn()) as conn:
+        with self._get_conn() as conn:
             cursor = conn.cursor()
 
             cursor.execute(
@@ -208,7 +211,7 @@ class AgentStorage:
         self._active_agents_cache = None  # Invalidate cache
 
     async def get_agent(self, agent_id: str) -> Optional[Agent]:
-        with closing(self._get_conn()) as conn:
+        with self._get_conn() as conn:
             cursor = conn.cursor()
 
             cursor.execute(
@@ -251,7 +254,7 @@ class AgentStorage:
         Time Complexity: O(1)
         Performance Target: <5ms
         """
-        with closing(self._get_conn()) as conn:
+        with self._get_conn() as conn:
             cursor = conn.cursor()
 
             cursor.execute(
@@ -281,6 +284,47 @@ class AgentStorage:
             conn.commit()
         self._active_agents_cache = None  # Invalidate cache
 
+    async def get_performance_records_bulk(
+        self, agent_ids: list[str]
+    ) -> dict[str, list[PerformanceRecord]]:
+        """Fetch performance records for multiple agents in a single query.
+
+        Args:
+            agent_ids: List of agent IDs to fetch records for.
+
+        Returns:
+            Dict mapping agent_id → list of PerformanceRecord (most recent first).
+            Agents with no records map to an empty list.
+
+        Time Complexity: O(n) where n is total matching records
+        Performance Target: <20ms for 1000 records across 100 agents
+        """
+        if not agent_ids:
+            return {}
+        placeholders = ",".join("?" * len(agent_ids))
+        query = f"""
+            SELECT agent_id, task_id, task_type, success,
+                   completion_time_ms, resource_usage, timestamp
+            FROM performance_records
+            WHERE agent_id IN ({placeholders})
+            ORDER BY timestamp DESC
+        """
+        with self._get_conn() as conn:
+            rows = conn.execute(query, agent_ids).fetchall()
+
+        result: dict[str, list[PerformanceRecord]] = {aid: [] for aid in agent_ids}
+        for row in rows:
+            record = PerformanceRecord(
+                task_id=row[1],
+                task_type=row[2],
+                success=bool(row[3]),
+                completion_time_ms=row[4],
+                resource_usage=json.loads(row[5]),
+                timestamp=datetime.fromisoformat(row[6]),
+            )
+            result[row[0]].append(record)
+        return result
+
     async def query_agents(self, status: Optional[AgentStatus] = None) -> list[Agent]:
         """
         Query agents by status.
@@ -294,40 +338,36 @@ class AgentStorage:
         Time Complexity: O(n) where n is matching agents
         Performance Target: <50ms for 1000 agents
         """
-        with closing(self._get_conn()) as conn:
-            cursor = conn.cursor()
-
+        with self._get_conn() as conn:
             if status:
-                cursor.execute(
-                    """
-                    SELECT id, status, capabilities, specializations,
-                           created_at, last_active, total_tasks, successful_tasks, metadata
-                    FROM agents WHERE status = ?
-                """,
+                rows = conn.execute(
+                    """SELECT id, status, capabilities, specializations,
+                              created_at, last_active, total_tasks, successful_tasks, metadata
+                       FROM agents WHERE status = ?""",
                     (status.value,),
-                )
+                ).fetchall()
             else:
-                cursor.execute(
-                    """
-                    SELECT id, status, capabilities, specializations,
-                           created_at, last_active, total_tasks, successful_tasks, metadata
-                    FROM agents
-                """
-                )
+                rows = conn.execute(
+                    """SELECT id, status, capabilities, specializations,
+                              created_at, last_active, total_tasks, successful_tasks, metadata
+                       FROM agents"""
+                ).fetchall()
 
-            rows = cursor.fetchall()
+        if not rows:
+            return []
+
+        # Single bulk query for all performance records — eliminates N+1
+        agent_ids = [row[0] for row in rows]
+        perf_map = await self.get_performance_records_bulk(agent_ids)
 
         agents = []
         for row in rows:
-            # Get performance history for each agent
-            performance_history = await self.get_performance_records(row[0])
-
             agent = Agent(
                 id=row[0],
                 status=AgentStatus(row[1]),
                 capabilities=json.loads(row[2]),
                 specializations=json.loads(row[3]),
-                performance_history=performance_history,
+                performance_history=perf_map.get(row[0], []),
                 created_at=datetime.fromisoformat(row[4]),
                 last_active=datetime.fromisoformat(row[5]),
                 total_tasks=row[6],
@@ -335,7 +375,6 @@ class AgentStorage:
                 metadata=json.loads(row[8]),
             )
             agents.append(agent)
-
         return agents
 
     async def get_active_agents(self) -> list[Agent]:
@@ -369,7 +408,7 @@ class AgentStorage:
 
         Validates: Requirement 12.1, 12.5
         """
-        with closing(self._get_conn()) as conn:
+        with self._get_conn() as conn:
             cursor = conn.cursor()
 
             cursor.execute(
@@ -409,7 +448,7 @@ class AgentStorage:
         Time Complexity: O(n) where n is matching records
         Performance Target: <20ms for 1000 records
         """
-        with closing(self._get_conn()) as conn:
+        with self._get_conn() as conn:
             cursor = conn.cursor()
 
             if task_type:
@@ -463,7 +502,7 @@ class AgentStorage:
 
         Validates: Requirements 1.4, 3.5, 5.3, 20.1
         """
-        with closing(self._get_conn()) as conn:
+        with self._get_conn() as conn:
             cursor = conn.cursor()
 
             cursor.execute(
@@ -529,7 +568,7 @@ class AgentStorage:
 
         Validates: Requirements 1.1, 1.4
         """
-        with closing(self._get_conn()) as conn:
+        with self._get_conn() as conn:
             cursor = conn.cursor()
 
             now_iso = datetime.now().isoformat()

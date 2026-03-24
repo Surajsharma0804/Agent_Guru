@@ -517,6 +517,33 @@ class WakeWordManager:
         """Return the most recent detection result (or ``None``)."""
         return self._last_detection
 
+    async def capture_command_audio(self, chunks: int = 2) -> bytes:
+        """Capture command audio after a wake word is detected.
+
+        Reads *chunks* consecutive audio frames from the platform microphone
+        and returns them concatenated as raw float32 bytes.
+
+        Args:
+            chunks: Number of audio frames to capture.  Each frame is
+                ``config.audio_capture_duration`` seconds long, so the
+                default of 2 captures ~3 seconds of command audio.
+
+        Returns:
+            Raw float32 bytes of the captured audio, or ``b""`` if the
+            audio capture device is not available.
+        """
+        if self._audio_capture is None:
+            return b""
+
+        loop = asyncio.get_running_loop()
+        captured: list[np.ndarray] = []
+        for _ in range(chunks):
+            chunk = await loop.run_in_executor(None, self._audio_capture.capture)
+            captured.append(chunk)
+
+        combined = np.concatenate(captured).astype(np.float32)
+        return combined.tobytes()
+
     @property
     def power_mode(self) -> PowerMode:
         """Current power mode."""

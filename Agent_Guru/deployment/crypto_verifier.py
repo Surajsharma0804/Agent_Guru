@@ -35,6 +35,7 @@ logger = structlog.get_logger(__name__)
 _CHUNK_SIZE = 65536  # 64 KB chunks for streaming
 
 
+
 class CryptoVerifier:
     """
     Verifies cryptographic signatures of packages using Ed25519.
@@ -172,9 +173,19 @@ class CryptoVerifier:
         Compute SHA-256 hash of a package file using streaming.
 
         Space Complexity: O(1) — processes in 64 KB chunks.
+
+        Raises:
+            ValueError: If package_path resolves outside the configured cache_dir.
         """
+        base = self._config.cache_dir.resolve()
+        resolved = package_path.resolve()
+        if not resolved.is_relative_to(base):
+            raise ValueError(
+                f"Package path '{package_path}' resolves outside allowed "
+                f"cache directory '{base}'"
+            )
         hasher = hashlib.sha256()
-        with open(package_path, "rb") as fh:
+        with open(resolved, "rb") as fh:
             while chunk := fh.read(_CHUNK_SIZE):
                 hasher.update(chunk)
         return hasher.digest()

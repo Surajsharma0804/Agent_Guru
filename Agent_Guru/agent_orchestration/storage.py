@@ -24,6 +24,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
+from Agent_Guru.utils.path_utils import safe_path
 from Agent_Guru.agent_orchestration.models import (
     Agent,
     AgentStatus,
@@ -107,24 +108,52 @@ class AgentStorage:
         Args:
             db_path: Path to SQLite database file, or ":memory:" for in-memory DB.
 
+        Raises:
+            ValueError: If db_path attempts to escape its resolved parent directory.
+
         Time Complexity: O(1)
         """
-        self.db_path = db_path
-
-        # For in-memory databases, keep a single persistent connection so the
-        # schema and data survive across multiple _get_connection() calls.
-        # For file-based databases, create a new connection per operation
-        # (standard SQLite pattern for thread safety).
         self._memory_conn: Optional[sqlite3.Connection] = None
         if db_path == ":memory:":
+            self.db_path = db_path
             self._memory_conn = sqlite3.connect(":memory:", check_same_thread=False)
             self._memory_conn.row_factory = sqlite3.Row
         else:
-            # Create directory if needed
-            Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+            # Resolve the full path first — never split off .name before
+            # validation, because .name silently discards all directory
+            # components (including traversal sequences like ../../).
+            # safe_path validates the ENTIRE resolved path stays within base.
+            db_p = Path(db_path).resolve()
+            safe_db_p = safe_path(db_p.parent, db_p.name)
+            safe_db_p.parent.mkdir(parents=True, exist_ok=True)
+            self.db_path = str(safe_db_p)
 
         # Initialize database
         self._init_database()
+
+    def close(self) -> None:
+        """
+        Explicitly close the in-memory connection if open.
+
+        Safe to call multiple times.
+
+        Time Complexity: O(1)
+        """
+        if self._memory_conn is not None:
+            self._memory_conn.close()
+            self._memory_conn = None
+
+    def __enter__(self) -> "AgentStorage":
+        """Support use as a context manager."""
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        """Close resources on context manager exit."""
+        self.close()
+
+    def __del__(self) -> None:
+        """Fallback cleanup — prefer explicit close() or context manager."""
+        self.close()
 
     def _init_database(self) -> None:
         """
@@ -147,7 +176,9 @@ class AgentStorage:
         Get database connection.
 
         For in-memory databases, returns the persistent shared connection.
-        For file-based databases, creates a new connection per call.
+        For file-based databases, creates a new connection per call
+        (standard SQLite pattern for thread safety). self.db_path is always
+        the fully resolved, validated path set during __init__.
 
         Returns:
             SQLite connection

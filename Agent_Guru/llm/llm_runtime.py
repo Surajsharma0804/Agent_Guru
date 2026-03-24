@@ -16,6 +16,7 @@ Version: 1.0.0
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from datetime import datetime
@@ -179,9 +180,12 @@ class LLMRuntime:
                 f"{context_limit} for model '{request.model}'."
             )
 
-        # Execute with retry
+        # Resolve per-request timeout (config.timeout → 30s default)
+        timeout: float = getattr(self.config, "timeout", None) or 30.0
+
+        # Execute with retry, enforcing timeout on each adapter call
         response = await self.error_handler.execute_with_retry(
-            lambda: adapter.complete(request),
+            lambda: asyncio.wait_for(adapter.complete(request), timeout=timeout),
             provider=provider.value,
         )
 

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from Agent_Guru.context.activity import ActivityClassifier
+from Agent_Guru.utils.path_utils import safe_path
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,13 @@ class ContextEngine:
 
     def persist(self, path: str = "~/.agent_guru/context.enc") -> None:
         """Persist encrypted context snapshot."""
-        p = Path(path).expanduser()
+        _base = Path("~/.agent_guru").expanduser().resolve()
+        _resolved = Path(path).expanduser().resolve()
+        if not _resolved.is_relative_to(_base):
+            raise ValueError(
+                f"Path '{path}' resolves outside the allowed directory '{_base}'"
+            )
+        p = _resolved
         p.parent.mkdir(parents=True, exist_ok=True)
         data = json.dumps(self._snapshot.to_dict()).encode()
         if _CRYPTO_AVAILABLE:
@@ -132,11 +139,17 @@ class ContextEngine:
 
     def restore(self, path: str = "~/.agent_guru/context.enc") -> bool:
         """Restore context from encrypted snapshot."""
-        p = Path(path).expanduser()
+        _base = Path("~/.agent_guru").expanduser().resolve()
+        _resolved = Path(path).expanduser().resolve()
+        if not _resolved.is_relative_to(_base):
+            raise ValueError(
+                f"Path '{path}' resolves outside the allowed directory '{_base}'"
+            )
+        p = _resolved
         if not p.exists():
             return False
         try:
-            raw = p.read_text()
+            raw = p.read_text()  # noqa: S324 - path validated against _base above
             if _CRYPTO_AVAILABLE:
                 import base64
                 obj = json.loads(raw)

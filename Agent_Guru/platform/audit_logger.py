@@ -26,10 +26,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from Agent_Guru.utils.path_utils import safe_path
+
 logger = logging.getLogger(__name__)
 
 # Default log path
 _DEFAULT_LOG_PATH = Path(".kiro") / "logs" / "os_audit.jsonl"
+
+# Base directory for safe path validation
+_BASE_DIR = Path(".kiro").resolve()
 
 # Rotation threshold: 100 MB
 _MAX_LOG_SIZE_BYTES = 100 * 1024 * 1024  # 100 MB
@@ -113,7 +118,12 @@ class AuditLogger:
         self._platform = _get_platform()
         self._user = _get_username()
 
-        # Ensure log directory exists
+        # Ensure log directory exists — validate path stays within .kiro or an absolute parent
+        log_p = Path(log_path)
+        if not log_p.is_absolute():
+            self._log_path = safe_path(_BASE_DIR, str(log_p))
+        else:
+            self._log_path = log_p.resolve()
         self._log_path.parent.mkdir(parents=True, exist_ok=True)
 
         logger.debug(f"AuditLogger initialized: {self._log_path}")

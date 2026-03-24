@@ -65,7 +65,7 @@ class AuditLogger:
         self.retention_days = retention_days
         self._persistent_conn: Optional[sqlite3.Connection] = None
         if db_path == ":memory:":
-            self._persistent_conn = sqlite3.connect(":memory:", check_same_thread=False)
+            self._persistent_conn = sqlite3.connect(":memory:", check_same_thread=False)  # persistent; closed when object is GC'd
             self._persistent_conn.row_factory = sqlite3.Row
             self._persistent_conn.executescript(_CREATE_TABLE)
             self._persistent_conn.commit()

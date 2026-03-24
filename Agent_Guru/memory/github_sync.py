@@ -75,51 +75,52 @@ class PersistentSyncQueue:
 
     def __init__(self, db_path: str = ":memory:") -> None:
         self._db_path = db_path
-        self._conn = sqlite3.connect(db_path, check_same_thread=False)
+        self._conn: sqlite3.Connection = sqlite3.connect(db_path, check_same_thread=False)  # persistent; closed in close()
         self._init_db()
 
     def _init_db(self) -> None:
-        self._conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS sync_queue (
-                operation_id TEXT PRIMARY KEY,
-                file_path TEXT NOT NULL,
-                content TEXT NOT NULL,
-                commit_message TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'pending',
-                retry_count INTEGER NOT NULL DEFAULT 0,
-                last_error TEXT,
-                created_at TEXT NOT NULL
+        with self._conn:
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sync_queue (
+                    operation_id TEXT PRIMARY KEY,
+                    file_path TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    commit_message TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    retry_count INTEGER NOT NULL DEFAULT 0,
+                    last_error TEXT,
+                    created_at TEXT NOT NULL
+                )
+                """
             )
-            """
-        )
-        self._conn.commit()
 
     def enqueue(self, op: SyncOperation) -> None:
-        self._conn.execute(
-            """
-            INSERT OR REPLACE INTO sync_queue
-            (operation_id, file_path, content, commit_message, status, retry_count, last_error, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                str(op.operation_id),
-                op.file_path,
-                op.content,
-                op.commit_message,
-                op.status.value,
-                op.retry_count,
-                op.last_error,
-                op.timestamp.isoformat(),
-            ),
-        )
-        self._conn.commit()
+        with self._conn:
+            self._conn.execute(
+                """
+                INSERT OR REPLACE INTO sync_queue
+                (operation_id, file_path, content, commit_message, status, retry_count, last_error, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(op.operation_id),
+                    op.file_path,
+                    op.content,
+                    op.commit_message,
+                    op.status.value,
+                    op.retry_count,
+                    op.last_error,
+                    op.timestamp.isoformat(),
+                ),
+            )
 
     def dequeue_pending(self, limit: int = 50) -> list[SyncOperation]:
-        rows = self._conn.execute(
-            "SELECT * FROM sync_queue WHERE status = 'pending' ORDER BY created_at LIMIT ?",
-            (limit,),
-        ).fetchall()
+        with self._conn:
+            rows = self._conn.execute(
+                "SELECT * FROM sync_queue WHERE status = 'pending' ORDER BY created_at LIMIT ?",
+                (limit,),
+            ).fetchall()
         ops = []
         for row in rows:
             ops.append(
@@ -137,16 +138,17 @@ class PersistentSyncQueue:
         return ops
 
     def update_status(self, operation_id: UUID, status: SyncStatus, error: str | None = None, retry_count: int = 0) -> None:
-        self._conn.execute(
-            "UPDATE sync_queue SET status = ?, last_error = ?, retry_count = ? WHERE operation_id = ?",
-            (status.value, error, retry_count, str(operation_id)),
-        )
-        self._conn.commit()
+        with self._conn:
+            self._conn.execute(
+                "UPDATE sync_queue SET status = ?, last_error = ?, retry_count = ? WHERE operation_id = ?",
+                (status.value, error, retry_count, str(operation_id)),
+            )
 
     def count_by_status(self, status: SyncStatus) -> int:
-        row = self._conn.execute(
-            "SELECT COUNT(*) FROM sync_queue WHERE status = ?", (status.value,)
-        ).fetchone()
+        with self._conn:
+            row = self._conn.execute(
+                "SELECT COUNT(*) FROM sync_queue WHERE status = ?", (status.value,)
+            ).fetchone()
         return row[0] if row else 0
 
     def close(self) -> None:

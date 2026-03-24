@@ -39,7 +39,8 @@ def _load_speech():
         return SpeechEngine()
     except Exception as e:
         logger.error("SpeechEngine failed to load: %s", e)
-        return _stub("speech_engine", critical=True)
+        _stub("speech_engine", critical=True)
+        raise
 
 
 def _load_vision():
@@ -60,7 +61,8 @@ def _load_llm():
         return LLMRuntime.from_config(cfg)
     except Exception as e:
         logger.error("LLMRuntime failed to load: %s", e)
-        return _stub("llm_runtime", critical=True)
+        _stub("llm_runtime", critical=True)
+        raise
 
 
 def _load_platform():
@@ -229,23 +231,14 @@ async def run() -> None:
         # Capture ~3 seconds of command audio after the wake word
         import numpy as np
         try:
-            if wake_manager._audio_capture is not None:
-                chunks = []
-                # 2 chunks × 1.5s = 3s of command audio
-                for _ in range(2):
-                    chunk = await asyncio.get_event_loop().run_in_executor(
-                        None, wake_manager._audio_capture.capture
-                    )
-                    chunks.append(chunk)
-                command_audio = np.concatenate(chunks)
-                audio_bytes = command_audio.astype(np.float32).tobytes()
+            audio_bytes = await wake_manager.capture_command_audio(chunks=2)
+            if audio_bytes:
+                command_audio = np.frombuffer(audio_bytes, dtype=np.float32)
                 rms = float(np.sqrt(np.mean(command_audio ** 2)))
                 logger.info(
                     "Command audio captured: %.2fs, rms=%.4f",
                     len(command_audio) / 16000, rms
                 )
-            else:
-                audio_bytes = b""
         except Exception as exc:
             logger.warning("Command audio capture failed: %s", exc)
             audio_bytes = b""
@@ -312,7 +305,7 @@ async def run() -> None:
     def _handle_signal(*_):
         stop_event.set()
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
             loop.add_signal_handler(sig, _handle_signal)

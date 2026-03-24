@@ -20,7 +20,7 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       # Database connections
-      - DATABASE_URL=${DATABASE_URL:-postgresql://agent_guru:dev_password@postgres:5432/agent_guru}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://agent_guru:${POSTGRES_PASSWORD}@postgres:5432/agent_guru}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       # Ollama (local LLM)
       - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
@@ -53,7 +53,7 @@ services:
     environment:
       POSTGRES_DB: agent_guru
       POSTGRES_USER: agent_guru
-      POSTGRES_PASSWORD: dev_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:

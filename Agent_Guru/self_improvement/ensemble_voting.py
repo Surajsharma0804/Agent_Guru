@@ -24,6 +24,7 @@ Date: 2026-02-28
 
 import asyncio
 import json
+import sqlite3
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -736,7 +737,7 @@ class EnsembleVotingSystem:
                     single_count = single_row[0] or 0
                     single_success_rate = single_row[1] or 0.0
                     single_avg_time = single_row[2] or 0.0
-            except Exception:
+            except (sqlite3.OperationalError, sqlite3.DatabaseError):
                 # Table doesn't exist or query failed, use defaults
                 pass
 

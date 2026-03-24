@@ -32,10 +32,12 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+import os
+
 # Default limits
 _DEFAULT_MAX_TURNS = 50
 _DEFAULT_PERSIST_PATH = Path(".kiro/memory/conversations.enc")
-_KEY_ID = "conversation_key"
+_KEY_ID = os.environ.get("CONVERSATION_KEY_ID", "conversation_key")
 
 
 @dataclass

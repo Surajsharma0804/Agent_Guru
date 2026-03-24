@@ -140,19 +140,52 @@ class GitHubSyncEngine:
 
     def _build_commit_message(self, event: SyncEvent) -> str:
         """Build a meaningful commit message for the evolution event. Validates: Req 20.3"""
-        agents_str = ", ".join(event.agent_ids[:3])
+        safe_type = self._sanitize(event.event_type)
+        safe_ids = [self._sanitize(a) for a in event.agent_ids]
+        agents_str = ", ".join(safe_ids[:3])
         if len(event.agent_ids) > 3:
             agents_str += f" (+{len(event.agent_ids) - 3} more)"
-        return f"[agent-evolution] {event.event_type}: {agents_str} at {event.timestamp.isoformat()}"
+        safe_ts = self._sanitize(event.timestamp.isoformat())
+        return f"[agent-evolution] {safe_type}: {agents_str} at {safe_ts}"
+
+    @staticmethod
+    def _sanitize(value: str) -> str:
+        """
+        Escape characters that carry meaning in Markdown/HTML.
+
+        Prevents CWE-20/79/80: untrusted strings injected into Markdown
+        must not be able to introduce raw HTML tags, links, or script content.
+
+        Time Complexity: O(n)
+        """
+        return (
+            value
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+            .replace("'", "&#x27;")
+            .replace("`", "&#x60;")
+            .replace("[", "&#x5B;")
+            .replace("]", "&#x5D;")
+        )
 
     def _build_readme_content(self, event: SyncEvent) -> str:
         """Build README.md content summarizing the evolution event. Validates: Req 20.2"""
+        safe_event_type = self._sanitize(event.event_type)
+        safe_agents = ", ".join(self._sanitize(a) for a in event.agent_ids)
+        safe_timestamp = self._sanitize(event.timestamp.isoformat())
+        # Represent details as a sanitized key=value list to avoid raw dict repr
+        safe_details = ", ".join(
+            f"{self._sanitize(str(k))}={self._sanitize(str(v))}"
+            for k, v in event.details.items()
+        )
         return (
             f"## Agent Evolution Update\n\n"
-            f"**Event**: {event.event_type}\n"
-            f"**Agents**: {', '.join(event.agent_ids)}\n"
-            f"**Timestamp**: {event.timestamp.isoformat()}\n"
-            f"**Details**: {event.details}\n"
+            f"**Event**: {safe_event_type}\n"
+            f"**Agents**: {safe_agents}\n"
+            f"**Timestamp**: {safe_timestamp}\n"
+            f"**Details**: {safe_details}\n"
         )
 
     def batch_operations(self, events: list[SyncEvent]) -> list[list[SyncEvent]]:

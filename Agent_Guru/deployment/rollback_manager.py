@@ -20,7 +20,7 @@ from typing import Optional
 
 import structlog
 
-from Agent_Guru.security.path_utils import safe_path
+from Agent_Guru.utils.path_utils import safe_path
 
 from .exceptions import InsufficientSpaceError, RestoreError, SnapshotNotFoundError
 from .models import (
@@ -116,7 +116,7 @@ class RollbackManager:
         (snap_dir / "metadata.json").write_text(json.dumps(meta, indent=2))
 
         # Persist package list as pickle for fast restore
-        with open(safe_path(snap_dir / "packages.pkl", BASE_DIR), "wb") as fh:
+        with open(safe_path(BASE_DIR, str(snap_dir / "packages.pkl")), "wb") as fh:
             pickle.dump(packages, fh)
 
         size = sum(f.stat().st_size for f in snap_dir.rglob("*") if f.is_file())
@@ -151,7 +151,7 @@ class RollbackManager:
             raise RestoreError(f"Snapshot '{html.escape(str(snapshot_id))}' is corrupted (missing packages.pkl)")
 
         try:
-            with open(safe_path(pkl_path, BASE_DIR), "rb") as fh:
+            with open(safe_path(BASE_DIR, str(pkl_path)), "rb") as fh:
                 packages: list[PackageInfo] = pickle.load(fh)  # nosec B301
         except Exception as exc:
             raise RestoreError(f"Failed to load snapshot '{html.escape(str(snapshot_id))}': {exc}") from exc

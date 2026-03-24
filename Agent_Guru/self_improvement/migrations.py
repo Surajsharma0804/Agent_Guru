@@ -30,6 +30,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from Agent_Guru.utils.path_utils import safe_path
+
+BASE_DIR = Path(__file__).parent.resolve()
+
 logger = logging.getLogger(__name__)
 
 
@@ -87,23 +91,22 @@ class MigrationSystem:
 
         Creates table to track applied migrations if it doesn't exist.
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS schema_migrations (
-                version INTEGER PRIMARY KEY,
-                description TEXT NOT NULL,
-                applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                execution_time_ms REAL NOT NULL,
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    version INTEGER PRIMARY KEY,
+                    description TEXT NOT NULL,
+                    applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    execution_time_ms REAL NOT NULL,
 
-                CHECK (version > 0),
-                CHECK (execution_time_ms >= 0)
-            )
-        """)
+                    CHECK (version > 0),
+                    CHECK (execution_time_ms >= 0)
+                )
+            """)
 
-        conn.commit()
-        conn.close()
+            conn.commit()
 
     def _register_migrations(self) -> None:
         """
@@ -243,22 +246,20 @@ class MigrationSystem:
 
         Time Complexity: O(1)
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        try:
-            cursor.execute("""
-                SELECT version FROM schema_migrations
-                ORDER BY version DESC
-                LIMIT 1
-            """)
-            result = cursor.fetchone()
-            version = result[0] if result else 0
-        except sqlite3.OperationalError:
-            # Table doesn't exist yet
-            version = 0
-        finally:
-            conn.close()
+            try:
+                cursor.execute("""
+                    SELECT version FROM schema_migrations
+                    ORDER BY version DESC
+                    LIMIT 1
+                """)
+                result = cursor.fetchone()
+                version = result[0] if result else 0
+            except sqlite3.OperationalError:
+                # Table doesn't exist yet
+                version = 0
 
         return version
 
@@ -301,17 +302,16 @@ class MigrationSystem:
 
         Time Complexity: O(n) where n is number of applied migrations
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT version, description, applied_at
-            FROM schema_migrations
-            ORDER BY version ASC
-        """)
+            cursor.execute("""
+                SELECT version, description, applied_at
+                FROM schema_migrations
+                ORDER BY version ASC
+            """)
 
-        applied = cursor.fetchall()
-        conn.close()
+            applied = cursor.fetchall()
 
         return applied
 
@@ -456,8 +456,8 @@ class MigrationSystem:
             # Rollback on error
             try:
                 cursor.execute("ROLLBACK")
-            except:
-                pass
+            except sqlite3.Error as rollback_exc:
+                logger.warning("ROLLBACK failed during migration %s: %s", migration.version, rollback_exc)
             logger.error(f"Migration {migration.version} failed: {e}")
             raise
         finally:
@@ -507,8 +507,8 @@ class MigrationSystem:
             # Rollback on error
             try:
                 cursor.execute("ROLLBACK")
-            except:
-                pass
+            except sqlite3.Error as rollback_exc:
+                logger.warning("ROLLBACK failed during rollback of migration %s: %s", migration.version, rollback_exc)
             logger.error(f"Rollback of migration {migration.version} failed: {e}")
             raise
         finally:
@@ -621,9 +621,8 @@ if __name__ == "__main__":
         db_path = "data/self_improvement.db"
 
     # Ensure database exists
-    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-
-    # Create migration system
+    db_file = safe_path(BASE_DIR, db_path)
+    db_file.parent.mkdir(parents=True, exist_ok=True)
     system = MigrationSystem(db_path)
 
     # Show status

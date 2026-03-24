@@ -71,7 +71,7 @@ class AuditTrail:
 
     def __init__(self, db_path: str = ":memory:") -> None:
         self.db_path = db_path
-        self._conn = sqlite3.connect(db_path, check_same_thread=False)
+        self._conn: sqlite3.Connection = sqlite3.connect(db_path, check_same_thread=False)  # persistent; closed in close()
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._setup_schema()
         self._private_key: Optional[Any] = None
@@ -79,25 +79,26 @@ class AuditTrail:
             self._private_key = Ed25519PrivateKey.generate()
 
     def _setup_schema(self) -> None:
-        self._conn.execute("""
-            CREATE TABLE IF NOT EXISTS audit_entries (
-                entry_id TEXT PRIMARY KEY,
-                action TEXT NOT NULL,
-                actor TEXT NOT NULL,
-                timestamp REAL NOT NULL,
-                details TEXT NOT NULL,
-                confidence REAL NOT NULL,
-                prev_hash TEXT NOT NULL,
-                signature TEXT NOT NULL,
-                entry_hash TEXT NOT NULL
-            )
-        """)
-        self._conn.commit()
+        with self._conn:
+            self._conn.execute("""
+                CREATE TABLE IF NOT EXISTS audit_entries (
+                    entry_id TEXT PRIMARY KEY,
+                    action TEXT NOT NULL,
+                    actor TEXT NOT NULL,
+                    timestamp REAL NOT NULL,
+                    details TEXT NOT NULL,
+                    confidence REAL NOT NULL,
+                    prev_hash TEXT NOT NULL,
+                    signature TEXT NOT NULL,
+                    entry_hash TEXT NOT NULL
+                )
+            """)
 
     def _get_last_hash(self) -> str:
-        row = self._conn.execute(
-            "SELECT entry_hash FROM audit_entries ORDER BY timestamp DESC LIMIT 1"
-        ).fetchone()
+        with self._conn:
+            row = self._conn.execute(
+                "SELECT entry_hash FROM audit_entries ORDER BY timestamp DESC LIMIT 1"
+            ).fetchone()
         return row[0] if row else ""
 
     def _sign(self, data: str) -> str:
@@ -113,14 +114,14 @@ class AuditTrail:
         entry.entry_hash = entry._compute_hash()
         entry.signature = self._sign(entry.entry_hash)
         d = entry.to_dict()
-        self._conn.execute(
-            """INSERT INTO audit_entries
-               (entry_id, action, actor, timestamp, details, confidence, prev_hash, signature, entry_hash)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (d["entry_id"], d["action"], d["actor"], d["timestamp"],
-             d["details"], d["confidence"], d["prev_hash"], d["signature"], d["entry_hash"]),
-        )
-        self._conn.commit()
+        with self._conn:
+            self._conn.execute(
+                """INSERT INTO audit_entries
+                   (entry_id, action, actor, timestamp, details, confidence, prev_hash, signature, entry_hash)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (d["entry_id"], d["action"], d["actor"], d["timestamp"],
+                 d["details"], d["confidence"], d["prev_hash"], d["signature"], d["entry_hash"]),
+            )
 
     def query(
         self,
@@ -153,11 +154,12 @@ class AuditTrail:
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         params.extend([limit, offset])
         # where is built from hardcoded condition strings with ? placeholders only
-        rows = self._conn.execute(
-            "SELECT entry_id, action, actor, timestamp, details, confidence, prev_hash, signature, entry_hash "
-            "FROM audit_entries " + where + " ORDER BY timestamp ASC LIMIT ? OFFSET ?",  # nosec B608
-            params,
-        ).fetchall()
+        with self._conn:
+            rows = self._conn.execute(
+                "SELECT entry_id, action, actor, timestamp, details, confidence, prev_hash, signature, entry_hash "
+                "FROM audit_entries " + where + " ORDER BY timestamp ASC LIMIT ? OFFSET ?",  # nosec B608
+                params,
+            ).fetchall()
         entries = []
         for row in rows:
             e = AuditEntry(
@@ -176,9 +178,10 @@ class AuditTrail:
 
     def verify_integrity(self) -> bool:
         """Verify the hash chain integrity."""
-        rows = self._conn.execute(
-            "SELECT entry_hash, prev_hash FROM audit_entries ORDER BY timestamp ASC"
-        ).fetchall()
+        with self._conn:
+            rows = self._conn.execute(
+                "SELECT entry_hash, prev_hash FROM audit_entries ORDER BY timestamp ASC"
+            ).fetchall()
         prev = ""
         for entry_hash, prev_hash in rows:
             if prev_hash != prev:
@@ -188,19 +191,19 @@ class AuditTrail:
 
     def delete(self, entry_id: str) -> bool:
         """User-initiated deletion (GDPR compliance)."""
-        cur = self._conn.execute(
-            "DELETE FROM audit_entries WHERE entry_id = ?", (entry_id,)
-        )
-        self._conn.commit()
+        with self._conn:
+            cur = self._conn.execute(
+                "DELETE FROM audit_entries WHERE entry_id = ?", (entry_id,)
+            )
         return cur.rowcount > 0
 
     def enforce_retention(self) -> int:
         """Delete entries older than 90 days."""
         cutoff = time.time() - RETENTION_DAYS * 86400
-        cur = self._conn.execute(
-            "DELETE FROM audit_entries WHERE timestamp < ?", (cutoff,)
-        )
-        self._conn.commit()
+        with self._conn:
+            cur = self._conn.execute(
+                "DELETE FROM audit_entries WHERE timestamp < ?", (cutoff,)
+            )
         return cur.rowcount
 
     def close(self) -> None:

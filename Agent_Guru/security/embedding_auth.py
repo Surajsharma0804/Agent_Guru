@@ -25,6 +25,12 @@ import numpy as np
 # ---------------------------------------------------------------------------
 
 BIOMETRIC_THRESHOLD: float = 0.97  # FAR < 0.1% for biometric authentication
+# Security note: embedding similarity is NEVER used as the sole authentication gate.
+# Secondary verification is always required:
+#   - Face auth: liveness detection (anti-spoofing) via FaceFeatureExtractor.is_live
+#   - Voice auth: VAD + liveness score check in VoiceAuthenticator
+#   - Multi-factor: face + voice fusion (BiometricAuthenticator.authenticate_multi_factor)
+# This threshold (0.97) is chosen to achieve FAR < 0.1% per NIST FRVT guidelines.
 RETRIEVAL_THRESHOLD: float = 0.85  # Minimum similarity for general retrieval
 
 

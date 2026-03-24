@@ -46,60 +46,61 @@ class WriteAheadLog:
     """SQLite-backed WAL that survives restarts."""
 
     def __init__(self, db_path: str = ":memory:") -> None:
-        self._conn = sqlite3.connect(db_path, check_same_thread=False)
+        self._conn: sqlite3.Connection = sqlite3.connect(db_path, check_same_thread=False)  # persistent; closed in close()
         self._init_db()
 
     def _init_db(self) -> None:
-        self._conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS wal (
-                entry_id TEXT PRIMARY KEY,
-                operation TEXT NOT NULL,
-                payload TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'pending',
-                timestamp TEXT NOT NULL,
-                error TEXT
+        with self._conn:
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS wal (
+                    entry_id TEXT PRIMARY KEY,
+                    operation TEXT NOT NULL,
+                    payload TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    timestamp TEXT NOT NULL,
+                    error TEXT
+                )
+                """
             )
-            """
-        )
-        self._conn.commit()
 
     def append(self, operation: str, payload: dict[str, Any]) -> WALEntry:
         """Log a mutation before applying it."""
         entry = WALEntry(operation=operation, payload=payload)
-        self._conn.execute(
-            "INSERT INTO wal (entry_id, operation, payload, status, timestamp, error) VALUES (?,?,?,?,?,?)",
-            (
-                str(entry.entry_id),
-                entry.operation,
-                json.dumps(entry.payload, default=str),
-                entry.status.value,
-                entry.timestamp.isoformat(),
-                entry.error,
-            ),
-        )
-        self._conn.commit()
+        with self._conn:
+            self._conn.execute(
+                "INSERT INTO wal (entry_id, operation, payload, status, timestamp, error) VALUES (?,?,?,?,?,?)",
+                (
+                    str(entry.entry_id),
+                    entry.operation,
+                    json.dumps(entry.payload, default=str),
+                    entry.status.value,
+                    entry.timestamp.isoformat(),
+                    entry.error,
+                ),
+            )
         return entry
 
     def mark_applied(self, entry_id: UUID) -> None:
-        self._conn.execute(
-            "UPDATE wal SET status = ? WHERE entry_id = ?",
-            (WALEntryStatus.APPLIED.value, str(entry_id)),
-        )
-        self._conn.commit()
+        with self._conn:
+            self._conn.execute(
+                "UPDATE wal SET status = ? WHERE entry_id = ?",
+                (WALEntryStatus.APPLIED.value, str(entry_id)),
+            )
 
     def mark_failed(self, entry_id: UUID, error: str) -> None:
-        self._conn.execute(
-            "UPDATE wal SET status = ?, error = ? WHERE entry_id = ?",
-            (WALEntryStatus.FAILED.value, error, str(entry_id)),
-        )
-        self._conn.commit()
+        with self._conn:
+            self._conn.execute(
+                "UPDATE wal SET status = ?, error = ? WHERE entry_id = ?",
+                (WALEntryStatus.FAILED.value, error, str(entry_id)),
+            )
 
     def get_pending(self) -> list[WALEntry]:
-        rows = self._conn.execute(
-            "SELECT entry_id, operation, payload, status, timestamp, error FROM wal WHERE status = ? ORDER BY timestamp",
-            (WALEntryStatus.PENDING.value,),
-        ).fetchall()
+        with self._conn:
+            rows = self._conn.execute(
+                "SELECT entry_id, operation, payload, status, timestamp, error FROM wal WHERE status = ? ORDER BY timestamp",
+                (WALEntryStatus.PENDING.value,),
+            ).fetchall()
         return [
             WALEntry(
                 entry_id=UUID(r[0]),
@@ -113,9 +114,10 @@ class WriteAheadLog:
         ]
 
     def count_by_status(self, status: WALEntryStatus) -> int:
-        row = self._conn.execute(
-            "SELECT COUNT(*) FROM wal WHERE status = ?", (status.value,)
-        ).fetchone()
+        with self._conn:
+            row = self._conn.execute(
+                "SELECT COUNT(*) FROM wal WHERE status = ?", (status.value,)
+            ).fetchone()
         return row[0] if row else 0
 
     def close(self) -> None:

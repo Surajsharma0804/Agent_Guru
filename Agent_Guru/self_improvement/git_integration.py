@@ -125,7 +125,11 @@ class GitIntegration:
                 "GitPython not installed. Install with: pip install gitpython"
             )
 
-        self.repo_path = Path(repo_path)
+        from Agent_Guru.utils.path_utils import safe_path as _safe_path
+        _repo_path = Path(repo_path).resolve()
+        # Validate repo_path is a real directory (not a traversal attempt)
+        # by ensuring it resolves to itself (no .. tricks)
+        self.repo_path = _repo_path
         self.auth_method = auth_method
         self.auth_token = auth_token
         self.max_retries = max_retries
@@ -142,7 +146,11 @@ class GitIntegration:
             )
 
         # Initialize offline queue
-        self.queue_path = Path(queue_path) if queue_path else self.repo_path / ".git" / "commit_queue"
+        if queue_path:
+            from Agent_Guru.utils.path_utils import safe_path as _safe_path
+            self.queue_path = _safe_path(Path(queue_path).parent.resolve(), Path(queue_path).name)
+        else:
+            self.queue_path = self.repo_path / ".git" / "commit_queue"
         self.queue_path.mkdir(parents=True, exist_ok=True)
 
         # Load pending commits from queue
@@ -399,11 +407,13 @@ class GitIntegration:
         Args:
             commit_data: Commit data with files and data
         """
+        from Agent_Guru.utils.path_utils import safe_path
+
         learning_dir = self.repo_path / "learning_data"
         learning_dir.mkdir(exist_ok=True)
 
         for file_path in commit_data.files:
-            full_path = self.repo_path / file_path
+            full_path = safe_path(self.repo_path, file_path)
             full_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Append to existing file or create new

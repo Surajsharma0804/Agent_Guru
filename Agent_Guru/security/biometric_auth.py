@@ -19,7 +19,6 @@ import numpy as np
 from Agent_Guru.security.embedding_auth import BIOMETRIC_THRESHOLD, verify_embedding
 from Agent_Guru.security.models import AuthenticationResult
 from Agent_Guru.security.voice_auth import VoiceAuthenticationError, VoiceAuthenticator
-from Agent_Guru.speech.engine import SpeechEngine
 from Agent_Guru.vision.face_features import FaceFeatureExtractor
 from Agent_Guru.vision.models import FaceFeatures
 
@@ -193,6 +192,9 @@ class BiometricAuthenticator:
         Raises:
             VoiceAuthenticationError: If enrollment fails.
         """
+        # Local import to break circular dependency:
+        # security -> speech -> security
+        from Agent_Guru.speech.engine import SpeechEngine  # noqa: PLC0415
         engine = SpeechEngine()
         engine.initialize()
         voice_features = engine.extract_voice_features(audio_data)
@@ -210,6 +212,9 @@ class BiometricAuthenticator:
         Returns:
             AuthenticationResult with modality="voice".
         """
+        # Local import to break circular dependency:
+        # security -> speech -> security
+        from Agent_Guru.speech.engine import SpeechEngine  # noqa: PLC0415
         engine = SpeechEngine()
         engine.initialize()
         voice_features = engine.extract_voice_features(audio_data)

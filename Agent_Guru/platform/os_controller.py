@@ -73,7 +73,7 @@ try:
     from Agent_Guru.platform.controllers.file_operations import FileOperationsController
     from Agent_Guru.platform.controllers.input_control import KeyboardController, MouseController
     from Agent_Guru.platform.controllers.media_control import MediaController
-    from Agent_Guru.platform.controllers.messaging import MessagingController
+    from Agent_Guru.platform.controllers.messaging_controller import MessagingController
     from Agent_Guru.platform.controllers.screen_capture import ScreenCaptureController
     from Agent_Guru.platform.controllers.system_settings import SystemSettingsController
     from Agent_Guru.platform.controllers.text_input import TextInputController

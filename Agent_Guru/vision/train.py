@@ -31,7 +31,7 @@ import sys
 import time
 from pathlib import Path
 
-from Agent_Guru.security.path_utils import safe_path
+from Agent_Guru.utils.path_utils import safe_path
 from Agent_Guru.training.seed_utils import set_deterministic_seeds
 from Agent_Guru.vision.training.export import export_to_onnx, validate_onnx_equivalence
 from Agent_Guru.vision.training.preprocess import (
@@ -84,7 +84,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def _load_config_overrides(config_path: str, config: TrainingConfig) -> TrainingConfig:
     """Apply overrides from a YAML or JSON config file."""
-    path = safe_path(config_path, BASE_DIR)
+    path = safe_path(BASE_DIR, config_path)
     if not path.exists():
         logging.getLogger("guruvision.train").warning(
             "Config file not found: %s — using defaults", config_path
@@ -116,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
     # Set deterministic seeds for reproducibility (Req 2.24)
     set_deterministic_seeds(42)
 
-    log_file = str(safe_path(os.path.join(args.output_dir, "training.log"), BASE_DIR))
+    log_file = str(safe_path(BASE_DIR, os.path.join(args.output_dir, "training.log")))
     os.makedirs(args.output_dir, exist_ok=True)
     logger = setup_logging(log_level=args.log_level, log_file=log_file)
     logger.info("GuruVision training started")
@@ -204,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
     t2 = time.perf_counter()
     logger.info("Phase 3: Exporting to ONNX …")
 
-    onnx_path = str(safe_path(os.path.join(args.output_dir, "guru_face_model.onnx"), BASE_DIR))
+    onnx_path = str(safe_path(BASE_DIR, os.path.join(args.output_dir, "guru_face_model.onnx")))
     try:
         onnx_path = export_to_onnx(checkpoint_path, output_path=onnx_path)
         equivalence_ok = validate_onnx_equivalence(checkpoint_path, onnx_path)
@@ -233,7 +233,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _write_report(report: dict, output_dir: str) -> None:
-    report_path = str(safe_path(os.path.join(output_dir, "training_report.json"), BASE_DIR))
+    report_path = str(safe_path(BASE_DIR, os.path.join(output_dir, "training_report.json")))
     try:
         with open(report_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)

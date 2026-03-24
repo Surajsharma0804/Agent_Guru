@@ -89,7 +89,7 @@ class PolicyStorage:
         # schema and data survive across multiple _conn() calls.
         self._persistent_conn: Optional[sqlite3.Connection] = None
         if db_path == ":memory:":
-            self._persistent_conn = sqlite3.connect(":memory:", check_same_thread=False)
+            self._persistent_conn = sqlite3.connect(":memory:", check_same_thread=False)  # persistent; closed when object is GC'd
             self._persistent_conn.row_factory = sqlite3.Row
             self._persistent_conn.execute("PRAGMA foreign_keys = ON")
             self._persistent_conn.executescript(_SCHEMA)
@@ -112,17 +112,15 @@ class PolicyStorage:
                 self._persistent_conn.rollback()
                 raise
         else:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            conn.execute("PRAGMA foreign_keys = ON")
-            try:
-                yield conn
-                conn.commit()
-            except Exception:
-                conn.rollback()
-                raise
-            finally:
-                conn.close()
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                conn.execute("PRAGMA foreign_keys = ON")
+                try:
+                    yield conn
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                    raise
 
     # ------------------------------------------------------------------
     # Policy CRUD

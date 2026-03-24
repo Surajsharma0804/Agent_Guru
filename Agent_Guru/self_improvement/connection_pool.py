@@ -99,9 +99,10 @@ class PooledConnection:
 
         try:
             # Simple health check query
-            cursor = self.connection.cursor()
-            cursor.execute("SELECT 1")
-            cursor.fetchone()
+            with self.connection:
+                cursor = self.connection.cursor()
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
             return True
         except Exception:
             self.healthy = False
@@ -288,14 +289,18 @@ class ConnectionPool:
             timeout=self.timeout
         )
 
-        # Enable WAL mode for better concurrency
-        conn.execute("PRAGMA journal_mode=WAL")
+        try:
+            # Enable WAL mode for better concurrency
+            conn.execute("PRAGMA journal_mode=WAL")
 
-        # Enable foreign keys
-        conn.execute("PRAGMA foreign_keys=ON")
+            # Enable foreign keys
+            conn.execute("PRAGMA foreign_keys=ON")
 
-        # Set busy timeout
-        conn.execute(f"PRAGMA busy_timeout={int(self.timeout * 1000)}")
+            # Set busy timeout
+            conn.execute(f"PRAGMA busy_timeout={int(self.timeout * 1000)}")
+        except Exception:
+            conn.close()
+            raise
 
         return PooledConnection(conn, self)
 
@@ -428,9 +433,16 @@ class ConnectionPool:
         conn = self.acquire()
 
         try:
-            # Begin transaction
+            # Begin transaction — use allowlist to prevent SQL injection via isolation_level
+            _VALID_ISOLATION_LEVELS = frozenset({"DEFERRED", "IMMEDIATE", "EXCLUSIVE"})
             if isolation_level:
-                conn.connection.execute(f"BEGIN {isolation_level}")
+                level_upper = isolation_level.upper()
+                if level_upper not in _VALID_ISOLATION_LEVELS:
+                    raise ValueError(
+                        f"Invalid isolation_level {isolation_level!r}. "
+                        f"Must be one of: {sorted(_VALID_ISOLATION_LEVELS)}"
+                    )
+                conn.connection.execute(f"BEGIN {level_upper}")  # nosec B608 — allowlist validated
             else:
                 conn.connection.execute("BEGIN")
 
@@ -486,12 +498,16 @@ class ConnectionPool:
             ...         cursor.execute("INSERT INTO table VALUES (2)")
             ...         # Can rollback to savepoint without affecting outer transaction
         """
+        # Validate savepoint name is a safe SQL identifier (alphanumeric + underscore)
+        import re as _re
+        if not _re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', name):
+            raise ValueError(f"Invalid savepoint name {name!r}: must be a valid SQL identifier")
         try:
-            conn.execute(f"SAVEPOINT {name}")
+            conn.execute(f"SAVEPOINT {name}")  # nosec B608 — identifier validated above
             yield
-            conn.execute(f"RELEASE SAVEPOINT {name}")
+            conn.execute(f"RELEASE SAVEPOINT {name}")  # nosec B608
         except Exception:
-            conn.execute(f"ROLLBACK TO SAVEPOINT {name}")
+            conn.execute(f"ROLLBACK TO SAVEPOINT {name}")  # nosec B608
             raise
 
 

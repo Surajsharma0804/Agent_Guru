@@ -23,7 +23,7 @@ from typing import Optional
 
 import structlog
 
-from Agent_Guru.security.path_utils import safe_path
+from Agent_Guru.utils.path_utils import safe_path
 
 from .exceptions import (
     InstallationError,
@@ -200,7 +200,7 @@ class PackageManager:
         Streams the file to avoid loading large packages into memory.
         """
         hasher = hashlib.sha256()
-        with open(safe_path(package_path, BASE_DIR), "rb") as fh:
+        with open(safe_path(BASE_DIR, str(package_path)), "rb") as fh:
             while chunk := fh.read(_CHUNK_SIZE):
                 hasher.update(chunk)
         actual = hasher.hexdigest()
@@ -228,7 +228,7 @@ class PackageManager:
             async with session.get(url) as resp:
                 if resp.status != 200:
                     raise NetworkError(f"HTTP {resp.status} for {url}")
-                with open(safe_path(dest, BASE_DIR), "wb") as fh:
+                with open(safe_path(BASE_DIR, str(dest)), "wb") as fh:
                     async for chunk in resp.content.iter_chunked(_CHUNK_SIZE):
                         fh.write(chunk)
 
@@ -249,7 +249,7 @@ class PackageManager:
         checksum = ""
         if package_path.exists():
             hasher = hashlib.sha256()
-            with open(safe_path(package_path, BASE_DIR), "rb") as fh:
+            with open(safe_path(BASE_DIR, str(package_path)), "rb") as fh:
                 while chunk := fh.read(_CHUNK_SIZE):
                     hasher.update(chunk)
             checksum = hasher.hexdigest()

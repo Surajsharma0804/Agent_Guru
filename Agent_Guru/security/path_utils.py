@@ -39,7 +39,7 @@ def safe_path(user_input: str | Path, base_dir: Path) -> Path:
         (or equal to) *base_dir*.
 
     Raises:
-        PermissionError: When the resolved path escapes *base_dir*.
+        ValueError: When the resolved path escapes *base_dir*.
 
     Example::
 
@@ -59,7 +59,7 @@ def safe_path(user_input: str | Path, base_dir: Path) -> Path:
     resolved_base = base_dir.resolve()
 
     if not resolved.is_relative_to(resolved_base):
-        raise PermissionError(
+        raise ValueError(
             f"Path traversal detected: {str(user_input)!r} resolves to "
             f"{str(resolved)!r} which is outside the permitted base "
             f"directory {str(resolved_base)!r}."

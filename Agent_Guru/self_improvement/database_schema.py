@@ -25,6 +25,10 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
+from Agent_Guru.utils.path_utils import safe_path
+
+BASE_DIR = Path(__file__).parent.resolve()
+
 
 class DatabaseSchema:
     """
@@ -59,9 +63,10 @@ class DatabaseSchema:
         Space Complexity: O(1) - schema definition only
         """
         # Ensure directory exists
-        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        db_file = safe_path(BASE_DIR, db_path)
+        db_file.parent.mkdir(parents=True, exist_ok=True)
 
-        with sqlite3.connect(db_path) as conn:
+        with sqlite3.connect(str(db_file)) as conn:
             cursor = conn.cursor()
 
             # Enable foreign keys

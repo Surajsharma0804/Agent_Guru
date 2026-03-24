@@ -33,37 +33,37 @@ class VerificationResultStorage:
     """
 
     def __init__(self, db_path: str = ":memory:") -> None:
-        self._conn = sqlite3.connect(db_path, check_same_thread=False)
+        self._conn: sqlite3.Connection = sqlite3.connect(db_path, check_same_thread=False)  # persistent; closed in close()
         self._init_db()
 
     def _init_db(self) -> None:
-        self._conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS verification_log (
-                entry_id TEXT PRIMARY KEY,
-                result_id TEXT NOT NULL,
-                status TEXT NOT NULL,
-                confidence REAL NOT NULL,
-                latency_ms REAL NOT NULL,
-                hallucination_detected INTEGER NOT NULL,
-                validation_passed INTEGER NOT NULL,
-                loop_detected INTEGER NOT NULL,
-                timestamp TEXT NOT NULL,
-                context_type TEXT NOT NULL DEFAULT '',
-                metadata TEXT NOT NULL DEFAULT '{}'
+        with self._conn:
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS verification_log (
+                    entry_id TEXT PRIMARY KEY,
+                    result_id TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    confidence REAL NOT NULL,
+                    latency_ms REAL NOT NULL,
+                    hallucination_detected INTEGER NOT NULL,
+                    validation_passed INTEGER NOT NULL,
+                    loop_detected INTEGER NOT NULL,
+                    timestamp TEXT NOT NULL,
+                    context_type TEXT NOT NULL DEFAULT '',
+                    metadata TEXT NOT NULL DEFAULT '{}'
+                )
+                """
             )
-            """
-        )
-        self._conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_status ON verification_log(status)"
-        )
-        self._conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_timestamp ON verification_log(timestamp)"
-        )
-        self._conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_context_type ON verification_log(context_type)"
-        )
-        self._conn.commit()
+            self._conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_status ON verification_log(status)"
+            )
+            self._conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_timestamp ON verification_log(timestamp)"
+            )
+            self._conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_context_type ON verification_log(context_type)"
+            )
 
     def store(
         self,
@@ -83,29 +83,29 @@ class VerificationResultStorage:
             context_type=context_type,
             metadata=metadata or {},
         )
-        self._conn.execute(
-            """
-            INSERT INTO verification_log
-            (entry_id, result_id, status, confidence, latency_ms,
-             hallucination_detected, validation_passed, loop_detected,
-             timestamp, context_type, metadata)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?)
-            """,
-            (
-                str(entry.entry_id),
-                str(entry.result_id),
-                entry.status.value,
-                entry.confidence,
-                entry.latency_ms,
-                int(entry.hallucination_detected),
-                int(entry.validation_passed),
-                int(entry.loop_detected),
-                entry.timestamp.isoformat(),
-                entry.context_type,
-                json.dumps(entry.metadata),
-            ),
-        )
-        self._conn.commit()
+        with self._conn:
+            self._conn.execute(
+                """
+                INSERT INTO verification_log
+                (entry_id, result_id, status, confidence, latency_ms,
+                 hallucination_detected, validation_passed, loop_detected,
+                 timestamp, context_type, metadata)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    str(entry.entry_id),
+                    str(entry.result_id),
+                    entry.status.value,
+                    entry.confidence,
+                    entry.latency_ms,
+                    int(entry.hallucination_detected),
+                    int(entry.validation_passed),
+                    int(entry.loop_detected),
+                    entry.timestamp.isoformat(),
+                    entry.context_type,
+                    json.dumps(entry.metadata),
+                ),
+            )
         return entry
 
     def query(
@@ -133,13 +133,14 @@ class VerificationResultStorage:
         params.append(limit)
 
         # where is built from hardcoded condition strings with ? placeholders only
-        rows = self._conn.execute(
-            "SELECT entry_id, result_id, status, confidence, latency_ms, "
-            "hallucination_detected, validation_passed, loop_detected, "
-            "timestamp, context_type, metadata "
-            "FROM verification_log " + where + " ORDER BY timestamp DESC LIMIT ?",  # nosec B608
-            params,
-        ).fetchall()
+        with self._conn:
+            rows = self._conn.execute(
+                "SELECT entry_id, result_id, status, confidence, latency_ms, "
+                "hallucination_detected, validation_passed, loop_detected, "
+                "timestamp, context_type, metadata "
+                "FROM verification_log " + where + " ORDER BY timestamp DESC LIMIT ?",  # nosec B608
+                params,
+            ).fetchall()
 
         return [
             VerificationLogEntry(
@@ -160,11 +161,12 @@ class VerificationResultStorage:
 
     def compute_accuracy_metrics(self) -> AccuracyMetrics:
         """Compute accuracy metrics from stored results."""
-        row = self._conn.execute(
-            "SELECT COUNT(*), SUM(hallucination_detected), "
-            "SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) "
-            "FROM verification_log"
-        ).fetchone()
+        with self._conn:
+            row = self._conn.execute(
+                "SELECT COUNT(*), SUM(hallucination_detected), "
+                "SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) "
+                "FROM verification_log"
+            ).fetchone()
 
         total = row[0] or 0
         hallucinations_detected = row[1] or 0
@@ -181,9 +183,10 @@ class VerificationResultStorage:
 
     def get_latency_percentile(self, percentile: float = 95.0) -> float:
         """Get latency at given percentile (e.g., 95th)."""
-        rows = self._conn.execute(
-            "SELECT latency_ms FROM verification_log ORDER BY latency_ms"
-        ).fetchall()
+        with self._conn:
+            rows = self._conn.execute(
+                "SELECT latency_ms FROM verification_log ORDER BY latency_ms"
+            ).fetchall()
         if not rows:
             return 0.0
         latencies = [r[0] for r in rows]
@@ -194,14 +197,16 @@ class VerificationResultStorage:
     def count(self, status: VerificationStatus | None = None) -> int:
         """Count stored results, optionally filtered by status."""
         if status:
-            row = self._conn.execute(
-                "SELECT COUNT(*) FROM verification_log WHERE status = ?",
-                (status.value,),
-            ).fetchone()
+            with self._conn:
+                row = self._conn.execute(
+                    "SELECT COUNT(*) FROM verification_log WHERE status = ?",
+                    (status.value,),
+                ).fetchone()
         else:
-            row = self._conn.execute(
-                "SELECT COUNT(*) FROM verification_log"
-            ).fetchone()
+            with self._conn:
+                row = self._conn.execute(
+                    "SELECT COUNT(*) FROM verification_log"
+                ).fetchone()
         return row[0] if row else 0
 
     def close(self) -> None:

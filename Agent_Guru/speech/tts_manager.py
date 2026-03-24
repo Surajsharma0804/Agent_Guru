@@ -522,7 +522,7 @@ class TTSManager:
             )
             engine = SynthesisEngine(config=synthesis_config)
             # Initialize in executor to avoid blocking event loop
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, engine.initialize)
             self._synthesis_engine = engine
             self._active_backend = TTSBackend.COQUI
@@ -539,7 +539,7 @@ class TTSManager:
             speech_rate=self._config.speech_rate,
             volume=self._config.volume,
         )
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, backend.initialize)
         self._desktop_backend = backend
         self._active_backend = TTSBackend.PYTTSX3
@@ -553,7 +553,7 @@ class TTSManager:
             speech_rate=self._config.speech_rate,
             volume=self._config.volume,
         )
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, backend.initialize)
         self._android_backend = backend
         self._active_backend = TTSBackend.ANDROID_TTS
@@ -567,7 +567,7 @@ class TTSManager:
             speech_rate=self._config.speech_rate,
             volume=self._config.volume,
         )
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, backend.initialize)
         self._ios_backend = backend
         self._active_backend = TTSBackend.IOS_TTS
@@ -703,7 +703,7 @@ class TTSManager:
         engine.set_speech_rate(speech_rate)
         engine._config.volume = volume
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         result: SynthesisResult = await loop.run_in_executor(
             None, lambda: engine.synthesize(text)
         )
@@ -723,7 +723,7 @@ class TTSManager:
         self._desktop_backend._speech_rate = speech_rate
         self._desktop_backend._volume = volume
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         t_start = time.perf_counter()
         audio_bytes: bytes = await loop.run_in_executor(
             None, lambda: self._desktop_backend.synthesize(text)  # type: ignore[union-attr]
@@ -741,7 +741,7 @@ class TTSManager:
     ) -> SynthesisResult:
         """Synthesize using Android TextToSpeech backend."""
         assert self._android_backend is not None
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         t_start = time.perf_counter()
         audio_bytes: bytes = await loop.run_in_executor(
             None, lambda: self._android_backend.synthesize(text)  # type: ignore[union-attr]
@@ -758,7 +758,7 @@ class TTSManager:
     ) -> SynthesisResult:
         """Synthesize using iOS AVSpeechSynthesizer backend."""
         assert self._ios_backend is not None
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         t_start = time.perf_counter()
         audio_bytes: bytes = await loop.run_in_executor(
             None, lambda: self._ios_backend.synthesize(text)  # type: ignore[union-attr]

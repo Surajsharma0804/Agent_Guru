@@ -38,7 +38,7 @@ class TestOrchestratorIntegration:
                 time.sleep(0.1)
                 try:
                     os.unlink(path)
-                except:
+                except OSError:
                     pass
     
     @pytest.fixture
@@ -332,7 +332,7 @@ class TestOrchestratorPerformance:
         if os.path.exists(path):
             try:
                 os.unlink(path)
-            except:
+            except OSError:
                 pass
     
     @pytest.fixture

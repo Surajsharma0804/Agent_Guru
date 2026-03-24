@@ -42,16 +42,20 @@ class AutomationEngine:
 
     def __init__(self, db_path: str = ":memory:") -> None:
         self._db_path = db_path
-        self._conn = sqlite3.connect(db_path)
+        self._conn: sqlite3.Connection = sqlite3.connect(db_path)  # persistent; closed in close()
         self._init_db()
         self._automations: dict[str, Automation] = {}
 
+    def close(self) -> None:
+        """Release the SQLite connection."""
+        self._conn.close()
+
     def _init_db(self) -> None:
-        self._conn.execute(
-            "CREATE TABLE IF NOT EXISTS scenes "
-            "(scene_id TEXT PRIMARY KEY, name TEXT, actions TEXT, created_at REAL)"
-        )
-        self._conn.commit()
+        with self._conn:
+            self._conn.execute(
+                "CREATE TABLE IF NOT EXISTS scenes "
+                "(scene_id TEXT PRIMARY KEY, name TEXT, actions TEXT, created_at REAL)"
+            )
 
     # ------------------------------------------------------------------
     # Scene management
@@ -61,20 +65,21 @@ class AutomationEngine:
         """Create and persist a scene."""
         scene_id = f"scene_{int(time.time() * 1000)}"
         scene = Scene(scene_id=scene_id, name=name, actions=actions)
-        self._conn.execute(
-            "INSERT INTO scenes VALUES (?, ?, ?, ?)",
-            (scene_id, name, json.dumps(actions), scene.created_at),
-        )
-        self._conn.commit()
+        with self._conn:
+            self._conn.execute(
+                "INSERT INTO scenes VALUES (?, ?, ?, ?)",
+                (scene_id, name, json.dumps(actions), scene.created_at),
+            )
         logger.info("Created scene '%s' (%s)", name, scene_id)
         return scene
 
     async def activate_scene(self, scene_id: str, controller: Any) -> bool:
         """Activate a scene by executing all its device commands."""
         try:
-            row = self._conn.execute(
-                "SELECT actions FROM scenes WHERE scene_id = ?", (scene_id,)
-            ).fetchone()
+            with self._conn:
+                row = self._conn.execute(
+                    "SELECT actions FROM scenes WHERE scene_id = ?", (scene_id,)
+                ).fetchone()
         except sqlite3.Error as exc:
             logger.error("DB error fetching scene %s: %s", scene_id, exc)
             return False
@@ -110,10 +115,11 @@ class AutomationEngine:
     def get_scene(self, scene_id: str) -> Scene | None:
         """Retrieve a scene by ID."""
         try:
-            row = self._conn.execute(
-                "SELECT scene_id, name, actions, created_at FROM scenes WHERE scene_id = ?",
-                (scene_id,),
-            ).fetchone()
+            with self._conn:
+                row = self._conn.execute(
+                    "SELECT scene_id, name, actions, created_at FROM scenes WHERE scene_id = ?",
+                    (scene_id,),
+                ).fetchone()
         except sqlite3.Error as exc:
             logger.error("DB error fetching scene %s: %s", scene_id, exc)
             return None

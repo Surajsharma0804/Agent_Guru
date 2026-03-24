@@ -343,7 +343,7 @@ class VerifierSystem:
             except Exception:
                 text = ""
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         # Build coroutines for parallel execution
         tasks: dict[str, Any] = {}

@@ -174,9 +174,15 @@ class InstallerBuilder:
         Build Windows MSI using WiX Toolset (requires candle.exe + light.exe).
 
         Returns path to MSI if successful, None if toolchain not available.
+
+        Raises:
+            ValueError: If config values contain path traversal sequences.
         """
         wxs_path = self.generate_windows_wix(config)
-        msi_path = self._output_dir / f"{config.app_name}-{config.version}.msi"
+        # Sanitize version/name before embedding in filenames
+        safe_name = self._safe_filename(config.app_name)
+        safe_version = self._safe_filename(config.version)
+        msi_path = self._output_dir / f"{safe_name}-{safe_version}.msi"
 
         if platform.system() != "Windows":
             logger.warning("windows_msi_requires_windows")
@@ -184,10 +190,20 @@ class InstallerBuilder:
 
         try:
             wixobj = self._output_dir / "installer.wixobj"
-            subprocess.run(["candle.exe", str(wxs_path), "-o", str(wixobj)],
-                           check=True, capture_output=True)
-            subprocess.run(["light.exe", str(wixobj), "-o", str(msi_path)],
-                           check=True, capture_output=True)
+            # shell=False (default) with a list — no shell interpolation possible.
+            # All paths are resolved under _output_dir; no user-controlled shell expansion.
+            subprocess.run(
+                ["candle.exe", str(wxs_path), "-o", str(wixobj)],
+                check=True,
+                capture_output=True,
+                shell=False,  # explicit — never allow shell=True here
+            )
+            subprocess.run(
+                ["light.exe", str(wixobj), "-o", str(msi_path)],
+                check=True,
+                capture_output=True,
+                shell=False,
+            )
             logger.info("windows_msi_built", path=str(msi_path))
             return msi_path
         except (subprocess.CalledProcessError, FileNotFoundError) as exc:
@@ -396,6 +412,20 @@ android.enable_androidx = True
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _safe_filename(value: str) -> str:
+        """
+        Strip characters that are unsafe in filenames or shell arguments.
+
+        Allows alphanumerics, dots, hyphens, and underscores only.
+        Raises ValueError if the result is empty.
+        """
+        import re
+        sanitized = re.sub(r"[^\w.\-]", "_", value)
+        if not sanitized:
+            raise ValueError(f"Filename component '{value}' is empty after sanitization")
+        return sanitized
 
     @staticmethod
     def _start_menu_dir(app_name: str) -> str:

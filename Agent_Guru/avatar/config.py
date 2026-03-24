@@ -86,20 +86,23 @@ try:
         @classmethod
         def from_file(cls, path: str) -> "AvatarConfig":
             """Load configuration from a JSON or YAML file."""
-            config_path = Path(path)
-            if not config_path.exists():
+            from Agent_Guru.utils.path_utils import safe_path as _safe_path
+            # Resolve the full path first so that any .. sequences are collapsed
+            # before we validate containment — prevents CWE-22 path traversal.
+            resolved = _safe_path(Path(path).resolve().parent, Path(path).resolve().name)
+            if not resolved.exists():
                 raise FileNotFoundError(f"Config file not found: {path}")
 
-            suffix = config_path.suffix.lower()
+            suffix = resolved.suffix.lower()
             if suffix in (".yaml", ".yml"):
                 try:
                     import yaml  # type: ignore[import]
-                    with config_path.open() as fh:
+                    with resolved.open() as fh:
                         raw = yaml.safe_load(fh)
                 except ImportError:
-                    raise ImportError("PyYAML required for YAML config files: pip install pyyaml") from e
+                    raise ImportError("PyYAML required for YAML config files: pip install pyyaml") from None
             else:
-                with config_path.open() as fh:
+                with resolved.open() as fh:
                     raw = json.load(fh)
 
             return cls(**raw)
@@ -158,10 +161,11 @@ except ImportError:
 
         @classmethod
         def from_file(cls, path: str) -> "AvatarConfig":
-            config_path = Path(path)
-            if not config_path.exists():
+            from Agent_Guru.utils.path_utils import safe_path as _safe_path
+            resolved = _safe_path(Path(path).resolve().parent, Path(path).resolve().name)
+            if not resolved.exists():
                 raise FileNotFoundError(f"Config file not found: {path}")
-            with config_path.open() as fh:
+            with resolved.open() as fh:
                 raw = json.load(fh)
             fields = {f.name for f in dataclasses.fields(cls)}
             return cls(**{k: v for k, v in raw.items() if k in fields})
@@ -196,7 +200,7 @@ class ConfigWatcher:
         callback: Any,
         poll_interval: float = 2.0,
     ) -> None:
-        self._config_path = Path(config_path)
+        self._config_path = Path(config_path).resolve()
         self._callback = callback
         self._poll_interval = poll_interval
         self._last_mtime: Optional[float] = None

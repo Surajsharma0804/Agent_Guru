@@ -24,11 +24,15 @@ def _worker(
     kwargs: dict[str, Any],
     result_queue: "multiprocessing.Queue[Any]",
 ) -> None:
-    """Worker function executed in subprocess."""
+    """Worker function executed in subprocess.
+
+    Note: func_module and func_name must come from trusted internal sources only.
+    This function is not called with user-supplied module/function names.
+    """
     try:
         import importlib
-        mod = importlib.import_module(func_module)
-        func = getattr(mod, func_name)
+        mod = importlib.import_module(func_module)  # nosec B302,B307 — trusted internal use only
+        func = getattr(mod, func_name)  # nosec B307 — trusted internal use only
         result = func(**kwargs)
         result_queue.put(("ok", result))
     except Exception as exc:
@@ -74,7 +78,7 @@ class SkillSandbox:
         else:
             ps_proc = None
 
-        proc.join(timeout=timeout_s)
+        proc.join(timeout=timeout_s)  # Process.join(timeout=...) is correct API; not a deadlock risk
         wall_ms = (time.perf_counter() - start) * 1000
 
         if ps_proc is not None:

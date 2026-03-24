@@ -195,39 +195,38 @@ class MetaLearner:
         Time Complexity: O(1)
         Space Complexity: O(1)
         """
-        conn = sqlite3.connect(self.storage_path)
-        cursor = conn.cursor()
+        with sqlite3.connect(self.storage_path) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS meta_patterns (
-                pattern_id TEXT PRIMARY KEY,
-                pattern_type TEXT NOT NULL,
-                centroid BLOB NOT NULL,
-                feature_ranges TEXT NOT NULL,
-                recommended_strategies TEXT NOT NULL,
-                confidence REAL NOT NULL,
-                sample_count INTEGER NOT NULL,
-                created_at TEXT NOT NULL,
-                last_updated TEXT NOT NULL,
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS meta_patterns (
+                    pattern_id TEXT PRIMARY KEY,
+                    pattern_type TEXT NOT NULL,
+                    centroid BLOB NOT NULL,
+                    feature_ranges TEXT NOT NULL,
+                    recommended_strategies TEXT NOT NULL,
+                    confidence REAL NOT NULL,
+                    sample_count INTEGER NOT NULL,
+                    created_at TEXT NOT NULL,
+                    last_updated TEXT NOT NULL,
 
-                CHECK (pattern_type IN ('success', 'failure')),
-                CHECK (confidence >= 0.0 AND confidence <= 1.0),
-                CHECK (sample_count > 0)
-            )
-        """)
+                    CHECK (pattern_type IN ('success', 'failure')),
+                    CHECK (confidence >= 0.0 AND confidence <= 1.0),
+                    CHECK (sample_count > 0)
+                )
+            """)
 
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_meta_patterns_type
-            ON meta_patterns(pattern_type)
-        """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_meta_patterns_type
+                ON meta_patterns(pattern_type)
+            """)
 
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_meta_patterns_confidence
-            ON meta_patterns(confidence DESC)
-        """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_meta_patterns_confidence
+                ON meta_patterns(confidence DESC)
+            """)
 
-        conn.commit()
-        conn.close()
+            conn.commit()
 
     def process_execution(self, execution: Any) -> None:
         """
@@ -398,42 +397,41 @@ class MetaLearner:
         Time Complexity: O(1)
         Space Complexity: O(1)
         """
-        conn = sqlite3.connect(self.storage_path)
-        cursor = conn.cursor()
+        with sqlite3.connect(self.storage_path) as conn:
+            cursor = conn.cursor()
 
-        # Create execution_features table if not exists
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS execution_features (
-                task_id TEXT PRIMARY KEY,
-                task_type TEXT NOT NULL,
-                strategy_id TEXT NOT NULL,
-                success INTEGER NOT NULL,
-                features BLOB NOT NULL,
-                timestamp TEXT NOT NULL,
+            # Create execution_features table if not exists
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS execution_features (
+                    task_id TEXT PRIMARY KEY,
+                    task_type TEXT NOT NULL,
+                    strategy_id TEXT NOT NULL,
+                    success INTEGER NOT NULL,
+                    features BLOB NOT NULL,
+                    timestamp TEXT NOT NULL,
 
-                CHECK (success IN (0, 1))
-            )
-        """)
+                    CHECK (success IN (0, 1))
+                )
+            """)
 
-        # Store features as binary blob
-        feature_vector = features.to_vector()
-        feature_blob = feature_vector.tobytes()
+            # Store features as binary blob
+            feature_vector = features.to_vector()
+            feature_blob = feature_vector.tobytes()
 
-        cursor.execute("""
-            INSERT OR REPLACE INTO execution_features (
-                task_id, task_type, strategy_id, success, features, timestamp
-            ) VALUES (?, ?, ?, ?, ?, ?)
-        """, (
-            execution.task_id,
-            execution.task_type,
-            execution.strategy_id,
-            1 if execution.success else 0,
-            feature_blob,
-            execution.timestamp.isoformat()
-        ))
+            cursor.execute("""
+                INSERT OR REPLACE INTO execution_features (
+                    task_id, task_type, strategy_id, success, features, timestamp
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                execution.task_id,
+                execution.task_type,
+                execution.strategy_id,
+                1 if execution.success else 0,
+                feature_blob,
+                execution.timestamp.isoformat()
+            ))
 
-        conn.commit()
-        conn.close()
+            conn.commit()
 
     def _should_update_patterns(self) -> bool:
         """
@@ -449,18 +447,16 @@ class MetaLearner:
         Time Complexity: O(1)
         Space Complexity: O(1)
         """
-        conn = sqlite3.connect(self.storage_path)
-        cursor = conn.cursor()
+        with sqlite3.connect(self.storage_path) as conn:
+            cursor = conn.cursor()
 
-        # Count total executions
-        cursor.execute("SELECT COUNT(*) FROM execution_features")
-        total_count = cursor.fetchone()[0]
+            # Count total executions
+            cursor.execute("SELECT COUNT(*) FROM execution_features")
+            total_count = cursor.fetchone()[0]
 
-        # Count existing patterns
-        cursor.execute("SELECT COUNT(*) FROM meta_patterns")
-        pattern_count = cursor.fetchone()[0]
-
-        conn.close()
+            # Count existing patterns
+            cursor.execute("SELECT COUNT(*) FROM meta_patterns")
+            pattern_count = cursor.fetchone()[0]
 
         # Update if no patterns or enough new data
         return pattern_count == 0 or total_count % 10 == 0
@@ -513,19 +509,18 @@ class MetaLearner:
         Time Complexity: O(n) where n is number of executions
         Space Complexity: O(n)
         """
-        conn = sqlite3.connect(self.storage_path)
-        cursor = conn.cursor()
+        with sqlite3.connect(self.storage_path) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT task_id, task_type, strategy_id, features
-            FROM execution_features
-            WHERE success = ?
-            ORDER BY timestamp DESC
-            LIMIT 1000
-        """, (1 if success else 0,))
+            cursor.execute("""
+                SELECT task_id, task_type, strategy_id, features
+                FROM execution_features
+                WHERE success = ?
+                ORDER BY timestamp DESC
+                LIMIT 1000
+            """, (1 if success else 0,))
 
-        rows = cursor.fetchall()
-        conn.close()
+            rows = cursor.fetchall()
 
         if not rows:
             return np.array([]), []
@@ -724,30 +719,29 @@ class MetaLearner:
         Time Complexity: O(n) where n is number of patterns
         Space Complexity: O(1)
         """
-        conn = sqlite3.connect(self.storage_path)
-        cursor = conn.cursor()
+        with sqlite3.connect(self.storage_path) as conn:
+            cursor = conn.cursor()
 
-        for pattern in patterns:
-            cursor.execute("""
-                INSERT OR REPLACE INTO meta_patterns (
-                    pattern_id, pattern_type, centroid, feature_ranges,
-                    recommended_strategies, confidence, sample_count,
-                    created_at, last_updated
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                pattern.pattern_id,
-                pattern.pattern_type.value,
-                pattern.centroid.tobytes(),
-                json.dumps(pattern.feature_ranges),
-                json.dumps(pattern.recommended_strategies),
-                pattern.confidence,
-                pattern.sample_count,
-                pattern.created_at.isoformat(),
-                pattern.last_updated.isoformat()
-            ))
+            for pattern in patterns:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO meta_patterns (
+                        pattern_id, pattern_type, centroid, feature_ranges,
+                        recommended_strategies, confidence, sample_count,
+                        created_at, last_updated
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    pattern.pattern_id,
+                    pattern.pattern_type.value,
+                    pattern.centroid.tobytes(),
+                    json.dumps(pattern.feature_ranges),
+                    json.dumps(pattern.recommended_strategies),
+                    pattern.confidence,
+                    pattern.sample_count,
+                    pattern.created_at.isoformat(),
+                    pattern.last_updated.isoformat()
+                ))
 
-        conn.commit()
-        conn.close()
+            conn.commit()
 
     def recommend_strategies(
         self,
@@ -810,33 +804,32 @@ class MetaLearner:
         Time Complexity: O(n) where n is number of patterns
         Space Complexity: O(n)
         """
-        conn = sqlite3.connect(self.storage_path)
-        cursor = conn.cursor()
+        with sqlite3.connect(self.storage_path) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT pattern_id, pattern_type, centroid, feature_ranges,
-                   recommended_strategies, confidence, sample_count,
-                   created_at, last_updated
-            FROM meta_patterns
-            ORDER BY confidence DESC
-        """)
+            cursor.execute("""
+                SELECT pattern_id, pattern_type, centroid, feature_ranges,
+                       recommended_strategies, confidence, sample_count,
+                       created_at, last_updated
+                FROM meta_patterns
+                ORDER BY confidence DESC
+            """)
 
-        patterns = []
-        for row in cursor.fetchall():
-            pattern = Pattern(
-                pattern_id=row[0],
-                pattern_type=PatternType(row[1]),
-                centroid=np.frombuffer(row[2], dtype=np.float32),
-                feature_ranges=json.loads(row[3]),
-                recommended_strategies=json.loads(row[4]),
-                confidence=row[5],
-                sample_count=row[6],
-                created_at=datetime.fromisoformat(row[7]),
-                last_updated=datetime.fromisoformat(row[8])
-            )
-            patterns.append(pattern)
+            patterns = []
+            for row in cursor.fetchall():
+                pattern = Pattern(
+                    pattern_id=row[0],
+                    pattern_type=PatternType(row[1]),
+                    centroid=np.frombuffer(row[2], dtype=np.float32),
+                    feature_ranges=json.loads(row[3]),
+                    recommended_strategies=json.loads(row[4]),
+                    confidence=row[5],
+                    sample_count=row[6],
+                    created_at=datetime.fromisoformat(row[7]),
+                    last_updated=datetime.fromisoformat(row[8])
+                )
+                patterns.append(pattern)
 
-        conn.close()
         return patterns
 
     def _extract_task_features(
@@ -923,18 +916,17 @@ class MetaLearner:
         Space Complexity: O(n)
         """
         # Load all execution features
-        conn = sqlite3.connect(self.storage_path)
-        cursor = conn.cursor()
+        with sqlite3.connect(self.storage_path) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT features, success
-            FROM execution_features
-            ORDER BY timestamp DESC
-            LIMIT 1000
-        """)
+            cursor.execute("""
+                SELECT features, success
+                FROM execution_features
+                ORDER BY timestamp DESC
+                LIMIT 1000
+            """)
 
-        rows = cursor.fetchall()
-        conn.close()
+            rows = cursor.fetchall()
 
         if len(rows) < 10:
             # Not enough data for correlation analysis

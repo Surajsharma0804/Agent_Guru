@@ -115,11 +115,10 @@ class HealthChecker:
                 )
 
             # Check database connectivity
-            conn = sqlite3.connect(self.storage_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM task_executions")
-            task_count = cursor.fetchone()[0]
-            conn.close()
+            with sqlite3.connect(self.storage_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM task_executions")
+                task_count = cursor.fetchone()[0]
 
             return HealthCheckResult(
                 status=HealthStatus.HEALTHY,
@@ -209,27 +208,25 @@ class HealthChecker:
     def _check_performance(self) -> HealthCheckResult:
         """Check performance metrics."""
         try:
-            conn = sqlite3.connect(self.storage_path)
-            cursor = conn.cursor()
+            with sqlite3.connect(self.storage_path) as conn:
+                cursor = conn.cursor()
 
-            # Get recent task execution times
-            cursor.execute("""
-                SELECT AVG(execution_time_ms)
-                FROM task_executions
-                WHERE timestamp > datetime('now', '-1 hour')
-            """)
-            avg_time = cursor.fetchone()[0]
+                # Get recent task execution times
+                cursor.execute("""
+                    SELECT AVG(execution_time_ms)
+                    FROM task_executions
+                    WHERE timestamp > datetime('now', '-1 hour')
+                """)
+                avg_time = cursor.fetchone()[0]
 
-            # Get success rate
-            cursor.execute("""
-                SELECT
-                    SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)
-                FROM task_executions
-                WHERE timestamp > datetime('now', '-1 hour')
-            """)
-            success_rate = cursor.fetchone()[0]
-
-            conn.close()
+                # Get success rate
+                cursor.execute("""
+                    SELECT
+                        SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)
+                    FROM task_executions
+                    WHERE timestamp > datetime('now', '-1 hour')
+                """)
+                success_rate = cursor.fetchone()[0]
 
             if avg_time is None or success_rate is None:
                 return HealthCheckResult(
@@ -267,24 +264,22 @@ class HealthChecker:
     def _check_learning(self) -> HealthCheckResult:
         """Check learning progress."""
         try:
-            conn = sqlite3.connect(self.storage_path)
-            cursor = conn.cursor()
+            with sqlite3.connect(self.storage_path) as conn:
+                cursor = conn.cursor()
 
-            # Get total task count
-            cursor.execute("SELECT COUNT(*) FROM task_executions")
-            total_tasks = cursor.fetchone()[0]
+                # Get total task count
+                cursor.execute("SELECT COUNT(*) FROM task_executions")
+                total_tasks = cursor.fetchone()[0]
 
-            # Get recent improvement
-            cursor.execute("""
-                SELECT relative_improvement
-                FROM improvement_reports
-                ORDER BY timestamp DESC
-                LIMIT 1
-            """)
-            result = cursor.fetchone()
-            recent_improvement = result[0] if result else None
-
-            conn.close()
+                # Get recent improvement
+                cursor.execute("""
+                    SELECT relative_improvement
+                    FROM improvement_reports
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                """)
+                result = cursor.fetchone()
+                recent_improvement = result[0] if result else None
 
             if total_tasks < 100:
                 return HealthCheckResult(
@@ -335,57 +330,55 @@ class HealthChecker:
             Dictionary with key metrics
         """
         try:
-            conn = sqlite3.connect(self.storage_path)
-            cursor = conn.cursor()
+            with sqlite3.connect(self.storage_path) as conn:
+                cursor = conn.cursor()
 
-            # Total tasks
-            cursor.execute("SELECT COUNT(*) FROM task_executions")
-            total_tasks = cursor.fetchone()[0]
+                # Total tasks
+                cursor.execute("SELECT COUNT(*) FROM task_executions")
+                total_tasks = cursor.fetchone()[0]
 
-            # Success rate (last 100 tasks)
-            cursor.execute("""
-                SELECT
-                    SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)
-                FROM (
-                    SELECT success FROM task_executions
-                    ORDER BY timestamp DESC
-                    LIMIT 100
-                )
-            """)
-            success_rate = cursor.fetchone()[0] or 0.0
+                # Success rate (last 100 tasks)
+                cursor.execute("""
+                    SELECT
+                        SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)
+                    FROM (
+                        SELECT success FROM task_executions
+                        ORDER BY timestamp DESC
+                        LIMIT 100
+                    )
+                """)
+                success_rate = cursor.fetchone()[0] or 0.0
 
-            # Average execution time (last 100 tasks)
-            cursor.execute("""
-                SELECT AVG(execution_time_ms)
-                FROM (
-                    SELECT execution_time_ms FROM task_executions
-                    ORDER BY timestamp DESC
-                    LIMIT 100
-                )
-            """)
-            avg_time = cursor.fetchone()[0] or 0.0
+                # Average execution time (last 100 tasks)
+                cursor.execute("""
+                    SELECT AVG(execution_time_ms)
+                    FROM (
+                        SELECT execution_time_ms FROM task_executions
+                        ORDER BY timestamp DESC
+                        LIMIT 100
+                    )
+                """)
+                avg_time = cursor.fetchone()[0] or 0.0
 
-            # Failure counts by type
-            cursor.execute("""
-                SELECT failure_type, COUNT(*)
-                FROM failures
-                GROUP BY failure_type
-            """)
-            failure_counts = dict(cursor.fetchall())
+                # Failure counts by type
+                cursor.execute("""
+                    SELECT failure_type, COUNT(*)
+                    FROM failures
+                    GROUP BY failure_type
+                """)
+                failure_counts = dict(cursor.fetchall())
 
-            # Strategy performance
-            cursor.execute("""
-                SELECT strategy_id, success_rate, total_executions
-                FROM strategies
-                ORDER BY success_rate DESC
-                LIMIT 5
-            """)
-            top_strategies = [
-                {"strategy": row[0], "success_rate": row[1], "executions": row[2]}
-                for row in cursor.fetchall()
-            ]
-
-            conn.close()
+                # Strategy performance
+                cursor.execute("""
+                    SELECT strategy_id, success_rate, total_executions
+                    FROM strategies
+                    ORDER BY success_rate DESC
+                    LIMIT 5
+                """)
+                top_strategies = [
+                    {"strategy": row[0], "success_rate": row[1], "executions": row[2]}
+                    for row in cursor.fetchall()
+                ]
 
             return {
                 "total_tasks": total_tasks,

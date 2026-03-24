@@ -109,47 +109,39 @@ class AnthropicAdapter(ProviderAdapter):
         client = self._get_client()
         system_prompt, anthropic_messages = self._to_anthropic_messages(request.messages)
 
-        kwargs: dict[str, Any] = {}
+        # Build prompt in Anthropic v0.8 format (HUMAN_PROMPT / AI_PROMPT)
+        import anthropic as _anthropic  # type: ignore[import]
+        prompt_parts: list[str] = []
         if system_prompt:
-            kwargs["system"] = system_prompt
-        if request.functions:
-            kwargs["tools"] = self._to_anthropic_tools(request.functions)
+            prompt_parts.append(system_prompt)
+        for m in anthropic_messages:
+            if m["role"] == "user":
+                prompt_parts.append(f"{_anthropic.HUMAN_PROMPT} {m['content']}")
+            else:
+                prompt_parts.append(f"{_anthropic.AI_PROMPT} {m['content']}")
+        prompt_parts.append(_anthropic.AI_PROMPT)
+        full_prompt = "\n".join(prompt_parts)
 
-        response = await client.messages.create(
+        response = await client.completions.acreate(
             model=request.model,
-            messages=anthropic_messages,
-            max_tokens=request.max_tokens or 1024,
-            temperature=request.temperature,
-            **kwargs,
+            prompt=full_prompt,
+            max_tokens_to_sample=request.max_tokens or 1024,
         )
 
-        # Extract text content
-        content = ""
-        function_call: Optional[dict[str, Any]] = None
-        for block in response.content:
-            if block.type == "text":
-                content += block.text
-            elif block.type == "tool_use":
-                function_call = {"name": block.name, "arguments": block.input}
-
-        cost = self._calculate_cost(
-            input_tokens=response.usage.input_tokens,
-            output_tokens=response.usage.output_tokens,
-            model=request.model,
-        )
+        content = response.completion or ""
 
         return CompletionResponse(
             content=content,
-            model=response.model,
+            model=request.model,
             provider=ModelProvider.ANTHROPIC,
             finish_reason=response.stop_reason or "stop",
             usage=TokenUsage(
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
-                total_tokens=response.usage.input_tokens + response.usage.output_tokens,
-                estimated_cost=cost,
+                prompt_tokens=0,
+                completion_tokens=len(content.split()),
+                total_tokens=len(content.split()),
+                estimated_cost=0.0,
             ),
-            function_call=function_call,
+            function_call=None,
             latency_ms=0.0,
             timestamp=datetime.now(),
         )

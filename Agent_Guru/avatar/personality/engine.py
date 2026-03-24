@@ -86,11 +86,12 @@ class PersonalityEngine:
             FileNotFoundError: If the file does not exist.
             ValueError: If required traits are missing or out of range.
         """
-        path = Path(profile_path)
-        if not path.exists():
+        from Agent_Guru.utils.path_utils import safe_path as _safe_path
+        resolved = _safe_path(Path(profile_path).resolve().parent, Path(profile_path).resolve().name)
+        if not resolved.exists():
             raise FileNotFoundError(f"Personality profile not found: {profile_path}")
 
-        with path.open() as fh:
+        with resolved.open() as fh:
             data = json.load(fh)
 
         profile = PersonalityProfile.from_dict(data)

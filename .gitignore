@@ -243,3 +243,16 @@ memory_db/
 
 # Ruff cache
 .ruff_cache/
+
+# Coverage and benchmark artifacts
+htmlcov/
+.benchmarks/
+test_logs/
+bandit_results.json
+FULL_REPOSITORY_AUDIT_REPORT.txt
+
+# Root-level model weight files (should live under models/)
+/*.pt
+/*.pth
+/*.onnx
+/*.bin

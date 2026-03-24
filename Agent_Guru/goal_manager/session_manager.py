@@ -143,11 +143,11 @@ class SessionManager:
 
         # Use the storage's persistent connection to avoid creating a new one
         conn = self.storage._conn
-        cursor = conn.cursor()
-
         try:
-            cursor.execute("SELECT id, description, status, priority, goal_type, progress, created_at, started_at, completed_at, deadline, parent_id, sub_goal_ids, dependency_ids, metadata, error_message, retry_count FROM goals")
-            rows = cursor.fetchall()
+            with conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, description, status, priority, goal_type, progress, created_at, started_at, completed_at, deadline, parent_id, sub_goal_ids, dependency_ids, metadata, error_message, retry_count FROM goals")
+                rows = cursor.fetchall()
 
             for row in rows:
                 try:

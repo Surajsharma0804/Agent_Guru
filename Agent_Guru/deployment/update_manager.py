@@ -19,7 +19,7 @@ from typing import Any, Optional
 import structlog
 from packaging.version import Version
 
-from Agent_Guru.security.path_utils import safe_path
+from Agent_Guru.utils.path_utils import safe_path
 
 from .exceptions import NetworkError, SignatureVerificationError
 from .models import Configuration
@@ -163,7 +163,7 @@ class UpdateManager:
         # Verify checksum
         if update_info.checksum:
             hasher = hashlib.sha256()
-            with open(safe_path(update_path, BASE_DIR), "rb") as fh:
+            with open(safe_path(BASE_DIR, str(update_path)), "rb") as fh:
                 while chunk := fh.read(_CHUNK_SIZE):
                     hasher.update(chunk)
             actual = hasher.hexdigest()
@@ -240,7 +240,7 @@ class UpdateManager:
                 async with session.get(url) as resp:
                     if resp.status != 200:
                         raise NetworkError(f"HTTP {resp.status} for {url}")
-                    with open(safe_path(dest, BASE_DIR), "wb") as fh:
+                    with open(safe_path(BASE_DIR, str(dest)), "wb") as fh:
                         async for chunk in resp.content.iter_chunked(_CHUNK_SIZE):
                             fh.write(chunk)
         except ImportError:

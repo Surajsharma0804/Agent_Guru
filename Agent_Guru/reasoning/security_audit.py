@@ -161,7 +161,7 @@ def check_no_hardcoded_secrets(root: Path) -> AuditResult:
                 continue
 
             for pattern_name, pattern in _SECRET_PATTERNS:
-                if pattern.search(line):
+                if pattern.search(line):  # nosec B943 — static analysis regex, not a NoSQL query
                     issues.append(
                         SecurityIssue(
                             severity=Severity.CRITICAL,
@@ -197,7 +197,7 @@ def check_no_dangerous_functions(root: Path) -> AuditResult:
                 continue
 
             for pattern_name, pattern in _DANGEROUS_PATTERNS:
-                if pattern.search(line):
+                if pattern.search(line):  # nosec B943 — static analysis regex, not a NoSQL query
                     issues.append(
                         SecurityIssue(
                             severity=Severity.HIGH,

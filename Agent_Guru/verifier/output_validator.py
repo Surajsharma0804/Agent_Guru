@@ -10,14 +10,16 @@ from __future__ import annotations
 
 import json
 import re
-import xml.etree.ElementTree as ET  # nosec B405 — used only for ET.ParseError type; defusedxml used for actual parsing
+import xml.etree.ElementTree as ET  # nosec B405 — used only for ET.ParseError type; defusedxml used for all parsing
 from typing import Any
 
 try:
     import defusedxml.ElementTree as _defused_ET  # type: ignore[import-untyped]
-    _DEFUSEDXML_AVAILABLE = True
-except ImportError:  # pragma: no cover
-    _DEFUSEDXML_AVAILABLE = False
+except ImportError as _defusedxml_import_error:  # pragma: no cover
+    raise ImportError(
+        "defusedxml is required for safe XML parsing. "
+        "Install it with: pip install defusedxml"
+    ) from _defusedxml_import_error
 
 from Agent_Guru.verifier.models import (
     OutputValidationResult,
@@ -103,10 +105,7 @@ class OutputValidator:
                 return "invalid_json"
         if stripped.startswith("<") and stripped.endswith(">"):
             try:
-                if _DEFUSEDXML_AVAILABLE:
-                    _defused_ET.fromstring(stripped)
-                else:
-                    ET.fromstring(stripped)  # nosec B314
+                _defused_ET.fromstring(stripped)
                 return "xml"
             except ET.ParseError:
                 return "invalid_xml"
@@ -161,10 +160,7 @@ class OutputValidator:
                 )
                 return violations
             try:
-                if _DEFUSEDXML_AVAILABLE:
-                    _defused_ET.fromstring(output)
-                else:
-                    ET.fromstring(output)  # nosec B314
+                _defused_ET.fromstring(output)
             except ET.ParseError as e:
                 violations.append(
                     ValidationViolation(
