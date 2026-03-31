@@ -172,7 +172,7 @@ class BackgroundServiceManager:
 
         with self._state_lock:
             if self._state != ServiceState.SLEEP:
-                self.logger.warning(f"Wake word detected in wrong state: {self._state}")
+                self.logger.warning("Wake word detected in wrong state: %s", self._state)
                 return
 
             self._wake_word_count += 1
@@ -185,15 +185,15 @@ class BackgroundServiceManager:
                 try:
                     self.wake_word_callback()
                 except Exception as e:
-                    self.logger.error(f"Wake word callback error: {e}")
+                    self.logger.error("Wake word callback error: %s", e)
                     self._error_count += 1
 
         # Verify transition latency
         elapsed = time.time() - start_time
         if elapsed > 0.5:
-            self.logger.warning(f"Wake transition took {elapsed:.3f}s (target: <0.5s)")
+            self.logger.warning("Wake transition took %.3fs (target: <0.5s)", elapsed)
 
-        self.logger.info(f"Wake word detected, transitioned to wake mode in {elapsed:.3f}s")
+        self.logger.info("Wake word detected, transitioned to wake mode in %.3fs", elapsed)
 
     def handle_command_received(self, command: str):
         """
@@ -204,7 +204,7 @@ class BackgroundServiceManager:
         """
         with self._state_lock:
             if self._state != ServiceState.WAKE:
-                self.logger.warning(f"Command received in wrong state: {self._state}")
+                self.logger.warning("Command received in wrong state: %s", self._state)
                 return
 
             self._command_count += 1
@@ -217,10 +217,10 @@ class BackgroundServiceManager:
                 try:
                     self.command_callback(command)
                 except Exception as e:
-                    self.logger.error(f"Command callback error: {e}")
+                    self.logger.error("Command callback error: %s", e)
                     self._error_count += 1
 
-        self.logger.info(f"Command received: {command}")
+        self.logger.info("Command received: %s", command)
 
     def handle_silence_detected(self):
         """

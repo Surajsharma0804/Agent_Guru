@@ -56,7 +56,7 @@ try:
     logger.info("Rust extensions loaded successfully (10-100x speedup enabled)")
 except ImportError as e:
     HAS_RUST = False
-    logger.warning(f"Rust extensions not available: {e}")
+    logger.warning("Rust extensions not available: %s", e)
     logger.warning("Falling back to Python implementations (slower)")
 
 

@@ -168,7 +168,7 @@ class SynthesisEngine:
             self._initialized = True
             logger.info("SynthesisEngine: CoquiTTS model loaded")
         except Exception as e:
-            logger.warning(f"CoquiTTS not available: {e}. Using fallback synthesis.")
+            logger.warning("CoquiTTS not available: %s. Using fallback synthesis.", e)
             self._initialized = True  # Mark as initialized even without model
 
     def synthesize(self, text: str) -> SynthesisResult:
@@ -216,7 +216,7 @@ class SynthesisEngine:
 
         except Exception as e:
             latency_ms = (time.perf_counter() - start) * 1000
-            logger.error(f"Synthesis failed: {e}")
+            logger.error("Synthesis failed: %s", e)
             return SynthesisResult(
                 audio_bytes=b"",
                 sample_rate=self._config.sample_rate,
@@ -245,7 +245,7 @@ class SynthesisEngine:
             profile: New voice profile
         """
         self._config.voice_profile = profile
-        logger.info(f"Voice profile switched to: {profile.value}")
+        logger.info("Voice profile switched to: %s", profile.value)
 
     def set_speech_rate(self, rate: float) -> None:
         """Set speech rate multiplier.
@@ -261,7 +261,7 @@ class SynthesisEngine:
                 f"speech_rate must be between {_MIN_RATE} and {_MAX_RATE}, got {rate}"
             )
         self._config.speech_rate = rate
-        logger.info(f"Speech rate set to: {rate}x")
+        logger.info("Speech rate set to: %sx", rate)
 
     def get_config(self) -> SynthesisConfig:
         """Return current configuration."""
@@ -294,7 +294,7 @@ class SynthesisEngine:
                 )
                 return audio_bytes, self._config.sample_rate
             except Exception as e:
-                logger.warning(f"CoquiTTS synthesis failed: {e}. Using silence fallback.")
+                logger.warning("CoquiTTS synthesis failed: %s. Using silence fallback.", e)
 
         # Fallback: generate silence (for testing/offline mode)
         return self._generate_silence(text), self._config.sample_rate

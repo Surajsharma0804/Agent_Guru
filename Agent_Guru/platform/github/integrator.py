@@ -312,7 +312,7 @@ class GitHubIntegrator:
             )
 
         except Exception as e:
-            logger.error(f"Failed to get repository status: {e}")
+            logger.error("Failed to get repository status: %s", e)
             raise GitError(f"Status check failed: {e}") from e
 
     def add_files(self, files: list[str]) -> GitOperationResult:
@@ -341,7 +341,7 @@ class GitHubIntegrator:
             for file_path in files:
                 full_path = self.repo_path / file_path
                 if not full_path.exists():
-                    logger.warning(f"File does not exist: {file_path}")
+                    logger.warning("File does not exist: %s", file_path)
 
             # Stage files
             result = self._run_git_command(["add", *files])
@@ -362,7 +362,7 @@ class GitHubIntegrator:
 
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
-            logger.error(f"Failed to add files: {e}")
+            logger.error("Failed to add files: %s", e)
             return GitOperationResult(
                 success=False,
                 message=f"Failed to stage files: {e}",
@@ -426,7 +426,7 @@ class GitHubIntegrator:
 
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
-            logger.error(f"Failed to commit: {e}")
+            logger.error("Failed to commit: %s", e)
             return GitOperationResult(
                 success=False,
                 message=f"Commit failed: {e}",
@@ -515,7 +515,7 @@ class GitHubIntegrator:
             raise
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
-            logger.error(f"Failed to push: {e}")
+            logger.error("Failed to push: %s", e)
             return GitOperationResult(
                 success=False,
                 message=f"Push failed: {e}",
@@ -579,7 +579,7 @@ class GitHubIntegrator:
             raise
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
-            logger.error(f"Failed to pull: {e}")
+            logger.error("Failed to pull: %s", e)
             return GitOperationResult(
                 success=False,
                 message=f"Pull failed: {e}",
@@ -644,7 +644,7 @@ class GitHubIntegrator:
 
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
-            logger.error(f"Failed to commit and push: {e}")
+            logger.error("Failed to commit and push: %s", e)
             return GitOperationResult(
                 success=False,
                 message=f"Commit and push failed: {e}",
@@ -766,7 +766,7 @@ class GitHubIntegrator:
             return ahead, behind
 
         except Exception as e:
-            logger.warning(f"Failed to get ahead/behind count: {e}")
+            logger.warning("Failed to get ahead/behind count: %s", e)
             return 0, 0
 
     def _get_last_commit_hash(self) -> str:
@@ -924,7 +924,7 @@ class GitHubIntegrator:
             )
 
         except Exception as e:
-            logger.error(f"Auto commit and push failed: {e}")
+            logger.error("Auto commit and push failed: %s", e)
             return GitOperationResult(
                 success=False,
                 message=f"Auto commit and push failed: {e}",
@@ -970,7 +970,7 @@ class GitHubIntegrator:
                     file_stats[file_path] = 'M'
 
         except Exception as e:
-            logger.warning(f"Failed to get file stats: {e}")
+            logger.warning("Failed to get file stats: %s", e)
             # Return default stats
             file_stats = dict.fromkeys(files, 'M')
 
@@ -1016,12 +1016,12 @@ class GitHubIntegrator:
             has_conflicts = len(conflicted_files) > 0
 
             if has_conflicts:
-                logger.warning(f"Detected {len(conflicted_files)} conflicted file(s)")
+                logger.warning("Detected %s conflicted file(s)", len(conflicted_files))
 
             return has_conflicts, conflicted_files
 
         except Exception as e:
-            logger.error(f"Failed to detect conflicts: {e}")
+            logger.error("Failed to detect conflicts: %s", e)
             return False, []
 
     def resolve_conflicts_with_rebase(
@@ -1134,7 +1134,7 @@ class GitHubIntegrator:
 
                     if "conflict" in stderr_lower or "conflict" in stdout_lower:
                         # Conflicts detected - abort rebase
-                        logger.warning(f"Conflicts detected on attempt {attempt}")
+                        logger.warning("Conflicts detected on attempt %s", attempt)
                         self._run_git_command(["rebase", "--abort"])
 
                         error_msg = f"Conflicts during rebase: {pull_result.stderr}"
@@ -1145,7 +1145,7 @@ class GitHubIntegrator:
                         if attempt < max_attempts:
                             import time
                             wait_time = 2 ** (attempt - 1)  # 1s, 2s, 4s
-                            logger.info(f"Waiting {wait_time}s before retry...")
+                            logger.info("Waiting %ss before retry...", wait_time)
                             time.sleep(wait_time)
 
                         continue
@@ -1266,7 +1266,7 @@ class GitHubIntegrator:
 
                     if push_result.success:
                         duration_ms = (datetime.now() - start_time).total_seconds() * 1000
-                        logger.info(f"Push successful on attempt {attempt}")
+                        logger.info("Push successful on attempt %s", attempt)
                         return GitOperationResult(
                             success=True,
                             message=f"Pushed successfully (attempt {attempt}/{max_retries})",
@@ -1291,7 +1291,7 @@ class GitHubIntegrator:
 
                         if not resolve_result.success:
                             last_error = resolve_result.message
-                            logger.error(f"Conflict resolution failed: {last_error}")
+                            logger.error("Conflict resolution failed: %s", last_error)
                             continue
 
                         # Conflict resolved, retry push on next iteration
@@ -1304,7 +1304,7 @@ class GitHubIntegrator:
 
                 except GitAuthenticationError as e:
                     # Don't retry authentication errors
-                    logger.error(f"Authentication error: {e}")
+                    logger.error("Authentication error: %s", e)
                     raise
                 except Exception as e:
                     last_error = str(e)
@@ -1401,7 +1401,7 @@ class GitHubIntegrator:
             # )
 
         except Exception as e:
-            logger.warning(f"Failed to notify Goal Manager: {e}")
+            logger.warning("Failed to notify Goal Manager: %s", e)
 
     def detect_conflicts(self) -> tuple[bool, list[str]]:
         """Detect if there are merge conflicts in the repository.
@@ -1443,12 +1443,12 @@ class GitHubIntegrator:
             has_conflicts = len(conflicted_files) > 0
 
             if has_conflicts:
-                logger.warning(f"Detected {len(conflicted_files)} conflicted file(s)")
+                logger.warning("Detected %s conflicted file(s)", len(conflicted_files))
 
             return has_conflicts, conflicted_files
 
         except Exception as e:
-            logger.error(f"Failed to detect conflicts: {e}")
+            logger.error("Failed to detect conflicts: %s", e)
             return False, []
 
     def resolve_conflicts_with_rebase(
@@ -1561,7 +1561,7 @@ class GitHubIntegrator:
 
                     if "conflict" in stderr_lower or "conflict" in stdout_lower:
                         # Conflicts detected - abort rebase
-                        logger.warning(f"Conflicts detected on attempt {attempt}")
+                        logger.warning("Conflicts detected on attempt %s", attempt)
                         self._run_git_command(["rebase", "--abort"])
 
                         error_msg = f"Conflicts during rebase: {pull_result.stderr}"
@@ -1572,7 +1572,7 @@ class GitHubIntegrator:
                         if attempt < max_attempts:
                             import time
                             wait_time = 2 ** (attempt - 1)  # 1s, 2s, 4s
-                            logger.info(f"Waiting {wait_time}s before retry...")
+                            logger.info("Waiting %ss before retry...", wait_time)
                             time.sleep(wait_time)
 
                         continue
@@ -1693,7 +1693,7 @@ class GitHubIntegrator:
 
                     if push_result.success:
                         duration_ms = (datetime.now() - start_time).total_seconds() * 1000
-                        logger.info(f"Push successful on attempt {attempt}")
+                        logger.info("Push successful on attempt %s", attempt)
                         return GitOperationResult(
                             success=True,
                             message=f"Pushed successfully (attempt {attempt}/{max_retries})",
@@ -1718,7 +1718,7 @@ class GitHubIntegrator:
 
                         if not resolve_result.success:
                             last_error = resolve_result.message
-                            logger.error(f"Conflict resolution failed: {last_error}")
+                            logger.error("Conflict resolution failed: %s", last_error)
                             continue
 
                         # Conflict resolved, retry push on next iteration
@@ -1731,7 +1731,7 @@ class GitHubIntegrator:
 
                 except GitAuthenticationError as e:
                     # Don't retry authentication errors
-                    logger.error(f"Authentication error: {e}")
+                    logger.error("Authentication error: %s", e)
                     raise
                 except Exception as e:
                     last_error = str(e)
@@ -1828,7 +1828,7 @@ class GitHubIntegrator:
             # )
 
         except Exception as e:
-            logger.warning(f"Failed to notify Goal Manager: {e}")
+            logger.warning("Failed to notify Goal Manager: %s", e)
 
 
     def create_branch(
@@ -1882,7 +1882,7 @@ class GitHubIntegrator:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
 
             if result.success:
-                logger.info(f"Created branch: {branch_name}")
+                logger.info("Created branch: %s", branch_name)
                 return GitOperationResult(
                     success=True,
                     message=f"Branch '{branch_name}' created successfully",
@@ -1896,7 +1896,7 @@ class GitHubIntegrator:
 
         except Exception as e:
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
-            logger.error(f"Failed to create branch: {e}")
+            logger.error("Failed to create branch: %s", e)
             return GitOperationResult(
                 success=False,
                 message=f"Branch creation failed: {e}",
@@ -1954,7 +1954,7 @@ class GitHubIntegrator:
             )
 
         except Exception as e:
-            logger.error(f"Failed to get branch info: {e}")
+            logger.error("Failed to get branch info: %s", e)
             return BranchInfo(
                 name=branch_name,
                 exists_locally=False,
@@ -2119,7 +2119,7 @@ class GitHubIntegrator:
 
             # Push source branch if not on remote
             if source_info.exists_locally and not source_info.exists_remotely:
-                logger.info(f"Pushing source branch '{source_branch}' to remote")
+                logger.info("Pushing source branch '%s' to remote", source_branch)
                 push_result = self.push(branch=source_branch, set_upstream=True)
                 if not push_result.success:
                     return PullRequestResult(
@@ -2182,7 +2182,7 @@ class GitHubIntegrator:
                     except (ValueError, IndexError):
                         pass
 
-                logger.info(f"PR created successfully: {pr_url}")
+                logger.info("PR created successfully: %s", pr_url)
 
                 return PullRequestResult(
                     success=True,
@@ -2192,7 +2192,7 @@ class GitHubIntegrator:
                 )
             else:
                 error_msg = result.stderr.strip() or result.stdout.strip()
-                logger.error(f"Failed to create PR: {error_msg}")
+                logger.error("Failed to create PR: %s", error_msg)
 
                 return PullRequestResult(
                     success=False,
@@ -2208,7 +2208,7 @@ class GitHubIntegrator:
             )
         except Exception as e:
             (datetime.now() - start_time).total_seconds() * 1000
-            logger.error(f"Failed to create PR: {e}")
+            logger.error("Failed to create PR: %s", e)
             return PullRequestResult(
                 success=False,
                 message=f"PR creation failed: {e}",
@@ -2300,7 +2300,7 @@ class GitHubIntegrator:
             )
 
         except Exception as e:
-            logger.error(f"Failed to create PR from task: {e}")
+            logger.error("Failed to create PR from task: %s", e)
             return PullRequestResult(
                 success=False,
                 message=f"PR creation from task failed: {e}",

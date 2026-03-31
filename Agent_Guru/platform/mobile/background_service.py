@@ -313,7 +313,7 @@ class MobileBackgroundService:
             logger.info("Background service started successfully")
 
         except Exception as e:
-            logger.error(f"Failed to start service: {e}")
+            logger.error("Failed to start service: %s", e)
             await self._change_state(ServiceState.CRASHED)
             raise RuntimeError(f"Service start failed: {e}") from e
 
@@ -343,7 +343,7 @@ class MobileBackgroundService:
             logger.info("Background service stopped")
 
         except Exception as e:
-            logger.error(f"Error stopping service: {e}")
+            logger.error("Error stopping service: %s", e)
             await self._change_state(ServiceState.CRASHED)
 
     async def enter_sleep_mode(self) -> None:
@@ -377,10 +377,10 @@ class MobileBackgroundService:
                 await self._enter_platform_sleep_mode()
 
             transition_time = (time.time() - start_time) * 1000
-            logger.info(f"Entered sleep mode (transition: {transition_time:.1f}ms)")
+            logger.info("Entered sleep mode (transition: %.1fms)", transition_time)
 
         except Exception as e:
-            logger.error(f"Error entering sleep mode: {e}")
+            logger.error("Error entering sleep mode: %s", e)
 
     async def enter_wake_mode(self) -> None:
         """Enter wake mode for full functionality.
@@ -416,10 +416,10 @@ class MobileBackgroundService:
             self._last_wake_time = time.time()
 
             transition_time = (time.time() - start_time) * 1000
-            logger.info(f"Entered wake mode (transition: {transition_time:.1f}ms)")
+            logger.info("Entered wake mode (transition: %.1fms)", transition_time)
 
         except Exception as e:
-            logger.error(f"Error entering wake mode: {e}")
+            logger.error("Error entering wake mode: %s", e)
 
     async def handle_wake_word_detected(self) -> None:
         """Handle wake word detection event.
@@ -436,7 +436,7 @@ class MobileBackgroundService:
             try:
                 await self._wake_word_callback()
             except Exception as e:
-                logger.error(f"Wake word callback error: {e}")
+                logger.error("Wake word callback error: %s", e)
 
     async def request_battery_optimization_exemption(self) -> bool:
         """Request battery optimization exemption (Android).
@@ -453,7 +453,7 @@ class MobileBackgroundService:
                 return await self.platform.request_battery_exemption()
             return False
         except Exception as e:
-            logger.error(f"Error requesting battery exemption: {e}")
+            logger.error("Error requesting battery exemption: %s", e)
             return False
 
     async def monitor_battery_usage(self) -> BatteryUsageStats:
@@ -532,7 +532,7 @@ class MobileBackgroundService:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Monitoring loop error: {e}")
+                logger.error("Monitoring loop error: %s", e)
                 await asyncio.sleep(5.0)
 
     async def _change_state(self, new_state: ServiceState) -> None:
@@ -550,7 +550,7 @@ class MobileBackgroundService:
             try:
                 await self._state_change_callback(old_state, new_state)
             except Exception as e:
-                logger.error(f"State change callback error: {e}")
+                logger.error("State change callback error: %s", e)
 
     async def _get_battery_level(self) -> float:
         """Get current battery level.
@@ -563,7 +563,7 @@ class MobileBackgroundService:
                 battery_info = await self.platform.get_battery_info()
                 return battery_info.percent
             except Exception as e:
-                logger.error(f"Error getting battery level: {e}")
+                logger.error("Error getting battery level: %s", e)
         return 100.0
 
     async def _get_thermal_state(self) -> ThermalState:
@@ -576,7 +576,7 @@ class MobileBackgroundService:
             try:
                 return await self.platform.get_thermal_state()
             except Exception as e:
-                logger.error(f"Error getting thermal state: {e}")
+                logger.error("Error getting thermal state: %s", e)
         return ThermalState.NORMAL
 
     async def _start_platform_service(self) -> None:

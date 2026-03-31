@@ -126,7 +126,7 @@ class AuditLogger:
             self._log_path = log_p.resolve()
         self._log_path.parent.mkdir(parents=True, exist_ok=True)
 
-        logger.debug(f"AuditLogger initialized: {self._log_path}")
+        logger.debug("AuditLogger initialized: %s", self._log_path)
 
     # ------------------------------------------------------------------
     # Public API
@@ -253,7 +253,7 @@ class AuditLogger:
             with open(self._log_path, "a", encoding="utf-8") as f:
                 f.write(entry.to_jsonl() + "\n")
         except Exception as e:
-            logger.error(f"AuditLogger write failed: {e}")
+            logger.error("AuditLogger write failed: %s", e)
 
     def _maybe_rotate(self) -> None:
         """Rotate log file if it exceeds max size (must hold lock)."""
@@ -285,7 +285,7 @@ class AuditLogger:
                 f"(was {size / 1024 / 1024:.1f} MB)"
             )
         except Exception as e:
-            logger.error(f"AuditLogger rotation failed: {e}")
+            logger.error("AuditLogger rotation failed: %s", e)
 
 
 # ---------------------------------------------------------------------------

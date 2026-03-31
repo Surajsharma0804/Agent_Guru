@@ -192,7 +192,7 @@ class MemoryStoragePipeline:
         """
         # Validate content length
         if len(content.strip()) < self.min_content_length:
-            logger.debug(f"Skipping episodic memory: content too short ({len(content)} chars)")
+            logger.debug("Skipping episodic memory: content too short (%s chars)", len(content))
             return None
 
         # Create episodic memory
@@ -243,7 +243,7 @@ class MemoryStoragePipeline:
         """
         # Validate content length
         if len(content.strip()) < self.min_content_length:
-            logger.debug(f"Skipping semantic memory: content too short ({len(content)} chars)")
+            logger.debug("Skipping semantic memory: content too short (%s chars)", len(content))
             return None
 
         # Create semantic memory
@@ -293,7 +293,7 @@ class MemoryStoragePipeline:
         """
         # Validate content length
         if len(content.strip()) < self.min_content_length:
-            logger.debug(f"Skipping preference memory: content too short ({len(content)} chars)")
+            logger.debug("Skipping preference memory: content too short (%s chars)", len(content))
             return None
 
         # Create preference memory
@@ -346,7 +346,7 @@ class MemoryStoragePipeline:
         """
         # Validate content length
         if len(content.strip()) < self.min_content_length:
-            logger.debug(f"Skipping task memory: content too short ({len(content)} chars)")
+            logger.debug("Skipping task memory: content too short (%s chars)", len(content))
             return None
 
         # Create task memory
@@ -426,7 +426,7 @@ class MemoryStoragePipeline:
                 return memory.memory_id
 
             except Exception as e:
-                logger.error(f"Failed to store memory: {e}")
+                logger.error("Failed to store memory: %s", e)
                 return None
 
     async def _is_duplicate(
@@ -486,13 +486,13 @@ class MemoryStoragePipeline:
                     return True
 
             except (ValueError, TypeError) as e:
-                logger.warning(f"Failed to parse timestamp: {e}")
+                logger.warning("Failed to parse timestamp: %s", e)
                 return False
 
             return False
 
         except Exception as e:
-            logger.error(f"Deduplication check failed: {e}")
+            logger.error("Deduplication check failed: %s", e)
             # On error, allow storage (fail open)
             return False
 

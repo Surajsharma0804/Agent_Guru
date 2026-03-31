@@ -126,7 +126,7 @@ class VoiceContextManager:
 
         # Use asyncio.run_coroutine_threadsafe or create event loop if needed
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             if loop.is_running():
                 # Schedule as a task
                 asyncio.ensure_future(
@@ -236,7 +236,7 @@ class VoiceContextManager:
         """
         self._config.personality = personality.lower()
         self._system_prompt = self._resolve_system_prompt()
-        logger.info(f"Switched personality to: {personality}")
+        logger.info("Switched personality to: %s", personality)
 
     def get_system_prompt(self) -> str:
         """Return the current system prompt."""

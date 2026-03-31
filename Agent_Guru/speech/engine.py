@@ -280,7 +280,7 @@ class SpeechEngine:
                 try:
                     await self.agent_orchestration.route_command(command)
                 except Exception as e:
-                    self.logger.warning(f"Agent orchestration routing failed: {e}")
+                    self.logger.warning("Agent orchestration routing failed: %s", e)
 
             # Step 6: Context management
             if self.context_manager is None:
@@ -317,7 +317,7 @@ class SpeechEngine:
                         personality=personality.value,
                     )
                 except Exception as e:
-                    self.logger.warning(f"Memory storage failed: {e}")
+                    self.logger.warning("Memory storage failed: %s", e)
 
             # Step 7: Generate response (placeholder - would integrate with LLM)
             response_text = None
@@ -562,7 +562,7 @@ class SpeechEngine:
             raise RuntimeError("Voice cloner not initialized")
 
         self.voice_cloner.enroll_voice(audio_samples, voice_id)
-        self.logger.info(f"Voice cloned successfully: {voice_id}")
+        self.logger.info("Voice cloned successfully: %s", voice_id)
 
     def start_background_service(self) -> None:
         """Start always-on background service."""
@@ -587,7 +587,7 @@ class SpeechEngine:
 
     def _on_command_received(self, command: str) -> None:
         """Callback when command is received."""
-        self.logger.info(f"Command received callback: {command}")
+        self.logger.info("Command received callback: %s", command)
 
     def shutdown(self) -> None:
         """Shutdown speech engine and cleanup resources."""

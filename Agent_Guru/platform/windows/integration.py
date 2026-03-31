@@ -314,7 +314,7 @@ class WindowsIntegration:
             else:
                 # Delete entire key
                 winreg.DeleteKey(hive, key_path)
-                logger.info(f"Deleted registry key: {key_path}")
+                logger.info("Deleted registry key: %s", key_path)
 
         except FileNotFoundError as e:
             error_msg = f"Registry key not found: {key_path}"
@@ -471,7 +471,7 @@ class WindowsIntegration:
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError):
                 continue
 
-        logger.debug(f"Retrieved {len(processes)} processes")
+        logger.debug("Retrieved %s processes", len(processes))
         return processes
 
     def start_process(self, executable: str, args: list[str]) -> int:
@@ -541,17 +541,17 @@ class WindowsIntegration:
             # Last resort: os.startfile (Windows only, no PID returned)
             try:
                 os.startfile(executable)
-                logger.info(f"Started process via startfile: {executable} (PID unknown)")
+                logger.info("Started process via startfile: %s (PID unknown)", executable)
                 # Return 0 as sentinel — caller should not rely on PID in this case
                 return 0
             except Exception as e:
                 raise FileNotFoundError(f"Could not start '{executable}': {e}") from e
 
         except FileNotFoundError:
-            logger.error(f"Executable not found: {executable}")
+            logger.error("Executable not found: %s", executable)
             raise
         except PermissionError:
-            logger.error(f"Permission denied starting process: {executable}")
+            logger.error("Permission denied starting process: %s", executable)
             raise
         except Exception as e:
             error_msg = f"Error starting process {executable}: {e}"
@@ -584,10 +584,10 @@ class WindowsIntegration:
 
             if force:
                 process.kill()  # SIGKILL equivalent
-                logger.info(f"Force killed process {pid}")
+                logger.info("Force killed process %s", pid)
             else:
                 process.terminate()  # SIGTERM equivalent
-                logger.info(f"Terminated process {pid}")
+                logger.info("Terminated process %s", pid)
 
             return True
 

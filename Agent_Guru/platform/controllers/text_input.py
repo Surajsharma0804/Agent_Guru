@@ -181,10 +181,10 @@ class TextInputController:
                 else:
                     pyautogui.write(text, interval=interval)
 
-            logger.info(f"Successfully typed {len(text)} characters")
+            logger.info("Successfully typed %s characters", len(text))
 
         except Exception as e:
-            logger.error(f"Failed to type text: {e}")
+            logger.error("Failed to type text: %s", e)
             raise RuntimeError(f"Text input failed: {e}") from e
 
     def type_text_via_clipboard(self, text: str) -> None:
@@ -203,7 +203,7 @@ class TextInputController:
         if not text:
             raise ValueError("Text cannot be empty")
 
-        logger.debug(f"Pasting text via clipboard: length={len(text)}")
+        logger.debug("Pasting text via clipboard: length=%s", len(text))
 
         try:
             if self.config.backup_clipboard:
@@ -218,10 +218,10 @@ class TextInputController:
             if self.config.backup_clipboard:
                 self._restore_clipboard()
 
-            logger.info(f"Successfully pasted {len(text)} characters via clipboard")
+            logger.info("Successfully pasted %s characters via clipboard", len(text))
 
         except Exception as e:
-            logger.error(f"Failed to paste via clipboard: {e}")
+            logger.error("Failed to paste via clipboard: %s", e)
             if self.config.backup_clipboard:
                 self._restore_clipboard()
             raise RuntimeError(f"Clipboard paste failed: {e}") from e
@@ -255,7 +255,7 @@ class TextInputController:
             logger.info(f"Successfully pressed key: {key} with modifiers {modifiers}")
 
         except Exception as e:
-            logger.error(f"Failed to press key: {e}")
+            logger.error("Failed to press key: %s", e)
             raise RuntimeError(f"Key press failed: {e}") from e
 
     def type_unicode(self, text: str) -> None:
@@ -274,14 +274,14 @@ class TextInputController:
         if not text:
             raise ValueError("Text cannot be empty")
 
-        logger.debug(f"Typing Unicode text: length={len(text)}")
+        logger.debug("Typing Unicode text: length=%s", len(text))
 
         try:
             self.type_text_via_clipboard(text)
-            logger.info(f"Successfully typed Unicode text: {len(text)} characters")
+            logger.info("Successfully typed Unicode text: %s characters", len(text))
 
         except Exception as e:
-            logger.error(f"Failed to type Unicode text: {e}")
+            logger.error("Failed to type Unicode text: %s", e)
             raise RuntimeError(f"Unicode text input failed: {e}") from e
 
     def set_typing_speed(self, wpm: int) -> None:
@@ -297,7 +297,7 @@ class TextInputController:
             raise ValueError(f"WPM must be non-negative, got {wpm}")
 
         self.config.wpm = wpm
-        logger.info(f"Typing speed set to {wpm} WPM")
+        logger.info("Typing speed set to %s WPM", wpm)
 
     def clear_input(self, num_chars: int) -> None:
         """Clear the last N characters using backspace.
@@ -314,17 +314,17 @@ class TextInputController:
         if num_chars < 0:
             raise ValueError(f"num_chars must be non-negative, got {num_chars}")
 
-        logger.debug(f"Clearing {num_chars} characters")
+        logger.debug("Clearing %s characters", num_chars)
 
         try:
             pyautogui = _get_pyautogui()
             for _ in range(num_chars):
                 pyautogui.press('backspace')
 
-            logger.info(f"Successfully cleared {num_chars} characters")
+            logger.info("Successfully cleared %s characters", num_chars)
 
         except Exception as e:
-            logger.error(f"Failed to clear input: {e}")
+            logger.error("Failed to clear input: %s", e)
             raise RuntimeError(f"Clear input failed: {e}") from e
 
     def _calculate_interval(self, wpm: int) -> float:
@@ -424,7 +424,7 @@ class TextInputController:
             self._clipboard_backup = pyperclip.paste()
             logger.debug("Clipboard backed up")
         except Exception as e:
-            logger.warning(f"Failed to backup clipboard: {e}")
+            logger.warning("Failed to backup clipboard: %s", e)
             self._clipboard_backup = None
 
     def _restore_clipboard(self) -> None:
@@ -439,6 +439,6 @@ class TextInputController:
                 pyperclip.copy(self._clipboard_backup)
                 logger.debug("Clipboard restored")
             except Exception as e:
-                logger.warning(f"Failed to restore clipboard: {e}")
+                logger.warning("Failed to restore clipboard: %s", e)
             finally:
                 self._clipboard_backup = None

@@ -142,7 +142,7 @@ class MemoryMonitor:
         # Set GC thresholds (generation 0, 1, 2)
         # More aggressive collection to prevent memory buildup
         gc.set_threshold(700, 10, 10)
-        logger.info(f"GC thresholds configured: {gc.get_threshold()}")
+        logger.info("GC thresholds configured: %s", gc.get_threshold())
 
     def start(self) -> None:
         """Start background memory monitoring."""

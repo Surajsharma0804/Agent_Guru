@@ -127,7 +127,7 @@ class ServiceRegistry:
         """
         if service_name in self._services:
             del self._services[service_name]
-            logger.info(f"Deregistered service: {service_name}")
+            logger.info("Deregistered service: %s", service_name)
             return True
         return False
 
@@ -150,7 +150,7 @@ class ServiceRegistry:
         # Check TTL
         age = (datetime.now() - endpoint.registered_at).total_seconds()
         if age > self.ttl_seconds:
-            logger.warning(f"Service {service_name} registration expired")
+            logger.warning("Service %s registration expired", service_name)
             del self._services[service_name]
             return None
 

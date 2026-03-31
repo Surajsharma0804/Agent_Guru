@@ -206,7 +206,7 @@ class GracefulShutdownManager:
         and falls back to signal.signal() for SIGINT only.
         """
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             loop.add_signal_handler(
                 signal.SIGTERM,
                 lambda: asyncio.create_task(self.shutdown(reason="SIGTERM")),
@@ -291,11 +291,11 @@ class GracefulShutdownManager:
             reason: Human-readable shutdown reason (logged and persisted)
         """
         if self._phase != ShutdownPhase.RUNNING:
-            logger.debug(f"Shutdown already in progress (phase={self._phase.value}), ignoring")
+            logger.debug("Shutdown already in progress (phase=%s), ignoring", self._phase.value)
             return
 
         self._shutdown_start = time.monotonic()
-        logger.info(f"Graceful shutdown initiated: reason='{reason}'")
+        logger.info("Graceful shutdown initiated: reason='%s'", reason)
 
         self._phase = ShutdownPhase.SHUTTING_DOWN
         self._get_shutdown_event().set()
@@ -323,11 +323,11 @@ class GracefulShutdownManager:
         handlers_run = 0
 
         for entry in reversed(self._cleanup_entries):
-            logger.debug(f"Running cleanup handler: '{entry.name}'")
+            logger.debug("Running cleanup handler: '%s'", entry.name)
             try:
                 await asyncio.wait_for(entry.handler(), timeout=entry.timeout)
                 handlers_run += 1
-                logger.debug(f"Cleanup handler completed: '{entry.name}'")
+                logger.debug("Cleanup handler completed: '%s'", entry.name)
             except asyncio.TimeoutError:
                 msg = f"Cleanup handler '{entry.name}' timed out after {entry.timeout}s"
                 logger.error(msg)
@@ -356,7 +356,7 @@ class GracefulShutdownManager:
         try:
             with open(self.state_file, "w", encoding="utf-8") as f:  # type: ignore[arg-type]
                 json.dump(state.to_dict(), f, indent=2)
-            logger.debug(f"Shutdown state persisted to '{self.state_file}'")
+            logger.debug("Shutdown state persisted to '%s'", self.state_file)
         except OSError as e:
             logger.error(f"Failed to persist shutdown state to '{self.state_file}': {e}")
 

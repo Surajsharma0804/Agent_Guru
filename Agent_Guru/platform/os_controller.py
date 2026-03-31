@@ -82,7 +82,7 @@ try:
     from Agent_Guru.platform.hardware.monitor import HardwareMonitor
     from Agent_Guru.platform.process_manager import ProcessManager
 except ImportError as e:
-    logger.warning(f"Some controllers not available: {e}")
+    logger.warning("Some controllers not available: %s", e)
 
 
 class OperationCategory(Enum):
@@ -221,7 +221,7 @@ class OSController:
         # Initialize all controllers
         self._init_controllers()
 
-        logger.info(f"OSController initialized on platform: {self.platform}")
+        logger.info("OSController initialized on platform: %s", self.platform)
 
     def _init_audit_log(self) -> None:
         """Initialize audit log file."""
@@ -230,9 +230,9 @@ class OSController:
             audit_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             if not audit_path.exists():
                 audit_path.touch(mode=0o600)
-            logger.info(f"Audit log initialized: {self.audit_log_path}")
+            logger.info("Audit log initialized: %s", self.audit_log_path)
         except Exception as e:
-            logger.error(f"Failed to initialize audit log: {e}")
+            logger.error("Failed to initialize audit log: %s", e)
 
     def _init_controllers(self) -> None:
         """Initialize all specialized controllers with per-controller error isolation."""
@@ -323,7 +323,7 @@ class OSController:
             with open(self.audit_log_path, "a") as f:
                 f.write(entry.to_json() + "\n")
         except Exception as e:
-            logger.error(f"Failed to write audit log: {e}")
+            logger.error("Failed to write audit log: %s", e)
 
     def _require_confirmation(self, operation: str, details: str) -> None:
         """Check if confirmation is required for destructive operation.
@@ -378,7 +378,7 @@ class OSController:
                 metadata=result.metadata
             )
         except Exception as e:
-            logger.error(f"Failed to create file: {e}")
+            logger.error("Failed to create file: %s", e)
             self._log_operation(OperationCategory.FILE, "create_file", False, {"error": str(e)})
             return OperationResult(
                 success=False,
@@ -417,7 +417,7 @@ class OSController:
             )
             return content
         except Exception as e:
-            logger.error(f"Failed to read file: {e}")
+            logger.error("Failed to read file: %s", e)
             self._log_operation(OperationCategory.FILE, "read_file", False, {"error": str(e)})
             return None
 
@@ -456,7 +456,7 @@ class OSController:
                 metadata=result.metadata
             )
         except Exception as e:
-            logger.error(f"Failed to delete file: {e}")
+            logger.error("Failed to delete file: %s", e)
             self._log_operation(OperationCategory.FILE, "delete_file", False, {"error": str(e)})
             return OperationResult(
                 success=False,
@@ -502,7 +502,7 @@ class OSController:
                 metadata=result.metadata
             )
         except Exception as e:
-            logger.error(f"Failed to copy file: {e}")
+            logger.error("Failed to copy file: %s", e)
             self._log_operation(OperationCategory.FILE, "copy_file", False, {"error": str(e)})
             return OperationResult(
                 success=False,
@@ -548,7 +548,7 @@ class OSController:
                 metadata=result.metadata
             )
         except Exception as e:
-            logger.error(f"Failed to move file: {e}")
+            logger.error("Failed to move file: %s", e)
             self._log_operation(OperationCategory.FILE, "move_file", False, {"error": str(e)})
             return OperationResult(
                 success=False,
@@ -636,7 +636,7 @@ class OSController:
                 metadata={"pid": pid}
             )
         except Exception as e:
-            logger.error(f"Failed to open application: {e}")
+            logger.error("Failed to open application: %s", e)
             self._log_operation(
                 OperationCategory.APPLICATION,
                 "open_application",
@@ -684,7 +684,7 @@ class OSController:
                 metadata={"force": force}
             )
         except Exception as e:
-            logger.error(f"Failed to close application: {e}")
+            logger.error("Failed to close application: %s", e)
             self._log_operation(
                 OperationCategory.APPLICATION,
                 "close_application",
@@ -734,7 +734,7 @@ class OSController:
                 metadata={"length": len(text)}
             )
         except Exception as e:
-            logger.error(f"Failed to type text: {e}")
+            logger.error("Failed to type text: %s", e)
             self._log_operation(
                 OperationCategory.TEXT_INPUT,
                 "type_text",
@@ -780,7 +780,7 @@ class OSController:
                 metadata={"level": level}
             )
         except Exception as e:
-            logger.error(f"Failed to set volume: {e}")
+            logger.error("Failed to set volume: %s", e)
             self._log_operation(
                 OperationCategory.SYSTEM_SETTINGS,
                 "set_volume",
@@ -817,7 +817,7 @@ class OSController:
                 metadata={"amount": amount},
             )
         except Exception as e:
-            logger.error(f"Failed to increase volume: {e}")
+            logger.error("Failed to increase volume: %s", e)
             self._log_operation(
                 OperationCategory.SYSTEM_SETTINGS, "volume_up", False, {"error": str(e)}
             )
@@ -851,7 +851,7 @@ class OSController:
                 metadata={"amount": amount},
             )
         except Exception as e:
-            logger.error(f"Failed to decrease volume: {e}")
+            logger.error("Failed to decrease volume: %s", e)
             self._log_operation(
                 OperationCategory.SYSTEM_SETTINGS, "volume_down", False, {"error": str(e)}
             )
@@ -879,7 +879,7 @@ class OSController:
                 message="Audio muted",
             )
         except Exception as e:
-            logger.error(f"Failed to mute: {e}")
+            logger.error("Failed to mute: %s", e)
             self._log_operation(
                 OperationCategory.SYSTEM_SETTINGS, "mute", False, {"error": str(e)}
             )
@@ -907,7 +907,7 @@ class OSController:
                 message="Audio unmuted",
             )
         except Exception as e:
-            logger.error(f"Failed to unmute: {e}")
+            logger.error("Failed to unmute: %s", e)
             self._log_operation(
                 OperationCategory.SYSTEM_SETTINGS, "unmute", False, {"error": str(e)}
             )
@@ -947,7 +947,7 @@ class OSController:
                 metadata={"level": level}
             )
         except Exception as e:
-            logger.error(f"Failed to set brightness: {e}")
+            logger.error("Failed to set brightness: %s", e)
             self._log_operation(
                 OperationCategory.SYSTEM_SETTINGS,
                 "set_brightness",
@@ -992,7 +992,7 @@ class OSController:
                 metadata={"window": window_identifier}
             )
         except Exception as e:
-            logger.error(f"Failed to minimize window: {e}")
+            logger.error("Failed to minimize window: %s", e)
             self._log_operation(
                 OperationCategory.WINDOW,
                 "minimize_window",
@@ -1035,7 +1035,7 @@ class OSController:
                 metadata={"window": window_identifier}
             )
         except Exception as e:
-            logger.error(f"Failed to maximize window: {e}")
+            logger.error("Failed to maximize window: %s", e)
             self._log_operation(
                 OperationCategory.WINDOW,
                 "maximize_window",
@@ -1077,7 +1077,7 @@ class OSController:
                 message="Media play command sent"
             )
         except Exception as e:
-            logger.error(f"Failed to play media: {e}")
+            logger.error("Failed to play media: %s", e)
             self._log_operation(
                 OperationCategory.MEDIA,
                 "play_media",
@@ -1116,7 +1116,7 @@ class OSController:
                 message="Media pause command sent"
             )
         except Exception as e:
-            logger.error(f"Failed to pause media: {e}")
+            logger.error("Failed to pause media: %s", e)
             self._log_operation(
                 OperationCategory.MEDIA,
                 "pause_media",
@@ -1147,7 +1147,7 @@ class OSController:
                 message="Skipped to next track",
             )
         except Exception as e:
-            logger.error(f"Failed to skip track: {e}")
+            logger.error("Failed to skip track: %s", e)
             return OperationResult(
                 success=False,
                 category=OperationCategory.MEDIA,
@@ -1172,7 +1172,7 @@ class OSController:
                 message="Went to previous track",
             )
         except Exception as e:
-            logger.error(f"Failed to go to previous track: {e}")
+            logger.error("Failed to go to previous track: %s", e)
             return OperationResult(
                 success=False,
                 category=OperationCategory.MEDIA,
@@ -1197,7 +1197,7 @@ class OSController:
                 message="Media stopped",
             )
         except Exception as e:
-            logger.error(f"Failed to stop media: {e}")
+            logger.error("Failed to stop media: %s", e)
             return OperationResult(
                 success=False,
                 category=OperationCategory.MEDIA,
@@ -1425,7 +1425,7 @@ class OSController:
                 message=msg,
             )
         except Exception as e:
-            logger.error(f"Failed to reset PC: {e}")
+            logger.error("Failed to reset PC: %s", e)
             return OperationResult(
                 success=False,
                 category=OperationCategory.SYSTEM_SETTINGS,
@@ -1475,7 +1475,7 @@ class OSController:
                 message=msg,
             )
         except Exception as e:
-            logger.error(f"Failed to shut down PC: {e}")
+            logger.error("Failed to shut down PC: %s", e)
             return OperationResult(
                 success=False,
                 category=OperationCategory.SYSTEM_SETTINGS,
@@ -1528,7 +1528,7 @@ class OSController:
                 metadata={"save_path": save_path}
             )
         except Exception as e:
-            logger.error(f"Failed to take screenshot: {e}")
+            logger.error("Failed to take screenshot: %s", e)
             self._log_operation(
                 OperationCategory.SCREEN_CAPTURE,
                 "take_screenshot",
@@ -1573,7 +1573,7 @@ class OSController:
                 for p in processes
             ]
         except Exception as e:
-            logger.error(f"Failed to list processes: {e}")
+            logger.error("Failed to list processes: %s", e)
             self._log_operation(
                 OperationCategory.PROCESS,
                 "list_processes",
@@ -1603,7 +1603,7 @@ class OSController:
             )
             return usage
         except Exception as e:
-            logger.error(f"Failed to get CPU usage: {e}")
+            logger.error("Failed to get CPU usage: %s", e)
             self._log_operation(
                 OperationCategory.HARDWARE,
                 "get_cpu_usage",
@@ -1636,7 +1636,7 @@ class OSController:
                 "percent": info.percent
             }
         except Exception as e:
-            logger.error(f"Failed to get memory info: {e}")
+            logger.error("Failed to get memory info: %s", e)
             self._log_operation(
                 OperationCategory.HARDWARE,
                 "get_memory_info",
@@ -1686,7 +1686,7 @@ class OSController:
             return entries
 
         except Exception as e:
-            logger.error(f"Failed to read operation history: {e}")
+            logger.error("Failed to read operation history: %s", e)
             return []
 
     def get_system_info(self) -> dict[str, Any]:
@@ -1708,7 +1708,7 @@ class OSController:
                 "confirmation_required": self.require_confirmation
             }
         except Exception as e:
-            logger.error(f"Failed to get system info: {e}")
+            logger.error("Failed to get system info: %s", e)
             return {
                 "platform": self.platform,
                 "error": str(e)

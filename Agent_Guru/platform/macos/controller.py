@@ -211,7 +211,7 @@ class MacOSController:
                     stderr=subprocess.DEVNULL,
                 )
                 latency_ms = (time.perf_counter() - start) * 1000
-                logger.info(f"Opened URL: {resolved}")
+                logger.info("Opened URL: %s", resolved)
                 return MacOSControllerResult(
                     success=True,
                     operation="launch_app",
@@ -231,7 +231,7 @@ class MacOSController:
 
             if result.returncode == 0:
                 latency_ms = (time.perf_counter() - start) * 1000
-                logger.info(f"Launched app: {resolved}")
+                logger.info("Launched app: %s", resolved)
                 return MacOSControllerResult(
                     success=True,
                     operation="launch_app",
@@ -305,7 +305,7 @@ class MacOSController:
             try:
                 pyautogui.typewrite(text, interval=interval)
                 latency_ms = (time.perf_counter() - start) * 1000
-                logger.info(f"Typed {len(text)} characters via pyautogui")
+                logger.info("Typed %s characters via pyautogui", len(text))
                 return MacOSControllerResult(
                     success=True,
                     operation="type_text",
@@ -314,7 +314,7 @@ class MacOSController:
                     metadata={"length": len(text), "method": "pyautogui"},
                 )
             except Exception as e:
-                logger.warning(f"pyautogui type_text failed, trying AppleScript: {e}")
+                logger.warning("pyautogui type_text failed, trying AppleScript: %s", e)
 
         # AppleScript fallback
         try:
@@ -328,7 +328,7 @@ class MacOSController:
             )
             latency_ms = (time.perf_counter() - start) * 1000
             if result.returncode == 0:
-                logger.info(f"Typed {len(text)} characters via AppleScript")
+                logger.info("Typed %s characters via AppleScript", len(text))
                 return MacOSControllerResult(
                     success=True,
                     operation="type_text",
@@ -382,7 +382,7 @@ class MacOSController:
                     metadata={"key": key},
                 )
             except Exception as e:
-                logger.warning(f"pyautogui press_key failed: {e}")
+                logger.warning("pyautogui press_key failed: %s", e)
 
         # AppleScript fallback for common keys
         _key_map = {
@@ -563,7 +563,7 @@ class MacOSController:
                             AppKit.NSApplicationActivateIgnoringOtherApps
                         )
                         latency_ms = (time.perf_counter() - start) * 1000
-                        logger.info(f"Focused app: {name}")
+                        logger.info("Focused app: %s", name)
                         return MacOSControllerResult(
                             success=True,
                             operation="focus_app",
@@ -572,7 +572,7 @@ class MacOSController:
                             metadata={"app": name},
                         )
             except Exception as e:
-                logger.warning(f"AppKit focus failed: {e}")
+                logger.warning("AppKit focus failed: %s", e)
 
         # AppleScript fallback
         try:

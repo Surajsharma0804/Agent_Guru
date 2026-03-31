@@ -100,9 +100,9 @@ class EmbeddingGenerator:
         # Load model
         try:
             self.model = SentenceTransformer(model_name, device=self.device)
-            logger.info(f"Successfully loaded model on {self.device}")
+            logger.info("Successfully loaded model on %s", self.device)
         except Exception as e:
-            logger.error(f"Failed to load model: {e}")
+            logger.error("Failed to load model: %s", e)
             raise RuntimeError(f"Failed to load embedding model: {e}") from e
 
     def generate(self, text: str) -> list[float]:
@@ -143,7 +143,7 @@ class EmbeddingGenerator:
             return embedding.tolist()
 
         except Exception as e:
-            logger.error(f"Failed to generate embedding: {e}")
+            logger.error("Failed to generate embedding: %s", e)
             raise RuntimeError(f"Embedding generation failed: {e}") from e
 
     def generate_batch(self, texts: list[str], batch_size: int = 32) -> list[list[float]]:
@@ -197,7 +197,7 @@ class EmbeddingGenerator:
             return embeddings.tolist()
 
         except Exception as e:
-            logger.error(f"Failed to generate batch embeddings: {e}")
+            logger.error("Failed to generate batch embeddings: %s", e)
             raise RuntimeError(f"Batch embedding generation failed: {e}") from e
 
     def get_embedding_dimension(self) -> int:

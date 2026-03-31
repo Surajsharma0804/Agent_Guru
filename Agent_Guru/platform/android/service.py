@@ -153,7 +153,7 @@ class AndroidForegroundService:
             logger.debug("Android service classes initialized")
 
         except Exception as e:
-            logger.error(f"Failed to initialize Android service classes: {e}")
+            logger.error("Failed to initialize Android service classes: %s", e)
             raise AndroidServiceError(f"Failed to initialize service classes: {e}") from e
 
     def _get_context(self):
@@ -162,7 +162,7 @@ class AndroidForegroundService:
             activity = self.PythonActivity.mActivity
             return activity.getApplicationContext()
         except Exception as e:
-            logger.error(f"Failed to get Android context: {e}")
+            logger.error("Failed to get Android context: %s", e)
             raise AndroidServiceError(f"Failed to get Android context: {e}") from e
 
     # ========== Service Lifecycle ==========
@@ -177,7 +177,7 @@ class AndroidForegroundService:
             AndroidServiceError: If service start fails
         """
         if self.state != ServiceState.STOPPED:
-            logger.warning(f"Service already running (state: {self.state})")
+            logger.warning("Service already running (state: %s)", self.state)
             return
 
         try:
@@ -203,7 +203,7 @@ class AndroidForegroundService:
 
         except Exception as e:
             self.state = ServiceState.STOPPED
-            logger.error(f"Failed to start service: {e}")
+            logger.error("Failed to start service: %s", e)
             raise AndroidServiceError(f"Failed to start service: {e}") from e
 
     def stop(self) -> None:
@@ -233,7 +233,7 @@ class AndroidForegroundService:
             logger.info("Foreground service stopped")
 
         except Exception as e:
-            logger.error(f"Failed to stop service: {e}")
+            logger.error("Failed to stop service: %s", e)
             raise AndroidServiceError(f"Failed to stop service: {e}") from e
 
     def _service_loop(self) -> None:
@@ -252,7 +252,7 @@ class AndroidForegroundService:
                 time.sleep(0.1)
 
         except Exception as e:
-            logger.error(f"Service loop error: {e}")
+            logger.error("Service loop error: %s", e)
         finally:
             logger.info("Service loop stopped")
 
@@ -327,7 +327,7 @@ class AndroidForegroundService:
             try:
                 self.config.wake_word_callback()
             except Exception as e:
-                logger.error(f"Wake word callback error: {e}")
+                logger.error("Wake word callback error: %s", e)
 
     # ========== Notification Management ==========
 
@@ -352,7 +352,7 @@ class AndroidForegroundService:
                 logger.debug("Notification channel created")
 
         except Exception as e:
-            logger.error(f"Failed to create notification channel: {e}")
+            logger.error("Failed to create notification channel: %s", e)
 
     def _create_notification(self, message: Optional[str] = None):
         """Create notification for foreground service."""
@@ -374,7 +374,7 @@ class AndroidForegroundService:
             return builder.build()
 
         except Exception as e:
-            logger.error(f"Failed to create notification: {e}")
+            logger.error("Failed to create notification: %s", e)
             raise AndroidServiceError(f"Failed to create notification: {e}") from e
 
     def _show_notification(self, notification) -> None:
@@ -387,7 +387,7 @@ class AndroidForegroundService:
             nm.notify(1, notification)
 
         except Exception as e:
-            logger.error(f"Failed to show notification: {e}")
+            logger.error("Failed to show notification: %s", e)
 
     def _remove_notification(self) -> None:
         """Remove notification."""
@@ -399,7 +399,7 @@ class AndroidForegroundService:
             nm.cancel(1)
 
         except Exception as e:
-            logger.error(f"Failed to remove notification: {e}")
+            logger.error("Failed to remove notification: %s", e)
 
     # ========== Service Status ==========
 

@@ -216,9 +216,9 @@ class ConversationMemory:
         try:
             if self._persist_path.exists():
                 self._persist_path.unlink()
-                logger.info(f"ConversationMemory: deleted {self._persist_path}")
+                logger.info("ConversationMemory: deleted %s", self._persist_path)
         except OSError as e:
-            logger.warning(f"ConversationMemory: could not delete file: {e}")
+            logger.warning("ConversationMemory: could not delete file: %s", e)
 
     def turn_count(self) -> int:
         """Return current number of stored turns."""
@@ -250,7 +250,7 @@ class ConversationMemory:
 
         self._persist_path.parent.mkdir(parents=True, exist_ok=True)
         self._persist_path.write_bytes(encrypted)
-        logger.debug(f"ConversationMemory: persisted {len(turns_data)} turns")
+        logger.debug("ConversationMemory: persisted %s turns", len(turns_data))
 
     def load(self) -> bool:
         """Load and decrypt conversation history from disk.
@@ -273,11 +273,11 @@ class ConversationMemory:
                     self._turns[turn.turn_id] = turn
                     self._turn_counter = max(self._turn_counter, turn.turn_id)
 
-            logger.info(f"ConversationMemory: loaded {len(turns_data)} turns")
+            logger.info("ConversationMemory: loaded %s turns", len(turns_data))
             return True
 
         except Exception as e:
-            logger.error(f"ConversationMemory: failed to load: {e}")
+            logger.error("ConversationMemory: failed to load: %s", e)
             return False
 
     # ------------------------------------------------------------------

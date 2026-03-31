@@ -273,7 +273,7 @@ class DegradationManager:
             raise KeyError(f"Feature not found: {name}")
 
         del self._features[name]
-        logger.debug(f"Feature unregistered: {name}")
+        logger.debug("Feature unregistered: %s", name)
 
     def is_feature_enabled(self, name: str) -> bool:
         """Check if a feature is currently enabled.
@@ -532,7 +532,7 @@ class DegradationManager:
                     except Exception as e:
                         logger.error(f"Error enabling feature {name}: {e}")
 
-                logger.info(f"Feature enabled: {name}")
+                logger.info("Feature enabled: %s", name)
 
             elif not should_enable and feature.enabled:
                 # Disable feature
@@ -544,7 +544,7 @@ class DegradationManager:
                         logger.error(f"Error disabling feature {name}: {e}")
 
                 disabled_features.append(name)
-                logger.info(f"Feature disabled: {name}")
+                logger.info("Feature disabled: %s", name)
 
         return disabled_features
 
@@ -625,7 +625,7 @@ class DegradationManager:
             except asyncio.CancelledError:
                 raise
             except Exception as e:
-                logger.error(f"Error in monitoring loop: {e}")
+                logger.error("Error in monitoring loop: %s", e)
 
     def _add_event(self, event: DegradationEvent) -> None:
         """Add event to history with size limit.

@@ -566,7 +566,7 @@ class KnowledgeSynthesizer:
         if self.use_llm_synthesis and self.llm_client is not None:
             try:
                 # Run async LLM synthesis in sync context
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 if loop.is_running():
                     # If event loop is already running, create a new task
                     # This handles the case where we're called from async context
@@ -1604,7 +1604,7 @@ Generate a natural language answer that directly addresses the query."""
         Returns:
             LLM response text
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         response = await loop.run_in_executor(
             None,
             lambda: self.llm_client.chat.completions.create(
@@ -1626,7 +1626,7 @@ Generate a natural language answer that directly addresses the query."""
         Returns:
             LLM response text
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         response = await loop.run_in_executor(
             None,
             lambda: self.llm_client.messages.create(

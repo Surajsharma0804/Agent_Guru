@@ -190,7 +190,7 @@ class AutoCommitManager:
 
         # Process remaining commits
         if self._pending_commits:
-            logger.info(f"Processing {len(self._pending_commits)} pending commits before stop")
+            logger.info("Processing %s pending commits before stop", len(self._pending_commits))
             await self._process_pending_commits()
 
         # Cancel batch task
@@ -236,7 +236,7 @@ class AutoCommitManager:
             changed_files = await self._detect_changed_files(task_context)
 
             if not changed_files:
-                logger.info(f"No changes detected for task {task_context.task_id}")
+                logger.info("No changes detected for task %s", task_context.task_id)
                 return GitOperationResult(
                     success=True,
                     message="No changes to commit"
@@ -307,7 +307,7 @@ class AutoCommitManager:
                 if full_path.exists():
                     valid_files.append(file_path)
                 else:
-                    logger.warning(f"File not found: {file_path}")
+                    logger.warning("File not found: %s", file_path)
             return valid_files
 
         # Otherwise, detect from Git status
@@ -406,7 +406,7 @@ class AutoCommitManager:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Error in batch processor: {e}")
+                logger.error("Error in batch processor: %s", e)
                 await asyncio.sleep(5)  # Back off on error
 
         logger.info("Batch processor stopped")
@@ -473,11 +473,11 @@ class AutoCommitManager:
                 self._pending_commits.clear()
                 self._last_push_time = datetime.now()
             else:
-                logger.error(f"Batch processing failed: {result.message}")
+                logger.error("Batch processing failed: %s", result.message)
                 # Keep pending commits for retry
 
         except Exception as e:
-            logger.error(f"Failed to process pending commits: {e}")
+            logger.error("Failed to process pending commits: %s", e)
 
     def get_pending_count(self) -> int:
         """Get number of pending commits.
@@ -518,7 +518,7 @@ class AutoCommitManager:
                 message="No pending commits to push"
             )
 
-        logger.info(f"Force pushing {len(self._pending_commits)} pending commit(s)")
+        logger.info("Force pushing %s pending commit(s)", len(self._pending_commits))
         await self._process_pending_commits()
 
         return GitOperationResult(

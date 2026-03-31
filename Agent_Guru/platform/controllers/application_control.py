@@ -179,7 +179,7 @@ class ApplicationController:
             else:
                 raise ImportError(f"Unsupported platform: {self.platform}")
         except ImportError as e:
-            logger.error(f"Failed to load platform integration: {e}")
+            logger.error("Failed to load platform integration: %s", e)
             raise
 
     def open_application(
@@ -211,7 +211,7 @@ class ApplicationController:
             >>> pid = controller.open_application("notepad")
             >>> print(f"Launched notepad with PID {pid}")
         """
-        logger.info(f"Opening application: {app_name}")
+        logger.info("Opening application: %s", app_name)
 
         try:
             # Resolve application path
@@ -229,10 +229,10 @@ class ApplicationController:
             return pid
 
         except FileNotFoundError:
-            logger.error(f"Application not found: {app_name}")
+            logger.error("Application not found: %s", app_name)
             raise
         except PermissionError:
-            logger.error(f"Permission denied to launch: {app_name}")
+            logger.error("Permission denied to launch: %s", app_name)
             raise
         except Exception as e:
             logger.error(f"Failed to launch {app_name}: {e}")
@@ -561,14 +561,14 @@ class ApplicationController:
             success = self._platform_integration.terminate_process(pid, force=force)
 
             if success:
-                logger.info(f"Successfully closed application: {app_identifier}")
+                logger.info("Successfully closed application: %s", app_identifier)
             else:
-                logger.warning(f"Failed to close application: {app_identifier}")
+                logger.warning("Failed to close application: %s", app_identifier)
 
             return success
 
         except ProcessLookupError:
-            logger.error(f"Application not found: {app_identifier}")
+            logger.error("Application not found: %s", app_identifier)
             raise
         except Exception as e:
             logger.error(f"Failed to close {app_identifier}: {e}")
@@ -608,12 +608,12 @@ class ApplicationController:
                     timeout=10,
                 )
                 if result.returncode == 0:
-                    logger.info(f"taskkill succeeded for {exe_name}")
+                    logger.info("taskkill succeeded for %s", exe_name)
                     return True
             except (OSError, _sp.TimeoutExpired) as exc:
                 logger.warning(f"taskkill failed for {exe_name}: {exc}")
 
-        logger.error(f"taskkill could not close any alias for '{app_name}'")
+        logger.error("taskkill could not close any alias for '%s'", app_name)
         return False
 
 
@@ -711,7 +711,7 @@ class ApplicationController:
             >>> controller.minimize_window("Notepad")
             True
         """
-        logger.info(f"Minimizing window: {window_identifier}")
+        logger.info("Minimizing window: %s", window_identifier)
 
         try:
             if self.platform == "win32":
@@ -745,7 +745,7 @@ class ApplicationController:
                 hwnd = self._find_window_by_partial_title(window_identifier)
 
             if hwnd == 0:
-                logger.warning(f"Window not found: {window_identifier}")
+                logger.warning("Window not found: %s", window_identifier)
                 return False
 
             # Minimize window
@@ -756,7 +756,7 @@ class ApplicationController:
             logger.error("pywin32 not available")
             return False
         except Exception as e:
-            logger.error(f"Failed to minimize window: {e}")
+            logger.error("Failed to minimize window: %s", e)
             return False
 
 
@@ -787,7 +787,7 @@ class ApplicationController:
             return found_hwnd[0]
 
         except Exception as e:
-            logger.error(f"Failed to find window: {e}")
+            logger.error("Failed to find window: %s", e)
             return 0
 
     def _minimize_window_macos(self, window_identifier: str) -> bool:
@@ -831,10 +831,10 @@ class ApplicationController:
             return result.returncode == 0 and 'true' in result.stdout.lower()
 
         except ValueError as e:
-            logger.error(f"Invalid window identifier: {e}")
+            logger.error("Invalid window identifier: %s", e)
             return False
         except Exception as e:
-            logger.error(f"Failed to minimize window: {e}")
+            logger.error("Failed to minimize window: %s", e)
             return False
 
     def _minimize_window_linux(self, window_identifier: str) -> bool:
@@ -860,7 +860,7 @@ class ApplicationController:
             return result.returncode == 0
 
         except ValueError as e:
-            logger.error(f"Invalid window identifier: {e}")
+            logger.error("Invalid window identifier: %s", e)
             return False
         except FileNotFoundError:
             logger.warning("wmctrl not available, trying xdotool")
@@ -875,13 +875,13 @@ class ApplicationController:
                 )
                 return result.returncode == 0
             except ValueError as e:
-                logger.error(f"Invalid window identifier: {e}")
+                logger.error("Invalid window identifier: %s", e)
                 return False
             except FileNotFoundError:
                 logger.error("Neither wmctrl nor xdotool available")
                 return False
         except Exception as e:
-            logger.error(f"Failed to minimize window: {e}")
+            logger.error("Failed to minimize window: %s", e)
             return False
 
 
@@ -905,7 +905,7 @@ class ApplicationController:
             >>> controller.maximize_window("Notepad")
             True
         """
-        logger.info(f"Maximizing window: {window_identifier}")
+        logger.info("Maximizing window: %s", window_identifier)
 
         try:
             if self.platform == "win32":
@@ -936,7 +936,7 @@ class ApplicationController:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to maximize window: {e}")
+            logger.error("Failed to maximize window: %s", e)
             return False
 
     def _maximize_window_macos(self, window_identifier: str) -> bool:
@@ -973,10 +973,10 @@ class ApplicationController:
             return result.returncode == 0
 
         except ValueError as e:
-            logger.error(f"Invalid window identifier: {e}")
+            logger.error("Invalid window identifier: %s", e)
             return False
         except Exception as e:
-            logger.error(f"Failed to maximize window: {e}")
+            logger.error("Failed to maximize window: %s", e)
             return False
 
     def _maximize_window_linux(self, window_identifier: str) -> bool:
@@ -993,7 +993,7 @@ class ApplicationController:
             return result.returncode == 0
 
         except ValueError as e:
-            logger.error(f"Invalid window identifier: {e}")
+            logger.error("Invalid window identifier: %s", e)
             return False
         except FileNotFoundError:
             try:
@@ -1007,7 +1007,7 @@ class ApplicationController:
             except (ValueError, FileNotFoundError):
                 return False
         except Exception as e:
-            logger.error(f"Failed to maximize window: {e}")
+            logger.error("Failed to maximize window: %s", e)
             return False
 
 
@@ -1031,7 +1031,7 @@ class ApplicationController:
             >>> controller.restore_window("Notepad")
             True
         """
-        logger.info(f"Restoring window: {window_identifier}")
+        logger.info("Restoring window: %s", window_identifier)
 
         try:
             if self.platform == "win32":
@@ -1062,7 +1062,7 @@ class ApplicationController:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to restore window: {e}")
+            logger.error("Failed to restore window: %s", e)
             return False
 
     def _restore_window_macos(self, window_identifier: str) -> bool:
@@ -1100,10 +1100,10 @@ class ApplicationController:
             return result.returncode == 0
 
         except ValueError as e:
-            logger.error(f"Invalid window identifier: {e}")
+            logger.error("Invalid window identifier: %s", e)
             return False
         except Exception as e:
-            logger.error(f"Failed to restore window: {e}")
+            logger.error("Failed to restore window: %s", e)
             return False
 
     def _restore_window_linux(self, window_identifier: str) -> bool:
@@ -1120,12 +1120,12 @@ class ApplicationController:
             return result.returncode == 0
 
         except ValueError as e:
-            logger.error(f"Invalid window identifier: {e}")
+            logger.error("Invalid window identifier: %s", e)
             return False
         except FileNotFoundError:
             return False
         except Exception as e:
-            logger.error(f"Failed to restore window: {e}")
+            logger.error("Failed to restore window: %s", e)
             return False
 
 
@@ -1149,7 +1149,7 @@ class ApplicationController:
             >>> controller.focus_window("Chrome")
             True
         """
-        logger.info(f"Focusing window: {window_identifier}")
+        logger.info("Focusing window: %s", window_identifier)
 
         try:
             if self.platform == "win32":
@@ -1179,7 +1179,7 @@ class ApplicationController:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to focus window: {e}")
+            logger.error("Failed to focus window: %s", e)
             return False
 
     def _focus_window_macos(self, window_identifier: str) -> bool:
@@ -1219,10 +1219,10 @@ class ApplicationController:
             return result.returncode == 0
 
         except ValueError as e:
-            logger.error(f"Invalid window identifier: {e}")
+            logger.error("Invalid window identifier: %s", e)
             return False
         except Exception as e:
-            logger.error(f"Failed to focus window: {e}")
+            logger.error("Failed to focus window: %s", e)
             return False
 
     def _focus_window_linux(self, window_identifier: str) -> bool:
@@ -1239,7 +1239,7 @@ class ApplicationController:
             return result.returncode == 0
 
         except ValueError as e:
-            logger.error(f"Invalid window identifier: {e}")
+            logger.error("Invalid window identifier: %s", e)
             return False
         except FileNotFoundError:
             try:
@@ -1253,7 +1253,7 @@ class ApplicationController:
             except (ValueError, FileNotFoundError):
                 return False
         except Exception as e:
-            logger.error(f"Failed to focus window: {e}")
+            logger.error("Failed to focus window: %s", e)
             return False
 
 
@@ -1277,7 +1277,7 @@ class ApplicationController:
             >>> controller.switch_to_application("Chrome")
             True
         """
-        logger.info(f"Switching to application: {app_name}")
+        logger.info("Switching to application: %s", app_name)
 
         try:
             # Find window by application name
@@ -1290,7 +1290,7 @@ class ApplicationController:
                     break
 
             if target_window is None:
-                logger.warning(f"Application not found: {app_name}")
+                logger.warning("Application not found: %s", app_name)
                 return False
 
             # Focus the window
@@ -1326,7 +1326,7 @@ class ApplicationController:
                 return self._list_windows_linux()
 
         except Exception as e:
-            logger.error(f"Failed to list windows: {e}")
+            logger.error("Failed to list windows: %s", e)
             return []
 
     def _list_windows_windows(self) -> list[WindowInfo]:
@@ -1370,7 +1370,7 @@ class ApplicationController:
             return windows
 
         except Exception as e:
-            logger.error(f"Failed to list windows: {e}")
+            logger.error("Failed to list windows: %s", e)
             return []
 
 
@@ -1414,7 +1414,7 @@ class ApplicationController:
             return windows
 
         except Exception as e:
-            logger.error(f"Failed to list windows: {e}")
+            logger.error("Failed to list windows: %s", e)
             return []
 
     def _list_windows_linux(self) -> list[WindowInfo]:
@@ -1456,7 +1456,7 @@ class ApplicationController:
             logger.warning("wmctrl not available")
             return []
         except Exception as e:
-            logger.error(f"Failed to list windows: {e}")
+            logger.error("Failed to list windows: %s", e)
             return []
 
     def get_active_window(self) -> Optional[WindowInfo]:
@@ -1484,7 +1484,7 @@ class ApplicationController:
             return None
 
         except Exception as e:
-            logger.error(f"Failed to get active window: {e}")
+            logger.error("Failed to get active window: %s", e)
             return None
 
     def list_running_applications(self) -> list[ApplicationInfo]:
@@ -1529,5 +1529,5 @@ class ApplicationController:
             return applications
 
         except Exception as e:
-            logger.error(f"Failed to list applications: {e}")
+            logger.error("Failed to list applications: %s", e)
             return []

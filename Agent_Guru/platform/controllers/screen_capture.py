@@ -163,7 +163,7 @@ class WindowsScreenCaptureBackend(ScreenCaptureBackend):
             ensure_output_directory(output_path)
             screenshot = self.pyautogui.screenshot()
             screenshot.save(output_path)
-            logger.info(f"Screenshot saved: {output_path}")
+            logger.info("Screenshot saved: %s", output_path)
         except Exception as e:
             raise ScreenshotError(f"Failed to capture screenshot: {e}") from e
 
@@ -177,7 +177,7 @@ class WindowsScreenCaptureBackend(ScreenCaptureBackend):
                 region=(region.x, region.y, region.width, region.height)
             )
             screenshot.save(output_path)
-            logger.info(f"Region screenshot saved: {output_path}")
+            logger.info("Region screenshot saved: %s", output_path)
         except Exception as e:
             raise ScreenshotError(f"Failed to capture region: {e}") from e
 
@@ -195,7 +195,7 @@ class WindowsScreenCaptureBackend(ScreenCaptureBackend):
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE
             )  # nosec B603 B607
 
-            logger.info(f"Started recording: {output_path}")
+            logger.info("Started recording: %s", output_path)
             return process
 
         except FileNotFoundError as e:
@@ -210,7 +210,7 @@ class MacOSScreenCaptureBackend(ScreenCaptureBackend):
     def capture_screenshot(self, output_path: str) -> None:
         ensure_output_directory(output_path)
         run_command(["screencapture", "-x", output_path], error_prefix="screencapture failed")
-        logger.info(f"Screenshot saved: {output_path}")
+        logger.info("Screenshot saved: %s", output_path)
 
     def capture_region(self, region: CaptureRegion, output_path: str) -> None:
         ensure_output_directory(output_path)
@@ -219,7 +219,7 @@ class MacOSScreenCaptureBackend(ScreenCaptureBackend):
             ["screencapture", "-x", "-R", geometry, output_path],
             error_prefix="screencapture failed"
         )
-        logger.info(f"Region screenshot saved: {output_path}")
+        logger.info("Region screenshot saved: %s", output_path)
 
     def start_recording(self, output_path: str, fps: int = 30) -> subprocess.Popen:
         try:
@@ -235,7 +235,7 @@ class MacOSScreenCaptureBackend(ScreenCaptureBackend):
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE
             )  # nosec B603 B607
 
-            logger.info(f"Started recording: {output_path}")
+            logger.info("Started recording: %s", output_path)
             return process
 
         except FileNotFoundError as e:
@@ -263,7 +263,7 @@ class LinuxScreenCaptureBackend(ScreenCaptureBackend):
 
         ensure_output_directory(output_path)
         run_command(["scrot", output_path], error_prefix="scrot failed")
-        logger.info(f"Screenshot saved: {output_path}")
+        logger.info("Screenshot saved: %s", output_path)
 
     def capture_region(self, region: CaptureRegion, output_path: str) -> None:
         if not self.has_scrot:
@@ -272,7 +272,7 @@ class LinuxScreenCaptureBackend(ScreenCaptureBackend):
         ensure_output_directory(output_path)
         geometry = f"{region.width}x{region.height}+{region.x}+{region.y}"
         run_command(["scrot", "-a", geometry, output_path], error_prefix="scrot failed")
-        logger.info(f"Region screenshot saved: {output_path}")
+        logger.info("Region screenshot saved: %s", output_path)
 
     def start_recording(self, output_path: str, fps: int = 30) -> subprocess.Popen:
         try:
@@ -289,7 +289,7 @@ class LinuxScreenCaptureBackend(ScreenCaptureBackend):
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE
             )  # nosec B603 B607
 
-            logger.info(f"Started recording: {output_path}")
+            logger.info("Started recording: %s", output_path)
             return process
 
         except FileNotFoundError as e:
@@ -316,7 +316,7 @@ class ScreenCaptureController:
             raise UnsupportedCaptureOperationError(f"Unsupported platform: {system}")
 
         self._recording_state = RecordingState(is_recording=False)
-        logger.info(f"Initialized screen capture for {system}")
+        logger.info("Initialized screen capture for %s", system)
 
     def capture_screenshot(self, output_path: str) -> None:
         """Capture full screen screenshot."""
@@ -349,7 +349,7 @@ class ScreenCaptureController:
         try:
             self._backend.stop_recording(self._recording_state.process)
             duration = time.time() - self._recording_state.start_time
-            logger.info(f"Recording stopped. Duration: {duration:.2f}s")
+            logger.info("Recording stopped. Duration: %.2fs", duration)
         finally:
             self._recording_state = RecordingState(is_recording=False)
 

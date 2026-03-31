@@ -329,7 +329,7 @@ class NeuralIntentClassifier:
         """
         # For now, run synchronously in executor
         # TODO: Implement proper batching for throughput
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(None, self._classify_sync, text)
 
         # Update metrics

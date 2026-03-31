@@ -265,7 +265,7 @@ class WebhookManager:
 
         if endpoint in self._handlers:
             del self._handlers[endpoint]
-            logger.info(f"Webhook unregistered: {endpoint}")
+            logger.info("Webhook unregistered: %s", endpoint)
             return True
 
         return False
@@ -343,7 +343,7 @@ class WebhookManager:
             hash_func = hashlib.sha512
             prefix = "sha512="
         else:
-            logger.error(f"Unsupported signature algorithm: {algorithm}")
+            logger.error("Unsupported signature algorithm: %s", algorithm)
             return False
 
         # Compute expected signature
@@ -389,7 +389,7 @@ class WebhookManager:
             age = (current_time - event_time).total_seconds()
 
             if age < 0:
-                logger.warning(f"Webhook timestamp is in the future: {timestamp_str}")
+                logger.warning("Webhook timestamp is in the future: %s", timestamp_str)
                 return False
 
             if age > tolerance:

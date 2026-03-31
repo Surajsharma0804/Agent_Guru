@@ -55,7 +55,7 @@ class MicrophoneCapture(AudioCapture):
         try:
             if device is not None:
                 device_info = sd.query_devices(device)
-                logger.info(f"Using audio device: {device_info['name']}")
+                logger.info("Using audio device: %s", device_info['name'])
             else:
                 logger.info("Using default audio device")
         except Exception as e:
@@ -97,7 +97,7 @@ class MicrophoneCapture(AudioCapture):
             # Flatten to 1D array
             audio = audio.flatten()
 
-            logger.debug(f"Captured {len(audio)} samples")
+            logger.debug("Captured %s samples", len(audio))
             return audio, self.sample_rate
 
         except Exception as e:
@@ -125,7 +125,7 @@ class MicrophoneCapture(AudioCapture):
             ]
             return input_devices
         except Exception as e:
-            logger.error(f"Failed to list devices: {e}")
+            logger.error("Failed to list devices: %s", e)
             return []
 
 
@@ -140,7 +140,7 @@ class FileCapture(AudioCapture):
             file_path: Path to audio file
         """
         self.file_path = file_path
-        logger.info(f"FileCapture initialized for: {file_path}")
+        logger.info("FileCapture initialized for: %s", file_path)
 
     def capture(self, duration: float | None = None) -> tuple[np.ndarray, int]:
         """
@@ -178,7 +178,7 @@ class FileCapture(AudioCapture):
             AudioInputError: If file loading fails
         """
         try:
-            logger.debug(f"Loading audio from: {file_path}")
+            logger.debug("Loading audio from: %s", file_path)
 
             # Load audio file
             audio, sample_rate = sf.read(file_path, dtype='float32')

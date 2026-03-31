@@ -387,7 +387,7 @@ class RateLimiter:
         if self.hour_bucket is not None:
             self.hour_bucket.tokens = float(self.hour_bucket.capacity)
 
-        logger.info(f"Rate limiter reset for service '{self.service}'")
+        logger.info("Rate limiter reset for service '%s'", self.service)
 
 
 class RateLimiterManager:
@@ -443,7 +443,7 @@ class RateLimiterManager:
             config: Rate limit configuration
         """
         self.limiters[service] = RateLimiter(service, config)
-        logger.info(f"Rate limiter configured for service '{service}'")
+        logger.info("Rate limiter configured for service '%s'", service)
 
     def _get_limiter(self, service: str) -> RateLimiter:
         """Get or create rate limiter for service.

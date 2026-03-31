@@ -223,7 +223,7 @@ class GoalManagerClient:
             timeout=aiohttp.ClientTimeout(total=self.timeout)
         )
 
-        logger.info(f"Connected to Goal Manager at {self.base_url}")
+        logger.info("Connected to Goal Manager at %s", self.base_url)
 
     async def disconnect(self) -> None:
         """
@@ -292,7 +292,7 @@ class GoalManagerClient:
                 if attempt < self.max_retries - 1:
                     # Exponential backoff with jitter
                     delay = self.retry_delay * (2 ** attempt)
-                    jitter = delay * 0.2 * (2 * asyncio.get_event_loop().time() % 1 - 1)
+                    jitter = delay * 0.2 * (2 * asyncio.get_running_loop().time() % 1 - 1)
                     await asyncio.sleep(delay + jitter)
 
         # All retries failed

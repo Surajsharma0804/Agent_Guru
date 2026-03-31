@@ -334,7 +334,7 @@ class MigrationSystem:
         current_version = self.get_current_version()
 
         if target_version == current_version:
-            logger.info(f"Already at version {target_version}")
+            logger.info("Already at version %s", target_version)
             return
 
         if target_version not in self.migrations and target_version != 0:
@@ -501,7 +501,7 @@ class MigrationSystem:
             # Commit transaction
             cursor.execute("COMMIT")
 
-            logger.info(f"Migration {migration.version} rolled back successfully")
+            logger.info("Migration %s rolled back successfully", migration.version)
 
         except Exception as e:
             # Rollback on error

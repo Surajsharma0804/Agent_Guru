@@ -372,7 +372,7 @@ class MouseController:
             >>> mouse.scroll(3, x=100, y=200)  # Scroll at position
         """
         pyautogui.scroll(clicks, x=x, y=y)
-        logger.debug(f"Scrolled {clicks} clicks")
+        logger.debug("Scrolled %s clicks", clicks)
 
     def get_screen_size(self) -> tuple[int, int]:
         """Get screen dimensions.
@@ -450,7 +450,7 @@ class KeyboardController:
         interval = interval if interval is not None else self.config.interval
 
         pyautogui.write(text, interval=interval)
-        logger.debug(f"Typed text: {text[:50]}...")
+        logger.debug("Typed text: %s...", text[:50])
 
     def press_key(self, key: str, presses: int = 1) -> None:
         """Press and release key.
@@ -484,7 +484,7 @@ class KeyboardController:
             >>> keyboard.key_up("shift")
         """
         pyautogui.keyDown(key)
-        logger.debug(f"Key down: {key}")
+        logger.debug("Key down: %s", key)
 
     def key_up(self, key: str) -> None:
         """Release key.
@@ -501,7 +501,7 @@ class KeyboardController:
             >>> keyboard.key_up("ctrl")
         """
         pyautogui.keyUp(key)
-        logger.debug(f"Key up: {key}")
+        logger.debug("Key up: %s", key)
 
     def press_shortcut(self, *keys: str) -> None:
         """Press keyboard shortcut (multiple keys simultaneously).
@@ -519,7 +519,7 @@ class KeyboardController:
             >>> keyboard.press_shortcut("ctrl", "shift", "esc")  # Task manager
         """
         pyautogui.hotkey(*keys)
-        logger.debug(f"Pressed shortcut: {'+'.join(keys)}")
+        logger.debug("Pressed shortcut: %s", '+'.join(keys))
 
     def hold_keys(self, keys: list[str]) -> "KeyHoldContext":
         """Context manager to hold keys down.

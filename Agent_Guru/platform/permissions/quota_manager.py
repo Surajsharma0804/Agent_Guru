@@ -420,7 +420,7 @@ class QuotaManager:
         with self._lock:
             if user_id in self._user_quotas:
                 self._user_quotas[user_id].reset_day()
-                logger.info(f"Reset all quotas for user: {user_id}")
+                logger.info("Reset all quotas for user: %s", user_id)
 
                 if self.storage_path:
                     self._save_to_storage()
@@ -441,7 +441,7 @@ class QuotaManager:
             for user_counters in self._user_quotas.values():
                 user_counters.reset_hour()
             self._last_hour_reset = current_hour
-            logger.info(f"Hourly quota counters reset at {current_hour}")
+            logger.info("Hourly quota counters reset at %s", current_hour)
 
             if self.storage_path:
                 self._save_to_storage()
@@ -451,7 +451,7 @@ class QuotaManager:
             for user_counters in self._user_quotas.values():
                 user_counters.reset_day()
             self._last_day_reset = current_day
-            logger.info(f"Daily quota counters reset at {current_day}")
+            logger.info("Daily quota counters reset at %s", current_day)
 
             if self.storage_path:
                 self._save_to_storage()
@@ -495,10 +495,10 @@ class QuotaManager:
                 json.dump(data, f, indent=2)
             temp_path.replace(self.storage_path)
 
-            logger.debug(f"Quota counters saved to {self.storage_path}")
+            logger.debug("Quota counters saved to %s", self.storage_path)
 
         except Exception as e:
-            logger.error(f"Failed to save quota counters: {e}")
+            logger.error("Failed to save quota counters: %s", e)
 
     def _load_from_storage(self) -> None:
         """Load quota counters from persistent storage."""
@@ -527,7 +527,7 @@ class QuotaManager:
             )
 
         except Exception as e:
-            logger.error(f"Failed to load quota counters: {e}")
+            logger.error("Failed to load quota counters: %s", e)
 
     def get_statistics(self) -> dict[str, Any]:
         """

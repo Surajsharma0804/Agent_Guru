@@ -362,7 +362,7 @@ class TemplateGenerator:
             return template_str.format(**variables)
         except KeyError as e:
             # Fallback: use safe_substitute-like behavior
-            logger.warning(f"Variable {e} not found in template, using empty string")
+            logger.warning("Variable %s not found in template, using empty string", e)
             # Replace missing variables with empty strings
             safe_vars = dict(variables.items())
             for var in template.variables:
@@ -694,7 +694,7 @@ class TemplateGenerator:
             template: Response template to add
         """
         self._templates[template.template_id] = template
-        logger.info(f"Added custom template: {template.template_id}")
+        logger.info("Added custom template: %s", template.template_id)
 
     def get_template(self, template_id: str) -> Optional[ResponseTemplate]:
         """

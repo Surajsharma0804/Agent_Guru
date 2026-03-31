@@ -125,7 +125,7 @@ class IOSIntegration:
 
             logger.info("iOS frameworks initialized successfully")
         except Exception as e:
-            logger.error(f"Failed to initialize iOS frameworks: {e}")
+            logger.error("Failed to initialize iOS frameworks: %s", e)
             self._pyobjus_available = False
 
     def launch_app_by_url_scheme(self, url_scheme: str) -> bool:
@@ -160,7 +160,7 @@ class IOSIntegration:
             url = self.NSURL.URLWithString_(url_scheme)
 
             if not url:
-                logger.error(f"Invalid URL scheme: {url_scheme}")
+                logger.error("Invalid URL scheme: %s", url_scheme)
                 return False
 
             # Get shared application
@@ -168,7 +168,7 @@ class IOSIntegration:
 
             # Check if URL can be opened
             if not app.canOpenURL_(url):
-                logger.error(f"Cannot open URL scheme: {url_scheme}")
+                logger.error("Cannot open URL scheme: %s", url_scheme)
                 return False
 
             # Open URL
@@ -178,11 +178,11 @@ class IOSIntegration:
                 None
             )
 
-            logger.info(f"Launched app with URL scheme: {url_scheme}")
+            logger.info("Launched app with URL scheme: %s", url_scheme)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to launch app: {e}")
+            logger.error("Failed to launch app: %s", e)
             return False
 
     def execute_shortcut(
@@ -234,7 +234,7 @@ class IOSIntegration:
             success = self.launch_app_by_url_scheme(url_scheme)
 
             if success:
-                logger.info(f"Executed shortcut: {shortcut_name}")
+                logger.info("Executed shortcut: %s", shortcut_name)
                 return ShortcutResult(success=True)
             else:
                 return ShortcutResult(
@@ -243,7 +243,7 @@ class IOSIntegration:
                 )
 
         except Exception as e:
-            logger.error(f"Shortcut execution failed: {e}")
+            logger.error("Shortcut execution failed: %s", e)
             return ShortcutResult(success=False, error=str(e))
 
     def get_battery_info(self) -> BatteryInfo:
@@ -299,7 +299,7 @@ class IOSIntegration:
             )
 
         except Exception as e:
-            logger.error(f"Failed to get battery info: {e}")
+            logger.error("Failed to get battery info: %s", e)
             return BatteryInfo(
                 level=1.0,
                 state="unknown",
@@ -340,11 +340,11 @@ class IOSIntegration:
             elif permission == IOSPermission.LOCATION:
                 return self._request_location_permission()
             else:
-                logger.warning(f"Permission type not implemented: {permission}")
+                logger.warning("Permission type not implemented: %s", permission)
                 return False
 
         except Exception as e:
-            logger.error(f"Permission request failed: {e}")
+            logger.error("Permission request failed: %s", e)
             return False
 
     def _request_microphone_permission(self) -> bool:
@@ -432,7 +432,7 @@ class IOSIntegration:
             logger.info("Background audio mode started")
 
         except Exception as e:
-            logger.error(f"Failed to start background audio: {e}")
+            logger.error("Failed to start background audio: %s", e)
 
     def schedule_background_task(
         self,
@@ -477,10 +477,10 @@ class IOSIntegration:
             # Submit request
             scheduler.submitTaskRequest_error_(request, None)
 
-            logger.info(f"Scheduled background task: {task_id}")
+            logger.info("Scheduled background task: %s", task_id)
 
         except Exception as e:
-            logger.error(f"Failed to schedule background task: {e}")
+            logger.error("Failed to schedule background task: %s", e)
 
     def create_notification(self, title: str, message: str) -> None:
         """
@@ -533,10 +533,10 @@ class IOSIntegration:
             # Add notification
             center.addNotificationRequest_withCompletionHandler_(request, None)
 
-            logger.info(f"Created notification: {title}")
+            logger.info("Created notification: %s", title)
 
         except Exception as e:
-            logger.error(f"Failed to create notification: {e}")
+            logger.error("Failed to create notification: %s", e)
 
     def begin_background_task(self, task_name: str) -> int:
         """
@@ -572,7 +572,7 @@ class IOSIntegration:
             return int(task_id)
 
         except Exception as e:
-            logger.error(f"Failed to begin background task: {e}")
+            logger.error("Failed to begin background task: %s", e)
             return -1
 
     def end_background_task(self, task_id: int) -> None:
@@ -595,7 +595,7 @@ class IOSIntegration:
             app = self.UIApplication.sharedApplication()
             app.endBackgroundTask_(task_id)
 
-            logger.info(f"Ended background task: {task_id}")
+            logger.info("Ended background task: %s", task_id)
 
         except Exception as e:
-            logger.error(f"Failed to end background task: {e}")
+            logger.error("Failed to end background task: %s", e)

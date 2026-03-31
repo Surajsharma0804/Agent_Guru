@@ -238,7 +238,7 @@ class WindowsMediaBackend(MediaBackend):
                 self.win32con.KEYEVENTF_KEYUP,
                 0
             )
-            logger.debug(f"Sent media key: {key_code}")
+            logger.debug("Sent media key: %s", key_code)
         except Exception as e:
             logger.error(f"Failed to send media key {key_code}: {e}")
             raise MediaCommandError(f"Failed to send media key: {e}") from e
@@ -342,10 +342,10 @@ class MacOSMediaBackend(MediaBackend):
                 timeout=5.0,
                 check=True
             )
-            logger.debug(f"AppleScript executed: {script[:50]}...")
+            logger.debug("AppleScript executed: %s...", script[:50])
             return result.stdout.strip()
         except subprocess.CalledProcessError as e:
-            logger.error(f"AppleScript failed: {e.stderr}")
+            logger.error("AppleScript failed: %s", e.stderr)
             raise MediaCommandError(
                 f"AppleScript execution failed: {e.stderr}"
             ) from e
@@ -484,7 +484,7 @@ class MacOSMediaBackend(MediaBackend):
                     artist=parts[3] if len(parts) > 3 else None
                 )
         except Exception as e:
-            logger.debug(f"Could not get media state: {e}")
+            logger.debug("Could not get media state: %s", e)
 
         return None
 
@@ -546,7 +546,7 @@ class LinuxMediaBackend(MediaBackend):
                 timeout=5.0,
                 check=True
             )
-            logger.debug(f"playerctl {command} executed")
+            logger.debug("playerctl %s executed", command)
             return result.stdout.strip()
         except subprocess.CalledProcessError as e:
             logger.error(f"playerctl {command} failed: {e.stderr}")
@@ -554,7 +554,7 @@ class LinuxMediaBackend(MediaBackend):
                 f"playerctl {command} failed: {e.stderr}"
             ) from e
         except subprocess.TimeoutExpired as e:
-            logger.error(f"playerctl {command} timeout")
+            logger.error("playerctl %s timeout", command)
             raise MediaCommandError(f"playerctl {command} timeout") from e
 
     def _send_xdotool_key(self, key: str) -> None:
@@ -573,7 +573,7 @@ class LinuxMediaBackend(MediaBackend):
                 timeout=5.0,
                 check=True
             )
-            logger.debug(f"xdotool key {key} sent")
+            logger.debug("xdotool key %s sent", key)
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
             logger.error(f"xdotool key {key} failed: {e}")
             raise MediaCommandError(f"xdotool key {key} failed: {e}") from e
@@ -687,7 +687,7 @@ class LinuxMediaBackend(MediaBackend):
                 artist=artist if artist else None
             )
         except Exception as e:
-            logger.debug(f"Could not get media state: {e}")
+            logger.debug("Could not get media state: %s", e)
             return None
 
 
@@ -728,7 +728,7 @@ class MediaController:
                 f"Media control not supported on {system}"
             )
 
-        logger.info(f"MediaController initialized for {system}")
+        logger.info("MediaController initialized for %s", system)
 
     def play(self) -> None:
         """Start or resume media playback.
@@ -740,7 +740,7 @@ class MediaController:
             self._backend.play()
             logger.info("Media playback started")
         except Exception as e:
-            logger.error(f"Failed to start playback: {e}")
+            logger.error("Failed to start playback: %s", e)
             raise
 
     def pause(self) -> None:
@@ -753,7 +753,7 @@ class MediaController:
             self._backend.pause()
             logger.info("Media playback paused")
         except Exception as e:
-            logger.error(f"Failed to pause playback: {e}")
+            logger.error("Failed to pause playback: %s", e)
             raise
 
     def play_pause_toggle(self) -> None:
@@ -766,7 +766,7 @@ class MediaController:
             self._backend.play_pause_toggle()
             logger.info("Media playback toggled")
         except Exception as e:
-            logger.error(f"Failed to toggle playback: {e}")
+            logger.error("Failed to toggle playback: %s", e)
             raise
 
     def stop(self) -> None:
@@ -779,7 +779,7 @@ class MediaController:
             self._backend.stop()
             logger.info("Media playback stopped")
         except Exception as e:
-            logger.error(f"Failed to stop playback: {e}")
+            logger.error("Failed to stop playback: %s", e)
             raise
 
     def next_track(self) -> None:
@@ -792,7 +792,7 @@ class MediaController:
             self._backend.next_track()
             logger.info("Skipped to next track")
         except Exception as e:
-            logger.error(f"Failed to skip to next track: {e}")
+            logger.error("Failed to skip to next track: %s", e)
             raise
 
     def previous_track(self) -> None:
@@ -805,7 +805,7 @@ class MediaController:
             self._backend.previous_track()
             logger.info("Went to previous track")
         except Exception as e:
-            logger.error(f"Failed to go to previous track: {e}")
+            logger.error("Failed to go to previous track: %s", e)
             raise
 
     def volume_up(self, amount: int = 10) -> None:
@@ -819,9 +819,9 @@ class MediaController:
         """
         try:
             self._backend.volume_up(amount)
-            logger.info(f"Volume increased by {amount}")
+            logger.info("Volume increased by %s", amount)
         except Exception as e:
-            logger.error(f"Failed to increase volume: {e}")
+            logger.error("Failed to increase volume: %s", e)
             raise
 
     def volume_down(self, amount: int = 10) -> None:
@@ -835,9 +835,9 @@ class MediaController:
         """
         try:
             self._backend.volume_down(amount)
-            logger.info(f"Volume decreased by {amount}")
+            logger.info("Volume decreased by %s", amount)
         except Exception as e:
-            logger.error(f"Failed to decrease volume: {e}")
+            logger.error("Failed to decrease volume: %s", e)
             raise
 
     def mute(self) -> None:
@@ -850,7 +850,7 @@ class MediaController:
             self._backend.mute()
             logger.info("Media muted")
         except Exception as e:
-            logger.error(f"Failed to mute: {e}")
+            logger.error("Failed to mute: %s", e)
             raise
 
     def unmute(self) -> None:
@@ -863,7 +863,7 @@ class MediaController:
             self._backend.unmute()
             logger.info("Media unmuted")
         except Exception as e:
-            logger.error(f"Failed to unmute: {e}")
+            logger.error("Failed to unmute: %s", e)
             raise
 
     def get_state(self) -> Optional[MediaState]:
@@ -881,8 +881,8 @@ class MediaController:
         try:
             state = self._backend.get_state()
             if state:
-                logger.debug(f"Media state: {state}")
+                logger.debug("Media state: %s", state)
             return state
         except Exception as e:
-            logger.error(f"Failed to get media state: {e}")
+            logger.error("Failed to get media state: %s", e)
             return None

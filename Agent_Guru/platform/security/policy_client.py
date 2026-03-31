@@ -332,7 +332,7 @@ class PolicyEngineClient:
             >>> result = await client.evaluate_policy_async(context)
         """
         # Run synchronous evaluation in thread pool (avoid blocking event loop)
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None, self.evaluate_policy, context, bypass_cache
         )

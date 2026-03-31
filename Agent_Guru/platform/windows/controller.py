@@ -219,7 +219,7 @@ class WindowsController:
             if resolved.startswith("http://") or resolved.startswith("https://"):
                 os.startfile(resolved)  # type: ignore[attr-defined]
                 latency_ms = (time.perf_counter() - start) * 1000
-                logger.info(f"Opened URL: {resolved}")
+                logger.info("Opened URL: %s", resolved)
                 return WindowsControllerResult(
                     success=True,
                     operation="launch_app",
@@ -251,7 +251,7 @@ class WindowsController:
             try:
                 os.startfile(resolved)  # type: ignore[attr-defined]
                 latency_ms = (time.perf_counter() - start) * 1000
-                logger.info(f"Launched via shell: {resolved}")
+                logger.info("Launched via shell: %s", resolved)
                 return WindowsControllerResult(
                     success=True,
                     operation="launch_app",
@@ -315,7 +315,7 @@ class WindowsController:
         try:
             pyautogui.typewrite(text, interval=interval)
             latency_ms = (time.perf_counter() - start) * 1000
-            logger.info(f"Typed {len(text)} characters")
+            logger.info("Typed %s characters", len(text))
             return WindowsControllerResult(
                 success=True,
                 operation="type_text",
@@ -325,7 +325,7 @@ class WindowsController:
             )
         except Exception as e:
             latency_ms = (time.perf_counter() - start) * 1000
-            logger.error(f"type_text failed: {e}")
+            logger.error("type_text failed: %s", e)
             return WindowsControllerResult(
                 success=False,
                 operation="type_text",
@@ -363,7 +363,7 @@ class WindowsController:
                 pyautogui.press(key)
 
             latency_ms = (time.perf_counter() - start) * 1000
-            logger.info(f"Pressed key: {key}")
+            logger.info("Pressed key: %s", key)
             return WindowsControllerResult(
                 success=True,
                 operation="press_key",
@@ -373,7 +373,7 @@ class WindowsController:
             )
         except Exception as e:
             latency_ms = (time.perf_counter() - start) * 1000
-            logger.error(f"press_key failed: {e}")
+            logger.error("press_key failed: %s", e)
             return WindowsControllerResult(
                 success=False,
                 operation="press_key",
@@ -406,7 +406,7 @@ class WindowsController:
             pyautogui.hotkey(*keys)
             latency_ms = (time.perf_counter() - start) * 1000
             combo = "+".join(keys)
-            logger.info(f"Hotkey: {combo}")
+            logger.info("Hotkey: %s", combo)
             return WindowsControllerResult(
                 success=True,
                 operation="hotkey",
@@ -596,7 +596,7 @@ class WindowsController:
                 win32gui.SetForegroundWindow(hwnd)
 
             latency_ms = (time.perf_counter() - start) * 1000
-            logger.info(f"Focused window: {title}")
+            logger.info("Focused window: %s", title)
             return WindowsControllerResult(
                 success=True,
                 operation="focus_window",

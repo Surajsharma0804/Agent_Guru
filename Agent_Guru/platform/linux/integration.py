@@ -118,7 +118,7 @@ class LinuxIntegration:
                 self._system_bus = dbus.SystemBus()
                 logger.debug("D-Bus system bus connected")
             except Exception as e:
-                logger.warning(f"Failed to connect to D-Bus system bus: {e}")
+                logger.warning("Failed to connect to D-Bus system bus: %s", e)
 
     def _validate_linux_platform(self) -> None:
         """
@@ -365,7 +365,7 @@ class LinuxIntegration:
                     logger.error(error_msg)
                     raise RuntimeError(error_msg)
 
-            logger.info(f"Started service: {service_name}")
+            logger.info("Started service: %s", service_name)
             return True
 
         except subprocess.TimeoutExpired as e:
@@ -427,7 +427,7 @@ class LinuxIntegration:
                     logger.error(error_msg)
                     raise RuntimeError(error_msg)
 
-            logger.info(f"Stopped service: {service_name}")
+            logger.info("Stopped service: %s", service_name)
             return True
 
         except subprocess.TimeoutExpired as e:
@@ -489,7 +489,7 @@ class LinuxIntegration:
                     logger.error(error_msg)
                     raise RuntimeError(error_msg)
 
-            logger.info(f"Restarted service: {service_name}")
+            logger.info("Restarted service: %s", service_name)
             return True
 
         except subprocess.TimeoutExpired as e:
@@ -539,7 +539,7 @@ class LinuxIntegration:
                 # Process terminated or access denied - skip it
                 continue
 
-        logger.debug(f"Retrieved {len(processes)} processes")
+        logger.debug("Retrieved %s processes", len(processes))
         return processes
 
     def start_process(self, executable: str, args: list[str]) -> int:
@@ -620,10 +620,10 @@ class LinuxIntegration:
 
             if force:
                 process.kill()  # SIGKILL
-                logger.info(f"Force killed process {pid}")
+                logger.info("Force killed process %s", pid)
             else:
                 process.terminate()  # SIGTERM
-                logger.info(f"Terminated process {pid}")
+                logger.info("Terminated process %s", pid)
 
             return True
 

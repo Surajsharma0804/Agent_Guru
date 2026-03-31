@@ -232,7 +232,7 @@ class ProviderFailoverRouter:
             if health.consecutive_failures >= self._config.max_failures_before_skip:
                 # Check if TTL has expired (time to retry)
                 if not health.is_healthy(self._config.health_check_ttl_seconds):
-                    logger.debug(f"Skipping {provider.value}: too many failures")
+                    logger.debug("Skipping %s: too many failures", provider.value)
                     continue
 
             providers_tried.append(provider)

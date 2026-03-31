@@ -167,7 +167,7 @@ class WindowManager:
             else:
                 raise ImportError(f"Unsupported platform: {self.platform}")
         except ImportError as e:
-            logger.error(f"Failed to load platform integration: {e}")
+            logger.error("Failed to load platform integration: %s", e)
             raise
 
     def get_screens(self, use_cache: bool = True) -> list[ScreenInfo]:
@@ -293,7 +293,7 @@ class WindowManager:
                 return screens if screens else self._get_fallback_screen()
 
         except Exception as e:
-            logger.warning(f"Failed to get macOS screen info: {e}")
+            logger.warning("Failed to get macOS screen info: %s", e)
 
         return self._get_fallback_screen()
 
@@ -344,7 +344,7 @@ class WindowManager:
                 return screens if screens else self._get_fallback_screen()
 
         except Exception as e:
-            logger.warning(f"Failed to get Linux screen info: {e}")
+            logger.warning("Failed to get Linux screen info: %s", e)
 
         return self._get_fallback_screen()
 
@@ -523,7 +523,7 @@ class WindowManager:
                 if windows:
                     hwnd = windows[0]
                 else:
-                    logger.error(f"Window not found: {window_identifier}")
+                    logger.error("Window not found: %s", window_identifier)
                     return False
 
             # Restore window if minimized
@@ -546,7 +546,7 @@ class WindowManager:
             logger.error("win32gui not available")
             return False
         except Exception as e:
-            logger.error(f"Failed to snap window on Windows: {e}")
+            logger.error("Failed to snap window on Windows: %s", e)
             return False
 
     def _snap_window_macos(
@@ -593,11 +593,11 @@ class WindowManager:
                 logger.info(f"Snapped window to ({x}, {y}, {width}, {height})")
                 return True
             else:
-                logger.error(f"AppleScript error: {result.stderr}")
+                logger.error("AppleScript error: %s", result.stderr)
                 return False
 
         except Exception as e:
-            logger.error(f"Failed to snap window on macOS: {e}")
+            logger.error("Failed to snap window on macOS: %s", e)
             return False
 
     def _snap_window_linux(
@@ -642,7 +642,7 @@ class WindowManager:
                     break
 
             if not window_id:
-                logger.error(f"Window not found: {window_identifier}")
+                logger.error("Window not found: %s", window_identifier)
                 return False
 
             # Move and resize window
@@ -658,14 +658,14 @@ class WindowManager:
                 logger.info(f"Snapped window to ({x}, {y}, {width}, {height})")
                 return True
             else:
-                logger.error(f"wmctrl error: {result.stderr}")
+                logger.error("wmctrl error: %s", result.stderr)
                 return False
 
         except FileNotFoundError:
             logger.error("wmctrl not installed")
             return False
         except Exception as e:
-            logger.error(f"Failed to snap window on Linux: {e}")
+            logger.error("Failed to snap window on Linux: %s", e)
             return False
 
     def snap_window_left(self, window_identifier: str) -> bool:
@@ -714,7 +714,7 @@ class WindowManager:
             >>> manager.arrange_windows(ArrangementStyle.TILE)
             True
         """
-        logger.info(f"Arranging windows in {style.value} style")
+        logger.info("Arranging windows in %s style", style.value)
 
         # Get windows to arrange
         if window_identifiers is None:
@@ -741,7 +741,7 @@ class WindowManager:
         elif style == ArrangementStyle.VERTICAL:
             return self._arrange_vertical(windows, primary_screen)
         else:
-            logger.error(f"Unknown arrangement style: {style}")
+            logger.error("Unknown arrangement style: %s", style)
             return False
 
     def _get_all_visible_windows(self) -> list[str]:
@@ -816,7 +816,7 @@ class WindowManager:
                 return []
 
         except Exception as e:
-            logger.error(f"Failed to get macOS windows: {e}")
+            logger.error("Failed to get macOS windows: %s", e)
             return []
 
     def _get_visible_windows_linux(self) -> list[str]:
@@ -1036,7 +1036,7 @@ class WindowManager:
             logger.error("pyautogui not available")
             return None
         except Exception as e:
-            logger.error(f"Failed to create virtual desktop on Windows: {e}")
+            logger.error("Failed to create virtual desktop on Windows: %s", e)
             return None
 
     def _create_virtual_desktop_macos(self) -> Optional[str]:
@@ -1068,11 +1068,11 @@ class WindowManager:
                 logger.info("Created virtual desktop on macOS")
                 return f"desktop_{int(time.time())}"
             else:
-                logger.error(f"AppleScript error: {result.stderr}")
+                logger.error("AppleScript error: %s", result.stderr)
                 return None
 
         except Exception as e:
-            logger.error(f"Failed to create virtual desktop on macOS: {e}")
+            logger.error("Failed to create virtual desktop on macOS: %s", e)
             return None
 
     def _create_virtual_desktop_linux(self) -> Optional[str]:
@@ -1094,14 +1094,14 @@ class WindowManager:
                 logger.info("Created virtual desktop on Linux")
                 return f"desktop_{int(time.time())}"
             else:
-                logger.error(f"wmctrl error: {result.stderr}")
+                logger.error("wmctrl error: %s", result.stderr)
                 return None
 
         except FileNotFoundError:
             logger.error("wmctrl not installed")
             return None
         except Exception as e:
-            logger.error(f"Failed to create virtual desktop on Linux: {e}")
+            logger.error("Failed to create virtual desktop on Linux: %s", e)
             return None
 
     def switch_virtual_desktop(self, desktop_id: str) -> bool:
@@ -1121,7 +1121,7 @@ class WindowManager:
             >>> manager.switch_virtual_desktop("desktop_1")
             True
         """
-        logger.info(f"Switching to virtual desktop: {desktop_id}")
+        logger.info("Switching to virtual desktop: %s", desktop_id)
 
         if self.platform == "win32":
             return self._switch_virtual_desktop_windows(desktop_id)
@@ -1148,17 +1148,17 @@ class WindowManager:
                 # Use Win+Ctrl+Left/Right to navigate
                 pyautogui.hotkey('win', 'ctrl', 'right')
                 time.sleep(0.3)
-                logger.info(f"Switched to desktop: {desktop_id}")
+                logger.info("Switched to desktop: %s", desktop_id)
                 return True
             else:
-                logger.error(f"Invalid desktop ID: {desktop_id}")
+                logger.error("Invalid desktop ID: %s", desktop_id)
                 return False
 
         except ImportError:
             logger.error("pyautogui not available")
             return False
         except Exception as e:
-            logger.error(f"Failed to switch desktop on Windows: {e}")
+            logger.error("Failed to switch desktop on Windows: %s", e)
             return False
 
     def _switch_virtual_desktop_macos(self, desktop_id: str) -> bool:
@@ -1186,14 +1186,14 @@ class WindowManager:
             )
 
             if result.returncode == 0:
-                logger.info(f"Switched to desktop: {desktop_id}")
+                logger.info("Switched to desktop: %s", desktop_id)
                 return True
             else:
-                logger.error(f"AppleScript error: {result.stderr}")
+                logger.error("AppleScript error: %s", result.stderr)
                 return False
 
         except Exception as e:
-            logger.error(f"Failed to switch desktop on macOS: {e}")
+            logger.error("Failed to switch desktop on macOS: %s", e)
             return False
 
     def _switch_virtual_desktop_linux(self, desktop_id: str) -> bool:
@@ -1222,17 +1222,17 @@ class WindowManager:
             )
 
             if result.returncode == 0:
-                logger.info(f"Switched to desktop: {desktop_id}")
+                logger.info("Switched to desktop: %s", desktop_id)
                 return True
             else:
-                logger.error(f"wmctrl error: {result.stderr}")
+                logger.error("wmctrl error: %s", result.stderr)
                 return False
 
         except FileNotFoundError:
             logger.error("wmctrl not installed")
             return False
         except Exception as e:
-            logger.error(f"Failed to switch desktop on Linux: {e}")
+            logger.error("Failed to switch desktop on Linux: %s", e)
             return False
 
     def close_virtual_desktop(self, desktop_id: str) -> bool:
@@ -1252,7 +1252,7 @@ class WindowManager:
             >>> manager.close_virtual_desktop("desktop_1")
             True
         """
-        logger.info(f"Closing virtual desktop: {desktop_id}")
+        logger.info("Closing virtual desktop: %s", desktop_id)
 
         if self.platform == "win32":
             return self._close_virtual_desktop_windows(desktop_id)
@@ -1276,14 +1276,14 @@ class WindowManager:
             pyautogui.hotkey('win', 'ctrl', 'f4')
             time.sleep(0.3)
 
-            logger.info(f"Closed desktop: {desktop_id}")
+            logger.info("Closed desktop: %s", desktop_id)
             return True
 
         except ImportError:
             logger.error("pyautogui not available")
             return False
         except Exception as e:
-            logger.error(f"Failed to close desktop on Windows: {e}")
+            logger.error("Failed to close desktop on Windows: %s", e)
             return False
 
     def _close_virtual_desktop_macos(self, desktop_id: str) -> bool:
@@ -1315,14 +1315,14 @@ class WindowManager:
             )
 
             if result.returncode == 0:
-                logger.info(f"Closed desktop: {desktop_id}")
+                logger.info("Closed desktop: %s", desktop_id)
                 return True
             else:
-                logger.error(f"AppleScript error: {result.stderr}")
+                logger.error("AppleScript error: %s", result.stderr)
                 return False
 
         except Exception as e:
-            logger.error(f"Failed to close desktop on macOS: {e}")
+            logger.error("Failed to close desktop on macOS: %s", e)
             return False
 
     def _close_virtual_desktop_linux(self, desktop_id: str) -> bool:
@@ -1344,17 +1344,17 @@ class WindowManager:
             )
 
             if result.returncode == 0:
-                logger.info(f"Closed desktop: {desktop_id}")
+                logger.info("Closed desktop: %s", desktop_id)
                 return True
             else:
-                logger.error(f"wmctrl error: {result.stderr}")
+                logger.error("wmctrl error: %s", result.stderr)
                 return False
 
         except FileNotFoundError:
             logger.error("wmctrl not installed")
             return False
         except Exception as e:
-            logger.error(f"Failed to close desktop on Linux: {e}")
+            logger.error("Failed to close desktop on Linux: %s", e)
             return False
 
     def list_virtual_desktops(self) -> list[VirtualDesktopInfo]:
@@ -1452,5 +1452,5 @@ class WindowManager:
             logger.error("wmctrl not installed")
             return []
         except Exception as e:
-            logger.error(f"Failed to list desktops on Linux: {e}")
+            logger.error("Failed to list desktops on Linux: %s", e)
             return []

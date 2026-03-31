@@ -170,11 +170,11 @@ class NetworkPermissionChecker:
         if domain.startswith("*."):
             # Wildcard subdomain
             self._wildcard_domains.append(domain[2:])  # Store without *.
-            logger.debug(f"Added wildcard domain: {domain}")
+            logger.debug("Added wildcard domain: %s", domain)
         else:
             # Exact domain
             self._allowed_domains.add(domain)
-            logger.debug(f"Added exact domain: {domain}")
+            logger.debug("Added exact domain: %s", domain)
 
     def add_allowed_method(self, method: HttpMethod) -> None:
         """
@@ -188,7 +188,7 @@ class NetworkPermissionChecker:
             >>> checker.add_allowed_method(HttpMethod.POST)
         """
         self._allowed_methods.add(method)
-        logger.debug(f"Added allowed method: {method.value}")
+        logger.debug("Added allowed method: %s", method.value)
 
     def add_allowed_pattern(self, pattern: str) -> None:
         """
@@ -203,7 +203,7 @@ class NetworkPermissionChecker:
         try:
             compiled_pattern = re.compile(pattern)
             self._allowed_patterns.append(compiled_pattern)
-            logger.debug(f"Added allowed URL pattern: {pattern}")
+            logger.debug("Added allowed URL pattern: %s", pattern)
         except re.error as e:
             logger.error(f"Invalid regex pattern: {pattern} ({e})")
             raise NetworkValidationError(f"Invalid regex pattern: {pattern}") from e
@@ -223,7 +223,7 @@ class NetworkPermissionChecker:
         try:
             compiled_pattern = re.compile(pattern, re.IGNORECASE)
             self._blocked_patterns.append(compiled_pattern)
-            logger.debug(f"Added blocked URL pattern: {pattern}")
+            logger.debug("Added blocked URL pattern: %s", pattern)
         except re.error as e:
             logger.error(f"Invalid regex pattern: {pattern} ({e})")
             raise NetworkValidationError(f"Invalid regex pattern: {pattern}") from e
@@ -300,7 +300,7 @@ class NetworkPermissionChecker:
 
         # Validate protocol
         if self._enforce_https and protocol != "https":
-            logger.warning(f"Non-HTTPS protocol denied: {url}")
+            logger.warning("Non-HTTPS protocol denied: %s", url)
             return NetworkValidationResult(
                 allowed=False,
                 url=url,
@@ -325,7 +325,7 @@ class NetworkPermissionChecker:
         # Check blocked patterns first (security priority)
         for pattern in self._blocked_patterns:
             if pattern.search(url):
-                logger.warning(f"URL blocked by pattern: {url}")
+                logger.warning("URL blocked by pattern: %s", url)
                 return NetworkValidationResult(
                     allowed=False,
                     url=url,
@@ -344,7 +344,7 @@ class NetworkPermissionChecker:
 
         # Validate HTTP method
         if method not in self._allowed_methods:
-            logger.warning(f"HTTP method not allowed: {method.value}")
+            logger.warning("HTTP method not allowed: %s", method.value)
             return NetworkValidationResult(
                 allowed=False,
                 url=url,
@@ -364,7 +364,7 @@ class NetworkPermissionChecker:
         # Validate domain
         domain_match = self._check_domain(domain)
         if not domain_match[0]:
-            logger.warning(f"Domain not allowed: {domain}")
+            logger.warning("Domain not allowed: %s", domain)
             return NetworkValidationResult(
                 allowed=False,
                 url=url,
@@ -394,7 +394,7 @@ class NetworkPermissionChecker:
                     break
 
             if not pattern_matched:
-                logger.warning(f"URL does not match any allowed pattern: {url}")
+                logger.warning("URL does not match any allowed pattern: %s", url)
                 return NetworkValidationResult(
                     allowed=False,
                     url=url,

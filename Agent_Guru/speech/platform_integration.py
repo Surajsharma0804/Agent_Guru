@@ -85,7 +85,7 @@ class PlatformIntegration:
                         is_default=(i == default_device)
                     ))
 
-            logger.debug(f"Found {len(audio_devices)} audio input devices")
+            logger.debug("Found %s audio input devices", len(audio_devices))
             return audio_devices
 
         except Exception as e:
@@ -107,7 +107,7 @@ class PlatformIntegration:
                     return device
             return None
         except Exception as e:
-            logger.error(f"Failed to get default device: {e}")
+            logger.error("Failed to get default device: %s", e)
             return None
 
     def validate_audio_device(self, device_id: int) -> bool:
@@ -316,7 +316,7 @@ class PlatformIntegration:
             return info
 
         except Exception as e:
-            logger.error(f"Failed to get system info: {e}")
+            logger.error("Failed to get system info: %s", e)
             return {}
 
     def get_cpu_usage(self) -> float:
@@ -332,7 +332,7 @@ class PlatformIntegration:
             cpu_info = self.hardware_monitor.get_cpu_usage()
             return cpu_info.usage_percent
         except Exception as e:
-            logger.error(f"Failed to get CPU usage: {e}")
+            logger.error("Failed to get CPU usage: %s", e)
             return 0.0
 
     def get_memory_usage(self) -> dict[str, Any]:
@@ -348,7 +348,7 @@ class PlatformIntegration:
             mem_info = self.hardware_monitor.get_memory_info()
             return mem_info.to_dict()
         except Exception as e:
-            logger.error(f"Failed to get memory usage: {e}")
+            logger.error("Failed to get memory usage: %s", e)
             return {}
 
     def get_battery_status(self) -> Optional[dict[str, Any]]:
@@ -364,7 +364,7 @@ class PlatformIntegration:
             battery = self.hardware_monitor.get_battery_info()
             return battery.to_dict() if battery else None
         except Exception as e:
-            logger.error(f"Failed to get battery status: {e}")
+            logger.error("Failed to get battery status: %s", e)
             return None
 
     # File Operations

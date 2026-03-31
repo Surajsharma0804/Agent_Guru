@@ -145,7 +145,7 @@ class AndroidIntegration:
             self.Settings = autoclass('android.provider.Settings')
             logger.debug("Android Java classes initialized")
         except Exception as e:
-            logger.error(f"Failed to initialize Android classes: {e}")
+            logger.error("Failed to initialize Android classes: %s", e)
             raise AndroidIntegrationError(f"Failed to initialize Android classes: {e}") from e
 
     def _get_context(self):
@@ -154,7 +154,7 @@ class AndroidIntegration:
             activity = self.PythonActivity.mActivity
             return activity.getApplicationContext()
         except Exception as e:
-            logger.error(f"Failed to get Android context: {e}")
+            logger.error("Failed to get Android context: %s", e)
             raise AndroidIntegrationError(f"Failed to get Android context: {e}") from e
 
     # ========== App Launching ==========
@@ -184,7 +184,7 @@ class AndroidIntegration:
 
             intent.addFlags(self.Intent.FLAG_ACTIVITY_NEW_TASK)
             self.context.startActivity(intent)
-            logger.info(f"Launched app: {package_name}")
+            logger.info("Launched app: %s", package_name)
             return True
 
         except AppNotFoundError:
@@ -229,7 +229,7 @@ class AndroidIntegration:
 
             intent.addFlags(self.Intent.FLAG_ACTIVITY_NEW_TASK)
             self.context.startActivity(intent)
-            logger.info(f"Sent intent: {action}")
+            logger.info("Sent intent: %s", action)
             return True
 
         except Exception as e:
@@ -298,7 +298,7 @@ class AndroidIntegration:
         except AndroidIntegrationError:
             raise
         except Exception as e:
-            logger.error(f"Failed to get battery info: {e}")
+            logger.error("Failed to get battery info: %s", e)
             raise AndroidIntegrationError(f"Failed to get battery info: {e}") from e
 
     # ========== Permission Management ==========
@@ -319,7 +319,7 @@ class AndroidIntegration:
         try:
             activity = self.PythonActivity.mActivity
             self.ActivityCompat.requestPermissions(activity, [permission], 1)
-            logger.info(f"Requested permission: {permission}")
+            logger.info("Requested permission: %s", permission)
             return True
         except Exception as e:
             logger.error(f"Failed to request permission {permission}: {e}")
@@ -348,10 +348,10 @@ class AndroidIntegration:
 
             notification = builder.build()
             nm.notify(1, notification)
-            logger.info(f"Created notification: {config.title}")
+            logger.info("Created notification: %s", config.title)
 
         except Exception as e:
-            logger.error(f"Failed to create notification: {e}")
+            logger.error("Failed to create notification: %s", e)
             raise AndroidIntegrationError(f"Failed to create notification: {e}") from e
 
     def _create_notification_channel(self, channel_id: str) -> None:
@@ -368,7 +368,7 @@ class AndroidIntegration:
                 channel = self.NotificationChannel(channel_id, "Agent Guru", 3)
                 nm.createNotificationChannel(channel)
         except Exception as e:
-            logger.warning(f"Failed to create notification channel: {e}")
+            logger.warning("Failed to create notification channel: %s", e)
 
     # ========== Storage Access ==========
 
@@ -379,7 +379,7 @@ class AndroidIntegration:
                 return str(self.Environment.getExternalStorageDirectory().getAbsolutePath())
             return None
         except Exception as e:
-            logger.error(f"Failed to get external storage path: {e}")
+            logger.error("Failed to get external storage path: %s", e)
             return None
 
     # ========== Battery Optimization ==========
@@ -420,7 +420,7 @@ class AndroidIntegration:
             return False
 
         except Exception as e:
-            logger.error(f"Failed to request battery optimization exemption: {e}")
+            logger.error("Failed to request battery optimization exemption: %s", e)
             raise AndroidIntegrationError(
                 f"Failed to request battery optimization exemption: {e}"
             )
@@ -442,5 +442,5 @@ class AndroidIntegration:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to check battery optimization status: {e}")
+            logger.error("Failed to check battery optimization status: %s", e)
             return False

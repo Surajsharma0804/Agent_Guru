@@ -119,7 +119,7 @@ class VectorDatabase:
                 )
                 logger.info("ChromaDB persistent client initialized successfully")
         except Exception as e:
-            logger.error(f"Failed to initialize ChromaDB client: {e}")
+            logger.error("Failed to initialize ChromaDB client: %s", e)
             raise RuntimeError(f"Database initialization failed: {e}") from e
 
         # Initialize collections for each memory type
@@ -227,7 +227,7 @@ class VectorDatabase:
             return memory_id_str
 
         except Exception as e:
-            logger.error(f"Failed to store memory: {e}")
+            logger.error("Failed to store memory: %s", e)
             raise RuntimeError(f"Memory storage failed: {e}") from e
 
     def search(
@@ -316,7 +316,7 @@ class VectorDatabase:
             return formatted_results
 
         except Exception as e:
-            logger.error(f"Failed to search memories: {e}")
+            logger.error("Failed to search memories: %s", e)
             raise RuntimeError(f"Memory search failed: {e}") from e
 
     def get(
@@ -370,7 +370,7 @@ class VectorDatabase:
             return (content, embedding, metadata)
 
         except Exception as e:
-            logger.error(f"Failed to retrieve memory: {e}")
+            logger.error("Failed to retrieve memory: %s", e)
             raise RuntimeError(f"Memory retrieval failed: {e}") from e
 
     def update_metadata(
@@ -408,10 +408,10 @@ class VectorDatabase:
             # Update metadata
             collection.update(ids=[memory_id_str], metadatas=[metadata])
 
-            logger.debug(f"Updated metadata for memory {memory_id_str}")
+            logger.debug("Updated metadata for memory %s", memory_id_str)
 
         except Exception as e:
-            logger.error(f"Failed to update metadata: {e}")
+            logger.error("Failed to update metadata: %s", e)
             raise RuntimeError(f"Metadata update failed: {e}") from e
 
     def delete(self, memory_type: MemoryType, memory_id: UUID) -> None:
@@ -445,10 +445,10 @@ class VectorDatabase:
             # Delete memory
             collection.delete(ids=[memory_id_str])
 
-            logger.debug(f"Deleted memory {memory_id_str}")
+            logger.debug("Deleted memory %s", memory_id_str)
 
         except Exception as e:
-            logger.error(f"Failed to delete memory: {e}")
+            logger.error("Failed to delete memory: %s", e)
             raise RuntimeError(f"Memory deletion failed: {e}") from e
 
     def count(self, memory_type: MemoryType) -> int:
@@ -495,7 +495,7 @@ class VectorDatabase:
                 collection_name = self.COLLECTION_NAMES[mt]
                 try:
                     self.client.delete_collection(name=collection_name)
-                    logger.info(f"Deleted collection '{collection_name}'")
+                    logger.info("Deleted collection '%s'", collection_name)
                 except Exception as e:
                     logger.warning(f"Failed to delete collection '{collection_name}': {e}")
 
@@ -506,7 +506,7 @@ class VectorDatabase:
             collection_name = self.COLLECTION_NAMES[memory_type]
             try:
                 self.client.delete_collection(name=collection_name)
-                logger.info(f"Deleted collection '{collection_name}'")
+                logger.info("Deleted collection '%s'", collection_name)
 
                 # Recreate collection
                 collection = self.client.create_collection(

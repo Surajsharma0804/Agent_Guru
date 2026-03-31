@@ -23,7 +23,7 @@ def _get_noisereduce() -> Any | None:
 
             _noisereduce = nr
         except Exception as e:
-            logger.warning(f"Failed to import noisereduce: {e}")
+            logger.warning("Failed to import noisereduce: %s", e)
             # Set to False to indicate failed import (not None which means not tried yet)
             _noisereduce = False
     return _noisereduce if _noisereduce is not False else None
@@ -61,7 +61,7 @@ class AdvancedNoiseCancellation:
         self._noise_type: NoiseType = NoiseType.UNKNOWN
         self._adaptation_rate: float = 0.1
 
-        logger.info(f"AdvancedNoiseCancellation initialized at {sample_rate}Hz")
+        logger.info("AdvancedNoiseCancellation initialized at %sHz", sample_rate)
 
     async def reduce_noise(self, audio: np.ndarray, noise_level: str = "medium") -> np.ndarray:
         """
@@ -112,7 +112,7 @@ class AdvancedNoiseCancellation:
             snr_after = self.compute_snr(reduced, audio_float)
             reduction_db = snr_after - snr_before
 
-            logger.debug(f"Noise reduction: {reduction_db:.1f}dB improvement")
+            logger.debug("Noise reduction: %.1fdB improvement", reduction_db)
 
             return reduced
 
@@ -179,12 +179,12 @@ class AdvancedNoiseCancellation:
                 noise_type = NoiseType.UNKNOWN
 
             self._noise_type = noise_type
-            logger.debug(f"Detected noise type: {noise_type.value}")
+            logger.debug("Detected noise type: %s", noise_type.value)
 
             return noise_type
 
         except Exception as e:
-            logger.warning(f"Noise type detection failed: {e}")
+            logger.warning("Noise type detection failed: %s", e)
             return NoiseType.UNKNOWN
 
     def compute_snr(self, signal: np.ndarray, noise: np.ndarray | None = None) -> float:
@@ -223,7 +223,7 @@ class AdvancedNoiseCancellation:
             return float(snr_db)
 
         except Exception as e:
-            logger.warning(f"SNR computation failed: {e}")
+            logger.warning("SNR computation failed: %s", e)
             return 0.0
 
     async def adapt_to_noise(self, audio: np.ndarray, update_profile: bool = True) -> np.ndarray:
@@ -250,7 +250,7 @@ class AdvancedNoiseCancellation:
             if snr < 0:
                 # Very noisy - aggressive reduction
                 reduction_level = "aggressive"
-                logger.warning(f"Poor audio quality detected (SNR: {snr:.1f}dB)")
+                logger.warning("Poor audio quality detected (SNR: %.1fdB)", snr)
             elif snr < 10:
                 # Moderate noise - medium reduction
                 reduction_level = "medium"
@@ -324,7 +324,7 @@ class AdvancedNoiseCancellation:
             logger.debug("Noise profile updated")
 
         except Exception as e:
-            logger.warning(f"Failed to update noise profile: {e}")
+            logger.warning("Failed to update noise profile: %s", e)
 
     def get_noise_profile(self) -> np.ndarray | None:
         """

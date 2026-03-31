@@ -152,7 +152,7 @@ class RequestQueue:
             )
             self._workers.append(worker)
 
-        logger.info(f"Request queue started with {self.worker_count} workers")
+        logger.info("Request queue started with %s workers", self.worker_count)
 
     async def stop(self) -> None:
         """Stop worker tasks."""
@@ -169,7 +169,7 @@ class RequestQueue:
 
     async def _worker_loop(self, worker_id: int) -> None:
         """Worker loop to process requests."""
-        logger.info(f"Worker {worker_id} started")
+        logger.info("Worker %s started", worker_id)
 
         while not self._stop_event.is_set():
             try:
@@ -199,7 +199,7 @@ class RequestQueue:
                     request.future.set_exception(
                         TimeoutError(f"Request timed out after {self.timeout}s")
                     )
-                    logger.warning(f"Request {request.request_id} timed out")
+                    logger.warning("Request %s timed out", request.request_id)
 
                 except Exception as e:
                     request.future.set_exception(e)
@@ -208,7 +208,7 @@ class RequestQueue:
             except Exception as e:
                 logger.error(f"Worker {worker_id} error: {e}", exc_info=True)
 
-        logger.info(f"Worker {worker_id} stopped")
+        logger.info("Worker %s stopped", worker_id)
 
     async def enqueue(
         self,

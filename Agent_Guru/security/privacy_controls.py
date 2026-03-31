@@ -92,7 +92,7 @@ class PrivacyController:
     def __init__(self, config: PrivacyConfig | None = None) -> None:
         self._config = config or PrivacyConfig()
         self._deletion_callbacks: list[Callable] = []
-        logger.info(f"PrivacyController initialized: mode={self._config.mode.value}")
+        logger.info("PrivacyController initialized: mode=%s", self._config.mode.value)
 
     def is_local_mode(self) -> bool:
         """Return True if using local-only processing."""
@@ -137,7 +137,7 @@ class PrivacyController:
             try:
                 cb()
             except Exception as e:
-                logger.error(f"Data deletion callback error: {e}")
+                logger.error("Data deletion callback error: %s", e)
 
     def get_config(self) -> PrivacyConfig:
         """Return current privacy configuration."""
@@ -386,7 +386,7 @@ class SensitiveActionGuard:
                 "params": params,
                 "timestamp": time.monotonic(),
             }
-        logger.info(f"Confirmation requested for action: {action}")
+        logger.info("Confirmation requested for action: %s", action)
         return token
 
     def confirm(self, token: str) -> bool:
@@ -407,7 +407,7 @@ class SensitiveActionGuard:
         # Check timeout (30 seconds)
         age = time.monotonic() - pending["timestamp"]
         if age > 30.0:
-            logger.warning(f"Confirmation token expired: {token}")
+            logger.warning("Confirmation token expired: %s", token)
             return False
 
         return True

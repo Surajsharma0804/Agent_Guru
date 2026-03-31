@@ -262,7 +262,7 @@ class GitIntegration:
             # Create commit
             self.repo.index.commit(commit_data.message)
 
-            logger.info(f"Created commit: {commit_data.message[:50]}...")
+            logger.info("Created commit: %s...", commit_data.message[:50])
 
             # Push if requested and auto_push enabled
             if push and self.auto_push:
@@ -271,7 +271,7 @@ class GitIntegration:
             return True
 
         except Exception as e:
-            logger.error(f"Commit failed: {e}")
+            logger.error("Commit failed: %s", e)
             # Add to queue for retry
             self._queue_commit(commit_data)
             return False
@@ -499,10 +499,10 @@ class GitIntegration:
                 for c in queue_data
             ]
 
-            logger.info(f"Loaded {len(self._pending_commits)} pending commits from queue")
+            logger.info("Loaded %s pending commits from queue", len(self._pending_commits))
 
         except Exception as e:
-            logger.error(f"Failed to load queue: {e}")
+            logger.error("Failed to load queue: %s", e)
             self._pending_commits = []
 
     def process_queue(self) -> int:
@@ -517,7 +517,7 @@ class GitIntegration:
         if not self._pending_commits:
             return 0
 
-        logger.info(f"Processing {len(self._pending_commits)} pending commits")
+        logger.info("Processing %s pending commits", len(self._pending_commits))
 
         processed = 0
         failed = []

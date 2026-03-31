@@ -121,7 +121,7 @@ class ImprovementMonitor:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error checking improvement: {e}")
+            self.logger.error("Error checking improvement: %s", e)
             return None
 
     def check_performance_degradation(self) -> Optional[Alert]:
@@ -191,7 +191,7 @@ class ImprovementMonitor:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error checking degradation: {e}")
+            self.logger.error("Error checking degradation: %s", e)
             return None
 
     def check_failure_rate(self) -> Optional[Alert]:
@@ -243,7 +243,7 @@ class ImprovementMonitor:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error checking failure rate: {e}")
+            self.logger.error("Error checking failure rate: %s", e)
             return None
 
     def check_all(self) -> list[Alert]:
@@ -362,7 +362,7 @@ class ImprovementMonitor:
             }
 
         except Exception as e:
-            self.logger.error(f"Error getting dashboard metrics: {e}")
+            self.logger.error("Error getting dashboard metrics: %s", e)
             return {
                 "error": str(e),
                 "timestamp": datetime.now().isoformat()

@@ -95,7 +95,7 @@ class EmotionDetector:
             }
         }
 
-        logger.info(f"EmotionDetector initialized (ML model: {self._use_ml_model})")
+        logger.info("EmotionDetector initialized (ML model: %s)", self._use_ml_model)
 
     def detect_emotion(
         self,
@@ -187,7 +187,7 @@ class EmotionDetector:
                 yield result
 
         except Exception as e:
-            logger.error(f"Streaming emotion detection failed: {e}")
+            logger.error("Streaming emotion detection failed: %s", e)
             raise EmotionDetectionError(f"Streaming detection failed: {e}") from e
 
     def track_emotion_history(
@@ -354,7 +354,7 @@ class EmotionDetector:
                     features['pitch_min'] = 100.0
                     features['pitch_max'] = 200.0
             except Exception as e:
-                logger.warning(f"Pitch extraction failed: {e}")
+                logger.warning("Pitch extraction failed: %s", e)
                 features['pitch_mean'] = 150.0
                 features['pitch_std'] = 20.0
                 features['pitch_min'] = 100.0
@@ -395,7 +395,7 @@ class EmotionDetector:
                     tempo = 100.0
                 features['tempo'] = tempo
             except Exception as e:
-                logger.warning(f"Tempo extraction failed: {e}")
+                logger.warning("Tempo extraction failed: %s", e)
                 features['tempo'] = 100.0
 
             # 4. MFCC features (first 13 coefficients)
@@ -496,7 +496,7 @@ class EmotionDetector:
             return features
 
         except Exception as e:
-            logger.error(f"Feature extraction failed: {e}")
+            logger.error("Feature extraction failed: %s", e)
             # Return default features
             return {
                 'pitch_mean': 150.0,

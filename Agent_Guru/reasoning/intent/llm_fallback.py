@@ -378,7 +378,7 @@ Classify the following input:"""
         }
 
         # Call Ollama generate endpoint (synchronous, run in executor)
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         response = await loop.run_in_executor(
             None,
             lambda: requests.post(  # nosec B113
@@ -407,7 +407,7 @@ Classify the following input:"""
         if self.client is None:
             raise RuntimeError("OpenAI client not initialized")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         response = await loop.run_in_executor(
             None,
             lambda: self.client.chat.completions.create(  # type: ignore[union-attr]
@@ -436,7 +436,7 @@ Classify the following input:"""
         if self.client is None:
             raise RuntimeError("Anthropic client not initialized")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         response = await loop.run_in_executor(
             None,
             lambda: self.client.messages.create(  # type: ignore[union-attr]

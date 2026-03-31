@@ -109,7 +109,7 @@ class VerifierClient:
         self._session = aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=self.timeout)
         )
-        logger.info(f"Connected to Verifier System at {self.base_url}")
+        logger.info("Connected to Verifier System at %s", self.base_url)
 
     async def disconnect(self) -> None:
         """Disconnect from Verifier System."""
@@ -165,13 +165,13 @@ class VerifierClient:
                             f"Validation {request.operation_id}: {status.value}"
                         )
                         return result
-                    logger.warning(f"Verifier returned {resp.status}")
+                    logger.warning("Verifier returned %s", resp.status)
             except Exception as e:
                 logger.warning(f"Validation attempt {attempt + 1} failed: {e}")
                 if attempt < self.max_retries - 1:
                     await asyncio.sleep(0.5 * (2 ** attempt))
 
-        logger.error(f"Validation failed for operation: {request.operation_id}")
+        logger.error("Validation failed for operation: %s", request.operation_id)
         return ValidationResult(
             request_id=request.request_id,
             status=ValidationStatus.ERROR,

@@ -229,7 +229,7 @@ class VoiceAuthenticator:
             raise VoiceAuthenticationError(f"User {user_id} not enrolled")
 
         del self._profiles[user_id]
-        self.logger.info(f"Deleted profile for {user_id}")
+        self.logger.info("Deleted profile for %s", user_id)
 
     def get_profile(self, user_id: str) -> Optional[VoiceProfile]:
         """

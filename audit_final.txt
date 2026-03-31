@@ -1,0 +1,94 @@
+﻿Scanned 1356 files (629 production)
+================================================================
+
+[CRIT] SYNTAX ERRORS: 6 instances
+  platform/controllers/screen_capture.py:352  invalid decimal literal
+  platform/error_handling/retry_strategy.py:292  invalid decimal literal
+  platform/ios/service.py:306  invalid decimal literal
+  platform/mobile/background_service.py:380  invalid decimal literal
+  speech/background_service.py:194  invalid decimal literal
+  speech/audio/noise_cancellation.py:115  invalid decimal literal
+[CRIT] asyncio.get_event_loop() deprecated: OK (none found)
+[HIGH] bare except: (swallows all errors): OK (none found)
+[HIGH] mutable default arguments: OK (none found)
+
+[MED]  print() in production code: 246 instances
+  core/device_manager.py:101  print("\n" + "=" * 60)
+  core/device_manager.py:102  print("AGENT GURU - GPU DEVICE INFORMATION")
+  core/device_manager.py:103  print("=" * 60)
+  core/device_manager.py:104  print(f"Device: {self._device}")
+  core/device_manager.py:107  print(f"GPU Name: {self._device_name}")
+  core/device_manager.py:108  print(f"CUDA Version: {torch.version.cuda}")
+  core/device_manager.py:109  print(f"Device Count: {self.get_device_count()}")
+  core/device_manager.py:112  print("\nMemory Info:")
+  core/device_manager.py:113  print(f"  Total: {mem_info['total'] / 1024**3:.2f} GB")
+  core/device_manager.py:114  print(f"  Allocated: {mem_info['allocated'] / 1024**3:.2f} GB")
+  core/device_manager.py:115  print(f"  Free: {mem_info['free'] / 1024**3:.2f} GB")
+  core/device_manager.py:117  print("Status: CPU mode (no GPU detected)")
+  core/device_manager.py:119  print("=" * 60 + "\n")
+  llm/llm_manager.py:248  print(response.content)
+  platform/intent_recognizer.py:575  print(result.intent_type)   # "system_control"
+  platform/intent_recognizer.py:576  print(result.parameters)    # {"action": "open_app", "app": "note
+  platform/intent_recognizer.py:577  print(result.confidence)    # 0.92
+  platform/subprocess_utils.py:60  print(result.stdout)
+  reasoning/memory_retriever.py:238  print(f"Warning: retrieve() took {elapsed_ms:.1f}ms (>100ms budge
+  reasoning/security_audit.py:412  print("\n" + "=" * 60)
+  ... and 226 more
+
+[MED]  f-string in logger calls (perf): 142 instances
+  core/error_handler.py:189  logger.error(f"All {self._max_retries + 1} attempts failed: {e}")
+  core/error_handler.py:258  logger.warning(f"ErrorLogger: could not write to {self._log_path}
+  core/error_handler.py:266  logger.info(f"ErrorLogger: rotated {self._log_path} ΓåÆ {rotated}")
+  core/error_handler.py:375  logger.error(f"[{category.value}] {component}: {message}")
+  core/error_handler.py:419  logger.error(f"Recovery handler failed for {category.value}: {e}"
+  core/performance.py:234  logger.debug(f"Startup checkpoint '{name}': {elapsed_ms:.1f}ms")
+  core/voice_pipeline.py:165  logger.debug(f"Event {event.value} ignored in state {current.valu
+  core/voice_pipeline.py:169  logger.info(f"Pipeline: {current.value} ΓåÆ {next_state.value} (eve
+  goal_manager/exceptions.py:92  logger.error(f"Failed to store goal {goal.id}: {e}")
+  goal_manager/exceptions.py:126  logger.error(f"Failed to decompose goal {goal.id}: {e}")
+  goal_manager/exceptions.py:163  logger.error(f"Validation failed for goal {goal.id}: {e}")
+  goal_manager/exceptions.py:199  logger.error(f"Failed to execute goal {goal_id}: {e}")
+  platform/os_controller.py:1250  logger.error(f"Failed to open URL {resolved}: {e}")
+  platform/os_controller.py:1378  logger.error(f"Failed to uninstall {app_name}: {e}")
+  platform/os_controller.py:1786  logger.error(f"Invalid arguments for operation {operation}: {e}")
+  platform/os_controller.py:1795  logger.error(f"Failed to execute operation {operation}: {e}")
+  platform/android/integration.py:193  logger.error(f"Failed to launch app {package_name}: {e}")
+  platform/android/integration.py:236  logger.error(f"Failed to send intent {action}: {e}")
+  platform/android/integration.py:314  logger.error(f"Failed to check permission {permission}: {e}")
+  platform/android/integration.py:325  logger.error(f"Failed to request permission {permission}: {e}")
+  ... and 122 more
+[MED]  datetime.utcnow() remaining: OK (none found)
+
+[LOW]  TODO/FIXME comments: 25 instances
+  platform/github/integrator.py:1383  # TODO: Integrate with Goal Manager component
+  platform/github/integrator.py:1810  # TODO: Integrate with Goal Manager component
+  platform/monitoring/self_improvement_integration.py:286  # TODO: Implement actual Self-Improvement Engine API call
+  platform/permissions/mobile_permissions.py:311  # TODO: Implement actual Android permission request
+  platform/permissions/mobile_permissions.py:335  # TODO: Implement actual iOS permission request
+  platform/permissions/mobile_permissions.py:359  # TODO: Implement actual Android permission check
+  platform/permissions/mobile_permissions.py:379  # TODO: Implement actual iOS permission check
+  platform/permissions/mobile_permissions.py:390  # TODO: Implement actual settings guidance
+  platform/permissions/mobile_permissions.py:399  # TODO: Implement actual rationale display
+  reasoning/engine.py:991  context=None,  # TODO: Convert memory_context to ConversationCont
+  reasoning/pipeline.py:302  # TODO: Implement normal reasoning pipeline in future tasks
+  reasoning/intent/neural_classifier.py:331  # TODO: Implement proper batching for throughput
+  reasoning/knowledge/query_detector.py:413  # TODO: Implement LLM fallback when LLM backend is available
+  reasoning/learning/goal_engine.py:892  # TODO: Implement confirmation waiting logic
+  reasoning/learning/goal_engine.py:897  # TODO: Integrate with standard execution pipeline
+  reasoning/learning/goal_engine.py:959  # TODO: Integrate with notification system
+  reasoning/llm/confidence_scorer.py:310  placeholders = ["TODO", "TBD", "...", "placeholder", "example", "
+  reasoning/llm/output_parser.py:407  placeholders = ["TODO", "TBD", "...", "placeholder", "example"]
+  reasoning/llm/reasoning.py:226  # TODO: Implement true streaming with LLM streaming API
+  reasoning/tools/selector.py:262  user_id=None,  # TODO: Get user_id from context when available
+  ... and 5 more
+
+[CRIT] SYNTAX ERRORS FOUND:
+  platform/controllers/screen_capture.py:352: invalid decimal literal
+  platform/error_handling/retry_strategy.py:292: invalid decimal literal
+  platform/ios/service.py:306: invalid decimal literal
+  platform/mobile/background_service.py:380: invalid decimal literal
+  speech/background_service.py:194: invalid decimal literal
+  speech/audio/noise_cancellation.py:115: invalid decimal literal
+
+================================================================
+Issue categories with findings: 4 / 8

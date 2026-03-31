@@ -450,7 +450,7 @@ class NetworkManager:
             return
 
         self._rate_limiter.configure_service(service, config)
-        logger.info(f"Rate limit configured for service '{service}'")
+        logger.info("Rate limit configured for service '%s'", service)
 
     def get_rate_limit_status(self, service: str) -> Optional[RateLimitStatus]:
         """Get current rate limit status for service.
@@ -856,7 +856,7 @@ class NetworkManager:
             # Exponential backoff before retry
             if attempt < self.config.max_retries - 1:
                 delay = self.config.retry_delay * (2 ** attempt)
-                logger.debug(f"Retrying in {delay}s...")
+                logger.debug("Retrying in %ss...", delay)
                 await asyncio.sleep(delay)
 
         # All retries exhausted
@@ -1323,7 +1323,7 @@ class NetworkManager:
                             try:
                                 progress_callback(total_bytes, content_length)
                             except Exception as cb_err:
-                                logger.warning(f"Progress callback error: {cb_err}")
+                                logger.warning("Progress callback error: %s", cb_err)
 
             # Calculate statistics
             duration = time.perf_counter() - start_time
@@ -1368,7 +1368,7 @@ class NetworkManager:
                 try:
                     destination.unlink()
                 except Exception as cleanup_error:
-                    logger.warning(f"Failed to clean up partial download: {cleanup_error}")
+                    logger.warning("Failed to clean up partial download: %s", cleanup_error)
 
             return DownloadResult(
                 url=url,
@@ -1447,7 +1447,7 @@ class NetworkManager:
                             try:
                                 progress_callback(total_bytes, file_size)
                             except Exception as e:
-                                logger.warning(f"Progress callback error: {e}")
+                                logger.warning("Progress callback error: %s", e)
 
                         yield chunk
 

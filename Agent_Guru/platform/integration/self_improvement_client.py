@@ -122,7 +122,7 @@ class SelfImprovementClient:
         self._session = aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=self.timeout)
         )
-        logger.info(f"Connected to Self-Improvement Engine at {self.base_url}")
+        logger.info("Connected to Self-Improvement Engine at %s", self.base_url)
 
     async def disconnect(self) -> None:
         """Disconnect, flushing any pending metrics first."""
@@ -173,15 +173,15 @@ class SelfImprovementClient:
                 async with self._session.post(url, json=payload) as resp:
                     if resp.status in (200, 201):
                         self._metrics_reported += len(batch)
-                        logger.debug(f"Flushed {len(batch)} metrics")
+                        logger.debug("Flushed %s metrics", len(batch))
                         return True
-                    logger.warning(f"Metrics flush returned {resp.status}")
+                    logger.warning("Metrics flush returned %s", resp.status)
             except Exception as e:
                 logger.warning(f"Metrics flush attempt {attempt + 1} failed: {e}")
                 if attempt < self.max_retries - 1:
                     await asyncio.sleep(0.5 * (2 ** attempt))
 
-        logger.error(f"Failed to flush {len(batch)} metrics")
+        logger.error("Failed to flush %s metrics", len(batch))
         return False
 
     async def report_error_statistics(
@@ -211,13 +211,13 @@ class SelfImprovementClient:
                             f"Reported error stats: {error_stats.error_type}"
                         )
                         return True
-                    logger.warning(f"Error stats returned {resp.status}")
+                    logger.warning("Error stats returned %s", resp.status)
             except Exception as e:
                 logger.warning(f"Error stats attempt {attempt + 1} failed: {e}")
                 if attempt < self.max_retries - 1:
                     await asyncio.sleep(0.5 * (2 ** attempt))
 
-        logger.error(f"Failed to report error stats: {error_stats.error_type}")
+        logger.error("Failed to report error stats: %s", error_stats.error_type)
         return False
 
     async def get_improvement_suggestions(
@@ -256,10 +256,10 @@ class SelfImprovementClient:
                         )
                         for s in body.get("suggestions", [])
                     ]
-                logger.warning(f"Suggestions returned {resp.status}")
+                logger.warning("Suggestions returned %s", resp.status)
                 return []
         except Exception as e:
-            logger.error(f"Failed to get suggestions: {e}")
+            logger.error("Failed to get suggestions: %s", e)
             return []
 
     def get_statistics(self) -> dict[str, Any]:

@@ -162,7 +162,7 @@ class CommandPermissionChecker:
         try:
             compiled_pattern = re.compile(pattern)
             self._allowed_patterns.append(compiled_pattern)
-            logger.debug(f"Added allowed command pattern: {pattern}")
+            logger.debug("Added allowed command pattern: %s", pattern)
         except re.error as e:
             logger.error(f"Invalid regex pattern: {pattern} ({e})")
             raise CommandValidationError(f"Invalid regex pattern: {pattern}") from e
@@ -183,7 +183,7 @@ class CommandPermissionChecker:
         try:
             compiled_pattern = re.compile(pattern, re.IGNORECASE)
             self._blocked_patterns.append(compiled_pattern)
-            logger.debug(f"Added blocked command pattern: {pattern}")
+            logger.debug("Added blocked command pattern: %s", pattern)
         except re.error as e:
             logger.error(f"Invalid regex pattern: {pattern} ({e})")
             raise CommandValidationError(f"Invalid regex pattern: {pattern}") from e
@@ -289,7 +289,7 @@ class CommandPermissionChecker:
         # Check blocked patterns first (security priority)
         for pattern in self._blocked_patterns:
             if pattern.search(command):
-                logger.warning(f"Command blocked by pattern: {command}")
+                logger.warning("Command blocked by pattern: %s", command)
                 return CommandValidationResult(
                     allowed=False,
                     command=command,
@@ -311,7 +311,7 @@ class CommandPermissionChecker:
                 break
 
         if not matched_pattern:
-            logger.warning(f"Command denied (no matching pattern): {command}")
+            logger.warning("Command denied (no matching pattern): %s", command)
             return CommandValidationResult(
                 allowed=False,
                 command=command,

@@ -246,7 +246,7 @@ class RetryStrategy:
         for attempt in range(self.config.max_attempts):
             try:
                 # Execute operation
-                logger.debug(f"Executing operation (attempt {attempt + 1})")
+                logger.debug("Executing operation (attempt %s)", attempt + 1)
                 value = operation(*args, **kwargs)
 
                 # Success
@@ -289,7 +289,7 @@ class RetryStrategy:
                 # Calculate delay and wait (only if not the last attempt)
                 if attempt < self.config.max_attempts - 1:
                     delay = self.calculate_delay(attempt)
-                    logger.info(f"Retrying after {delay:.2f}s delay")
+                    logger.info("Retrying after %.2fs delay", delay)
                     time.sleep(delay)
                     total_delay += delay
 
@@ -344,7 +344,7 @@ class RetryStrategy:
         for attempt in range(self.config.max_attempts):
             try:
                 # Execute async operation
-                logger.debug(f"Executing async operation (attempt {attempt + 1})")
+                logger.debug("Executing async operation (attempt %s)", attempt + 1)
                 value = await operation(*args, **kwargs)
 
                 # Success
@@ -387,7 +387,7 @@ class RetryStrategy:
                 # Calculate delay and wait (only if not the last attempt)
                 if attempt < self.config.max_attempts - 1:
                     delay = self.calculate_delay(attempt)
-                    logger.info(f"Retrying async operation after {delay:.2f}s delay")
+                    logger.info("Retrying async operation after %.2fs delay", delay)
                     await asyncio.sleep(delay)
                     total_delay += delay
 

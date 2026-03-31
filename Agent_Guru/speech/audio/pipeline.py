@@ -254,7 +254,7 @@ class AudioPipeline:
             self._input_device_id = device_id
             self._device_state = DeviceState.CONNECTED
             self._reconnect_attempts = 0
-        logger.info(f"Input device selected: {device_id}")
+        logger.info("Input device selected: %s", device_id)
 
     def select_output_device(self, device_id: int | None) -> None:
         """Select the audio output device.
@@ -264,7 +264,7 @@ class AudioPipeline:
         """
         with self._lock:
             self._output_device_id = device_id
-        logger.info(f"Output device selected: {device_id}")
+        logger.info("Output device selected: %s", device_id)
 
     def get_device_state(self) -> DeviceState:
         """Return current device connection state."""
@@ -315,7 +315,7 @@ class AudioPipeline:
                     try:
                         cb()
                     except Exception as e:
-                        logger.error(f"Reconnect callback error: {e}")
+                        logger.error("Reconnect callback error: %s", e)
                 return
 
         with self._lock:
@@ -451,5 +451,5 @@ class AudioPipeline:
             return devices
 
         except Exception as e:
-            logger.warning(f"Could not query audio devices: {e}")
+            logger.warning("Could not query audio devices: %s", e)
             return []

@@ -365,7 +365,7 @@ class AndroidSpeechRecognizer:
             }
 
         except Exception as e:
-            logger.error(f"Failed to check availability: {e}")
+            logger.error("Failed to check availability: %s", e)
             return {
                 "available": False,
                 "on_device": False,
@@ -383,7 +383,7 @@ class AndroidSpeechRecognizer:
                 self.recognizer.destroy()
                 logger.info("Android speech recognizer destroyed")
             except Exception as e:
-                logger.error(f"Error during cleanup: {e}")
+                logger.error("Error during cleanup: %s", e)
 
         self.recognizer = None
         self.is_initialized = False

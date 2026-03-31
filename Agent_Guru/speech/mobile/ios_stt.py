@@ -400,7 +400,7 @@ class IOSSpeechRecognizer:
             }
 
         except Exception as e:
-            logger.error(f"Failed to check availability: {e}")
+            logger.error("Failed to check availability: %s", e)
             return {
                 "available": False,
                 "on_device": False,
@@ -430,7 +430,7 @@ class IOSSpeechRecognizer:
             return ["en-US"]
 
         except Exception as e:
-            logger.error(f"Failed to get supported languages: {e}")
+            logger.error("Failed to get supported languages: %s", e)
             return []
 
     async def cleanup(self) -> None:
@@ -445,7 +445,7 @@ class IOSSpeechRecognizer:
                 self.recognizer = None
                 logger.info("iOS speech recognizer released")
             except Exception as e:
-                logger.error(f"Error during cleanup: {e}")
+                logger.error("Error during cleanup: %s", e)
 
         self.recognizer = None
         self.is_initialized = False

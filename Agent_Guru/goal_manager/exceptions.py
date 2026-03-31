@@ -24,7 +24,7 @@ Usage:
     try:
         await storage.store_goal(goal)
     except StorageError as e:
-        logger.error(f"Storage operation failed: {e}")
+        logger.error("Storage operation failed: %s", e)
 """
 
 
@@ -45,7 +45,7 @@ class GoalManagerError(Exception):
             await goal_manager.create_goal("Test goal")
         except GoalManagerError as e:
             # Catches all Goal Manager errors
-            logger.error(f"Goal Manager error: {e}")
+            logger.error("Goal Manager error: %s", e)
 
     Note:
         This exception should not be raised directly. Use one of the specific

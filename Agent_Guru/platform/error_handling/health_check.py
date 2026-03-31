@@ -194,7 +194,7 @@ class HealthCheckManager:
             raise ValueError(f"Health check already registered for: {component_name}")
 
         self._checks[component_name] = check_func
-        logger.info(f"Registered health check for component: {component_name}")
+        logger.info("Registered health check for component: %s", component_name)
 
     def unregister_check(self, component_name: str) -> None:
         """Unregister a health check.
@@ -206,7 +206,7 @@ class HealthCheckManager:
         """
         if component_name in self._checks:
             del self._checks[component_name]
-            logger.info(f"Unregistered health check for component: {component_name}")
+            logger.info("Unregistered health check for component: %s", component_name)
 
     async def check_health(self, use_cache: bool = True) -> SystemHealth:
         """Perform health checks on all registered components.

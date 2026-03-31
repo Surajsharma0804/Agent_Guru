@@ -361,7 +361,7 @@ class DuplicateAwareFileOperations(FileOperationsController):
             with open(source_path, 'rb') as f:
                 content = f.read()
         except Exception as e:
-            logger.error(f"Failed to read source file for duplicate detection: {e}")
+            logger.error("Failed to read source file for duplicate detection: %s", e)
             # Fall back to execution without duplicate detection
             return super().copy_file(source, destination, overwrite)
 

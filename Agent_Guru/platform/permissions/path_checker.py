@@ -129,7 +129,7 @@ class PathPermissionChecker:
         """
         normalized_pattern = self._normalize_pattern(pattern)
         self._allowed_patterns.append((normalized_pattern, permissions))
-        logger.debug(f"Added allowed path pattern: {normalized_pattern}")
+        logger.debug("Added allowed path pattern: %s", normalized_pattern)
 
     def add_blocked_path(self, pattern: str) -> None:
         """
@@ -146,7 +146,7 @@ class PathPermissionChecker:
         """
         normalized_pattern = self._normalize_pattern(pattern)
         self._blocked_patterns.append(normalized_pattern)
-        logger.debug(f"Added blocked path pattern: {normalized_pattern}")
+        logger.debug("Added blocked path pattern: %s", normalized_pattern)
 
     def validate_path(
         self,
@@ -224,7 +224,7 @@ class PathPermissionChecker:
                     )
 
         # No matching pattern found
-        logger.warning(f"Path denied (no matching pattern): {path}")
+        logger.warning("Path denied (no matching pattern): %s", path)
         return PathValidationResult(
             allowed=False,
             normalized_path=normalized_path,
@@ -283,7 +283,7 @@ class PathPermissionChecker:
             # Validate against directory traversal
             if ".." in Path(path).parts:
                 # Check if the normalized path escapes the intended directory
-                logger.warning(f"Potential directory traversal detected: {path}")
+                logger.warning("Potential directory traversal detected: %s", path)
 
             # Case normalization for case-insensitive systems
             if not self._case_sensitive:
@@ -347,7 +347,7 @@ class PathPermissionChecker:
             try:
                 return bool(re.match(regex_pattern, path))
             except re.error:
-                logger.error(f"Invalid regex pattern: {regex_pattern}")
+                logger.error("Invalid regex pattern: %s", regex_pattern)
                 return False
         else:
             # Use fnmatch for simple wildcards

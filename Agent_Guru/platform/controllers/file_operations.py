@@ -184,7 +184,7 @@ class FileOperationsController:
             if not audit_path.exists():
                 audit_path.touch(mode=0o600)
         except Exception as e:
-            logger.error(f"Failed to initialize audit log: {e}")
+            logger.error("Failed to initialize audit log: %s", e)
 
     def _log_operation(
         self,
@@ -217,7 +217,7 @@ class FileOperationsController:
             with open(self.audit_log_path, "a") as f:
                 f.write(entry.to_json() + "\n")
         except Exception as e:
-            logger.error(f"Failed to write audit log: {e}")
+            logger.error("Failed to write audit log: %s", e)
 
     def _validate_path(self, path: str) -> Path:
         """Validate and normalize file path using safe base-directory enforcement.

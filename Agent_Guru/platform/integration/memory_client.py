@@ -464,7 +464,7 @@ ize
                 )
                 self._circuit.record_failure()
             except Exception as e:
-                logger.error(f"Unexpected error storing to Memory System: {e}")
+                logger.error("Unexpected error storing to Memory System: %s", e)
                 self._circuit.record_failure()
                 return False
 
@@ -529,7 +529,7 @@ ize
                 logger.warning(f"Historical store attempt {attempt + 1} failed: {e}")
                 self._circuit.record_failure()
             except Exception as e:
-                logger.error(f"Unexpected error storing historical data: {e}")
+                logger.error("Unexpected error storing historical data: %s", e)
                 return False
 
             if attempt < self.max_retries:
@@ -622,7 +622,7 @@ ize
             self._circuit.record_failure()
             return MemoryQueryResult()
         except Exception as e:
-            logger.error(f"Memory query failed: {e}")
+            logger.error("Memory query failed: %s", e)
             self._circuit.record_failure()
             return MemoryQueryResult()
 

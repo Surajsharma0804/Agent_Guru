@@ -30,6 +30,7 @@ Version: 1.0.0
 """
 
 import asyncio
+import logging
 import time
 from datetime import datetime, timezone
 from typing import Optional
@@ -40,6 +41,8 @@ from sentence_transformers import SentenceTransformer
 
 from Agent_Guru.reasoning.models.memory import Memory, MemoryType
 from Agent_Guru.security.embedding_auth import RETRIEVAL_THRESHOLD, verify_embedding
+
+logger = logging.getLogger(__name__)
 
 
 class MemoryRetriever:
@@ -234,8 +237,7 @@ class MemoryRetriever:
         # Check latency budget
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         if elapsed_ms > 100:
-            # Log warning but don't fail
-            print(f"Warning: retrieve() took {elapsed_ms:.1f}ms (>100ms budget)")
+            logger.warning("retrieve() took %.1fms (>100ms budget)", elapsed_ms)
 
         return results
 

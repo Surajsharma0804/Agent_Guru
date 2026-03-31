@@ -270,17 +270,17 @@ class PermissionModelManager:
                 self._validate_config(config_data)
                 model = self._parse_config(config_data)
 
-                logger.info(f"Configuration loaded successfully (hash: {new_hash[:8]}...)")
+                logger.info("Configuration loaded successfully (hash: %s...)", new_hash[:8])
                 return model
 
             except FileNotFoundError:
-                logger.error(f"Configuration file not found: {self.config_path}")
+                logger.error("Configuration file not found: %s", self.config_path)
                 raise
             except yaml.YAMLError as e:
-                logger.error(f"YAML parsing error: {e}")
+                logger.error("YAML parsing error: %s", e)
                 raise ConfigurationError(f"Invalid YAML configuration: {e}") from e
             except Exception as e:
-                logger.error(f"Configuration loading error: {e}")
+                logger.error("Configuration loading error: %s", e)
                 raise ConfigurationError(f"Failed to load configuration: {e}") from e
 
     def _validate_config(self, config: dict[str, Any]) -> None:
@@ -435,7 +435,7 @@ class PermissionModelManager:
                     f"Environment: {old_environment} -> {self.model.environment}"
                 )
             except Exception as e:
-                logger.error(f"Configuration reload failed: {e}")
+                logger.error("Configuration reload failed: %s", e)
                 raise
 
     def is_path_allowed(
@@ -476,7 +476,7 @@ class PermissionModelManager:
 
             # Check blocked extensions
             if path.suffix in self.model.blocked_extensions:
-                logger.warning(f"Path denied (blocked extension): {path}")
+                logger.warning("Path denied (blocked extension): %s", path)
                 return False
 
             # Check against allowed paths
@@ -524,16 +524,16 @@ class PermissionModelManager:
             # Check blocked patterns first (security priority)
             for pattern in self.model.blocked_command_patterns:
                 if pattern.search(command):
-                    logger.warning(f"Command denied (blocked pattern): {command}")
+                    logger.warning("Command denied (blocked pattern): %s", command)
                     return False
 
             # Check allowed patterns
             for pattern in self.model.allowed_command_patterns:
                 if pattern.search(command):
-                    logger.debug(f"Command allowed: {command}")
+                    logger.debug("Command allowed: %s", command)
                     return True
 
-            logger.warning(f"Command denied (no matching pattern): {command}")
+            logger.warning("Command denied (no matching pattern): %s", command)
             return False
 
     def is_network_allowed(
@@ -569,7 +569,7 @@ class PermissionModelManager:
 
             # Check method
             if method not in self.model.allowed_methods:
-                logger.warning(f"Network request denied (method not allowed): {method.value}")
+                logger.warning("Network request denied (method not allowed): %s", method.value)
                 return False
 
             # Extract domain from URL
@@ -714,7 +714,7 @@ class PermissionModelManager:
                         }
                     )
                 except Exception as e:
-                    logger.error(f"Failed to log lockdown activation to security audit: {e}")
+                    logger.error("Failed to log lockdown activation to security audit: %s", e)
             else:
                 logger.warning("Lockdown mode already active")
 
@@ -753,7 +753,7 @@ class PermissionModelManager:
                         }
                     )
                 except Exception as e:
-                    logger.error(f"Failed to log lockdown deactivation to security audit: {e}")
+                    logger.error("Failed to log lockdown deactivation to security audit: %s", e)
 
                 # Clear lockdown tracking
                 self._lockdown_activated_at = None

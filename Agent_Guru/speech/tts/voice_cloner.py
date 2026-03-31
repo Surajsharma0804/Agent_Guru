@@ -690,7 +690,7 @@ class VoiceCloner:
             return float(np.clip(similarity, 0.0, 1.0))
 
         except Exception as e:
-            logger.error(f"Similarity computation failed: {e}")
+            logger.error("Similarity computation failed: %s", e)
             return 0.0
 
     def is_voice_match(
@@ -719,7 +719,7 @@ class VoiceCloner:
             features2 = self._extract_voice_features(audio2, sample_rate)
             return verify_embedding(features1, features2, threshold)
         except Exception as e:
-            logger.error(f"Voice match check failed: {e}")
+            logger.error("Voice match check failed: %s", e)
             return False
 
     def get_voice_model(self, voice_id: str) -> VoiceModel | None:
@@ -772,7 +772,7 @@ class VoiceCloner:
         """
         if voice_id in self._voice_profiles:
             del self._voice_profiles[voice_id]
-            logger.info(f"Voice '{voice_id}' deleted")
+            logger.info("Voice '%s' deleted", voice_id)
             return True
         return False
 

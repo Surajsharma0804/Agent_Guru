@@ -109,7 +109,7 @@ class GracefulDegradationHandler:
                 try:
                     self.error_callback(e)
                 except Exception as callback_error:
-                    self.logger.error(f"Error callback failed: {callback_error}")
+                    self.logger.error("Error callback failed: %s", callback_error)
 
             return fallback_value
 

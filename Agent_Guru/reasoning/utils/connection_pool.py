@@ -95,12 +95,12 @@ class DatabasePool:
                 self._pool.append(conn)
 
             self._initialized = True
-            logger.info(f"Database pool initialized with {len(self._pool)} connections")
+            logger.info("Database pool initialized with %s connections", len(self._pool))
 
     async def _create_connection(self) -> sqlite3.Connection:
         """Create a new database connection."""
         # Run in executor to avoid blocking
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         conn = await loop.run_in_executor(
             None,
             lambda: sqlite3.connect(self.database, check_same_thread=False)
@@ -143,7 +143,7 @@ class DatabasePool:
 
             # Wait for connection if none available
             if conn is None:
-                start_time = asyncio.get_event_loop().time()
+                start_time = asyncio.get_running_loop().time()
                 while conn is None:
                     await asyncio.sleep(0.01)  # 10ms
 
@@ -153,7 +153,7 @@ class DatabasePool:
                             break
 
                     # Check timeout
-                    if asyncio.get_event_loop().time() - start_time > self.timeout:
+                    if asyncio.get_running_loop().time() - start_time > self.timeout:
                         raise TimeoutError(f"Could not acquire connection within {self.timeout}s")
 
             # Mark as in use
@@ -268,7 +268,7 @@ class RedisPool:
             logger.warning("aioredis not installed, Redis pooling disabled")
             self._pool = None
         except Exception as e:
-            logger.error(f"Failed to initialize Redis pool: {e}")
+            logger.error("Failed to initialize Redis pool: %s", e)
             self._pool = None
 
     async def get(self, key: str) -> Optional[str]:
@@ -469,7 +469,7 @@ class HTTPPool:
             return await self._session.get(url, **kwargs)
         except Exception as e:
             self._error_count += 1
-            logger.error(f"HTTP GET error: {e}")
+            logger.error("HTTP GET error: %s", e)
             raise
 
     async def post(self, url: str, **kwargs) -> aiohttp.ClientResponse:
@@ -494,7 +494,7 @@ class HTTPPool:
             return await self._session.post(url, **kwargs)
         except Exception as e:
             self._error_count += 1
-            logger.error(f"HTTP POST error: {e}")
+            logger.error("HTTP POST error: %s", e)
             raise
 
     async def request(self, method: str, url: str, **kwargs) -> aiohttp.ClientResponse:

@@ -231,7 +231,7 @@ class WakeWordDetector:
 
         Safe to call from non-async contexts.  Detects whether an event loop
         is already running and dispatches accordingly to avoid deprecation
-        warnings from asyncio.get_event_loop() on Python 3.10+.
+        warnings from asyncio.get_running_loop() on Python 3.10+.
         """
         try:
             # Raises RuntimeError if no loop is running

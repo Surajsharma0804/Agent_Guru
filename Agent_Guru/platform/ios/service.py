@@ -144,7 +144,7 @@ class IOSBackgroundService:
             logger.info("iOS background service started")
 
         except Exception as e:
-            logger.error(f"Failed to start service: {e}")
+            logger.error("Failed to start service: %s", e)
             raise
 
     async def stop_service(self) -> None:
@@ -180,7 +180,7 @@ class IOSBackgroundService:
             logger.info("iOS background service stopped")
 
         except Exception as e:
-            logger.error(f"Failed to stop service: {e}")
+            logger.error("Failed to stop service: %s", e)
 
     async def enter_sleep_mode(self) -> None:
         """
@@ -212,7 +212,7 @@ class IOSBackgroundService:
             logger.info("Entered sleep mode")
 
         except Exception as e:
-            logger.error(f"Failed to enter sleep mode: {e}")
+            logger.error("Failed to enter sleep mode: %s", e)
 
     async def enter_wake_mode(self) -> None:
         """
@@ -252,7 +252,7 @@ class IOSBackgroundService:
             logger.info("Entered wake mode")
 
         except Exception as e:
-            logger.error(f"Failed to enter wake mode: {e}")
+            logger.error("Failed to enter wake mode: %s", e)
 
     async def handle_wake_word_detected(self) -> None:
         """
@@ -274,7 +274,7 @@ class IOSBackgroundService:
             try:
                 await self._wake_word_callback()
             except Exception as e:
-                logger.error(f"Wake word callback failed: {e}")
+                logger.error("Wake word callback failed: %s", e)
 
     def set_wake_word_callback(self, callback: Callable) -> None:
         """
@@ -303,7 +303,7 @@ class IOSBackgroundService:
         Example:
             >>> await service.handle_low_battery(0.15)
         """
-        logger.warning(f"Low battery: {battery_percent * 100:.1f}%")
+        logger.warning("Low battery: %.1f%", battery_percent * 100)
 
         if battery_percent < 0.20:
             # Below 20%: Enter sleep mode
@@ -328,7 +328,7 @@ class IOSBackgroundService:
         Example:
             >>> await service.handle_thermal_state("serious")
         """
-        logger.info(f"Thermal state: {thermal_state}")
+        logger.info("Thermal state: %s", thermal_state)
 
         if thermal_state in ("serious", "critical"):
             # High temperature: Enter sleep mode
@@ -403,7 +403,7 @@ class IOSBackgroundService:
         except asyncio.CancelledError:
             logger.info("Service loop cancelled")
         except Exception as e:
-            logger.error(f"Service loop error: {e}")
+            logger.error("Service loop error: %s", e)
 
     def _update_sleep_battery_usage(self) -> None:
         """Update sleep mode battery usage."""

@@ -23,7 +23,7 @@ def _get_noisereduce() -> Any | None:
 
             _noisereduce = nr
         except Exception as e:
-            logger.warning(f"Failed to import noisereduce: {e}")
+            logger.warning("Failed to import noisereduce: %s", e)
             # Set to False to indicate failed import (not None which means not tried yet)
             _noisereduce = False
     return _noisereduce if _noisereduce is not False else None
@@ -122,7 +122,7 @@ class AudioProcessor:
             return has_voice
 
         except Exception as e:
-            logger.warning(f"VAD failed: {e}, assuming voice present")
+            logger.warning("VAD failed: %s, assuming voice present", e)
             return True
 
     async def reduce_noise(self, audio: np.ndarray) -> np.ndarray:
@@ -158,7 +158,7 @@ class AudioProcessor:
             return reduced
 
         except Exception as e:
-            logger.warning(f"Noise reduction failed: {e}, returning original audio")
+            logger.warning("Noise reduction failed: %s, returning original audio", e)
             return audio
 
     async def cancel_echo(self, audio: np.ndarray, reference: np.ndarray) -> np.ndarray:
@@ -191,7 +191,7 @@ class AudioProcessor:
             return cancelled
 
         except Exception as e:
-            logger.warning(f"Echo cancellation failed: {e}, returning original audio")
+            logger.warning("Echo cancellation failed: %s, returning original audio", e)
             return audio
 
     async def apply_agc(self, audio: np.ndarray) -> np.ndarray:
@@ -235,7 +235,7 @@ class AudioProcessor:
             return result
 
         except Exception as e:
-            logger.warning(f"AGC failed: {e}, returning original audio")
+            logger.warning("AGC failed: %s, returning original audio", e)
             return audio
 
     def convert_format(self, audio: np.ndarray, target_rate: int) -> np.ndarray:

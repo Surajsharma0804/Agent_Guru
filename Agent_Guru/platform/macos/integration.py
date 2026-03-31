@@ -280,7 +280,7 @@ class MacOSIntegration:
             if time.time() - breaker['last_failure'] > self._circuit_breaker_timeout:
                 breaker['state'] = 'half-open'
                 breaker['failures'] = 0
-                logger.info(f"Circuit breaker half-open for {operation}")
+                logger.info("Circuit breaker half-open for %s", operation)
             else:
                 raise CircuitBreakerError(
                     f"Circuit breaker open for {operation}. "
@@ -293,7 +293,7 @@ class MacOSIntegration:
         if breaker['state'] == 'half-open':
             breaker['state'] = 'closed'
             breaker['failures'] = 0
-            logger.info(f"Circuit breaker closed for {operation}")
+            logger.info("Circuit breaker closed for %s", operation)
 
     def _record_failure(self, operation: str) -> None:
         """Record failed operation for circuit breaker."""
@@ -741,7 +741,7 @@ class MacOSIntegration:
                 # Process terminated or access denied - skip it
                 continue
 
-        logger.debug(f"Retrieved {len(processes)} processes")
+        logger.debug("Retrieved %s processes", len(processes))
         return processes
 
     def start_process(self, executable: str, args: list[str]) -> int:
@@ -821,10 +821,10 @@ class MacOSIntegration:
 
             if force:
                 process.kill()  # SIGKILL
-                logger.info(f"Force killed process {pid}")
+                logger.info("Force killed process %s", pid)
             else:
                 process.terminate()  # SIGTERM
-                logger.info(f"Terminated process {pid}")
+                logger.info("Terminated process %s", pid)
 
             return True
 

@@ -218,7 +218,7 @@ class Span:
             error: Error message if the operation failed
         """
         if self.end_time is not None:
-            logger.warning(f"Span '{self.name}' already finished")
+            logger.warning("Span '%s' already finished", self.name)
             return
         self.end_time = time.monotonic()
         if error:

@@ -52,7 +52,7 @@ class SpeechSecurityIntegration:
         Raises:
             VoiceAuthenticationError: If enrollment fails
         """
-        self.logger.info(f"Enrolling user {user_id} from audio")
+        self.logger.info("Enrolling user %s from audio", user_id)
 
         # Extract voice features using speech engine
         voice_features = self.speech_engine.extract_voice_features(audio)
@@ -86,7 +86,7 @@ class SpeechSecurityIntegration:
             VoiceAuthenticationError: If authentication fails
         """
         mode = "verification" if user_id else "identification"
-        self.logger.info(f"Authenticating user from audio ({mode} mode)")
+        self.logger.info("Authenticating user from audio (%s mode)", mode)
 
         # Extract voice features using speech engine
         voice_features = self.speech_engine.extract_voice_features(audio)
@@ -123,7 +123,7 @@ class SpeechSecurityIntegration:
         Raises:
             VoiceAuthenticationError: If update fails
         """
-        self.logger.info(f"Updating profile for {user_id} from audio")
+        self.logger.info("Updating profile for %s from audio", user_id)
 
         # Extract voice features using speech engine
         voice_features = self.speech_engine.extract_voice_features(audio)
@@ -149,7 +149,7 @@ class SpeechSecurityIntegration:
             VoiceAuthenticationError: If user not found
         """
         self.voice_authenticator.delete_profile(user_id)
-        self.logger.info(f"Deleted user {user_id}")
+        self.logger.info("Deleted user %s", user_id)
 
     def get_user_profile(self, user_id: str) -> Optional[VoiceProfile]:
         """

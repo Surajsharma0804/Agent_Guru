@@ -232,7 +232,7 @@ class BatchProcessor(Generic[T, R]):
 
         except Exception as e:
             # Set exception for all items
-            logger.error(f"Batch processing failed: {e}")
+            logger.error("Batch processing failed: %s", e)
             for item in batch:
                 if not item.future.done():
                     item.future.set_exception(e)
