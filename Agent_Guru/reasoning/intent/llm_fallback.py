@@ -32,6 +32,7 @@ Version: 1.0.0
 """
 
 import asyncio
+import functools
 import json
 import time
 from dataclasses import dataclass
@@ -374,19 +375,17 @@ Classify the following input:"""
                 "temperature": self.config.temperature,
                 "num_predict": self.config.max_tokens,
             },
-            "format": "json",  # Request JSON output
+            "format": "json",
         }
 
-        # Call Ollama generate endpoint (synchronous, run in executor)
-        loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(
-            None,
-            lambda: requests.post(  # nosec B113
-                f"{base_url}/api/generate",
-                json=payload,
-                timeout=self.config.timeout_ms / 1000.0,
-            ),
+        # asyncio.to_thread() propagates contextvars — preferred over run_in_executor
+        _post = functools.partial(
+            requests.post,  # nosec B113
+            f"{base_url}/api/generate",
+            json=payload,
+            timeout=self.config.timeout_ms / 1000.0,
         )
+        response = await asyncio.to_thread(_post)
 
         if response.status_code == 200:
             data = response.json()
@@ -407,20 +406,19 @@ Classify the following input:"""
         if self.client is None:
             raise RuntimeError("OpenAI client not initialized")
 
-        loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(
-            None,
-            lambda: self.client.chat.completions.create(  # type: ignore[union-attr]
-                model=self.config.model,
-                messages=[
-                    {"role": "system", "content": self.SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens,
-                response_format={"type": "json_object"},
-            ) if self.client else None,
+        # asyncio.to_thread() propagates contextvars — preferred over run_in_executor
+        _create = functools.partial(
+            self.client.chat.completions.create,  # type: ignore[union-attr]
+            model=self.config.model,
+            messages=[
+                {"role": "system", "content": self.SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=self.config.temperature,
+            max_tokens=self.config.max_tokens,
+            response_format={"type": "json_object"},
         )
+        response = await asyncio.to_thread(_create)
         content = response.choices[0].message.content
         return str(content) if content else ""
 
@@ -436,17 +434,16 @@ Classify the following input:"""
         if self.client is None:
             raise RuntimeError("Anthropic client not initialized")
 
-        loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(
-            None,
-            lambda: self.client.messages.create(  # type: ignore[union-attr]
-                model=self.config.model,
-                max_tokens=self.config.max_tokens,
-                temperature=self.config.temperature,
-                system=self.SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": user_prompt}],
-            ) if self.client else None,
+        # asyncio.to_thread() propagates contextvars — preferred over run_in_executor
+        _create = functools.partial(
+            self.client.messages.create,  # type: ignore[union-attr]
+            model=self.config.model,
+            max_tokens=self.config.max_tokens,
+            temperature=self.config.temperature,
+            system=self.SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_prompt}],
         )
+        response = await asyncio.to_thread(_create)
         text = response.content[0].text if response and response.content else ""
         return str(text) if text else ""
 

@@ -22,7 +22,9 @@ Usage:
 """
 
 import asyncio
+import functools
 import logging
+import platform
 import sqlite3
 from contextlib import asynccontextmanager
 from typing import Any, Optional
@@ -99,12 +101,14 @@ class DatabasePool:
 
     async def _create_connection(self) -> sqlite3.Connection:
         """Create a new database connection."""
-        # Run in executor to avoid blocking
-        loop = asyncio.get_running_loop()
-        conn = await loop.run_in_executor(
-            None,
-            lambda: sqlite3.connect(self.database, check_same_thread=False)
+        # asyncio.to_thread() is the Python 3.9+ standard for blocking I/O.
+        # It propagates contextvars and avoids lambda closure risks.
+        _connect = functools.partial(
+            sqlite3.connect,
+            self.database,
+            check_same_thread=False,
         )
+        conn: sqlite3.Connection = await asyncio.to_thread(_connect)
 
         # Enable WAL mode for better concurrency
         conn.execute("PRAGMA journal_mode=WAL")
@@ -145,6 +149,7 @@ class DatabasePool:
             if conn is None:
                 start_time = asyncio.get_running_loop().time()
                 while conn is None:
+                    # Use asyncio.sleep — NOT time.sleep — to yield the event loop
                     await asyncio.sleep(0.01)  # 10ms
 
                     async with self._lock:
@@ -152,7 +157,6 @@ class DatabasePool:
                             conn = self._pool.pop()
                             break
 
-                    # Check timeout
                     if asyncio.get_running_loop().time() - start_time > self.timeout:
                         raise TimeoutError(f"Could not acquire connection within {self.timeout}s")
 

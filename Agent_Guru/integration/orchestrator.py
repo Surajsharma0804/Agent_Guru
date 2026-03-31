@@ -175,7 +175,9 @@ class IntegrationOrchestrator:
         # Wiring confirmed
         self.is_wired: bool = True
         self._sleeping: bool = False
-        self._sleeping_lock: asyncio.Lock = asyncio.Lock()
+        # asyncio.Lock is lazy-initialized on first use inside an async context
+        # to avoid attaching it to the wrong event loop when __init__ runs sync.
+        self._sleeping_lock: Optional[asyncio.Lock] = None
 
         # Intent recognizer — initialized lazily on first use
         self._intent_recognizer: Any = None
@@ -311,7 +313,7 @@ class IntegrationOrchestrator:
                 loop = asyncio.get_running_loop()
                 if device_cfg is not None:
                     try:
-                        await loop.run_in_executor(None, lambda: init(device_cfg=device_cfg))
+                        await asyncio.to_thread(init, device_cfg=device_cfg)
                     except TypeError:
                         await loop.run_in_executor(None, init)
                 else:
@@ -386,12 +388,16 @@ class IntegrationOrchestrator:
 
     async def sleep(self) -> None:
         """Enter sleep mode — only wake word detection remains active."""
+        if self._sleeping_lock is None:
+            self._sleeping_lock = asyncio.Lock()
         async with self._sleeping_lock:
             self._sleeping = True
         logger.info("IntegrationOrchestrator: sleep mode — wake word detection only")
 
     async def wake(self) -> None:
         """Exit sleep mode — all subsystems active."""
+        if self._sleeping_lock is None:
+            self._sleeping_lock = asyncio.Lock()
         async with self._sleeping_lock:
             self._sleeping = False
         logger.info("IntegrationOrchestrator: wake mode — all subsystems active")
@@ -624,7 +630,6 @@ class IntegrationOrchestrator:
             logger.debug("STT: processing %.2fs of audio (rms=%.4f)", len(audio_np) / 16000, rms)
 
             # fn is guaranteed synchronous here — async functions returned early above
-            loop = asyncio.get_running_loop()
             params = self._stt_params or []
             try:
                 if "personality" in params:
@@ -637,9 +642,9 @@ class IntegrationOrchestrator:
                         None, lambda: fn(audio_np, sample_rate=16000)
                     )
                 else:
-                    result = await loop.run_in_executor(None, lambda: fn(audio_np, 16000))
+                    result = await asyncio.to_thread(fn, audio_np, 16000)
             except Exception:
-                result = await loop.run_in_executor(None, lambda: fn(audio_np, 16000))
+                result = await asyncio.to_thread(fn, audio_np, 16000)
 
             if hasattr(result, "text") and hasattr(result, "language"):
                 text = (result.text or "").strip()
@@ -971,18 +976,17 @@ class IntegrationOrchestrator:
             if ctrl is None:
                 return None
 
-            loop = asyncio.get_running_loop()
 
             # --- Application control ---
             if action == "open_app" and param:
                 logger.info("ACTION: open_application('%s')", param)
-                result = await loop.run_in_executor(None, lambda: ctrl.open_application(param))
+                result = await asyncio.to_thread(ctrl.open_application, param)
                 safe_param = self._sanitize_output(param)
                 return f"Opened {safe_param}" if getattr(result, "success", True) else f"Failed to open {safe_param}"
 
             if action == "close_app" and param:
                 logger.info("ACTION: close_application('%s')", param)
-                result = await loop.run_in_executor(None, lambda: ctrl.close_application(param))
+                result = await asyncio.to_thread(ctrl.close_application, param)
                 safe_param = self._sanitize_output(param)
                 return f"Closed {safe_param}" if getattr(result, "success", True) else f"Failed to close {safe_param}"
 
@@ -1012,7 +1016,7 @@ class IntegrationOrchestrator:
                 logger.info("ACTION: open_url('%s')", url)
                 fn = getattr(ctrl, "open_url", None)
                 if fn:
-                    result = await loop.run_in_executor(None, lambda: fn(url))
+                    result = await asyncio.to_thread(fn, url)
                     return f"Opened {self._sanitize_output(param)}"
                 return f"Cannot open URL — controller unavailable"
 
@@ -1025,7 +1029,7 @@ class IntegrationOrchestrator:
                 logger.info("ACTION: web_search('%s', engine='%s')", query, engine)
                 fn = getattr(ctrl, "web_search", None)
                 if fn:
-                    result = await loop.run_in_executor(None, lambda: fn(query, engine))
+                    result = await asyncio.to_thread(fn, query, engine)
                     return f"Searching for {self._sanitize_output(query)} on {engine}"
                 return f"Cannot search — controller unavailable"
 
@@ -1038,7 +1042,7 @@ class IntegrationOrchestrator:
                     vol = max(0, min(100, vol))
                     logger.info("ACTION: set_volume(%d)", vol)
                     try:
-                        result = await loop.run_in_executor(None, lambda: ctrl.set_volume(vol))
+                        result = await asyncio.to_thread(ctrl.set_volume, vol)
                         return f"Volume set to {vol}%"
                     except Exception as exc:
                         logger.warning("set_volume failed: %s", exc)
@@ -1085,18 +1089,18 @@ class IntegrationOrchestrator:
                     brightness = int(num_match.group())
                     brightness = max(0, min(100, brightness))
                     logger.info("ACTION: set_brightness(%d)", brightness)
-                    result = await loop.run_in_executor(None, lambda: ctrl.set_brightness(brightness))
+                    result = await asyncio.to_thread(ctrl.set_brightness, brightness)
                     return f"Brightness set to {brightness}%"
                 elif "up" in param.lower() or "increase" in param.lower():
                     fn = getattr(ctrl, "set_brightness", None)
                     if fn:
-                        # Get current and increase by 10
-                        await loop.run_in_executor(None, lambda: fn(min(100, 60)))
+                        # Get current and increase by 10 (capped at 100)
+                        await asyncio.to_thread(fn, min(100, 60))
                     return "Brightness increased"
                 elif "down" in param.lower() or "decrease" in param.lower():
                     fn = getattr(ctrl, "set_brightness", None)
                     if fn:
-                        await loop.run_in_executor(None, lambda: fn(max(0, 30)))
+                        await asyncio.to_thread(fn, max(0, 30))
                     return "Brightness decreased"
 
             # --- Window management ---
@@ -1109,13 +1113,13 @@ class IntegrationOrchestrator:
                     fn = getattr(ctrl, "minimize_window", None)
                     if fn:
                         win_title = ""
-                        await loop.run_in_executor(None, lambda: fn(win_title))
+                        await asyncio.to_thread(fn, win_title)
                     return "Window minimized"
                 if re.search(r"\bmaximize\b|\bmaximise\b", window_ctx):
                     fn = getattr(ctrl, "maximize_window", None)
                     if fn:
                         win_title = ""
-                        await loop.run_in_executor(None, lambda: fn(win_title))
+                        await asyncio.to_thread(fn, win_title)
                     return "Window maximized"
 
             # --- Screenshot ---
@@ -1170,7 +1174,7 @@ class IntegrationOrchestrator:
                 logger.info("ACTION: type_text('%s')", param[:50])
                 fn = getattr(ctrl, "type_text", None)
                 if fn:
-                    result = await loop.run_in_executor(None, lambda: fn(param))
+                    result = await asyncio.to_thread(fn, param)
                     return f"Typed text"
                 return "Cannot type — controller unavailable"
 
@@ -1194,7 +1198,7 @@ class IntegrationOrchestrator:
                         logger.debug("win32 switch_app failed: %s", exc)
                 if not switched:
                     # Fallback: open the app
-                    result = await loop.run_in_executor(None, lambda: ctrl.open_application(param))
+                    result = await asyncio.to_thread(ctrl.open_application, param)
                 return f"Switched to {self._sanitize_output(param)}"
 
             # --- Shutdown / Restart ---
@@ -1202,7 +1206,7 @@ class IntegrationOrchestrator:
                 logger.info("ACTION: %s", action)
                 fn = getattr(ctrl, action + "_pc", None)
                 if fn:
-                    await loop.run_in_executor(None, lambda: fn(confirmed=True))
+                    await asyncio.to_thread(fn, confirmed=True)
                     return f"System {action} initiated"
                 return f"Cannot {action} — controller unavailable"
 
@@ -1214,12 +1218,12 @@ class IntegrationOrchestrator:
                 if "wifi" in setting_text or "wi-fi" in setting_text:
                     enable = "off" not in setting_text and "disable" not in setting_text
                     if fn_wifi:
-                        await loop.run_in_executor(None, lambda: fn_wifi(enable))
+                        await asyncio.to_thread(fn_wifi, enable)
                     return f"WiFi {'enabled' if enable else 'disabled'}"
                 if "bluetooth" in setting_text:
                     enable = "off" not in setting_text and "disable" not in setting_text
                     if fn_bt:
-                        await loop.run_in_executor(None, lambda: fn_bt(enable))
+                        await asyncio.to_thread(fn_bt, enable)
                     return f"Bluetooth {'enabled' if enable else 'disabled'}"
                 return "Settings updated"
 
@@ -1241,15 +1245,15 @@ class IntegrationOrchestrator:
                                 url = f"https://wa.me/{digits}"
                             else:
                                 url = f"https://web.whatsapp.com/send?phone=&text=&source=&data=&app_absent="
-                            await loop.run_in_executor(None, lambda: fn(url))
+                            await asyncio.to_thread(fn, url)
                             return f"Opening WhatsApp for {self._sanitize_output(contact)}"
                         elif app == "telegram":
                             url = f"https://t.me/{contact.lstrip('@')}"
-                            await loop.run_in_executor(None, lambda: fn(url))
+                            await asyncio.to_thread(fn, url)
                             return f"Opening Telegram for {self._sanitize_output(contact)}"
                         elif app == "email":
                             url = f"mailto:{contact}"
-                            await loop.run_in_executor(None, lambda: fn(url))
+                            await asyncio.to_thread(fn, url)
                             return f"Opening email for {self._sanitize_output(contact)}"
                     return f"Opening messaging app for {self._sanitize_output(contact)}"
                 if action == "make_call":
@@ -1261,7 +1265,7 @@ class IntegrationOrchestrator:
                             url = f"tel:{digits}"
                         else:
                             url = f"https://wa.me/?phone={contact}"
-                        await loop.run_in_executor(None, lambda: fn(url))
+                        await asyncio.to_thread(fn, url)
                     return f"Calling {self._sanitize_output(contact)}"
 
             # --- Information (search, question) ---
@@ -1270,7 +1274,7 @@ class IntegrationOrchestrator:
                 logger.info("ACTION: web_search('%s')", query[:80])
                 fn = getattr(ctrl, "web_search", None)
                 if fn:
-                    await loop.run_in_executor(None, lambda: fn(query, "google"))
+                    await asyncio.to_thread(fn, query, "google")
                     return f"Searching for {self._sanitize_output(query)}"
                 return None
 
@@ -1279,12 +1283,12 @@ class IntegrationOrchestrator:
                 if action == "create" and param:
                     fn = getattr(ctrl, "create_file", None)
                     if fn:
-                        result = await loop.run_in_executor(None, lambda: fn(param))
+                        result = await asyncio.to_thread(fn, param)
                         return f"Created {self._sanitize_output(param)}"
                 if action == "delete" and param:
                     fn = getattr(ctrl, "delete_file", None)
                     if fn:
-                        result = await loop.run_in_executor(None, lambda: fn(param, True))
+                        result = await asyncio.to_thread(fn, param, True)
                         return f"Deleted {self._sanitize_output(param)}"
 
             return None
@@ -1310,7 +1314,6 @@ class IntegrationOrchestrator:
 
         import numpy as np
 
-        loop = asyncio.get_running_loop()
         sample_rate = 22050
         audio_array: Any = None
 
@@ -1318,7 +1321,7 @@ class IntegrationOrchestrator:
             if asyncio.iscoroutinefunction(fn):
                 result = await fn(text, pt)
             else:
-                result = await loop.run_in_executor(None, lambda: fn(text, pt))
+                result = await asyncio.to_thread(fn, text, pt)
             if isinstance(result, tuple) and len(result) == 2:
                 audio_array, sample_rate = result
             elif isinstance(result, np.ndarray):
@@ -1328,7 +1331,7 @@ class IntegrationOrchestrator:
             if asyncio.iscoroutinefunction(fn):
                 wav_bytes = await fn(text, pt)
             else:
-                wav_bytes = await loop.run_in_executor(None, lambda: fn(text, pt))
+                wav_bytes = await asyncio.to_thread(fn, text, pt)
             if isinstance(wav_bytes, (bytes, bytearray)) and len(wav_bytes) > 44:
                 with io.BytesIO(wav_bytes) as buf:
                     with wave.open(buf, "rb") as wf:

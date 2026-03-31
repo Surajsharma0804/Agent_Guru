@@ -122,14 +122,30 @@ class OrchestrationSystem:
                     completed[t.id] = result
                 break
 
-            # Execute ready tasks in parallel
+            # Execute ready tasks in parallel.
+            # return_exceptions=True ensures one failure doesn't cancel siblings
+            # and prevents resource-leaking zombie tasks.
             parallel_results = await asyncio.gather(
                 *[self._execute_task(t) for t in ready],
-                return_exceptions=False,
+                return_exceptions=True,
             )
 
             for task, result in zip(ready, parallel_results):
-                completed[task.id] = result
+                if isinstance(result, BaseException):
+                    logger.error(
+                        "Task %s failed with %s: %s",
+                        task.id, type(result).__name__, result,
+                    )
+                    completed[task.id] = TaskResult(
+                        task_id=task.id,
+                        agent_id="error",
+                        success=False,
+                        output=None,
+                        error=str(result),
+                        completion_time_ms=0.0,
+                    )
+                else:
+                    completed[task.id] = result
                 remaining.remove(task)
 
         return list(completed.values())

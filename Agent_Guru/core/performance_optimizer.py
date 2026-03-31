@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import platform
+import threading
 import time
 from collections import deque
 from collections.abc import Callable
@@ -109,6 +110,9 @@ class PerformanceOptimizer:
         self._response_cache: dict[str, str] = {}
         self._cache_hits = 0
         self._cache_misses = 0
+        # Lock guards the cache dict and hit/miss counters against concurrent
+        # async tasks interleaved at await points (read-modify-write is not atomic).
+        self._cache_lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Measurement context manager
@@ -145,21 +149,23 @@ class PerformanceOptimizer:
     # ------------------------------------------------------------------
 
     def get_cached_response(self, prompt_key: str) -> Optional[str]:
-        """Return cached LLM response for a prompt key, or None."""
-        result = self._response_cache.get(prompt_key)
-        if result is not None:
-            self._cache_hits += 1
-        else:
-            self._cache_misses += 1
-        return result
+        """Return a cached LLM response or None on cache miss."""
+        with self._cache_lock:
+            result = self._response_cache.get(prompt_key)
+            if result is not None:
+                self._cache_hits += 1
+            else:
+                self._cache_misses += 1
+            return result
 
     def cache_response(self, prompt_key: str, response: str) -> None:
         """Cache an LLM response. Evicts oldest when cache exceeds 512 entries."""
-        if len(self._response_cache) >= 512:
-            # Evict oldest key (O(1) amortized with dict ordering in Python 3.7+)
-            oldest = next(iter(self._response_cache))
-            del self._response_cache[oldest]
-        self._response_cache[prompt_key] = response
+        with self._cache_lock:
+            if len(self._response_cache) >= 512:
+                # Evict oldest key (O(1) amortized with dict ordering in Python 3.7+)
+                oldest = next(iter(self._response_cache))
+                del self._response_cache[oldest]
+            self._response_cache[prompt_key] = response
 
     @property
     def cache_hit_rate(self) -> float:

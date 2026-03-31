@@ -321,7 +321,6 @@ class MessagingController:
         otherwise opens web.whatsapp.com.
         """
         try:
-            loop = asyncio.get_running_loop()
             encoded = urllib.parse.quote(message)
 
             # Detect phone number (digits, +, -, spaces)
@@ -341,7 +340,6 @@ class MessagingController:
     async def _send_desktop_telegram(self, contact: str, message: str) -> bool:
         """Open Telegram with a pre-filled message via URL scheme."""
         try:
-            loop = asyncio.get_running_loop()
             encoded = urllib.parse.quote(message)
 
             # Strip leading @ if present

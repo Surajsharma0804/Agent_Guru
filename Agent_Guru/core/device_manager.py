@@ -96,27 +96,33 @@ class DeviceManager:
 
         return {"allocated": allocated, "reserved": reserved, "free": free, "total": total}
 
-    def print_device_info(self):
-        """Print detailed device information."""
-        print("\n" + "=" * 60)
-        print("AGENT GURU - GPU DEVICE INFORMATION")
-        print("=" * 60)
-        print(f"Device: {self._device}")
+    def log_device_info(self) -> None:
+        """Log detailed device information at INFO level (replaces print_device_info)."""
+        sep = "=" * 60
+        _logger.info(sep)
+        _logger.info("AGENT GURU - GPU DEVICE INFORMATION")
+        _logger.info(sep)
+        _logger.info("Device: %s", self._device)
 
         if self.is_cuda_available():
-            print(f"GPU Name: {self._device_name}")
-            print(f"CUDA Version: {torch.version.cuda}")
-            print(f"Device Count: {self.get_device_count()}")
+            _logger.info("GPU Name: %s", self._device_name)
+            _logger.info("CUDA Version: %s", torch.version.cuda)
+            _logger.info("Device Count: %d", self.get_device_count())
 
             mem_info = self.get_memory_info()
-            print("\nMemory Info:")
-            print(f"  Total: {mem_info['total'] / 1024**3:.2f} GB")
-            print(f"  Allocated: {mem_info['allocated'] / 1024**3:.2f} GB")
-            print(f"  Free: {mem_info['free'] / 1024**3:.2f} GB")
+            _logger.info("Memory Info:")
+            _logger.info("  Total:     %.2f GB", mem_info["total"] / 1024**3)
+            _logger.info("  Allocated: %.2f GB", mem_info["allocated"] / 1024**3)
+            _logger.info("  Free:      %.2f GB", mem_info["free"] / 1024**3)
         else:
-            print("Status: CPU mode (no GPU detected)")
+            _logger.info("Status: CPU mode (no GPU detected)")
 
-        print("=" * 60 + "\n")
+        _logger.info(sep)
+
+    # Keep old name as alias for backward compatibility
+    def print_device_info(self) -> None:  # noqa: D102
+        """Deprecated alias for log_device_info(). Use log_device_info() instead."""
+        self.log_device_info()
 
 
 # Global singleton instance
