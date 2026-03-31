@@ -368,7 +368,6 @@ class ReasoningEngine:
                 )
                 provider = GeminiProvider(config)
                 logger.info("LLM provider: Gemini")
-                print("[INFO] Using Gemini API for reasoning")
                 return provider
             except Exception as e:
                 logger.warning(f"Gemini provider failed: {e}")
@@ -389,7 +388,6 @@ class ReasoningEngine:
                 )
                 provider = DeepSeekProvider(config)
                 logger.info("LLM provider: DeepSeek")
-                print("[INFO] Using DeepSeek API for reasoning")
                 return provider
             except Exception as e:
                 logger.warning(f"DeepSeek provider failed: {e}")
@@ -410,7 +408,6 @@ class ReasoningEngine:
                 )
                 provider = OpenAIProvider(config)
                 logger.info("LLM provider: OpenAI")
-                print("[INFO] Using OpenAI API for reasoning")
                 return provider
             except Exception as e:
                 logger.warning(f"OpenAI provider failed: {e}")
@@ -436,15 +433,9 @@ class ReasoningEngine:
                 "LLM provider: Ollama (local)",
                 timeout=ollama_timeout,
             )
-            print(
-                f"[INFO] Using LOCAL Ollama (timeout={ollama_timeout}s). "
-                "Set OLLAMA_TIMEOUT_SECONDS=120 for production."
-            )
             return provider
         except Exception as e:
             logger.error(f"Ollama provider failed: {e}")
-            print(f"[ERROR] Ollama unavailable: {e}")
-            print("[ERROR] Run: ollama serve  (or set a cloud API key)")
             return None
 
     async def process(self, raw_input: RawInput) -> ReasoningResult:
@@ -952,7 +943,6 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
                     )
 
                     logger.info(f"Using custom reasoning model (LOCAL Ollama) for query: {normalized_input.text}")
-                    print("[INFO] Using LOCAL Ollama model (may take 15-30 seconds for first response)...")
 
                     # Call through custom reasoning model's provider with a hard timeout
                     # so tests and offline environments fail fast instead of hanging.
@@ -973,8 +963,6 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
 
             except (Exception, asyncio.TimeoutError, asyncio.CancelledError) as reasoning_error:
                 logger.error(f"Custom reasoning (Ollama) failed: {reasoning_error}", exc_info=True)
-                print(f"[ERROR] Ollama failed: {reasoning_error}")
-                print("[ERROR] Please ensure Ollama is installed and running: ollama serve")
 
                 # Provide helpful error message
                 fallback_response = "I'm having trouble connecting to the local AI model. Please make sure Ollama is installed and running with: ollama serve"

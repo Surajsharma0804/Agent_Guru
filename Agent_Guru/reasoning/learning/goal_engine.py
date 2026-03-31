@@ -15,6 +15,7 @@ Date: 2024
 
 import asyncio
 import json
+import logging
 import sqlite3
 import uuid
 from datetime import datetime
@@ -26,6 +27,8 @@ from Agent_Guru.reasoning.models.goal import (
     PersistentGoal,
     TriggerType,
 )
+
+_logger = logging.getLogger(__name__)
 
 
 class GoalEngine:
@@ -507,7 +510,7 @@ class GoalEngine:
                 break
             except Exception as e:
                 # Log error but continue running
-                print(f"Error in goal evaluation loop: {e}")
+                _logger.error("Error in goal evaluation loop: %s", e)
                 await asyncio.sleep(self.evaluation_interval)
 
     async def evaluate_triggers(self) -> list[PersistentGoal]:
@@ -650,7 +653,7 @@ class GoalEngine:
 
             return False
         except Exception as e:
-            print(f"Error evaluating location trigger: {e}")
+            _logger.warning("Error evaluating location trigger: %s", e)
             return False
 
     async def _evaluate_event_trigger(self, goal: PersistentGoal) -> bool:
@@ -687,7 +690,7 @@ class GoalEngine:
 
             return False
         except Exception as e:
-            print(f"Error evaluating event trigger: {e}")
+            _logger.warning("Error evaluating event trigger: %s", e)
             return False
 
     def _matches_event_filter(self, event_data: dict, event_filter: dict) -> bool:
@@ -762,7 +765,7 @@ class GoalEngine:
             return result
 
         except Exception as e:
-            print(f"Error evaluating conditional trigger: {e}")
+            _logger.warning("Error evaluating conditional trigger: %s", e)
             return False
 
     def _safe_eval_condition(self, expression: str, context: dict) -> bool:
@@ -846,7 +849,7 @@ class GoalEngine:
             return bool(result)
 
         except Exception as e:
-            print(f"Error evaluating condition '{expression}': {e}")
+            _logger.warning("Error evaluating condition %r: %s", expression, e)
             return False
 
     async def execute_triggered_goal(self, goal: PersistentGoal) -> GoalExecutionResult:
@@ -955,7 +958,7 @@ class GoalEngine:
         """
         # TODO: Integrate with notification system
         # For now, just log
-        print(f"Notification: Goal '{goal.description}' is about to execute")
+        _logger.info("Goal '%s' is about to execute (notification stub)", goal.description)
 
     async def _check_goal_safety(self, goal: PersistentGoal) -> dict:
         """
@@ -1146,7 +1149,7 @@ class GoalEngine:
             if len(recent_executions) >= 5 and not any(recent_executions):
                 # Disable goal
                 await self.pause_goal(goal.goal_id)
-                print(f"Goal '{goal.description}' disabled after 5 consecutive failures")
+                _logger.warning("Goal '%s' paused after 5 consecutive failures", goal.description)
         finally:
             conn.close()
 

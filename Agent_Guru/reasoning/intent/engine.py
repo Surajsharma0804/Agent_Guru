@@ -51,10 +51,13 @@ Version: 1.0.0
 """
 
 import asyncio
+import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+_logger = logging.getLogger(__name__)
 
 from Agent_Guru.reasoning.intent.fast_router import FastIntentRouter, PatternMatch
 from Agent_Guru.reasoning.intent.intent_cache import IntentDetectionCache
@@ -193,12 +196,13 @@ class IntentDetectionEngine:
             patterns_path = Path(self.config.patterns_file)
             if patterns_path.exists():
                 self.fast_router.load_patterns(self.config.patterns_file)
-                print(
-                    f"[OK] Fast-Path Router initialized ({len(self.fast_router._patterns)} patterns)"
+                _logger.info(
+                    "Fast-Path Router initialized (%d patterns)",
+                    len(self.fast_router._patterns),
                 )
             else:
-                print(f"[WARNING] Patterns file not found: {self.config.patterns_file}")
-                print("[WARNING] Fast-Path Router disabled")
+                _logger.warning("Patterns file not found: %s — Fast-Path Router disabled",
+                                self.config.patterns_file)
                 self.fast_router = None
 
         # Initialize Neural Classifier
@@ -207,10 +211,9 @@ class IntentDetectionEngine:
                 neural_config = self.config.neural_config or ClassifierConfig()
                 self.neural_classifier = NeuralIntentClassifier(neural_config)
                 self.neural_classifier.load_model()
-                print("[OK] Neural Classifier initialized")
+                _logger.info("Neural Classifier initialized")
             except Exception as e:
-                print(f"[WARNING] Neural Classifier initialization failed: {e}")
-                print("[WARNING] Neural Classifier disabled")
+                _logger.warning("Neural Classifier initialization failed: %s — disabled", e)
                 self.neural_classifier = None
 
         # Initialize NER Extractor
@@ -219,10 +222,9 @@ class IntentDetectionEngine:
                 ner_config = self.config.ner_config or NERConfig()
                 self.ner_extractor = NEREntityExtractor(ner_config)
                 self.ner_extractor.load_model()
-                print("[OK] NER Extractor initialized")
+                _logger.info("NER Extractor initialized")
             except Exception as e:
-                print(f"[WARNING] NER Extractor initialization failed: {e}")
-                print("[WARNING] NER Extractor disabled")
+                _logger.warning("NER Extractor initialization failed: %s — disabled", e)
                 self.ner_extractor = None
 
         # Initialize LLM Fallback (prefer cloud APIs for speed, fallback to Ollama)
@@ -247,11 +249,10 @@ class IntentDetectionEngine:
                         timeout_ms=2000.0,  # 2 seconds for cloud
                     )
                     self.llm_fallback = LLMFallbackClassifier(llm_config)
-
                     if gemini_key:
-                        print("[OK] LLM Fallback initialized (DeepSeek PRIMARY + Gemini BACKUP - MULTI-API)")
+                        _logger.info("LLM Fallback: DeepSeek PRIMARY + Gemini BACKUP (MULTI-API)")
                     else:
-                        print("[OK] LLM Fallback initialized (DeepSeek API - FAST)")
+                        _logger.info("LLM Fallback: DeepSeek API (FAST)")
 
                 # Use Gemini as primary if no DeepSeek
                 elif gemini_key:
@@ -262,7 +263,7 @@ class IntentDetectionEngine:
                         timeout_ms=2000.0,
                     )
                     self.llm_fallback = LLMFallbackClassifier(llm_config)
-                    print("[OK] LLM Fallback initialized (Gemini API - FAST)")
+                    _logger.info("LLM Fallback: Gemini API (FAST)")
 
                 # Use OpenAI as fallback
                 elif openai_key:
@@ -273,7 +274,7 @@ class IntentDetectionEngine:
                         timeout_ms=2000.0,
                     )
                     self.llm_fallback = LLMFallbackClassifier(llm_config)
-                    print("[OK] LLM Fallback initialized (OpenAI API - FAST)")
+                    _logger.info("LLM Fallback: OpenAI API (FAST)")
 
                 # Fallback to Ollama (slow but free)
                 else:
@@ -283,13 +284,13 @@ class IntentDetectionEngine:
                         timeout_ms=20000.0,  # 20 seconds for Ollama (slow)
                     )
                     self.llm_fallback = LLMFallbackClassifier(llm_config)
-                    print("[OK] LLM Fallback initialized (Ollama - mistral:7b-instruct)")
-                    print("[WARNING] Ollama is SLOW (15-30s). Use cloud API for fast responses!")
-                    print("[TIP] Set DEEPSEEK_API_KEY or GEMINI_API_KEY environment variable")
+                    _logger.warning(
+                        "LLM Fallback: Ollama (mistral:7b-instruct) — SLOW (15-30s). "
+                        "Set DEEPSEEK_API_KEY or GEMINI_API_KEY for fast cloud responses."
+                    )
 
             except Exception as e:
-                print(f"[WARNING] LLM Fallback initialization failed: {e}")
-                print("[WARNING] LLM Fallback disabled")
+                _logger.warning("LLM Fallback initialization failed: %s — disabled", e)
                 self.llm_fallback = None
 
         # Initialize Online Learning
@@ -297,15 +298,14 @@ class IntentDetectionEngine:
             try:
                 self.feedback_store = FeedbackStore(self.config.feedback_db_path)
                 self.online_learner = OnlineLearner(self.feedback_store)
-                print("[OK] Online Learning initialized")
+                _logger.info("Online Learning initialized")
             except Exception as e:
-                print(f"[WARNING] Online Learning initialization failed: {e}")
-                print("[WARNING] Online Learning disabled")
+                _logger.warning("Online Learning initialization failed: %s — disabled", e)
                 self.feedback_store = None
                 self.online_learner = None
 
         self._initialized = True
-        print("[OK] Intent Detection Engine ready")
+        _logger.info("Intent Detection Engine ready")
 
     async def detect_intent_async(
         self,
@@ -383,7 +383,7 @@ class IntentDetectionEngine:
         # Step 2: Try Neural Classifier
         if self.neural_classifier:
             neural_attempted = True
-            neural_result = await asyncio.get_event_loop().run_in_executor(
+            neural_result = await asyncio.get_running_loop().run_in_executor(
                 None, self.neural_classifier.classify, text
             )
 
@@ -480,15 +480,17 @@ class IntentDetectionEngine:
         """
         # Run async method in event loop
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # If loop is already running, create a new task
-                future = asyncio.ensure_future(self.detect_intent_async(text, context, user_id))
-                return loop.run_until_complete(future)
-            else:
-                return loop.run_until_complete(self.detect_intent_async(text, context, user_id))
-        except RuntimeError:
-            # No current event loop (Python 3.11+) — create one
+            asyncio.get_running_loop()
+            # Already inside a running loop — cannot call run_until_complete.
+            # Callers inside async code should use detect_intent_async() directly.
+            raise RuntimeError(
+                "detect_intent() called from inside a running event loop. "
+                "Use 'await detect_intent_async()' instead."
+            )
+        except RuntimeError as exc:
+            if "running event loop" in str(exc):
+                raise
+            # No running loop — safe to use asyncio.run()
             return asyncio.run(self.detect_intent_async(text, context, user_id))
 
     # Mapping from pattern-file intent strings → valid IntentType enum values.

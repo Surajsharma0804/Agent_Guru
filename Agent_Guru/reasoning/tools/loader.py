@@ -5,6 +5,9 @@ This module discovers and registers all tools from the tools package.
 """
 
 import asyncio
+import logging
+
+_logger = logging.getLogger(__name__)
 
 from Agent_Guru.reasoning.tools.external import (
     CreateCalendarEventTool,
@@ -116,7 +119,7 @@ async def load_all_tools(registry: ToolRegistry | None = None) -> int:
             await registry.register(tool, tool.metadata)
             count += 1
         except Exception as e:
-            print(f"[WARNING] Failed to register {tool_class.__name__}: {e}")
+            _logger.warning("Failed to register %s: %s", tool_class.__name__, e)
 
     return count
 
@@ -128,17 +131,13 @@ def load_all_tools_sync() -> int:
         Number of tools registered
     """
     try:
-        # Try to get existing event loop
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # Event loop already running, create task
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, load_all_tools())
-                return future.result()
-        else:
-            return asyncio.run(load_all_tools())
+        asyncio.get_running_loop()
+        # Already in a running event loop — use a thread to avoid deadlock
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(asyncio.run, load_all_tools())
+            return future.result()
     except RuntimeError:
-        # No event loop, create one
+        # No running loop — safe to call asyncio.run() directly
         return asyncio.run(load_all_tools())
 

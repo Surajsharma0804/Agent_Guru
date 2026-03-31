@@ -24,9 +24,12 @@ Date: 2026-02-28
 Version: 1.0.0
 """
 
+import logging
 import time
 from datetime import datetime
 from typing import Any, Optional
+
+_logger = logging.getLogger(__name__)
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema
@@ -261,7 +264,7 @@ class SelfImprovementEngine:
         # Performance monitoring
         elapsed_ms = (time.time() - start_time) * 1000
         if elapsed_ms > 50:
-            print(f"WARNING: record_task_execution took {elapsed_ms:.2f}ms (target: <50ms)")
+            _logger.warning("record_task_execution took %.2fms (target: <50ms)", elapsed_ms)
 
     def get_optimal_strategy(
         self,
@@ -311,7 +314,7 @@ class SelfImprovementEngine:
         # Performance monitoring
         elapsed_ms = (time.time() - start_time) * 1000
         if elapsed_ms > 10:
-            print(f"WARNING: get_optimal_strategy took {elapsed_ms:.2f}ms (target: <10ms)")
+            _logger.warning("get_optimal_strategy took %.2fms (target: <10ms)", elapsed_ms)
 
         return strategy
 
@@ -624,7 +627,7 @@ class SelfImprovementEngine:
         )
 
         if not improvement:
-            print("WARNING: Insufficient data for improvement calculation")
+            _logger.warning("Insufficient data for improvement calculation")
             return
 
         # Calculate statistical significance
@@ -662,11 +665,12 @@ class SelfImprovementEngine:
 
         Validates: Requirements 7.5
         """
-        print("WARNING: Improvement target not met!")
-        print(f"   Target: {self.improvement_threshold * 100:.1f}% improvement")
-        print(f"   Actual: {report['improvement']['relative_improvement']:.1f}% improvement")
-        print(f"   Tasks completed: {report['total_tasks']}")
-
+        _logger.warning(
+            "Improvement target not met! Target: %.1f%%, Actual: %.1f%%, Tasks: %d",
+            self.improvement_threshold * 100,
+            report['improvement']['relative_improvement'],
+            report['total_tasks'],
+        )
         # Could integrate with monitoring system here
         # For now, just log the alert
 
@@ -699,7 +703,7 @@ class SelfImprovementEngine:
                 message=f"Task {execution.task_id}: {'Success' if execution.success else 'Failure'}"
             )
         except Exception as e:
-            print(f"WARNING: Git commit failed: {e}")
+            _logger.warning("Git commit failed for task %s: %s", execution.task_id, e)
             # Don't fail the task execution if Git commit fails
 
     def _commit_improvement_report(self, report: dict[str, Any]) -> None:
@@ -720,7 +724,7 @@ class SelfImprovementEngine:
                 message=f"Improvement Report: {report['total_tasks']} tasks completed"
             )
         except Exception as e:
-            print(f"WARNING: Git commit failed: {e}")
+            _logger.warning("Git commit failed for improvement report: %s", e)
 
     def close(self) -> None:
         """
@@ -735,14 +739,14 @@ class SelfImprovementEngine:
             try:
                 self.meta_learner.close()
             except Exception as e:
-                print(f"WARNING: Error closing meta_learner: {e}")
+                _logger.warning("Error closing meta_learner: %s", e)
 
         # Close connection pool
         if hasattr(self, 'pool') and self.pool:
             try:
                 self.pool.close_all()
             except Exception as e:
-                print(f"WARNING: Error closing connection pool: {e}")
+                _logger.warning("Error closing connection pool: %s", e)
 
         # Small delay to ensure Windows releases file locks
         import time
