@@ -256,3 +256,15 @@ FULL_REPOSITORY_AUDIT_REPORT.txt
 /*.pth
 /*.onnx
 /*.bin
+
+# Audit / one-off fix scripts (generated during dev sessions)
+audit_*.py
+audit_*.txt
+fix_*.py
+fix_*.txt
+hello.txt
+
+# Python cache files anywhere in the tree
+**/__pycache__/
+**/*.pyc
+**/*.pyo
