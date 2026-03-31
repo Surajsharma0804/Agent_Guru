@@ -18,7 +18,7 @@ import json
 import logging
 import sqlite3
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from Agent_Guru.reasoning.models.goal import (
@@ -570,7 +570,7 @@ class GoalEngine:
         from Agent_Guru.reasoning.models.goal import TimeBasedTrigger
 
         trigger = TimeBasedTrigger(**goal.trigger_condition)
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
 
         # Parse time_of_day
         hour, minute = map(int, trigger.time_of_day.split(":"))
@@ -871,7 +871,7 @@ class GoalEngine:
         Returns:
             Execution result
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Check safety constraints
@@ -911,7 +911,7 @@ class GoalEngine:
             )
 
             # Calculate execution time
-            execution_time = (datetime.utcnow() - start_time).total_seconds()
+            execution_time = (datetime.now(tz=timezone.utc) - start_time).total_seconds()
 
             # Create result
             result = GoalExecutionResult(
@@ -920,7 +920,7 @@ class GoalEngine:
                 result_data=result_data,
                 error=error,
                 execution_time=execution_time,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
 
             # Record execution
@@ -930,7 +930,7 @@ class GoalEngine:
 
         except Exception as e:
             # Handle execution error
-            execution_time = (datetime.utcnow() - start_time).total_seconds()
+            execution_time = (datetime.now(tz=timezone.utc) - start_time).total_seconds()
 
             result = GoalExecutionResult(
                 goal_id=goal.goal_id,
@@ -938,7 +938,7 @@ class GoalEngine:
                 result_data=None,
                 error=str(e),
                 execution_time=execution_time,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
 
             # Record failed execution

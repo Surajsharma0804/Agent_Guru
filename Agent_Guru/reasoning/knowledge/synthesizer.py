@@ -49,7 +49,7 @@ import logging
 import re
 import time
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field, ValidationError
@@ -276,7 +276,7 @@ class KnowledgeSynthesizer:
                 "query_text": query.query_text,
                 "query_type": query.query_type.value,
                 "query_confidence": query.confidence,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             },
         )
 
@@ -323,7 +323,7 @@ class KnowledgeSynthesizer:
                 "memories_used": len(answer.supporting_memories),
                 "patterns_detected": len(answer.patterns),
                 "latency_ms": round(elapsed_ms, 2),
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             },
         )
 
@@ -405,7 +405,7 @@ class KnowledgeSynthesizer:
                         "requested_user_id": user_id,
                         "memory_user_id": memory.user_id,
                         "memory_id": str(memory.memory_id),
-                        "timestamp": datetime.utcnow().isoformat(),
+                        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
                     },
                 )
 
@@ -1038,7 +1038,7 @@ class KnowledgeSynthesizer:
 
         # Factor 1: Recency boost (more recent = higher confidence)
         most_recent = max(memories, key=lambda m: m.timestamp)
-        days_ago = (datetime.utcnow() - most_recent.timestamp).days
+        days_ago = (datetime.now(tz=timezone.utc) - most_recent.timestamp).days
         if days_ago == 0:
             recency_boost = 0.15  # Today
         elif days_ago <= 7:
@@ -1253,7 +1253,7 @@ class KnowledgeSynthesizer:
 
         # Get most recent memory
         most_recent = max(memories, key=lambda m: m.timestamp)
-        days_ago = (datetime.utcnow() - most_recent.timestamp).days
+        days_ago = (datetime.now(tz=timezone.utc) - most_recent.timestamp).days
 
         # Format time reference
         if days_ago == 0:

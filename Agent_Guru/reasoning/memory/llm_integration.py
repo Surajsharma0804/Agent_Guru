@@ -29,7 +29,7 @@ Version: 1.0.0
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -294,7 +294,7 @@ class MemoryLLMIntegration:
             >>> integration = MemoryLLMIntegration(memory_retriever)
             >>> integration.track_memory_usage(context.memory_ids)
         """
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
 
         for memory_id in memory_ids:
             if memory_id in self.usage_stats:

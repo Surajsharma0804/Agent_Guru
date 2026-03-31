@@ -18,7 +18,7 @@ import json
 import sqlite3
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -162,7 +162,7 @@ class PatternDetector:
             await self.initialize()
 
         if timestamp is None:
-            timestamp = datetime.utcnow()
+            timestamp = datetime.now(tz=timezone.utc)
 
         async with self._lock:
             conn = sqlite3.connect(str(self.db_path))
@@ -205,7 +205,7 @@ class PatternDetector:
         if not self._initialized:
             await self.initialize()
 
-        since = datetime.utcnow() - timedelta(days=lookback_days)
+        since = datetime.now(tz=timezone.utc) - timedelta(days=lookback_days)
 
         async with self._lock:
             conn = sqlite3.connect(str(self.db_path))
@@ -398,13 +398,13 @@ class PatternDetector:
                         pattern.confidence,
                         pattern.last_occurrence.isoformat(),
                         json.dumps(pattern.metadata),
-                        datetime.utcnow().isoformat(),
+                        datetime.now(tz=timezone.utc).isoformat(),
                         existing[0],
                     ),
                 )
             else:
                 # Insert new pattern
-                now = datetime.utcnow().isoformat()
+                now = datetime.now(tz=timezone.utc).isoformat()
                 cursor.execute(
                     """
                     INSERT INTO time_patterns (

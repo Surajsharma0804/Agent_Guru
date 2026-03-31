@@ -11,7 +11,7 @@ Consistency formula:
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from Agent_Guru.memory.models import (
@@ -79,7 +79,7 @@ class PersonalityEvolutionEngine:
         profile.parameters = new_params
         profile.version += 1
         profile.metrics.interaction_count += 1
-        profile.metrics.last_updated = datetime.utcnow()
+        profile.metrics.last_updated = datetime.now(tz=timezone.utc)
 
         # Update satisfaction metric
         satisfaction_delta = {

@@ -17,7 +17,7 @@ import asyncio
 import json
 import sqlite3
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -198,11 +198,11 @@ class PreferenceLearner:
                         confidence=0.5,
                         learned_from=learned_from,
                         sample_count=1,
-                        last_updated=datetime.utcnow(),
+                        last_updated=datetime.now(tz=timezone.utc),
                         metadata=metadata or {},
                     )
 
-                    now = datetime.utcnow().isoformat()
+                    now = datetime.now(tz=timezone.utc).isoformat()
                     cursor.execute(
                         """
                         INSERT INTO user_preferences (

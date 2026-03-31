@@ -31,7 +31,7 @@ Version: 1.0.0
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -475,7 +475,7 @@ class MemoryStoragePipeline:
 
             try:
                 memory_timestamp = datetime.fromisoformat(timestamp_str)
-                age_hours = (datetime.utcnow() - memory_timestamp).total_seconds() / 3600
+                age_hours = (datetime.now(tz=timezone.utc) - memory_timestamp).total_seconds() / 3600
 
                 # Duplicate if within time window
                 if age_hours <= self.deduplication_window_hours:

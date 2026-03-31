@@ -14,7 +14,7 @@ Date: 2024
 """
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from Agent_Guru.reasoning.learning.app_tracker import AppTracker
@@ -101,7 +101,7 @@ class SuggestionGenerator:
             await self.initialize()
 
         if context is None:
-            now = datetime.utcnow()
+            now = datetime.now(tz=timezone.utc)
             context = {"hour": now.hour, "day": now.weekday()}
 
         suggestions = []
@@ -137,8 +137,8 @@ class SuggestionGenerator:
         Returns:
             List of time-based suggestions
         """
-        hour = context.get("hour", datetime.utcnow().hour)
-        day = context.get("day", datetime.utcnow().weekday())
+        hour = context.get("hour", datetime.now(tz=timezone.utc).hour)
+        day = context.get("day", datetime.now(tz=timezone.utc).weekday())
 
         # Get patterns for current time
         patterns = await self.pattern_detector.get_patterns_for_time(
@@ -157,8 +157,8 @@ class SuggestionGenerator:
                 relevance=self._calculate_time_relevance(pattern, hour, day),
                 based_on=f"time_pattern_{pattern.pattern_type.value}",
                 context=context,
-                created_at=datetime.utcnow(),
-                expires_at=datetime.utcnow() + timedelta(hours=1),
+                created_at=datetime.now(tz=timezone.utc),
+                expires_at=datetime.now(tz=timezone.utc) + timedelta(hours=1),
                 metadata={
                     "pattern_id": pattern.pattern_id,
                     "pattern_type": pattern.pattern_type.value,
@@ -199,8 +199,8 @@ class SuggestionGenerator:
                     relevance=0.7,
                     based_on="location_context",
                     context=context,
-                    created_at=datetime.utcnow(),
-                    expires_at=datetime.utcnow() + timedelta(minutes=30),
+                    created_at=datetime.now(tz=timezone.utc),
+                    expires_at=datetime.now(tz=timezone.utc) + timedelta(minutes=30),
                     metadata={"app_id": app.app_id, "open_count": app.open_count},
                 )
                 suggestions.append(suggestion)
@@ -235,7 +235,7 @@ class SuggestionGenerator:
 
         # Get recent commands to avoid duplicates
         recent_commands = await self.command_tracker.get_recent_commands(
-            user_id, since=datetime.utcnow() - timedelta(hours=1), limit=10
+            user_id, since=datetime.now(tz=timezone.utc) - timedelta(hours=1), limit=10
         )
         recent_command_set = {c.command for c in recent_commands}
 
@@ -255,8 +255,8 @@ class SuggestionGenerator:
                         relevance=0.6,
                         based_on="frequency_pattern",
                         context=context,
-                        created_at=datetime.utcnow(),
-                        expires_at=datetime.utcnow() + timedelta(hours=2),
+                        created_at=datetime.now(tz=timezone.utc),
+                        expires_at=datetime.now(tz=timezone.utc) + timedelta(hours=2),
                         metadata={
                             "frequency": cmd_freq.frequency,
                             "success_rate": cmd_freq.success_rate,

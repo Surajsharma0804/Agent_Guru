@@ -22,7 +22,7 @@ Version: 1.0.0
 
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -124,7 +124,7 @@ class ProgressTask(Task):
             meta={
                 "progress": progress,
                 "message": message,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             },
         )
 
@@ -251,7 +251,7 @@ class AsyncExecutor:
             task_id=task.id,
             status=TaskStatus.PENDING,
             action_id=action.action_id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(tz=timezone.utc),
         )
 
     def get_task_status(self, task_id: str) -> AsyncExecutionResult:
@@ -312,7 +312,7 @@ class AsyncExecutor:
             error=error,
             execution_time=execution_time,
             action_id=action_id,
-            completed_at=datetime.utcnow() if status in [TaskStatus.SUCCESS, TaskStatus.FAILURE] else None,
+            completed_at=datetime.now(tz=timezone.utc) if status in [TaskStatus.SUCCESS, TaskStatus.FAILURE] else None,
         )
 
     def cancel_task(self, task_id: str) -> bool:

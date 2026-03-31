@@ -142,7 +142,7 @@ class MemorySystemIntegration:
         if should_store:
             from datetime import datetime
             self._stored_metadata[content_id] = {
-                "stored_at": datetime.utcnow().isoformat(),
+                "stored_at": datetime.now(tz=timezone.utc).isoformat(),
                 "confidence": result.confidence,
                 "result_id": str(result.result_id),
             }
@@ -166,7 +166,7 @@ class MemorySystemIntegration:
             return False
         from datetime import datetime
         stored_at = datetime.fromisoformat(meta["stored_at"])
-        age_days = (datetime.utcnow() - stored_at).total_seconds() / 86400
+        age_days = (datetime.now(tz=timezone.utc) - stored_at).total_seconds() / 86400
         return age_days >= self._reverification_age_days
 
 

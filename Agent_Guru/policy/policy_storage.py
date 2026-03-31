@@ -18,7 +18,7 @@ import sqlite3
 import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from Agent_Guru.policy.models import Policy, PolicyEffect, Role
@@ -136,7 +136,7 @@ class PolicyStorage:
         if not policy.id:
             policy.id = str(uuid.uuid4())
 
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(tz=timezone.utc).isoformat()
         with self._conn() as conn:
             conn.execute(
                 """
@@ -186,7 +186,7 @@ class PolicyStorage:
 
         Validates: Requirement 1.5
         """
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(tz=timezone.utc).isoformat()
         with self._conn() as conn:
             # Increment version
             row = conn.execute(
@@ -326,7 +326,7 @@ class PolicyStorage:
         with self._conn() as conn:
             conn.execute(
                 "INSERT OR IGNORE INTO role_assignments (principal_id, role_id, assigned_at) VALUES (?, ?, ?)",
-                (principal_id, role_id, datetime.utcnow().isoformat()),
+                (principal_id, role_id, datetime.now(tz=timezone.utc).isoformat()),
             )
 
     def revoke_role(self, principal_id: str, role_id: str) -> None:

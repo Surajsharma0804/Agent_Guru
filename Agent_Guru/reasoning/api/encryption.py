@@ -28,7 +28,7 @@ Version: 1.0.0
 
 import base64
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import structlog
@@ -94,7 +94,7 @@ class EncryptionManager:
         self._fernet = Fernet(self._key)
 
         # Track key creation time for rotation
-        self._key_created_at = datetime.utcnow()
+        self._key_created_at = datetime.now(tz=timezone.utc)
 
     def encrypt(self, data: str) -> str:
         """Encrypt data.
@@ -187,7 +187,7 @@ class EncryptionManager:
             ...     # Rotate key
             ...     pass
         """
-        age = datetime.utcnow() - self._key_created_at
+        age = datetime.now(tz=timezone.utc) - self._key_created_at
         return age > timedelta(days=KEY_ROTATION_DAYS)
 
     def rotate_key(self, new_key: str) -> None:
@@ -202,7 +202,7 @@ class EncryptionManager:
         """
         self._key = new_key.encode()
         self._fernet = Fernet(self._key)
-        self._key_created_at = datetime.utcnow()
+        self._key_created_at = datetime.now(tz=timezone.utc)
 
         logger.info(
             "encryption_key_rotated",

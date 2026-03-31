@@ -11,7 +11,7 @@ Properties validated:
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -143,7 +143,7 @@ class GoalManagerIntegration:
 
     def store_goal_outcome(self, goal_id: UUID, outcome: dict[str, Any]) -> None:
         """Store the outcome of a completed goal."""
-        self._goal_outcomes[goal_id] = {**outcome, "stored_at": datetime.utcnow().isoformat()}
+        self._goal_outcomes[goal_id] = {**outcome, "stored_at": datetime.now(tz=timezone.utc).isoformat()}
         logger.debug("Stored goal outcome for %s", goal_id)
 
     def identify_knowledge_gaps(self, goal_task_type: str) -> list[str]:
@@ -217,7 +217,7 @@ class SelfImprovementIntegration:
     ) -> None:
         self._improvement_outcomes[improvement_id] = {
             **outcome,
-            "stored_at": datetime.utcnow().isoformat(),
+            "stored_at": datetime.now(tz=timezone.utc).isoformat(),
         }
 
 
@@ -268,5 +268,5 @@ class ModelRouterIntegration:
         if model not in self._model_performance:
             self._model_performance[model] = []
         self._model_performance[model].append(
-            {"task_id": str(task_id), "performance": performance, "timestamp": datetime.utcnow().isoformat()}
+            {"task_id": str(task_id), "performance": performance, "timestamp": datetime.now(tz=timezone.utc).isoformat()}
         )

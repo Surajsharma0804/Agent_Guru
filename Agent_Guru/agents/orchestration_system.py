@@ -6,6 +6,7 @@ Validates: Requirements 6.1, 7.1, 8.1, 8.2, 8.3, 8.4, 15.1
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
@@ -102,7 +103,6 @@ class OrchestrationSystem:
 
         Validates: Requirement 8.2 (dependency order), 8.3 (parallel execution)
         """
-        {t.id: t for t in tasks}
         completed: dict[str, TaskResult] = {}
 
         # Topological execution using dependency tracking
@@ -147,11 +147,13 @@ class OrchestrationSystem:
                 error="No agent available",
             )
 
+        t0 = time.perf_counter()
         try:
             success, output = await self._executor(agent_id, task)
         except Exception as exc:
             logger.error("Task %s execution failed: %s", task.id, exc)
             success, output = False, None
+        elapsed_ms = (time.perf_counter() - t0) * 1000
 
         # Record performance
         await self.tracker.record_performance(
@@ -159,7 +161,7 @@ class OrchestrationSystem:
             task_id=task.id,
             task_type=task.task_type,
             success=success,
-            completion_time_ms=0.0,
+            completion_time_ms=elapsed_ms,
             resource_usage={},
         )
 

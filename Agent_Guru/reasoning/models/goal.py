@@ -13,7 +13,7 @@ Author: Kiro AI
 Date: 2024
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -186,18 +186,18 @@ class PersistentGoal(BaseModel):
             return True
 
         # Check minimum interval
-        elapsed = (datetime.utcnow() - self.last_triggered).total_seconds()
+        elapsed = (datetime.now(tz=timezone.utc) - self.last_triggered).total_seconds()
         return elapsed >= min_interval_seconds
 
     def mark_triggered(self) -> None:
         """Mark goal as triggered."""
-        self.last_triggered = datetime.utcnow()
+        self.last_triggered = datetime.now(tz=timezone.utc)
         self.trigger_count += 1
         self.notification_sent = False
 
     def mark_evaluated(self) -> None:
         """Mark goal as evaluated."""
-        self.last_evaluated = datetime.utcnow()
+        self.last_evaluated = datetime.now(tz=timezone.utc)
 
 
 class GoalExecutionResult(BaseModel):

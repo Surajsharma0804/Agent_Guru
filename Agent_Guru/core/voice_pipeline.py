@@ -173,13 +173,13 @@ class VoicePipeline:
             try:
                 listener(current, next_state)
             except Exception as e:
-                logger.error(f"State listener error: {e}")
+                logger.error("State listener error: %s", e)
 
         for listener in self._event_listeners:
             try:
                 listener(event, data)
             except Exception as e:
-                logger.error(f"Event listener error: {e}")
+                logger.error("Event listener error: %s", e)
 
         return True
 
@@ -258,7 +258,7 @@ class VoicePipeline:
             error: Error description
         """
         self._error_count += 1
-        logger.error(f"Pipeline error: {error}")
+        logger.error("Pipeline error: %s", error)
         return self.dispatch(PipelineEvent.ERROR, error)
 
     def stop(self) -> bool:

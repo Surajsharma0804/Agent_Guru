@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import math
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -36,7 +36,7 @@ def _sigmoid(x: float) -> float:
 
 def _temporal_decay(timestamp: datetime, decay_lambda: float) -> float:
     """Exponential decay weight for evidence age."""
-    age_seconds = (datetime.utcnow() - timestamp).total_seconds()
+    age_seconds = (datetime.now(tz=timezone.utc) - timestamp).total_seconds()
     return math.exp(-decay_lambda * max(0.0, age_seconds))
 
 
@@ -77,7 +77,7 @@ class PreferenceLearningEngine:
             self._preferences[signal.user_id].append(pref)
         else:
             pref.evidence.append(evidence)
-            pref.updated_at = datetime.utcnow()
+            pref.updated_at = datetime.now(tz=timezone.utc)
 
         # Recalculate confidence
         pref.confidence = self._calculate_confidence(pref)
@@ -233,6 +233,6 @@ class PreferenceLearningEngine:
                 if pref.id == preference_id:
                     delta = 0.05 if outcome else -0.05
                     pref.confidence = min(1.0, max(0.0, pref.confidence + delta))
-                    pref.updated_at = datetime.utcnow()
+                    pref.updated_at = datetime.now(tz=timezone.utc)
                     return pref
         return None

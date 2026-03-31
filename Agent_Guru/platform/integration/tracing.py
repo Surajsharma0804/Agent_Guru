@@ -24,7 +24,7 @@ import logging
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -206,7 +206,7 @@ class Span:
         """
         self.events.append({
             "name": name,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(tz=timezone.utc).isoformat() + "Z",
             "attributes": attributes or {},
         })
 

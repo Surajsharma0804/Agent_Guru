@@ -52,7 +52,7 @@ import threading
 import time
 from collections import deque
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
@@ -345,7 +345,7 @@ class SecurityAuditor:
         self.policy_engine_client = policy_engine_client
 
         # Current log file (create immediately for consistency)
-        self.current_log_file = self.log_dir / f"audit_{datetime.utcnow().strftime('%Y%m%d')}.jsonl"
+        self.current_log_file = self.log_dir / f"audit_{datetime.now(tz=timezone.utc).strftime('%Y%m%d')}.jsonl"
 
         # Create log file immediately if it doesn't exist (CRITICAL FIX)
         if not self.current_log_file.exists():
@@ -446,7 +446,7 @@ class SecurityAuditor:
         redacted_params = self.redact_sensitive_data(parameters)
 
         # Create timestamp (UTC for consistency) - OPTIMIZED: reuse format
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(tz=timezone.utc).isoformat() + "Z"
 
         # Create entry with defaults (avoid conditional logic)
         entry = AuditLogEntry(
@@ -652,7 +652,7 @@ class SecurityAuditor:
             IOError: If archiving fails
         """
         if before_date is None:
-            before_date = datetime.utcnow() - timedelta(days=self.archive_after_days)
+            before_date = datetime.now(tz=timezone.utc) - timedelta(days=self.archive_after_days)
 
         archived_count = 0
 
@@ -1023,7 +1023,7 @@ class SecurityAuditor:
                     alert_type="rapid_failures",
                     description=f"Rapid failure pattern detected: {failure_count} failures in {self._rapid_failure_window}s",
                     affected_operations=[user_id],
-                    timestamp=datetime.utcnow().isoformat() + "Z",
+                    timestamp=datetime.now(tz=timezone.utc).isoformat() + "Z",
                     recommended_action="Investigate user activity, check for brute force attacks or system issues",
                 )
 
@@ -1097,7 +1097,7 @@ class SecurityAuditor:
                     alert_type="permission_probing",
                     description=f"Permission probing detected: {probe_count} permission checks in {self._permission_probe_window}s",
                     affected_operations=[user_id],
-                    timestamp=datetime.utcnow().isoformat() + "Z",
+                    timestamp=datetime.now(tz=timezone.utc).isoformat() + "Z",
                     recommended_action="Review user permissions, check for privilege escalation attempts",
                 )
 
@@ -1169,7 +1169,7 @@ class SecurityAuditor:
                     alert_type="unusual_access_pattern",
                     description=f"Unusual access pattern detected: {access_count} accesses in {self._unusual_access_window}s",
                     affected_operations=[user_id],
-                    timestamp=datetime.utcnow().isoformat() + "Z",
+                    timestamp=datetime.now(tz=timezone.utc).isoformat() + "Z",
                     recommended_action="Monitor user activity, check for automated scripts or bots",
                 )
 
@@ -1269,7 +1269,7 @@ class SecurityAuditor:
             ...     "Investigate immediately"
             ... )
         """
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(tz=timezone.utc).isoformat() + "Z"
         alert_id = hashlib.sha256(
             f"{alert_type}_{timestamp}_{description}".encode()
         ).hexdigest()[:16]
@@ -1624,17 +1624,17 @@ class SecurityAuditor:
 
     def _rotate_log(self) -> None:
         """Rotate log file when size limit reached."""
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
         rotated_file = self.log_dir / f"audit_{timestamp}.jsonl"
 
         # Windows fix: Check if rotated file already exists
         if rotated_file.exists():
             # Add microseconds to make unique
-            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
+            timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
             rotated_file = self.log_dir / f"audit_{timestamp}.jsonl"
 
         self.current_log_file.rename(rotated_file)
-        self.current_log_file = self.log_dir / f"audit_{datetime.utcnow().strftime('%Y%m%d')}.jsonl"
+        self.current_log_file = self.log_dir / f"audit_{datetime.now(tz=timezone.utc).strftime('%Y%m%d')}.jsonl"
 
         logger.info("log_rotated", new_file=str(self.current_log_file))
 

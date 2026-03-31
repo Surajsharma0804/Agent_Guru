@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import html
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from Agent_Guru.policy.access_controller import AccessController
@@ -94,8 +94,8 @@ class PermissionManager:
             resources=[resource_id],
             actions=actions,
             conditions=conditions or {},
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(tz=timezone.utc),
+            updated_at=datetime.now(tz=timezone.utc),
             active=True,
         )
         existing = self.storage.get_policy(policy_id)
@@ -141,8 +141,8 @@ class PermissionManager:
             resources=[resource_id],
             actions=actions,
             conditions=conditions or {},
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(tz=timezone.utc),
+            updated_at=datetime.now(tz=timezone.utc),
             active=True,
         )
         existing = self.storage.get_policy(policy_id)

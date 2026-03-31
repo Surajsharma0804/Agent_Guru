@@ -16,7 +16,7 @@ Date: 2024
 import asyncio
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -179,7 +179,7 @@ class FeedbackStore:
                         feedback.feedback_type.value,
                         feedback.model_version,
                         json.dumps(feedback.metadata),
-                        datetime.utcnow().isoformat(),
+                        datetime.now(tz=timezone.utc).isoformat(),
                     ),
                 )
                 conn.commit()
@@ -309,7 +309,7 @@ class FeedbackStore:
                         metrics.low_confidence_rate,
                         metrics.correction_rate,
                         json.dumps(metrics.metadata),
-                        datetime.utcnow().isoformat(),
+                        datetime.now(tz=timezone.utc).isoformat(),
                     ),
                 )
                 conn.commit()

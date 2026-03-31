@@ -33,7 +33,7 @@ import hashlib
 import os
 import secrets
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 
@@ -241,7 +241,7 @@ class APIKeyManager:
         # Calculate expiration
         expires_at = None
         if expires_in_days:
-            expires_at = datetime.utcnow() + timedelta(days=expires_in_days)
+            expires_at = datetime.now(tz=timezone.utc) + timedelta(days=expires_in_days)
 
         # Create API key object
         api_key = APIKey(
@@ -250,7 +250,7 @@ class APIKeyManager:
             user_id=user_id,
             role=role,
             name=name,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(tz=timezone.utc),
             expires_at=expires_at,
             is_active=True,
         )
@@ -294,11 +294,11 @@ class APIKeyManager:
             return None
 
         # Check expiration
-        if api_key.expires_at and datetime.utcnow() > api_key.expires_at:
+        if api_key.expires_at and datetime.now(tz=timezone.utc) > api_key.expires_at:
             return None
 
         # Update last used
-        api_key.last_used = datetime.utcnow()
+        api_key.last_used = datetime.now(tz=timezone.utc)
 
         return api_key
 
@@ -543,7 +543,7 @@ def create_access_token(user_id: str, role: Role = Role.USER) -> str:
         >>> token = create_access_token("user_123", Role.ADMIN)
         >>> print(token)
     """
-    now = datetime.utcnow()
+    now = datetime.now(tz=timezone.utc)
     exp = now + timedelta(hours=JWT_EXPIRATION_HOURS)
 
     payload = {

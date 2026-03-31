@@ -59,7 +59,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -120,7 +120,7 @@ class OperationResult:
     message: str
     error: Optional[str] = None
     metadata: dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(tz=timezone.utc).isoformat())
 
 
 @dataclass
@@ -311,7 +311,7 @@ class OSController:
             return
 
         entry = AuditLogEntry(
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(tz=timezone.utc).isoformat(),
             category=category.value,
             operation=operation,
             success=success,

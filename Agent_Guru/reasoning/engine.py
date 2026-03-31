@@ -275,9 +275,9 @@ class ReasoningEngine:
         from Agent_Guru.reasoning.tools.loader import load_all_tools_sync
         try:
             tool_count = load_all_tools_sync()
-            logger.info(f"Loaded {tool_count} tools into registry")
+            logger.info("Loaded %s tools into registry", tool_count)
         except Exception as e:
-            logger.warning(f"Failed to load some tools: {e}")
+            logger.warning("Failed to load some tools: %s", e)
 
         self.memory_retriever = memory_retriever
         self.knowledge_detector = knowledge_detector or KnowledgeQueryDetector()
@@ -370,7 +370,7 @@ class ReasoningEngine:
                 logger.info("LLM provider: Gemini")
                 return provider
             except Exception as e:
-                logger.warning(f"Gemini provider failed: {e}")
+                logger.warning("Gemini provider failed: %s", e)
 
         # ------------------------------------------------------------------ #
         # 2. DeepSeek — fast and cost-effective                               #
@@ -390,7 +390,7 @@ class ReasoningEngine:
                 logger.info("LLM provider: DeepSeek")
                 return provider
             except Exception as e:
-                logger.warning(f"DeepSeek provider failed: {e}")
+                logger.warning("DeepSeek provider failed: %s", e)
 
         # ------------------------------------------------------------------ #
         # 3. OpenAI — reliable, widely supported                              #
@@ -410,7 +410,7 @@ class ReasoningEngine:
                 logger.info("LLM provider: OpenAI")
                 return provider
             except Exception as e:
-                logger.warning(f"OpenAI provider failed: {e}")
+                logger.warning("OpenAI provider failed: %s", e)
 
         # ------------------------------------------------------------------ #
         # 4. Ollama — local fallback (desktop / self-hosted production)       #
@@ -435,7 +435,7 @@ class ReasoningEngine:
             )
             return provider
         except Exception as e:
-            logger.error(f"Ollama provider failed: {e}")
+            logger.error("Ollama provider failed: %s", e)
             return None
 
     async def process(self, raw_input: RawInput) -> ReasoningResult:
@@ -942,7 +942,7 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
                         stop_sequences=["\nUser:", "\n\n"],
                     )
 
-                    logger.info(f"Using custom reasoning model (LOCAL Ollama) for query: {normalized_input.text}")
+                    logger.info("Using custom reasoning model (LOCAL Ollama) for query: %s", normalized_input.text)
 
                     # Call through custom reasoning model's provider with a hard timeout
                     # so tests and offline environments fail fast instead of hanging.
@@ -994,7 +994,7 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
 
                 # If reasoning plan generated successfully, use it
                 if reasoning_plan and reasoning_plan.steps:
-                    logger.info(f"Custom reasoning plan generated: {len(reasoning_plan.steps)} steps")
+                    logger.info("Custom reasoning plan generated: %s steps", len(reasoning_plan.steps))
 
                     # Execute the reasoning plan
                     response_text = f"{reasoning_plan.reasoning}"

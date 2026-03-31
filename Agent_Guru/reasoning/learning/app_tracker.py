@@ -16,7 +16,7 @@ Date: 2024
 import asyncio
 import json
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -132,7 +132,7 @@ class AppTracker:
 
         # Record session start time
         session_key = (user_id, app_id)
-        self._active_sessions[session_key] = datetime.utcnow()
+        self._active_sessions[session_key] = datetime.now(tz=timezone.utc)
 
         async with self._lock:
             conn = sqlite3.connect(str(self.db_path))
@@ -153,7 +153,7 @@ class AppTracker:
                     # Update existing record
                     usage = self._row_to_usage(row)
                     usage.open_count += 1
-                    usage.last_used = datetime.utcnow()
+                    usage.last_used = datetime.now(tz=timezone.utc)
 
                     cursor.execute(
                         """
@@ -166,7 +166,7 @@ class AppTracker:
                         (
                             usage.open_count,
                             usage.last_used.isoformat(),
-                            datetime.utcnow().isoformat(),
+                            datetime.now(tz=timezone.utc).isoformat(),
                             user_id,
                             app_id,
                         ),
@@ -180,12 +180,12 @@ class AppTracker:
                         open_count=1,
                         total_duration=0.0,
                         avg_duration=0.0,
-                        last_used=datetime.utcnow(),
+                        last_used=datetime.now(tz=timezone.utc),
                         usage_patterns=[],
                         metadata=metadata or {},
                     )
 
-                    now = datetime.utcnow().isoformat()
+                    now = datetime.now(tz=timezone.utc).isoformat()
                     cursor.execute(
                         """
                         INSERT INTO app_usage (
@@ -237,7 +237,7 @@ class AppTracker:
         session_key = (user_id, app_id)
         if duration is None and session_key in self._active_sessions:
             start_time = self._active_sessions[session_key]
-            duration = (datetime.utcnow() - start_time).total_seconds()
+            duration = (datetime.now(tz=timezone.utc) - start_time).total_seconds()
             del self._active_sessions[session_key]
 
         if duration is None:
@@ -276,7 +276,7 @@ class AppTracker:
                             usage.total_duration,
                             usage.avg_duration,
                             usage.last_used.isoformat(),
-                            datetime.utcnow().isoformat(),
+                            datetime.now(tz=timezone.utc).isoformat(),
                             user_id,
                             app_id,
                         ),
@@ -293,12 +293,12 @@ class AppTracker:
                         open_count=1,
                         total_duration=duration,
                         avg_duration=duration,
-                        last_used=datetime.utcnow(),
+                        last_used=datetime.now(tz=timezone.utc),
                         usage_patterns=[],
                         metadata={},
                     )
 
-                    now = datetime.utcnow().isoformat()
+                    now = datetime.now(tz=timezone.utc).isoformat()
                     cursor.execute(
                         """
                         INSERT INTO app_usage (
@@ -416,7 +416,7 @@ class AppTracker:
             await self.initialize()
 
         if since is None:
-            since = datetime.utcnow() - timedelta(days=7)
+            since = datetime.now(tz=timezone.utc) - timedelta(days=7)
 
         async with self._lock:
             conn = sqlite3.connect(str(self.db_path))

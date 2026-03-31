@@ -16,7 +16,7 @@ Time Complexity:
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -191,7 +191,7 @@ class DeduplicationEngine:
                 "attributes": merged_attrs,
                 "confidence": max(e1.confidence, e2.confidence),
                 "versions": e1.versions + e2.versions,
-                "updated_at": datetime.utcnow(),
+                "updated_at": datetime.now(tz=timezone.utc),
             }
         )
         result = MergeResult(
@@ -211,7 +211,7 @@ class DeduplicationEngine:
             update={
                 "evidence": combined_evidence,
                 "confidence": new_confidence,
-                "updated_at": datetime.utcnow(),
+                "updated_at": datetime.now(tz=timezone.utc),
             }
         )
         result = MergeResult(

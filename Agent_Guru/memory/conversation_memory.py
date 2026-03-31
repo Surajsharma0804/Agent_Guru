@@ -27,7 +27,7 @@ import os
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class ConversationTurn:
     """
     role: str
     content: str
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(tz=timezone.utc).isoformat())
     turn_id: int = 0
 
     def to_dict(self) -> dict:

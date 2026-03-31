@@ -31,7 +31,7 @@ Version: 1.0.0
 
 import asyncio
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -333,7 +333,7 @@ class MemoryRetriever:
 
         # Compute scores for each memory
         scored_memories: list[tuple[float, Memory]] = []
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
 
         for memory in memories:
             # Semantic similarity (0.6 weight)
@@ -500,7 +500,7 @@ class MemoryRetriever:
         relevance = memory.relevance_score
 
         # Recency score (0.3 weight)
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         age_days = (now - memory.timestamp).total_seconds() / 86400
         recency = max(0.0, 1.0 - (age_days / self.relevance_decay_days))
 
@@ -590,7 +590,7 @@ class MemoryRetriever:
 
         # Compute importance scores
         scored_memories: list[tuple[float, UUID, Memory]] = []
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
 
         for memory_id, memory in user_memories:
             importance = self.compute_importance_score(memory)

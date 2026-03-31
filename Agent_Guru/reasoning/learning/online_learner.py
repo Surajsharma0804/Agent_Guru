@@ -15,7 +15,7 @@ Date: 2024
 
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from Agent_Guru.reasoning.learning.feedback_store import FeedbackStore
@@ -117,7 +117,7 @@ class OnlineLearner:
         feedback = IntentFeedback(
             feedback_id=str(uuid.uuid4()),
             user_id=user_id,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
             original_input=original_input,
             predicted_intent=predicted_intent,
             predicted_entities=predicted_entities,
@@ -150,7 +150,7 @@ class OnlineLearner:
 
         # Default to last 7 days
         if since is None:
-            since = datetime.utcnow() - timedelta(days=7)
+            since = datetime.now(tz=timezone.utc) - timedelta(days=7)
 
         # Get feedback entries
         feedback_list = await self.store.get_feedback_since(
@@ -162,7 +162,7 @@ class OnlineLearner:
             return ModelPerformanceMetrics(
                 metric_id=str(uuid.uuid4()),
                 model_version=self.model_version,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 total_predictions=0,
                 correct_predictions=0,
                 accuracy=0.0,
@@ -202,7 +202,7 @@ class OnlineLearner:
         metrics = ModelPerformanceMetrics(
             metric_id=str(uuid.uuid4()),
             model_version=self.model_version,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
             total_predictions=total,
             correct_predictions=correct,
             accuracy=correct / total,
@@ -212,7 +212,7 @@ class OnlineLearner:
             correction_rate=corrections / total,
             metadata={
                 "period_start": since.isoformat(),
-                "period_end": datetime.utcnow().isoformat(),
+                "period_end": datetime.now(tz=timezone.utc).isoformat(),
             },
         )
 
@@ -322,7 +322,7 @@ class OnlineLearner:
         # Get feedback counts
         total_feedback = await self.store.get_feedback_count(model_version=self.model_version)
         recent_feedback = await self.store.get_feedback_count(
-            model_version=self.model_version, since=datetime.utcnow() - timedelta(days=7)
+            model_version=self.model_version, since=datetime.now(tz=timezone.utc) - timedelta(days=7)
         )
 
         # Check retraining status

@@ -16,7 +16,7 @@ Date: 2024
 import asyncio
 import json
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -175,7 +175,7 @@ class CommandTracker:
                             freq.successful_executions,
                             freq.avg_latency,
                             json.dumps(freq.metadata),
-                            datetime.utcnow().isoformat(),
+                            datetime.now(tz=timezone.utc).isoformat(),
                             user_id,
                             command,
                         ),
@@ -186,7 +186,7 @@ class CommandTracker:
                         command=command,
                         user_id=user_id,
                         frequency=1,
-                        last_used=datetime.utcnow(),
+                        last_used=datetime.now(tz=timezone.utc),
                         success_rate=1.0 if success else 0.0,
                         total_executions=1,
                         successful_executions=1 if success else 0,
@@ -194,7 +194,7 @@ class CommandTracker:
                         metadata=metadata or {},
                     )
 
-                    now = datetime.utcnow().isoformat()
+                    now = datetime.now(tz=timezone.utc).isoformat()
                     cursor.execute(
                         """
                         INSERT INTO command_frequency (
@@ -312,7 +312,7 @@ class CommandTracker:
             await self.initialize()
 
         if since is None:
-            since = datetime.utcnow() - timedelta(days=7)
+            since = datetime.now(tz=timezone.utc) - timedelta(days=7)
 
         async with self._lock:
             conn = sqlite3.connect(str(self.db_path))

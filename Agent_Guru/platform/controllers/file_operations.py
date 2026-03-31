@@ -56,7 +56,7 @@ import logging
 import os
 import shutil
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -205,7 +205,7 @@ class FileOperationsController:
             return
 
         entry = AuditLogEntry(
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(tz=timezone.utc).isoformat(),
             operation=operation.value,
             path=path,
             success=success,

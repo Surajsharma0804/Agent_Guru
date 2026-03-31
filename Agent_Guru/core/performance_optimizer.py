@@ -23,7 +23,6 @@ import platform
 import time
 from collections import deque
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from typing import Any, Optional, TypeVar
 
 logger = logging.getLogger(__name__)
@@ -32,13 +31,17 @@ _PLATFORM = platform.system().lower()
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-@dataclass
-class LatencyStats:
-    """Rolling latency statistics for a named operation."""
+class LatencyAccumulator:
+    """Rolling latency accumulator for a named pipeline stage.
 
-    name: str
-    target_ms: float
-    _samples: deque[float] = field(default_factory=lambda: deque(maxlen=1000))
+    Collects live samples and computes mean/p95 on demand.
+    Use LatencyStats (from core.performance) for computed result snapshots.
+    """
+
+    def __init__(self, name: str, target_ms: float) -> None:
+        self.name = name
+        self.target_ms = target_ms
+        self._samples: deque[float] = deque(maxlen=1000)
 
     def record(self, latency_ms: float) -> None:
         self._samples.append(latency_ms)
@@ -88,19 +91,19 @@ class PerformanceOptimizer:
         - Memory: O(1000) samples per stage (rolling window)
     """
 
-    # Latency targets per stage (ms)
+    # Latency targets per stage (ms) — matches _TARGETS_MS in core.performance
     _TARGETS: dict[str, float] = {
-        "wake_word": 200.0,
-        "stt": 1000.0,
-        "intent": 100.0,
-        "llm": 2000.0,
-        "tts": 500.0,
-        "end_to_end": 4000.0,
+        "wake_word":   50.0,    # ≤50ms  (core.performance.PipelineStage.WAKE_WORD)
+        "stt":        120.0,    # ≤120ms/s of audio
+        "intent":      50.0,    # ≤50ms
+        "llm":        300.0,    # ≤300ms first token
+        "tts":        200.0,    # ≤200ms
+        "end_to_end": 2500.0,   # ≤2500ms
     }
 
     def __init__(self) -> None:
-        self._stats: dict[str, LatencyStats] = {
-            name: LatencyStats(name=name, target_ms=target)
+        self._stats: dict[str, LatencyAccumulator] = {
+            name: LatencyAccumulator(name=name, target_ms=target)
             for name, target in self._TARGETS.items()
         }
         self._response_cache: dict[str, str] = {}
@@ -124,7 +127,7 @@ class PerformanceOptimizer:
             elapsed_ms = (time.perf_counter() - self._start) * 1000
             self._stats.record(elapsed_ms)
 
-    def measure(self, stage: str) -> "_Timer":
+    def measure(self, stage: str) -> "PerformanceOptimizer._Timer":
         """Context manager to measure latency for a pipeline stage.
 
         Args:
@@ -134,7 +137,7 @@ class PerformanceOptimizer:
             Context manager that records elapsed time on exit.
         """
         if stage not in self._stats:
-            self._stats[stage] = LatencyStats(name=stage, target_ms=float("inf"))
+            self._stats[stage] = LatencyAccumulator(name=stage, target_ms=float("inf"))
         return self._Timer(self._stats[stage])
 
     # ------------------------------------------------------------------

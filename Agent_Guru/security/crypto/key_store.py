@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -71,7 +71,7 @@ class KeyStore:
                     INSERT OR REPLACE INTO keys (key_id, encrypted_key, nonce, created_at)
                     VALUES (?, ?, ?, ?)
                     """,
-                    (key_id, encrypted, nonce, datetime.utcnow().isoformat()),
+                    (key_id, encrypted, nonce, datetime.now(tz=timezone.utc).isoformat()),
                 )
         except Exception as exc:
             raise KeyStorageError(f"Failed to store key: type={type(exc).__name__}") from exc

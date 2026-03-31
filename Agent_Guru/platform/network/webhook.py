@@ -25,7 +25,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -383,7 +383,7 @@ class WebhookManager:
             # Parse timestamp
             timestamp = float(timestamp_str)
             event_time = datetime.utcfromtimestamp(timestamp)
-            current_time = datetime.utcnow()
+            current_time = datetime.now(tz=timezone.utc)
 
             # Check if timestamp is within tolerance
             age = (current_time - event_time).total_seconds()
@@ -462,7 +462,7 @@ class WebhookManager:
         # Extract event metadata
         event_id = payload.get("id", hashlib.sha256(body).hexdigest()[:16])
         event_type = payload.get("type") or payload.get("event") or "unknown"
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(tz=timezone.utc)
 
         # Verify signature if required
         verified = False
@@ -523,7 +523,7 @@ class WebhookManager:
 
         # Update handler statistics
         async with self._lock:
-            handler.last_triggered = datetime.utcnow()
+            handler.last_triggered = datetime.now(tz=timezone.utc)
             handler.trigger_count += 1
 
         # Route to handler (async, non-blocking)

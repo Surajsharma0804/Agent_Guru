@@ -9,7 +9,7 @@ Date: 2026-02-22
 
 import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -290,7 +290,7 @@ async def send_deployment_started(
         commit_sha=commit_sha,
         commit_message=commit_message,
         deployer=deployer,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(tz=timezone.utc),
         status=DeploymentStatus.STARTED,
         logs_url="https://github.com/agent-guru/agent-guru/actions",
         metrics_url="https://prometheus.agent-guru.example.com",
@@ -328,7 +328,7 @@ async def send_deployment_success(
         commit_sha=commit_sha,
         commit_message=commit_message,
         deployer=deployer,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(tz=timezone.utc),
         status=DeploymentStatus.SUCCESS,
         duration_seconds=duration_seconds,
         logs_url="https://github.com/agent-guru/agent-guru/actions",
@@ -369,7 +369,7 @@ async def send_deployment_failure(
         commit_sha=commit_sha,
         commit_message=commit_message,
         deployer=deployer,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(tz=timezone.utc),
         status=DeploymentStatus.FAILURE,
         duration_seconds=duration_seconds,
         error_message=error_message,
@@ -405,7 +405,7 @@ async def send_deployment_rollback(
         commit_sha=commit_sha,
         commit_message=f"Rollback reason: {reason}",
         deployer="Automatic Rollback System",
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(tz=timezone.utc),
         status=DeploymentStatus.ROLLBACK,
         error_message=reason,
         logs_url="https://github.com/agent-guru/agent-guru/actions",

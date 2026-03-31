@@ -22,7 +22,7 @@ import hashlib
 import math
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -86,7 +86,7 @@ class FeatureFlag:
     def set_rollout(self, percentage: float) -> None:
         """Set rollout percentage and update strategy."""
         self.rollout_percentage = max(0.0, min(100.0, percentage))
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(tz=timezone.utc)
 
         if percentage == 0.0:
             self.strategy = RolloutStrategy.DISABLED
@@ -523,7 +523,7 @@ class ABTestManager:
             return None
 
         experiment.is_active = False
-        experiment.ended_at = datetime.utcnow()
+        experiment.ended_at = datetime.now(tz=timezone.utc)
 
         if analysis["recommendation"] == "deploy_treatment":
             experiment.winner = "treatment"

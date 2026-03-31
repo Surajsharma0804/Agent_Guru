@@ -13,7 +13,7 @@ import logging
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -180,7 +180,7 @@ class ConfirmationHandler:
             )
         description = description or f"Confirm: {action} on {resource_id}"
 
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         req = ConfirmationRequest(
             id=str(uuid.uuid4()),
             principal_id=principal_id,
@@ -238,9 +238,9 @@ class ConfirmationHandler:
         req = self._pending.get(request_id)
         if req is None:
             return None
-        if req.status == ConfirmationStatus.PENDING and datetime.utcnow() > req.expires_at:
+        if req.status == ConfirmationStatus.PENDING and datetime.now(tz=timezone.utc) > req.expires_at:
             req.status = ConfirmationStatus.EXPIRED
-            req.resolved_at = datetime.utcnow()
+            req.resolved_at = datetime.now(tz=timezone.utc)
         return req.status
 
     def get_pending(self, principal_id: Optional[str] = None) -> list[ConfirmationRequest]:
@@ -249,7 +249,7 @@ class ConfirmationHandler:
         Args:
             principal_id: Filter by principal (None = all principals).
         """
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         result = []
         for req in self._pending.values():
             if req.status == ConfirmationStatus.PENDING:
@@ -275,6 +275,6 @@ class ConfirmationHandler:
         if req is None or req.status != ConfirmationStatus.PENDING:
             return False
         req.status = status
-        req.resolved_at = datetime.utcnow()
+        req.resolved_at = datetime.now(tz=timezone.utc)
         req.resolution_reason = reason
         return True

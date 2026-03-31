@@ -20,7 +20,7 @@ import sqlite3
 import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from Agent_Guru.policy.models import AccessDecision, AuditRecord, PolicyEffect
@@ -144,7 +144,7 @@ class AuditLogger:
                 """,
                 (
                     record_id,
-                    datetime.utcnow().isoformat(),
+                    datetime.now(tz=timezone.utc).isoformat(),
                     principal_id,
                     resource_id,
                     resource_type,
@@ -250,7 +250,7 @@ class AuditLogger:
 
         Validates: Requirements 6.5, 6.6
         """
-        cutoff = (datetime.utcnow() - timedelta(days=self.retention_days)).isoformat()
+        cutoff = (datetime.now(tz=timezone.utc) - timedelta(days=self.retention_days)).isoformat()
         with self._conn() as conn:
             cursor = conn.execute(
                 "DELETE FROM audit_log WHERE timestamp < ?", (cutoff,)

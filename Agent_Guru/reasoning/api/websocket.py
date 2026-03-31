@@ -32,7 +32,7 @@ Version: 1.0.0
 import asyncio
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
@@ -363,7 +363,7 @@ class ConnectionManager:
                     try:
                         await websocket.send_json({
                             "type": "ping",
-                            "timestamp": datetime.utcnow().isoformat(),
+                            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
                         })
                     except Exception as e:
                         logger.error(

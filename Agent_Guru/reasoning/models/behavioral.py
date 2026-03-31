@@ -13,7 +13,7 @@ Author: Kiro AI
 Date: 2024
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -75,7 +75,7 @@ class CommandFrequency(BaseModel):
 
         # Update frequency and last used
         self.frequency += 1
-        self.last_used = datetime.utcnow()
+        self.last_used = datetime.now(tz=timezone.utc)
 
 
 class PatternType(str, Enum):
@@ -123,7 +123,7 @@ class TimePattern(BaseModel):
     def update_occurrence(self) -> None:
         """Update pattern with new occurrence."""
         self.frequency += 1
-        self.last_occurrence = datetime.utcnow()
+        self.last_occurrence = datetime.now(tz=timezone.utc)
 
         # Update confidence based on frequency
         # More occurrences = higher confidence (asymptotic to 1.0)
@@ -166,7 +166,7 @@ class AppUsage(BaseModel):
         self.open_count += 1
         self.total_duration += duration
         self.avg_duration = self.total_duration / self.open_count
-        self.last_used = datetime.utcnow()
+        self.last_used = datetime.now(tz=timezone.utc)
 
 
 class PreferenceType(str, Enum):
@@ -238,7 +238,7 @@ class UserPreference(BaseModel):
                 self.preference_value = new_value
                 self.confidence = 0.5
 
-        self.last_updated = datetime.utcnow()
+        self.last_updated = datetime.now(tz=timezone.utc)
 
 
 class ProactiveSuggestion(BaseModel):
@@ -275,7 +275,7 @@ class ProactiveSuggestion(BaseModel):
 
     def is_expired(self) -> bool:
         """Check if suggestion has expired."""
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(tz=timezone.utc) > self.expires_at
 
     def calculate_score(self) -> float:
         """

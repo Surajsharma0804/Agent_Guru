@@ -19,7 +19,7 @@ Design Decisions:
 import asyncio
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from Agent_Guru.reasoning.llm.client import LLMClient
@@ -171,7 +171,7 @@ Respond in JSON format:
             issues=issues,
             recommendation=recommendation,
             verification_time_ms=verification_time_ms,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
     async def _verify_tool_compatibility(self, task: Task) -> list[VerificationIssue]:

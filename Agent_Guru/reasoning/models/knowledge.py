@@ -22,7 +22,7 @@ Date: 2024
 Version: 1.0.0
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -106,7 +106,7 @@ class TimeRange(BaseModel):
             >>> print(time_range.description)
             'last week'
         """
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         start = now - timedelta(days=7)
         return cls(start=start, end=now, description="last week")
 
@@ -122,7 +122,7 @@ class TimeRange(BaseModel):
             >>> print(time_range.description)
             'last month'
         """
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         start = now - timedelta(days=30)
         return cls(start=start, end=now, description="last month")
 
@@ -138,7 +138,7 @@ class TimeRange(BaseModel):
             >>> print(time_range.description)
             'last year'
         """
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         start = now - timedelta(days=365)
         return cls(start=start, end=now, description="last year")
 
@@ -162,7 +162,7 @@ class TimeRange(BaseModel):
         """
         if n <= 0:
             raise ValueError(f"Number of days must be positive, got {n}")
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         start = now - timedelta(days=n)
         return cls(start=start, end=now, description=f"last {n} days")
 
@@ -178,7 +178,7 @@ class TimeRange(BaseModel):
             >>> print(time_range.description)
             'today'
         """
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         return cls(start=start, end=now, description="today")
 
@@ -194,7 +194,7 @@ class TimeRange(BaseModel):
             >>> print(time_range.description)
             'yesterday'
         """
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         end = now.replace(hour=0, minute=0, second=0, microsecond=0)
         start = end - timedelta(days=1)
         return cls(start=start, end=end, description="yesterday")

@@ -1,6 +1,6 @@
 """Conversation state management data models."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -227,7 +227,7 @@ class ConversationState(BaseModel):
             turn: Turn to add
         """
         self.turns.append(turn)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(tz=timezone.utc)
 
         # Update last intent
         if turn.intent:
@@ -289,7 +289,7 @@ class ConversationState(BaseModel):
                 confidence=confidence,
             )
 
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(tz=timezone.utc)
 
     def get_entity(self, entity_type: str) -> Optional[TrackedEntity]:
         """
@@ -327,7 +327,7 @@ class ConversationState(BaseModel):
 
         pruned_count = len(self.turns) - max_turns
         self.turns = self.turns[-max_turns:]
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(tz=timezone.utc)
 
         return pruned_count
 

@@ -278,7 +278,7 @@ class ResourceMonitor:
             import psutil
             return psutil.cpu_percent(interval=interval)
         except Exception as e:
-            logger.warning(f"CPU measurement failed: {e}")
+            logger.warning("CPU measurement failed: %s", e)
             return -1.0
 
     def get_memory_mb(self) -> float:
@@ -296,7 +296,7 @@ class ResourceMonitor:
             proc = psutil.Process(os.getpid())
             return proc.memory_info().rss / (1024 * 1024)
         except Exception as e:
-            logger.warning(f"Memory measurement failed: {e}")
+            logger.warning("Memory measurement failed: %s", e)
             return -1.0
 
     def meets_idle_cpu_target(self) -> bool:

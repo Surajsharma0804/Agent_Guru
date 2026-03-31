@@ -26,7 +26,7 @@ import logging
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -282,7 +282,7 @@ class RetrainingScheduler:
         run = TrainingRun(
             run_id=str(uuid.uuid4()),
             model_version=self._learner.model_version,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(tz=timezone.utc),
             status=TrainingStatus.RUNNING,
             metadata={"trigger_reason": trigger_reason},
         )
@@ -295,7 +295,7 @@ class RetrainingScheduler:
             if len(training_data) < self._config.min_new_examples:
                 run.status = TrainingStatus.FAILED
                 run.rollback_reason = f"Insufficient training data: {len(training_data)}"
-                run.completed_at = datetime.utcnow()
+                run.completed_at = datetime.now(tz=timezone.utc)
                 self._training_history.append(run)
                 return run
 
@@ -341,7 +341,7 @@ class RetrainingScheduler:
             run.rollback_reason = str(exc)
             logger.error("Training failed: %s", exc)
 
-        run.completed_at = datetime.utcnow()
+        run.completed_at = datetime.now(tz=timezone.utc)
         self._training_history.append(run)
         return run
 
@@ -394,7 +394,7 @@ class DriftMonitor:
         current_accuracy = metrics.accuracy if metrics else 0.0
 
         # Record drift check
-        self._drift_history.append((datetime.utcnow(), current_accuracy, has_drifted))
+        self._drift_history.append((datetime.now(tz=timezone.utc), current_accuracy, has_drifted))
 
         # Trim history to last 1000 checks
         if len(self._drift_history) > 1000:
@@ -523,7 +523,7 @@ class ContinuousTrainingPipeline:
         training_run = await self.scheduler.check_and_retrain()
 
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "has_drifted": has_drifted,
             "current_accuracy": current_accuracy,
             "retraining_triggered": training_run is not None,

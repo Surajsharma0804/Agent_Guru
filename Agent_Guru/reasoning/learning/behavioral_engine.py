@@ -15,7 +15,7 @@ Date: 2024
 
 import asyncio
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from Agent_Guru.reasoning.learning.app_tracker import AppTracker
@@ -153,7 +153,7 @@ class BehavioralEngine:
             conn = sqlite3.connect(str(self.db_path))
             try:
                 cursor = conn.cursor()
-                now = datetime.utcnow().isoformat()
+                now = datetime.now(tz=timezone.utc).isoformat()
 
                 cursor.execute(
                     """
@@ -189,7 +189,7 @@ class BehavioralEngine:
                     SET learning_enabled = 0, updated_at = ?
                     WHERE user_id = ?
                 """,
-                    (datetime.utcnow().isoformat(), user_id),
+                    (datetime.now(tz=timezone.utc).isoformat(), user_id),
                 )
                 conn.commit()
             finally:
@@ -358,7 +358,7 @@ class BehavioralEngine:
             detected_patterns=len(patterns),
             learned_preferences=len(preferences),
             suggestion_acceptance_rate=suggestion_stats["acceptance_rate"],
-            last_updated=datetime.utcnow(),
+            last_updated=datetime.now(tz=timezone.utc),
             metadata={
                 "avg_success_rate": command_analysis["avg_success_rate"],
                 "avg_latency": command_analysis["avg_latency"],
@@ -418,10 +418,10 @@ class BehavioralEngine:
                     ) VALUES (?, ?, 'delete_all', ?, ?)
                 """,
                     (
-                        f"del_{user_id}_{datetime.utcnow().timestamp()}",
+                        f"del_{user_id}_{datetime.now(tz=timezone.utc).timestamp()}",
                         user_id,
                         sum(counts.values()),
-                        datetime.utcnow().isoformat(),
+                        datetime.now(tz=timezone.utc).isoformat(),
                     ),
                 )
 
@@ -462,7 +462,7 @@ class BehavioralEngine:
                 retention_days = row[0] if row else self.default_retention_days
 
                 # Calculate cutoff date
-                cutoff = datetime.utcnow() - timedelta(days=retention_days)
+                cutoff = datetime.now(tz=timezone.utc) - timedelta(days=retention_days)
                 cutoff_str = cutoff.isoformat()
 
                 # Delete old records
@@ -497,10 +497,10 @@ class BehavioralEngine:
                         ) VALUES (?, ?, 'retention_policy', ?, ?)
                     """,
                         (
-                            f"ret_{user_id}_{datetime.utcnow().timestamp()}",
+                            f"ret_{user_id}_{datetime.now(tz=timezone.utc).timestamp()}",
                             user_id,
                             total_deleted,
-                            datetime.utcnow().isoformat(),
+                            datetime.now(tz=timezone.utc).isoformat(),
                         ),
                     )
 
@@ -530,7 +530,7 @@ class BehavioralEngine:
 
         return {
             "user_id": user_id,
-            "exported_at": datetime.utcnow().isoformat(),
+            "exported_at": datetime.now(tz=timezone.utc).isoformat(),
             "commands": [
                 {
                     "command": c.command,

@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 
 from Agent_Guru.memory.models import MetricSnapshot, MetricType
 
@@ -90,7 +90,7 @@ class MetricsEngine:
             metric_type=metric_type,
             value=value,
             metadata=metadata or {},
-            timestamp=timestamp or datetime.utcnow(),
+            timestamp=timestamp or datetime.now(tz=timezone.utc),
         )
         bucket = self._store[metric_type]
         bucket.append(snap)

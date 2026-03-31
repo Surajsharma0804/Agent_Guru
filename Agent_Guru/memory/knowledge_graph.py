@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import defaultdict, deque
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -97,7 +97,7 @@ class KnowledgeGraph:
         existing = self._entities[entity_id]
         # Close the current head version
         if existing.versions:
-            existing.versions[-1].valid_until = datetime.utcnow()
+            existing.versions[-1].valid_until = datetime.now(tz=timezone.utc)
         new_version = EntityVersion(
             attributes=attributes,
             confidence=confidence,
@@ -106,7 +106,7 @@ class KnowledgeGraph:
         existing.versions.append(new_version)
         existing.attributes = attributes
         existing.confidence = confidence
-        existing.updated_at = datetime.utcnow()
+        existing.updated_at = datetime.now(tz=timezone.utc)
         return entity_id
 
     async def update_entity(
@@ -125,7 +125,7 @@ class KnowledgeGraph:
             new_conf = confidence if confidence is not None else entity.confidence
             # Close previous head version
             if entity.versions:
-                entity.versions[-1].valid_until = datetime.utcnow()
+                entity.versions[-1].valid_until = datetime.now(tz=timezone.utc)
             version = EntityVersion(
                 attributes=new_attrs,
                 confidence=new_conf,
@@ -134,7 +134,7 @@ class KnowledgeGraph:
             entity.versions.append(version)
             entity.attributes = new_attrs
             entity.confidence = new_conf
-            entity.updated_at = datetime.utcnow()
+            entity.updated_at = datetime.now(tz=timezone.utc)
             return version
 
     async def get_entity(self, entity_id: UUID) -> Entity:
@@ -204,7 +204,7 @@ class KnowledgeGraph:
 
         Time Complexity: O(V + E)
         """
-        start = datetime.utcnow()
+        start = datetime.now(tz=timezone.utc)
         visited_entities: dict[UUID, float] = {}  # entity_id -> relevance
         visited_rels: set[UUID] = set()
 
@@ -252,7 +252,7 @@ class KnowledgeGraph:
                     if neighbor not in visited_entities:
                         queue.append((neighbor, depth + 1, relevance * rel.confidence))
 
-        elapsed = int((datetime.utcnow() - start).total_seconds() * 1000)
+        elapsed = int((datetime.now(tz=timezone.utc) - start).total_seconds() * 1000)
         entities = [self._entities[eid].model_copy(deep=True) for eid in visited_entities]
         relationships = [self._relationships[rid].model_copy(deep=True) for rid in visited_rels]
         relevance_scores = {str(eid): score for eid, score in visited_entities.items()}
@@ -285,7 +285,7 @@ class KnowledgeGraph:
             e1.versions.extend(e2.versions)
             # Higher confidence wins
             e1.confidence = max(e1.confidence, e2.confidence)
-            e1.updated_at = datetime.utcnow()
+            e1.updated_at = datetime.now(tz=timezone.utc)
 
             # Re-point ALL relationships referencing e2 to e1
             for stored_rel in self._relationships.values():

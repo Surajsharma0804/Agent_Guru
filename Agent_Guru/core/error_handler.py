@@ -23,7 +23,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -265,7 +265,7 @@ class ErrorLogger:
                 self._log_path.rename(rotated)
                 logger.info(f"ErrorLogger: rotated {self._log_path} → {rotated}")
         except OSError as e:
-            logger.warning(f"ErrorLogger: rotation failed: {e}")
+            logger.warning("ErrorLogger: rotation failed: %s", e)
 
     def get_recent_errors(self, n: int = 100) -> list[ErrorRecord]:
         """Read the n most recent error records.
@@ -363,7 +363,7 @@ class ErrorHandler:
             self._error_counts[category] += 1
 
         record = ErrorRecord(
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(tz=timezone.utc).isoformat(),
             category=category,
             severity=severity,
             component=component,
@@ -385,7 +385,7 @@ class ErrorHandler:
             try:
                 self._speech_callback(user_message)
             except Exception as e:
-                logger.warning(f"Speech callback failed: {e}")
+                logger.warning("Speech callback failed: %s", e)
 
         return recovered
 

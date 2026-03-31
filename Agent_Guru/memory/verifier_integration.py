@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Protocol
 from uuid import UUID, uuid4
 
@@ -46,7 +46,7 @@ class VerificationAuditEntry:
         self.item_id = item_id
         self.item_type = item_type
         self.result = result
-        self.timestamp = timestamp or datetime.utcnow()
+        self.timestamp = timestamp or datetime.now(tz=timezone.utc)
 
 
 # ---------------------------------------------------------------------------

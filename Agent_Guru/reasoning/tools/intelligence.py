@@ -20,7 +20,7 @@ import json
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
@@ -175,7 +175,7 @@ class AlertManager:
             return False
 
         # Count alerts in last hour
-        one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+        one_hour_ago = datetime.now(tz=timezone.utc) - timedelta(hours=1)
         recent_count = sum(1 for ts in self._alert_counts[tool_id] if ts > one_hour_ago)
 
         return recent_count >= self._max_alerts_per_hour
@@ -213,7 +213,7 @@ class AlertManager:
 
     def _cleanup_old_alerts(self) -> None:
         """Remove alerts older than dedup window."""
-        cutoff = datetime.utcnow() - self._dedup_window
+        cutoff = datetime.now(tz=timezone.utc) - self._dedup_window
 
         # Cleanup recent alerts
         to_remove = [
@@ -223,7 +223,7 @@ class AlertManager:
             del self._recent_alerts[tool_id]
 
         # Cleanup alert counts (keep last 24 hours)
-        one_day_ago = datetime.utcnow() - timedelta(days=1)
+        one_day_ago = datetime.now(tz=timezone.utc) - timedelta(days=1)
         for tool_id in list(self._alert_counts.keys()):
             self._alert_counts[tool_id] = [
                 ts for ts in self._alert_counts[tool_id] if ts > one_day_ago
@@ -359,8 +359,8 @@ class ToolStats(BaseModel):
         self.successful_executions += 1
         self.total_executions += 1
         self.consecutive_failures = 0
-        self.last_execution_time = datetime.utcnow()
-        self.last_success_time = datetime.utcnow()
+        self.last_execution_time = datetime.now(tz=timezone.utc)
+        self.last_success_time = datetime.now(tz=timezone.utc)
 
         # Update average latency (exponential moving average)
         if self.avg_latency == 0.0:
@@ -370,7 +370,7 @@ class ToolStats(BaseModel):
             self.avg_latency = 0.8 * self.avg_latency + 0.2 * latency_ms
 
         self.update_success_rate()
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(tz=timezone.utc)
 
         # Check if tool should be re-enabled after degradation
         if self.is_degraded and self.consecutive_failures == 0:
@@ -408,14 +408,14 @@ class ToolStats(BaseModel):
         self.failed_executions += 1
         self.total_executions += 1
         self.consecutive_failures += 1
-        self.last_execution_time = datetime.utcnow()
+        self.last_execution_time = datetime.now(tz=timezone.utc)
 
         # Track failure pattern
         pattern_key = failure_pattern.value
         self.failure_patterns[pattern_key] = self.failure_patterns.get(pattern_key, 0) + 1
 
         self.update_success_rate()
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(tz=timezone.utc)
 
         # Check if tool should be marked as degraded
         # Only mark as degraded if we have enough data (at least 5 executions)
@@ -482,7 +482,7 @@ class ToolStats(BaseModel):
             self.user_rating = 0.7 * self.user_rating + 0.3 * rating
 
         self.user_feedback_count += 1
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(tz=timezone.utc)
 
     def get_most_common_failure(self) -> Optional[str]:
         """Get the most common failure pattern.
@@ -583,8 +583,8 @@ class UserToolPreference(BaseModel):
     def record_selection(self) -> None:
         """Record that user selected this tool."""
         self.selection_count += 1
-        self.last_selected = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.last_selected = datetime.now(tz=timezone.utc)
+        self.updated_at = datetime.now(tz=timezone.utc)
 
         # Increase preference score slightly (EMA with alpha=0.1)
         self.preference_score = 0.9 * self.preference_score + 0.1 * 1.0
@@ -596,7 +596,7 @@ class UserToolPreference(BaseModel):
             positive: True for positive feedback, False for negative
         """
         self.feedback_count += 1
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(tz=timezone.utc)
 
         # Update preference score based on feedback (EMA with alpha=0.2)
         feedback_value = 1.0 if positive else 0.0

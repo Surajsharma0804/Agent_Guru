@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from cryptography.hazmat.primitives import hashes, serialization
@@ -101,7 +101,7 @@ class IdentityManager:
             key_pair = KeyPair(
                 public_key=public_bytes,
                 private_key=private_bytes,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(tz=timezone.utc),
             )
 
             # Store private key in key store
@@ -165,12 +165,12 @@ class IdentityManager:
             )
 
             # Deprecate old key (mark on the profile's original key_pair)
-            profile.key_pair.deprecated_at = datetime.utcnow()
+            profile.key_pair.deprecated_at = datetime.now(tz=timezone.utc)
 
             new_key_pair = KeyPair(
                 public_key=public_bytes,
                 private_key=private_bytes,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(tz=timezone.utc),
             )
 
             # Store new private key; update profile.key_pair to the new key
