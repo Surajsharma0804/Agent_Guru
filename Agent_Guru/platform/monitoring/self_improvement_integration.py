@@ -27,7 +27,11 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
+import logging
+
 from .resource_monitor import AlertSeverity, ResourceAlert, ResourceSnapshot, ResourceType
+
+_logger = logging.getLogger(__name__)
 
 
 class MetricType(Enum):
@@ -136,7 +140,7 @@ class SelfImprovementIntegration:
             # Isolate errors - don't let them affect monitoring
             self._error_count += 1
             if self.enable_logging:
-                print(f"Error in Self-Improvement integration: {e}")
+                _logger.error("Error in Self-Improvement integration: %s", e)
 
     def on_resource_snapshot(self, snapshot: ResourceSnapshot) -> None:
         """
@@ -183,7 +187,7 @@ class SelfImprovementIntegration:
         except Exception as e:
             self._error_count += 1
             if self.enable_logging:
-                print(f"Error sending snapshot to Self-Improvement Engine: {e}")
+                _logger.error("Error sending snapshot to Self-Improvement Engine: %s", e)
 
     def on_threshold_exceeded(
         self,
@@ -218,7 +222,7 @@ class SelfImprovementIntegration:
         except Exception as e:
             self._error_count += 1
             if self.enable_logging:
-                print(f"Error notifying threshold exceeded: {e}")
+                _logger.error("Error notifying threshold exceeded: %s", e)
 
     def on_resource_exhaustion_predicted(
         self,
@@ -257,7 +261,7 @@ class SelfImprovementIntegration:
         except Exception as e:
             self._error_count += 1
             if self.enable_logging:
-                print(f"Error notifying resource exhaustion prediction: {e}")
+                _logger.error("Error notifying resource exhaustion prediction: %s", e)
 
     def _send_metric(self, metric: SelfImprovementMetric) -> None:
         """
@@ -272,9 +276,12 @@ class SelfImprovementIntegration:
         self._notification_count += 1
 
         if self.enable_logging:
-            print(f"[Self-Improvement] {metric.metric_type.value}: "
-                  f"{metric.resource_type.value if metric.resource_type else 'N/A'} "
-                  f"at {metric.timestamp.isoformat()}")
+            _logger.debug(
+                "Self-Improvement metric: %s resource=%s ts=%s",
+                metric.metric_type.value,
+                metric.resource_type.value if metric.resource_type else "N/A",
+                metric.timestamp.isoformat(),
+            )
 
         # TODO: Implement actual Self-Improvement Engine API call
         # Example:

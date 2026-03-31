@@ -146,25 +146,47 @@ class IntentResult:
 _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(open|launch|start|run)\b.+", re.I), "open_app"),
     (re.compile(r"\b(close|quit|exit|kill)\b.+", re.I), "close_app"),
+    (re.compile(r"\b(uninstall|remove app|delete app)\b.+", re.I), "uninstall_app"),
     (re.compile(r"\b(volume|sound)\b.*(up|down|mute|unmute|\d+)", re.I), "volume"),
     (re.compile(r"\b(mute|unmute)\b", re.I), "volume"),
     (re.compile(r"\b(brightness)\b.*(up|down|\d+)", re.I), "brightness"),
-    (re.compile(r"\b(shutdown|restart|reboot|sleep|hibernate)\b", re.I), "power"),
-    (re.compile(r"\b(minimize|maximise|maximize|restore|fullscreen)\b", re.I), "window"),
-    (re.compile(r"\b(screenshot|screen shot|capture screen)\b", re.I), "screenshot"),
-    (re.compile(r"\b(switch|alt.?tab)\b", re.I), "switch_app"),
-    (re.compile(r"\b(wifi|bluetooth|airplane mode|do not disturb)\b", re.I), "settings"),
+    (re.compile(r"\bset\s+brightness\s+to\s+\d+", re.I), "brightness"),
+    (re.compile(r"\b(shutdown|turn off|power off)\b.*\b(pc|computer|laptop|system)\b", re.I), "shutdown"),
+    (re.compile(r"\b(restart|reboot|reset)\b.*\b(pc|computer|laptop|system)\b", re.I), "restart"),
+    (re.compile(r"\b(sleep|hibernate)\b", re.I), "power"),
+    (re.compile(r"\b(minimize|minimise|maximize|maximise|restore|fullscreen)\b", re.I), "window"),
+    (re.compile(r"\b(screenshot|screen shot|capture screen|take screenshot)\b", re.I), "screenshot"),
+    (re.compile(r"\b(switch to|switch app|alt.?tab|go to app)\b.+", re.I), "switch_app"),
+    (re.compile(r"\b(next track|skip track|next song|skip song)\b", re.I), "next_track"),
+    (re.compile(r"\b(previous track|prev track|previous song|last song|go back)\b", re.I), "previous_track"),
+    (re.compile(r"\b(stop music|stop media|stop playing|stop song)\b", re.I), "stop_media"),
+    (re.compile(r"\b(play|resume)\b.*(music|song|media|video|audio|track)\b", re.I), "play_pause"),
+    (re.compile(r"\b(pause)\b.*(music|song|media|video|audio|track|playing)\b", re.I), "play_pause"),
+    (re.compile(r"\b(type|write|input)\b.+\b(in|into|on)\b.+", re.I), "type_text"),
+    (re.compile(r"\b(type|write|input)\b\s+[\"']?.+[\"']?", re.I), "type_text"),
+    (re.compile(r"\b(wifi|wi-fi|wireless)\b", re.I), "settings"),
+    (re.compile(r"\b(bluetooth)\b", re.I), "settings"),
+    (re.compile(r"\b(airplane mode|do not disturb|dnd)\b", re.I), "settings"),
+]
+
+# Web / browser patterns — matched before information to catch "open youtube", "play X on youtube"
+_WEB_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"\b(open|go to|navigate to|visit)\b.*(youtube|google|gmail|github|reddit|twitter|facebook|instagram|linkedin|amazon|netflix|spotify|wikipedia|stackoverflow)\b", re.I), "open_url"),
+    (re.compile(r"\b(open|go to|visit)\s+(https?://\S+)", re.I), "open_url"),
+    (re.compile(r"\bplay\b.+\bon\s+(youtube|spotify)\b", re.I), "web_search"),
+    (re.compile(r"\b(search|look up|find)\b.+\bon\s+(youtube|google|bing)\b", re.I), "web_search"),
+    (re.compile(r"\b(youtube|google)\b.*(search|find|look up)\b.+", re.I), "web_search"),
 ]
 
 _INFORMATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\b(what|who|where|when|why|how)\b.+\??\s*$", re.I), "question"),
-    (re.compile(r"\b(search|look up|find|google)\b.+", re.I), "search"),
+    (re.compile(r"\b(time|date|day|today|what time|what day)\b", re.I), "time_date"),
     (re.compile(r"\b(weather|temperature|forecast)\b", re.I), "weather"),
     (re.compile(r"\b(news|headlines|latest)\b", re.I), "news"),
-    (re.compile(r"\b(time|date|day|today)\b", re.I), "time_date"),
+    (re.compile(r"\b(search|look up|find|google)\b.+", re.I), "search"),
     (re.compile(r"\b(calculate|compute|math|how much)\b.+", re.I), "calculation"),
     (re.compile(r"\b(translate|translation)\b.+", re.I), "translation"),
     (re.compile(r"\b(define|definition|meaning of)\b.+", re.I), "definition"),
+    (re.compile(r"\b(what|who|where|when|why|how)\b.+\??\s*$", re.I), "question"),
 ]
 
 _COMMUNICATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -195,6 +217,36 @@ _CONVERSATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 ]
 
 
+def _extract_web_query(text: str) -> dict[str, str]:
+    """Extract URL/query and engine from a web command.
+
+    Returns:
+        dict with keys 'query' and 'engine'
+    """
+    # "play despacito on youtube" → query="despacito", engine="youtube"
+    m = re.search(r"\bplay\s+(.+?)\s+on\s+(youtube|spotify)\b", text, re.I)
+    if m:
+        return {"query": m.group(1).strip(), "engine": m.group(2).lower()}
+
+    # "search python tutorials on google"
+    m = re.search(r"\b(?:search|look up|find)\s+(.+?)\s+on\s+(youtube|google|bing)\b", text, re.I)
+    if m:
+        return {"query": m.group(1).strip(), "engine": m.group(2).lower()}
+
+    # "open youtube" / "go to github"
+    m = re.search(
+        r"\b(?:open|go to|navigate to|visit)\s+(youtube|google|gmail|github|reddit|twitter|"
+        r"facebook|instagram|linkedin|amazon|netflix|spotify|wikipedia|stackoverflow|https?://\S+)",
+        text, re.I
+    )
+    if m:
+        return {"query": m.group(1).strip(), "engine": "direct"}
+
+    # Fallback: everything after the action verb
+    cleaned = re.sub(r"^\s*(open|go to|visit|search|look up|find|play)\s+", "", text, flags=re.I).strip()
+    return {"query": cleaned, "engine": "google"}
+
+
 def _extract_app_name(text: str) -> str:
     """Extract application name from a command string."""
     # Remove leading action words
@@ -204,6 +256,8 @@ def _extract_app_name(text: str) -> str:
         text,
         flags=re.I,
     ).strip()
+    # Stop at conjunctions/prepositions that indicate a second action
+    cleaned = re.split(r"\s+(?:and|then|after|&)\s+", cleaned, maxsplit=1)[0].strip()
     # Take first meaningful word(s) up to 3 words
     words = cleaned.split()
     return " ".join(words[:3]) if words else ""
@@ -224,13 +278,15 @@ def _extract_file_path(text: str) -> str:
     quoted = re.search(r'["\']([^"\']+)["\']', text)
     if quoted:
         return quoted.group(1)
-    # Otherwise take words after action verb
+    # Otherwise take words after action verb, stripping "file"/"folder"/"directory" keywords
     cleaned = re.sub(
         r"^\s*(create|make|new|delete|remove|trash|move|copy|rename|open|save)\s+",
         "",
         text,
         flags=re.I,
     ).strip()
+    # Strip leading "file", "folder", "directory", "document" keywords
+    cleaned = re.sub(r"^(file|folder|directory|document)\s+", "", cleaned, flags=re.I).strip()
     return cleaned[:100]  # Limit length
 
 
@@ -265,7 +321,8 @@ class _RuleEngine:
 
         # Try each category in priority order
         result = (
-            self._try_system_control(stripped, platform_name)
+            self._try_web(stripped, platform_name)
+            or self._try_system_control(stripped, platform_name)
             or self._try_communication(stripped, platform_name)
             or self._try_file_ops(stripped, platform_name)
             or self._try_information(stripped, platform_name)
@@ -289,12 +346,66 @@ class _RuleEngine:
     # Category matchers
     # ------------------------------------------------------------------
 
+    def _try_web(self, text: str, plat: str) -> Optional[IntentResult]:
+        for pattern, action in _WEB_PATTERNS:
+            if pattern.search(text):
+                web_params = _extract_web_query(text)
+                params: dict[str, Any] = {"action": action, **web_params}
+                return IntentResult(
+                    intent_type="system_control",
+                    parameters=params,
+                    confidence=0.80,
+                    raw_text=text,
+                    platform=plat,
+                    method="rule_based",
+                )
+        return None
+
     def _try_system_control(self, text: str, plat: str) -> Optional[IntentResult]:
         for pattern, action in _SYSTEM_CONTROL_PATTERNS:
             if pattern.search(text):
                 params: dict[str, Any] = {"action": action}
                 if action in ("open_app", "close_app", "switch_app"):
                     params["app"] = _extract_app_name(text)
+                elif action == "uninstall_app":
+                    app = re.sub(r"^\s*(uninstall|remove app|delete app)\s+", "", text, flags=re.I).strip()
+                    params["app"] = app
+                    params["requires_confirmation"] = True
+                elif action in ("shutdown", "restart"):
+                    params["requires_confirmation"] = True
+                elif action == "volume":
+                    num = re.search(r"\d+", text)
+                    if num:
+                        params["level"] = int(num.group())
+                    elif re.search(r"\bup\b", text, re.I):
+                        params["direction"] = "up"
+                    elif re.search(r"\bdown\b", text, re.I):
+                        params["direction"] = "down"
+                    elif re.search(r"\b(mute|unmute)\b", text, re.I):
+                        params["direction"] = re.search(r"\b(mute|unmute)\b", text, re.I).group(1).lower()
+                elif action == "brightness":
+                    num = re.search(r"\d+", text)
+                    if num:
+                        params["level"] = int(num.group())
+                elif action == "window":
+                    if re.search(r"\bminimize\b|\bminimise\b", text, re.I):
+                        params["direction"] = "minimize"
+                    elif re.search(r"\bmaximize\b|\bmaximise\b", text, re.I):
+                        params["direction"] = "maximize"
+                elif action in ("switch_app",):
+                    # Extract app name after "switch to"
+                    m = re.search(r"\b(?:switch to|go to app)\s+(.+)", text, re.I)
+                    if m:
+                        params["app"] = m.group(1).strip()
+                    else:
+                        params["app"] = _extract_app_name(text)
+                elif action == "type_text":
+                    # Extract the text to type — everything after the verb and optional target
+                    m = re.search(
+                        r'\b(?:type|write|input)\b\s+["\']?(.+?)["\']?\s*(?:\b(?:in|into|on)\b.+)?$',
+                        text, re.I
+                    )
+                    params["text"] = m.group(1).strip() if m else ""
                 return IntentResult(
                     intent_type="system_control",
                     parameters=params,

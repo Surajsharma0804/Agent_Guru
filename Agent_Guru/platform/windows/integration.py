@@ -501,27 +501,42 @@ class WindowsIntegration:
         try:
             cmd = [executable] + args
 
-            # Try direct Popen first (works for full paths and PATH-resolved names)
+            # Try direct Popen first (works for full paths and PATH-resolved names).
+            # Use DETACHED_PROCESS so the child is fully independent and doesn't
+            # inherit our stdio handles (avoids the "handle is invalid" error when
+            # running without a console).
             try:
                 process = subprocess.Popen(
                     cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                    creationflags=(
+                        subprocess.CREATE_NEW_PROCESS_GROUP
+                        | subprocess.DETACHED_PROCESS
+                    ),
                 )
                 logger.info(f"Started process: {executable} (PID: {process.pid})")
                 return process.pid
             except (FileNotFoundError, OSError):
                 pass
 
-            # Fallback: use cmd /c to let Windows resolve via App Paths registry
+            # Fallback: use ShellExecute via Popen with shell=True so Windows can
+            # resolve App Paths registry entries (e.g. UWP stubs, Store apps).
+            # We do NOT fall through to os.startfile after this succeeds.
             if not args:
                 try:
-                    run_cmd(["cmd", "/c", executable], check=False)
-                    logger.info(f"Started process via cmd /c: {executable}")
-                    return 0
+                    proc = subprocess.Popen(
+                        executable,
+                        shell=True,  # noqa: S603 — intentional, no user-controlled input
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        stdin=subprocess.DEVNULL,
+                    )
+                    logger.info(f"Started process via shell: {executable} (PID: {proc.pid})")
+                    return proc.pid
                 except (OSError, FileNotFoundError) as exc:
-                    logger.warning(f"cmd /c launch failed for {executable!r}: {exc}")
+                    logger.warning(f"Shell launch failed for {executable!r}: {exc}")
 
             # Last resort: os.startfile (Windows only, no PID returned)
             try:

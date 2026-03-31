@@ -599,67 +599,6 @@ class KeyboardController:
         return KeyHoldContext(self, [key])
 
 
-    # Convenience methods for common shortcuts
-    def copy(self) -> None:
-        """Copy shortcut (Ctrl+C)."""
-        self.press_shortcut("ctrl", "c")
-
-    def paste(self) -> None:
-        """Paste shortcut (Ctrl+V)."""
-        self.press_shortcut("ctrl", "v")
-
-    def cut(self) -> None:
-        """Cut shortcut (Ctrl+X)."""
-        self.press_shortcut("ctrl", "x")
-
-    def select_all(self) -> None:
-        """Select all shortcut (Ctrl+A)."""
-        self.press_shortcut("ctrl", "a")
-
-    def undo(self) -> None:
-        """Undo shortcut (Ctrl+Z)."""
-        self.press_shortcut("ctrl", "z")
-
-    def redo(self) -> None:
-        """Redo shortcut (Ctrl+Y)."""
-        self.press_shortcut("ctrl", "y")
-
-    def save(self) -> None:
-        """Save shortcut (Ctrl+S)."""
-        self.press_shortcut("ctrl", "s")
-
-    def find(self) -> None:
-        """Find shortcut (Ctrl+F)."""
-        self.press_shortcut("ctrl", "f")
-
-    def press(self, keys: Union[str, list[str]]) -> None:
-        """Press key(s).
-
-        Args:
-            keys: Single key or list of keys to press
-        """
-        if isinstance(keys, str):
-            self.press_key(keys)
-        else:
-            pyautogui.press(keys)
-
-    def hotkey(self, *keys: str) -> None:
-        """Alias for press_shortcut."""
-        self.press_shortcut(*keys)
-
-    def hold_key(self, key: str) -> "KeyHoldContext":
-        """Context manager to hold a single key.
-
-        Args:
-            key: Key to hold
-
-        Returns:
-            Context manager that releases key on exit
-        """
-        return KeyHoldContext(self, [key])
-
-
-
 class KeyHoldContext:
     """Context manager for holding keys down.
 

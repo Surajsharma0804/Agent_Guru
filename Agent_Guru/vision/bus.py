@@ -196,7 +196,7 @@ class VisionEventBus:
         Returns:
             The first matching VisionEvent, or ``None`` on timeout.
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         future: asyncio.Future[VisionEvent] = loop.create_future()
 
         async def _one_shot(event: VisionEvent) -> None:

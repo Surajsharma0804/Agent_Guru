@@ -38,6 +38,9 @@ from typing import Optional
 
 import psutil
 
+import logging
+_logger = logging.getLogger(__name__)
+
 # Optional GPU support
 try:
     import GPUtil
@@ -656,15 +659,11 @@ class ResourceMonitor:
 
                 except Exception as e:
                     # Log error but continue monitoring
-                    import traceback
-                    print(f"Error in monitoring loop: {e}")
-                    traceback.print_exc()
+                    _logger.error("Error in monitoring loop: %s", e, exc_info=True)
                     time.sleep(self.config.sampling_interval)
         except Exception as e:
             # Fatal error in monitoring loop
-            import traceback
-            print(f"Fatal error in monitoring loop: {e}")
-            traceback.print_exc()
+            _logger.critical("Fatal error in monitoring loop: %s", e, exc_info=True)
 
     def _check_thresholds(self, snapshot: ResourceSnapshot) -> None:
         """
@@ -819,4 +818,4 @@ class ResourceMonitor:
                 try:
                     callback(alert)
                 except Exception as e:
-                    print(f"Error in alert callback: {e}")
+                    _logger.warning("Error in alert callback: %s", e)

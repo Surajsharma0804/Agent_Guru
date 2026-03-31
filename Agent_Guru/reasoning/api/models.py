@@ -22,7 +22,7 @@ Version: 1.0.0
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ProcessRequest(BaseModel):
@@ -35,6 +35,16 @@ class ProcessRequest(BaseModel):
         source: Input source (voice, text, system_event)
         metadata: Additional request metadata
     """
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "text": "set a timer for 5 minutes",
+            "user_id": "user_123",
+            "conversation_id": "conv_456",
+            "source": "text",
+            "metadata": {},
+        }
+    })
 
     text: str = Field(
         ...,
@@ -75,18 +85,6 @@ class ProcessRequest(BaseModel):
             raise ValueError("Text cannot be empty or whitespace only")
         return v.strip()
 
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
-            "example": {
-                "text": "set a timer for 5 minutes",
-                "user_id": "user_123",
-                "conversation_id": "conv_456",
-                "source": "text",
-                "metadata": {},
-            }
-        }
-
 
 class ProcessResponse(BaseModel):
     """Response model for processed requests.
@@ -102,6 +100,23 @@ class ProcessResponse(BaseModel):
         trace_id: Distributed trace ID
         timestamp: Response timestamp
     """
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "response": "Timer set for 5 minutes",
+            "confidence": 0.98,
+            "intent_type": "set_timer",
+            "success": True,
+            "fast_path": True,
+            "latency_ms": 234.5,
+            "stage_latencies": {
+                "intent_detection": 50.2,
+                "tool_selection": 12.3,
+            },
+            "trace_id": "abc123def456",
+            "timestamp": "2024-01-01T12:00:00Z",
+        }
+    })
 
     response: str = Field(
         ...,
@@ -151,25 +166,6 @@ class ProcessResponse(BaseModel):
         description="Response timestamp",
     )
 
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
-            "example": {
-                "response": "Timer set for 5 minutes",
-                "confidence": 0.98,
-                "intent_type": "set_timer",
-                "success": True,
-                "fast_path": True,
-                "latency_ms": 234.5,
-                "stage_latencies": {
-                    "intent_detection": 50.2,
-                    "tool_selection": 12.3,
-                },
-                "trace_id": "abc123def456",
-                "timestamp": "2024-01-01T12:00:00Z",
-            }
-        }
-
 
 class ConversationResponse(BaseModel):
     """Response model for conversation queries.
@@ -183,6 +179,18 @@ class ConversationResponse(BaseModel):
         created_at: Conversation creation timestamp
         updated_at: Last update timestamp
     """
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "conversation_id": "conv_456",
+            "user_id": "user_123",
+            "turn_count": 5,
+            "recent_turns": [],
+            "entities": {},
+            "created_at": "2024-01-01T12:00:00Z",
+            "updated_at": "2024-01-01T12:05:00Z",
+        }
+    })
 
     conversation_id: str = Field(
         ...,
@@ -217,20 +225,6 @@ class ConversationResponse(BaseModel):
         description="Last update timestamp",
     )
 
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
-            "example": {
-                "conversation_id": "conv_456",
-                "user_id": "user_123",
-                "turn_count": 5,
-                "recent_turns": [],
-                "entities": {},
-                "created_at": "2024-01-01T12:00:00Z",
-                "updated_at": "2024-01-01T12:05:00Z",
-            }
-        }
-
 
 class TaskStatusResponse(BaseModel):
     """Response model for async task status.
@@ -244,6 +238,18 @@ class TaskStatusResponse(BaseModel):
         created_at: Task creation timestamp
         updated_at: Last update timestamp
     """
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "task_id": "task_789",
+            "status": "running",
+            "progress": 0.65,
+            "result": None,
+            "error": None,
+            "created_at": "2024-01-01T12:00:00Z",
+            "updated_at": "2024-01-01T12:00:30Z",
+        }
+    })
 
     task_id: str = Field(
         ...,
@@ -280,20 +286,6 @@ class TaskStatusResponse(BaseModel):
         description="Last update timestamp",
     )
 
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
-            "example": {
-                "task_id": "task_789",
-                "status": "running",
-                "progress": 0.65,
-                "result": None,
-                "error": None,
-                "created_at": "2024-01-01T12:00:00Z",
-                "updated_at": "2024-01-01T12:00:30Z",
-            }
-        }
-
 
 class ErrorResponse(BaseModel):
     """Response model for errors.
@@ -305,6 +297,16 @@ class ErrorResponse(BaseModel):
         timestamp: Error timestamp
         trace_id: Distributed trace ID
     """
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "error": "Invalid request: text cannot be empty",
+            "error_code": "VALIDATION_ERROR",
+            "details": {"field": "text"},
+            "timestamp": "2024-01-01T12:00:00Z",
+            "trace_id": "abc123def456",
+        }
+    })
 
     error: str = Field(
         ...,
@@ -328,15 +330,3 @@ class ErrorResponse(BaseModel):
         default=None,
         description="Distributed trace ID",
     )
-
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
-            "example": {
-                "error": "Invalid request: text cannot be empty",
-                "error_code": "VALIDATION_ERROR",
-                "details": {"field": "text"},
-                "timestamp": "2024-01-01T12:00:00Z",
-                "trace_id": "abc123def456",
-            }
-        }

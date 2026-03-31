@@ -28,10 +28,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import platform
 import shutil
 from pathlib import Path
 from typing import Optional
+
+from Agent_Guru.platform.platform_detector import PlatformDetector
 
 logger = logging.getLogger(__name__)
 
@@ -70,42 +71,10 @@ _BLOCKED_PATHS_LINUX: tuple[str, ...] = (
 # Platform detection
 # ---------------------------------------------------------------------------
 
-_PLATFORM_CACHE: Optional[str] = None
-
 
 def _detect_platform() -> str:
-    """Return a normalised platform identifier.
-
-    Returns:
-        One of ``"windows"``, ``"macos"``, ``"linux"``, ``"android"``,
-        ``"ios"``, or ``"unknown"``.
-    """
-    global _PLATFORM_CACHE
-    if _PLATFORM_CACHE is not None:
-        return _PLATFORM_CACHE
-
-    system = platform.system().lower()
-    if system == "windows":
-        result = "windows"
-    elif system == "darwin":
-        result = "macos"
-    elif system == "linux":
-        try:
-            import subprocess  # noqa: PLC0415
-            out = subprocess.run(
-                ["uname", "-o"], capture_output=True, text=True, timeout=1  # nosec B603 B607
-            )
-            if "android" in out.stdout.lower():
-                result = "android"
-            else:
-                result = "linux"
-        except Exception:
-            result = "linux"
-    else:
-        result = "unknown"
-
-    _PLATFORM_CACHE = result
-    return result
+    """Thin wrapper — delegates to canonical PlatformDetector."""
+    return PlatformDetector.detect().os_name.lower()
 
 
 def _is_desktop(plat: str) -> bool:

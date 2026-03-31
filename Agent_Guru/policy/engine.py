@@ -144,7 +144,7 @@ class PolicyEngine:
         test_mode: bool = False,
     ) -> AccessDecision:
         """Async version of evaluate_policy. Validates: Requirement 10.2"""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             lambda: self.evaluate_policy(

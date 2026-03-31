@@ -160,16 +160,9 @@ class WindowsSettingsBackend(SystemSettingsBackend):
     def __init__(self):
         """Initialize Windows settings backend."""
         try:
-            from ctypes import POINTER, cast
-
-            from comtypes import CLSCTX_ALL
-            from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+            from pycaw.pycaw import AudioUtilities
             self._audio_available = True
             self._AudioUtilities = AudioUtilities
-            self._IAudioEndpointVolume = IAudioEndpointVolume
-            self._CLSCTX_ALL = CLSCTX_ALL
-            self._cast = cast
-            self._POINTER = POINTER
         except ImportError:
             logger.warning("pycaw not available, audio control disabled")
             self._audio_available = False
@@ -181,16 +174,9 @@ class WindowsSettingsBackend(SystemSettingsBackend):
 
         try:
             devices = self._AudioUtilities.GetSpeakers()
-            interface = devices.Activate(
-                self._IAudioEndpointVolume._iid_,
-                self._CLSCTX_ALL,
-                None
-            )
-            volume = self._cast(interface, self._POINTER(self._IAudioEndpointVolume))
-
+            volume = devices.EndpointVolume
             level = int(volume.GetMasterVolumeLevelScalar() * 100)
             is_muted = bool(volume.GetMute())
-
             return VolumeInfo(level=level, is_muted=is_muted)
         except Exception as e:
             logger.error(f"Failed to get volume: {e}")
@@ -206,12 +192,7 @@ class WindowsSettingsBackend(SystemSettingsBackend):
 
         try:
             devices = self._AudioUtilities.GetSpeakers()
-            interface = devices.Activate(
-                self._IAudioEndpointVolume._iid_,
-                self._CLSCTX_ALL,
-                None
-            )
-            volume = self._cast(interface, self._POINTER(self._IAudioEndpointVolume))
+            volume = devices.EndpointVolume
             volume.SetMasterVolumeLevelScalar(level / 100.0, None)
             logger.info(f"Set volume to {level}%")
         except Exception as e:
@@ -225,12 +206,7 @@ class WindowsSettingsBackend(SystemSettingsBackend):
 
         try:
             devices = self._AudioUtilities.GetSpeakers()
-            interface = devices.Activate(
-                self._IAudioEndpointVolume._iid_,
-                self._CLSCTX_ALL,
-                None
-            )
-            volume = self._cast(interface, self._POINTER(self._IAudioEndpointVolume))
+            volume = devices.EndpointVolume
             volume.SetMute(1, None)
             logger.info("Muted audio")
         except Exception as e:
@@ -244,12 +220,7 @@ class WindowsSettingsBackend(SystemSettingsBackend):
 
         try:
             devices = self._AudioUtilities.GetSpeakers()
-            interface = devices.Activate(
-                self._IAudioEndpointVolume._iid_,
-                self._CLSCTX_ALL,
-                None
-            )
-            volume = self._cast(interface, self._POINTER(self._IAudioEndpointVolume))
+            volume = devices.EndpointVolume
             volume.SetMute(0, None)
             logger.info("Unmuted audio")
         except Exception as e:

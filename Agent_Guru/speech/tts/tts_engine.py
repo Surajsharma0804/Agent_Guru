@@ -173,7 +173,7 @@ class CoquiTTSEngine:
         self._model_loaded = False
 
         # Lazy initialization - load model on first use
-        print("[TTS] Coqui TTS engine initialized (model will load on first use)")
+        _logger.info("Coqui TTS engine initialized (model will load on first use)")
 
     def _ensure_model_loaded(self):
         """Ensure TTS model is loaded (lazy loading).
@@ -199,7 +199,7 @@ class CoquiTTSEngine:
             # Suppress C-level stderr for cuDNN warnings (only when loading model)
             suppress_c_stderr()
 
-            print("[TTS] Loading Coqui TTS model (this may take a moment)...")
+            _logger.info("Loading Coqui TTS model (this may take a moment)...")
 
             # Use VCTK model for multi-speaker support (male + female)
             model_name = "tts_models/en/vctk/vits"
@@ -211,20 +211,20 @@ class CoquiTTSEngine:
                     if torch.cuda.is_available():
                         device = "cuda"
                         gpu_name = torch.cuda.get_device_name(0)
-                        print(f"[TTS] GPU detected: {gpu_name}")
+                        _logger.info("GPU detected: %s", gpu_name)
                 except RuntimeError as exc:
                     _logger.warning("GPU detection failed, falling back to CPU: %s", exc)
 
-            print(f"[TTS] Using device: {device}")
+            _logger.info("Using TTS device: %s", device)
 
             # Load model (cuDNN warnings suppressed at C level)
             tts_model = TTS(model_name=model_name, progress_bar=False)
             self._tts = tts_model.to(device)
             self._model_loaded = True
 
-            print(f"[TTS] Model loaded successfully: {model_name}")
+            _logger.info("TTS model loaded successfully: %s", model_name)
             if self._tts is not None and hasattr(self._tts, 'speakers') and self._tts.speakers is not None:
-                print(f"[TTS] Available speakers: {len(self._tts.speakers)} voices")
+                _logger.info("Available speakers: %d voices", len(self._tts.speakers))
 
         except ImportError as e:
             raise TTSError(
@@ -234,7 +234,7 @@ class CoquiTTSEngine:
         except Exception as e:
             # Fallback to CPU if GPU fails
             if self._use_gpu and device == "cuda":
-                print("[TTS] GPU initialization failed, retrying with CPU...")
+                _logger.warning("GPU initialization failed, retrying with CPU...")
                 self._use_gpu = False
                 self._model_loaded = False
                 return self._ensure_model_loaded()
@@ -586,7 +586,7 @@ class CoquiTTSEngine:
                 frames = wav.getnframes()
                 rate = wav.getframerate()
                 return frames / float(rate) if rate > 0 else 0.0
-        except:
+        except Exception:
             return 0.0
 
     def __del__(self):

@@ -12,10 +12,16 @@ Performance Target: <400ms for 512 tokens
 
 import os
 import time
-from typing import Optional
+from typing import Any, Optional
 
-import google.generativeai as genai
-from google.api_core import exceptions as google_exceptions
+try:
+    import google.generativeai as genai  # type: ignore[import]
+    from google.api_core import exceptions as google_exceptions  # type: ignore[import]
+    _GENAI_AVAILABLE = True
+except ImportError:
+    genai = None  # type: ignore[assignment]
+    google_exceptions = None  # type: ignore[assignment]
+    _GENAI_AVAILABLE = False
 
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider, ProviderConfig

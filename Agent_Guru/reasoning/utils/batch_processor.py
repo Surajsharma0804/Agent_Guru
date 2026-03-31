@@ -365,14 +365,14 @@ class DatabaseBatchWriter:
             query = "INSERT INTO " + table + " (" + col_list + ") VALUES " + all_placeholders  # nosec B608
 
             # Execute
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None,
                 lambda: self.connection.execute(query, values)
             )
 
         # Commit
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, self.connection.commit)
 
         self._operations.clear()

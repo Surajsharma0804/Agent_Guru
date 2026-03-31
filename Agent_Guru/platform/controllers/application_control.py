@@ -532,17 +532,32 @@ class ApplicationController:
         """
         logger.info(f"Closing application: {app_identifier} (force={force})")
 
+        # Guard: never allow closing system-critical or IDE processes
+        _PROTECTED_NAMES = {
+            "kiro", "code.exe", "explorer.exe", "winlogon.exe",
+            "csrss.exe", "lsass.exe", "services.exe", "svchost.exe",
+            "system", "smss.exe", "wininit.exe",
+        }
+        if isinstance(app_identifier, str) and app_identifier.strip().lower() in _PROTECTED_NAMES:
+            raise ValueError(f"Refusing to close protected process: {app_identifier}")
+
         try:
             # Find process by name or PID
-            if isinstance(app_identifier, int) or app_identifier.isdigit():
+            if isinstance(app_identifier, int) or (
+                isinstance(app_identifier, str) and app_identifier.isdigit()
+            ):
                 pid = int(app_identifier)
             else:
                 pid = self._find_process_by_name(app_identifier)
 
             if pid is None:
+                # On Windows, fall back to taskkill which handles UWP/Store apps
+                # that may not appear under their friendly name in psutil
+                if self.platform == "win32":
+                    return self._taskkill_by_name(app_identifier, force=force)
                 raise ProcessLookupError(f"Application not found: {app_identifier}")
 
-            # Terminate process
+            # Terminate process via platform integration
             success = self._platform_integration.terminate_process(pid, force=force)
 
             if success:
@@ -559,23 +574,113 @@ class ApplicationController:
             logger.error(f"Failed to close {app_identifier}: {e}")
             raise RuntimeError(f"Failed to close application: {e}") from e
 
+    def _taskkill_by_name(self, app_name: str, force: bool = False) -> bool:
+        """Use Windows taskkill to close an application by name.
+
+        Resolves the exe name via _PROCESS_NAME_ALIASES and falls back to a
+        substring search so UWP/Store apps (e.g. CalculatorApp.exe) are found
+        even when psutil reports them under a different name.
+
+        Args:
+            app_name: Friendly application name
+            force: Whether to force-kill (/F flag)
+
+        Returns:
+            True if taskkill succeeded
+        """
+        import subprocess as _sp
+
+        name_lower = app_name.strip().lower()
+        aliases = self._PROCESS_NAME_ALIASES.get(name_lower, [])
+        # Also try the raw name with .exe appended
+        if not aliases:
+            aliases = [f"{app_name}.exe"]
+
+        for exe_name in aliases:
+            try:
+                cmd = ["taskkill", "/IM", exe_name]
+                if force:
+                    cmd.append("/F")
+                result = _sp.run(
+                    cmd,
+                    stdout=_sp.DEVNULL,
+                    stderr=_sp.DEVNULL,
+                    timeout=10,
+                )
+                if result.returncode == 0:
+                    logger.info(f"taskkill succeeded for {exe_name}")
+                    return True
+            except (OSError, _sp.TimeoutExpired) as exc:
+                logger.warning(f"taskkill failed for {exe_name}: {exc}")
+
+        logger.error(f"taskkill could not close any alias for '{app_name}'")
+        return False
+
+
+    # Map of friendly names → possible process executable names (Windows 11 UWP aliases included)
+    _PROCESS_NAME_ALIASES: dict[str, list[str]] = {
+        "calculator": ["calculatorapp.exe", "calc.exe"],
+        "calc": ["calculatorapp.exe", "calc.exe"],
+        "notepad": ["notepad.exe"],
+        "paint": ["mspaint.exe", "paintapp.exe"],
+        "mspaint": ["mspaint.exe", "paintapp.exe"],
+        "explorer": ["explorer.exe"],
+        "file explorer": ["explorer.exe"],
+        "chrome": ["chrome.exe"],
+        "google chrome": ["chrome.exe"],
+        "firefox": ["firefox.exe"],
+        "edge": ["msedge.exe"],
+        "microsoft edge": ["msedge.exe"],
+        "word": ["winword.exe"],
+        "excel": ["excel.exe"],
+        "powerpoint": ["powerpnt.exe"],
+        "outlook": ["outlook.exe"],
+        "teams": ["teams.exe"],
+        "spotify": ["spotify.exe"],
+        "discord": ["discord.exe"],
+        "vlc": ["vlc.exe"],
+        "zoom": ["zoom.exe"],
+        "vs code": ["code.exe"],
+        "vscode": ["code.exe"],
+        "visual studio code": ["code.exe"],
+        "task manager": ["taskmgr.exe"],
+        "taskmgr": ["taskmgr.exe"],
+        "snipping tool": ["snippingtool.exe", "sniptool.exe"],
+    }
 
     def _find_process_by_name(self, app_name: str) -> Optional[int]:
         """Find process ID by application name.
+
+        Handles Windows 11 UWP app process name aliases (e.g. Calculator →
+        CalculatorApp.exe) so that close_application works reliably.
 
         Time Complexity: O(n) where n is number of processes
         Space Complexity: O(1)
 
         Args:
-            app_name: Application name
+            app_name: Application name (friendly name or exe name)
 
         Returns:
             Process ID if found, None otherwise
         """
         try:
             processes = self._platform_integration.get_process_list()
-            app_name_lower = app_name.lower()
+            app_name_lower = app_name.strip().lower()
 
+            # Build the set of exe names to match against
+            aliases = self._PROCESS_NAME_ALIASES.get(app_name_lower)
+            if aliases:
+                # Exact match against known aliases first (most reliable)
+                for process in processes:
+                    if process.name.lower() in aliases:
+                        return process.pid
+            else:
+                # Fallback: substring match for unknown app names
+                for process in processes:
+                    if app_name_lower in process.name.lower():
+                        return process.pid
+
+            # Second pass: substring match even for known apps (catches edge cases)
             for process in processes:
                 if app_name_lower in process.name.lower():
                     return process.pid

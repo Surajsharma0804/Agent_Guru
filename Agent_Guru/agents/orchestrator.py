@@ -303,7 +303,7 @@ class AgentOrchestrator:
 
         except Exception as e:
             # Fallback to default if error
-            print(f"Warning: Strategy selection failed: {html.escape(str(e))}")
+            logger.warning("Strategy selection failed: %s", e)
             return self.default_strategy
 
     def _record_outcome(
@@ -351,7 +351,7 @@ class AgentOrchestrator:
 
         except Exception as e:
             # Don't fail task if recording fails
-            print(f"Warning: Outcome recording failed: {html.escape(str(e))}")
+            logger.warning("Outcome recording failed: %s", e)
 
     def get_active_tasks(self) -> dict[str, Task]:
         """

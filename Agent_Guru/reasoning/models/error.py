@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ErrorType(str, Enum):
@@ -82,6 +82,18 @@ class FallbackStrategy(str, Enum):
 
 class Error(BaseModel):
     """Represents an error that occurred during processing."""
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "error_code": "ERR_INTENT_001",
+            "error_type": "intent_detection_failed",
+            "message": "Failed to detect intent from input",
+            "details": {"input": "mumble mumble", "confidence": 0.12},
+            "recoverable": True,
+            "suggested_fallback": "user_notification",
+            "user_message": "I didn't understand that. Could you rephrase?",
+        }
+    })
 
     error_code: str = Field(..., description="Error code for identification")
     error_type: ErrorType = Field(..., description="Type of error")
@@ -224,17 +236,3 @@ class Error(BaseModel):
     def __hash__(self) -> int:
         """Generate hash for error."""
         return hash((self.error_code, self.error_type))
-
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
-            "example": {
-                "error_code": "ERR_INTENT_001",
-                "error_type": "intent_detection_failed",
-                "message": "Failed to detect intent from input",
-                "details": {"input": "mumble mumble", "confidence": 0.12},
-                "recoverable": True,
-                "suggested_fallback": "user_notification",
-                "user_message": "I didn't understand that. Could you rephrase?",
-            }
-        }

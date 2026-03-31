@@ -171,8 +171,25 @@ def _stub(name: str, critical: bool = False):
 # ---------------------------------------------------------------------------
 
 def _load_gpu_pool():
-    from Agent_Guru.integration.gpu_pool import GPUResourcePool
-    return GPUResourcePool()
+    try:
+        from Agent_Guru.integration.gpu_pool import GPUResourcePool
+        return GPUResourcePool()
+    except Exception as e:
+        logger.warning(
+            "GPUResourcePool unavailable (%s) — falling back to CPU-only pool", e
+        )
+        # Return a minimal CPU-only pool so startup continues
+        from Agent_Guru.integration.gpu_pool import GPUResourcePool, DeviceConfig
+        pool = GPUResourcePool.__new__(GPUResourcePool)
+        pool.device = "cpu"
+        pool.total_vram = 0
+        pool._allocations: dict = {}
+
+        def _cpu_allocate(name: str) -> DeviceConfig:
+            return DeviceConfig(device="cpu", vram_limit_gb=0.0)
+
+        pool.allocate = _cpu_allocate
+        return pool
 
 
 # ---------------------------------------------------------------------------

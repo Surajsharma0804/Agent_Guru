@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import platform
 import time
 from collections.abc import AsyncIterator, Callable, Coroutine
 from dataclasses import dataclass
@@ -40,6 +39,7 @@ from .exceptions import ModelLoadError, TranscriptionError
 from .models import TranscriptionResult
 from .stt.language_detector import Language, LanguageDetector
 from .stt.whisper_stt import WhisperTranscriber
+from Agent_Guru.platform.platform_detector import PlatformDetector
 
 logger = logging.getLogger(__name__)
 
@@ -49,38 +49,8 @@ logger = logging.getLogger(__name__)
 
 
 def _detect_platform() -> str:
-    """Return a normalised platform identifier.
-
-    Returns:
-        One of ``"windows"``, ``"macos"``, ``"linux"``, ``"android"``,
-        ``"ios"``, or ``"unknown"``.
-    """
-    import os
-
-    system = platform.system().lower()
-    if system == "windows":
-        return "windows"
-    if system == "darwin":
-        return "macos"
-    if system == "linux":
-        if os.environ.get("ANDROID_ROOT") or os.environ.get("ANDROID_DATA"):
-            return "android"
-        return "linux"
-    if system == "java":
-        return "android"
-    try:
-        import objc_util  # type: ignore[import]  # Pythonista
-
-        return "ios"
-    except ImportError:
-        pass
-    try:
-        import Foundation  # type: ignore[import]  # pyobjc
-
-        return "ios"
-    except ImportError:
-        pass
-    return "unknown"
+    """Thin wrapper — delegates to canonical PlatformDetector."""
+    return PlatformDetector.detect().os_name.lower()
 
 
 # ---------------------------------------------------------------------------

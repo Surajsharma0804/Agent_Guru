@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class KnowledgeQueryType(str, Enum):
@@ -74,6 +74,8 @@ class TimeRange(BaseModel):
         max_length=255,
         description="Human-readable description of the time range",
     )
+
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
 
     @field_validator("description")
     @classmethod
@@ -197,13 +199,6 @@ class TimeRange(BaseModel):
         start = end - timedelta(days=1)
         return cls(start=start, end=end, description="yesterday")
 
-    class Config:
-        """Pydantic configuration."""
-
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-        }
-
 
 class KnowledgeQuery(BaseModel):
     """Represents a knowledge query from the user.
@@ -244,6 +239,20 @@ class KnowledgeQuery(BaseModel):
         ..., ge=0.0, le=1.0, description="Confidence in query detection (0.0-1.0)"
     )
 
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "query_text": "when did I last call John?",
+            "query_type": "temporal",
+            "time_range": {
+                "start": "2024-01-01T00:00:00",
+                "end": "2024-01-31T23:59:59",
+                "description": "last month",
+            },
+            "entities": {"person": "John", "action": "call"},
+            "confidence": 0.95,
+        }
+    })
+
     @field_validator("query_text")
     @classmethod
     def validate_query_text_not_empty(cls, v: str) -> str:
@@ -259,23 +268,6 @@ class KnowledgeQuery(BaseModel):
             # Auto-assign default time range for temporal queries
             self.time_range = TimeRange.last_month()
         return self
-
-    class Config:
-        """Pydantic configuration."""
-
-        json_schema_extra = {
-            "example": {
-                "query_text": "when did I last call John?",
-                "query_type": "temporal",
-                "time_range": {
-                    "start": "2024-01-01T00:00:00",
-                    "end": "2024-01-31T23:59:59",
-                    "description": "last month",
-                },
-                "entities": {"person": "John", "action": "call"},
-                "confidence": 0.95,
-            }
-        }
 
 
 class Pattern(BaseModel):
@@ -320,6 +312,16 @@ class Pattern(BaseModel):
         default_factory=list, description="Example instances of this pattern"
     )
 
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "pattern_type": "daily",
+            "description": "User checks email every morning at 9am",
+            "frequency": 0.95,
+            "confidence": 0.92,
+            "examples": ["2024-01-15 09:00", "2024-01-16 09:05", "2024-01-17 08:58"],
+        }
+    })
+
     @field_validator("pattern_type")
     @classmethod
     def validate_pattern_type(cls, v: str) -> str:
@@ -347,19 +349,6 @@ class Pattern(BaseModel):
                 raise ValueError("Examples cannot be empty or whitespace only")
             return cleaned
         return v
-
-    class Config:
-        """Pydantic configuration."""
-
-        json_schema_extra = {
-            "example": {
-                "pattern_type": "daily",
-                "description": "User checks email every morning at 9am",
-                "frequency": 0.95,
-                "confidence": 0.92,
-                "examples": ["2024-01-15 09:00", "2024-01-16 09:05", "2024-01-17 08:58"],
-            }
-        }
 
 
 class KnowledgeAnswer(BaseModel):
@@ -403,6 +392,25 @@ class KnowledgeAnswer(BaseModel):
     visualization_data: Optional[dict[str, Any]] = Field(
         default=None, description="Optional data for visualizations"
     )
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "summary": "You last called John 3 days ago on January 15th at 2:30pm",
+            "confidence": 0.98,
+            "supporting_memories": ["mem_123", "mem_456"],
+            "patterns": [
+                {
+                    "pattern_type": "weekly",
+                    "description": "You typically call John on Mondays",
+                    "frequency": 0.85,
+                    "confidence": 0.90,
+                    "examples": ["2024-01-08", "2024-01-15", "2024-01-22"],
+                }
+            ],
+            "statistics": {"total_calls": 15, "avg_duration": 300, "last_call_days_ago": 3},
+            "visualization_data": {"type": "timeline", "data": []},
+        }
+    })
 
     @field_validator("summary")
     @classmethod

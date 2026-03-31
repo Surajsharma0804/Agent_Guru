@@ -288,6 +288,17 @@ class PackageManager:
         return resolved
 
     def _resolve_python(self, target_env: Path) -> Path:
+        """Resolve the Python executable inside *target_env*.
+
+        Tries ``bin/python`` (Unix) then ``Scripts/python.exe`` (Windows),
+        falling back to the current interpreter.
+        """
+        python = target_env / "bin" / "python"
+        if not python.exists():
+            python = target_env / "Scripts" / "python.exe"
+        if not python.exists():
+            python = Path(sys.executable)
+        return python
 
     def _audit(
         self,

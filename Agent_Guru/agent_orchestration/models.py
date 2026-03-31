@@ -21,7 +21,7 @@ from enum import Enum
 from typing import Any, Optional
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AgentStatus(str, Enum):
@@ -93,6 +93,8 @@ class PerformanceRecord(BaseModel):
     Tracks success/failure, timing, and resource usage for performance analysis
     and specialization scoring.
     """
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
+
     task_id: str = Field(..., description="Unique task identifier")
     task_type: TaskType = Field(..., description="Type of task performed")
     success: bool = Field(..., description="Whether task succeeded")
@@ -114,12 +116,6 @@ class PerformanceRecord(BaseModel):
         description="Error message if task failed"
     )
 
-    class Config:
-        """Pydantic configuration."""
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
-
 
 class Agent(BaseModel):
     """An agent with capabilities and performance history.
@@ -138,6 +134,8 @@ class Agent(BaseModel):
     - Creation: O(1)
     - Serialization: O(n) where n = history size
     """
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
+
     id: str = Field(
         default_factory=lambda: str(uuid4()),
         description="Unique agent identifier (UUID)"
@@ -211,12 +209,6 @@ class Agent(BaseModel):
             return 0.0
         return self.successful_tasks / self.total_tasks
 
-    class Config:
-        """Pydantic configuration."""
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
-
 
 class Task(BaseModel):
     """A task to be executed by an agent.
@@ -224,6 +216,8 @@ class Task(BaseModel):
     Tasks are units of work with requirements, dependencies, and success criteria.
     They can be decomposed into sub-tasks for parallel execution.
     """
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
+
     id: str = Field(
         default_factory=lambda: str(uuid4()),
         description="Unique task identifier (UUID)"
@@ -284,12 +278,6 @@ class Task(BaseModel):
         description="Additional metadata"
     )
 
-    class Config:
-        """Pydantic configuration."""
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
-
 
 class EvolutionEvent(BaseModel):
     """Record of agent evolution event.
@@ -297,6 +285,8 @@ class EvolutionEvent(BaseModel):
     Tracks agent creation, merging, splitting, and retirement for GitHub sync
     and system-wide learning.
     """
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
+
     id: str = Field(
         default_factory=lambda: str(uuid4()),
         description="Unique event identifier (UUID)"
@@ -325,9 +315,3 @@ class EvolutionEvent(BaseModel):
         default=False,
         description="Whether event has been synced to GitHub"
     )
-
-    class Config:
-        """Pydantic configuration."""
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }

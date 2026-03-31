@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class IntentType(str, Enum):
@@ -103,6 +103,18 @@ class EntityType(str, Enum):
 class Entity(BaseModel):
     """Represents an extracted entity from user input."""
 
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "entity_type": "duration",
+            "value": 300,
+            "raw_text": "5 minutes",
+            "confidence": 0.95,
+            "start_pos": 10,
+            "end_pos": 19,
+            "normalized_value": 300,
+        }
+    })
+
     entity_type: str = Field(..., description="Type of entity (person, location, time, etc.)")
     value: Any = Field(..., description="Extracted entity value")
     raw_text: str = Field(..., description="Original text span")
@@ -141,24 +153,28 @@ class Entity(BaseModel):
         """Generate hash for entity."""
         return hash((self.entity_type, str(self.value), self.raw_text))
 
-    class Config:
-        """Pydantic configuration."""
-
-        json_schema_extra = {
-            "example": {
-                "entity_type": "duration",
-                "value": 300,
-                "raw_text": "5 minutes",
-                "confidence": 0.95,
-                "start_pos": 10,
-                "end_pos": 19,
-                "normalized_value": 300,
-            }
-        }
-
 
 class Intent(BaseModel):
     """Represents a detected user intent."""
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "intent_type": "set_timer",
+            "entities": {
+                "duration": {
+                    "entity_type": "duration",
+                    "value": 300,
+                    "raw_text": "5 minutes",
+                    "confidence": 0.95,
+                }
+            },
+            "confidence": 0.98,
+            "requires_reasoning": False,
+            "original_input": "set a timer for 5 minutes",
+            "alternative_intents": [("set_alarm", 0.15)],
+            "detection_method": "neural",
+        }
+    })
 
     intent_type: IntentType = Field(..., description="Type of detected intent")
     entities: dict[str, Entity] = Field(
@@ -274,25 +290,3 @@ class Intent(BaseModel):
         """Generate hash for intent."""
         entity_hash = hash(tuple(sorted(self.entities.items())))
         return hash((self.intent_type, entity_hash, self.original_input))
-
-    class Config:
-        """Pydantic configuration."""
-
-        json_schema_extra = {
-            "example": {
-                "intent_type": "set_timer",
-                "entities": {
-                    "duration": {
-                        "entity_type": "duration",
-                        "value": 300,
-                        "raw_text": "5 minutes",
-                        "confidence": 0.95,
-                    }
-                },
-                "confidence": 0.98,
-                "requires_reasoning": False,
-                "original_input": "set a timer for 5 minutes",
-                "alternative_intents": [("set_alarm", 0.15)],
-                "detection_method": "neural",
-            }
-        }

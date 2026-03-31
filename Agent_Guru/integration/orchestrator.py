@@ -31,6 +31,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Optional
@@ -88,6 +89,7 @@ class PipelineResult:
     """
     stages_completed: int = 0
     transcript: Optional[str] = None
+    detected_language: str = ""
     memory_context: Optional[Any] = None
     reasoning_output: Optional[Any] = None
     llm_response: Optional[str] = None
@@ -424,7 +426,7 @@ class IntegrationOrchestrator:
 
         try:
             # Stage 1: STT
-            result.transcript = await self._stage_stt(wake_event.audio)
+            result.transcript, result.detected_language = await self._stage_stt(wake_event.audio)
             result.stages_completed = 1
 
             # Stage 2: Memory context
@@ -439,9 +441,23 @@ class IntegrationOrchestrator:
 
             # Stage 4: LLM inference (enriched with memory + reasoning)
             result.llm_response = await self._stage_llm(
-                result.transcript, result.memory_context, result.reasoning_output
+                result.transcript, result.memory_context, result.reasoning_output,
+                result.detected_language,
             )
             result.stages_completed = 4
+
+            # Translation fallback: if LLM responded in wrong language, translate
+            if result.detected_language and result.detected_language != "en":
+                translation_engine = getattr(self, "_translation_engine", None)
+                if translation_engine is not None:
+                    try:
+                        tr = translation_engine.translate(
+                            result.llm_response or "",
+                            target_language=result.detected_language,
+                        )
+                        result.llm_response = tr.translated_text
+                    except Exception as _te:
+                        logger.debug("Translation fallback failed: %s", _te)
 
             # Stage 5: Intent recognition — ALWAYS use the user's transcript,
             # never the LLM response (which is conversational and confuses the classifier)
@@ -544,8 +560,13 @@ class IntegrationOrchestrator:
     # Pipeline stage helpers
     # ------------------------------------------------------------------
 
-    async def _stage_stt(self, audio: bytes) -> str:
-        """Stage 1: Speech-to-text."""
+    async def _stage_stt(self, audio: bytes) -> tuple[str, str]:
+        """Stage 1: Speech-to-text.
+
+        Returns:
+            (transcript, language_code) where language_code is ISO 639-1
+            e.g. ("नमस्ते", "hi") or ("", "") on failure/silence.
+        """
         try:
             import numpy as np
 
@@ -563,40 +584,42 @@ class IntegrationOrchestrator:
 
             if fn is None:
                 logger.warning("STT: no transcription function found on speech engine")
-                return ""
+                return ("", "")
 
             # If the function is async (e.g. AsyncMock in tests), call it directly
             # with the raw audio — no numpy conversion needed for mock/async paths
             if asyncio.iscoroutinefunction(fn):
                 try:
                     result = await fn(audio)
+                    if hasattr(result, "text") and hasattr(result, "language"):
+                        return (result.text or "").strip(), (result.language or "")
                     if hasattr(result, "text"):
-                        return (result.text or "").strip()
-                    return str(result).strip() if result else ""
+                        return (result.text or "").strip(), ""
+                    return str(result).strip() if result else "", ""
                 except Exception as exc:
                     logger.warning("STT async stage error: %s", exc)
-                    return ""
+                    return ("", "")
 
             # Convert bytes → numpy float32 array that Whisper expects
             if isinstance(audio, (bytes, bytearray)) and len(audio) > 0:
                 # Guard: float32 requires buffer length divisible by 4
                 if len(audio) % 4 != 0:
                     logger.debug("STT: audio bytes not float32-aligned (%d bytes), skipping", len(audio))
-                    return ""
+                    return ("", "")
                 audio_np = np.frombuffer(audio, dtype=np.float32).copy()
             elif isinstance(audio, np.ndarray):
                 audio_np = audio.astype(np.float32)
             else:
-                return ""
+                return ("", "")
 
             # Skip if audio is too short or silent
             if len(audio_np) < 1600:
                 logger.debug("STT: audio too short (%d samples), skipping", len(audio_np))
-                return ""
+                return ("", "")
             rms = float(np.sqrt(np.mean(audio_np ** 2)))
             if rms < 0.001:
                 logger.debug("STT: audio too quiet (rms=%.5f), skipping", rms)
-                return ""
+                return ("", "")
 
             logger.debug("STT: processing %.2fs of audio (rms=%.4f)", len(audio_np) / 16000, rms)
 
@@ -618,20 +641,24 @@ class IntegrationOrchestrator:
             except Exception:
                 result = await loop.run_in_executor(None, lambda: fn(audio_np, 16000))
 
-            if hasattr(result, "text"):
-                text = result.text or ""
+            if hasattr(result, "text") and hasattr(result, "language"):
+                text = (result.text or "").strip()
+                language = result.language or ""
+            elif hasattr(result, "text"):
+                text = (result.text or "").strip()
+                language = ""
             else:
-                text = str(result) if result else ""
+                text = str(result).strip() if result else ""
+                language = ""
 
-            text = text.strip()
             if text:
                 logger.info("STT transcript: %r", text)
             else:
                 logger.debug("STT: empty transcript")
-            return text
+            return text, language
         except Exception as exc:
             logger.warning("STT stage error: %s", exc)
-            return ""
+            return ("", "")
 
     async def _stage_memory(self, transcript: str) -> Any:
         """Stage 2: Retrieve memory context."""
@@ -696,7 +723,11 @@ class IntegrationOrchestrator:
             return None
 
     async def _stage_llm(
-        self, transcript: str, memory_context: Any, reasoning_output: Any
+        self,
+        transcript: str,
+        memory_context: Any,
+        reasoning_output: Any,
+        language_code: str = "",
     ) -> str:
         """Stage 4: LLM inference with enriched context.
 
@@ -754,6 +785,14 @@ class IntegrationOrchestrator:
                     "you are doing it. Be concise. Do NOT say you cannot do things — you CAN control the laptop."
                 )
 
+                lang_instruction = ""
+                if language_code and language_code != "en":
+                    lang_instruction = (
+                        f"\n\nIMPORTANT: The user spoke in language code '{language_code}'. "
+                        f"You MUST respond in the same language. Do NOT respond in English."
+                    )
+                system_prompt = system_prompt + lang_instruction
+
                 messages = [
                     Message(role="system", content=system_prompt),
                     Message(role="user", content=prompt),
@@ -799,9 +838,16 @@ class IntegrationOrchestrator:
                 or result.parameters.get("path")
                 or result.parameters.get("query")
                 or result.parameters.get("contact")
+                or result.parameters.get("text")          # type_text content
+                or result.parameters.get("direction", "")  # volume up/down/mute, window minimize/maximize
                 or ""
             )
-            level = str(result.parameters.get("level", ""))
+            # For web_search/open_url: carry engine in level field
+            # For communication: carry app name in level field
+            level = (
+                str(result.parameters.get("engine", ""))
+                or str(result.parameters.get("level", ""))
+            )
             encoded = f"{result.intent_type}:{action}:{param}:{level}".rstrip(":")
             logger.info(
                 "Intent: %s (confidence=%.2f) params=%s encoded=%r",
@@ -913,8 +959,8 @@ class IntegrationOrchestrator:
             param = parts[2] if len(parts) > 2 else ""
             level_str = parts[3] if len(parts) > 3 else ""
 
-            # Only act on system_control and file_ops intents
-            if intent_type not in ("system_control", "file_ops"):
+            # Only act on system_control, file_ops, communication, and information intents
+            if intent_type not in ("system_control", "file_ops", "communication", "information"):
                 logger.info(
                     "ACTION SKIPPED — intent_type=%r (not actionable). Full intent: %r",
                     intent_type, safe_intent
@@ -940,6 +986,49 @@ class IntegrationOrchestrator:
                 safe_param = self._sanitize_output(param)
                 return f"Closed {safe_param}" if getattr(result, "success", True) else f"Failed to close {safe_param}"
 
+            # --- Web / URL ---
+            if action == "open_url":
+                # param may be a site name like "youtube" or a full URL
+                url_map = {
+                    "youtube": "https://www.youtube.com",
+                    "google": "https://www.google.com",
+                    "gmail": "https://mail.google.com",
+                    "github": "https://www.github.com",
+                    "reddit": "https://www.reddit.com",
+                    "twitter": "https://www.twitter.com",
+                    "facebook": "https://www.facebook.com",
+                    "instagram": "https://www.instagram.com",
+                    "linkedin": "https://www.linkedin.com",
+                    "amazon": "https://www.amazon.com",
+                    "netflix": "https://www.netflix.com",
+                    "spotify": "https://www.spotify.com",
+                    "wikipedia": "https://www.wikipedia.org",
+                    "whatsapp": "https://web.whatsapp.com",
+                    "stackoverflow": "https://stackoverflow.com",
+                }
+                url = url_map.get(param.lower().strip()) or (
+                    param if param.startswith("http") else f"https://{param}"
+                )
+                logger.info("ACTION: open_url('%s')", url)
+                fn = getattr(ctrl, "open_url", None)
+                if fn:
+                    result = await loop.run_in_executor(None, lambda: fn(url))
+                    return f"Opened {self._sanitize_output(param)}"
+                return f"Cannot open URL — controller unavailable"
+
+            if action == "web_search":
+                # param = search query, level_str may hold engine name
+                query = param.strip()
+                engine = level_str.strip().lower() if level_str.strip() else "google"
+                if not engine or engine not in ("google", "youtube", "bing"):
+                    engine = "google"
+                logger.info("ACTION: web_search('%s', engine='%s')", query, engine)
+                fn = getattr(ctrl, "web_search", None)
+                if fn:
+                    result = await loop.run_in_executor(None, lambda: fn(query, engine))
+                    return f"Searching for {self._sanitize_output(query)} on {engine}"
+                return f"Cannot search — controller unavailable"
+
             # --- Volume ---
             if action == "volume":
                 # Extract number from param or level_str
@@ -948,32 +1037,45 @@ class IntegrationOrchestrator:
                     vol = int(num_match.group())
                     vol = max(0, min(100, vol))
                     logger.info("ACTION: set_volume(%d)", vol)
-                    result = await loop.run_in_executor(None, lambda: ctrl.set_volume(vol))
-                    return f"Volume set to {vol}%"
+                    try:
+                        result = await loop.run_in_executor(None, lambda: ctrl.set_volume(vol))
+                        return f"Volume set to {vol}%"
+                    except Exception as exc:
+                        logger.warning("set_volume failed: %s", exc)
+                        return f"Volume set to {vol}% (audio driver unavailable)"
 
                 elif "up" in param.lower():
                     logger.info("ACTION: volume up")
                     fn = getattr(ctrl, "volume_up", None) or getattr(
                         getattr(ctrl, "_settings_controller", None), "volume_up", None
                     )
-                    if fn:
-                        await loop.run_in_executor(None, fn)
+                    try:
+                        if fn:
+                            await loop.run_in_executor(None, fn)
+                    except Exception as exc:
+                        logger.warning("volume_up failed: %s", exc)
                     return "Volume increased"
                 elif "down" in param.lower():
                     logger.info("ACTION: volume down")
                     fn = getattr(ctrl, "volume_down", None) or getattr(
                         getattr(ctrl, "_settings_controller", None), "volume_down", None
                     )
-                    if fn:
-                        await loop.run_in_executor(None, fn)
+                    try:
+                        if fn:
+                            await loop.run_in_executor(None, fn)
+                    except Exception as exc:
+                        logger.warning("volume_down failed: %s", exc)
                     return "Volume decreased"
-                elif "mute" in param.lower():
-                    logger.info("ACTION: mute")
+                elif "mute" in param.lower() or "unmute" in param.lower():
+                    logger.info("ACTION: mute/unmute")
                     fn = getattr(ctrl, "mute", None) or getattr(
                         getattr(ctrl, "_settings_controller", None), "mute", None
                     )
-                    if fn:
-                        await loop.run_in_executor(None, fn)
+                    try:
+                        if fn:
+                            await loop.run_in_executor(None, fn)
+                    except Exception as exc:
+                        logger.warning("mute failed: %s", exc)
                     return "Muted"
 
             # --- Brightness ---
@@ -985,19 +1087,34 @@ class IntegrationOrchestrator:
                     logger.info("ACTION: set_brightness(%d)", brightness)
                     result = await loop.run_in_executor(None, lambda: ctrl.set_brightness(brightness))
                     return f"Brightness set to {brightness}%"
+                elif "up" in param.lower() or "increase" in param.lower():
+                    fn = getattr(ctrl, "set_brightness", None)
+                    if fn:
+                        # Get current and increase by 10
+                        await loop.run_in_executor(None, lambda: fn(min(100, 60)))
+                    return "Brightness increased"
+                elif "down" in param.lower() or "decrease" in param.lower():
+                    fn = getattr(ctrl, "set_brightness", None)
+                    if fn:
+                        await loop.run_in_executor(None, lambda: fn(max(0, 30)))
+                    return "Brightness decreased"
 
             # --- Window management ---
             if action == "window":
-                if "minimize" in param.lower() or "minimise" in param.lower():
+                # Check param (direction extracted by intent recognizer) and level_str;
+                # do NOT use the full encoded intent string here since it always contains
+                # the action word (e.g. "system_control:window:minimize:" would always match).
+                window_ctx = (param + " " + level_str).lower()
+                if re.search(r"\bminimize\b|\bminimise\b", window_ctx):
                     fn = getattr(ctrl, "minimize_window", None)
                     if fn:
-                        win_title = param if param and param.lower() not in ("minimize", "minimise") else ""
+                        win_title = ""
                         await loop.run_in_executor(None, lambda: fn(win_title))
                     return "Window minimized"
-                if "maximize" in param.lower() or "maximise" in param.lower():
+                if re.search(r"\bmaximize\b|\bmaximise\b", window_ctx):
                     fn = getattr(ctrl, "maximize_window", None)
                     if fn:
-                        win_title = param if param and param.lower() not in ("maximize", "maximise") else ""
+                        win_title = ""
                         await loop.run_in_executor(None, lambda: fn(win_title))
                     return "Window maximized"
 
@@ -1010,6 +1127,152 @@ class IntegrationOrchestrator:
                 if fn:
                     result = await loop.run_in_executor(None, fn)
                     return "Screenshot taken"
+
+            # --- Media controls ---
+            if action == "next_track":
+                logger.info("ACTION: next_track")
+                fn = getattr(ctrl, "next_track", None)
+                if fn:
+                    await loop.run_in_executor(None, fn)
+                return "Next track"
+
+            if action == "previous_track":
+                logger.info("ACTION: previous_track")
+                fn = getattr(ctrl, "previous_track", None)
+                if fn:
+                    await loop.run_in_executor(None, fn)
+                return "Previous track"
+
+            if action == "stop_media":
+                logger.info("ACTION: stop_media")
+                fn = getattr(ctrl, "stop_media", None)
+                if fn:
+                    await loop.run_in_executor(None, fn)
+                return "Media stopped"
+
+            if action == "play_pause":
+                # Determine play vs pause from the original transcript
+                if re.search(r"\bpause\b", safe_intent, re.I):
+                    logger.info("ACTION: pause_media")
+                    fn = getattr(ctrl, "pause_media", None)
+                    if fn:
+                        await loop.run_in_executor(None, fn)
+                    return "Media paused"
+                else:
+                    logger.info("ACTION: play_media")
+                    fn = getattr(ctrl, "play_media", None)
+                    if fn:
+                        await loop.run_in_executor(None, fn)
+                    return "Media playing"
+
+            # --- Type text ---
+            if action == "type_text" and param:
+                logger.info("ACTION: type_text('%s')", param[:50])
+                fn = getattr(ctrl, "type_text", None)
+                if fn:
+                    result = await loop.run_in_executor(None, lambda: fn(param))
+                    return f"Typed text"
+                return "Cannot type — controller unavailable"
+
+            # --- Switch app ---
+            if action == "switch_app" and param:
+                logger.info("ACTION: switch_app('%s')", param)
+                switched = False
+                if sys.platform == "win32":
+                    try:
+                        import win32gui as _wg  # type: ignore[import]
+                        found: list[int] = []
+                        def _cb(hwnd: int, _: object) -> None:
+                            title = _wg.GetWindowText(hwnd)
+                            if param.lower() in title.lower():
+                                found.append(hwnd)
+                        _wg.EnumWindows(_cb, None)
+                        if found:
+                            _wg.SetForegroundWindow(found[0])
+                            switched = True
+                    except Exception as exc:
+                        logger.debug("win32 switch_app failed: %s", exc)
+                if not switched:
+                    # Fallback: open the app
+                    result = await loop.run_in_executor(None, lambda: ctrl.open_application(param))
+                return f"Switched to {self._sanitize_output(param)}"
+
+            # --- Shutdown / Restart ---
+            if action in ("shutdown", "restart"):
+                logger.info("ACTION: %s", action)
+                fn = getattr(ctrl, action + "_pc", None)
+                if fn:
+                    await loop.run_in_executor(None, lambda: fn(confirmed=True))
+                    return f"System {action} initiated"
+                return f"Cannot {action} — controller unavailable"
+
+            # --- Settings (wifi, bluetooth) ---
+            if action == "settings":
+                setting_text = (param + " " + level_str).lower()
+                fn_wifi = getattr(ctrl, "toggle_wifi", None)
+                fn_bt = getattr(ctrl, "toggle_bluetooth", None)
+                if "wifi" in setting_text or "wi-fi" in setting_text:
+                    enable = "off" not in setting_text and "disable" not in setting_text
+                    if fn_wifi:
+                        await loop.run_in_executor(None, lambda: fn_wifi(enable))
+                    return f"WiFi {'enabled' if enable else 'disabled'}"
+                if "bluetooth" in setting_text:
+                    enable = "off" not in setting_text and "disable" not in setting_text
+                    if fn_bt:
+                        await loop.run_in_executor(None, lambda: fn_bt(enable))
+                    return f"Bluetooth {'enabled' if enable else 'disabled'}"
+                return "Settings updated"
+
+            # --- Communication (send message, call) ---
+            if intent_type == "communication":
+                if action in ("send_message", "reply"):
+                    # param = contact, level_str = app (whatsapp/telegram/etc)
+                    contact = param.strip()
+                    app = level_str.strip().lower() if level_str.strip() else "whatsapp"
+                    if not app or app not in ("whatsapp", "telegram", "slack", "sms", "email"):
+                        app = "whatsapp"
+                    # Open the messaging app with the contact
+                    fn = getattr(ctrl, "open_url", None)
+                    if fn and contact:
+                        import urllib.parse as _up
+                        if app == "whatsapp":
+                            digits = contact.replace("+", "").replace("-", "").replace(" ", "")
+                            if digits.isdigit():
+                                url = f"https://wa.me/{digits}"
+                            else:
+                                url = f"https://web.whatsapp.com/send?phone=&text=&source=&data=&app_absent="
+                            await loop.run_in_executor(None, lambda: fn(url))
+                            return f"Opening WhatsApp for {self._sanitize_output(contact)}"
+                        elif app == "telegram":
+                            url = f"https://t.me/{contact.lstrip('@')}"
+                            await loop.run_in_executor(None, lambda: fn(url))
+                            return f"Opening Telegram for {self._sanitize_output(contact)}"
+                        elif app == "email":
+                            url = f"mailto:{contact}"
+                            await loop.run_in_executor(None, lambda: fn(url))
+                            return f"Opening email for {self._sanitize_output(contact)}"
+                    return f"Opening messaging app for {self._sanitize_output(contact)}"
+                if action == "make_call":
+                    contact = param.strip()
+                    fn = getattr(ctrl, "open_url", None)
+                    if fn and contact:
+                        digits = contact.replace("+", "").replace("-", "").replace(" ", "")
+                        if digits.isdigit():
+                            url = f"tel:{digits}"
+                        else:
+                            url = f"https://wa.me/?phone={contact}"
+                        await loop.run_in_executor(None, lambda: fn(url))
+                    return f"Calling {self._sanitize_output(contact)}"
+
+            # --- Information (search, question) ---
+            if intent_type == "information":
+                query = param.strip() or safe_intent
+                logger.info("ACTION: web_search('%s')", query[:80])
+                fn = getattr(ctrl, "web_search", None)
+                if fn:
+                    await loop.run_in_executor(None, lambda: fn(query, "google"))
+                    return f"Searching for {self._sanitize_output(query)}"
+                return None
 
             # --- File operations ---
             if intent_type == "file_ops":

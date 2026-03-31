@@ -233,7 +233,7 @@ class AndroidTTS:
                 try:
                     if os.path.exists(tmp_path):
                         os.unlink(tmp_path)
-                except:
+                except OSError:
                     pass
 
         except Exception as e:
@@ -270,8 +270,9 @@ class AndroidTTS:
         if self._tts:
             try:
                 self._tts.shutdown()
-            except:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("TTS stop/shutdown error: %s", exc)
             self._tts = None
             self._initialized = False
 

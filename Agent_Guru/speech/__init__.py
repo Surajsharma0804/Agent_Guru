@@ -1,50 +1,48 @@
 """
-Agent Guru - Speech Engine (Python)
+Agent Guru - Speech Engine
 
-This is a FRESH START based on complete specifications.
+Provides dual-personality AI voice processing with:
+- Wake word detection (Hey Guru / Hey Maya)
+- Speech-to-text transcription (Whisper)
+- Text-to-speech synthesis (Coqui TTS, personality-specific voices)
+- Voice emotion detection
+- Voice biometric authentication
+- Command parsing
+- Always-on background service (Windows / macOS / Linux / Android / iOS)
 
-## Status: NOT STARTED
+Quick start::
 
-## Implementation Plan:
-Follow guru-speech-engine specification:
-- Location: .kiro/specs/guru-speech-engine/
-- Requirements: requirements.md (18 requirements)
-- Design: design.md (complete architecture)
-- Tasks: tasks.md (18 implementation tasks)
+    from Agent_Guru.speech import SpeechEngine
+    from Agent_Guru.speech.models import PersonalityType
 
-## Modules to Implement:
-- wake_word: Dual wake word detection (Guru/Maya)
-- stt: Speech-to-text (Whisper)
-- tts: Text-to-speech (gender-specific voices)
-- biometric: Voice biometric authentication
-- vad: Voice activity detection
-- audio: Audio preprocessing
-- commands: Command parsing
-- engine: Main speech engine orchestrator
-- background_service: Always-on service (Windows/macOS/Linux/Android/iOS)
-
-## Platform Support:
-- Desktop: Windows, macOS, Linux
-- Mobile: Android, iOS
-
-## Reference:
-- Spec: .kiro/specs/guru-speech-engine/
-- Quick Start: QUICK_START_DEV.md
-- GPU Setup: GPU_SETUP.md
-
-## Next Steps:
-1. Read .kiro/specs/guru-speech-engine/requirements.md
-2. Review design.md for architecture
-3. Start with Task 1 from tasks.md
+    engine = SpeechEngine()
+    engine.initialize()
+    result = engine.transcribe(audio_array)
+    print(result.text, result.language)
+    engine.shutdown()
 """
 
 __version__ = "0.1.0"
-__status__ = "NOT_STARTED"
+__status__ = "IMPLEMENTED"
 
-# TODO: Implement based on specs
-# from .wake_word import WakeWordDetector
-# from .stt import SpeechToText
-# from .tts import TextToSpeech
-# from .biometric import VoiceBiometricAuthenticator
-# from .vad import VoiceActivityDetector
-# from .engine import GuruSpeechEngine
+from Agent_Guru.speech.engine import SpeechEngine
+from Agent_Guru.speech.models import (
+    CommandResult,
+    EmotionResult,
+    EmotionType,
+    PersonalityType,
+    TranscriptionResult,
+    VoiceFeatures,
+)
+
+__all__ = [
+    # Main facade
+    "SpeechEngine",
+    # Data models
+    "TranscriptionResult",
+    "EmotionResult",
+    "EmotionType",
+    "CommandResult",
+    "VoiceFeatures",
+    "PersonalityType",
+]

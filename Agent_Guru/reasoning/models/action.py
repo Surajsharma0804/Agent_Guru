@@ -3,7 +3,7 @@
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ActionSensitivity(str, Enum):
@@ -16,6 +16,16 @@ class ActionSensitivity(str, Enum):
 
 class Parameter(BaseModel):
     """Represents a tool parameter definition."""
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "name": "duration",
+            "param_type": "int",
+            "required": True,
+            "description": "Timer duration in seconds",
+            "validation_rules": {"min": 1, "max": 86400},
+        }
+    })
 
     name: str = Field(..., description="Parameter name")
     param_type: str = Field(..., description="Parameter type (str, int, float, bool, etc.)")
@@ -49,21 +59,29 @@ class Parameter(BaseModel):
         """Generate hash for parameter."""
         return hash((self.name, self.param_type))
 
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
-            "example": {
-                "name": "duration",
-                "param_type": "int",
-                "required": True,
-                "description": "Timer duration in seconds",
-                "validation_rules": {"min": 1, "max": 86400},
-            }
-        }
-
 
 class Tool(BaseModel):
     """Represents an executable tool."""
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "tool_id": "set_timer",
+            "name": "Set Timer",
+            "description": "Set a countdown timer",
+            "parameters": [
+                {
+                    "name": "duration",
+                    "param_type": "int",
+                    "required": True,
+                    "description": "Duration in seconds",
+                }
+            ],
+            "sensitivity": "safe",
+            "estimated_latency": 0.05,
+            "requires_permission": False,
+            "tags": ["time", "scheduling"],
+        }
+    })
 
     tool_id: str = Field(..., description="Unique tool identifier")
     name: str = Field(..., description="Human-readable tool name")
@@ -168,31 +186,20 @@ class Tool(BaseModel):
         """Generate hash for tool."""
         return hash(self.tool_id)
 
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
-            "example": {
-                "tool_id": "set_timer",
-                "name": "Set Timer",
-                "description": "Set a countdown timer",
-                "parameters": [
-                    {
-                        "name": "duration",
-                        "param_type": "int",
-                        "required": True,
-                        "description": "Duration in seconds",
-                    }
-                ],
-                "sensitivity": "safe",
-                "estimated_latency": 0.05,
-                "requires_permission": False,
-                "tags": ["time", "scheduling"],
-            }
-        }
-
 
 class Action(BaseModel):
     """Represents an action to be executed."""
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "action_id": "action_123",
+            "tool_id": "set_timer",
+            "parameters": {"duration": 300},
+            "is_sensitive": False,
+            "estimated_duration": 0.05,
+            "requires_confirmation": False,
+        }
+    })
 
     action_id: str = Field(..., description="Unique action identifier")
     tool_id: str = Field(..., description="ID of tool to execute")
@@ -250,16 +257,3 @@ class Action(BaseModel):
     def __hash__(self) -> int:
         """Generate hash for action."""
         return hash(self.action_id)
-
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
-            "example": {
-                "action_id": "action_123",
-                "tool_id": "set_timer",
-                "parameters": {"duration": 300},
-                "is_sensitive": False,
-                "estimated_duration": 0.05,
-                "requires_confirmation": False,
-            }
-        }

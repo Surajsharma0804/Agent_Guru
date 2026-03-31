@@ -102,7 +102,11 @@ class SessionManager:
                 error=str(e),
                 error_type="StorageError"
             )
-            print(f"Warning: Severe corruption detected during goal loading: {e}")
+            logger.warning(
+                "severe_corruption_on_load",
+                operation="load_goals",
+                error=str(e)
+            )
 
             # Try to recover by querying the database directly and handling each row
             all_goals = await self._load_goals_with_corruption_handling()
@@ -121,8 +125,6 @@ class SessionManager:
                 count=len(corrupted_goals),
                 goal_ids=corrupted_goals
             )
-            print(f"Warning: {len(corrupted_goals)} corrupted goals detected")
-
             # Attempt recovery for each corrupted goal
             for goal_id in corrupted_goals:
                 await self._attempt_recovery(goal_id)
@@ -225,7 +227,6 @@ class SessionManager:
                             operation="load_with_corruption_handling",
                             error="Cannot extract goal ID from corrupted data"
                         )
-                        print("Warning: Skipping severely corrupted goal that can't be recovered")
 
         return goals
 

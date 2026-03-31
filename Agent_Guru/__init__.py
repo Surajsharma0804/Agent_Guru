@@ -36,16 +36,18 @@ def __getattr__(name: str):  # noqa: ANN201
     import importlib
 
     match name:
-        case "speech":     _path = "Agent_Guru.speech"
-        case "vision":     _path = "Agent_Guru.vision"
-        case "llm":        _path = "Agent_Guru.llm"
-        case "platform":   _path = "Agent_Guru.platform"
-        case "agents":     _path = "Agent_Guru.agents"
-        case "memory":     _path = "Agent_Guru.memory"
-        case "deployment": _path = "Agent_Guru.deployment"
-        case "policy":     _path = "Agent_Guru.policy"
-        case "security":   _path = "Agent_Guru.security"
-        case "avatar":     _path = "Agent_Guru.avatar"
+        case "speech":      _path = "Agent_Guru.speech"
+        case "vision":      _path = "Agent_Guru.vision"
+        case "llm":         _path = "Agent_Guru.llm"
+        case "platform":    _path = "Agent_Guru.platform"
+        case "agents":      _path = "Agent_Guru.agents"
+        case "memory":      _path = "Agent_Guru.memory"
+        case "deployment":  _path = "Agent_Guru.deployment"
+        case "policy":      _path = "Agent_Guru.policy"
+        case "security":    _path = "Agent_Guru.security"
+        case "avatar":      _path = "Agent_Guru.avatar"
+        case "reasoning":   _path = "Agent_Guru.reasoning"
+        case "integration": _path = "Agent_Guru.integration"
         case _:
             raise AttributeError(f"module 'Agent_Guru' has no attribute {name!r}")
 
@@ -65,4 +67,6 @@ __all__ = [
     "policy",
     "security",
     "avatar",
+    "reasoning",
+    "integration",
 ]

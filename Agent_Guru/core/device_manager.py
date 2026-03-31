@@ -4,7 +4,11 @@ Automatically detects and manages CUDA GPU availability across all AI models.
 """
 
 
+import logging
+
 import torch
+
+_logger = logging.getLogger(__name__)
 
 
 class DeviceManager:
@@ -30,12 +34,12 @@ class DeviceManager:
         if self.is_cuda_available():
             try:
                 self._device_name = torch.cuda.get_device_name(0)
-                print(f"✓ GPU Detected: {self._device_name}")
-                print(f"✓ CUDA Version: {torch.version.cuda}")
+                _logger.info("GPU detected: %s", self._device_name)
+                _logger.info("CUDA version: %s", torch.version.cuda)
             except Exception as e:
-                print(f"⚠ Warning: GPU detected but couldn't get device name: {e}")
+                _logger.warning("GPU detected but couldn't get device name: %s", e)
         else:
-            print("⚠ No GPU detected - using CPU")
+            _logger.info("No GPU detected - using CPU")
 
     def get_device(self) -> str:
         """

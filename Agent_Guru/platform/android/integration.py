@@ -175,12 +175,12 @@ class AndroidIntegration:
             pm = self.context.getPackageManager()
             try:
                 pm.getPackageInfo(package_name, 0)
-            except Exception:
-                raise AppNotFoundError(f"Package not found: {package_name}") from e
+            except Exception as pkg_exc:
+                raise AppNotFoundError(f"Package not found: {package_name}") from pkg_exc
 
             intent = pm.getLaunchIntentForPackage(package_name)
             if intent is None:
-                raise AppNotFoundError(f"No launch intent for package: {package_name}") from e
+                raise AppNotFoundError(f"No launch intent for package: {package_name}")
 
             intent.addFlags(self.Intent.FLAG_ACTIVITY_NEW_TASK)
             self.context.startActivity(intent)

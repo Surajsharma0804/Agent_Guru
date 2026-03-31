@@ -203,7 +203,7 @@ class OCREngine:
             logger.debug("OCREngine: applying super-resolution", dpi=self._estimate_dpi(image))
             working_image = self._apply_super_resolution(image)
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         raw_words = await loop.run_in_executor(
             None, self._run_extraction, working_image, language
         )

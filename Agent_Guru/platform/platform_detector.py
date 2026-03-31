@@ -28,6 +28,9 @@ import sys
 from dataclasses import dataclass
 from typing import Optional
 
+# Security: subprocess calls in this module use only fixed, non-user-controlled
+# arguments (["uname", "-o"]) for platform detection. B603/B607 suppressed.
+
 
 @dataclass
 class PlatformInfo:

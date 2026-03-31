@@ -229,19 +229,20 @@ class WakeWordDetector:
     def detect_sync(self, audio: np.ndarray) -> WakeWordDetection | None:
         """Synchronous wrapper around :meth:`detect`.
 
-        Safe to call from non-async contexts.  Creates a new event loop if
-        none is running.
+        Safe to call from non-async contexts.  Detects whether an event loop
+        is already running and dispatches accordingly to avoid deprecation
+        warnings from asyncio.get_event_loop() on Python 3.10+.
         """
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Already inside an event loop — schedule as a coroutine
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                    future = pool.submit(asyncio.run, self.detect(audio))
-                    return future.result()
-            return loop.run_until_complete(self.detect(audio))
+            # Raises RuntimeError if no loop is running
+            asyncio.get_running_loop()
+            # A loop IS running — run in a separate thread to avoid deadlock
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(asyncio.run, self.detect(audio))
+                return future.result()
         except RuntimeError:
+            # No loop running — safe to create one
             return asyncio.run(self.detect(audio))
 
     async def add_wake_word(

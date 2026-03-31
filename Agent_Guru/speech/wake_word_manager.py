@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import platform
 import time
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
@@ -38,6 +37,7 @@ import numpy as np
 
 from .audio.wake_word import WakeWordConfig, WakeWordDetector
 from .models import PersonalityType, WakeWordDetection
+from Agent_Guru.platform.platform_detector import PlatformDetector
 
 logger = logging.getLogger(__name__)
 
@@ -46,38 +46,8 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def _detect_platform() -> str:
-    """Return a normalised platform identifier.
-
-    Returns:
-        One of ``"windows"``, ``"macos"``, ``"linux"``, ``"android"``,
-        ``"ios"``, or ``"unknown"``.
-    """
-    system = platform.system().lower()
-    if system == "windows":
-        return "windows"
-    if system == "darwin":
-        return "macos"
-    if system == "linux":
-        # Heuristic: Android exposes ``ANDROID_ROOT`` or ``ANDROID_DATA``
-        import os
-        if os.environ.get("ANDROID_ROOT") or os.environ.get("ANDROID_DATA"):
-            return "android"
-        return "linux"
-    if system == "java":
-        # Jython on Android
-        return "android"
-    # iOS detection via objc_util (Pythonista) or pyobjc
-    try:
-        import objc_util  # type: ignore[import]  # Pythonista
-        return "ios"
-    except ImportError:
-        pass
-    try:
-        import Foundation  # type: ignore[import]  # pyobjc
-        return "ios"
-    except ImportError:
-        pass
-    return "unknown"
+    """Thin wrapper — delegates to canonical PlatformDetector."""
+    return PlatformDetector.detect().os_name.lower()
 
 
 # ---------------------------------------------------------------------------

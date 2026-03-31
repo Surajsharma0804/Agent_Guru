@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .action import Action
 from .intent import Intent
@@ -11,6 +11,17 @@ from .intent import Intent
 
 class TrackedEntity(BaseModel):
     """Represents an entity tracked across conversation turns."""
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "entity_type": "location",
+            "value": "New York",
+            "first_mentioned": 0,
+            "last_mentioned": 2,
+            "mention_count": 3,
+            "confidence": 0.95,
+        }
+    })
 
     entity_type: str = Field(..., description="Type of entity")
     value: Any = Field(..., description="Entity value")
@@ -47,22 +58,20 @@ class TrackedEntity(BaseModel):
         """Generate hash for tracked entity."""
         return hash((self.entity_type, str(self.value)))
 
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
-            "example": {
-                "entity_type": "location",
-                "value": "New York",
-                "first_mentioned": 0,
-                "last_mentioned": 2,
-                "mention_count": 3,
-                "confidence": 0.95,
-            }
-        }
-
 
 class ConversationTurn(BaseModel):
     """Represents a single turn in a conversation."""
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "turn_id": "turn_123",
+            "turn_number": 0,
+            "user_input": "set a timer for 5 minutes",
+            "response": "Timer set for 5 minutes",
+            "execution_time": 0.234,
+            "user_feedback": "helpful",
+        }
+    })
 
     turn_id: str = Field(..., description="Unique turn identifier")
     turn_number: int = Field(..., description="Turn number in conversation")
@@ -129,22 +138,22 @@ class ConversationTurn(BaseModel):
         """Generate hash for conversation turn."""
         return hash(self.turn_id)
 
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
-            "example": {
-                "turn_id": "turn_123",
-                "turn_number": 0,
-                "user_input": "set a timer for 5 minutes",
-                "response": "Timer set for 5 minutes",
-                "execution_time": 0.234,
-                "user_feedback": "helpful",
-            }
-        }
-
 
 class ConversationState(BaseModel):
     """Represents the state of an ongoing conversation."""
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "conversation_id": "conv_123",
+            "user_id": "user_456",
+            "turns": [],
+            "entities": {},
+            "user_preferences": {"voice_speed": "normal"},
+            "context_summary": None,
+            "last_intent": None,
+            "active_tasks": [],
+        }
+    })
 
     conversation_id: str = Field(..., description="Unique conversation identifier")
     user_id: str = Field(..., description="User identifier")
@@ -331,18 +340,3 @@ class ConversationState(BaseModel):
     def __hash__(self) -> int:
         """Generate hash for conversation state."""
         return hash(self.conversation_id)
-
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra: dict[str, Any] = {
-            "example": {
-                "conversation_id": "conv_123",
-                "user_id": "user_456",
-                "turns": [],
-                "entities": {},
-                "user_preferences": {"voice_speed": "normal"},
-                "context_summary": None,
-                "last_intent": None,
-                "active_tasks": [],
-            }
-        }

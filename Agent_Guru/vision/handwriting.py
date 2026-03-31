@@ -246,7 +246,7 @@ class HandwritingRecognizer:
             OCRResult with transcribed text and per-word details.
         """
         corrected = self._correct_perspective(image)
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         text, confidence = await loop.run_in_executor(
             None, self._run_recognition, corrected
         )

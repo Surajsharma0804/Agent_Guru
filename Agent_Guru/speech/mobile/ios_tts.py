@@ -261,7 +261,7 @@ class IOSTTS:
                 try:
                     if os.path.exists(tmp_path):
                         os.unlink(tmp_path)
-                except:
+                except OSError:
                     pass
 
         except Exception as e:
@@ -299,8 +299,9 @@ class IOSTTS:
         if self._synthesizer:
             try:
                 self._synthesizer.stopSpeakingAtBoundary_(0)  # Stop immediately
-            except:
-                pass
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("TTS stop/shutdown error: %s", exc)
             self._synthesizer = None
             self._initialized = False
 

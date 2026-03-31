@@ -121,7 +121,7 @@ class ObjectDetector:
         """
         threshold = self._config.detection_threshold
         h, w = frame.shape[:2]
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         raw = await loop.run_in_executor(None, self._run_inference, frame)
         objects: list[DetectedObject] = []
         for row in raw:
@@ -212,7 +212,7 @@ class SceneClassifier:
             Tuple of (scene_label, confidence). Returns ("uncertain", conf)
             when top-1 confidence < 0.4.
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         scores = await loop.run_in_executor(None, self._run_inference, frame)
         top_idx = int(np.argmax(scores))
         top_conf = float(scores[top_idx])

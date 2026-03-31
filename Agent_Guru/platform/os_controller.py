@@ -53,6 +53,7 @@ Date: 2026-02-25
 Version: 1.0.0
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -234,30 +235,61 @@ class OSController:
             logger.error(f"Failed to initialize audit log: {e}")
 
     def _init_controllers(self) -> None:
-        """Initialize all specialized controllers."""
+        """Initialize all specialized controllers with per-controller error isolation."""
+        self._file_controller = self._safe_init(
+            FileOperationsController,
+            audit_log_path=self.audit_log_path,
+            require_confirmation=self.require_confirmation,
+        )
+        self._app_controller = self._safe_init(ApplicationController)
+        self._desktop_app_controller = self._safe_init_desktop_app()
+        self._text_controller = self._safe_init(TextInputController)
+        self._messaging_controller = self._safe_init(MessagingController)
+        self._settings_controller = self._safe_init(SystemSettingsController)
+        self._mouse_controller = self._safe_init(MouseController)
+        self._keyboard_controller = self._safe_init(KeyboardController)
+        self._window_controller = self._safe_init(WindowManager)
+        self._media_controller = self._safe_init(MediaController)
+        self._screen_controller = self._safe_init(ScreenCaptureController)
+        self._process_manager = self._safe_init(ProcessManager)
+        self._hardware_monitor = self._safe_init(HardwareMonitor)
+        logger.info("Controllers initialized")
+
+    def _safe_init(self, cls: type, *args: Any, **kwargs: Any) -> Any:
+        """Initialize a controller class, returning None on any failure.
+
+        Args:
+            cls: Controller class to instantiate
+            *args: Positional arguments for the constructor
+            **kwargs: Keyword arguments for the constructor
+
+        Returns:
+            Controller instance or None if initialization failed
+        """
         try:
-            # Initialize controllers
-            self._file_controller = FileOperationsController(
-                audit_log_path=self.audit_log_path,
-                require_confirmation=self.require_confirmation
+            return cls(*args, **kwargs)
+        except Exception as exc:
+            cls_name = getattr(cls, "__name__", repr(cls))
+            logger.warning("Controller %s failed to initialize: %s", cls_name, exc)
+            return None
+
+    def _safe_init_desktop_app(self) -> Any:
+        """Initialize DesktopApplicationController with platform-aware error handling.
+
+        Returns:
+            DesktopApplicationController instance or None if not available
+        """
+        try:
+            from Agent_Guru.platform.controllers.desktop_app_controller import (
+                DesktopApplicationController,
             )
-            self._app_controller = ApplicationController()
-            self._text_controller = TextInputController()
-            self._messaging_controller = MessagingController()
-            self._settings_controller = SystemSettingsController()
-            self._mouse_controller = MouseController()
-            self._keyboard_controller = KeyboardController()
-            self._window_controller = WindowManager()
-            self._media_controller = MediaController()
-            self._screen_controller = ScreenCaptureController()
-            self._process_manager = ProcessManager()
-            self._hardware_monitor = HardwareMonitor()
-
-            logger.info("All controllers initialized successfully")
-
-        except ImportError as e:
-            logger.error(f"Failed to import controller: {e}")
-            raise OSControllerError(f"Failed to initialize controllers: {e}") from e
+            return DesktopApplicationController()
+        except RuntimeError:
+            logger.info("DesktopApplicationController not available on mobile platform")
+            return None
+        except Exception as exc:
+            logger.warning("DesktopApplicationController failed to initialize: %s", exc)
+            return None
 
 
     def _log_operation(
@@ -539,6 +571,9 @@ class OSController:
         Time Complexity: O(1)
         Space Complexity: O(1)
 
+        Tries DesktopApplicationController.open_app() first (richer, async),
+        falling back to ApplicationController.open_application().
+
         Args:
             app_name: Application name or path
             args: Optional command-line arguments
@@ -546,6 +581,45 @@ class OSController:
         Returns:
             OperationResult with operation status
         """
+        # Try DesktopApplicationController first (richer async implementation)
+        if self._desktop_app_controller is not None:
+            try:
+                try:
+                    asyncio.get_running_loop()
+                    # Running inside an event loop — run in a separate thread's loop
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                        success = pool.submit(
+                            asyncio.run,
+                            self._desktop_app_controller.open_app(app_name),
+                        ).result()
+                except RuntimeError:
+                    # No running event loop — safe to use asyncio.run() directly
+                    success = asyncio.run(
+                        self._desktop_app_controller.open_app(app_name)
+                    )
+                if success:
+                    self._log_operation(
+                        OperationCategory.APPLICATION,
+                        "open_application",
+                        True,
+                        {"app_name": app_name, "controller": "desktop_app"},
+                    )
+                    return OperationResult(
+                        success=True,
+                        category=OperationCategory.APPLICATION,
+                        operation="open_application",
+                        message=f"Application opened successfully: {app_name}",
+                        metadata={"app_name": app_name},
+                    )
+            except Exception as exc:
+                logger.debug(
+                    "DesktopApplicationController.open_app failed for %s: %s — falling back",
+                    app_name,
+                    exc,
+                )
+
+        # Fallback: ApplicationController
         try:
             pid = self._app_controller.open_application(app_name, args)
             self._log_operation(
@@ -721,6 +795,130 @@ class OSController:
                 error=str(e)
             )
 
+    def volume_up(self, amount: int = 10) -> OperationResult:
+        """Increase system volume by *amount* percent.
+
+        Args:
+            amount: Amount to increase (default 10)
+
+        Returns:
+            OperationResult with operation status
+        """
+        try:
+            self._media_controller.volume_up(amount)
+            self._log_operation(
+                OperationCategory.SYSTEM_SETTINGS, "volume_up", True, {"amount": amount}
+            )
+            return OperationResult(
+                success=True,
+                category=OperationCategory.SYSTEM_SETTINGS,
+                operation="volume_up",
+                message=f"Volume increased by {amount}%",
+                metadata={"amount": amount},
+            )
+        except Exception as e:
+            logger.error(f"Failed to increase volume: {e}")
+            self._log_operation(
+                OperationCategory.SYSTEM_SETTINGS, "volume_up", False, {"error": str(e)}
+            )
+            return OperationResult(
+                success=False,
+                category=OperationCategory.SYSTEM_SETTINGS,
+                operation="volume_up",
+                message="Failed to increase volume",
+                error=str(e),
+            )
+
+    def volume_down(self, amount: int = 10) -> OperationResult:
+        """Decrease system volume by *amount* percent.
+
+        Args:
+            amount: Amount to decrease (default 10)
+
+        Returns:
+            OperationResult with operation status
+        """
+        try:
+            self._media_controller.volume_down(amount)
+            self._log_operation(
+                OperationCategory.SYSTEM_SETTINGS, "volume_down", True, {"amount": amount}
+            )
+            return OperationResult(
+                success=True,
+                category=OperationCategory.SYSTEM_SETTINGS,
+                operation="volume_down",
+                message=f"Volume decreased by {amount}%",
+                metadata={"amount": amount},
+            )
+        except Exception as e:
+            logger.error(f"Failed to decrease volume: {e}")
+            self._log_operation(
+                OperationCategory.SYSTEM_SETTINGS, "volume_down", False, {"error": str(e)}
+            )
+            return OperationResult(
+                success=False,
+                category=OperationCategory.SYSTEM_SETTINGS,
+                operation="volume_down",
+                message="Failed to decrease volume",
+                error=str(e),
+            )
+
+    def mute(self) -> OperationResult:
+        """Mute system audio.
+
+        Returns:
+            OperationResult with operation status
+        """
+        try:
+            self._media_controller.mute()
+            self._log_operation(OperationCategory.SYSTEM_SETTINGS, "mute", True, {})
+            return OperationResult(
+                success=True,
+                category=OperationCategory.SYSTEM_SETTINGS,
+                operation="mute",
+                message="Audio muted",
+            )
+        except Exception as e:
+            logger.error(f"Failed to mute: {e}")
+            self._log_operation(
+                OperationCategory.SYSTEM_SETTINGS, "mute", False, {"error": str(e)}
+            )
+            return OperationResult(
+                success=False,
+                category=OperationCategory.SYSTEM_SETTINGS,
+                operation="mute",
+                message="Failed to mute audio",
+                error=str(e),
+            )
+
+    def unmute(self) -> OperationResult:
+        """Unmute system audio.
+
+        Returns:
+            OperationResult with operation status
+        """
+        try:
+            self._media_controller.unmute()
+            self._log_operation(OperationCategory.SYSTEM_SETTINGS, "unmute", True, {})
+            return OperationResult(
+                success=True,
+                category=OperationCategory.SYSTEM_SETTINGS,
+                operation="unmute",
+                message="Audio unmuted",
+            )
+        except Exception as e:
+            logger.error(f"Failed to unmute: {e}")
+            self._log_operation(
+                OperationCategory.SYSTEM_SETTINGS, "unmute", False, {"error": str(e)}
+            )
+            return OperationResult(
+                success=False,
+                category=OperationCategory.SYSTEM_SETTINGS,
+                operation="unmute",
+                message="Failed to unmute audio",
+                error=str(e),
+            )
+
     def set_brightness(self, level: int) -> OperationResult:
         """Set screen brightness level.
 
@@ -856,7 +1054,7 @@ class OSController:
     # ==================== Media Control ====================
 
     def play_media(self) -> OperationResult:
-        """Play media (simulate media play key).
+        """Play media (simulate media play/pause key).
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -933,6 +1131,359 @@ class OSController:
                 error=str(e)
             )
 
+    def next_track(self) -> OperationResult:
+        """Skip to next media track.
+
+        Returns:
+            OperationResult with operation status
+        """
+        try:
+            self._media_controller.next_track()
+            self._log_operation(OperationCategory.MEDIA, "next_track", True, {})
+            return OperationResult(
+                success=True,
+                category=OperationCategory.MEDIA,
+                operation="next_track",
+                message="Skipped to next track",
+            )
+        except Exception as e:
+            logger.error(f"Failed to skip track: {e}")
+            return OperationResult(
+                success=False,
+                category=OperationCategory.MEDIA,
+                operation="next_track",
+                message="Failed to skip to next track",
+                error=str(e),
+            )
+
+    def previous_track(self) -> OperationResult:
+        """Go to previous media track.
+
+        Returns:
+            OperationResult with operation status
+        """
+        try:
+            self._media_controller.previous_track()
+            self._log_operation(OperationCategory.MEDIA, "previous_track", True, {})
+            return OperationResult(
+                success=True,
+                category=OperationCategory.MEDIA,
+                operation="previous_track",
+                message="Went to previous track",
+            )
+        except Exception as e:
+            logger.error(f"Failed to go to previous track: {e}")
+            return OperationResult(
+                success=False,
+                category=OperationCategory.MEDIA,
+                operation="previous_track",
+                message="Failed to go to previous track",
+                error=str(e),
+            )
+
+    def stop_media(self) -> OperationResult:
+        """Stop media playback.
+
+        Returns:
+            OperationResult with operation status
+        """
+        try:
+            self._media_controller.stop()
+            self._log_operation(OperationCategory.MEDIA, "stop_media", True, {})
+            return OperationResult(
+                success=True,
+                category=OperationCategory.MEDIA,
+                operation="stop_media",
+                message="Media stopped",
+            )
+        except Exception as e:
+            logger.error(f"Failed to stop media: {e}")
+            return OperationResult(
+                success=False,
+                category=OperationCategory.MEDIA,
+                operation="stop_media",
+                message="Failed to stop media",
+                error=str(e),
+            )
+
+    # ==================== Web / Browser ====================
+
+    def open_url(self, url: str, browser: Optional[str] = None) -> OperationResult:
+        """Open a URL in the default (or specified) browser.
+
+        Handles bare queries like "youtube" → https://www.youtube.com,
+        search queries like "python tutorials" → Google search URL.
+
+        Args:
+            url: URL, domain, or search query
+            browser: Optional browser name (e.g. "chrome", "firefox")
+
+        Returns:
+            OperationResult with operation status
+        """
+        import webbrowser
+
+        # Normalise: if it looks like a bare domain or keyword, build a URL
+        resolved = self._resolve_url(url)
+
+        try:
+            if browser:
+                # Try to open with specific browser via app controller
+                try:
+                    self._app_controller.open_application(browser, [resolved])
+                except Exception:
+                    webbrowser.open(resolved)
+            else:
+                webbrowser.open(resolved)
+
+            self._log_operation(
+                OperationCategory.APPLICATION, "open_url", True, {"url": resolved}
+            )
+            return OperationResult(
+                success=True,
+                category=OperationCategory.APPLICATION,
+                operation="open_url",
+                message=f"Opened URL: {resolved}",
+                metadata={"url": resolved},
+            )
+        except Exception as e:
+            logger.error(f"Failed to open URL {resolved}: {e}")
+            self._log_operation(
+                OperationCategory.APPLICATION, "open_url", False, {"error": str(e)}
+            )
+            return OperationResult(
+                success=False,
+                category=OperationCategory.APPLICATION,
+                operation="open_url",
+                message=f"Failed to open URL: {resolved}",
+                error=str(e),
+            )
+
+    def web_search(self, query: str, engine: str = "google") -> OperationResult:
+        """Perform a web search by opening the browser with a search URL.
+
+        Args:
+            query: Search query
+            engine: Search engine ("google", "youtube", "bing")
+
+        Returns:
+            OperationResult with operation status
+        """
+        _engines = {
+            "google": "https://www.google.com/search?q=",
+            "youtube": "https://www.youtube.com/results?search_query=",
+            "bing": "https://www.bing.com/search?q=",
+        }
+        base = _engines.get(engine.lower(), _engines["google"])
+        import urllib.parse
+        url = base + urllib.parse.quote_plus(query)
+        return self.open_url(url)
+
+    @staticmethod
+    def _resolve_url(raw: str) -> str:
+        """Resolve a raw string to a full URL.
+
+        Args:
+            raw: URL, domain, or search query
+
+        Returns:
+            Full URL string
+        """
+        import urllib.parse
+
+        raw = raw.strip()
+        # Already a full URL
+        if raw.startswith(("http://", "https://")):
+            return raw
+
+        # Known site shortcuts
+        _shortcuts: dict[str, str] = {
+            "youtube": "https://www.youtube.com",
+            "google": "https://www.google.com",
+            "gmail": "https://mail.google.com",
+            "github": "https://www.github.com",
+            "stackoverflow": "https://stackoverflow.com",
+            "reddit": "https://www.reddit.com",
+            "twitter": "https://www.twitter.com",
+            "x": "https://www.x.com",
+            "facebook": "https://www.facebook.com",
+            "instagram": "https://www.instagram.com",
+            "linkedin": "https://www.linkedin.com",
+            "amazon": "https://www.amazon.com",
+            "netflix": "https://www.netflix.com",
+            "spotify": "https://open.spotify.com",
+            "wikipedia": "https://www.wikipedia.org",
+        }
+        lower = raw.lower()
+        if lower in _shortcuts:
+            return _shortcuts[lower]
+
+        # Looks like a domain (contains a dot, no spaces)
+        if "." in raw and " " not in raw:
+            return f"https://{raw}"
+
+        # Treat as a Google search query
+        return "https://www.google.com/search?q=" + urllib.parse.quote_plus(raw)
+
+    # ==================== Destructive / Permission-Required Operations ====================
+
+    def uninstall_application(
+        self, app_name: str, confirmed: bool = False
+    ) -> OperationResult:
+        """Uninstall an application. Requires explicit confirmation.
+
+        Args:
+            app_name: Application name to uninstall
+            confirmed: Must be True to proceed (user confirmed)
+
+        Returns:
+            OperationResult — fails with permission error if not confirmed
+        """
+        if not confirmed:
+            return OperationResult(
+                success=False,
+                category=OperationCategory.APPLICATION,
+                operation="uninstall_application",
+                message=f"Permission required: uninstalling '{app_name}' is a destructive operation. "
+                        "Please confirm before proceeding.",
+                error="confirmation_required",
+                metadata={"requires_confirmation": True, "app_name": app_name},
+            )
+        try:
+            import subprocess
+            if self.platform == "win32":
+                # Use winget if available, else warn
+                result = subprocess.run(
+                    ["winget", "uninstall", "--name", app_name, "--silent"],
+                    capture_output=True, text=True, timeout=120
+                )
+                success = result.returncode == 0
+                msg = result.stdout or result.stderr
+            else:
+                success = False
+                msg = f"Uninstall not implemented for platform: {self.platform}"
+
+            self._log_operation(
+                OperationCategory.APPLICATION, "uninstall_application", success,
+                {"app_name": app_name, "confirmed": confirmed}
+            )
+            return OperationResult(
+                success=success,
+                category=OperationCategory.APPLICATION,
+                operation="uninstall_application",
+                message=msg,
+                metadata={"app_name": app_name},
+            )
+        except Exception as e:
+            logger.error(f"Failed to uninstall {app_name}: {e}")
+            return OperationResult(
+                success=False,
+                category=OperationCategory.APPLICATION,
+                operation="uninstall_application",
+                message=f"Failed to uninstall {app_name}",
+                error=str(e),
+            )
+
+    def reset_pc(self, confirmed: bool = False) -> OperationResult:
+        """Reset / restart the PC. Requires explicit confirmation.
+
+        Args:
+            confirmed: Must be True to proceed
+
+        Returns:
+            OperationResult — fails with permission error if not confirmed
+        """
+        if not confirmed:
+            return OperationResult(
+                success=False,
+                category=OperationCategory.SYSTEM_SETTINGS,
+                operation="reset_pc",
+                message="Permission required: resetting the PC will restart your computer. "
+                        "Please confirm before proceeding.",
+                error="confirmation_required",
+                metadata={"requires_confirmation": True},
+            )
+        try:
+            import subprocess
+            if self.platform == "win32":
+                subprocess.Popen(["shutdown", "/r", "/t", "5"])
+                msg = "PC will restart in 5 seconds"
+            elif self.platform == "darwin":
+                subprocess.Popen(["sudo", "shutdown", "-r", "now"])
+                msg = "PC restarting now"
+            else:
+                subprocess.Popen(["sudo", "reboot"])
+                msg = "PC restarting now"
+
+            self._log_operation(
+                OperationCategory.SYSTEM_SETTINGS, "reset_pc", True, {"confirmed": True}
+            )
+            return OperationResult(
+                success=True,
+                category=OperationCategory.SYSTEM_SETTINGS,
+                operation="reset_pc",
+                message=msg,
+            )
+        except Exception as e:
+            logger.error(f"Failed to reset PC: {e}")
+            return OperationResult(
+                success=False,
+                category=OperationCategory.SYSTEM_SETTINGS,
+                operation="reset_pc",
+                message="Failed to reset PC",
+                error=str(e),
+            )
+
+    def shutdown_pc(self, confirmed: bool = False) -> OperationResult:
+        """Shut down the PC. Requires explicit confirmation.
+
+        Args:
+            confirmed: Must be True to proceed
+
+        Returns:
+            OperationResult — fails with permission error if not confirmed
+        """
+        if not confirmed:
+            return OperationResult(
+                success=False,
+                category=OperationCategory.SYSTEM_SETTINGS,
+                operation="shutdown_pc",
+                message="Permission required: shutting down the PC. "
+                        "Please confirm before proceeding.",
+                error="confirmation_required",
+                metadata={"requires_confirmation": True},
+            )
+        try:
+            import subprocess
+            if self.platform == "win32":
+                subprocess.Popen(["shutdown", "/s", "/t", "5"])
+                msg = "PC will shut down in 5 seconds"
+            elif self.platform == "darwin":
+                subprocess.Popen(["sudo", "shutdown", "-h", "now"])
+                msg = "PC shutting down now"
+            else:
+                subprocess.Popen(["sudo", "poweroff"])
+                msg = "PC shutting down now"
+
+            self._log_operation(
+                OperationCategory.SYSTEM_SETTINGS, "shutdown_pc", True, {"confirmed": True}
+            )
+            return OperationResult(
+                success=True,
+                category=OperationCategory.SYSTEM_SETTINGS,
+                operation="shutdown_pc",
+                message=msg,
+            )
+        except Exception as e:
+            logger.error(f"Failed to shut down PC: {e}")
+            return OperationResult(
+                success=False,
+                category=OperationCategory.SYSTEM_SETTINGS,
+                operation="shutdown_pc",
+                message="Failed to shut down PC",
+                error=str(e),
+            )
+
     # ==================== Screen Capture ====================
 
     def take_screenshot(
@@ -953,7 +1504,16 @@ class OSController:
             OperationResult with operation status
         """
         try:
-            self._screen_controller.take_screenshot(save_path, region)
+            import os as _os
+            import tempfile
+            # ScreenCaptureController uses capture_screenshot(output_path), not take_screenshot
+            capture_fn = getattr(self._screen_controller, "capture_screenshot", None) \
+                         or getattr(self._screen_controller, "take_screenshot", None)
+            if capture_fn is None:
+                raise AttributeError("No screenshot method found on screen controller")
+            if save_path is None:
+                save_path = _os.path.join(tempfile.gettempdir(), "guru_screenshot.png")
+            capture_fn(save_path)
             self._log_operation(
                 OperationCategory.SCREEN_CAPTURE,
                 "take_screenshot",
@@ -1185,10 +1745,18 @@ class OSController:
             # Application control
             "open_application": self.open_application,
             "close_application": self.close_application,
+            "uninstall_application": self.uninstall_application,
+            # Web / browser
+            "open_url": self.open_url,
+            "web_search": self.web_search,
             # Text input
             "type_text": self.type_text,
             # System settings
             "set_volume": self.set_volume,
+            "volume_up": self.volume_up,
+            "volume_down": self.volume_down,
+            "mute": self.mute,
+            "unmute": self.unmute,
             "set_brightness": self.set_brightness,
             # Window management
             "minimize_window": self.minimize_window,
@@ -1196,8 +1764,14 @@ class OSController:
             # Media control
             "play_media": self.play_media,
             "pause_media": self.pause_media,
+            "next_track": self.next_track,
+            "previous_track": self.previous_track,
+            "stop_media": self.stop_media,
             # Screen capture
             "take_screenshot": self.take_screenshot,
+            # Destructive (require confirmed=True)
+            "reset_pc": self.reset_pc,
+            "shutdown_pc": self.shutdown_pc,
         }
 
         if operation not in operation_map:

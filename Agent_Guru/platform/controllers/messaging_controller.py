@@ -33,9 +33,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import platform
 import urllib.parse
 from typing import Optional
+
+from Agent_Guru.platform.platform_detector import PlatformDetector
+from Agent_Guru.platform.utils import fuzzy_match as _fuzzy_match, normalize as _normalize
 
 logger = logging.getLogger(__name__)
 
@@ -54,42 +56,10 @@ _SUPPORTED_APPS: frozenset[str] = frozenset(
 # Platform detection (mirrors mobile_app_controller.py)
 # ---------------------------------------------------------------------------
 
-_PLATFORM_CACHE: Optional[str] = None
-
 
 def _detect_platform() -> str:
-    """Return a normalised platform identifier.
-
-    Returns:
-        One of ``"windows"``, ``"macos"``, ``"linux"``, ``"android"``,
-        ``"ios"``, or ``"unknown"``.
-    """
-    global _PLATFORM_CACHE
-    if _PLATFORM_CACHE is not None:
-        return _PLATFORM_CACHE
-
-    system = platform.system().lower()
-    if system == "windows":
-        result = "windows"
-    elif system == "darwin":
-        result = "macos"
-    elif system == "linux":
-        try:
-            import subprocess  # noqa: PLC0415
-            out = subprocess.run(
-                ["uname", "-o"], capture_output=True, text=True, timeout=1  # nosec B603 B607
-            )
-            if "android" in out.stdout.lower():
-                result = "android"
-            else:
-                result = "linux"
-        except Exception:
-            result = "linux"
-    else:
-        result = "unknown"
-
-    _PLATFORM_CACHE = result
-    return result
+    """Thin wrapper — delegates to canonical PlatformDetector."""
+    return PlatformDetector.detect().os_name.lower()
 
 
 def _is_desktop(plat: str) -> bool:
@@ -100,23 +70,6 @@ def _is_desktop(plat: str) -> bool:
 def _is_mobile(plat: str) -> bool:
     """Return True if *plat* is a mobile platform."""
     return plat in ("android", "ios")
-
-
-# ---------------------------------------------------------------------------
-# Fuzzy matching helpers
-# ---------------------------------------------------------------------------
-
-
-def _normalize(name: str) -> str:
-    """Normalise a name for fuzzy matching."""
-    return name.strip().lower()
-
-
-def _fuzzy_match(query: str, candidate: str) -> bool:
-    """Return True if *query* matches *candidate* (case-insensitive partial)."""
-    q = _normalize(query)
-    c = _normalize(candidate)
-    return q == c or q in c or c in q
 
 
 # ---------------------------------------------------------------------------

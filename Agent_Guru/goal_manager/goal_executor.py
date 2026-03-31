@@ -343,7 +343,6 @@ class GoalExecutor:
                 error=str(e),
                 error_type=type(e).__name__
             )
-            print(f"Failed to report to Self-Improvement Engine for goal {goal.id}: {e}")
             # Note: Goal execution continues successfully despite reporting failure
 
     async def _commit_to_github(self, goal: Goal) -> None:
@@ -388,7 +387,6 @@ class GoalExecutor:
                 error=str(e),
                 error_type=type(e).__name__
             )
-            print(f"Failed to commit to GitHub for goal {goal.id}: {e}")
             # Note: Goal execution continues successfully despite GitHub failure
 
     async def stop_execution(self, goal_id: str) -> None:
@@ -432,7 +430,7 @@ class GoalExecutor:
                     error=str(e),
                     error_type=type(e).__name__
                 )
-                print(f"Failed to cancel task {task_id} for goal {goal_id}: {e}")
+            # (already logged above via logger.error)
 
             # Remove from active_executions (cleanup regardless of cancellation result)
             del self.active_executions[goal_id]
