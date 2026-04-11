@@ -8,7 +8,7 @@ import logging
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -112,7 +112,7 @@ class ImprovementMonitor:
                         "task_count": task_count,
                         "report_timestamp": timestamp
                     },
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(tz=timezone.utc)
                 )
 
                 self.alert_callback(alert)
@@ -182,7 +182,7 @@ class ImprovementMonitor:
                         "recent_success_rate": recent_rate,
                         "previous_success_rate": previous_rate
                     },
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(tz=timezone.utc)
                 )
 
                 self.alert_callback(alert)
@@ -234,7 +234,7 @@ class ImprovementMonitor:
                         "threshold": max_failure_rate,
                         "success_rate": 100 - failure_rate
                     },
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(tz=timezone.utc)
                 )
 
                 self.alert_callback(alert)
@@ -358,14 +358,14 @@ class ImprovementMonitor:
                 },
                 "failures": failure_breakdown,
                 "top_strategies": top_strategies,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(tz=timezone.utc).isoformat()
             }
 
         except Exception as e:
             self.logger.error("Error getting dashboard metrics: %s", e)
             return {
                 "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(tz=timezone.utc).isoformat()
             }
 
     def _default_alert_handler(self, alert: Alert) -> None:

@@ -1,6 +1,6 @@
 """Tests for Redis cache."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
@@ -20,11 +20,11 @@ def sample_state():
                 turn_number=1,
                 user_input="Hi",
                 assistant_response="Hello",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
         ],
-        created_at=datetime.now(),
-        updated_at=datetime.now(),
+        created_at=datetime.now(tz=timezone.utc),
+        updated_at=datetime.now(tz=timezone.utc),
     )
 
 

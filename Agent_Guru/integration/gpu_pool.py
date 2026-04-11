@@ -140,5 +140,5 @@ class GPUResourcePool:
 
             allocated = torch.cuda.memory_allocated(0)
             return min(allocated / self.total_vram, 1.0)
-        except Exception:
+        except Exception as e:
             return 0.0

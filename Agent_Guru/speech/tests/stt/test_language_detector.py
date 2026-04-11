@@ -826,7 +826,7 @@ class TestLanguageDetector:
                 result = detector.detect_language(text)
                 assert result is not None
                 assert 0.0 <= result.confidence <= 1.0
-            except:
+            except Exception as e:
                 # If decode fails, that's ok
                 pass
     

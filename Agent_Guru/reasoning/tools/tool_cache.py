@@ -16,7 +16,7 @@ Version: 1.0.0
 import hashlib
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from Agent_Guru.reasoning.models.intent import Intent
@@ -46,7 +46,7 @@ class CachedToolMapping:
 
     def update_access(self) -> None:
         """Update access statistics."""
-        self.last_accessed = datetime.now()
+        self.last_accessed = datetime.now(tz=timezone.utc)
         self.access_count += 1
 
 
@@ -70,7 +70,7 @@ class CachedAvailability:
 
     def update_access(self) -> None:
         """Update access statistics."""
-        self.last_accessed = datetime.now()
+        self.last_accessed = datetime.now(tz=timezone.utc)
 
 
 @dataclass
@@ -247,12 +247,12 @@ class ToolSelectionCache:
 
     def _is_mapping_expired(self, entry: CachedToolMapping) -> bool:
         """Check if mapping entry is expired."""
-        age = datetime.now() - entry.created_at
+        age = datetime.now(tz=timezone.utc) - entry.created_at
         return age > self.mapping_ttl
 
     def _is_availability_expired(self, entry: CachedAvailability) -> bool:
         """Check if availability entry is expired."""
-        age = datetime.now() - entry.created_at
+        age = datetime.now(tz=timezone.utc) - entry.created_at
         return age > self.availability_ttl
 
     def get_mapping(self, intent: Intent) -> Optional[dict[str, Any]]:
@@ -325,8 +325,8 @@ class ToolSelectionCache:
             parameters=parameters,
             confidence=confidence,
             cache_key=cache_key,
-            created_at=datetime.now(),
-            last_accessed=datetime.now(),
+            created_at=datetime.now(tz=timezone.utc),
+            last_accessed=datetime.now(tz=timezone.utc),
         )
 
         self._mapping_cache[cache_key] = entry
@@ -398,8 +398,8 @@ class ToolSelectionCache:
             tool_id=tool_id,
             is_available=is_available,
             cache_key=cache_key,
-            created_at=datetime.now(),
-            last_accessed=datetime.now(),
+            created_at=datetime.now(tz=timezone.utc),
+            last_accessed=datetime.now(tz=timezone.utc),
         )
 
         self._availability_cache[cache_key] = entry

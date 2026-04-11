@@ -24,7 +24,7 @@ Date: 2026-02-28
 
 import math
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -225,7 +225,7 @@ class EdgeCaseHandler:
             event_frequency=event_frequency,
             weighted_score=weighted_score,
             meets_threshold=meets_threshold,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         # Persist metrics
@@ -549,7 +549,7 @@ class EdgeCaseHandler:
             >>> for case in edge_cases:
             ...     print(f"Edge case: {case.pattern_id}, frequency={case.event_frequency:.3f}")
         """
-        cutoff = datetime.now() - timedelta(days=days)
+        cutoff = datetime.now(tz=timezone.utc) - timedelta(days=days)
 
         with self.pool.connection() as conn:
             cursor = conn.cursor()

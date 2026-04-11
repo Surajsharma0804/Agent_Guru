@@ -13,7 +13,7 @@ Version: 1.0.0
 """
 
 import socket
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog

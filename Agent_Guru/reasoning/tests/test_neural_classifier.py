@@ -227,7 +227,7 @@ class TestNeuralIntentClassifierInit:
                     try:
                         # This should trigger the except ImportError block
                         pass
-                    except:
+                    except Exception as e:
                         pass  # Expected to fail during import
         finally:
             # Restore original module

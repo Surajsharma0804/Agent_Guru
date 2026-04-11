@@ -4,7 +4,7 @@ Tests for cloud synchronization service.
 Coverage Target: >80%
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -43,11 +43,11 @@ def sample_state():
                 turn_number=1,
                 user_input="Hello",
                 assistant_response="Hi there!",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
         ],
-        created_at=datetime.now(),
-        updated_at=datetime.now(),
+        created_at=datetime.now(tz=timezone.utc),
+        updated_at=datetime.now(tz=timezone.utc),
     )
 
 
@@ -307,7 +307,7 @@ class TestCloudSyncServiceMocked:
         """Test getting sync status when conversation exists."""
         service, mock_conn = mock_service
 
-        mock_row = {"version": 5, "updated_at": datetime.now()}
+        mock_row = {"version": 5, "updated_at": datetime.now(tz=timezone.utc)}
         mock_conn.fetchrow = AsyncMock(return_value=mock_row)
 
         result = await service.get_sync_status("conv_123", "user_456")

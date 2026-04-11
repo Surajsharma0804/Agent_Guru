@@ -4,7 +4,7 @@ World State data models for context-aware reasoning.
 Performance: O(1) state queries, <20ms latency
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -144,7 +144,7 @@ class WorldState(BaseModel):
 
     def get_upcoming_events(self, hours: int = 24) -> list[CalendarEvent]:
         """Get events in next N hours."""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         from datetime import timedelta
 
         cutoff = now + timedelta(hours=hours)

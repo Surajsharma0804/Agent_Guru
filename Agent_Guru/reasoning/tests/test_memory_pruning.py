@@ -7,7 +7,7 @@ automatic pruning, retention policies, and user control over memory deletion.
 Coverage Target: 80%+ for all pruning methods
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest

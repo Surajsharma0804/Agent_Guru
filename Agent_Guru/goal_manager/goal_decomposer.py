@@ -18,7 +18,7 @@ import asyncio
 import html
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from Agent_Guru.goal_manager.exceptions import DecompositionError
@@ -133,7 +133,7 @@ class GoalDecomposer:
                 "similar_goals": [g.content for g in similar_goals],
                 "metadata": goal.metadata
             }
-        except Exception:
+        except Exception as e:
             # If memory query fails, continue with empty context
             return {
                 "similar_goals": [],
@@ -296,7 +296,7 @@ class GoalDecomposer:
                     status=GoalStatus.PENDING,
                     priority=parent_goal.priority,
                     progress=0.0,
-                    created_at=datetime.now(),
+                    created_at=datetime.now(tz=timezone.utc),
                     started_at=None,
                     completed_at=None,
                     parent_id=parent_goal.id,

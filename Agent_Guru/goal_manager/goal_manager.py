@@ -34,7 +34,7 @@ Version: 1.0.0
 
 import asyncio
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from Agent_Guru.goal_manager.dependency_resolver import DependencyResolver
@@ -180,6 +180,8 @@ class GoalManager:
         self._memory_system = memory_system
         self._improvement_engine = self_improvement_engine
         self._github_client: Any = None
+        # Background task tracking (prevents GC of fire-and-forget tasks)
+        self._background_tasks: set = set()
 
     async def create_goal(
         self,
@@ -222,7 +224,7 @@ class GoalManager:
             priority=priority,
             goal_type=goal_type,
             progress=0.0,
-            created_at=datetime.now(),
+            created_at=datetime.now(tz=timezone.utc),
             started_at=None,
             completed_at=None,
             deadline=deadline,
@@ -247,8 +249,10 @@ class GoalManager:
                 parent.sub_goal_ids.append(goal.id)
                 await self.storage.update_goal(parent)
 
-        # Start decomposition asynchronously (fire and forget)
-        asyncio.create_task(self._decompose_goal(goal.id))
+        # Start decomposition asynchronously — store ref to prevent GC
+        _task = asyncio.create_task(self._decompose_goal(goal.id))
+        self._background_tasks.add(_task)
+        _task.add_done_callback(self._background_tasks.discard)
 
         return goal
 
@@ -650,7 +654,7 @@ class GoalManager:
 
             # Add note with timestamp
             goal.metadata["notes"].append({
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
                 "content": notes
             })
 

@@ -235,7 +235,7 @@ class ParallelExecutor:
             try:
                 results_raw = await asyncio.gather(*tasks, return_exceptions=False)
                 results = list(results_raw)
-            except Exception:
+            except Exception as e:
                 # Cancel remaining tasks
                 for task_obj in tasks:
                     task_obj.cancel()

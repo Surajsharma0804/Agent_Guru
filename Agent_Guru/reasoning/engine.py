@@ -34,7 +34,7 @@ Version: 1.0.0
 import asyncio
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -891,8 +891,8 @@ class ReasoningEngine:
 
                 with self.latency_controller.stage_context(PipelineStage.REASONING) as timer:
                     # Build context-aware prompt with dynamic personality
-                    current_time = datetime.now().strftime("%I:%M %p")
-                    current_date = datetime.now().strftime("%A, %B %d, %Y")
+                    current_time = datetime.now(tz=timezone.utc).strftime("%I:%M %p")
+                    current_date = datetime.now(tz=timezone.utc).strftime("%A, %B %d, %Y")
 
                     # Get personality from metadata (default to Guru)
                     personality_name = normalized_input.metadata.get("personality", "guru").capitalize()
@@ -962,7 +962,7 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
                     )
 
             except (Exception, asyncio.TimeoutError, asyncio.CancelledError) as reasoning_error:
-                logger.error(f"Custom reasoning (Ollama) failed: {reasoning_error}", exc_info=True)
+                logger.error("Custom reasoning (Ollama) failed: %s", reasoning_error, exc_info=True)
 
                 # Provide helpful error message
                 fallback_response = "I'm having trouble connecting to the local AI model. Please make sure Ollama is installed and running with: ollama serve"

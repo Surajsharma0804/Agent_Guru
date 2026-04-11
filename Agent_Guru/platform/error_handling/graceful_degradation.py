@@ -250,8 +250,7 @@ class DegradationManager:
             enable_callback=enable_callback
         )
 
-        logger.debug(
-            f"Feature registered: {name}",
+        logger.debug("Feature registered: %s", name,
             extra={
                 "priority": priority.name,
                 "description": description
@@ -530,7 +529,7 @@ class DegradationManager:
                     try:
                         feature.enable_callback()
                     except Exception as e:
-                        logger.error(f"Error enabling feature {name}: {e}")
+                        logger.error("Error enabling feature %s: %s", name, e)
 
                 logger.info("Feature enabled: %s", name)
 
@@ -541,7 +540,7 @@ class DegradationManager:
                     try:
                         feature.disable_callback()
                     except Exception as e:
-                        logger.error(f"Error disabling feature {name}: {e}")
+                        logger.error("Error disabling feature %s: %s", name, e)
 
                 disabled_features.append(name)
                 logger.info("Feature disabled: %s", name)

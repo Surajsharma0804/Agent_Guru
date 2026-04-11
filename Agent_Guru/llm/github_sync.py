@@ -18,7 +18,7 @@ import base64
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ class GitHubSyncEngine:
             operation_id=self._generate_operation_id(),
             content=encoded,
             commit_message=self._generate_commit_message(metrics),
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         self.pending_operations.append(operation)
@@ -225,7 +225,7 @@ class GitHubSyncEngine:
         lines = [
             "# LLM Runtime Performance Metrics",
             "",
-            f"Last Updated: {datetime.now().isoformat()}",
+            f"Last Updated: {datetime.now(tz=timezone.utc).isoformat()}",
             "",
             "| Model | Provider | Success Rate | Avg Latency (ms) | Total Cost |",
             "|-------|----------|--------------|------------------|------------|",
@@ -280,5 +280,5 @@ class GitHubSyncEngine:
             operation_id=self._generate_operation_id(),
             content=latest.content,
             commit_message=f"[LLM Runtime] Batched update — {len(operations)} changes",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )

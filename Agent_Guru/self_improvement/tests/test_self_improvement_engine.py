@@ -42,7 +42,7 @@ class TestSelfImprovementEngineIntegration:
                 time.sleep(0.2)
                 try:
                     os.unlink(path)
-                except:
+                except Exception as e:
                     pass  # Best effort cleanup
     
     @pytest.fixture

@@ -21,7 +21,7 @@ Version: 1.0.0
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -209,14 +209,14 @@ class AgentMerger:
             capabilities=merged_capabilities,
             specializations=merged_specializations,
             performance_history=merged_history,
-            created_at=datetime.now(),
-            last_active=datetime.now(),
+            created_at=datetime.now(tz=timezone.utc),
+            last_active=datetime.now(tz=timezone.utc),
             total_tasks=agent1.total_tasks + agent2.total_tasks,
             successful_tasks=agent1.successful_tasks + agent2.successful_tasks,
             metadata={
                 "merged_from": [agent_id_1, agent_id_2],
                 "merge_reason": "overlapping_specializations",
-                "merge_timestamp": datetime.now().isoformat(),
+                "merge_timestamp": datetime.now(tz=timezone.utc).isoformat(),
             },
         )
 

@@ -504,7 +504,7 @@ class DatasetManager:
                         )
                     else:
                         stats.failed_images.append(str(img_path))
-                except Exception:
+                except Exception as e:
                     stats.failed_images.append(str(img_path))
 
         return stats
@@ -552,7 +552,7 @@ class DatasetManager:
             pil = Image.open(path).convert("RGB")
             rgb = np.array(pil, dtype=np.uint8)
             return rgb[:, :, ::-1]
-        except Exception:
+        except Exception as e:
             return None
 
     @staticmethod
@@ -567,5 +567,5 @@ class DatasetManager:
             rgb = image[:, :, ::-1]
             Image.fromarray(rgb).save(str(path))
             return True
-        except Exception:
+        except Exception as e:
             return False

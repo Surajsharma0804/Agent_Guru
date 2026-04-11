@@ -30,8 +30,19 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Error log path
-_DEFAULT_LOG_PATH = Path(".kiro/logs/errors.log")
+# BUG-020: moved log path from .kiro/ (IDE config dir — bad for production)
+# to a proper OS application-data directory so logs survive working directory
+# changes and are never accidentally committed to git.
+import os as _os
+_DEFAULT_LOG_PATH = (
+    Path(_os.environ.get("AGENT_GURU_LOG_DIR", ""))
+    if _os.environ.get("AGENT_GURU_LOG_DIR")
+    else Path.home() / (
+        "AppData" / Path("Local") / "agent_guru" / "logs" / "errors.log"
+        if _os.name == "nt"
+        else Path(".local") / "share" / "agent_guru" / "logs" / "errors.log"
+    )
+)
 _MAX_LOG_SIZE_BYTES = 100 * 1024 * 1024  # 100MB
 
 # Retry defaults
@@ -372,7 +383,8 @@ class ErrorHandler:
         )
 
         self._logger.log(record)
-        logger.error(f"[{category.value}] {component}: {message}")
+        # BUG-013: replaced f-string logger call with %s lazy-format
+        logger.error("[%s] %s: %s", category.value, component, message)
 
         # Attempt recovery
         recovered = self._attempt_recovery(category, record)
@@ -416,7 +428,8 @@ class ErrorHandler:
         try:
             return bool(handler(record))
         except Exception as e:
-            logger.error(f"Recovery handler failed for {category.value}: {e}")
+            # BUG-013: replaced f-string logger call with %s lazy-format
+            logger.error("Recovery handler failed for %s: %s", category.value, e)
             return False
 
     @staticmethod
@@ -428,7 +441,7 @@ class ErrorHandler:
             ErrorCategory.INTENT: "I'm not sure what you'd like me to do. Could you rephrase?",
             ErrorCategory.LLM: "I'm having trouble connecting to my AI service. Please try again.",
             ErrorCategory.TTS: "I'm having trouble speaking right now.",
-            ErrorCategory.OS_ACTION: f"I couldn't complete that action: {message}",
+            ErrorCategory.OS_ACTION: "I couldn't complete that action: " + message,
             ErrorCategory.AUDIO_PLAYBACK: "There was an audio playback issue.",
             ErrorCategory.NETWORK: "I'm having network connectivity issues.",
             ErrorCategory.SECURITY: "A security check failed. Please try again.",

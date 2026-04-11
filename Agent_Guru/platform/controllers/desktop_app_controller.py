@@ -372,7 +372,7 @@ class DesktopApplicationController:
 
             win32gui.EnumWindows(_enum_cb, None)
             return found[0] if found else None
-        except Exception:
+        except Exception as e:
             return None
 
     async def _minimize_windows(self, app_name: str) -> bool:
@@ -691,7 +691,7 @@ class DesktopApplicationController:
             )
             await asyncio.wait_for(proc.wait(), timeout=2.0)
             result = proc.returncode == 0
-        except Exception:
+        except Exception as e:
             result = False
 
         DesktopApplicationController._wmctrl_cache = result

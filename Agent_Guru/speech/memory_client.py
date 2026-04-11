@@ -14,7 +14,7 @@ Date: 2026-03-14
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from .models import EmotionType
@@ -31,7 +31,7 @@ class ConversationTurn:
     text: str
     emotion: EmotionType
     personality: str
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 class MemoryClient:
@@ -149,7 +149,7 @@ class MemoryClient:
             text=text,
             emotion=emotion,
             personality=personality,
-            timestamp=timestamp or datetime.now(),
+            timestamp=timestamp or datetime.now(tz=timezone.utc),
         )
 
         # Buffer locally

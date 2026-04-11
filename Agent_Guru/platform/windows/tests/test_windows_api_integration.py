@@ -92,8 +92,8 @@ class TestWindowsAPIIntegration:
                     "BinaryValue"
                 )
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, test_key)
-            except Exception:
-                pass
+            except Exception as e:
+                _logger.warning("Suppressed exception: %s", e)
     
     def test_registry_nested_keys(self):
         """Test registry operations with nested keys."""
@@ -129,8 +129,8 @@ class TestWindowsAPIIntegration:
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, test_key)
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, r"SOFTWARE\AgentGuruAPITest\Nested")
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, r"SOFTWARE\AgentGuruAPITest")
-            except Exception:
-                pass
+            except Exception as e:
+                _logger.warning("Suppressed exception: %s", e)
     
     def test_process_with_different_executables(self):
         """Test process management with different Windows executables."""
@@ -307,8 +307,8 @@ class TestWindowsAPIEdgeCases:
                     "UnicodeValue"
                 )
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, test_key)
-            except Exception:
-                pass
+            except Exception as e:
+                _logger.warning("Suppressed exception: %s", e)
     
     def test_process_with_long_arguments(self):
         """Test process creation with long argument lists."""
@@ -390,5 +390,5 @@ class TestWindowsAPIPerformance:
                         f"Value{i}"
                     )
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, test_key)
-            except Exception:
-                pass
+            except Exception as e:
+                _logger.warning("Suppressed exception: %s", e)

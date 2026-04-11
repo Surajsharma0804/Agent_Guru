@@ -133,7 +133,7 @@ class AndroidTTS:
             if not self._female_voice:
                 self._female_voice = self._tts.getDefaultVoice() if self._tts else None
 
-        except Exception:
+        except Exception as e:
             # If voice caching fails, continue with default
             pass
 

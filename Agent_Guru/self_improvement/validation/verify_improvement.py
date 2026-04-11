@@ -19,7 +19,7 @@ import sqlite3
 from pathlib import Path
 from typing import Dict, List, Tuple, Any
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import numpy as np
 from scipy import stats
 
@@ -183,7 +183,7 @@ class ImprovementVerifier:
         
         # Create verification report
         report = VerificationReport(
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             database_path=self.database_path,
             validation_passed=meets_target,
             improvement_metrics=improvement_metrics,
@@ -614,7 +614,7 @@ def main():
     report = verifier.verify_improvement()
     
     # Generate reports
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
     
     # JSON report
     json_path = results_dir / f"improvement_verification_{timestamp}.json"

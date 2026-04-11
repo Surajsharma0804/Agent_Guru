@@ -18,7 +18,7 @@ import asyncio
 import logging
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -190,7 +190,7 @@ class BackgroundServiceOrchestrator:
         health = ServiceHealth(
             service_name=service_name,
             state=ServiceState.STARTING,
-            last_heartbeat=datetime.now(),
+            last_heartbeat=datetime.now(tz=timezone.utc),
         )
         self.services[service_name] = health
 
@@ -279,7 +279,7 @@ class BackgroundServiceOrchestrator:
 
         Validates: Requirement 12.7, 12.13
         """
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         for service_name, health in list(self.services.items()):
             if health.state in (ServiceState.RUNNING, ServiceState.SLEEPING):
                 elapsed = (now - health.last_heartbeat).total_seconds()
@@ -301,7 +301,7 @@ class BackgroundServiceOrchestrator:
         """
         health = self.services.get(service_name)
         if health:
-            health.last_heartbeat = datetime.now()
+            health.last_heartbeat = datetime.now(tz=timezone.utc)
 
     async def _restart_service(self, service_name: str) -> None:
         """Restart a failed/unresponsive service with exponential backoff.

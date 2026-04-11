@@ -15,7 +15,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from Agent_Guru.reasoning.llm.models import LLMRequest, LLMResponse

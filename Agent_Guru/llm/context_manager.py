@@ -16,16 +16,20 @@ Version: 1.0.0
 from __future__ import annotations
 
 import asyncio
-import warnings
+import logging
+import warnings  # kept for any future use; context pressure now uses logger (BUG-030)
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from Agent_Guru.llm.models import Message
 from Agent_Guru.llm.token_counter import TokenCounter
 
-# Context window limits per model prefix
-_CONTEXT_LIMITS: dict[str, int] = {
+logger = logging.getLogger(__name__)
+
+# BUG-031: Renamed to public CONTEXT_LIMITS so llm_runtime.py can import it
+# instead of duplicating the same dict. This is the single canonical definition.
+CONTEXT_LIMITS: dict[str, int] = {
     "gpt-4-32k": 32768,
     "gpt-4-turbo": 128000,
     "gpt-4": 8192,
@@ -38,6 +42,8 @@ _CONTEXT_LIMITS: dict[str, int] = {
     "gemini-pro": 32768,
     "gemini-1.5": 1000000,
 }
+# Keep private alias for backward-compat within this module
+_CONTEXT_LIMITS = CONTEXT_LIMITS
 
 
 @dataclass
@@ -47,8 +53,9 @@ class SessionContext:
     session_id: str
     messages: list[Message] = field(default_factory=list)
     token_count: int = 0
-    created_at: datetime = field(default_factory=datetime.now)
-    last_updated: datetime = field(default_factory=datetime.now)
+    # BUG-007: use UTC-aware datetimes to prevent timezone-comparison TypeError
+    created_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    last_updated: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -135,15 +142,19 @@ class ContextManager:
 
             ctx = self.sessions[session_id]
             ctx.messages.extend([user_message, assistant_message])
-            ctx.last_updated = datetime.now()
+            # BUG-007: use UTC-aware timestamp
+            ctx.last_updated = datetime.now(tz=timezone.utc)
 
             # Trim to max history
             if len(ctx.messages) > self.max_history_messages:
                 ctx.messages = ctx.messages[-self.max_history_messages :]
 
-            # Recalculate token count
+            # BUG-016: token count must use the session's actual model, not the
+            # hardcoded "gpt-3.5-turbo" — caller can pass model via session metadata.
+            # Fall back to gpt-3.5-turbo only if no model recorded yet.
+            model_for_count = ctx.metadata.get("model", "gpt-3.5-turbo")
             ctx.token_count = self.token_counter.count_messages(
-                ctx.messages, "gpt-3.5-turbo"
+                ctx.messages, model_for_count
             )
 
     def get_context_usage(self, session_id: str, model: str) -> dict[str, Any]:
@@ -170,10 +181,11 @@ class ContextManager:
         usage_pct = (ctx.token_count / limit * 100) if limit > 0 else 0.0
 
         if usage_pct >= self.compression_threshold * 100:
-            warnings.warn(
-                f"Session '{session_id}' context usage at {usage_pct:.1f}% "
-                f"of {model} context window ({limit} tokens).",
-                stacklevel=2,
+            # BUG-030: was warnings.warn() — replaced with logger.warning so it
+            # flows through structured logging and is not silently suppressed.
+            logger.warning(
+                "Session '%s' context usage at %.1f%% of %s context window (%d tokens).",
+                session_id, usage_pct, model, limit,
             )
 
         return {
@@ -210,8 +222,10 @@ class ContextManager:
                 else:
                     ctx.messages.pop(0)
 
+                # BUG-016: use session's recorded model (same fix as update_context)
+                model_for_count = ctx.metadata.get("model", "gpt-3.5-turbo")
                 ctx.token_count = self.token_counter.count_messages(
-                    ctx.messages, "gpt-3.5-turbo"
+                    ctx.messages, model_for_count
                 )
 
     def clear_context(self, session_id: str) -> None:
@@ -226,8 +240,10 @@ class ContextManager:
             self.sessions[session_id] = SessionContext(session_id=session_id)
         ctx = self.sessions[session_id]
         ctx.messages.insert(index, message)
+        # BUG-016: use session's recorded model
+        model_for_count = ctx.metadata.get("model", "gpt-3.5-turbo")
         ctx.token_count = self.token_counter.count_messages(
-            ctx.messages, "gpt-3.5-turbo"
+            ctx.messages, model_for_count
         )
 
     def delete_message(self, session_id: str, index: int) -> None:
@@ -237,8 +253,10 @@ class ContextManager:
         ctx = self.sessions[session_id]
         if 0 <= index < len(ctx.messages):
             ctx.messages.pop(index)
+            # BUG-016: use session's recorded model
+            model_for_count = ctx.metadata.get("model", "gpt-3.5-turbo")
             ctx.token_count = self.token_counter.count_messages(
-                ctx.messages, "gpt-3.5-turbo"
+                ctx.messages, model_for_count
             )
 
     # ------------------------------------------------------------------

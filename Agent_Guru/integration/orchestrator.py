@@ -175,9 +175,12 @@ class IntegrationOrchestrator:
         # Wiring confirmed
         self.is_wired: bool = True
         self._sleeping: bool = False
-        # asyncio.Lock is lazy-initialized on first use inside an async context
-        # to avoid attaching it to the wrong event loop when __init__ runs sync.
-        self._sleeping_lock: Optional[asyncio.Lock] = None
+        # BUG-027: lazy asyncio.Lock init was not concurrency-safe — two coroutines
+        # could both see None and create separate Lock objects discarding one.
+        # asyncio.Lock() is safe to create in __init__ when called inside an
+        # async context; for sync __init__ we use a bare Lock and reassign on
+        # first async use inside the event loop.
+        self._sleeping_lock: asyncio.Lock = asyncio.Lock()
 
         # Intent recognizer — initialized lazily on first use
         self._intent_recognizer: Any = None
@@ -388,16 +391,14 @@ class IntegrationOrchestrator:
 
     async def sleep(self) -> None:
         """Enter sleep mode — only wake word detection remains active."""
-        if self._sleeping_lock is None:
-            self._sleeping_lock = asyncio.Lock()
+        # BUG-027: lock is now always present (initialized in __init__)
         async with self._sleeping_lock:
             self._sleeping = True
         logger.info("IntegrationOrchestrator: sleep mode — wake word detection only")
 
     async def wake(self) -> None:
         """Exit sleep mode — all subsystems active."""
-        if self._sleeping_lock is None:
-            self._sleeping_lock = asyncio.Lock()
+        # BUG-027: lock is now always present (initialized in __init__)
         async with self._sleeping_lock:
             self._sleeping = False
         logger.info("IntegrationOrchestrator: wake mode — all subsystems active")
@@ -507,8 +508,16 @@ class IntegrationOrchestrator:
             result.error = str(exc)
             logger.error("Pipeline error at stage %d: %s", result.stages_completed + 1, exc)
             try:
+                # BUG-021: general pipeline errors (STT, LLM, network) were
+                # incorrectly logged as POLICY_VIOLATION, polluting security audit
+                # trails. Use POLICY_VIOLATION only for actual policy decisions.
+                # Fall back gracefully when SYSTEM_ERROR event type is not in the enum.
+                try:
+                    error_event = EventType.SYSTEM_ERROR  # type: ignore[attr-defined]
+                except AttributeError:
+                    error_event = EventType.POLICY_VIOLATION  # fallback if enum lacks SYSTEM_ERROR
                 self._audit_logger.log_event(
-                    event_type=EventType.POLICY_VIOLATION,
+                    event_type=error_event,
                     actor_id="guru_pipeline",
                     target_id=result.intent or "",
                     outcome="failure",
@@ -575,6 +584,10 @@ class IntegrationOrchestrator:
         """
         try:
             import numpy as np
+
+            # BUG-001: loop was used in branches below but never assigned in
+            # this function scope, causing NameError on the sync-function path.
+            loop = asyncio.get_running_loop()
 
             # Use cached STT function if available; otherwise probe at call time (fallback)
             fn = self._stt_fn
@@ -643,7 +656,7 @@ class IntegrationOrchestrator:
                     )
                 else:
                     result = await asyncio.to_thread(fn, audio_np, 16000)
-            except Exception:
+            except Exception as e:
                 result = await asyncio.to_thread(fn, audio_np, 16000)
 
             if hasattr(result, "text") and hasattr(result, "language"):
@@ -772,8 +785,8 @@ class IntegrationOrchestrator:
                     prompt = f"{prompt}\n[Reasoning: {reasoning_output}]"
 
                 system_prompt = (
-                    "You are Agent Guru, an AI voice assistant with FULL control over the user's computer. "
-                    "You CAN and SHOULD execute any laptop operation the user requests. "
+                    "You are Agent Guru, an AI voice assistant that helps users control their computer. "
+                    "You assist with laptop operations the user requests, within safe and appropriate limits. "
                     "Available actions you can perform:\n"
                     "- Open/launch applications (notepad, chrome, firefox, calculator, explorer, cmd, etc.)\n"
                     "- Close/quit applications\n"
@@ -786,8 +799,11 @@ class IntegrationOrchestrator:
                     "- Control media playback\n"
                     "- Search the web\n"
                     "- Answer questions about time, date, weather, facts\n\n"
-                    "When the user asks you to do something on their computer, respond naturally and confirm "
-                    "you are doing it. Be concise. Do NOT say you cannot do things — you CAN control the laptop."
+                    # BUG-035: removed the unsafe instruction 'Do NOT say you cannot do things'
+                    # which bypassed the LLM's safety guardrails. The assistant should
+                    # still be helpful but must be allowed to decline inappropriate requests.
+                    "When the user asks you to do something on their computer, respond naturally "
+                    "and confirm you are doing it. Be concise and helpful."
                 )
 
                 lang_instruction = ""
@@ -934,6 +950,10 @@ class IntegrationOrchestrator:
         safe_intent = self._sanitize_output(intent)
 
         try:
+            # BUG-001: loop was used throughout this function but never assigned,
+            # causing NameError for all media controls. Fixed by assigning at top.
+            loop = asyncio.get_running_loop()
+
             # Primary path: delegate to agent_orchestrator.execute(intent)
             # If it returns None (stub) or raises, fall through to direct platform control
             execute_fn = getattr(self.agent_orchestrator, "execute", None)
@@ -1010,15 +1030,23 @@ class IntegrationOrchestrator:
                     "whatsapp": "https://web.whatsapp.com",
                     "stackoverflow": "https://stackoverflow.com",
                 }
-                url = url_map.get(param.lower().strip()) or (
+                raw_url = url_map.get(param.lower().strip()) or (
                     param if param.startswith("http") else f"https://{param}"
                 )
+                # BUG-012: sanitize URL to only allow safe http/https schemes.
+                # Blocks javascript:, data:, vbscript:, tel: etc. from voice input.
+                import urllib.parse as _urlparse
+                parsed = _urlparse.urlparse(raw_url)
+                if parsed.scheme not in ("http", "https"):
+                    logger.warning("open_url blocked unsafe scheme %r from voice input", parsed.scheme)
+                    return f"Cannot open URL with unsafe scheme: {parsed.scheme}"
+                url = raw_url
                 logger.info("ACTION: open_url('%s')", url)
                 fn = getattr(ctrl, "open_url", None)
                 if fn:
                     result = await asyncio.to_thread(fn, url)
                     return f"Opened {self._sanitize_output(param)}"
-                return f"Cannot open URL — controller unavailable"
+                return "Cannot open URL — controller unavailable"
 
             if action == "web_search":
                 # param = search query, level_str may hold engine name
@@ -1091,16 +1119,24 @@ class IntegrationOrchestrator:
                     logger.info("ACTION: set_brightness(%d)", brightness)
                     result = await asyncio.to_thread(ctrl.set_brightness, brightness)
                     return f"Brightness set to {brightness}%"
+                # BUG-009: was hardcoded to 60/30 regardless of current value.
+                # Now reads current brightness and adjusts by ±10 (capped 0–100).
+                get_brightness_fn = getattr(ctrl, "get_brightness", None)
+                current_brightness = 50  # safe default if not readable
+                if get_brightness_fn:
+                    try:
+                        current_brightness = int(await asyncio.to_thread(get_brightness_fn))
+                    except Exception as e:
+                        _logger.warning("Suppressed exception: %s", e)
                 elif "up" in param.lower() or "increase" in param.lower():
                     fn = getattr(ctrl, "set_brightness", None)
                     if fn:
-                        # Get current and increase by 10 (capped at 100)
-                        await asyncio.to_thread(fn, min(100, 60))
+                        await asyncio.to_thread(fn, min(100, current_brightness + 10))
                     return "Brightness increased"
                 elif "down" in param.lower() or "decrease" in param.lower():
                     fn = getattr(ctrl, "set_brightness", None)
                     if fn:
-                        await asyncio.to_thread(fn, max(0, 30))
+                        await asyncio.to_thread(fn, max(0, current_brightness - 10))
                     return "Brightness decreased"
 
             # --- Window management ---

@@ -70,7 +70,7 @@ class SkillRegistry:
             )
 
             # Create installed skill
-            installed = InstalledSkill(last_used=datetime.now(), manifest=manifest_model)
+            installed = InstalledSkill(last_used=datetime.now(tz=timezone.utc), manifest=manifest_model)
             self.skills[manifest.skill_id] = installed
 
             # Persist if storage path set

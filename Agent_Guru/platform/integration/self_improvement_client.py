@@ -10,7 +10,7 @@ Performance Requirements:
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import aiohttp
@@ -177,7 +177,7 @@ class SelfImprovementClient:
                         return True
                     logger.warning("Metrics flush returned %s", resp.status)
             except Exception as e:
-                logger.warning(f"Metrics flush attempt {attempt + 1} failed: {e}")
+                logger.warning("Metrics flush attempt %s failed: %s", attempt + 1, e)
                 if attempt < self.max_retries - 1:
                     await asyncio.sleep(0.5 * (2 ** attempt))
 
@@ -213,7 +213,7 @@ class SelfImprovementClient:
                         return True
                     logger.warning("Error stats returned %s", resp.status)
             except Exception as e:
-                logger.warning(f"Error stats attempt {attempt + 1} failed: {e}")
+                logger.warning("Error stats attempt %s failed: %s", attempt + 1, e)
                 if attempt < self.max_retries - 1:
                     await asyncio.sleep(0.5 * (2 ** attempt))
 

@@ -65,7 +65,7 @@ class LLMClient:
         if self.prefer_local and self.local_server:
             try:
                 return await self._generate_local(request)
-            except Exception:
+            except Exception as e:
                 # Fallback to cloud would go here
                 raise
 

@@ -110,7 +110,7 @@ def _detect_platform() -> str:
                 result = "android"
             else:
                 result = "linux"
-        except Exception:
+        except Exception as e:
             result = "linux"
     else:
         result = "unknown"
@@ -740,7 +740,7 @@ class MobileTextController:
             )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
-        except Exception:
+        except Exception as e:
             result = False
 
         MobileTextController._adb_cache = result
@@ -759,7 +759,7 @@ class MobileTextController:
             )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
-        except Exception:
+        except Exception as e:
             result = False
 
         MobileTextController._xcrun_cache = result

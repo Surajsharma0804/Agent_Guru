@@ -14,7 +14,7 @@ Tests automatic rollback functionality including:
 import pytest
 import tempfile
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema
 from Agent_Guru.self_improvement.rollback_manager import (
@@ -324,7 +324,7 @@ class TestRollbackToTimestamp:
     def test_rollback_to_timestamp(self, manager):
         """Test rolling back to a specific timestamp."""
         # Record changes at different times
-        target_time = datetime.now() - timedelta(hours=12)
+        target_time = datetime.now(tz=timezone.utc) - timedelta(hours=12)
 
         # Changes before target (should not be rolled back)
         manager.record_change(
@@ -353,7 +353,7 @@ class TestRollbackToTimestamp:
 
     def test_rollback_to_future_timestamp(self, manager):
         """Test rollback to future timestamp fails."""
-        future_time = datetime.now() + timedelta(hours=1)
+        future_time = datetime.now(tz=timezone.utc) + timedelta(hours=1)
         result = manager.rollback_to_timestamp(future_time)
 
         assert not result.success
@@ -361,7 +361,7 @@ class TestRollbackToTimestamp:
 
     def test_rollback_to_timestamp_exceeds_window(self, manager):
         """Test rollback to timestamp exceeding window fails."""
-        old_time = datetime.now() - timedelta(hours=200)
+        old_time = datetime.now(tz=timezone.utc) - timedelta(hours=200)
         result = manager.rollback_to_timestamp(old_time)
 
         assert not result.success
@@ -386,11 +386,11 @@ class TestDegradationTriggeredRollback:
         alert = DegradationAlert(
             severity=DegradationSeverity.SEVERE,
             degraded_metrics=[DegradationMetric.SUCCESS_RATE],
-            detection_timestamp=datetime.now(),
-            recent_window_start=datetime.now() - timedelta(hours=1),
-            recent_window_end=datetime.now(),
-            historical_window_start=datetime.now() - timedelta(hours=100),
-            historical_window_end=datetime.now() - timedelta(hours=1),
+            detection_timestamp=datetime.now(tz=timezone.utc),
+            recent_window_start=datetime.now(tz=timezone.utc) - timedelta(hours=1),
+            recent_window_end=datetime.now(tz=timezone.utc),
+            historical_window_start=datetime.now(tz=timezone.utc) - timedelta(hours=100),
+            historical_window_end=datetime.now(tz=timezone.utc) - timedelta(hours=1),
             metric_changes={"success_rate": -0.3},
             statistical_significance={"p_value": 0.01, "is_significant": True},
             recommended_action="Rollback immediately",
@@ -418,11 +418,11 @@ class TestDegradationTriggeredRollback:
         alert = DegradationAlert(
             severity=DegradationSeverity.MODERATE,
             degraded_metrics=[DegradationMetric.REASONING_QUALITY],
-            detection_timestamp=datetime.now(),
-            recent_window_start=datetime.now() - timedelta(hours=1),
-            recent_window_end=datetime.now(),
-            historical_window_start=datetime.now() - timedelta(hours=100),
-            historical_window_end=datetime.now() - timedelta(hours=1),
+            detection_timestamp=datetime.now(tz=timezone.utc),
+            recent_window_start=datetime.now(tz=timezone.utc) - timedelta(hours=1),
+            recent_window_end=datetime.now(tz=timezone.utc),
+            historical_window_start=datetime.now(tz=timezone.utc) - timedelta(hours=100),
+            historical_window_end=datetime.now(tz=timezone.utc) - timedelta(hours=1),
             metric_changes={"reasoning_quality": -0.15},
             statistical_significance={"p_value": 0.03, "is_significant": True},
             recommended_action="Review recent changes",
@@ -458,11 +458,11 @@ class TestDegradationTriggeredRollback:
         alert = DegradationAlert(
             severity=DegradationSeverity.MODERATE,
             degraded_metrics=[DegradationMetric.TOOL_SELECTION],
-            detection_timestamp=datetime.now(),
-            recent_window_start=datetime.now() - timedelta(hours=1),
-            recent_window_end=datetime.now(),
-            historical_window_start=datetime.now() - timedelta(hours=100),
-            historical_window_end=datetime.now() - timedelta(hours=1),
+            detection_timestamp=datetime.now(tz=timezone.utc),
+            recent_window_start=datetime.now(tz=timezone.utc) - timedelta(hours=1),
+            recent_window_end=datetime.now(tz=timezone.utc),
+            historical_window_start=datetime.now(tz=timezone.utc) - timedelta(hours=100),
+            historical_window_end=datetime.now(tz=timezone.utc) - timedelta(hours=1),
             metric_changes={"tool_selection_rate": -0.15},
             statistical_significance={"p_value": 0.03, "is_significant": True},
             recommended_action="Review strategy changes",

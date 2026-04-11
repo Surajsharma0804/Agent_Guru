@@ -2,7 +2,7 @@
 Tests for proactive suggestion generation.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 

@@ -21,7 +21,7 @@ Version: 1.0.0
 import json
 import sqlite3
 from contextlib import closing, contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
@@ -432,7 +432,7 @@ class AgentStorage:
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    event.get("id", f"evt_{datetime.now().timestamp()}"),
+                    event.get("id", f"evt_{datetime.now(tz=timezone.utc).timestamp()}"),
                     event["event_type"],
                     json.dumps(event["agent_ids"]),
                     event["reason"],

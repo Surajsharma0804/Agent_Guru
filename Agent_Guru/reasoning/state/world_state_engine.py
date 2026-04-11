@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 """
 World State Engine - Real-time context tracking.
 
@@ -19,7 +21,7 @@ Architecture:
 
 import asyncio
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -126,7 +128,7 @@ class WorldStateEngine:
                     # Create change event
                     event = StateChangeEvent(
                         event_id=str(uuid4()),
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(tz=timezone.utc),
                         field_path=field_name,
                         old_value=old_value,
                         new_value=new_value,
@@ -191,7 +193,7 @@ class WorldStateEngine:
         Example:
             def on_battery_change(event: StateChangeEvent):
                 if event.field_path == "device_status.battery_level":
-                    print(f"Battery: {event.new_value}%")
+                    _logger.debug(f"Battery: {event.new_value}%")
 
             sub_id = engine.subscribe_to_updates(on_battery_change)
         """

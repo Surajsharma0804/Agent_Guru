@@ -240,7 +240,7 @@ class WindowsMediaBackend(MediaBackend):
             )
             logger.debug("Sent media key: %s", key_code)
         except Exception as e:
-            logger.error(f"Failed to send media key {key_code}: {e}")
+            logger.error("Failed to send media key %s: %s", key_code, e)
             raise MediaCommandError(f"Failed to send media key: {e}") from e
 
     def play(self) -> None:
@@ -575,7 +575,7 @@ class LinuxMediaBackend(MediaBackend):
             )
             logger.debug("xdotool key %s sent", key)
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
-            logger.error(f"xdotool key {key} failed: {e}")
+            logger.error("xdotool key %s failed: %s", key, e)
             raise MediaCommandError(f"xdotool key {key} failed: {e}") from e
 
     def play(self) -> None:

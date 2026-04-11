@@ -7,7 +7,7 @@ Validates: Requirements 20.1, 20.2, 20.3, 20.4, 20.5
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ class GitHubSyncEngine:
             event_type=event_type,
             agent_ids=agent_ids,
             details=details,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
         self._queue.append(event)
         logger.debug("Queued evolution event: %s for agents %s", event_type, agent_ids)

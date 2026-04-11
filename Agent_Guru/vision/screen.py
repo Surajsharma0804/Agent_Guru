@@ -139,7 +139,7 @@ class ScreenAnalyzer:
             finally:
                 loop.close()
             return result.text.strip() or None
-        except Exception:
+        except Exception as e:
             return None
 
     # ------------------------------------------------------------------

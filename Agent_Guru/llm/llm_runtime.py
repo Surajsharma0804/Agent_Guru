@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Union
 
 from Agent_Guru.llm.context_manager import ContextManager
@@ -43,20 +43,9 @@ from Agent_Guru.llm.token_counter import TokenCounter
 
 logger = logging.getLogger(__name__)
 
-# Context window limits per model prefix
-_CONTEXT_LIMITS: dict[str, int] = {
-    "gpt-4-32k": 32768,
-    "gpt-4-turbo": 128000,
-    "gpt-4": 8192,
-    "gpt-3.5-turbo-16k": 16384,
-    "gpt-3.5-turbo": 4096,
-    "claude-3-opus": 200000,
-    "claude-3-sonnet": 200000,
-    "claude-3-haiku": 200000,
-    "claude-2": 100000,
-    "gemini-pro": 32768,
-    "gemini-1.5": 1000000,
-}
+# BUG-031: _CONTEXT_LIMITS was duplicated here AND in context_manager.py.
+# Canonical definition lives in context_manager.py; imported here to remove duplication.
+from Agent_Guru.llm.context_manager import CONTEXT_LIMITS as _CONTEXT_LIMITS
 
 # Pricing per 1K tokens for cost estimation
 _PRICING: dict[str, float] = {
@@ -156,7 +145,8 @@ class LLMRuntime:
             ContextWindowExceededError: If request exceeds context limit.
             CircuitBreakerOpenError: If provider circuit is open.
         """
-        start_time = datetime.now()
+        # BUG-003: use timezone-aware UTC timestamp to avoid DST/NTP corruption
+        start_time = datetime.now(tz=timezone.utc)
         provider = self._get_provider(request.model)
         adapter = self.adapters[provider]
 
@@ -198,7 +188,8 @@ class LLMRuntime:
             )
 
         # Record metrics
-        latency_ms = (datetime.now() - start_time).total_seconds() * 1000
+        # BUG-003: compute latency from two UTC-aware datetimes
+        latency_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
         response.latency_ms = latency_ms
 
         await self.performance_monitor.record_request(
@@ -230,7 +221,8 @@ class LLMRuntime:
         Raises:
             ContextWindowExceededError: If request exceeds context limit.
         """
-        start_time = datetime.now()
+        # BUG-003: use timezone-aware UTC timestamp
+        start_time = datetime.now(tz=timezone.utc)
         provider = self._get_provider(request.model)
         adapter = self.adapters[provider]
 
@@ -260,7 +252,7 @@ class LLMRuntime:
                 yield chunk
         except Exception as exc:
             error_msg = str(exc)
-            latency_ms = (datetime.now() - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             await self.performance_monitor.record_request(
                 model=request.model,
                 provider=provider,
@@ -281,7 +273,7 @@ class LLMRuntime:
             )
 
         # Record metrics
-        latency_ms = (datetime.now() - start_time).total_seconds() * 1000
+        latency_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
         tokens = self.token_counter.count_text(full_content, request.model)
 
         await self.performance_monitor.record_request(

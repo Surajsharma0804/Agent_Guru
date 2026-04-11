@@ -86,7 +86,7 @@ class AuditLogger:
             try:
                 yield self._persistent_conn
                 self._persistent_conn.commit()
-            except Exception:
+            except Exception as e:
                 self._persistent_conn.rollback()
                 raise
         else:
@@ -95,7 +95,7 @@ class AuditLogger:
             try:
                 yield conn
                 conn.commit()
-            except Exception:
+            except Exception as e:
                 conn.rollback()
                 raise
             finally:

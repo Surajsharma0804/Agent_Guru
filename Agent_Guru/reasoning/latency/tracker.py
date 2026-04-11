@@ -11,7 +11,7 @@ import time
 from collections import defaultdict, deque
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -174,7 +174,7 @@ class LatencyTracker:
             timeout=timeout,
             degraded=degraded,
             error=error,
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(tz=timezone.utc).isoformat(),
         )
 
         return metrics
@@ -331,7 +331,7 @@ class LatencyEnforcer:
                 "stage_timeout",
                 stage=stage.value,
                 maximum_ms=maximum_ms,
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(tz=timezone.utc).isoformat(),
             )
             raise
 
@@ -342,7 +342,7 @@ class LatencyEnforcer:
                 "stage_error",
                 stage=stage.value,
                 error=str(e),
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(tz=timezone.utc).isoformat(),
             )
             raise
 

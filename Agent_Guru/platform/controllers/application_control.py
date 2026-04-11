@@ -225,7 +225,7 @@ class ApplicationController:
             if wait_for_launch:
                 time.sleep(0.5)  # Give app time to create window
 
-            logger.info(f"Successfully launched {app_name} with PID {pid}")
+            logger.info("Successfully launched %s with PID %s", app_name, pid)
             return pid
 
         except FileNotFoundError:
@@ -235,7 +235,7 @@ class ApplicationController:
             logger.error("Permission denied to launch: %s", app_name)
             raise
         except Exception as e:
-            logger.error(f"Failed to launch {app_name}: {e}")
+            logger.error("Failed to launch %s: %s", app_name, e)
             raise RuntimeError(f"Failed to launch application: {e}") from e
 
 
@@ -530,7 +530,7 @@ class ApplicationController:
             >>> controller.close_application("notepad")
             True
         """
-        logger.info(f"Closing application: {app_identifier} (force={force})")
+        logger.info("Closing application: %s (force=%s)", app_identifier, force)
 
         # Guard: never allow closing system-critical or IDE processes
         _PROTECTED_NAMES = {
@@ -571,7 +571,7 @@ class ApplicationController:
             logger.error("Application not found: %s", app_identifier)
             raise
         except Exception as e:
-            logger.error(f"Failed to close {app_identifier}: {e}")
+            logger.error("Failed to close %s: %s", app_identifier, e)
             raise RuntimeError(f"Failed to close application: {e}") from e
 
     def _taskkill_by_name(self, app_name: str, force: bool = False) -> bool:
@@ -611,7 +611,7 @@ class ApplicationController:
                     logger.info("taskkill succeeded for %s", exe_name)
                     return True
             except (OSError, _sp.TimeoutExpired) as exc:
-                logger.warning(f"taskkill failed for {exe_name}: {exc}")
+                logger.warning("taskkill failed for %s: %s", exe_name, exc)
 
         logger.error("taskkill could not close any alias for '%s'", app_name)
         return False
@@ -688,7 +688,7 @@ class ApplicationController:
             return None
 
         except Exception as e:
-            logger.error(f"Failed to find process {app_name}: {e}")
+            logger.error("Failed to find process %s: %s", app_name, e)
             return None
 
     def minimize_window(self, window_identifier: str) -> bool:
@@ -722,7 +722,7 @@ class ApplicationController:
                 return self._minimize_window_linux(window_identifier)
 
         except Exception as e:
-            logger.error(f"Failed to minimize window {window_identifier}: {e}")
+            logger.error("Failed to minimize window %s: %s", window_identifier, e)
             raise RuntimeError(f"Failed to minimize window: {e}") from e
 
     def _minimize_window_windows(self, window_identifier: str) -> bool:
@@ -916,7 +916,7 @@ class ApplicationController:
                 return self._maximize_window_linux(window_identifier)
 
         except Exception as e:
-            logger.error(f"Failed to maximize window {window_identifier}: {e}")
+            logger.error("Failed to maximize window %s: %s", window_identifier, e)
             raise RuntimeError(f"Failed to maximize window: {e}") from e
 
     def _maximize_window_windows(self, window_identifier: str) -> bool:
@@ -1042,7 +1042,7 @@ class ApplicationController:
                 return self._restore_window_linux(window_identifier)
 
         except Exception as e:
-            logger.error(f"Failed to restore window {window_identifier}: {e}")
+            logger.error("Failed to restore window %s: %s", window_identifier, e)
             raise RuntimeError(f"Failed to restore window: {e}") from e
 
     def _restore_window_windows(self, window_identifier: str) -> bool:
@@ -1160,7 +1160,7 @@ class ApplicationController:
                 return self._focus_window_linux(window_identifier)
 
         except Exception as e:
-            logger.error(f"Failed to focus window {window_identifier}: {e}")
+            logger.error("Failed to focus window %s: %s", window_identifier, e)
             raise RuntimeError(f"Failed to focus window: {e}") from e
 
     def _focus_window_windows(self, window_identifier: str) -> bool:
@@ -1297,7 +1297,7 @@ class ApplicationController:
             return self.focus_window(target_window.title)
 
         except Exception as e:
-            logger.error(f"Failed to switch to {app_name}: {e}")
+            logger.error("Failed to switch to %s: %s", app_name, e)
             raise RuntimeError(f"Failed to switch to application: {e}") from e
 
     def list_windows(self) -> list[WindowInfo]:

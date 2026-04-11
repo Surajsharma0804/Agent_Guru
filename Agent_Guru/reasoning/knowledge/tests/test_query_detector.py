@@ -11,7 +11,7 @@ Tests cover:
 Target: 80%+ coverage
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 

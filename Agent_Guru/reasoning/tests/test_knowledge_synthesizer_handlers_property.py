@@ -7,7 +7,7 @@ Tests invariants and edge cases using Hypothesis for comprehensive coverage.
 """
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock
 
 from hypothesis import HealthCheck, given, settings

@@ -11,7 +11,7 @@ This module integrates all conversation strategy components:
 This is the main interface for conversation strategy.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from Agent_Guru.reasoning.conversation.clarification import (

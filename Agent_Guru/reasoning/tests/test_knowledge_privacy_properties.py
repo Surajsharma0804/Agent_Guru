@@ -17,7 +17,7 @@ Date: 2024
 Version: 1.0.0
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 

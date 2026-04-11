@@ -109,7 +109,7 @@ class BatteryMonitor:
             else:
                 # Android/iOS would use platform-specific APIs
                 return self._get_battery_status_mock()
-        except Exception:
+        except Exception as e:
             # Fallback to mock for testing
             return self._get_battery_status_mock()
 

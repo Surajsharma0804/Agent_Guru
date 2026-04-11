@@ -15,7 +15,7 @@ import sqlite3
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -170,7 +170,7 @@ class CircuitBreaker:
             result = fn()
             self._failure_count = 0  # Reset on success
             return result
-        except Exception:
+        except Exception as e:
             self._failure_count += 1
             if self._failure_count >= self._threshold:
                 self._open_since = time.monotonic()

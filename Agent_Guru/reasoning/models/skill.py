@@ -4,7 +4,7 @@ Skill data models for the skill ecosystem.
 Defines data structures for skills, permissions, and installed skills.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -155,7 +155,7 @@ class InstalledSkill(BaseModel):
             success: Whether the execution was successful
         """
         self.usage_count += 1
-        self.last_used = datetime.now()
+        self.last_used = datetime.now(tz=timezone.utc)
 
         # Update success rate with exponential moving average
         alpha = 0.1  # Smoothing factor

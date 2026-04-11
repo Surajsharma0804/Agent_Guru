@@ -89,6 +89,12 @@ class AgentGuru:
         self._on_response: Optional[Callable[[str], None]] = None
         self._on_error: Optional[Callable[[str], None]] = None
 
+        # BUG-008: wake word listener thread (optional — registered by caller)
+        # When set, _service_loop() starts this in a daemon thread so it runs
+        # concurrently with the housekeeping loop.
+        self._wake_word_listener: Optional[Callable[[], None]] = None
+        self._wake_thread: Optional[threading.Thread] = None
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
@@ -213,6 +219,21 @@ class AgentGuru:
         """Register callback invoked on errors."""
         self._on_error = callback
 
+    def register_wake_word_listener(self, listener: Callable[[], None]) -> None:
+        """Register a synchronous wake-word listener.
+
+        The listener is a blocking callable that waits for a wake word and
+        calls ``self.on_wake_word()`` when detected.  It should loop forever
+        until ``self._stop_event.is_set()``.
+
+        ``_service_loop()`` starts this listener in a daemon thread so it
+        runs concurrently with pipeline housekeeping.
+
+        BUG-008 fix: without this, the sync service loop never triggered
+        any detection — the pipeline stayed in IDLE indefinitely.
+        """
+        self._wake_word_listener = listener
+
     # ------------------------------------------------------------------
     # State queries
     # ------------------------------------------------------------------
@@ -237,17 +258,80 @@ class AgentGuru:
     # ------------------------------------------------------------------
 
     def _service_loop(self) -> None:
-        """Main service loop — runs until stop event is set."""
+        """Main service loop — runs until stop event is set.
+
+        BUG-008 fix: the old implementation was a plain ``time.sleep(0.1)``
+        busy-wait that never drove any detection.  The pipeline started in
+        IDLE and nothing ever transitioned it.
+
+        Now:
+        1. If a wake-word listener was registered via ``register_wake_word_listener()``,
+           it is started in a background daemon thread.  The listener is
+           responsible for calling ``self.on_wake_word()`` when triggered.
+        2. The main loop handles periodic housekeeping (memory/state logging)
+           using a longer poll interval when IDLE to spare the CPU.
+        3. A clear warning is emitted if no listener is registered, so
+           developers know the sync path needs the listener wired up.
+        """
+        # --- Start wake-word listener thread if registered ---
+        if self._wake_word_listener is not None:
+            self._wake_thread = threading.Thread(
+                target=self._wake_word_listener,
+                daemon=True,
+                name="guru-wake-word",
+            )
+            self._wake_thread.start()
+            logger.info("Wake-word listener thread started: %s", self._wake_thread.name)
+        else:
+            logger.warning(
+                "_service_loop: no wake-word listener registered. "
+                "Call register_wake_word_listener() before run_as_background_service() "
+                "or use the async path in main.py which wires WakeWordManager."
+            )
+
+        _IDLE_POLL_S   = 0.5   # low-power poll when waiting for wake word
+        _ACTIVE_POLL_S = 0.05  # fast poll during active processing
+        _HOUSEKEEP_S   = 60.0  # how often to log housekeeping stats
+
+        last_housekeep = time.monotonic()
+
         while not self._stop_event.is_set() and self._pipeline.is_active():
-            # In production, wake word detection runs in a separate thread.
-            # This loop just keeps the service alive and handles housekeeping.
-            time.sleep(0.1)
+            # Periodic housekeeping
+            now = time.monotonic()
+            if now - last_housekeep >= _HOUSEKEEP_S:
+                self._run_housekeeping()
+                last_housekeep = now
+
+            # Adapt poll interval to pipeline state
+            state = self._pipeline.get_state()
+            poll_s = (
+                _ACTIVE_POLL_S
+                if state in (PipelineState.PROCESSING, PipelineState.RESPONDING)
+                else _IDLE_POLL_S
+            )
+            # Use stop_event.wait() so shutdown() wakes us up immediately
+            self._stop_event.wait(timeout=poll_s)
+
+        # Signal listener thread to stop (it must honour _stop_event)
+        if self._wake_thread is not None and self._wake_thread.is_alive():
+            self._wake_thread.join(timeout=2.0)
+            self._wake_thread = None
 
     def _on_state_change(
         self, old_state: PipelineState, new_state: PipelineState
     ) -> None:
         """Log pipeline state transitions."""
         logger.debug("State: %s → %s", old_state.value, new_state.value)
+
+    def _run_housekeeping(self) -> None:
+        """Log periodic housekeeping stats (memory, state, uptime)."""
+        state = self._pipeline.get_state()
+        logger.info(
+            "[housekeeping] state=%s personality=%s memory_interactions=%s",
+            state.value,
+            self.personality,
+            getattr(self._memory_manager, "interaction_count", lambda: "n/a")(),
+        )
 
     def _handle_signal(self, signum: int, frame: Any) -> None:
         """Handle OS signals for graceful shutdown."""
@@ -277,8 +361,10 @@ class AgentGuru:
     def _init_memory(self) -> None:
         """Lazily initialize memory manager."""
         try:
-            from Agent_Guru.memory.memory_manager import MemoryManager
-            self._memory_manager = MemoryManager()
+            from Agent_Guru.memory.memory_manager import MemoryConfig, MemoryManager
+            # BUG-028: pass MemoryConfig() so the sync path matches main.py
+            # which always passes an explicit config for consistent defaults.
+            self._memory_manager = MemoryManager(MemoryConfig())
             logger.info("MemoryManager initialized")
         except Exception as exc:
             logger.warning("MemoryManager unavailable: %s", exc)

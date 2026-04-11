@@ -12,7 +12,7 @@ Coverage target: 80%+
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 

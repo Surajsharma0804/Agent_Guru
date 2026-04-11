@@ -4,7 +4,7 @@ Coverage Target: >80% (enforced by CI/CD)
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import tempfile
 import json
@@ -63,8 +63,8 @@ class TestQuotaStatus:
             limit_hour=100,
             limit_day=1000,
             available=True,
-            reset_hour_at=datetime.now() + timedelta(hours=1),
-            reset_day_at=datetime.now() + timedelta(days=1)
+            reset_hour_at=datetime.now(tz=timezone.utc) + timedelta(hours=1),
+            reset_day_at=datetime.now(tz=timezone.utc) + timedelta(days=1)
         )
         assert status.hour_remaining == 50
     
@@ -77,8 +77,8 @@ class TestQuotaStatus:
             limit_hour=100,
             limit_day=1000,
             available=True,
-            reset_hour_at=datetime.now() + timedelta(hours=1),
-            reset_day_at=datetime.now() + timedelta(days=1)
+            reset_hour_at=datetime.now(tz=timezone.utc) + timedelta(hours=1),
+            reset_day_at=datetime.now(tz=timezone.utc) + timedelta(days=1)
         )
         assert status.day_remaining == 500
     
@@ -91,8 +91,8 @@ class TestQuotaStatus:
             limit_hour=100,
             limit_day=1000,
             available=False,
-            reset_hour_at=datetime.now() + timedelta(hours=1),
-            reset_day_at=datetime.now() + timedelta(days=1)
+            reset_hour_at=datetime.now(tz=timezone.utc) + timedelta(hours=1),
+            reset_day_at=datetime.now(tz=timezone.utc) + timedelta(days=1)
         )
         assert status.hour_exceeded is True
     
@@ -105,14 +105,14 @@ class TestQuotaStatus:
             limit_hour=100,
             limit_day=1000,
             available=False,
-            reset_hour_at=datetime.now() + timedelta(hours=1),
-            reset_day_at=datetime.now() + timedelta(days=1)
+            reset_hour_at=datetime.now(tz=timezone.utc) + timedelta(hours=1),
+            reset_day_at=datetime.now(tz=timezone.utc) + timedelta(days=1)
         )
         assert status.day_exceeded is True
     
     def test_to_dict(self):
         """Test to_dict serialization."""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         status = QuotaStatus(
             operation_type=OperationType.FILE_OPERATION,
             current_hour=50,
@@ -258,7 +258,7 @@ class TestQuotaManager:
             
             # Simulate hour passing - manually reset hourly counter
             if hour < 9:  # Don't reset after last hour
-                manager._last_hour_reset = datetime.now() - timedelta(hours=1)
+                manager._last_hour_reset = datetime.now(tz=timezone.utc) - timedelta(hours=1)
                 manager._reset_quotas_if_needed()
         
         # Next operation should fail (daily limit reached)
@@ -496,7 +496,7 @@ class TestQuotaManagerIntegration:
         assert status.available is False
         
         # Simulate hour passing (manually reset for testing)
-        manager._last_hour_reset = datetime.now() - timedelta(hours=1)
+        manager._last_hour_reset = datetime.now(tz=timezone.utc) - timedelta(hours=1)
         manager._reset_quotas_if_needed()
         
         # Quota should be available again

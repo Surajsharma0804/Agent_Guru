@@ -8,7 +8,7 @@ valid inputs.
 Coverage target: 80%+
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from hypothesis import given

@@ -7,7 +7,7 @@ across multiple dimensions: success rate, cost, time, improvement, and recovery.
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from Agent_Guru.self_improvement.benchmarks.base_benchmark import BenchmarkResult
@@ -33,7 +33,7 @@ class ComprehensiveBenchmarkReport:
             results: List of benchmark results from all frameworks
         """
         self.results = results
-        self.timestamp = datetime.now()
+        self.timestamp = datetime.now(tz=timezone.utc)
 
     def generate_report(self, output_path: str) -> dict[str, Any]:
         """
@@ -446,7 +446,7 @@ def generate_comprehensive_report(
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
     report_path = os.path.join(output_dir, f"comprehensive_report_{timestamp}.md")
 
     reporter = ComprehensiveBenchmarkReport(results)

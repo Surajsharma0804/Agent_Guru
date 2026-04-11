@@ -370,7 +370,7 @@ class HardwareMonitor:
                 ))
 
             return gpu_info_list
-        except Exception:
+        except Exception as e:
             # GPU metrics unavailable
             return None
 
@@ -394,7 +394,7 @@ class HardwareMonitor:
                 is_charging=battery.power_plugged,
                 time_remaining=battery.secsleft if battery.secsleft != psutil.POWER_TIME_UNLIMITED else None
             )
-        except Exception:
+        except Exception as e:
             # Battery info unavailable
             return None
 
@@ -413,25 +413,25 @@ class HardwareMonitor:
         # CPU metrics
         try:
             metrics['cpu'] = self.get_cpu_usage(per_cpu=True)
-        except Exception:
+        except Exception as e:
             metrics['cpu'] = None
 
         # Memory metrics
         try:
             metrics['memory'] = self.get_memory_info()
-        except Exception:
+        except Exception as e:
             metrics['memory'] = None
 
         # Disk metrics
         try:
             metrics['disk'] = self.get_disk_usage()
-        except Exception:
+        except Exception as e:
             metrics['disk'] = None
 
         # Network metrics
         try:
             metrics['network'] = self.get_network_interfaces()
-        except Exception:
+        except Exception as e:
             metrics['network'] = None
 
         # GPU metrics (optional)

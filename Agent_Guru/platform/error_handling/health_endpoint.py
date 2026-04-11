@@ -32,7 +32,7 @@ Version: 1.0.0
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 try:
@@ -306,7 +306,7 @@ def create_simple_health_handler() -> dict[str, Any]:
         """Get liveness status."""
         return {
             "alive": True,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(tz=timezone.utc).isoformat()
         }
 
     return {

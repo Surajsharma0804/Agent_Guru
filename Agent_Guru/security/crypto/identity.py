@@ -267,7 +267,7 @@ class IdentityManager:
             public_key_obj = Ed25519PublicKey.from_public_bytes(public_key)
             public_key_obj.verify(signature, message)
             return True
-        except Exception:
+        except Exception as e:
             return False
 
     def get_identity(self, profile_id: str) -> IdentityProfile:

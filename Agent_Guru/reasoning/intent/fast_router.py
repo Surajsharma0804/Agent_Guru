@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 """
 Fast Intent Router - Ultra-low latency intent detection (<50ms P95)
 
@@ -23,7 +25,7 @@ Version: 1.0.0
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
@@ -210,7 +212,7 @@ class FastIntentRouter:
                     compiled.append((regex, pattern_data))
                 except re.error as e:
                     # Log error but continue with other patterns
-                    print(f"Warning: Invalid regex for {entity_type}: {pattern} - {e}")
+                    _logger.warning("Warning: Invalid regex for %s: %s - %s", entity_type, pattern, e)
             self._compiled_entity_regex[entity_type] = compiled
 
     def match(self, input_text: str) -> Optional[PatternMatch]:
@@ -528,7 +530,7 @@ class FastIntentRouter:
         match, timestamp = self._cache[input_text]
 
         # Check if cache entry expired
-        if datetime.now() - timestamp > self._cache_ttl:
+        if datetime.now(tz=timezone.utc) - timestamp > self._cache_ttl:
             del self._cache[input_text]
             return None
 
@@ -549,7 +551,7 @@ class FastIntentRouter:
             oldest_key = next(iter(self._cache))
             del self._cache[oldest_key]
 
-        self._cache[input_text] = (match, datetime.now())
+        self._cache[input_text] = (match, datetime.now(tz=timezone.utc))
 
     def _update_metrics(self, latency_ms: float) -> None:
         """Update performance metrics.

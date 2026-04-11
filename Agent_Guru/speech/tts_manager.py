@@ -891,7 +891,7 @@ class TTSManager:
                 frames = wf.getnframes()
                 rate = wf.getframerate()
                 return frames / float(rate) if rate > 0 else 0.0
-        except Exception:
+        except Exception as e:
             header_size = 44
             data_size = max(0, len(audio_bytes) - header_size)
             return data_size / (22050 * 2)

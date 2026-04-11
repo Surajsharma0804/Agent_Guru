@@ -23,7 +23,7 @@ Date: 2026-02-28
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -248,7 +248,7 @@ class DegradationDetector:
         return DegradationAlert(
             severity=severity,
             degraded_metrics=degraded_metrics,
-            detection_timestamp=datetime.now(),
+            detection_timestamp=datetime.now(tz=timezone.utc),
             recent_window_start=recent.window_start,
             recent_window_end=recent.window_end,
             historical_window_start=historical.window_start,

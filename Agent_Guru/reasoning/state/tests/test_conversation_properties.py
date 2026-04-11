@@ -4,7 +4,7 @@ Property-based tests for conversation state management.
 These tests validate universal properties that must hold for all conversation states.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -31,7 +31,7 @@ def conversation_turn_strategy(draw, turn_num=None):
         response=draw(
             st.text(min_size=1, max_size=500, alphabet=st.characters(blacklist_categories=("Cs",)))
         ),
-        timestamp=datetime.now(),
+        timestamp=datetime.now(tz=timezone.utc),
     )
 
 
@@ -41,7 +41,7 @@ def conversation_state_strategy(draw):
     num_turns = draw(st.integers(min_value=0, max_value=20))
 
     # Generate turns in chronological order
-    base_time = datetime.now() - timedelta(hours=1)
+    base_time = datetime.now(tz=timezone.utc) - timedelta(hours=1)
     turns = []
     for i in range(num_turns):
         # Generate non-empty, non-whitespace text
@@ -77,7 +77,7 @@ def conversation_state_strategy(draw):
         user_id=f"user_{draw(st.integers(min_value=1, max_value=1000))}",
         turns=turns,
         created_at=base_time,
-        updated_at=datetime.now(),
+        updated_at=datetime.now(tz=timezone.utc),
     )
 
 
@@ -120,7 +120,7 @@ class TestConversationStateProperties:
             turn_number=initial_count + 1,
             user_input=new_turn.user_input,
             response=new_turn.response,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         new_turns = state.turns + [new_turn_adjusted]
@@ -129,7 +129,7 @@ class TestConversationStateProperties:
             user_id=state.user_id,
             turns=new_turns[-20:],  # Keep last 20
             created_at=state.created_at,
-            updated_at=datetime.now(),
+            updated_at=datetime.now(tz=timezone.utc),
         )
 
         # Verify count increased or stayed at limit
@@ -160,7 +160,7 @@ class TestConversationStateSizeLimits:
         Validates: Requirements 3.4
         """
         # Create state with many turns
-        base_time = datetime.now() - timedelta(hours=1)
+        base_time = datetime.now(tz=timezone.utc) - timedelta(hours=1)
         turns = []
         for i in range(num_turns):
             turn = ConversationTurn(
@@ -180,7 +180,7 @@ class TestConversationStateSizeLimits:
             user_id="user_test",
             turns=pruned_turns,
             created_at=base_time,
-            updated_at=datetime.now(),
+            updated_at=datetime.now(tz=timezone.utc),
         )
 
         # Verify size limit

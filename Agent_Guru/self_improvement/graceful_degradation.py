@@ -7,7 +7,7 @@ Ensures system continues functioning even if self-improvement engine fails.
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -91,7 +91,7 @@ class GracefulDegradationHandler:
 
         except Exception as e:
             self.failure_count += 1
-            self.last_failure = datetime.now()
+            self.last_failure = datetime.now(tz=timezone.utc)
 
             # Update degradation mode based on failure count
             if self.failure_count >= 10:
@@ -197,7 +197,7 @@ class GracefulDegradationHandler:
                 "name": self.fallback_strategy.name,
                 "description": self.fallback_strategy.description
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(tz=timezone.utc).isoformat()
         }
 
     def reset(self) -> None:
@@ -305,5 +305,5 @@ class SelfImprovementEngineWrapper:
                 operation_name="engine_status"
             ),
             "degradation": self.degradation_handler.get_status(),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(tz=timezone.utc).isoformat()
         }

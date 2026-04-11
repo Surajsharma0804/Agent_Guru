@@ -7,7 +7,7 @@ Provides common fixtures and test utilities.
 import os
 import tempfile
 from collections.abc import Generator
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -51,7 +51,7 @@ def sample_goal() -> Goal:
         status=GoalStatus.PENDING,
         priority=Priority.MEDIUM,
         progress=0.0,
-        created_at=datetime.now(),
+        created_at=datetime.now(tz=timezone.utc),
     )
 
 
@@ -63,7 +63,7 @@ def sample_goal_with_subgoals() -> Goal:
         status=GoalStatus.PENDING,
         priority=Priority.HIGH,
         progress=0.0,
-        created_at=datetime.now(),
+        created_at=datetime.now(tz=timezone.utc),
     )
 
     # Create sub-goals
@@ -73,7 +73,7 @@ def sample_goal_with_subgoals() -> Goal:
         status=GoalStatus.PENDING,
         priority=Priority.HIGH,
         progress=0.0,
-        created_at=datetime.now(),
+        created_at=datetime.now(tz=timezone.utc),
     )
 
     sub2 = Goal(
@@ -82,7 +82,7 @@ def sample_goal_with_subgoals() -> Goal:
         status=GoalStatus.PENDING,
         priority=Priority.HIGH,
         progress=0.0,
-        created_at=datetime.now(),
+        created_at=datetime.now(tz=timezone.utc),
     )
 
     parent.sub_goal_ids = [sub1.id, sub2.id]

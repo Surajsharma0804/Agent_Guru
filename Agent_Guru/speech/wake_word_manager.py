@@ -433,7 +433,9 @@ class WakeWordManager:
             self._audio_capture.close()
             self._audio_capture = None
 
-        self._initialized = False
+        # BUG-026: do NOT reset _initialized here. Stopping the listening loop
+        # is a separate concern from the initialization state — resetting it
+        # would force callers to call initialize() again before start_listening().
         logger.info("WakeWordManager stopped")
 
     # ------------------------------------------------------------------
@@ -496,7 +498,9 @@ class WakeWordManager:
         Args:
             chunks: Number of audio frames to capture.  Each frame is
                 ``config.audio_capture_duration`` seconds long, so the
-                default of 2 captures ~3 seconds of command audio.
+                default of 2 captures ~1 second of command audio
+                (2 × 0.5s default ``audio_capture_duration``).
+                (BUG-034: old docstring incorrectly said ~3 seconds)
 
         Returns:
             Raw float32 bytes of the captured audio, or ``b""`` if the
@@ -593,7 +597,14 @@ class WakeWordManager:
                 )
 
                 if self._audio_capture is not None:
-                    audio = self._audio_capture.capture()
+                    # BUG-018: capture() is a blocking synchronous call (sleeps
+                    # for audio_capture_duration seconds). Running it on the
+                    # event loop directly blocks ALL async tasks. Offload to a
+                    # thread so only this coroutine is suspended, not the loop.
+                    loop = asyncio.get_running_loop()
+                    audio = await loop.run_in_executor(
+                        None, self._audio_capture.capture
+                    )
                     detection = await self.detect(audio)
 
                     if detection is not None:

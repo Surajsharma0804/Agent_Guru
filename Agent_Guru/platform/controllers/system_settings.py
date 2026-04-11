@@ -301,7 +301,7 @@ class WindowsSettingsBackend(SystemSettingsBackend):
             )
             logger.info("WiFi %sd", action)
         except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to {action} WiFi: {e}")
+            logger.error("Failed to %s WiFi: %s", action, e)
             raise SystemSettingsError(f"Failed to {action} WiFi: {e}") from e
 
     def set_bluetooth(self, enabled: bool) -> None:
@@ -346,7 +346,7 @@ class WindowsSettingsBackend(SystemSettingsBackend):
 
             result = win32api.ChangeDisplaySettings(settings, 0)
             if result == 0:
-                logger.info(f"Set resolution to {width}x{height}")
+                logger.info("Set resolution to %sx%s", width, height)
             else:
                 raise SystemSettingsError(f"Failed to set resolution (error code: {result})")
         except ImportError:
@@ -596,7 +596,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
                 capture_output=True,
                 check=True
             )
-            logger.info(f"Set resolution to {width}x{height}")
+            logger.info("Set resolution to %sx%s", width, height)
         except FileNotFoundError:
             raise UnsupportedOperationError("Display control requires 'displayplacer' (brew install displayplacer)") from e
         except subprocess.CalledProcessError as e:
@@ -868,7 +868,7 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 capture_output=True,
                 check=True
             )
-            logger.info(f"Set resolution to {width}x{height}")
+            logger.info("Set resolution to %sx%s", width, height)
         except FileNotFoundError:
             raise UnsupportedOperationError("Display control requires 'xrandr' (install x11-xserver-utils)") from e
         except subprocess.CalledProcessError as e:

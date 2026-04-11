@@ -7,7 +7,7 @@ Tests cover:
 - Edge cases and error handling
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 

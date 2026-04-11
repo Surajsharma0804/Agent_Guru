@@ -10,7 +10,7 @@ Requirements:
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -73,7 +73,7 @@ def generate_final_validation_report() -> dict[str, Any]:
 
     report = {
         "report_type": "Final Validation Report",
-        "generated": datetime.now().isoformat(),
+        "generated": datetime.now(tz=timezone.utc).isoformat(),
         "overall_status": "PASSED" if all_tasks_passed else "FAILED",
         "validation_tasks": {
             "task_24_1": {
@@ -309,7 +309,7 @@ This report summarizes the complete validation of the self-improvement engine's 
 ---
 
 **Status:** {status_emoji} {report['overall_status']}
-**Date:** {datetime.now().strftime('%Y-%m-%d')}
+**Date:** {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d')}
 **Version:** 1.0.0
 **Author:** Agent Guru Self-Improvement Engine
 
@@ -332,7 +332,7 @@ def main():
 
     # Save JSON report
     output_dir = Path("Agent_Guru/self_improvement/validation/results")
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
     json_path = output_dir / f"final_validation_report_{timestamp}.json"
     md_path = output_dir / f"final_validation_report_{timestamp}.md"
 

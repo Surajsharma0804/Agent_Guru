@@ -304,7 +304,7 @@ def _load_image(path: Path) -> Optional[np.ndarray]:
         pil_img = Image.open(path).convert("RGB")
         rgb = np.array(pil_img, dtype=np.uint8)
         return rgb[:, :, ::-1]  # RGB → BGR
-    except Exception:
+    except Exception as e:
         return None
 
 

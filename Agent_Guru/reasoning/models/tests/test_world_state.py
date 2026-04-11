@@ -1,6 +1,6 @@
 """Tests for WorldState data models."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -53,7 +53,7 @@ class TestAppState:
         app = AppState(
             app_id="com.example.app",
             is_active=True,
-            last_used=datetime.now(),
+            last_used=datetime.now(tz=timezone.utc),
             usage_duration=3600.0,
         )
         assert app.app_id == "com.example.app"
@@ -62,7 +62,7 @@ class TestAppState:
 
 class TestCalendarEvent:
     def test_valid_event(self):
-        start = datetime.now()
+        start = datetime.now(tz=timezone.utc)
         end = start + timedelta(hours=1)
 
         event = CalendarEvent(
@@ -77,7 +77,7 @@ class TestCalendarEvent:
         assert event.end_time > event.start_time
 
     def test_invalid_end_time(self):
-        start = datetime.now()
+        start = datetime.now(tz=timezone.utc)
         end = start - timedelta(hours=1)
 
         with pytest.raises(ValueError, match="end_time must be after start_time"):
@@ -124,7 +124,7 @@ class TestActivity:
         activity = Activity(
             activity_id="act_1",
             activity_type="call",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             details={"duration": 300, "contact": "John"},
         )
         assert activity.activity_type == "call"
@@ -150,8 +150,8 @@ class TestWorldState:
                 CalendarEvent(
                     event_id="evt_1",
                     title="Meeting",
-                    start_time=datetime.now() + timedelta(hours=2),
-                    end_time=datetime.now() + timedelta(hours=3),
+                    start_time=datetime.now(tz=timezone.utc) + timedelta(hours=2),
+                    end_time=datetime.now(tz=timezone.utc) + timedelta(hours=3),
                 )
             ],
         )

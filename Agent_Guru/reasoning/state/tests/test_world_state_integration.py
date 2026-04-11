@@ -4,7 +4,7 @@ Tests for WorldState Integration.
 Coverage target: >80%
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -67,7 +67,7 @@ class TestWorldStateContextGenerator:
     def test_generate_llm_context_with_upcoming_events(self, generator):
         """Test LLM context with upcoming events."""
         state = WorldState()
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         state.calendar_events = [
             CalendarEvent(
                 event_id="event1",
@@ -149,7 +149,7 @@ class TestWorldStateContextGenerator:
     def test_get_calendar_conflicts_no_conflict(self, generator):
         """Test calendar conflict check with no conflicts."""
         state = WorldState()
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         state.calendar_events = [
             CalendarEvent(
                 event_id="event1",
@@ -170,7 +170,7 @@ class TestWorldStateContextGenerator:
     def test_get_calendar_conflicts_with_conflict(self, generator):
         """Test calendar conflict check with conflicts."""
         state = WorldState()
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         state.calendar_events = [
             CalendarEvent(
                 event_id="event1",

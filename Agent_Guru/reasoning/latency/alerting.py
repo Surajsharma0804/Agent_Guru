@@ -11,7 +11,7 @@ Provides real-time monitoring and alerting for latency violations:
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -97,7 +97,7 @@ class LatencyMonitor:
                     severity=AlertSeverity.CRITICAL,
                     stage=stage,
                     message=f"P95 latency {stats.p95:.1f}ms exceeds 2x target {target * 2:.1f}ms",
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(tz=timezone.utc),
                     metrics={
                         "p95": stats.p95,
                         "target": target,
@@ -130,7 +130,7 @@ class LatencyMonitor:
                     severity=AlertSeverity.WARNING,
                     stage=stage,
                     message=f"Timeout rate {stats.timeout_rate * 100:.1f}% exceeds 5% threshold",
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(tz=timezone.utc),
                     metrics={
                         "timeout_rate": stats.timeout_rate,
                         "timeout_count": stats.timeout_count,
@@ -163,7 +163,7 @@ class LatencyMonitor:
                     severity=AlertSeverity.WARNING,
                     stage=stage,
                     message=f"Degraded mode rate {stats.degraded_rate * 100:.1f}% exceeds 10% threshold",
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(tz=timezone.utc),
                     metrics={
                         "degraded_rate": stats.degraded_rate,
                         "degraded_count": stats.degraded_count,
@@ -197,7 +197,7 @@ class LatencyMonitor:
             Summary dictionary
         """
         summary: dict[str, Any] = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "stages": {},
             "alerts": len(self._alerts),
             "degraded_stages": self.degraded_manager.get_degraded_stages(),
@@ -257,7 +257,7 @@ class LatencyMonitor:
         if self.alert_callback:
             try:
                 self.alert_callback(alert)
-            except Exception:
+            except Exception as e:
                 # Don't let alert callback failures break monitoring
                 pass
 

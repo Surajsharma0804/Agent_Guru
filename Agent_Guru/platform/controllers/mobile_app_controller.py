@@ -533,7 +533,7 @@ class MobileApplicationController:
             )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
-        except Exception:
+        except Exception as e:
             result = False
 
         MobileApplicationController._adb_cache = result
@@ -552,7 +552,7 @@ class MobileApplicationController:
             )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
-        except Exception:
+        except Exception as e:
             result = False
 
         MobileApplicationController._xcrun_cache = result

@@ -36,7 +36,7 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -190,7 +190,7 @@ class BatteryUsageTracker:
         Returns:
             Battery usage statistics
         """
-        self._stats.last_updated = datetime.now()
+        self._stats.last_updated = datetime.now(tz=timezone.utc)
         return self._stats
 
 

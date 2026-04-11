@@ -11,7 +11,7 @@ Requirements: 19.4, 26.2, 26.3
 """
 
 from dataclasses import dataclass
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from enum import Enum
 from typing import Optional
 

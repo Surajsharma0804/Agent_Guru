@@ -190,7 +190,7 @@ class AndroidIntegration:
         except AppNotFoundError:
             raise
         except Exception as e:
-            logger.error(f"Failed to launch app {package_name}: {e}")
+            logger.error("Failed to launch app %s: %s", package_name, e)
             raise AndroidIntegrationError(f"Failed to launch app: {e}") from e
 
     def send_intent(
@@ -233,7 +233,7 @@ class AndroidIntegration:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to send intent {action}: {e}")
+            logger.error("Failed to send intent %s: %s", action, e)
             raise AndroidIntegrationError(f"Failed to send intent: {e}") from e
 
     # ========== UI Automation ==========
@@ -311,7 +311,7 @@ class AndroidIntegration:
                 return PermissionStatus.GRANTED
             return PermissionStatus.DENIED
         except Exception as e:
-            logger.error(f"Failed to check permission {permission}: {e}")
+            logger.error("Failed to check permission %s: %s", permission, e)
             return PermissionStatus.NOT_REQUESTED
 
     def request_permission(self, permission: str) -> bool:
@@ -322,7 +322,7 @@ class AndroidIntegration:
             logger.info("Requested permission: %s", permission)
             return True
         except Exception as e:
-            logger.error(f"Failed to request permission {permission}: {e}")
+            logger.error("Failed to request permission %s: %s", permission, e)
             raise AndroidIntegrationError(f"Failed to request permission: {e}") from e
 
     # ========== Notification Management ==========

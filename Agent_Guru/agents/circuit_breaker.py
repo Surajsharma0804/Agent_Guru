@@ -7,7 +7,7 @@ Validates: Requirements 26.1, 26.2, 26.3, 26.4, 26.5
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -64,7 +64,7 @@ class CircuitBreaker:
         """Check if enough time has passed to try half-open."""
         if self._last_failure_time is None:
             return False
-        elapsed = (datetime.now() - self._last_failure_time).total_seconds()
+        elapsed = (datetime.now(tz=timezone.utc) - self._last_failure_time).total_seconds()
         return elapsed >= self.config.recovery_timeout_seconds
 
     async def call(self, func: Callable[..., Awaitable[Any]], *args: Any, **kwargs: Any) -> Any:
@@ -86,7 +86,7 @@ class CircuitBreaker:
             result = await func(*args, **kwargs)
             self._on_success()
             return result
-        except Exception:
+        except Exception as e:
             self._on_failure()
             raise
 
@@ -102,7 +102,7 @@ class CircuitBreaker:
 
     def _on_failure(self) -> None:
         self._failure_count += 1
-        self._last_failure_time = datetime.now()
+        self._last_failure_time = datetime.now(tz=timezone.utc)
 
         if self._state == CircuitState.HALF_OPEN:
             self._state = CircuitState.OPEN

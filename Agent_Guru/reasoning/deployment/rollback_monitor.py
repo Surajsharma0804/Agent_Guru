@@ -18,7 +18,7 @@ import os
 import subprocess
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 
@@ -130,7 +130,7 @@ class RollbackMonitor:
             self.metrics_history.append(metrics)
 
             # Prune old metrics (keep last hour)
-            cutoff_time = datetime.now() - timedelta(hours=1)
+            cutoff_time = datetime.now(tz=timezone.utc) - timedelta(hours=1)
             self.metrics_history = [
                 m for m in self.metrics_history
                 if m.timestamp > cutoff_time
@@ -174,7 +174,7 @@ class RollbackMonitor:
             request_count = await self._query_request_count(session)
 
         return DeploymentMetrics(
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             error_rate=error_rate,
             p95_latency=p95_latency,
             p99_latency=p99_latency,

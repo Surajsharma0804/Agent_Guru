@@ -32,7 +32,7 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -238,10 +238,10 @@ class AutomaticThrottler:
             level=ThrottleLevel.NONE,
             reasons=[],
             constrained_resources=[],
-            started_at=datetime.now(),
+            started_at=datetime.now(tz=timezone.utc),
             operations_throttled=0,
             operations_allowed=0,
-            last_check=datetime.now()
+            last_check=datetime.now(tz=timezone.utc)
         )
 
         # Token buckets per priority level
@@ -342,7 +342,7 @@ class AutomaticThrottler:
                     reason=None,
                     constrained_resources=[],
                     message="Critical operation - no throttling",
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(tz=timezone.utc)
                 )
                 self._throttle_history.append(decision)
                 return decision
@@ -371,7 +371,7 @@ class AutomaticThrottler:
                     throttle_level = ThrottleLevel.LIGHT
 
             # Update state
-            self._state.last_check = datetime.now()
+            self._state.last_check = datetime.now(tz=timezone.utc)
 
             if should_throttle:
                 self._state.operations_throttled += 1
@@ -382,7 +382,7 @@ class AutomaticThrottler:
                     self._state.level = throttle_level
                     self._state.reasons = reasons
                     self._state.constrained_resources = constrained_resources
-                    self._state.started_at = datetime.now()
+                    self._state.started_at = datetime.now(tz=timezone.utc)
 
                     # Disable non-critical features if configured
                     if self.config.enable_feature_disabling:
@@ -410,7 +410,7 @@ class AutomaticThrottler:
                         throttle_level,
                         constrained_resources
                     ),
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(tz=timezone.utc)
                 )
             else:
                 self._state.operations_allowed += 1
@@ -422,7 +422,7 @@ class AutomaticThrottler:
                     reason=None,
                     constrained_resources=[],
                     message=f"Operation '{operation_name}' allowed",
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(tz=timezone.utc)
                 )
 
             # Store in history
@@ -715,7 +715,7 @@ class AutomaticThrottler:
                         self._check_recovery()
 
             except Exception as e:
-                logger.error(f"Error in recovery loop: {e}", exc_info=True)
+                logger.error("Error in recovery loop: %s", e, exc_info=True)
 
     def _check_recovery(self) -> None:
         """Check if resources have recovered and throttling can be lifted."""
@@ -754,7 +754,7 @@ class AutomaticThrottler:
 
     def _recover(self) -> None:
         """Recover from throttling state."""
-        duration = datetime.now() - self._state.started_at
+        duration = datetime.now(tz=timezone.utc) - self._state.started_at
 
         logger.info(
             f"Recovering from throttling after {duration.total_seconds():.1f}s. "

@@ -13,7 +13,7 @@ Properties tested:
 Coverage Target: 100 iterations per property
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from hypothesis import given, settings
 from hypothesis import strategies as st

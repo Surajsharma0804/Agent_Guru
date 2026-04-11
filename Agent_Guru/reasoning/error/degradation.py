@@ -9,7 +9,7 @@ Provides intelligent degradation when services fail:
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -93,7 +93,7 @@ class DegradationManager:
         self._service_failures: dict[str, int] = {}
         self._service_successes: dict[str, int] = {}
         self._degradation_history: list[dict] = []
-        self._last_level_change = datetime.now()
+        self._last_level_change = datetime.now(tz=timezone.utc)
 
     def get_current_level(self) -> DegradationLevel:
         """Get current degradation level.
@@ -135,7 +135,7 @@ class DegradationManager:
 
         old_level = self._current_level
         self._current_level = level
-        self._last_level_change = datetime.now()
+        self._last_level_change = datetime.now(tz=timezone.utc)
 
         # Update disabled features
         self._update_disabled_features()
@@ -151,7 +151,7 @@ class DegradationManager:
 
         # Record in history
         self._degradation_history.append({
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "old_level": old_level.value,
             "new_level": level.value,
             "reason": reason,
@@ -193,7 +193,7 @@ class DegradationManager:
 
         old_level = self._current_level
         self._current_level = level
-        self._last_level_change = datetime.now()
+        self._last_level_change = datetime.now(tz=timezone.utc)
 
         # Update disabled features
         self._update_disabled_features()
@@ -212,7 +212,7 @@ class DegradationManager:
 
         # Record in history
         self._degradation_history.append({
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "old_level": old_level.value,
             "new_level": level.value,
             "reason": reason,

@@ -13,7 +13,7 @@ Coverage Target: 80%+
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -373,7 +373,7 @@ class TestCircuitBreaker:
         """Test circuit breaker rejects requests when open."""
         # Open circuit
         provider.circuit_breaker.state = CircuitState.OPEN
-        provider.circuit_breaker.last_failure_time = datetime.now()
+        provider.circuit_breaker.last_failure_time = datetime.now(tz=timezone.utc)
 
         # Should reject immediately
         with pytest.raises(RuntimeError, match="Circuit breaker is OPEN"):
@@ -384,7 +384,7 @@ class TestCircuitBreaker:
         """Test circuit breaker transitions to half-open."""
         # Open circuit with old failure time
         provider.circuit_breaker.state = CircuitState.OPEN
-        provider.circuit_breaker.last_failure_time = datetime.now() - timedelta(seconds=61)
+        provider.circuit_breaker.last_failure_time = datetime.now(tz=timezone.utc) - timedelta(seconds=61)
         provider.config.circuit_breaker_timeout = 60.0
 
         # Mock successful response
@@ -451,7 +451,7 @@ class TestRateLimiting:
     async def test_rate_limit_reset(self, provider):
         """Test rate limit reset after minute."""
         # Set old minute start
-        provider.rate_limit_state.minute_start = datetime.now() - timedelta(minutes=2)
+        provider.rate_limit_state.minute_start = datetime.now(tz=timezone.utc) - timedelta(minutes=2)
         provider.rate_limit_state.requests_this_minute = 50
         provider.rate_limit_state.tokens_this_minute = 50000
 

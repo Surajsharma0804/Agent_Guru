@@ -23,7 +23,7 @@ Version: 1.0.0
 """
 
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -209,7 +209,7 @@ class SelfImprovementIntegration:
         try:
             metric = SelfImprovementMetric(
                 metric_type=MetricType.THRESHOLD_EXCEEDED,
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
                 resource_type=resource_type,
                 severity=None,
                 current_value=current_value,
@@ -243,7 +243,7 @@ class SelfImprovementIntegration:
         try:
             metric = SelfImprovementMetric(
                 metric_type=MetricType.RESOURCE_EXHAUSTION_PREDICTED,
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
                 resource_type=resource_type,
                 severity=AlertSeverity.HIGH,
                 current_value=current_value,
@@ -251,7 +251,7 @@ class SelfImprovementIntegration:
                 metadata={
                     'predicted_time': predicted_time.isoformat(),
                     'time_until_exhaustion': (
-                        predicted_time - datetime.now()
+                        predicted_time - datetime.now(tz=timezone.utc)
                     ).total_seconds()
                 }
             )

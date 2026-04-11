@@ -259,7 +259,7 @@ class BackgroundServiceManager:
         Args:
             error: Exception that occurred
         """
-        self.logger.error(f"Error occurred: {error}", exc_info=True)
+        self.logger.error("Error occurred: %s", error, exc_info=True)
         self._error_count += 1
 
         with self._state_lock:

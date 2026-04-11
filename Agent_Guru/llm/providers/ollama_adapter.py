@@ -16,7 +16,7 @@ Version: 1.0.0
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional, Union
 
 from Agent_Guru.llm.models import (
@@ -98,7 +98,7 @@ class OllamaAdapter(ProviderAdapter):
             ),
             function_call=None,
             latency_ms=0.0,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
     async def stream(self, request: CompletionRequest) -> AsyncIterator[StreamChunk]:

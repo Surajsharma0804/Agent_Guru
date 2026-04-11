@@ -28,7 +28,7 @@ import sqlite3
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -233,7 +233,7 @@ class EnsembleVotingSystem:
             ...     criticality=TaskCriticality.HIGH
             ... )
         """
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
         voting_method = voting_method or self.default_voting_method
         task_context = task_context or {}
 
@@ -257,7 +257,7 @@ class EnsembleVotingSystem:
         )
 
         # Calculate execution time
-        execution_time_ms = (datetime.now() - start_time).total_seconds() * 1000
+        execution_time_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
 
         # Determine success
         success = voted_result.get("success", False) and agreement_score >= self.min_agreement_threshold
@@ -273,7 +273,7 @@ class EnsembleVotingSystem:
             voting_method=voting_method,
             agreement_score=agreement_score,
             execution_time_ms=execution_time_ms,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             success=success,
             confidence=confidence,
         )
@@ -679,7 +679,7 @@ class EnsembleVotingSystem:
         """
         from datetime import timedelta
 
-        cutoff = datetime.now() - timedelta(hours=hours)
+        cutoff = datetime.now(tz=timezone.utc) - timedelta(hours=hours)
         cutoff_iso = cutoff.isoformat()
 
         with self.pool.connection() as conn:

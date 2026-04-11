@@ -15,7 +15,7 @@ Design Decisions:
 - Immutable models for thread safety
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 

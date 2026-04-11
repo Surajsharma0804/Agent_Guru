@@ -12,7 +12,7 @@ Provides visualization and analysis of latency metrics:
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from Agent_Guru.reasoning.latency.tracker import (
@@ -69,7 +69,7 @@ class LatencyDashboard:
 
     def capture_snapshot(self) -> None:
         """Capture current latency metrics snapshot."""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
 
         for stage in PipelineStage:
             stats = self.tracker.get_statistics(stage)
@@ -104,7 +104,7 @@ class LatencyDashboard:
         Returns:
             Dictionary of metric trends
         """
-        cutoff_time = datetime.now() - timedelta(minutes=duration_minutes)
+        cutoff_time = datetime.now(tz=timezone.utc) - timedelta(minutes=duration_minutes)
         snapshots = [
             s for s in self._snapshots[stage] if s.timestamp >= cutoff_time
         ]
@@ -136,7 +136,7 @@ class LatencyDashboard:
         Returns:
             List of (timestamp, timeout_rate) tuples
         """
-        cutoff_time = datetime.now() - timedelta(minutes=duration_minutes)
+        cutoff_time = datetime.now(tz=timezone.utc) - timedelta(minutes=duration_minutes)
         snapshots = [
             s for s in self._snapshots[stage] if s.timestamp >= cutoff_time
         ]
@@ -155,7 +155,7 @@ class LatencyDashboard:
         Returns:
             List of (timestamp, degraded_rate) tuples
         """
-        cutoff_time = datetime.now() - timedelta(minutes=duration_minutes)
+        cutoff_time = datetime.now(tz=timezone.utc) - timedelta(minutes=duration_minutes)
         snapshots = [
             s for s in self._snapshots[stage] if s.timestamp >= cutoff_time
         ]
@@ -293,7 +293,7 @@ class LatencyDashboard:
                 stages_meeting_maximum += 1
 
         return {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "overall_metrics": {
                 "total_requests": total_requests,
                 "total_timeouts": total_timeouts,

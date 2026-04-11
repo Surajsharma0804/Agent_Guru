@@ -12,7 +12,7 @@ Performance Target: <50ms routing decision overhead
 
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -75,7 +75,7 @@ class RoutingMetrics:
         elif decision == RoutingDecision.FALLBACK:
             self.fallback_requests += 1
 
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(tz=timezone.utc)
 
     def get_stats(self) -> dict[str, Any]:
         """Get routing statistics."""

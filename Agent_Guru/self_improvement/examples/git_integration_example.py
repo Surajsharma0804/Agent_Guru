@@ -13,7 +13,7 @@ Features demonstrated:
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from Agent_Guru.self_improvement import AuthMethod, FailureType, GitIntegration, TaskExecution
@@ -41,7 +41,7 @@ def example_basic_usage():
         task_id="example_task_001",
         task_type="code_generation",
         strategy_id="strategy_v1",
-        timestamp=datetime.now(),
+        timestamp=datetime.now(tz=timezone.utc),
         success=True,
         execution_time_ms=250.5,
         failure_type=None,
@@ -118,7 +118,7 @@ def example_improvement_report():
         "relative_improvement": 0.18,  # 18% improvement
         "execution_time_improvement": 0.12,
         "reasoning_accuracy_improvement": 0.15,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
         "confidence_interval": [0.15, 0.21]
     }
 
@@ -160,7 +160,7 @@ def example_offline_queue():
             task_id=f"offline_task_{i}",
             task_type="test_type",
             strategy_id="test_strategy",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             success=True,
             execution_time_ms=100.0,
             failure_type=None,
@@ -245,7 +245,7 @@ def example_failure_commit():
         task_id="failed_task_001",
         task_type="complex_reasoning",
         strategy_id="strategy_v2",
-        timestamp=datetime.now(),
+        timestamp=datetime.now(tz=timezone.utc),
         success=False,
         execution_time_ms=500.0,
         failure_type=FailureType.REASONING_ERROR,

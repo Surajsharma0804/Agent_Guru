@@ -11,7 +11,7 @@ import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -225,7 +225,7 @@ class BaseBenchmark:
 
         return BenchmarkResult(
             framework_name=self.framework_name,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             scenarios_run=len(scenarios),
             metrics=metrics,
             scenario_results=self.scenario_results,
@@ -261,7 +261,7 @@ class BaseBenchmark:
         if scenario.success_criteria:
             try:
                 return scenario.success_criteria(result)
-            except Exception:
+            except Exception as e:
                 return False
 
         # Use expected output if provided
@@ -295,7 +295,7 @@ class BaseBenchmark:
         """
         with open(output_path, 'w') as f:
             f.write("# Agent Framework Benchmark Results\n\n")
-            f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            f.write(f"Generated: {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}\n\n")
 
             # Summary table
             f.write("## Summary\n\n")

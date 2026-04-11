@@ -8,7 +8,7 @@ are used to convert natural language requests into executable tasks.
 Requirements: 16.2, 17.2, 17.3, 17.5, 28.1, 28.2
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -225,23 +225,23 @@ class Task(BaseModel):
     def mark_started(self) -> None:
         """Mark task as started."""
         self.status = TaskStatus.RUNNING
-        self.started_at = datetime.now()
+        self.started_at = datetime.now(tz=timezone.utc)
 
     def mark_completed(self) -> None:
         """Mark task as completed."""
         self.status = TaskStatus.COMPLETED
-        self.completed_at = datetime.now()
+        self.completed_at = datetime.now(tz=timezone.utc)
 
     def mark_failed(self, error: str) -> None:
         """Mark task as failed with error message."""
         self.status = TaskStatus.FAILED
-        self.completed_at = datetime.now()
+        self.completed_at = datetime.now(tz=timezone.utc)
         self.error = error
 
     def mark_cancelled(self) -> None:
         """Mark task as cancelled."""
         self.status = TaskStatus.CANCELLED
-        self.completed_at = datetime.now()
+        self.completed_at = datetime.now(tz=timezone.utc)
 
     def can_retry(self) -> bool:
         """Check if task can be retried."""

@@ -18,7 +18,7 @@ import tempfile
 import os
 import gc
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 from hypothesis import given, strategies as st, settings, HealthCheck
 
@@ -52,7 +52,7 @@ class MockTaskExecution:
         self.execution_time_ms = execution_time_ms
         self.context = context
         self.error_details = error_details or {}
-        self.timestamp = datetime.now()
+        self.timestamp = datetime.now(tz=timezone.utc)
 
 
 @pytest.fixture

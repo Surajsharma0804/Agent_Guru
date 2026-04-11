@@ -12,7 +12,7 @@ Requirements:
 import sqlite3
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Tuple
 import statistics
 
@@ -141,7 +141,7 @@ def verify_reasoning_accuracy_improvement(db_path: str) -> Dict[str, Any]:
     
     return {
         "status": "PASSED" if passed else "FAILED",
-        "verification_date": datetime.now().isoformat(),
+        "verification_date": datetime.now(tz=timezone.utc).isoformat(),
         "database": db_path,
         "baseline": {
             "window": "Tasks 1-10",
@@ -258,7 +258,7 @@ This {'validates' if results['status'] == 'PASSED' else 'does not validate'} Req
 
 **Verification Complete**  
 **Status:** {'✅ PASSED' if results['status'] == 'PASSED' else '❌ FAILED'}  
-**Date:** {datetime.now().strftime('%Y-%m-%d')}  
+**Date:** {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d')}  
 **Version:** 1.0.0
 """
     
@@ -282,7 +282,7 @@ def main():
     
     # Save JSON results
     output_dir = Path("Agent_Guru/self_improvement/validation/results")
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
     json_path = output_dir / f"reasoning_accuracy_verification_{timestamp}.json"
     md_path = output_dir / f"reasoning_accuracy_verification_{timestamp}.md"
     

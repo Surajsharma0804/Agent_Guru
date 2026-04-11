@@ -125,7 +125,7 @@ class PlatformIntegration:
         try:
             devices = self.list_audio_devices()
             return any(dev.device_id == device_id for dev in devices)
-        except Exception:
+        except Exception as e:
             return False
 
     # System Control Operations

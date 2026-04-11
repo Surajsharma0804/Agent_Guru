@@ -10,7 +10,7 @@ Requirements: 16.5, 16.7
 """
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from Agent_Guru.reasoning.config.metrics import MetricsCollector
@@ -182,7 +182,7 @@ class FallbackProcessor:
             estimated_duration=1.0,
             status=TaskStatus.PENDING,
             retry_count=0,
-            created_at=datetime.now(),
+            created_at=datetime.now(tz=timezone.utc),
         )
 
         return task

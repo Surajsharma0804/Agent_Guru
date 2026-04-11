@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 """
 Memory System Integration - Interface for persistent storage integration.
 
@@ -14,7 +16,7 @@ Date: 2026-02-28
 Version: 1.0.0
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 
@@ -83,7 +85,7 @@ class MemoryIntegration:
             return {
                 "synced": False,
                 "reason": "No memory system connected",
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(tz=timezone.utc).isoformat()
             }
 
         try:
@@ -93,7 +95,7 @@ class MemoryIntegration:
             # Sync to memory system (placeholder)
             # In real implementation, this would call memory_system.store()
 
-            self.last_sync_time = datetime.now()
+            self.last_sync_time = datetime.now(tz=timezone.utc)
 
             return {
                 "synced": True,
@@ -105,7 +107,7 @@ class MemoryIntegration:
             return {
                 "synced": False,
                 "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(tz=timezone.utc).isoformat()
             }
 
     def get_historical_patterns(
@@ -142,7 +144,7 @@ class MemoryIntegration:
             return self._get_patterns_from_engine(task_type, limit)
 
         except Exception as e:
-            print(f"Warning: Historical pattern retrieval failed: {e}")
+            _logger.warning("Warning: Historical pattern retrieval failed: %s", e)
             return []
 
     def _get_patterns_from_engine(
@@ -178,7 +180,7 @@ class MemoryIntegration:
             return patterns[:limit]
 
         except Exception as e:
-            print(f"Warning: Pattern retrieval from engine failed: {e}")
+            _logger.warning("Warning: Pattern retrieval from engine failed: %s", e)
             return []
 
     def get_sync_status(self) -> dict[str, Any]:

@@ -15,7 +15,7 @@ Coverage Target: Complement unit tests for edge cases
 
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock
 
 import pytest

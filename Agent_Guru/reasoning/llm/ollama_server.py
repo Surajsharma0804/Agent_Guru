@@ -371,7 +371,7 @@ class OllamaServer:
             try:
                 response = await self.generate(request, model=model)
                 latencies.append(response.latency_ms)
-            except Exception:
+            except Exception as e:
                 continue
 
         if not latencies:

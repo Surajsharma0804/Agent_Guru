@@ -5,7 +5,7 @@ Tests cache functionality, TTL expiration, context invalidation, and performance
 """
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -359,8 +359,8 @@ class TestCachedIntent:
         entry = CachedIntent(
             intent=sample_intent,
             cache_key="test_key",
-            created_at=datetime.now(),
-            last_accessed=datetime.now(),
+            created_at=datetime.now(tz=timezone.utc),
+            last_accessed=datetime.now(tz=timezone.utc),
             context_hash="context_hash",
         )
 
@@ -373,8 +373,8 @@ class TestCachedIntent:
         entry = CachedIntent(
             intent=sample_intent,
             cache_key="test_key",
-            created_at=datetime.now(),
-            last_accessed=datetime.now(),
+            created_at=datetime.now(tz=timezone.utc),
+            last_accessed=datetime.now(tz=timezone.utc),
         )
 
         initial_time = entry.last_accessed

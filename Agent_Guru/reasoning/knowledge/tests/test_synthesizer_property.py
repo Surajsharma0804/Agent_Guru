@@ -13,7 +13,7 @@ Uses Hypothesis for property-based testing with 100 iterations.
 Coverage Target: Additional coverage for edge cases
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock
 
 from hypothesis import given, settings

@@ -17,7 +17,7 @@ import hashlib
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from Agent_Guru.reasoning.models.intent import Intent
@@ -45,7 +45,7 @@ class CachedIntent:
 
     def update_access(self) -> None:
         """Update access statistics."""
-        self.last_accessed = datetime.now()
+        self.last_accessed = datetime.now(tz=timezone.utc)
         self.access_count += 1
 
 
@@ -230,7 +230,7 @@ class IntentDetectionCache:
 
         Time Complexity: O(1)
         """
-        age = datetime.now() - entry.created_at
+        age = datetime.now(tz=timezone.utc) - entry.created_at
         return age > self.ttl_delta
 
     def _evict_lru(self) -> None:
@@ -330,8 +330,8 @@ class IntentDetectionCache:
         entry = CachedIntent(
             intent=intent,
             cache_key=cache_key,
-            created_at=datetime.now(),
-            last_accessed=datetime.now(),
+            created_at=datetime.now(tz=timezone.utc),
+            last_accessed=datetime.now(tz=timezone.utc),
             access_count=0,
             context_hash=context_hash,
         )

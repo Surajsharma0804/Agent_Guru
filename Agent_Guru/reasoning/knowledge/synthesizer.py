@@ -583,7 +583,7 @@ class KnowledgeSynthesizer:
                     return asyncio.run(
                         self.synthesize_answer_with_llm(query, memories, patterns, statistics)
                     )
-            except Exception:
+            except Exception as e:
                 # Fall back to template-based generation on any error
                 pass
 
@@ -1474,7 +1474,7 @@ class KnowledgeSynthesizer:
                 # Exponential backoff
                 await asyncio.sleep(0.1 * (2**attempt))
 
-            except Exception:
+            except Exception as e:
                 if attempt == self.llm_max_retries - 1:
                     # Final attempt failed, fall back to template-based generation
                     return self.generate_answer(query, memories, patterns, statistics)

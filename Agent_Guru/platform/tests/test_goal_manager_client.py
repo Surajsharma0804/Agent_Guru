@@ -7,7 +7,7 @@ Date: 2026-02-26
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
@@ -180,8 +180,8 @@ class TestGoalManagerClient:
                         operation_id="op-1",
                         operation_type="file_write",
                         status=OperationStatus.SUCCESS,
-                        start_time=datetime.now(),
-                        end_time=datetime.now(),
+                        start_time=datetime.now(tz=timezone.utc),
+                        end_time=datetime.now(tz=timezone.utc),
                         execution_time=0.5,
                     )
                 ],
@@ -350,8 +350,8 @@ class TestGoalManagerClient:
                 operation_id="op-1",
                 operation_type="command_execution",
                 status=OperationStatus.SUCCESS,
-                start_time=datetime.now(),
-                end_time=datetime.now(),
+                start_time=datetime.now(tz=timezone.utc),
+                end_time=datetime.now(tz=timezone.utc),
                 execution_time=1.5,
                 parameters={"command": "ls -la"},
                 result_data={"output": "file1.txt\nfile2.txt"},
@@ -394,7 +394,7 @@ class TestTaskCompletionNotification:
     
     def test_initialization_with_values(self):
         """Test notification initialization with custom values."""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         operation = OperationResult(
             operation_id="op-1",
             operation_type="file_write",
@@ -422,7 +422,7 @@ class TestTaskCompletionNotification:
     
     def test_to_dict(self):
         """Test converting notification to dictionary."""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         operation = OperationResult(
             operation_id="op-1",
             operation_type="file_write",
@@ -458,7 +458,7 @@ class TestOperationResult:
     
     def test_initialization(self):
         """Test operation result initialization."""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         
         result = OperationResult(
             operation_id="op-1",
@@ -485,7 +485,7 @@ class TestOperationResult:
     
     def test_initialization_with_error(self):
         """Test operation result initialization with error."""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         
         result = OperationResult(
             operation_id="op-2",
@@ -578,8 +578,8 @@ class TestGoalManagerClientIntegration:
                 operation_id="op-1",
                 operation_type="file_write",
                 status=OperationStatus.SUCCESS,
-                start_time=datetime.now(),
-                end_time=datetime.now(),
+                start_time=datetime.now(tz=timezone.utc),
+                end_time=datetime.now(tz=timezone.utc),
                 execution_time=0.5,
                 parameters={"path": "/tmp/test.txt", "content": "Hello World"},  # nosec B108
                 result_data={"bytes_written": 11},

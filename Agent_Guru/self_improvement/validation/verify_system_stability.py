@@ -15,7 +15,7 @@ Requirements:
 import sqlite3
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 import statistics
 
@@ -198,7 +198,7 @@ def verify_system_stability(db_path: str) -> Dict[str, Any]:
     
     results = {
         "status": "PASSED",
-        "verification_date": datetime.now().isoformat(),
+        "verification_date": datetime.now(tz=timezone.utc).isoformat(),
         "database": db_path,
         "checks": {}
     }
@@ -315,7 +315,7 @@ This {'validates' if results['status'] == 'PASSED' else 'does not validate'} Req
 
 **Verification Complete**  
 **Status:** {status_emoji} {results['status']}  
-**Date:** {datetime.now().strftime('%Y-%m-%d')}  
+**Date:** {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d')}  
 **Version:** 1.0.0
 """
     
@@ -339,7 +339,7 @@ def main():
     
     # Save JSON results
     output_dir = Path("Agent_Guru/self_improvement/validation/results")
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
     json_path = output_dir / f"system_stability_verification_{timestamp}.json"
     md_path = output_dir / f"system_stability_verification_{timestamp}.md"
     

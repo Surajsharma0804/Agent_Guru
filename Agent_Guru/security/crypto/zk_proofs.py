@@ -174,7 +174,7 @@ class ZKProofSystem:
             try:
                 public_key_obj.verify(proof.proof_data, expected_hash)
                 valid = True
-            except Exception:
+            except Exception as e:
                 valid = False
 
             if valid:

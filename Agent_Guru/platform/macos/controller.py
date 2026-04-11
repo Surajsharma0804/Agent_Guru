@@ -267,7 +267,7 @@ class MacOSController:
             )
         except Exception as e:
             latency_ms = (time.perf_counter() - start) * 1000
-            logger.error(f"Failed to launch {app_name}: {e}")
+            logger.error("Failed to launch %s: %s", app_name, e)
             return MacOSControllerResult(
                 success=False,
                 operation="launch_app",

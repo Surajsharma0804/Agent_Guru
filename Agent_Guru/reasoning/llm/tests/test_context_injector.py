@@ -6,7 +6,7 @@ Tests context extraction, compression, and integration with ConversationStateMan
 Coverage Target: 80%+
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -56,7 +56,7 @@ async def sample_conversation_state():
                 ),
                 action_taken={"tool_id": "weather_tool", "parameters": {"location": "current"}},
                 response="It's sunny, 72°F",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             ),
             ConversationTurn(
                 turn_id="turn_2",
@@ -78,7 +78,7 @@ async def sample_conversation_state():
                     "parameters": {"location": "current", "time": "tomorrow"},
                 },
                 response="Tomorrow will be cloudy, 68°F",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             ),
             ConversationTurn(
                 turn_id="turn_3",
@@ -99,7 +99,7 @@ async def sample_conversation_state():
                 ),
                 action_taken={"tool_id": "timer_tool", "parameters": {"duration_seconds": 300}},
                 response="Timer set for 5 minutes",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             ),
         ],
         entities={
@@ -598,7 +598,7 @@ class TestContextInjectorIntegration:
                 ),
                 action_taken={"tool_id": "test_tool", "parameters": {"param": f"value_{i}"}},
                 response=f"Response {i}",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
 
             await conversation_manager.add_turn(conversation_id, turn)
@@ -636,7 +636,7 @@ class TestContextInjectorIntegration:
                         * 5,
                     ),
                     response=f"This is a very long response with lots of text {i}" * 5,
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(tz=timezone.utc),
                 )
                 for i in range(10)
             ],

@@ -6,7 +6,7 @@ Validates: Requirements 24.1, 24.2, 24.3, 24.4, 24.5
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -99,7 +99,7 @@ class AssignmentOptimizer:
             task_type=task_type,
             expected_probability=expected_probability,
             actual_success=actual_success,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
         self._outcomes.append(outcome)
 

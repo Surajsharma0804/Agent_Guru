@@ -1,4 +1,7 @@
-version: '3.8'
+# docker-compose.yml — Agent Guru backend services
+# Run with: docker-compose up -d
+# The voice assistant (main.py) runs on the HOST so it can access mic/screen/speakers.
+# This file starts the backend services it connects to.
 
 services:
   reasoning-engine:
@@ -22,14 +25,23 @@ services:
       # Database connections
       - DATABASE_URL=${DATABASE_URL:-postgresql://agent_guru:${POSTGRES_PASSWORD}@postgres:5432/agent_guru}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      # Ollama (local LLM)
-      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      # Ollama (local LLM) — points to the ollama service in this compose stack
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
       # App settings
       - AGENT_GURU_ENV=${AGENT_GURU_ENV:-development}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      # Log directory (persisted via volume mount below)
+      - AGENT_GURU_LOG_DIR=/app/logs
     ports:
       - "8000:8000"
       - "9090:9090"  # Prometheus metrics
+    volumes:
+      # Mount source code for hot reload
+      - ./Agent_Guru:/app/Agent_Guru
+      # Preserve Python cache
+      - python-cache:/root/.cache/pip
+      # Persisted log directory
+      - ./logs:/app/logs
     command: >
       sh -c "
         echo 'Starting development environment with hot reload...' &&
@@ -37,6 +49,31 @@ services:
       "
     stdin_open: true
     tty: true
+
+  # ----------------------------------------------------------------
+  # Ollama — local LLM backend (GPU-accelerated when available)
+  # ----------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: agent-guru-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    # Uncomment for NVIDIA GPU support (requires NVIDIA Container Toolkit):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
   redis:
     image: redis:7-alpine
@@ -63,3 +100,4 @@ volumes:
   python-cache:
   redis-data:
   postgres-data:
+  ollama-models:

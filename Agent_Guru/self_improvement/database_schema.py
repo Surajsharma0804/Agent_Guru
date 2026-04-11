@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 """
 Database schema for Self-Improvement Engine.
 
@@ -617,7 +619,7 @@ class DatabaseSchema:
 
             return existing_tables == set(required_tables)
 
-        except Exception:
+        except Exception as e:
             return False
 
 
@@ -645,13 +647,13 @@ if __name__ == "__main__":
     else:
         db_path = "data/self_improvement.db"
 
-    print(f"Creating database schema at: {db_path}")
+    _logger.info("Creating database schema at: %s", db_path)
     initialize_database(db_path)
 
     if DatabaseSchema.verify_schema(db_path):
-        print("✓ Schema created successfully")
+        _logger.info("✓ Schema created successfully")
         version = DatabaseSchema.get_schema_version(db_path)
-        print(f"✓ Schema version: {version}")
+        _logger.info("✓ Schema version: %s", version)
     else:
-        print("✗ Schema verification failed")
+        _logger.info("✗ Schema verification failed")
         sys.exit(1)

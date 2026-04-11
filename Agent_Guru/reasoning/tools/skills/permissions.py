@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 """
 Permission manager for skill permissions with user consent.
 
@@ -6,7 +8,7 @@ Manages permission requests, grants, revocations, and trust levels for skills.
 
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -117,7 +119,7 @@ class PermissionManager:
                 skill_id=skill_id,
                 permission=permission,
                 reason=reason,
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
 
             # Note: In a real implementation, this would:
@@ -281,7 +283,7 @@ class PermissionManager:
             reason: Reason for action
         """
         event = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "skill_id": skill_id,
             "permission": permission.value,
             "action": action,
@@ -304,7 +306,7 @@ class PermissionManager:
             new_level: New trust level
         """
         event = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "skill_id": skill_id,
             "event_type": "trust_level_change",
             "old_level": old_level.value,
@@ -358,7 +360,7 @@ class PermissionManager:
             self._permission_history = data.get("history", [])
 
         except Exception as e:
-            print(f"Failed to load permission data: {e}")
+            _logger.warning("Failed to load permission data: %s", e)
             # Start with empty state on error
             self._permissions = {}
             self._trust_levels = {}

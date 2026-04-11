@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 """
 Policy Engine Integration - Interface for policy constraint enforcement.
 
@@ -122,7 +124,7 @@ class PolicyIntegration:
             return PolicyDecision.ALLOW
 
         except Exception as e:
-            print(f"Warning: Policy check failed: {e}")
+            _logger.warning("Warning: Policy check failed: %s", e)
             # Fail safe - deny on error
             return PolicyDecision.DENY
 
@@ -171,7 +173,7 @@ class PolicyIntegration:
             return PolicyDecision.ALLOW
 
         except Exception as e:
-            print(f"Warning: Prompt evolution policy check failed: {e}")
+            _logger.warning("Warning: Prompt evolution policy check failed: %s", e)
             # Fail safe - deny on error
             return PolicyDecision.DENY
 
@@ -210,7 +212,7 @@ class PolicyIntegration:
             return self._get_all_strategies()
 
         except Exception as e:
-            print(f"Warning: Get allowed strategies failed: {e}")
+            _logger.warning("Warning: Get allowed strategies failed: %s", e)
             return []
 
     def _get_all_strategies(self) -> list[str]:
@@ -225,7 +227,7 @@ class PolicyIntegration:
             strategies = self.engine.strategy_optimizer.get_all_strategies()
             return [s.strategy_id for s in strategies]
         except Exception as e:
-            print(f"Warning: Get all strategies failed: {e}")
+            _logger.warning("Warning: Get all strategies failed: %s", e)
             return []
 
     def set_policy(

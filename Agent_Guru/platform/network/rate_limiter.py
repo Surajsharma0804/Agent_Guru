@@ -22,7 +22,7 @@ import logging
 import time
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -236,7 +236,7 @@ class TokenBucket:
         """
         tokens_needed = self.capacity - self.tokens
         seconds_to_full = tokens_needed / self.refill_rate
-        return datetime.now() + timedelta(seconds=seconds_to_full)
+        return datetime.now(tz=timezone.utc) + timedelta(seconds=seconds_to_full)
 
 
 class RateLimiter:

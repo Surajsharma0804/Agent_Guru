@@ -6,7 +6,7 @@ Runs benchmarks comparing Agent Guru to all competitor frameworks and generates 
 
 import argparse
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 from Agent_Guru.self_improvement.benchmarks.agent_guru_benchmark import create_agent_guru_benchmark
 from Agent_Guru.self_improvement.benchmarks.autogen_benchmark import create_autogen_benchmark
@@ -66,7 +66,7 @@ def run_all_benchmarks(
     print(f"Loaded {len(scenarios)} scenarios\n")
 
     results = []
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
 
     # Run Agent Guru benchmark
     print("=" * 60)

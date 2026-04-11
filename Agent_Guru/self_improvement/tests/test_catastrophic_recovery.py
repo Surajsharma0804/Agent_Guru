@@ -29,7 +29,7 @@ import pytest
 import tempfile
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema
@@ -155,7 +155,7 @@ def inject_catastrophic_strategy(
     """
     import random
     # Register a strategy with unique ID
-    strategy_id = f"catastrophic_strategy_{datetime.now().timestamp()}_{random.randint(1000, 9999)}"
+    strategy_id = f"catastrophic_strategy_{datetime.now(tz=timezone.utc).timestamp()}_{random.randint(1000, 9999)}"
     strategy_optimizer.register_strategy(
         strategy_id=strategy_id,
         name="catastrophic_strategy",
@@ -562,7 +562,7 @@ class TestCascadingFailures:
         create_baseline_performance(performance_tracker, num_tasks=100, success_rate=0.85)
         
         # First update: Minor degradation (75% success)
-        strategy_1 = f"minor_degradation_{datetime.now().timestamp()}"
+        strategy_1 = f"minor_degradation_{datetime.now(tz=timezone.utc).timestamp()}"
         strategy_optimizer.register_strategy(
             strategy_id=strategy_1,
             name="minor_degradation",
@@ -596,7 +596,7 @@ class TestCascadingFailures:
             )
         
         # Second update: Moderate degradation (50% success)
-        strategy_2 = f"moderate_degradation_{datetime.now().timestamp()}"
+        strategy_2 = f"moderate_degradation_{datetime.now(tz=timezone.utc).timestamp()}"
         strategy_optimizer.register_strategy(
             strategy_id=strategy_2,
             name="moderate_degradation",
@@ -724,8 +724,8 @@ class TestCorruptedData:
                     200,  # Success count (impossible with 0% success rate)
                     50,  # Failures
                     10000.0,  # Extremely slow
-                    datetime.now().isoformat(),
-                    datetime.now().isoformat(),
+                    datetime.now(tz=timezone.utc).isoformat(),
+                    datetime.now(tz=timezone.utc).isoformat(),
                 ),
             )
             
@@ -892,7 +892,7 @@ class TestPartialDataCorruption:
         create_baseline_performance(performance_tracker, num_tasks=50, success_rate=0.85)
         
         # Create good strategy
-        good_strategy = f"good_strategy_{datetime.now().timestamp()}"
+        good_strategy = f"good_strategy_{datetime.now(tz=timezone.utc).timestamp()}"
         strategy_optimizer.register_strategy(
             strategy_id=good_strategy,
             name="good_strategy",
@@ -1061,8 +1061,8 @@ class TestUltimateStressTest:
                     999,  # Success count (impossible with 0% success rate)
                     50,
                     10000.0,  # Extremely slow
-                    datetime.now().isoformat(),
-                    datetime.now().isoformat(),
+                    datetime.now(tz=timezone.utc).isoformat(),
+                    datetime.now(tz=timezone.utc).isoformat(),
                 ),
             )
             conn.commit()

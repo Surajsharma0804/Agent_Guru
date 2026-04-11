@@ -14,7 +14,7 @@ Requirements: 17.5
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from Agent_Guru.reasoning.config.logging import get_logger
@@ -214,7 +214,7 @@ class ConfidenceScorer:
         if success:
             history.successful_attempts += 1
         history.confidence_sum += confidence
-        history.last_updated = datetime.now()
+        history.last_updated = datetime.now(tz=timezone.utc)
 
         self.logger.info(
             "Updated historical accuracy",

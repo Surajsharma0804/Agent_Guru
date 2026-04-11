@@ -1,7 +1,7 @@
 """Tests for conversation persistence."""
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -44,7 +44,7 @@ def sample_state():
                 turn_id="turn_1",
                 turn_number=0,
                 user_input="Hello",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
         ],
         entities={},
@@ -116,7 +116,7 @@ class TestPersistence:
                 turn_id="turn_2",
                 turn_number=1,
                 user_input="World",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
         )
         await persistence.save(sample_state)

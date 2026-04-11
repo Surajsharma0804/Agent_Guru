@@ -71,7 +71,7 @@ def get_local_timezone() -> timezone:
     """
     # Get local timezone from system
     # This works on Windows, macOS, Linux, Android, iOS
-    tz = datetime.now().astimezone().tzinfo
+    tz = datetime.now(tz=timezone.utc).astimezone().tzinfo
     if tz is None:
         # Fallback to UTC if timezone detection fails
         return timezone.utc
@@ -315,8 +315,8 @@ class ComplianceReporter:
             >>> reporter = ComplianceReporter(auditor)
             >>> # Automatically uses device's local timezone
             >>> report = reporter.generate_gdpr_report(
-            ...     datetime.now() - timedelta(days=30),
-            ...     datetime.now(),
+            ...     datetime.now(tz=timezone.utc) - timedelta(days=30),
+            ...     datetime.now(tz=timezone.utc),
             ...     Path("/reports/gdpr_jan2026.json")
             ... )
             >>> # Report timestamps will be in local timezone (e.g., +05:30 for India)

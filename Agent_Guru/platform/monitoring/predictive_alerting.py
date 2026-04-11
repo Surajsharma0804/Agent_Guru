@@ -29,7 +29,7 @@ Version: 1.0.0
 import time
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 
@@ -291,7 +291,7 @@ class PredictiveAlerting:
             predicted_value_1h=predicted_1h,
             predicted_value_24h=predicted_24h,
             confidence=confidence,
-            timestamp=datetime.now()
+            timestamp=datetime.now(tz=timezone.utc)
         )
 
         # Cache result
@@ -347,12 +347,12 @@ class PredictiveAlerting:
                 resource_type=resource_type,
                 current_value=current_value,
                 exhaustion_threshold=threshold,
-                predicted_exhaustion_time=datetime.now(),
+                predicted_exhaustion_time=datetime.now(tz=timezone.utc),
                 time_until_exhaustion=timedelta(0),
                 confidence=trend.confidence,
                 trend_slope=trend.slope,
                 r_squared=trend.r_squared,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             )
             self._prediction_history.append(prediction)
             return prediction
@@ -373,12 +373,12 @@ class PredictiveAlerting:
             resource_type=resource_type,
             current_value=current_value,
             exhaustion_threshold=threshold,
-            predicted_exhaustion_time=datetime.now() + time_to_exhaustion,
+            predicted_exhaustion_time=datetime.now(tz=timezone.utc) + time_to_exhaustion,
             time_until_exhaustion=time_to_exhaustion,
             confidence=trend.confidence,
             trend_slope=trend.slope,
             r_squared=trend.r_squared,
-            timestamp=datetime.now()
+            timestamp=datetime.now(tz=timezone.utc)
         )
 
         # Store in history
@@ -420,7 +420,7 @@ class PredictiveAlerting:
                 prediction=prediction,
                 message=self._generate_alert_message(prediction),
                 recommended_action=self._generate_recommended_action(prediction),
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             )
 
             alerts.append(alert)

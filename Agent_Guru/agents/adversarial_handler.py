@@ -6,7 +6,7 @@ Validates: Requirements 22.1, 22.2, 22.3, 22.4, 22.5
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -64,7 +64,7 @@ class AdversarialHandler:
 
     def _log_event(self, event_type: str, agent_ids: list[str], details: str) -> None:
         event = AdversarialEvent(
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             event_type=event_type,
             agent_ids=agent_ids,
             details=details,

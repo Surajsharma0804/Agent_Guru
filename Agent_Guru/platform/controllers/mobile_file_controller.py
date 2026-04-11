@@ -85,7 +85,7 @@ def _detect_platform() -> str:
                 result = "android"
             else:
                 result = "linux"
-        except Exception:
+        except Exception as e:
             result = "linux"
     else:
         result = "unknown"

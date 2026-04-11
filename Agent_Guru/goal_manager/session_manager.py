@@ -30,7 +30,7 @@ Version: 1.0.0
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .goal_storage import GoalStorage
 from .logging_config import get_logger
@@ -179,27 +179,27 @@ class SessionManager:
                             original_description = row[1] if row[1] else "[Corrupted - no description]"
                             try:
                                 original_priority = Priority(row[3])
-                            except Exception:
+                            except Exception as e:
                                 original_priority = Priority.MEDIUM
                             try:
                                 original_metadata = json.loads(row[13]) if row[13] else {}
-                            except Exception:
+                            except Exception as e:
                                 original_metadata = {}
                             try:
                                 original_sub_goal_ids = json.loads(row[11]) if row[11] else []
-                            except Exception:
+                            except Exception as e:
                                 original_sub_goal_ids = []
                             try:
                                 original_dependency_ids = json.loads(row[12]) if row[12] else []
-                            except Exception:
+                            except Exception as e:
                                 original_dependency_ids = []
                             try:
-                                original_created_at = datetime.fromisoformat(row[6]) if row[6] else datetime.now()
-                            except Exception:
-                                original_created_at = datetime.now()
+                                original_created_at = datetime.fromisoformat(row[6]) if row[6] else datetime.now(tz=timezone.utc)
+                            except Exception as e:
+                                original_created_at = datetime.now(tz=timezone.utc)
                             try:
                                 original_started_at = datetime.fromisoformat(row[7]) if row[7] else None
-                            except Exception:
+                            except Exception as e:
                                 original_started_at = None
 
                             # Create a recovered goal preserving original data
@@ -220,7 +220,7 @@ class SessionManager:
 
                             # Update the database with the recovered goal
                             await self.storage.update_goal(goal)
-                    except Exception:
+                    except Exception as e:
                         # Can't even extract ID - skip this goal entirely
                         logger.error(
                             "goal_recovery_impossible",

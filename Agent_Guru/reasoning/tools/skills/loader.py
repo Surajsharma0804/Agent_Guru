@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 """
 Skill loader for loading and registering third-party skills.
 
@@ -218,7 +220,7 @@ class SkillLoader:
                 loaded.append(manifest)
             except ValueError as e:
                 # Log error but continue loading other skills
-                print(f"Failed to load skill from {skill_dir}: {str(e)}")
+                _logger.warning("Failed to load skill from %s: %s", skill_dir, str(e))
 
         return loaded
 

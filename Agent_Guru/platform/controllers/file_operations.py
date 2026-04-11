@@ -395,7 +395,7 @@ class FileOperationsController:
             raise
         except Exception as e:
             self._log_operation(FileOperationType.READ, path, False, {"error": str(e)})
-            logger.error(f"Failed to read file {path}: {e}")
+            logger.error("Failed to read file %s: %s", path, e)
             return None
 
     # ==================== File Update Operations ====================
@@ -974,7 +974,7 @@ class FileOperationsController:
             return sorted(entries)
 
         except Exception as e:
-            logger.error(f"Failed to list directory {path}: {e}")
+            logger.error("Failed to list directory %s: %s", path, e)
             return None
 
     # ==================== Utility Operations ====================
@@ -994,7 +994,7 @@ class FileOperationsController:
         try:
             file_path = self._validate_path(path)
             return file_path.exists() and file_path.is_file()
-        except Exception:
+        except Exception as e:
             return False
 
     def directory_exists(self, path: str) -> bool:
@@ -1012,7 +1012,7 @@ class FileOperationsController:
         try:
             dir_path = self._validate_path(path)
             return dir_path.exists() and dir_path.is_dir()
-        except Exception:
+        except Exception as e:
             return False
 
     def get_file_info(self, path: str) -> Optional[dict[str, Any]]:
@@ -1049,7 +1049,7 @@ class FileOperationsController:
             }
 
         except Exception as e:
-            logger.error(f"Failed to get file info for {path}: {e}")
+            logger.error("Failed to get file info for %s: %s", path, e)
             return None
 
     def compute_file_hash(
@@ -1097,5 +1097,5 @@ class FileOperationsController:
             return hasher.hexdigest()
 
         except Exception as e:
-            logger.error(f"Failed to compute hash for {path}: {e}")
+            logger.error("Failed to compute hash for %s: %s", path, e)
             return None

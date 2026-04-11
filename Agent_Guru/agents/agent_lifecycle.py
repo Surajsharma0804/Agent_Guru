@@ -19,7 +19,7 @@ Version: 1.0.0
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -195,8 +195,8 @@ class AgentLifecycleManager:
             capabilities=initial_capabilities.copy(),
             specializations={},
             performance_history=[],
-            created_at=datetime.now(),
-            last_active=datetime.now(),
+            created_at=datetime.now(tz=timezone.utc),
+            last_active=datetime.now(tz=timezone.utc),
             total_tasks=0,
             successful_tasks=0,
             metadata={
@@ -251,7 +251,7 @@ class AgentLifecycleManager:
                 "total_tasks": agent.total_tasks,
                 "success_rate": success_rate,
                 "final_specializations": agent.specializations,
-                "retirement_timestamp": datetime.now().isoformat(),
+                "retirement_timestamp": datetime.now(tz=timezone.utc).isoformat(),
             },
         )
 
@@ -301,6 +301,6 @@ class AgentLifecycleManager:
             "agent_ids": agent_ids,
             "reason": reason,
             "details": details,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
         }
         await self.storage.store_evolution_event(event)

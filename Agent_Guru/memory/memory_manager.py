@@ -30,8 +30,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
+
+# BUG-029: aiosqlite is a soft dependency — fall back gracefully if not installed
+try:
+    import aiosqlite as _aiosqlite
+    _AIOSQLITE_AVAILABLE = True
+except ImportError:
+    _aiosqlite = None  # type: ignore[assignment]
+    _AIOSQLITE_AVAILABLE = False
 
 if TYPE_CHECKING:
     from Agent_Guru.memory.config import MemoryConfig
@@ -189,16 +199,21 @@ class MemoryManager:
             platform_override: Force a specific platform string (for testing).
                 When ``None`` the platform is auto-detected.
         """
-        self._config: Optional["MemoryConfig"] = config  # stored for future persistence backend use
+        self._config: Optional["MemoryConfig"] = config
         self._platform: str = platform_override or _detect_platform()
         self._initialized: bool = False
 
-        # In-memory store: personality → list of _Interaction
+        # In-memory write-through cache: personality → list of _Interaction
+        # On desktop this is populated from SQLite at init and kept in sync.
         self._store: dict[str, list[_Interaction]] = {p: [] for p in PERSONALITIES}
 
-        logger.info(
-            "MemoryManager created — platform=%s", self._platform
-        )
+        # SQLite connection (desktop only, None on mobile / when aiosqlite missing)
+        self._db: Any = None
+
+        # Resolved database path (set during _initialize_desktop)
+        self._db_path: Optional[Path] = None
+
+        logger.info("MemoryManager created — platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -292,8 +307,16 @@ class MemoryManager:
             )
             return False
 
-        if not user_message and not ai_message:
-            logger.warning("store_interaction: both messages are empty — skipping")
+        # BUG-011: old check only rejected when BOTH were empty, allowing partial
+        # turns (one empty message) to be stored — which corrupts retrieval.
+        # Now reject if EITHER message is empty.
+        if not user_message or not ai_message:
+            logger.warning(
+                "store_interaction: requires non-empty user_message AND ai_message — skipping "
+                "(user_empty=%s, ai_empty=%s)",
+                not user_message,
+                not ai_message,
+            )
             return False
 
         logger.info(
@@ -453,73 +476,141 @@ class MemoryManager:
         return self._initialized
 
     def interaction_count(self, personality: Optional[str] = None) -> int:
-        """Return the number of stored interactions.
-
-        Args:
-            personality: Optional filter.  When ``None`` returns total count.
-
-        Returns:
-            Number of stored interactions.
-        """
+        """Return the number of stored interactions (from in-memory cache)."""
         if personality is not None:
             p = personality.upper()
             return len(self._store.get(p, []))
         return sum(len(v) for v in self._store.values())
 
     # ------------------------------------------------------------------
-    # Desktop implementations (SQLite via aiosqlite — simulated in-memory)
+    # Desktop implementations (SQLite via aiosqlite — real persistence)
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _resolve_db_path() -> Path:
+        """Return the OS-appropriate path for the SQLite database."""
+        if os.name == "nt":  # Windows
+            base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+        else:  # Linux / macOS
+            base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+        db_dir = base / "agent_guru"
+        db_dir.mkdir(parents=True, exist_ok=True)
+        return db_dir / "memory.db"
+
     async def _initialize_desktop(self) -> None:
-        """Initialize desktop storage (SQLite — simulated in-memory)."""
+        """Initialize desktop storage via aiosqlite (real SQLite persistence)."""
+        if not _AIOSQLITE_AVAILABLE:
+            logger.warning(
+                "BUG-029: aiosqlite not installed — memory will be in-RAM only "
+                "(install with: pip install aiosqlite). "
+                "Conversation history will be lost on restart."
+            )
+            return
+
+        self._db_path = self._resolve_db_path()
         logger.info(
-            "Desktop: MemoryManager initializing SQLite storage (simulated) "
-            "platform=%s",
-            self._platform,
+            "Desktop: opening SQLite database at %s", self._db_path
         )
-        # Simulated: would open aiosqlite connection and create tables
-        # aiosqlite.connect("guru_memory.db") + CREATE TABLE IF NOT EXISTS ...
-        await asyncio.sleep(0)  # yield to event loop
+
+        self._db = await _aiosqlite.connect(str(self._db_path))
+        # Enable WAL mode for concurrent readers
+        await self._db.execute("PRAGMA journal_mode=WAL")
+        await self._db.execute("PRAGMA synchronous=NORMAL")
+        await self._db.execute("""
+            CREATE TABLE IF NOT EXISTS interactions (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                personality TEXT NOT NULL,
+                user_message TEXT NOT NULL,
+                ai_message   TEXT NOT NULL,
+                timestamp    REAL NOT NULL
+            )
+        """)
+        await self._db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_personality_ts "
+            "ON interactions (personality, timestamp DESC)"
+        )
+        await self._db.commit()
+
+        # Warm in-memory cache from the last 500 rows per personality
+        for personality in PERSONALITIES:
+            async with self._db.execute(
+                "SELECT personality, user_message, ai_message, timestamp "
+                "FROM interactions WHERE personality=? "
+                "ORDER BY timestamp ASC "
+                "LIMIT 500",
+                (personality,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+
+            for row in rows:
+                interaction = _Interaction(
+                    personality=row[0],
+                    user_message=row[1],
+                    ai_message=row[2],
+                    timestamp=row[3],
+                )
+                self._store[personality].append(interaction)
+
+        total = sum(len(v) for v in self._store.values())
+        logger.info(
+            "Desktop: loaded %d interactions from SQLite cache", total
+        )
 
     async def _shutdown_desktop(self) -> None:
-        """Shut down desktop storage."""
-        logger.info(
-            "Desktop: MemoryManager shutting down SQLite storage (simulated)"
-        )
-        await asyncio.sleep(0)
+        """Shut down desktop storage and close the SQLite connection."""
+        if self._db is not None:
+            await self._db.close()
+            self._db = None
+            logger.info("Desktop: SQLite connection closed (%s)", self._db_path)
+        else:
+            logger.info("Desktop: MemoryManager shut down (in-memory mode)")
 
     async def _store_desktop(self, interaction: _Interaction) -> bool:
-        """Store interaction on desktop via SQLite (simulated)."""
-        logger.info(
-            "Desktop: storing interaction personality=%s via SQLite (simulated)",
-            interaction.personality,
-        )
-        # Simulated: INSERT INTO interactions (personality, user_msg, ai_msg, ts)
+        """Persist interaction to SQLite and update in-memory cache."""
+        # Always update in-memory cache first (fast path)
         self._store[interaction.personality].append(interaction)
+
+        if self._db is None:
+            # aiosqlite unavailable — in-memory only
+            return True
+
+        await self._db.execute(
+            "INSERT INTO interactions (personality, user_message, ai_message, timestamp) "
+            "VALUES (?, ?, ?, ?)",
+            (interaction.personality, interaction.user_message,
+             interaction.ai_message, interaction.timestamp),
+        )
+        await self._db.commit()
         return True
 
     async def _recall_desktop(
         self, personality: str, limit: int
     ) -> list[dict[str, Any]]:
-        """Recall interactions on desktop via SQLite (simulated)."""
-        logger.info(
-            "Desktop: recalling personality=%s limit=%d via SQLite (simulated)",
-            personality,
-            limit,
-        )
-        # Simulated: SELECT * FROM interactions WHERE personality=? ORDER BY ts DESC LIMIT ?
+        """Recall the *limit* most-recent interactions from SQLite (or cache)."""
+        if self._db is not None:
+            async with self._db.execute(
+                "SELECT personality, user_message, ai_message, timestamp "
+                "FROM interactions WHERE personality=? "
+                "ORDER BY timestamp DESC LIMIT ?",
+                (personality, limit),
+            ) as cursor:
+                rows = await cursor.fetchall()
+            return [
+                {"personality": r[0], "user_message": r[1],
+                 "ai_message": r[2], "timestamp": r[3]}
+                for r in rows
+            ]
+
+        # Fallback: serve from in-memory cache
         items = self._store.get(personality, [])
         return [i.to_dict() for i in reversed(items[-limit:])]
 
     async def _search_desktop(
         self, query: str, limit: int, personality: Optional[str]
     ) -> list[dict[str, Any]]:
-        """Semantic search on desktop (simulated stub embeddings)."""
-        logger.info(
-            "Desktop: semantic search query_len=%d limit=%d via SQLite (simulated)",
-            len(query),
-            limit,
-        )
+        """Semantic search using stub embeddings against the in-memory cache."""
+        # NOTE: real FTS would use SQLite FTS5 or a vector extension.
+        # The stub embedding search runs in-memory (cache already warmed at init).
         return self._semantic_search_in_memory(query, limit, personality)
 
     # ------------------------------------------------------------------

@@ -16,7 +16,7 @@ Design Decisions:
 - Enums for status fields (type safety)
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 from uuid import uuid4

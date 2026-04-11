@@ -6,7 +6,7 @@ Validates: Requirements 12.1, 12.2, 12.3, 12.4, 12.5
 
 import statistics
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from .agent_lifecycle import PerformanceRecord
@@ -74,7 +74,7 @@ class PerformanceTracker:
             success=success,
             completion_time_ms=completion_time_ms,
             resource_usage=resource_usage,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
         await self.storage.store_performance_record(agent_id, record)
 
@@ -84,7 +84,7 @@ class PerformanceTracker:
             agent.total_tasks += 1
             if success:
                 agent.successful_tasks += 1
-            agent.last_active = datetime.now()
+            agent.last_active = datetime.now(tz=timezone.utc)
             await self.storage.update_agent(agent)
 
     async def get_metrics(self, agent_id: str, task_type: str) -> PerformanceMetrics:
@@ -110,7 +110,7 @@ class PerformanceTracker:
                 average_completion_time_ms=0.0,
                 average_resource_usage={},
                 sample_size=0,
-                last_updated=datetime.now(),
+                last_updated=datetime.now(tz=timezone.utc),
             )
 
         success_rate = sum(1 for r in records if r.success) / len(records)
@@ -130,7 +130,7 @@ class PerformanceTracker:
             average_completion_time_ms=avg_time,
             average_resource_usage=avg_resources,
             sample_size=len(records),
-            last_updated=datetime.now(),
+            last_updated=datetime.now(tz=timezone.utc),
         )
 
     async def compare_agents(

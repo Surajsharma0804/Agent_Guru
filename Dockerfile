@@ -27,6 +27,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Copy source code
 COPY Agent_Guru/ ./Agent_Guru/
+COPY main.py ./
 
 # Build package
 RUN python -m build
@@ -89,7 +90,9 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app
 
-# Default command for production
-CMD ["python", "-m", "Agent_Guru.reasoning"]
+# Default command — runs the full voice assistant entry point
+# NOTE: mic/screen access requires running on the HOST, not in Docker.
+# In Docker this starts the LLM/API reasoning-only mode.
+CMD ["python", "main.py"]
 
 

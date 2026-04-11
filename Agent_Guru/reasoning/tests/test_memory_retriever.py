@@ -16,7 +16,7 @@ Target Coverage: 100%
 """
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import numpy as np

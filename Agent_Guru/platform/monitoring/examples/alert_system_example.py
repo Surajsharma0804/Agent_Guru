@@ -16,7 +16,7 @@ Date: 2026-02-25
 """
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from Agent_Guru.platform.monitoring import (
     AlertSeverity,
@@ -131,7 +131,7 @@ def main():
     print(f"   Memory alerts: {len(memory_alerts)}")
 
     # Get recent alerts (last 5 seconds)
-    recent_start = datetime.now() - timedelta(seconds=5)
+    recent_start = datetime.now(tz=timezone.utc) - timedelta(seconds=5)
     recent_alerts = monitor.get_alert_history(start_time=recent_start)
     print(f"   Recent alerts (last 5s): {len(recent_alerts)}")
 

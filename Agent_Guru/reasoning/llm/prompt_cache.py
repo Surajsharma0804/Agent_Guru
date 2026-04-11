@@ -11,7 +11,7 @@ Token Reduction Target: 80% for cached prompts
 import hashlib
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 
@@ -29,7 +29,7 @@ class CachedPrompt:
 
     def update_access(self) -> None:
         """Update access statistics."""
-        self.last_accessed = datetime.now()
+        self.last_accessed = datetime.now(tz=timezone.utc)
         self.access_count += 1
 
 
@@ -145,7 +145,7 @@ class PromptCache:
         if self.ttl_seconds is None:
             return False
 
-        age = (datetime.now() - entry.created_at).total_seconds()
+        age = (datetime.now(tz=timezone.utc) - entry.created_at).total_seconds()
         return age > self.ttl_seconds
 
     def _evict_lru(self) -> None:
@@ -240,8 +240,8 @@ class PromptCache:
         entry = CachedPrompt(
             prompt=prompt,
             cache_key=cache_key,
-            created_at=datetime.now(),
-            last_accessed=datetime.now(),
+            created_at=datetime.now(tz=timezone.utc),
+            last_accessed=datetime.now(tz=timezone.utc),
             access_count=0,
             token_count=token_count,
             metadata=metadata or {},

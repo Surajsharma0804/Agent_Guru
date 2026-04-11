@@ -521,7 +521,7 @@ class HTTPPool:
             return await self._session.request(method, url, **kwargs)
         except Exception as e:
             self._error_count += 1
-            logger.error(f"HTTP {method} error: {e}")
+            logger.error("HTTP %s error: %s", method, e)
             raise
 
     async def close(self):

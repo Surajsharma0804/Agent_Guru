@@ -17,7 +17,7 @@ Date: 2026-02-28
 
 import os
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema
@@ -125,11 +125,11 @@ def example_degradation_triggered_rollback():
                 DegradationMetric.SUCCESS_RATE,
                 DegradationMetric.HALLUCINATION_RATE,
             ],
-            detection_timestamp=datetime.now(),
-            recent_window_start=datetime.now() - timedelta(hours=1),
-            recent_window_end=datetime.now(),
-            historical_window_start=datetime.now() - timedelta(hours=100),
-            historical_window_end=datetime.now() - timedelta(hours=1),
+            detection_timestamp=datetime.now(tz=timezone.utc),
+            recent_window_start=datetime.now(tz=timezone.utc) - timedelta(hours=1),
+            recent_window_end=datetime.now(tz=timezone.utc),
+            historical_window_start=datetime.now(tz=timezone.utc) - timedelta(hours=100),
+            historical_window_end=datetime.now(tz=timezone.utc) - timedelta(hours=1),
             metric_changes={
                 "success_rate": -0.25,
                 "hallucination_rate": 0.15,

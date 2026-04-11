@@ -230,7 +230,7 @@ class AuditLogger:
             )
             self._public_key.verify(entry.signature, content)
             return True
-        except Exception:
+        except Exception as e:
             return False
 
     # ------------------------------------------------------------------

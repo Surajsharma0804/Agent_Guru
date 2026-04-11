@@ -261,7 +261,7 @@ class WindowsController:
                 )
             except Exception as e2:
                 latency_ms = (time.perf_counter() - start) * 1000
-                logger.error(f"Failed to launch {app_name}: {e2}")
+                logger.error("Failed to launch %s: %s", app_name, e2)
                 return WindowsControllerResult(
                     success=False,
                     operation="launch_app",
@@ -272,7 +272,7 @@ class WindowsController:
 
         except Exception as e:
             latency_ms = (time.perf_counter() - start) * 1000
-            logger.error(f"Failed to launch {app_name}: {e}")
+            logger.error("Failed to launch %s: %s", app_name, e)
             return WindowsControllerResult(
                 success=False,
                 operation="launch_app",
@@ -460,7 +460,7 @@ class WindowsController:
         try:
             pyautogui.click(x=x, y=y, button=button, clicks=clicks)
             latency_ms = (time.perf_counter() - start) * 1000
-            logger.info(f"Clicked {button} at ({x}, {y}) x{clicks}")
+            logger.info("Clicked %s at (%s, %s) x%s", button, x, y, clicks)
             return WindowsControllerResult(
                 success=True,
                 operation="click",
@@ -731,7 +731,7 @@ class WindowsController:
         try:
             import ctypes
             return bool(ctypes.windll.shell32.IsUserAnAdmin())
-        except Exception:
+        except Exception as e:
             return False
 
     def check_permission(self, operation: str) -> bool:

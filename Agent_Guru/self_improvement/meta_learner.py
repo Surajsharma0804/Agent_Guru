@@ -35,7 +35,7 @@ import hashlib
 import json
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -596,8 +596,8 @@ class MetaLearner:
                 recommended_strategies=recommended_strategies,
                 confidence=confidence,
                 sample_count=len(cluster_data),
-                created_at=datetime.now(),
-                last_updated=datetime.now()
+                created_at=datetime.now(tz=timezone.utc),
+                last_updated=datetime.now(tz=timezone.utc)
             )
 
             patterns.append(pattern)

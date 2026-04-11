@@ -12,7 +12,7 @@ This example shows the core functionality of the failure analysis system.
 
 import os
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema
@@ -54,7 +54,7 @@ def main():
             task_id="task_001",
             task_type="code_generation",
             strategy_id="strategy_basic",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             success=False,
             execution_time_ms=150.5,
             failure_type=FailureType.REASONING_ERROR,
@@ -80,7 +80,7 @@ def main():
             task_id="task_002",
             task_type="file_operation",
             strategy_id="strategy_basic",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             success=False,
             execution_time_ms=75.2,
             failure_type=FailureType.TOOL_ERROR,
@@ -105,7 +105,7 @@ def main():
             task_id="task_003",
             task_type="information_retrieval",
             strategy_id="strategy_advanced",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             success=False,
             execution_time_ms=200.0,
             failure_type=FailureType.HALLUCINATION,
@@ -132,7 +132,7 @@ def main():
                 task_id=f"task_pattern_{i}",
                 task_type="api_call",
                 strategy_id="strategy_api",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
                 success=False,
                 execution_time_ms=5000.0,
                 failure_type=FailureType.TIMEOUT,

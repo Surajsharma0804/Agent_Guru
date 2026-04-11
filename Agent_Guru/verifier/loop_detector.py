@@ -124,7 +124,7 @@ class LoopDetector:
                 serialized = json.dumps(state, sort_keys=True, default=str)
             else:
                 serialized = str(state)
-        except Exception:
+        except Exception as e:
             serialized = repr(state)
 
         return hashlib.sha256(serialized.encode()).hexdigest()

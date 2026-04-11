@@ -1,6 +1,6 @@
 """Shared test fixtures for response generation tests."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -24,7 +24,7 @@ def success_result() -> ExecutionResult:
         execution_time=0.1,
         action_id="test_action",
         tool_id="set_timer",
-        timestamp=datetime.now(),
+        timestamp=datetime.now(tz=timezone.utc),
     )
 
 
@@ -37,7 +37,7 @@ def error_result() -> ExecutionResult:
         execution_time=5.0,
         action_id="test_action",
         tool_id="set_timer",
-        timestamp=datetime.now(),
+        timestamp=datetime.now(tz=timezone.utc),
     )
 
 

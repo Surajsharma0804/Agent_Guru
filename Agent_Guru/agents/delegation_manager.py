@@ -15,7 +15,7 @@ Validates: Requirements 10.1, 10.2, 10.3, 10.4, 10.5, 11.1, 11.2
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 import networkx as nx
@@ -58,7 +58,7 @@ class DelegationManager:
         >>> request = DelegationRequest(
         ...     requesting_agent_id="agent_a",
         ...     subtask=task,
-        ...     timestamp=datetime.now(),
+        ...     timestamp=datetime.now(tz=timezone.utc),
         ... )
         >>> assigned_id = await manager.delegate_task(request)
 

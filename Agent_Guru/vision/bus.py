@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 """
 Vision Event Bus for the Agent Guru Vision System.
 
@@ -60,7 +62,7 @@ class VisionEventBus:
         bus = VisionEventBus()
 
         async def handler(event: VisionEvent) -> None:
-            print(event)
+            _logger.debug(event)
 
         sub_id = bus.subscribe(["object_detected"], handler, min_confidence=0.5)
         await bus.publish(VisionEvent(...))

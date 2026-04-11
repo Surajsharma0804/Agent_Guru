@@ -19,7 +19,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from Agent_Guru.llm.models import ModelProvider
@@ -45,7 +45,8 @@ class PerformanceMetrics:
     total_tokens: int = 0
     total_cost: float = 0.0
     success_rate: float = 1.0
-    last_updated: datetime = field(default_factory=datetime.now)
+    # BUG-003: use UTC-aware datetime factory
+    last_updated: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 class PerformanceMonitor:
@@ -124,9 +125,11 @@ class PerformanceMonitor:
                 m.successful_requests += 1
             else:
                 m.failed_requests += 1
-                self._recent_failures[key].append(datetime.now())
-                # Prune old failures outside the window
-                cutoff = datetime.now() - timedelta(seconds=_FAILURE_WINDOW_S)
+                # BUG-017: single `now` avoids two datetime.now() calls with a
+                # clock-drift window between append and filter.
+                now = datetime.now(tz=timezone.utc)
+                self._recent_failures[key].append(now)
+                cutoff = now - timedelta(seconds=_FAILURE_WINDOW_S)
                 self._recent_failures[key] = [
                     t for t in self._recent_failures[key] if t >= cutoff
                 ]
@@ -153,13 +156,17 @@ class PerformanceMonitor:
 
             # Success rate
             m.success_rate = m.successful_requests / m.total_requests
-            m.last_updated = datetime.now()
+            # BUG-003: use UTC-aware timestamp
+            m.last_updated = datetime.now(tz=timezone.utc)
+
+            # BUG-023: capture recent_count INSIDE the lock so it is consistent
+            # with the just-updated list (previously read outside, causing a race).
+            recent_count = len(self._recent_failures.get(key, []))
 
         # Emit warnings outside the lock to avoid blocking
         if latency_ms > self.slow_threshold_ms:
             await self._emit_slow_warning(model, provider, latency_ms)
 
-        recent_count = len(self._recent_failures.get(f"{provider.value}:{model}", []))
         if recent_count >= self.failure_threshold:
             await self._emit_reliability_warning(model, provider, recent_count)
 
@@ -198,7 +205,8 @@ class PerformanceMonitor:
         """
         metrics = await self.get_metrics()
         return {
-            "timestamp": datetime.now().isoformat(),
+            # BUG-003: use UTC-aware timestamp
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "metrics": {
                 key: {
                     "model": m.model,

@@ -5,7 +5,7 @@ Coverage target: >80%
 """
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from hypothesis import given, settings
@@ -100,7 +100,7 @@ class TestStateOperations:
             turn_id="turn_1",
             turn_number=0,
             user_input="Hello",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
         sample_state.turns.append(turn)
         await manager.set_state("conv_123", sample_state)
@@ -276,7 +276,7 @@ class TestTurnManagement:
             turn_id="turn_1",
             turn_number=0,
             user_input="Hello",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
     @pytest.mark.asyncio
@@ -316,7 +316,7 @@ class TestTurnManagement:
                 turn_id=f"turn_{i}",
                 turn_number=i,
                 user_input=f"Message {i}",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
             await manager.add_turn("conv_123", turn)
 
@@ -573,7 +573,7 @@ class TestHistoryManagement:
                 turn_id=f"turn_{i}",
                 turn_number=i,
                 user_input=f"Message {i}",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
             state.turns.append(turn)
 
@@ -595,7 +595,7 @@ class TestHistoryManagement:
                 turn_id=f"turn_{i}",
                 turn_number=i,
                 user_input=f"Message {i}",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
             state.turns.append(turn)
 
@@ -672,7 +672,7 @@ class TestHistoryManagement:
                 turn_id=f"turn_{i}",
                 turn_number=i,
                 user_input=f"Message {i}",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
             state.turns.append(turn)
 
@@ -744,7 +744,7 @@ class TestHistoryManagement:
                 turn_id=f"turn_{i}",
                 turn_number=i,
                 user_input=f"Message {i}",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
             await manager.add_turn("conv_123", turn)
 
@@ -757,7 +757,7 @@ class TestHistoryManagement:
                 turn_id=f"turn_{i}",
                 turn_number=i,
                 user_input=f"Message {i}",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
             await manager.add_turn("conv_123", turn)
 
@@ -799,7 +799,7 @@ class TestHistoryManagementProperties:
                 turn_id=f"turn_{i}",
                 turn_number=i,
                 user_input=f"Message {i}",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
             state.turns.append(turn)
 
@@ -834,7 +834,7 @@ class TestHistoryManagementProperties:
                 turn_id=f"turn_{i}",
                 turn_number=i,
                 user_input=f"Message {i}",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
             state.turns.append(turn)
 
@@ -1356,7 +1356,7 @@ class TestReferenceResolution:
                 turn_id=f"turn_{i}",
                 turn_number=i,
                 user_input=f"Message {i}",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
             )
             await manager.add_turn("conv_123", turn)
 

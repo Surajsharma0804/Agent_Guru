@@ -963,7 +963,7 @@ class TestEdgeCases:
         call_times = []
 
         async def track_time(*args, **kwargs):
-            call_times.append(asyncio.get_event_loop().time())
+            call_times.append(asyncio.get_running_loop().time())
             raise Exception("Retry test")
 
         classifier._call_llm_async = track_time

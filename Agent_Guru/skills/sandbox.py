@@ -73,7 +73,7 @@ class SkillSandbox:
         if _PSUTIL_AVAILABLE and proc.pid:
             try:
                 ps_proc = psutil.Process(proc.pid)
-            except Exception:
+            except Exception as e:
                 ps_proc = None
         else:
             ps_proc = None
@@ -119,7 +119,7 @@ class SkillSandbox:
 
         try:
             status, value = result_queue.get_nowait()
-        except Exception:
+        except Exception as e:
             return SkillResult(
                 success=False,
                 skill_id=skill_id,

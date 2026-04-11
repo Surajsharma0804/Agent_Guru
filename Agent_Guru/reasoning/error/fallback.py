@@ -110,7 +110,7 @@ class LLMFallbackHandler(FallbackHandler):
                     result=result,
                     fallback_count=1,
                 )
-            except Exception:
+            except Exception as e:
                 # Continue to next fallback
                 pass
 
@@ -124,7 +124,7 @@ class LLMFallbackHandler(FallbackHandler):
                     result=result,
                     fallback_count=2,
                 )
-            except Exception:
+            except Exception as e:
                 # Continue to next fallback
                 pass
 
@@ -470,7 +470,7 @@ class FallbackRegistry:
 
                 return result
 
-            except Exception:
+            except Exception as e:
                 # Continue to next handler
                 continue
 

@@ -340,7 +340,7 @@ class VerifierSystem:
         if not isinstance(text, str):
             try:
                 text = str(text)
-            except Exception:
+            except Exception as e:
                 text = ""
 
 

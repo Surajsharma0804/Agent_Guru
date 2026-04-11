@@ -382,7 +382,7 @@ class CoquiTTSEngine:
                 except Exception as cleanup_error:
                     # Log but don't fail on cleanup errors
                     logger = logging.getLogger("Agent_Guru.speech.tts")
-                    logger.warning(f"Failed to cleanup temp file {tmp_path}: {cleanup_error}")
+                    logger.warning("Failed to cleanup temp file %s: %s", tmp_path, cleanup_error)
 
     @staticmethod
     def _remove_emojis(text: str) -> str:
@@ -586,7 +586,7 @@ class CoquiTTSEngine:
                 frames = wav.getnframes()
                 rate = wav.getframerate()
                 return frames / float(rate) if rate > 0 else 0.0
-        except Exception:
+        except Exception as e:
             return 0.0
 
     def __del__(self):

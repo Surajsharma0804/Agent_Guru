@@ -27,7 +27,7 @@ Date: 2024-01-15
 Version: 1.0.0
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .goal_storage import GoalStorage
 from .models import GoalStatus
@@ -83,7 +83,7 @@ class ProgressTracker:
         # Update goal
         goal.status = GoalStatus.COMPLETE
         goal.progress = 1.0
-        goal.completed_at = datetime.now()
+        goal.completed_at = datetime.now(tz=timezone.utc)
         await self.storage.update_goal(goal)
 
         # Update parent if exists
@@ -111,7 +111,7 @@ class ProgressTracker:
         # Update goal
         goal.status = GoalStatus.FAILED
         goal.error_message = error_message
-        goal.completed_at = datetime.now()
+        goal.completed_at = datetime.now(tz=timezone.utc)
         await self.storage.update_goal(goal)
 
         # Update parent
@@ -137,7 +137,7 @@ class ProgressTracker:
         # Update goal
         goal.status = GoalStatus.IN_PROGRESS
         if not goal.started_at:
-            goal.started_at = datetime.now()
+            goal.started_at = datetime.now(tz=timezone.utc)
         await self.storage.update_goal(goal)
 
     async def _update_parent_progress(self, parent_id: str) -> None:
@@ -176,7 +176,7 @@ class ProgressTracker:
         all_complete = all(g.status == GoalStatus.COMPLETE for g in sub_goals)
         if all_complete:
             parent.status = GoalStatus.COMPLETE
-            parent.completed_at = datetime.now()
+            parent.completed_at = datetime.now(tz=timezone.utc)
 
         await self.storage.update_goal(parent)
 

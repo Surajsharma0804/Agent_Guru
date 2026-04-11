@@ -221,5 +221,5 @@ class DependencyResolver:
         try:
             parsed = [Version(v) for v in versions]
             return len({str(v) for v in parsed}) <= 1
-        except Exception:
+        except Exception as e:
             return len(set(versions)) <= 1

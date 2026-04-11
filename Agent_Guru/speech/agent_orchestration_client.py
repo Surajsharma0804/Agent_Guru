@@ -16,7 +16,7 @@ Date: 2026-03-14
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from .models import CommandResult
@@ -150,7 +150,7 @@ class AgentOrchestrationClient:
                     "user_id": user_id,
                 },
             )
-        except Exception:
+        except Exception as e:
             # Fallback: simple namespace
             import types
 

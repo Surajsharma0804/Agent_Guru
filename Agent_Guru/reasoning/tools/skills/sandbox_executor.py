@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 """
 Skill sandbox executor with resource limits and permission checking.
 
@@ -343,7 +345,7 @@ class SkillSandboxExecutor:
             await self.sandbox_manager.cleanup_sandbox(skill_id)
         except Exception as e:
             # Log cleanup error but don't fail
-            print(f"Failed to cleanup sandbox for {skill_id}: {e}")
+            _logger.warning("Failed to cleanup sandbox for %s: %s", skill_id, e)
 
     def get_statistics(self) -> dict[str, Any]:
         """Get execution statistics.

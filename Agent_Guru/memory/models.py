@@ -6,7 +6,7 @@ constrained to [0.0, 1.0]. All identifiers are UUIDs.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4

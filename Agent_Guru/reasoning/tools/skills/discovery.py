@@ -61,7 +61,7 @@ class SkillDiscovery:
 
         try:
             return SkillManifestParser.parse_yaml(manifest_path)
-        except Exception:
+        except Exception as e:
             return None
 
     def list_available_skills(self) -> list[SkillManifest]:

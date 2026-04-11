@@ -36,7 +36,7 @@ Date: 2026-02-22
 import pytest
 import time
 from typing import Any, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 from hypothesis import given, strategies as st, settings, HealthCheck
 
 # Import all necessary modules
@@ -695,7 +695,7 @@ class TestEdgeCases:
         # Add required fields
         metadata["source"] = "text"
         metadata["user_id"] = "test"
-        metadata["timestamp"] = datetime.now().isoformat()
+        metadata["timestamp"] = datetime.now(tz=timezone.utc).isoformat()
         
         try:
             # Create RawInput with various metadata types

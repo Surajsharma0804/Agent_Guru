@@ -236,7 +236,7 @@ if __name__ == "__main__":
     data = {
         "name": "Agent Guru",
         "version": "1.0.0",
-        "timestamp": datetime.datetime.now(),
+        "timestamp": datetime.datetime.now(tz=timezone.utc),
         "uuid": uuid.uuid4(),
         "nested": {
             "values": list(range(100)),

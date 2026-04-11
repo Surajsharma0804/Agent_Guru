@@ -9,7 +9,7 @@ Date: 2026-02-26
 """
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 from Agent_Guru.platform.integration import (
     GoalManagerClient,
@@ -39,8 +39,8 @@ async def example_task_completion_notification():
                 operation_id="op-1",
                 operation_type="file_write",
                 status=OperationStatus.SUCCESS,
-                start_time=datetime.now(),
-                end_time=datetime.now(),
+                start_time=datetime.now(tz=timezone.utc),
+                end_time=datetime.now(tz=timezone.utc),
                 execution_time=0.5,
                 parameters={"path": "/tmp/user_profile.json"},  # nosec B108
                 result_data={"bytes_written": 1024},
@@ -50,8 +50,8 @@ async def example_task_completion_notification():
                 operation_id="op-2",
                 operation_type="command_execution",
                 status=OperationStatus.SUCCESS,
-                start_time=datetime.now(),
-                end_time=datetime.now(),
+                start_time=datetime.now(tz=timezone.utc),
+                end_time=datetime.now(tz=timezone.utc),
                 execution_time=1.2,
                 parameters={"command": "chmod 644 /tmp/user_profile.json"},
                 result_data={"exit_code": 0},
@@ -95,8 +95,8 @@ async def example_operation_result_reporting():
             operation_id="op-3",
             operation_type="network_request",
             status=OperationStatus.SUCCESS,
-            start_time=datetime.now(),
-            end_time=datetime.now(),
+            start_time=datetime.now(tz=timezone.utc),
+            end_time=datetime.now(tz=timezone.utc),
             execution_time=0.8,
             parameters={
                 "method": "POST",
@@ -137,8 +137,8 @@ async def example_error_handling():
                     operation_id="op-4",
                     operation_type="file_delete",
                     status=OperationStatus.FAILURE,
-                    start_time=datetime.now(),
-                    end_time=datetime.now(),
+                    start_time=datetime.now(tz=timezone.utc),
+                    end_time=datetime.now(tz=timezone.utc),
                     execution_time=0.1,
                     parameters={"path": "/protected/file.txt"},
                     error_message="Permission denied: Cannot delete protected file",
@@ -178,8 +178,8 @@ async def example_batch_notifications():
                         operation_id=f"op-{i}",
                         operation_type="file_write",
                         status=OperationStatus.SUCCESS,
-                        start_time=datetime.now(),
-                        end_time=datetime.now(),
+                        start_time=datetime.now(tz=timezone.utc),
+                        end_time=datetime.now(tz=timezone.utc),
                         execution_time=0.3,
                     )
                 ],

@@ -27,7 +27,7 @@ Version: 1.0.0
 Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 5.1, 5.2, 5.3, 5.4, 5.5
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -142,8 +142,8 @@ class AgentLifecycleManager:
             capabilities=initial_capabilities,
             specializations={},  # Empty initially, built through experience
             performance_history=[],
-            created_at=datetime.now(),
-            last_active=datetime.now(),
+            created_at=datetime.now(tz=timezone.utc),
+            last_active=datetime.now(tz=timezone.utc),
             total_tasks=0,
             successful_tasks=0,
             metadata={
@@ -282,7 +282,7 @@ class AgentLifecycleManager:
             "agent_ids": agent_ids,
             "reason": reason,
             "details": details,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
         }
 
         await self.storage.store_evolution_event(event)

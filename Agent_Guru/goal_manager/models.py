@@ -5,7 +5,7 @@ Defines core data structures using Pydantic for validation.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 

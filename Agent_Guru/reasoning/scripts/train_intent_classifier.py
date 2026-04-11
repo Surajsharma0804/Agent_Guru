@@ -215,7 +215,7 @@ class DataAugmenter:
             self.back_translation_aug = nas.BackTranslationAug(
                 from_model_name="facebook/wmt19-en-de", to_model_name="facebook/wmt19-de-en"
             )
-        except Exception:
+        except Exception as e:
             self.back_translation_aug = None
 
     def augment(self, text: str, num_augmentations: int = 2) -> list[str]:

@@ -15,7 +15,9 @@ This module provides the main facade for the speech engine, integrating all comp
 """
 
 import logging
+import threading
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -102,7 +104,7 @@ class SpeechEngine:
         """
         self.config = config or SpeechEngineConfig()
         self._state = EngineState.UNINITIALIZED
-        self._state_lock = __import__("threading").Lock()
+        self._state_lock = threading.Lock()
 
         # Components (initialized in initialize())
         self.audio_capture: Optional[AudioCapture] = None
@@ -206,7 +208,7 @@ class SpeechEngine:
         except Exception as e:
             with self._state_lock:
                 self._state = EngineState.ERROR
-            self.logger.error(f"Failed to initialize Speech Engine: {e}", exc_info=True)
+            self.logger.error("Failed to initialize Speech Engine: %s", e, exc_info=True)
             raise GuruSpeechError(f"Initialization failed: {e}") from e
 
     async def process_voice_input(
@@ -257,7 +259,7 @@ class SpeechEngine:
                             personality = wake_word_result.personality
                         else:
                             personality = PersonalityType.GURU  # Default
-                    except Exception:
+                    except Exception as e:
                         personality = PersonalityType.GURU  # Default on error
 
             self._current_personality = personality
@@ -306,7 +308,7 @@ class SpeechEngine:
                     await self.memory_client.store_emotion_state(
                         user_id="default_user",
                         emotion=emotion.primary_emotion,
-                        timestamp=__import__("datetime").datetime.now(),
+                        timestamp=datetime.now(tz=timezone.utc),
                         confidence=emotion.confidence,
                     )
                     await self.memory_client.store_conversation_turn(
@@ -342,7 +344,7 @@ class SpeechEngine:
         except Exception as e:
             with self._state_lock:
                 self._state = EngineState.ERROR
-            self.logger.error(f"Voice processing failed: {e}", exc_info=True)
+            self.logger.error("Voice processing failed: %s", e, exc_info=True)
 
             # Preserve context even on error
             if self._current_context_id and self.context_manager is not None:
@@ -626,7 +628,7 @@ class SpeechEngine:
             self.logger.info("Speech Engine shutdown complete")
 
         except Exception as e:
-            self.logger.error(f"Error during shutdown: {e}", exc_info=True)
+            self.logger.error("Error during shutdown: %s", e, exc_info=True)
         finally:
             # ALWAYS set state to UNINITIALIZED, even on error
             with self._state_lock:

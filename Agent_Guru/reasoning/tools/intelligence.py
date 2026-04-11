@@ -206,8 +206,7 @@ class AlertManager:
             try:
                 handler(alert)
             except Exception as e:
-                logger.error(
-                    f"Alert handler failed: {e}",
+                logger.error("Alert handler failed: %s", e,
                     extra={"alert_id": alert.alert_id, "error": str(e)},
                 )
 
@@ -391,7 +390,8 @@ class ToolStats(BaseModel):
             # Send alert (works in both sync and async contexts)
             try:
                 asyncio.get_running_loop()
-                asyncio.create_task(_alert_manager.send_alert(alert))
+                _t = asyncio.create_task(_alert_manager.send_alert(alert))
+                _t.add_done_callback(lambda _: None)  # prevent GC
             except RuntimeError:
                 # No event loop running, send synchronously
                 asyncio.run(_alert_manager.send_alert(alert))
@@ -1019,7 +1019,7 @@ class ToolIntelligenceEngine:
             self._tool_stats = {
                 tool_id: ToolStats.model_validate(data) for tool_id, data in stats_data.items()
             }
-        except Exception:
+        except Exception as e:
             # If loading fails, start fresh
             self._tool_stats = {}
 
@@ -1054,6 +1054,6 @@ class ToolIntelligenceEngine:
                 user_id, tool_id = key.split(":", 1)
                 pref = UserToolPreference.model_validate(data)
                 self._user_preferences[(user_id, tool_id)] = pref
-        except Exception:
+        except Exception as e:
             # If loading fails, start fresh
             self._user_preferences = {}

@@ -11,7 +11,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 from uuid import UUID, uuid4
@@ -167,7 +167,7 @@ class VerifierClient:
                         return result
                     logger.warning("Verifier returned %s", resp.status)
             except Exception as e:
-                logger.warning(f"Validation attempt {attempt + 1} failed: {e}")
+                logger.warning("Validation attempt %s failed: %s", attempt + 1, e)
                 if attempt < self.max_retries - 1:
                     await asyncio.sleep(0.5 * (2 ** attempt))
 

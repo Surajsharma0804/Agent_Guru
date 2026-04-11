@@ -254,7 +254,7 @@ class LinuxScreenCaptureBackend(ScreenCaptureBackend):
         try:
             result = subprocess.run(["which", "scrot"], capture_output=True, timeout=5)  # nosec B603 B607
             return result.returncode == 0
-        except Exception:
+        except Exception as e:
             return False
 
     def capture_screenshot(self, output_path: str) -> None:

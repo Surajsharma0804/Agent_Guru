@@ -292,7 +292,7 @@ class VoiceFeatureExtractor:
             else:
                 return 0.5  # Default moderate quality
 
-        except Exception:
+        except Exception as e:
             return 0.5  # Return moderate quality on error
 
     def detect_liveness(
@@ -417,5 +417,5 @@ class VoiceFeatureExtractor:
             else:
                 return False, 0.5  # Uncertain
 
-        except Exception:
+        except Exception as e:
             return False, 0.5  # Return uncertain on error

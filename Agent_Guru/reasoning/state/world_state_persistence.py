@@ -8,7 +8,7 @@ Performance: <50ms save, <100ms restore
 
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import aiosqlite
@@ -99,8 +99,8 @@ class WorldStatePersistence:
                     (
                         self.CURRENT_VERSION,
                         state_json,
-                        datetime.now().isoformat(),
-                        datetime.now().isoformat(),
+                        datetime.now(tz=timezone.utc).isoformat(),
+                        datetime.now(tz=timezone.utc).isoformat(),
                     ),
                 )
 
@@ -114,7 +114,7 @@ class WorldStatePersistence:
                         (
                             self.CURRENT_VERSION,
                             state_json,
-                            datetime.now().isoformat(),
+                            datetime.now(tz=timezone.utc).isoformat(),
                         ),
                     )
 

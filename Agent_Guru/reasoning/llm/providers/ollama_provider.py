@@ -192,5 +192,5 @@ class OllamaProvider(BaseLLMProvider):
                     f"{self.ollama_config.base_url}/api/tags"
                 ) as response:
                     return response.status == 200
-        except Exception:
+        except Exception as e:
             return False

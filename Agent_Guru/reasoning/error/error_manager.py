@@ -9,7 +9,7 @@ Provides centralized error management with:
 """
 
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 

@@ -38,7 +38,7 @@ class TestHardestLearningConvergence:
                 time.sleep(0.5)
                 try:
                     os.unlink(path)
-                except:
+                except Exception as e:
                     pass  # Give up if still can't delete
     
     @pytest.fixture

@@ -18,7 +18,7 @@ from Agent_Guru.reasoning.models.conversation import ConversationState
 class RedisCache:
     """Redis cache for hot conversation data."""
 
-    def __init__(self, url: str = "redis://localhost:6379", ttl: int = 3600):
+    def __init__(self, url: str = None, ttl: int = 3600):
         self.url = url
         self.ttl = ttl
         self._client: Optional[redis.Redis] = None
@@ -43,7 +43,7 @@ class RedisCache:
             if data:
                 return ConversationState(**json.loads(data))
             return None
-        except Exception:
+        except Exception as e:
             return None
 
     async def set(self, state: ConversationState) -> bool:
@@ -55,7 +55,7 @@ class RedisCache:
                 f"conv:{state.conversation_id}", self.ttl, state.model_dump_json()
             )
             return True
-        except Exception:
+        except Exception as e:
             return False
 
     async def delete(self, conversation_id: str) -> bool:
@@ -65,5 +65,5 @@ class RedisCache:
         try:
             await self._client.delete(f"conv:{conversation_id}")
             return True
-        except Exception:
+        except Exception as e:
             return False

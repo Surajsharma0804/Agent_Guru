@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 """
 Improvement Reporter for Self-Improvement Engine.
 
@@ -16,7 +18,7 @@ Date: 2026-02-28
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
@@ -169,8 +171,8 @@ class ImprovementReporter:
         # Create report
         report = ImprovementReport(
             # Metadata
-            report_id=f"report_{datetime.now().timestamp()}",
-            timestamp=datetime.now(),
+            report_id=f"report_{datetime.now(tz=timezone.utc).timestamp()}",
+            timestamp=datetime.now(tz=timezone.utc),
             total_tasks=total_tasks,
             measurement_window=measurement_window,
             # Performance Metrics
@@ -344,18 +346,18 @@ class ImprovementReporter:
             return
 
         # Log alert
-        print("=" * 80)
-        print("⚠️  IMPROVEMENT ALERT")
-        print("=" * 80)
-        print(f"Reason: {report.alert_reason}")
-        print("")
-        print(f"Current Improvement: {report.relative_improvement_percent:+.2f}%")
-        print(f"Required Threshold: {report.improvement_threshold * 100:.0f}%")
-        print(f"Gap: {report.threshold_gap * 100:+.2f}%")
-        print("")
-        print("Recommendations:")
-        print("1. Review failure patterns in Failure Analyzer")
-        print("2. Check strategy performance in Strategy Optimizer")
-        print("3. Verify prompt evolution is working correctly")
-        print("4. Analyze recent task types for difficulty changes")
-        print("=" * 80)
+        _logger.info("=" * 80)
+        _logger.info("⚠️  IMPROVEMENT ALERT")
+        _logger.info("=" * 80)
+        _logger.info(f"Reason: {report.alert_reason}")
+        _logger.info("")
+        _logger.info(f"Current Improvement: {report.relative_improvement_percent:+.2f}%")
+        _logger.info(f"Required Threshold: {report.improvement_threshold * 100:.0f}%")
+        _logger.info(f"Gap: {report.threshold_gap * 100:+.2f}%")
+        _logger.info("")
+        _logger.info("Recommendations:")
+        _logger.info("1. Review failure patterns in Failure Analyzer")
+        _logger.info("2. Check strategy performance in Strategy Optimizer")
+        _logger.info("3. Verify prompt evolution is working correctly")
+        _logger.info("4. Analyze recent task types for difficulty changes")
+        _logger.info("=" * 80)

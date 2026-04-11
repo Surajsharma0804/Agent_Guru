@@ -37,8 +37,8 @@ class TestMemoryIntegration:
                 time.sleep(0.1)
                 try:
                     os.unlink(path)
-                except:
-                    pass
+                except Exception as e:
+                    _logger.warning("Suppressed exception: %s", e)
     
     @pytest.fixture
     def engine(self, temp_db):
@@ -156,8 +156,8 @@ class TestMemoryIntegrationWithMockSystem:
         if os.path.exists(path):
             try:
                 os.unlink(path)
-            except:
-                pass
+            except Exception as e:
+                _logger.warning("Suppressed exception: %s", e)
     
     @pytest.fixture
     def engine(self, temp_db):

@@ -418,7 +418,7 @@ class SynthesisEngine:
                 frames = wf.getnframes()
                 rate = wf.getframerate()
                 return frames / float(rate) if rate > 0 else 0.0
-        except Exception:
+        except Exception as e:
             # Rough estimate: 2 bytes per sample, 1 channel
             header_size = 44  # WAV header
             data_size = max(0, len(audio_bytes) - header_size)

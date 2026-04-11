@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+_logger = logging.getLogger(__name__)
 import signal
 import sys
 from typing import Optional
@@ -171,6 +172,7 @@ def _stub(name: str, critical: bool = False):
 # ---------------------------------------------------------------------------
 
 def _load_gpu_pool():
+    import asyncio
     try:
         from Agent_Guru.integration.gpu_pool import GPUResourcePool
         return GPUResourcePool()
@@ -179,11 +181,14 @@ def _load_gpu_pool():
             "GPUResourcePool unavailable (%s) — falling back to CPU-only pool", e
         )
         # Return a minimal CPU-only pool so startup continues
+        # BUG-006 fix: include asyncio.Lock so concurrent startup coroutines
+        # don't race on _allocations (previously missing from manual __new__ path).
         from Agent_Guru.integration.gpu_pool import GPUResourcePool, DeviceConfig
         pool = GPUResourcePool.__new__(GPUResourcePool)
         pool.device = "cpu"
         pool.total_vram = 0
         pool._allocations: dict = {}
+        pool._lock = asyncio.Lock()  # BUG-006: was missing — race condition fixed
 
         def _cpu_allocate(name: str) -> DeviceConfig:
             return DeviceConfig(device="cpu", vram_limit_gb=0.0)
@@ -202,12 +207,12 @@ async def run() -> None:
     from Agent_Guru.speech.audio.wake_word import WakeWordConfig
     from Agent_Guru.speech.models import PersonalityType
 
-    print()
-    print("=" * 44)
-    print("         Agent Guru  v0.1.0              ")
-    print("  Say 'Hey Guru' or 'Hey Maya' to start  ")
-    print("=" * 44)
-    print()
+    # BUG-025: replaced print() calls with logger.info() so startup messages
+    # flow through the logging infrastructure instead of raw stdout.
+    logger.info("=" * 44)
+    logger.info("         Agent Guru  v0.1.0              ")
+    logger.info("  Say 'Hey Guru' or 'Hey Maya' to start  ")
+    logger.info("=" * 44)
 
     # --- Load all subsystems ---
     logger.info("Loading subsystems...")
@@ -250,7 +255,7 @@ async def run() -> None:
         """Called by WakeWordManager when a real wake word is detected."""
         personality_name = detection.personality.value.upper()
         logger.info("Wake word: '%s' → %s", detection.wake_word, personality_name)
-        print(f"\n  [{personality_name}] Listening for your command...")
+        _logger.info("[%s] Listening for your command...", personality_name)
 
         # Capture ~3 seconds of command audio after the wake word
         import numpy as np
@@ -310,18 +315,15 @@ async def run() -> None:
     await wake_manager.start_listening()
     logger.info("Microphone open — listening for wake words.")
 
-    print()
-    print("[OK] Agent Guru is running.")
-    print("  GPU device  :", gpu_pool.device)
+    logger.info("[OK] Agent Guru is running.")
+    logger.info("  GPU device  : %s", gpu_pool.device)
     if gpu_pool.device == "cuda":
         total_gb = gpu_pool.total_vram / (1024 ** 3)
-        print(f"  Total VRAM  : {total_gb:.1f} GB")
+        logger.info("  Total VRAM  : %.1f GB", total_gb)
     else:
-        print("  Mode        : CPU-only (no CUDA GPU detected)")
-    print()
-    print("  Listening for 'Hey Guru' or 'Hey Maya'...")
-    print("  Press Ctrl+C to stop.")
-    print()
+        logger.info("  Mode        : CPU-only (no CUDA GPU detected)")
+    logger.info("  Listening for 'Hey Guru' or 'Hey Maya'...")
+    logger.info("  Press Ctrl+C to stop.")
 
     # --- Graceful shutdown on SIGINT/SIGTERM ---
     stop_event = asyncio.Event()
@@ -340,7 +342,6 @@ async def run() -> None:
     await stop_event.wait()
 
     # --- Shutdown ---
-    print()
     logger.info("Shutting down Agent Guru...")
     await wake_manager.stop_listening()
     await orch.sleep()
@@ -348,10 +349,10 @@ async def run() -> None:
     if hasattr(speech, "shutdown") and callable(speech.shutdown):
         try:
             speech.shutdown()
-        except Exception:
-            pass
+        except Exception as e:
+            _logger.warning("Suppressed exception: %s", e)
 
-    print("Agent Guru stopped. Goodbye.")
+    logger.info("Agent Guru stopped. Goodbye.")
 
 
 # ---------------------------------------------------------------------------
@@ -362,5 +363,6 @@ if __name__ == "__main__":
     try:
         asyncio.run(run())
     except KeyboardInterrupt:
-        print("\nInterrupted.")
+        _logger.info("Interrupted.")
         sys.exit(0)
+        raise

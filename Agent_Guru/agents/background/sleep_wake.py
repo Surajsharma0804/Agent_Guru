@@ -19,7 +19,7 @@ import asyncio
 import logging
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -99,7 +99,7 @@ class SleepWakeCoordinator:
         self._current_mode: PowerMode = PowerMode.SLEEP
         self._callback: Optional[ModeChangeCallback] = None
         self._auto_sleep_task: Optional[asyncio.Task] = None  # type: ignore[type-arg]
-        self._last_activity: datetime = datetime.now()
+        self._last_activity: datetime = datetime.now(tz=timezone.utc)
 
     # ------------------------------------------------------------------
     # Registration
@@ -177,7 +177,7 @@ class SleepWakeCoordinator:
         Validates: Requirement 12.2, 12.3
         """
         self._current_mode = PowerMode.WAKE
-        self._last_activity = datetime.now()
+        self._last_activity = datetime.now(tz=timezone.utc)
 
         for state in self._components.values():
             await self._set_component_mode(state, PowerMode.WAKE)
@@ -190,7 +190,7 @@ class SleepWakeCoordinator:
 
     def record_activity(self) -> None:
         """Record user activity to reset the auto-sleep timer."""
-        self._last_activity = datetime.now()
+        self._last_activity = datetime.now(tz=timezone.utc)
         if self._auto_sleep_seconds > 0 and self._current_mode == PowerMode.WAKE:
             self._start_auto_sleep_timer()
 
@@ -235,7 +235,7 @@ class SleepWakeCoordinator:
             return
 
         state.mode = mode
-        state.last_transition = datetime.now()
+        state.last_transition = datetime.now(tz=timezone.utc)
         state.transition_count += 1
 
         if self._callback:

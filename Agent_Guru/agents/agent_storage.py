@@ -18,7 +18,7 @@ Version: 1.0.0
 import json
 import sqlite3
 from contextlib import closing, contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -573,7 +573,7 @@ class AgentStorage:
         with self._get_conn() as conn:
             cursor = conn.cursor()
 
-            now_iso = datetime.now().isoformat()
+            now_iso = datetime.now(tz=timezone.utc).isoformat()
 
             cursor.execute(
                 """

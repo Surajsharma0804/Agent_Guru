@@ -1231,7 +1231,7 @@ class OSController:
                 # Try to open with specific browser via app controller
                 try:
                     self._app_controller.open_application(browser, [resolved])
-                except Exception:
+                except Exception as e:
                     webbrowser.open(resolved)
             else:
                 webbrowser.open(resolved)
@@ -1247,7 +1247,7 @@ class OSController:
                 metadata={"url": resolved},
             )
         except Exception as e:
-            logger.error(f"Failed to open URL {resolved}: {e}")
+            logger.error("Failed to open URL %s: %s", resolved, e)
             self._log_operation(
                 OperationCategory.APPLICATION, "open_url", False, {"error": str(e)}
             )
@@ -1375,7 +1375,7 @@ class OSController:
                 metadata={"app_name": app_name},
             )
         except Exception as e:
-            logger.error(f"Failed to uninstall {app_name}: {e}")
+            logger.error("Failed to uninstall %s: %s", app_name, e)
             return OperationResult(
                 success=False,
                 category=OperationCategory.APPLICATION,
@@ -1783,7 +1783,7 @@ class OSController:
             method = operation_map[operation]
             return method(**kwargs)
         except TypeError as e:
-            logger.error(f"Invalid arguments for operation {operation}: {e}")
+            logger.error("Invalid arguments for operation %s: %s", operation, e)
             return OperationResult(
                 success=False,
                 category=OperationCategory.FILE,  # Default category
@@ -1792,7 +1792,7 @@ class OSController:
                 error=str(e)
             )
         except Exception as e:
-            logger.error(f"Failed to execute operation {operation}: {e}")
+            logger.error("Failed to execute operation %s: %s", operation, e)
             return OperationResult(
                 success=False,
                 category=OperationCategory.FILE,  # Default category

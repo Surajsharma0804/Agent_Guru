@@ -20,7 +20,7 @@ import json
 import math
 import random
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -159,7 +159,7 @@ class StrategyOptimizer:
             if cursor.fetchone():
                 raise ValueError(f"Strategy '{strategy_id}' already exists")
 
-            now = datetime.now().isoformat()
+            now = datetime.now(tz=timezone.utc).isoformat()
 
             cursor.execute(
                 """
@@ -237,7 +237,7 @@ class StrategyOptimizer:
                 else execution_time_ms
             )
 
-            now = datetime.now().isoformat()
+            now = datetime.now(tz=timezone.utc).isoformat()
 
             cursor.execute(
                 """
@@ -672,7 +672,7 @@ class StrategyOptimizer:
                 return None
 
         # New strategy discovered - register it
-        strategy_id = f"discovered_{approach}_{task_type}_{datetime.now().timestamp()}"
+        strategy_id = f"discovered_{approach}_{task_type}_{datetime.now(tz=timezone.utc).timestamp()}"
         strategy_name = f"Discovered: {approach.replace('_', ' ').title()}"
         strategy_description = (
             f"Automatically discovered strategy from successful {task_type} execution"
@@ -791,7 +791,7 @@ class StrategyOptimizer:
             return None
 
         # Create merged strategy
-        merged_id = f"merged_{datetime.now().timestamp()}"
+        merged_id = f"merged_{datetime.now(tz=timezone.utc).timestamp()}"
         merged_name = f"Merged: {' + '.join(s.name for s in strategies[:2])}"
         merged_description = (
             f"Merged from {len(strategies)} similar strategies: "
@@ -830,7 +830,7 @@ class StrategyOptimizer:
             total_time = sum(s.avg_execution_time_ms * s.total_executions for s in strategies)
             avg_time = total_time / total_executions if total_executions > 0 else 0.0
 
-            now = datetime.now().isoformat()
+            now = datetime.now(tz=timezone.utc).isoformat()
 
             cursor.execute(
                 """

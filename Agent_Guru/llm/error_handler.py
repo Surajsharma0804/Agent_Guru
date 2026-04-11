@@ -22,7 +22,7 @@ import asyncio
 import logging
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional, TypeVar
 
@@ -226,7 +226,7 @@ class ErrorHandler:
 
             # Check if the timeout has elapsed (half-open)
             if state.opened_at is not None:
-                elapsed = (datetime.now() - state.opened_at).total_seconds()
+                elapsed = (datetime.now(tz=timezone.utc) - state.opened_at).total_seconds()
                 if elapsed >= self.circuit_breaker_timeout_s:
                     # Transition to half-open: allow one test request
                     state.is_open = False
@@ -254,12 +254,12 @@ class ErrorHandler:
 
             state = self._circuit_breakers[provider]
             state.failure_count += 1
-            state.last_failure = datetime.now()
+            state.last_failure = datetime.now(tz=timezone.utc)
 
             if state.failure_count >= self.circuit_breaker_threshold:
                 if not state.is_open:
                     state.is_open = True
-                    state.opened_at = datetime.now()
+                    state.opened_at = datetime.now(tz=timezone.utc)
                     logger.warning(
                         "Circuit breaker OPENED for provider '%s' after %d failures.",
                         provider,

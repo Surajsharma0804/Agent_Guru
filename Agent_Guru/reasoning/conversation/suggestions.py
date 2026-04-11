@@ -11,7 +11,7 @@ Requirements: 19.3, 27.4
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from Agent_Guru.reasoning.models.conversation import ConversationState
@@ -243,7 +243,7 @@ class ProactiveSuggestionGenerator:
             "action": action,
             "context": context,
             "frequency": 1,
-            "last_seen": datetime.now(),
+            "last_seen": datetime.now(tz=timezone.utc),
         }
 
         # Check if pattern already exists
@@ -251,7 +251,7 @@ class ProactiveSuggestionGenerator:
         if existing:
             # Update frequency
             existing["frequency"] += 1
-            existing["last_seen"] = datetime.now()
+            existing["last_seen"] = datetime.now(tz=timezone.utc)
         else:
             # Add new pattern
             self.user_patterns[user_id].append(pattern)

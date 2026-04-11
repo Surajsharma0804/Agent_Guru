@@ -32,7 +32,7 @@ import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 
@@ -238,7 +238,7 @@ class ResourceMonitor:
         Returns:
             Current resource usage snapshot
         """
-        timestamp = datetime.now()
+        timestamp = datetime.now(tz=timezone.utc)
 
         # CPU metrics (O(1) - psutil caches values)
         # Use interval=None for non-blocking call (returns cached value)
@@ -299,7 +299,7 @@ class ResourceMonitor:
                     )
                     for gpu in gpus
                 ]
-            except Exception:
+            except Exception as e:
                 # GPU monitoring failed, continue without it
                 gpu_usage = None
 
@@ -322,7 +322,7 @@ class ResourceMonitor:
                             pass
                     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError):
                         continue
-            except Exception:
+            except Exception as e:
                 thread_count = 0
 
         snapshot = ResourceSnapshot(
@@ -620,7 +620,7 @@ class ResourceMonitor:
             remaining = 100.0 - current_value
 
             if remaining <= 0:
-                return datetime.now()
+                return datetime.now(tz=timezone.utc)
 
             # Time to exhaustion in samples
             samples_to_exhaustion = remaining / slope
@@ -634,7 +634,7 @@ class ResourceMonitor:
             if time_to_exhaustion > horizon:
                 return None
 
-            return datetime.now() + time_to_exhaustion
+            return datetime.now(tz=timezone.utc) + time_to_exhaustion
 
     def _monitoring_loop(self) -> None:
         """Background monitoring loop (runs in separate thread)."""
@@ -793,7 +793,7 @@ class ResourceMonitor:
             if alert_id in self._active_alerts:
                 # Update existing alert
                 self._active_alerts[alert_id].current_value = current_value
-                self._active_alerts[alert_id].timestamp = datetime.now()
+                self._active_alerts[alert_id].timestamp = datetime.now(tz=timezone.utc)
                 return
 
             # Create new alert
@@ -803,7 +803,7 @@ class ResourceMonitor:
                 current_value=current_value,
                 threshold_value=threshold_value,
                 severity=severity,
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
                 message=message,
                 recommended_action=recommended_action
             )

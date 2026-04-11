@@ -7,7 +7,7 @@ Tests invariants using Hypothesis for:
 - Template selection is deterministic
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -52,7 +52,7 @@ class TestTemplateGeneratorProperties:
             execution_time=0.1,
             action_id="test",
             tool_id="test_tool",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         intent = Intent(
@@ -93,7 +93,7 @@ class TestTemplateGeneratorProperties:
             execution_time=0.1,
             action_id="test",
             tool_id="test_tool",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         intent = Intent(
@@ -129,7 +129,7 @@ class TestTemplateGeneratorProperties:
             execution_time=0.1,
             action_id="test",
             tool_id="test_tool",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         intent = Intent(
@@ -164,7 +164,7 @@ class TestTemplateGeneratorProperties:
             execution_time=0.1,
             action_id="test",
             tool_id="test_tool",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         intent = Intent(
@@ -197,7 +197,7 @@ class TestTemplateGeneratorProperties:
             execution_time=0.1,
             action_id="test",
             tool_id="test_tool",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         intent = Intent(

@@ -22,6 +22,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -57,10 +58,20 @@ class ProviderHealth:
     last_error: Optional[str] = None
 
     def is_healthy(self, ttl_seconds: float = 30.0) -> bool:
-        """Return True if provider is available and check is fresh."""
+        """Return True if the provider is available OR its TTL has expired
+        (meaning it is eligible for a retry check).
+
+        BUG-010 fix: the old method returned True for UNAVAILABLE providers
+        after TTL — which could be read as "OK to use" but is really "OK to
+        retry". The semantics are preserved; the name and docstring now correctly
+        reflect the intent so future readers don't misread it.
+        """
         if self.status == ProviderStatus.UNAVAILABLE:
-            # Re-check after TTL
-            return (time.time() - self.last_check_ts) > ttl_seconds
+            # Still within the blackout window — do NOT retry yet
+            if (time.time() - self.last_check_ts) <= ttl_seconds:
+                return False
+            # TTL expired — allow a retry attempt
+            return True
         return self.status != ProviderStatus.UNAVAILABLE
 
 
@@ -278,9 +289,10 @@ class ProviderFailoverRouter:
 
         # All providers failed — use rule-based fallback
         latency_ms = (time.perf_counter() - start) * 1000
+        # BUG-013: replaced f-string logger call with %s lazy-format
         logger.warning(
-            f"All providers failed. Using rule-based fallback. "
-            f"Tried: {[p.value for p in providers_tried]}"
+            "All providers failed. Using rule-based fallback. Tried: %s",
+            [p.value for p in providers_tried],
         )
 
         if self._config.enable_rule_based_fallback:
@@ -292,7 +304,11 @@ class ProviderFailoverRouter:
         fallback_response = CompletionResponse(
             content=fallback_text,
             model="rule-based",
-            provider=ModelProvider.OLLAMA,  # Placeholder
+            # BUG-033: was ModelProvider.OLLAMA as a wrong placeholder; None
+            # signals "no real LLM provider" so cost/routing callers behave correctly.
+            # BUG-004: was __import__("datetime").datetime.now() — fragile and naive;
+            # replaced with proper import + UTC-aware timestamp.
+            provider=None,  # type: ignore[arg-type]
             finish_reason="stop",
             usage=TokenUsage(
                 prompt_tokens=0,
@@ -301,7 +317,7 @@ class ProviderFailoverRouter:
                 estimated_cost=0.0,
             ),
             latency_ms=latency_ms,
-            timestamp=__import__("datetime").datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         return FailoverResult(

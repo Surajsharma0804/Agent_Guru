@@ -320,17 +320,31 @@ class LLMManager:
         # Auto-detect: if no cloud key is set anywhere, fall back to local Ollama.
         # This lets the assistant work out of the box without any API key.
         if self._is_desktop and self._config.mode == "cloud":
-            has_openai    = bool(self._config.api_key and self._config.provider == LLMProvider.OPENAI)
-            has_anthropic = bool(self._config.api_key and self._config.provider == LLMProvider.ANTHROPIC)
-            has_google    = bool(self._config.api_key and self._config.provider == LLMProvider.GOOGLE)
+            # BUG-019: old logic was mutually exclusive — only the single
+            # configured provider's has_* flag could be True (the others were
+            # always False because they checked the same api_key+provider pair).
+            # Now each flag checks its own env var independently so any provider
+            # key in the environment is correctly detected.
+            cfg_key = (self._config.api_key or "").strip()
+            has_openai = bool(
+                (cfg_key and self._config.provider == LLMProvider.OPENAI)
+                or os.environ.get("OPENAI_API_KEY", "").strip()
+            )
+            has_anthropic = bool(
+                (cfg_key and self._config.provider == LLMProvider.ANTHROPIC)
+                or os.environ.get("ANTHROPIC_API_KEY", "").strip()
+            )
+            has_google = bool(
+                (cfg_key and self._config.provider == LLMProvider.GOOGLE)
+                or os.environ.get("GOOGLE_API_KEY", "").strip()
+                or (
+                    os.environ.get("GEMINI_API_KEY", "").strip()
+                    and os.environ.get("GEMINI_API_KEY", "") != "your-gemini-api-key-here"
+                )
+            )
             # also check env vars directly for any provider
             has_any_cloud_key = (
                 has_openai or has_anthropic or has_google
-                or bool(os.environ.get("OPENAI_API_KEY", "").strip())
-                or bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
-                or bool(os.environ.get("GOOGLE_API_KEY", "").strip())
-                or bool(os.environ.get("GEMINI_API_KEY", "").strip()
-                        and os.environ.get("GEMINI_API_KEY", "") != "your-gemini-api-key-here")
                 or bool(os.environ.get("DEEPSEEK_API_KEY", "").strip())
             )
             if not has_any_cloud_key:

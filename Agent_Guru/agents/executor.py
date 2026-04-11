@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Coroutine
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -60,8 +60,8 @@ class ExecutionResult:
         self.status = status
         self.output = output
         self.error = error
-        self.started_at = started_at or datetime.now()
-        self.finished_at = finished_at or datetime.now()
+        self.started_at = started_at or datetime.now(tz=timezone.utc)
+        self.finished_at = finished_at or datetime.now(tz=timezone.utc)
         delta = self.finished_at - self.started_at
         self.duration_ms = int(delta.total_seconds() * 1000)
 
@@ -247,7 +247,7 @@ class TaskExecutor:
         Time Complexity: O(1) overhead
         Validates: Requirements 7.2, 7.4, 7.5
         """
-        started_at = datetime.now()
+        started_at = datetime.now(tz=timezone.utc)
         self._statuses[task.id] = ExecutionStatus.IN_PROGRESS
         timeout = task.requirements.get("timeout_seconds", self.default_timeout)
 
@@ -256,7 +256,7 @@ class TaskExecutor:
                 self.handler(task),
                 timeout=float(timeout),
             )
-            finished_at = datetime.now()
+            finished_at = datetime.now(tz=timezone.utc)
             return ExecutionResult(
                 task_id=task.id,
                 status=ExecutionStatus.COMPLETED,
@@ -265,7 +265,7 @@ class TaskExecutor:
                 finished_at=finished_at,
             )
         except asyncio.TimeoutError:
-            finished_at = datetime.now()
+            finished_at = datetime.now(tz=timezone.utc)
             return ExecutionResult(
                 task_id=task.id,
                 status=ExecutionStatus.TIMEOUT,
@@ -274,7 +274,7 @@ class TaskExecutor:
                 finished_at=finished_at,
             )
         except Exception as exc:  # noqa: BLE001
-            finished_at = datetime.now()
+            finished_at = datetime.now(tz=timezone.utc)
             return ExecutionResult(
                 task_id=task.id,
                 status=ExecutionStatus.FAILED,

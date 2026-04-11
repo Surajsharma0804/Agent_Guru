@@ -10,7 +10,7 @@ Performance Requirements:
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -148,7 +148,7 @@ class ServiceRegistry:
             return None
 
         # Check TTL
-        age = (datetime.now() - endpoint.registered_at).total_seconds()
+        age = (datetime.now(tz=timezone.utc) - endpoint.registered_at).total_seconds()
         if age > self.ttl_seconds:
             logger.warning("Service %s registration expired", service_name)
             del self._services[service_name]
@@ -189,7 +189,7 @@ class ServiceRegistry:
             return False
 
         endpoint.status = status
-        endpoint.last_health_check = datetime.now()
+        endpoint.last_health_check = datetime.now(tz=timezone.utc)
         logger.debug(f"Health updated: {service_name} -> {status.value}")
         return True
 
@@ -254,7 +254,7 @@ class ServiceRegistry:
                     self.update_health(name, ServiceStatus.HEALTHY)
                 else:
                     self.update_health(name, ServiceStatus.DEGRADED)
-        except Exception:
+        except Exception as e:
             self.update_health(name, ServiceStatus.UNHEALTHY)
 
     def get_registry_stats(self) -> dict[str, Any]:

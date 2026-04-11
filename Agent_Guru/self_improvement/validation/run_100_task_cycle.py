@@ -26,7 +26,7 @@ import random
 import sys
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 # Load modules directly
@@ -216,7 +216,7 @@ class TaskExecutor:
             reasoning_quality=reasoning_quality,
             tool_selection_correct=tool_selection_correct,
             hallucination_detected=hallucination_detected,
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(tz=timezone.utc).isoformat(),
             scenario_id=scenario.scenario_id,
             difficulty=scenario.difficulty,
         )
@@ -356,7 +356,7 @@ def run_100_task_cycle(
     os.makedirs(output_dir, exist_ok=True)
 
     # Create database path
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
     db_path = os.path.join(output_dir, f"validation_{timestamp}.db")
 
     print(f"Database: {db_path}")
@@ -561,7 +561,7 @@ def run_100_task_cycle(
         task_types=task_types,
         meets_15_percent_target=meets_target,
         validation_passed=validation_passed,
-        timestamp=datetime.now().isoformat(),
+        timestamp=datetime.now(tz=timezone.utc).isoformat(),
         database_path=db_path,
     )
 

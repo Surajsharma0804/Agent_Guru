@@ -10,7 +10,7 @@ Tests template-based response generation with focus on:
 - Error handling
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -40,7 +40,7 @@ class TestTemplateGenerator:
             result_data={"duration": "5 minutes"},
             execution_time=0.1,
             action_id="test_action",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
     @pytest.fixture
@@ -57,7 +57,7 @@ class TestTemplateGenerator:
             ),
             execution_time=5.0,
             action_id="test_action",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
     @pytest.fixture
@@ -145,7 +145,7 @@ class TestTemplateGenerator:
             result_data={"message": "I've set the timer"},
             execution_time=0.1,
             action_id="test",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         response = generator.generate(
@@ -168,7 +168,7 @@ class TestTemplateGenerator:
             result_data={"message": "I have set the timer"},
             execution_time=0.1,
             action_id="test",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         response = generator.generate(
@@ -255,7 +255,7 @@ class TestTemplateGenerator:
             ),
             execution_time=5.0,
             action_id="test",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         response = generator.generate(
@@ -291,7 +291,7 @@ class TestTemplateGenerator:
             result_data={"song": "Bohemian Rhapsody", "artist": "Queen"},
             execution_time=0.1,
             action_id="test",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         music_intent = Intent(
@@ -344,7 +344,7 @@ class TestTemplateGenerator:
             result_data={},  # Missing name and count
             execution_time=0.1,
             action_id="test",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         # Should raise ValueError for missing variables
@@ -415,7 +415,7 @@ class TestTemplateGenerator:
             result_data={"location": "Seattle", "condition": "Cloudy", "temperature": "65°F"},
             execution_time=0.2,
             action_id="test",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         intent = Intent(
@@ -439,7 +439,7 @@ class TestTemplateGenerator:
             result_data={"device": "Living room lights", "action": "turned on"},
             execution_time=0.3,
             action_id="test",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         intent = Intent(
@@ -468,7 +468,7 @@ class TestTemplateGenerator:
             ),
             execution_time=0.1,
             action_id="test",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         intent = Intent(
@@ -496,7 +496,7 @@ class TestTemplateGenerator:
             ),
             execution_time=2.0,
             action_id="test",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         intent = Intent(

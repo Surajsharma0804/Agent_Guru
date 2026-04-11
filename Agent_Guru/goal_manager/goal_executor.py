@@ -26,7 +26,7 @@ Date: 2024
 Version: 1.0.0
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from git import Repo
@@ -142,7 +142,7 @@ class GoalExecutor:
 
         # Mark as IN_PROGRESS with timestamp
         goal.status = GoalStatus.IN_PROGRESS
-        goal.started_at = datetime.now()
+        goal.started_at = datetime.now(tz=timezone.utc)
         await self.storage.update_goal(goal)
 
         # If no sub-goals and agent_orchestration is set, execute as leaf task
@@ -174,14 +174,14 @@ class GoalExecutor:
                 # Propagate failure to parent
                 goal.status = GoalStatus.FAILED
                 goal.error_message = f"Sub-goal {sub_goal_id} failed: {sub_goal.error_message}"
-                goal.completed_at = datetime.now()
+                goal.completed_at = datetime.now(tz=timezone.utc)
                 await self.storage.update_goal(goal)
                 return
 
         # All sub-goals completed successfully
         goal.status = GoalStatus.COMPLETE
         goal.progress = 1.0
-        goal.completed_at = datetime.now()
+        goal.completed_at = datetime.now(tz=timezone.utc)
         await self.storage.update_goal(goal)
 
         # Report completion to Self-Improvement Engine
@@ -214,7 +214,7 @@ class GoalExecutor:
         """
         # Mark sub-goal as IN_PROGRESS with timestamp
         sub_goal.status = GoalStatus.IN_PROGRESS
-        sub_goal.started_at = datetime.now()
+        sub_goal.started_at = datetime.now(tz=timezone.utc)
         await self.storage.update_goal(sub_goal)
 
         try:
@@ -222,7 +222,7 @@ class GoalExecutor:
             if self.agent_orchestration is None:
                 sub_goal.status = GoalStatus.COMPLETE
                 sub_goal.progress = 1.0
-                sub_goal.completed_at = datetime.now()
+                sub_goal.completed_at = datetime.now(tz=timezone.utc)
                 await self.storage.update_goal(sub_goal)
                 return
 
@@ -245,7 +245,7 @@ class GoalExecutor:
                 # Mark sub-goal as COMPLETE
                 sub_goal.status = GoalStatus.COMPLETE
                 sub_goal.progress = 1.0
-                sub_goal.completed_at = datetime.now()
+                sub_goal.completed_at = datetime.now(tz=timezone.utc)
                 await self.storage.update_goal(sub_goal)
 
                 # Commit to GitHub (will be implemented in task 10.4)
@@ -260,7 +260,7 @@ class GoalExecutor:
                 )
                 sub_goal.status = GoalStatus.FAILED
                 sub_goal.error_message = result.error_message
-                sub_goal.completed_at = datetime.now()
+                sub_goal.completed_at = datetime.now(tz=timezone.utc)
                 await self.storage.update_goal(sub_goal)
 
         except Exception as e:
@@ -274,7 +274,7 @@ class GoalExecutor:
             )
             sub_goal.status = GoalStatus.FAILED
             sub_goal.error_message = str(e)
-            sub_goal.completed_at = datetime.now()
+            sub_goal.completed_at = datetime.now(tz=timezone.utc)
             await self.storage.update_goal(sub_goal)
 
         finally:
@@ -519,7 +519,7 @@ class GoalExecutor:
                 # Propagate failure to parent
                 goal.status = GoalStatus.FAILED
                 goal.error_message = f"Sub-goal {sub_goal_id} failed: {sub_goal.error_message}"
-                goal.completed_at = datetime.now()
+                goal.completed_at = datetime.now(tz=timezone.utc)
                 await self.storage.update_goal(goal)
                 return
 
@@ -536,7 +536,7 @@ class GoalExecutor:
         if all_complete:
             goal.status = GoalStatus.COMPLETE
             goal.progress = 1.0
-            goal.completed_at = datetime.now()
+            goal.completed_at = datetime.now(tz=timezone.utc)
             await self.storage.update_goal(goal)
 
             # Report completion to Self-Improvement Engine

@@ -4,7 +4,7 @@ Calendar tools for creating and retrieving calendar events.
 Supports Google Calendar, Outlook Calendar, and other calendar services.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (

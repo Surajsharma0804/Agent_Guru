@@ -5,7 +5,7 @@ Coverage Target: >80% (enforced by CI/CD)
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 
 from Agent_Guru.reasoning.input.normalizer import (
     InputNormalizer,

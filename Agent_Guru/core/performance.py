@@ -41,7 +41,7 @@ class PipelineStage(str, Enum):
     WAKE_WORD = "wake_word"
     STT = "stt"
     INTENT = "intent"
-    LLM_FIRST_TOKEN = "llm_first_token"  # nosec B105
+    LLM_FIRST_TOKEN = "llm_first_token"  # BUG-032: removed incorrect nosec B105 — not a password
     TTS = "tts"
     END_TO_END = "end_to_end"
     STARTUP = "startup"

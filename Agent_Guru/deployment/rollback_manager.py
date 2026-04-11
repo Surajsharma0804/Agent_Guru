@@ -111,9 +111,8 @@ class RollbackManager:
         }
         (snap_dir / "metadata.json").write_text(json.dumps(meta, indent=2))
 
-        # Persist package list as pickle for fast restore
-        with self._resolve_snapshot_path(snap_dir / "packages.pkl").open("wb") as fh:
-            pickle.dump(packages, fh)
+        # packages already serialized as JSON in metadata.json above
+        # (pickle removed: security risk if snapshot directory is compromised)
 
         size = sum(f.stat().st_size for f in snap_dir.rglob("*") if f.is_file())
         snapshot.size_bytes = size
@@ -142,13 +141,24 @@ class RollbackManager:
         if not snap_dir.exists():
             raise SnapshotNotFoundError(f"Snapshot '{html.escape(str(snapshot_id))}' not found")
 
-        pkl_path = snap_dir / "packages.pkl"
-        if not pkl_path.exists():
-            raise RestoreError(f"Snapshot '{html.escape(str(snapshot_id))}' is corrupted (missing packages.pkl)")
+        meta_path = snap_dir / "metadata.json"
+        if not meta_path.exists():
+            raise RestoreError(f"Snapshot '{html.escape(str(snapshot_id))}' is corrupted (missing metadata.json)")
 
         try:
-            with self._resolve_snapshot_path(pkl_path).open("rb") as fh:
-                packages: list[PackageInfo] = pickle.load(fh)  # nosec B301
+            meta = json.loads(meta_path.read_text())
+            import datetime as _dt
+            packages: list[PackageInfo] = [
+                PackageInfo(
+                    name=p["name"],
+                    version=p["version"],
+                    install_path=p["install_path"],
+                    dependencies=p["dependencies"],
+                    checksum=p["checksum"],
+                    install_timestamp=_dt.datetime.fromisoformat(p["install_timestamp"]),
+                )
+                for p in meta.get("packages", [])
+            ]
         except Exception as exc:
             raise RestoreError(f"Failed to load snapshot '{html.escape(str(snapshot_id))}': {exc}") from exc
 
@@ -214,7 +224,7 @@ class RollbackManager:
         snap_dir = self._snapshot_dir / snapshot_id
         if not snap_dir.exists():
             return False
-        return (snap_dir / "metadata.json").exists() and (snap_dir / "packages.pkl").exists()
+        return (snap_dir / "metadata.json").exists()
 
     def get_audit_entries(self) -> list[AuditLogEntry]:
         """Return in-memory audit entries."""

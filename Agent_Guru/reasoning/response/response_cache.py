@@ -17,7 +17,7 @@ import hashlib
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from Agent_Guru.reasoning.models.result import Response
@@ -47,7 +47,7 @@ class CachedResponse:
 
     def update_access(self) -> None:
         """Update access statistics."""
-        self.last_accessed = datetime.now()
+        self.last_accessed = datetime.now(tz=timezone.utc)
         self.access_count += 1
 
 
@@ -225,7 +225,7 @@ class ResponseCache:
         Time Complexity: O(1)
         """
         ttl = self._get_ttl(entry.intent_type)
-        age = datetime.now() - entry.created_at
+        age = datetime.now(tz=timezone.utc) - entry.created_at
         return age > ttl
 
     def _is_data_stale(self, entry: CachedResponse, freshness_threshold: Optional[datetime] = None) -> bool:
@@ -359,9 +359,9 @@ class ResponseCache:
             response=response,
             cache_key=cache_key,
             intent_type=intent_type,
-            created_at=datetime.now(),
-            last_accessed=datetime.now(),
-            data_freshness=data_freshness or datetime.now(),
+            created_at=datetime.now(tz=timezone.utc),
+            last_accessed=datetime.now(tz=timezone.utc),
+            data_freshness=data_freshness or datetime.now(tz=timezone.utc),
         )
 
         self._cache[cache_key] = entry

@@ -14,7 +14,7 @@ Tests cover:
 Coverage Target: 80%+
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock
 
 import pytest

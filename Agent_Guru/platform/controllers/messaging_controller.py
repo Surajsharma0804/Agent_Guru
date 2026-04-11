@@ -622,7 +622,7 @@ class MessagingController:
             )
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
-        except Exception:
+        except Exception as e:
             result = False
 
         MessagingController._adb_cache = result
@@ -641,7 +641,7 @@ class MessagingController:
             )
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
-        except Exception:
+        except Exception as e:
             result = False
 
         MessagingController._xcrun_cache = result

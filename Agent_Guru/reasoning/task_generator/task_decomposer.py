@@ -16,7 +16,7 @@ Performance Targets:
 Requirements: 16.1, 16.2, 16.3, 16.4, 17.1, 17.2, 17.3, 17.4, 17.5, 28.1-28.7
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -176,7 +176,7 @@ class TaskModelGenerator:
             >>> assert task.task_type == TaskType.MULTI_STEP
             >>> assert len(task.steps) == 2
         """
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Validate confidence range
@@ -219,7 +219,7 @@ class TaskModelGenerator:
             self._validate_task(task)
 
             # Log successful generation
-            generation_time = (datetime.now() - start_time).total_seconds() * 1000
+            generation_time = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             self.logger.info(
                 "task_generated",
                 task_type=task_type.value,

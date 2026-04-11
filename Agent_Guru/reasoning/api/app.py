@@ -213,7 +213,7 @@ def create_app(
                 content=request.text,
                 source=InputSource(request.source),
                 user_id=request.user_id,
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
                 metadata=request.metadata,
             )
 

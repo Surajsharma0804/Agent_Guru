@@ -23,7 +23,7 @@ Date: 2026-02-28
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -202,8 +202,8 @@ class RollbackManager:
         """
         import json
 
-        change_id = f"change_{datetime.now().timestamp()}_{component_id}"
-        now = datetime.now().isoformat()
+        change_id = f"change_{datetime.now(tz=timezone.utc).timestamp()}_{component_id}"
+        now = datetime.now(tz=timezone.utc).isoformat()
 
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -276,13 +276,13 @@ class RollbackManager:
                 success=False,
                 changes_rolled_back=0,
                 components_affected=[],
-                rollback_timestamp=datetime.now(),
+                rollback_timestamp=datetime.now(tz=timezone.utc),
                 error_message=f"Rollback window exceeds maximum ({self.max_rollback_window_hours} hours)",
                 performance_restored=None,
             )
 
         # Calculate cutoff time
-        cutoff = datetime.now() - timedelta(hours=hours)
+        cutoff = datetime.now(tz=timezone.utc) - timedelta(hours=hours)
         cutoff_iso = cutoff.isoformat()
 
         # Build query
@@ -318,7 +318,7 @@ class RollbackManager:
                 success=True,
                 changes_rolled_back=0,
                 components_affected=[],
-                rollback_timestamp=datetime.now(),
+                rollback_timestamp=datetime.now(tz=timezone.utc),
                 error_message=None,
                 performance_restored=None,
             )
@@ -375,7 +375,7 @@ class RollbackManager:
             success=len(errors) == 0,
             changes_rolled_back=rolled_back_count,
             components_affected=list(components_affected),
-            rollback_timestamp=datetime.now(),
+            rollback_timestamp=datetime.now(tz=timezone.utc),
             error_message="; ".join(errors) if errors else None,
             performance_restored=performance_restored,
         )
@@ -403,7 +403,7 @@ class RollbackManager:
             >>> result = manager.rollback_to_timestamp(good_state_time)
         """
         # Calculate hours difference
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         hours_diff = (now - target_timestamp).total_seconds() / 3600
 
         if hours_diff < 0:
@@ -475,7 +475,8 @@ class RollbackManager:
                 )
             except Exception as e:
                 # Log error but continue with rollback
-                print(f"Root cause investigation failed: {e}")
+                import logging as _log
+                _log.getLogger(__name__).warning("Root cause investigation failed: %s", e)
 
         # Determine rollback window based on severity
         if degradation_alert.severity == DegradationSeverity.SEVERE:
@@ -552,7 +553,7 @@ class RollbackManager:
         """
         import json
 
-        cutoff = datetime.now() - timedelta(hours=hours)
+        cutoff = datetime.now(tz=timezone.utc) - timedelta(hours=hours)
         cutoff_iso = cutoff.isoformat()
 
         query = """
@@ -632,7 +633,7 @@ class RollbackManager:
                     previous_state.get("success_count", 0),
                     previous_state.get("failure_count", 0),
                     previous_state.get("avg_execution_time_ms", 0.0),
-                    datetime.now().isoformat(),
+                    datetime.now(tz=timezone.utc).isoformat(),
                     strategy_id,
                 ),
             )
@@ -714,7 +715,7 @@ class RollbackManager:
                     rollback_timestamp = ?
                 WHERE change_id = ?
             """,
-                (datetime.now().isoformat(), change_id),
+                (datetime.now(tz=timezone.utc).isoformat(), change_id),
             )
 
             conn.commit()
@@ -740,7 +741,7 @@ class RollbackManager:
             >>> stats = manager.get_rollback_statistics(hours=168)
             >>> print(f"Rollback rate: {stats['rollback_rate']:.1%}")
         """
-        cutoff = datetime.now() - timedelta(hours=hours)
+        cutoff = datetime.now(tz=timezone.utc) - timedelta(hours=hours)
         cutoff_iso = cutoff.isoformat()
 
         with self.pool.connection() as conn:

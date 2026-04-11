@@ -14,7 +14,7 @@ Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 from .agent_lifecycle import Agent, AgentLifecycleManager
@@ -127,7 +127,7 @@ class TaskAssigner:
         await self.storage.record_task_assignment(
             task_id=task.id,
             agent_id=selected_id,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         return selected_id

@@ -539,7 +539,7 @@ class WindowManager:
                 win32con.SWP_SHOWWINDOW
             )
 
-            logger.info(f"Snapped window to ({x}, {y}, {width}, {height})")
+            logger.info("Snapped window to (%s, %s, %s, %s)", x, y, width, height)
             return True
 
         except ImportError:
@@ -590,7 +590,7 @@ class WindowManager:
             )
 
             if result.returncode == 0:
-                logger.info(f"Snapped window to ({x}, {y}, {width}, {height})")
+                logger.info("Snapped window to (%s, %s, %s, %s)", x, y, width, height)
                 return True
             else:
                 logger.error("AppleScript error: %s", result.stderr)
@@ -655,7 +655,7 @@ class WindowManager:
             )
 
             if result.returncode == 0:
-                logger.info(f"Snapped window to ({x}, {y}, {width}, {height})")
+                logger.info("Snapped window to (%s, %s, %s, %s)", x, y, width, height)
                 return True
             else:
                 logger.error("wmctrl error: %s", result.stderr)

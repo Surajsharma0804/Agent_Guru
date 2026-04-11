@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 """
 Skill installer for managing skill installation, updates, and uninstallation.
 
@@ -11,7 +13,7 @@ Provides functionality to:
 import json
 import shutil
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -143,7 +145,7 @@ class SkillInstaller:
 
             # Step 6: Initialize usage stats
             self._usage_stats[manifest.skill_id] = {
-                "install_date": datetime.now().isoformat(),
+                "install_date": datetime.now(tz=timezone.utc).isoformat(),
                 "total_executions": 0,
                 "successful_executions": 0,
                 "failed_executions": 0,
@@ -339,7 +341,7 @@ class SkillInstaller:
         """
         if skill_id not in self._usage_stats:
             self._usage_stats[skill_id] = {
-                "install_date": datetime.now().isoformat(),
+                "install_date": datetime.now(tz=timezone.utc).isoformat(),
                 "total_executions": 0,
                 "successful_executions": 0,
                 "failed_executions": 0,
@@ -348,7 +350,7 @@ class SkillInstaller:
 
         stats = self._usage_stats[skill_id]
         stats["total_executions"] += 1
-        stats["last_used"] = datetime.now().isoformat()
+        stats["last_used"] = datetime.now(tz=timezone.utc).isoformat()
 
         if success:
             stats["successful_executions"] += 1
@@ -394,7 +396,7 @@ class SkillInstaller:
             return SkillManifestParser().parse  # type: ignore[attr-defined](manifest_data)
 
         except Exception as e:
-            print(f"Failed to load manifest: {e}")
+            _logger.warning("Failed to load manifest: %s", e)
             return None
 
     async def _save_usage_stats(self) -> None:
@@ -411,7 +413,7 @@ class SkillInstaller:
                 with open(stats_path, encoding="utf-8") as f:
                     self._usage_stats = json.load(f)
             except Exception as e:
-                print(f"Failed to load usage stats: {e}")
+                _logger.warning("Failed to load usage stats: %s", e)
                 self._usage_stats = {}
         else:
             self._usage_stats = {}

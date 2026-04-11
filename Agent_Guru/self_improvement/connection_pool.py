@@ -104,7 +104,7 @@ class PooledConnection:
                 cursor.execute("SELECT 1")
                 cursor.fetchone()
             return True
-        except Exception:
+        except Exception as e:
             self.healthy = False
             return False
 
@@ -269,7 +269,7 @@ class ConnectionPool:
             with self._lock:
                 self._failed_acquisitions += 1
             raise
-        except Exception:
+        except Exception as e:
             with self._lock:
                 self._failed_acquisitions += 1
             raise
@@ -298,7 +298,7 @@ class ConnectionPool:
 
             # Set busy timeout
             conn.execute(f"PRAGMA busy_timeout={int(self.timeout * 1000)}")
-        except Exception:
+        except Exception as e:
             conn.close()
             raise
 
@@ -458,7 +458,7 @@ class ConnectionPool:
                 if len(self._transaction_times) > 1000:
                     self._transaction_times.pop(0)
 
-        except Exception:
+        except Exception as e:
             # Rollback on error
             try:
                 conn.connection.rollback()
@@ -506,7 +506,7 @@ class ConnectionPool:
             conn.execute(f"SAVEPOINT {name}")  # nosec B608 — identifier validated above
             yield
             conn.execute(f"RELEASE SAVEPOINT {name}")  # nosec B608
-        except Exception:
+        except Exception as e:
             conn.execute(f"ROLLBACK TO SAVEPOINT {name}")  # nosec B608
             raise
 

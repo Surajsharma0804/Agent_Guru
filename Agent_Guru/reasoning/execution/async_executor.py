@@ -20,6 +20,7 @@ Date: 2026-02-21
 Version: 1.0.0
 """
 
+import asyncio
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -366,7 +367,7 @@ class AsyncExecutor:
                     raise TimeoutError(f"Task {task_id} did not complete within {timeout}s")
 
             # Wait before next poll
-            time.sleep(poll_interval)
+            await asyncio.sleep(poll_interval)
 
     def get_all_tasks(self) -> list[str]:
         """Get list of all task IDs.

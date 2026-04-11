@@ -14,7 +14,7 @@ import pytest
 import tempfile
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from hypothesis import given, strategies as st, settings, HealthCheck
 
 from Agent_Guru.self_improvement.conflict_resolution import (
@@ -39,8 +39,8 @@ def temp_db():
     yield path
     try:
         os.unlink(path)
-    except:
-        pass
+    except Exception as e:
+        _logger.warning("Suppressed exception: %s", e)
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ class TestContradictoryFeedbackDetection:
                 strategy_id="chain_of_thought",
                 success=True,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             )
             for i in range(10)
         ]
@@ -96,7 +96,7 @@ class TestContradictoryFeedbackDetection:
                 strategy_id="chain_of_thought",
                 success=False,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             )
             for i in range(10)
         ]
@@ -116,7 +116,7 @@ class TestContradictoryFeedbackDetection:
                 strategy_id="chain_of_thought",
                 success=(i % 2 == 0),  # Alternate
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             )
             for i in range(20)
         ]
@@ -141,7 +141,7 @@ class TestContradictoryFeedbackDetection:
                 strategy_id="chain_of_thought",
                 success=True,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             ))
         
         for i in range(10):
@@ -151,7 +151,7 @@ class TestContradictoryFeedbackDetection:
                 strategy_id="chain_of_thought",
                 success=False,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             ))
         
         # Detect conflicts
@@ -170,7 +170,7 @@ class TestContradictoryFeedbackDetection:
                 strategy_id="chain_of_thought",
                 success=True,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             )
             for i in range(3)
         ]
@@ -198,7 +198,7 @@ class TestDataPoisoningDetection:
                 strategy_id="chain_of_thought",
                 success=(i % 3 != 0),  # 67% success rate
                 execution_time_ms=100.0 + (i % 10) * 5,  # Normal variation
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             )
             for i in range(50)
         ]
@@ -219,7 +219,7 @@ class TestDataPoisoningDetection:
                 strategy_id="chain_of_thought",
                 success=True,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             ))
         
         # Inject anomalous executions (very slow) - 20 anomalies (36% rate)
@@ -230,7 +230,7 @@ class TestDataPoisoningDetection:
                 strategy_id="chain_of_thought",
                 success=True,
                 execution_time_ms=5000.0,  # 50x slower
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             ))
         
         # Detect poisoning with appropriate contamination threshold
@@ -254,7 +254,7 @@ class TestDataPoisoningDetection:
                 strategy_id="chain_of_thought",
                 success=True,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             ))
         
         # Inject sudden failures - 20 failures (36% rate)
@@ -265,7 +265,7 @@ class TestDataPoisoningDetection:
                 strategy_id="chain_of_thought",
                 success=False,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             ))
         
         # Detect poisoning with appropriate contamination threshold
@@ -287,7 +287,7 @@ class TestDataPoisoningDetection:
                 strategy_id="chain_of_thought",
                 success=True,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             )
             for i in range(5)
         ]
@@ -313,7 +313,7 @@ class TestConflictResolution:
                 strategy_id="chain_of_thought",
                 success=True,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             ))
         
         for i in range(3):
@@ -323,7 +323,7 @@ class TestConflictResolution:
                 strategy_id="chain_of_thought",
                 success=False,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             ))
         
         # Detect conflict
@@ -353,7 +353,7 @@ class TestConflictResolution:
                 strategy_id="chain_of_thought",
                 success=True,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             ))
         
         # Inject poisoned data
@@ -364,7 +364,7 @@ class TestConflictResolution:
                 strategy_id="chain_of_thought",
                 success=False,
                 execution_time_ms=5000.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             ))
         
         # Detect poisoning
@@ -417,7 +417,7 @@ class TestQuarantineSystem:
         data = {"task_id": "task_1"}
         
         # Quarantine with very short duration (1 second)
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         past_time = now - timedelta(seconds=2)  # Already expired
         
         # Manually insert expired quarantine
@@ -500,7 +500,7 @@ class TestPropertyBasedConflictDetection:
                 strategy_id="test_strategy",
                 success=random.random() < success_rate,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             )
             for i in range(num_executions)
         ]
@@ -553,7 +553,7 @@ class TestPropertyBasedConflictDetection:
                 strategy_id="test_strategy",
                 success=True,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             ))
         
         # Create anomalies
@@ -564,7 +564,7 @@ class TestPropertyBasedConflictDetection:
                 strategy_id="test_strategy",
                 success=True,
                 execution_time_ms=5000.0,  # 50x slower
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             ))
         
         # Detect poisoning with appropriate contamination threshold
@@ -593,7 +593,7 @@ class TestAdversarialRobustness:
                 strategy_id="chain_of_thought",
                 success=(i % 2 == 0),
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             )
             for i in range(100)
         ]
@@ -619,7 +619,7 @@ class TestAdversarialRobustness:
                 strategy_id="chain_of_thought",
                 success=True,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             ))
         
         # Gradually inject poisoned data
@@ -632,7 +632,7 @@ class TestAdversarialRobustness:
                     strategy_id="chain_of_thought",
                     success=False,
                     execution_time_ms=3000.0,
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(tz=timezone.utc)
                 ))
             else:
                 executions.append(TaskExecutionData(
@@ -641,7 +641,7 @@ class TestAdversarialRobustness:
                     strategy_id="chain_of_thought",
                     success=True,
                     execution_time_ms=100.0,
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(tz=timezone.utc)
                 ))
         
         # Detect poisoning
@@ -663,7 +663,7 @@ class TestAdversarialRobustness:
                 strategy_id="strategy_a",
                 success=True,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             )
             for i in range(30)
         ]
@@ -676,7 +676,7 @@ class TestAdversarialRobustness:
                 strategy_id="strategy_b",
                 success=False,
                 execution_time_ms=100.0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(tz=timezone.utc)
             )
             for i in range(30)
         ]

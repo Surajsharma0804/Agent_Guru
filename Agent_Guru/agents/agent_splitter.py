@@ -22,7 +22,7 @@ Version: 1.0.0
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -219,15 +219,15 @@ class AgentSplitter:
                 capabilities=cluster_capabilities,
                 specializations=cluster_specs.copy(),
                 performance_history=cluster_history,
-                created_at=datetime.now(),
-                last_active=datetime.now(),
+                created_at=datetime.now(tz=timezone.utc),
+                last_active=datetime.now(tz=timezone.utc),
                 total_tasks=cluster_total,
                 successful_tasks=cluster_successful,
                 metadata={
                     "split_from": agent_id,
                     "split_reason": "divergent_specializations",
                     "split_cluster": i,
-                    "split_timestamp": datetime.now().isoformat(),
+                    "split_timestamp": datetime.now(tz=timezone.utc).isoformat(),
                 },
             )
 

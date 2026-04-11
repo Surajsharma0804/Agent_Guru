@@ -339,8 +339,8 @@ class TestSpeechEngine:
                 audio=np.array([]),  # Empty audio
                 personality=PersonalityType.GURU
             ))
-        except:
-            pass
+        except Exception as e:
+            _logger.warning("Suppressed exception: %s", e)
         
         # Context should still exist
         assert initialized_engine._current_context_id == context_id

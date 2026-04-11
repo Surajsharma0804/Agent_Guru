@@ -12,7 +12,7 @@ Uses Hypothesis for property-based testing with 100 iterations.
 Coverage Target: 80%+
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -149,7 +149,7 @@ class TestRateLimitingProperties:
         state = RateLimitState()
         state.requests_this_minute = 50
         state.tokens_this_minute = 50000
-        state.minute_start = datetime.now() - timedelta(minutes=2)
+        state.minute_start = datetime.now(tz=timezone.utc) - timedelta(minutes=2)
 
         # Reset should occur
         state.reset_if_needed()
@@ -215,7 +215,7 @@ class TestCircuitBreakerProperties:
         breaker = CircuitBreakerState()
         breaker.state = CircuitState.OPEN
         # Add a small buffer to account for test execution time
-        breaker.last_failure_time = datetime.now() - timedelta(seconds=elapsed + 0.001)
+        breaker.last_failure_time = datetime.now(tz=timezone.utc) - timedelta(seconds=elapsed + 0.001)
 
         # Check if can attempt
         can_attempt = breaker.can_attempt(config)

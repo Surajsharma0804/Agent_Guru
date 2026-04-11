@@ -11,7 +11,7 @@ Provides intelligent recovery strategies:
 import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -246,7 +246,7 @@ class CircuitBreaker:
         self._failure_count = 0
         self._success_count = 0
         self._last_failure_time: Optional[datetime] = None
-        self._last_state_change: datetime = datetime.now()
+        self._last_state_change: datetime = datetime.now(tz=timezone.utc)
 
     async def execute(
         self,
@@ -272,7 +272,7 @@ class CircuitBreaker:
             # Check if should try half-open
             if self._should_attempt_reset():
                 self._state = CircuitState.HALF_OPEN
-                self._last_state_change = datetime.now()
+                self._last_state_change = datetime.now(tz=timezone.utc)
                 logger.info(
                     "circuit_half_open",
                     service=self.service_name,
@@ -296,7 +296,7 @@ class CircuitBreaker:
             self._on_success()
             return result
 
-        except Exception:
+        except Exception as e:
             # Failure
             self._on_failure()
             raise
@@ -311,7 +311,7 @@ class CircuitBreaker:
             if self._success_count >= self.config.success_threshold:
                 self._state = CircuitState.CLOSED
                 self._success_count = 0
-                self._last_state_change = datetime.now()
+                self._last_state_change = datetime.now(tz=timezone.utc)
                 logger.info(
                     "circuit_closed",
                     service=self.service_name,
@@ -321,13 +321,13 @@ class CircuitBreaker:
         """Handle failed execution."""
         self._failure_count += 1
         self._success_count = 0
-        self._last_failure_time = datetime.now()
+        self._last_failure_time = datetime.now(tz=timezone.utc)
 
         # Check if should open circuit
         if self._state == CircuitState.CLOSED:
             if self._failure_count >= self.config.failure_threshold:
                 self._state = CircuitState.OPEN
-                self._last_state_change = datetime.now()
+                self._last_state_change = datetime.now(tz=timezone.utc)
                 logger.warning(
                     "circuit_opened",
                     service=self.service_name,
@@ -337,7 +337,7 @@ class CircuitBreaker:
         elif self._state == CircuitState.HALF_OPEN:
             # Failed during half-open, reopen circuit
             self._state = CircuitState.OPEN
-            self._last_state_change = datetime.now()
+            self._last_state_change = datetime.now(tz=timezone.utc)
             logger.warning(
                 "circuit_reopened",
                 service=self.service_name,
@@ -352,7 +352,7 @@ class CircuitBreaker:
         if self._last_failure_time is None:
             return True
 
-        elapsed = (datetime.now() - self._last_failure_time).total_seconds()
+        elapsed = (datetime.now(tz=timezone.utc) - self._last_failure_time).total_seconds()
         return elapsed >= self.config.timeout
 
     def get_state(self) -> CircuitState:

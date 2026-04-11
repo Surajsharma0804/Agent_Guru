@@ -131,7 +131,7 @@ class IOSTTS:
             if not self._female_voice:
                 self._female_voice = self.AVSpeechSynthesisVoice.voiceWithLanguage_('en-US')
 
-        except Exception:
+        except Exception as e:
             # If voice caching fails, use default
             self._male_voice = self.AVSpeechSynthesisVoice.voiceWithLanguage_('en-US')
             self._female_voice = self.AVSpeechSynthesisVoice.voiceWithLanguage_('en-US')

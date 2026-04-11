@@ -51,7 +51,7 @@ class DegradationController:
             async with httpx.AsyncClient(timeout=NETWORK_CHECK_TIMEOUT_S) as client:
                 resp = await client.head(NETWORK_CHECK_URL)
                 self._online = resp.status_code < 500
-        except Exception:
+        except Exception as e:
             self._online = False
         return self._online
 

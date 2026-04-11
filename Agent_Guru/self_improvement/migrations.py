@@ -26,7 +26,7 @@ import logging
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -368,7 +368,7 @@ class MigrationSystem:
 
         Time Complexity: O(n) where n is number of migrations
         """
-        logger.info(f"Migrating forward from version {from_version} to {to_version}")
+        logger.info("Migrating forward from version %s to %s", from_version, to_version)
 
         # Get migrations to apply
         migrations_to_apply = [
@@ -391,7 +391,7 @@ class MigrationSystem:
 
         Time Complexity: O(n) where n is number of migrations
         """
-        logger.info(f"Migrating backward from version {from_version} to {to_version}")
+        logger.info("Migrating backward from version %s to %s", from_version, to_version)
 
         # Get migrations to rollback (in reverse order)
         migrations_to_rollback = [
@@ -423,7 +423,7 @@ class MigrationSystem:
         conn.isolation_level = None  # Autocommit off - manual transaction control
         cursor = conn.cursor()
 
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Explicitly begin transaction
@@ -433,7 +433,7 @@ class MigrationSystem:
             migration.upgrade(cursor)
 
             # Calculate execution time
-            execution_time = (datetime.now() - start_time).total_seconds() * 1000
+            execution_time = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
 
             # Record migration
             cursor.execute("""
@@ -627,26 +627,26 @@ if __name__ == "__main__":
 
     # Show status
     status = system.get_migration_status()
-    print("\n=== Migration Status ===")
-    print(f"Current version: {status['current_version']}")
-    print(f"Latest version: {status['latest_version']}")
-    print(f"Up to date: {status['is_up_to_date']}")
+    _logger.info("\n=== Migration Status ===")
+    _logger.info(f"Current version: {status['current_version']}")
+    _logger.info(f"Latest version: {status['latest_version']}")
+    _logger.info(f"Up to date: {status['is_up_to_date']}")
 
     if status['applied_migrations']:
-        print("\nApplied migrations:")
+        _logger.info("\nApplied migrations:")
         for m in status['applied_migrations']:
-            print(f"  v{m['version']}: {m['description']}")
-            print(f"    Applied at: {m['applied_at']}")
+            _logger.info(f"  v{m['version']}: {m['description']}")
+            _logger.info(f"    Applied at: {m['applied_at']}")
 
     if status['pending_migrations']:
-        print("\nPending migrations:")
+        _logger.info("\nPending migrations:")
         for m in status['pending_migrations']:
-            print(f"  v{m['version']}: {m['description']}")
+            _logger.info(f"  v{m['version']}: {m['description']}")
 
         # Ask to apply
         response = input("\nApply pending migrations? (y/n): ")
         if response.lower() == 'y':
             system.migrate_to_latest()
-            print("\n✓ Migrations applied successfully")
+            _logger.info("\n✓ Migrations applied successfully")
     else:
-        print("\n✓ Database is up to date")
+        _logger.info("\n✓ Database is up to date")

@@ -23,7 +23,7 @@ Date: 2026-02-26
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 from uuid import UUID, uuid4
@@ -284,8 +284,7 @@ class GoalManagerClient:
                     return status
 
             except Exception as e:
-                logger.warning(
-                    f"Notification attempt {attempt + 1} failed: {e}"
+                logger.warning("Notification attempt %s failed: %s", attempt + 1, e
                 )
                 self._total_retry_attempts += 1
 
@@ -380,7 +379,7 @@ class GoalManagerClient:
 
         if self._failure_count >= self.circuit_breaker_threshold:
             self._circuit_open = True
-            self._circuit_open_time = datetime.now()
+            self._circuit_open_time = datetime.now(tz=timezone.utc)
             logger.error(
                 f"Circuit breaker opened after {self._failure_count} failures"
             )
@@ -395,7 +394,7 @@ class GoalManagerClient:
         if not self._circuit_open or self._circuit_open_time is None:
             return False
 
-        elapsed = (datetime.now() - self._circuit_open_time).total_seconds()
+        elapsed = (datetime.now(tz=timezone.utc) - self._circuit_open_time).total_seconds()
         return elapsed >= self.circuit_breaker_timeout
 
     def get_statistics(self) -> dict[str, Any]:

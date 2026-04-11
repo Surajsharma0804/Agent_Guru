@@ -22,7 +22,7 @@ Date: 2026-02-28
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -161,7 +161,7 @@ class PerformanceTracker:
         with self.pool.connection() as conn:
             cursor = conn.cursor()
 
-            now = datetime.now().isoformat()
+            now = datetime.now(tz=timezone.utc).isoformat()
             metric_id = f"metric_{task_id}_{task_sequence_number}"
 
             cursor.execute(
@@ -229,8 +229,8 @@ class PerformanceTracker:
                     tool_selection_rate=0.0,
                     hallucination_rate=0.0,
                     total_tasks=0,
-                    window_start=datetime.now(),
-                    window_end=datetime.now(),
+                    window_start=datetime.now(tz=timezone.utc),
+                    window_end=datetime.now(tz=timezone.utc),
                 )
 
             total, successes, avg_time, avg_reasoning, tool_correct, hallucinations, start, end = (
@@ -248,8 +248,8 @@ class PerformanceTracker:
                 tool_selection_rate=tool_selection_rate,
                 hallucination_rate=hallucination_rate,
                 total_tasks=total,
-                window_start=datetime.fromisoformat(start) if start else datetime.now(),
-                window_end=datetime.fromisoformat(end) if end else datetime.now(),
+                window_start=datetime.fromisoformat(start) if start else datetime.now(tz=timezone.utc),
+                window_end=datetime.fromisoformat(end) if end else datetime.now(tz=timezone.utc),
             )
 
     def get_baseline_metrics(self, baseline_size: int = 10) -> AggregateMetrics | None:
@@ -306,8 +306,8 @@ class PerformanceTracker:
                 tool_selection_rate=tool_selection_rate,
                 hallucination_rate=hallucination_rate,
                 total_tasks=total,
-                window_start=datetime.fromisoformat(start) if start else datetime.now(),
-                window_end=datetime.fromisoformat(end) if end else datetime.now(),
+                window_start=datetime.fromisoformat(start) if start else datetime.now(tz=timezone.utc),
+                window_end=datetime.fromisoformat(end) if end else datetime.now(tz=timezone.utc),
             )
 
     def get_recent_metrics(self, window_size: int = 10) -> AggregateMetrics | None:
@@ -364,8 +364,8 @@ class PerformanceTracker:
                 tool_selection_rate=tool_selection_rate,
                 hallucination_rate=hallucination_rate,
                 total_tasks=total,
-                window_start=datetime.fromisoformat(start) if start else datetime.now(),
-                window_end=datetime.fromisoformat(end) if end else datetime.now(),
+                window_start=datetime.fromisoformat(start) if start else datetime.now(tz=timezone.utc),
+                window_end=datetime.fromisoformat(end) if end else datetime.now(tz=timezone.utc),
             )
 
     def calculate_improvement(

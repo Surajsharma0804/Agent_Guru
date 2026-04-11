@@ -6,7 +6,6 @@ text-to-speech synthesis.
 """
 
 import logging
-import pickle
 import time
 from dataclasses import dataclass, field
 
@@ -138,7 +137,7 @@ class VoiceCloner:
                 quality_scores.append(quality)
 
                 if (i + 1) % 10 == 0:
-                    logger.debug(f"Processed {i + 1}/{len(audio_samples)} samples")
+                    logger.debug("Processed %s/%s samples", i + 1, len(audio_samples))
 
             # Compute average quality
             avg_quality = float(np.mean(quality_scores))
@@ -793,10 +792,20 @@ class VoiceCloner:
 
             profile = self._voice_profiles[voice_id]
 
-            with open(filepath, 'wb') as f:
-                pickle.dump(profile, f)
+            import json as _json
+            profile_data = {
+                "voice_id": profile.voice_id,
+                "features": profile.features.tolist(),
+                "sample_count": profile.sample_count,
+                "total_duration": profile.total_duration,
+                "quality_score": profile.quality_score,
+                "created_at": profile.created_at,
+                "updated_at": profile.updated_at,
+            }
+            with open(filepath, 'w', encoding='utf-8') as f:
+                _json.dump(profile_data, f)
 
-            logger.info(f"Voice profile '{voice_id}' saved to {filepath}")
+            logger.info("Voice profile '%s' saved to %s", voice_id, filepath)
 
         except Exception as e:
             if isinstance(e, VoiceCloningError):
@@ -817,15 +826,23 @@ class VoiceCloner:
             VoiceCloningError: If load fails
         """
         try:
-            with open(filepath, 'rb') as f:
-                profile = pickle.load(f)  # nosec B301
+            import json as _json
+            with open(filepath, 'r', encoding='utf-8') as f:
+                profile_data = _json.load(f)
 
-            if not isinstance(profile, VoiceProfile):
-                raise VoiceCloningError("Invalid voice profile file")
+            profile = VoiceProfile(
+                voice_id=profile_data["voice_id"],
+                features=np.array(profile_data["features"], dtype=np.float32),
+                sample_count=profile_data["sample_count"],
+                total_duration=profile_data["total_duration"],
+                quality_score=profile_data["quality_score"],
+                created_at=profile_data["created_at"],
+                updated_at=profile_data["updated_at"],
+            )
 
             self._voice_profiles[profile.voice_id] = profile
 
-            logger.info(f"Voice profile '{profile.voice_id}' loaded from {filepath}")
+            logger.info("Voice profile '%s' loaded from %s", profile.voice_id, filepath)
 
             return profile.voice_id
 

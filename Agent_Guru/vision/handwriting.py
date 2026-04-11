@@ -117,7 +117,7 @@ class HandwritingRecognizer:
             M = cv2.getPerspectiveTransform(src_pts, dst_pts)  # noqa: N806
             warped = cv2.warpPerspective(image, M, (w, h))
             return warped
-        except Exception:
+        except Exception as e:
             return image
 
     def _get_tokenizer(self) -> Any:

@@ -17,7 +17,7 @@ Date: 2026-02-28
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -162,8 +162,8 @@ class PromptEvolutionSystem:
             previous_version = prev_row[0] if prev_row else None
 
             # Generate prompt ID
-            prompt_id = f"{prompt_type}_v{version}_{datetime.now().timestamp()}"
-            now = datetime.now().isoformat()
+            prompt_id = f"{prompt_type}_v{version}_{datetime.now(tz=timezone.utc).timestamp()}"
+            now = datetime.now(tz=timezone.utc).isoformat()
 
             # Deactivate previous versions of this prompt type
             cursor.execute(
@@ -252,7 +252,7 @@ class PromptEvolutionSystem:
             new_halluc_count = halluc_count + (1 if hallucination_detected else 0)
             new_success_rate = new_success_count / new_total if new_total > 0 else 0.0
 
-            now = datetime.now().isoformat()
+            now = datetime.now(tz=timezone.utc).isoformat()
 
             cursor.execute(
                 """
@@ -1246,8 +1246,8 @@ IMPROVED PROMPT:"""
         with self.pool.connection() as conn:
             cursor = conn.cursor()
 
-            update_id = f"update_{prompt_type}_{datetime.now().timestamp()}"
-            now = datetime.now().isoformat()
+            update_id = f"update_{prompt_type}_{datetime.now(tz=timezone.utc).timestamp()}"
+            now = datetime.now(tz=timezone.utc).isoformat()
 
             cursor.execute(
                 """
@@ -1352,7 +1352,7 @@ IMPROVED PROMPT:"""
             cursor = conn.cursor()
 
             # Get recent updates within oscillation window
-            cutoff_time = datetime.now().timestamp() - self.oscillation_window
+            cutoff_time = datetime.now(tz=timezone.utc).timestamp() - self.oscillation_window
             cutoff_iso = datetime.fromtimestamp(cutoff_time).isoformat()
 
             cursor.execute(
@@ -1418,7 +1418,7 @@ IMPROVED PROMPT:"""
             >>> else:
             ...     system.register_prompt("task_analysis", "New prompt text")
         """
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
 
         # Check rollback cooldown FIRST (highest priority)
         if update_type != "rollback":
@@ -1499,7 +1499,7 @@ IMPROVED PROMPT:"""
             >>> print(f"Can update: {status['can_update']}")
             >>> print(f"Time until next update: {status['time_until_next_update']}s")
         """
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
 
         last_update = self._get_last_update_time(prompt_type)
         last_rollback = self._get_last_rollback_time(prompt_type)

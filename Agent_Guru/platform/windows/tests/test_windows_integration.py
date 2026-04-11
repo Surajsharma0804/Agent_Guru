@@ -102,8 +102,8 @@ class TestWindowsIntegration:
                     test_key,
                     test_value
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                _logger.warning("Suppressed exception: %s", e)
     
     def test_delete_registry_value_success(self):
         """Test successful registry value deletion."""
@@ -141,8 +141,8 @@ class TestWindowsIntegration:
             # Cleanup key if it exists
             try:
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, test_key)
-            except Exception:
-                pass
+            except Exception as e:
+                _logger.warning("Suppressed exception: %s", e)
     
     def test_delete_registry_key_not_found(self):
         """Test deleting non-existent registry key."""
@@ -427,8 +427,8 @@ class TestWindowsIntegrationIntegration:
             # Cleanup
             try:
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, test_key)
-            except Exception:
-                pass
+            except Exception as e:
+                _logger.warning("Suppressed exception: %s", e)
     
     def test_process_lifecycle(self):
         """Test complete process lifecycle: start, query, terminate."""

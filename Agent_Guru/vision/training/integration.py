@@ -189,7 +189,7 @@ class GuruVisionIntegration:
             try:
                 from dataclasses import asdict
                 data = asdict(config)
-            except Exception:
+            except Exception as e:
                 data = {"config": str(config)}
         else:
             data = {"config": str(config)}

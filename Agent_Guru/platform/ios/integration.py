@@ -471,7 +471,7 @@ class IOSIntegration:
 
             # Set earliest begin date
             from datetime import datetime, timedelta
-            earliest_date = datetime.now() + timedelta(seconds=interval_seconds)
+            earliest_date = datetime.now(tz=timezone.utc) + timedelta(seconds=interval_seconds)
             request.setEarliestBeginDate_(earliest_date)
 
             # Submit request
@@ -568,7 +568,7 @@ class IOSIntegration:
                 None  # Expiration handler
             )
 
-            logger.info(f"Started background task: {task_name} (ID: {task_id})")
+            logger.info("Started background task: %s (ID: %s)", task_name, task_id)
             return int(task_id)
 
         except Exception as e:

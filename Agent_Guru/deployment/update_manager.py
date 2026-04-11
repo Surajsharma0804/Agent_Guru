@@ -53,7 +53,7 @@ class UpdateInfo:
         """Return True if latest_version > current_version."""
         try:
             return Version(self.latest_version) > Version(self.current_version)
-        except Exception:
+        except Exception as e:
             return False
 
 

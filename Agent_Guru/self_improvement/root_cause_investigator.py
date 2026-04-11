@@ -23,7 +23,7 @@ Date: 2026-02-28
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -157,7 +157,7 @@ class RootCauseInvestigator:
 
         if not changes:
             return RootCauseReport(
-                investigation_timestamp=datetime.now(),
+                investigation_timestamp=datetime.now(tz=timezone.utc),
                 degradation_alert_id=None,
                 analysis_window_hours=analysis_window_hours,
                 total_changes_analyzed=0,
@@ -195,7 +195,7 @@ class RootCauseInvestigator:
         )
 
         return RootCauseReport(
-            investigation_timestamp=datetime.now(),
+            investigation_timestamp=datetime.now(tz=timezone.utc),
             degradation_alert_id=None,  # Could be added if alerts have IDs
             analysis_window_hours=analysis_window_hours,
             total_changes_analyzed=len(changes),
@@ -232,12 +232,11 @@ class RootCauseInvestigator:
             ...     performance_metrics={"success_rate": 0.75}
             ... )
         """
-        datetime.now() - timedelta(hours=hours)
-        changes = self._get_changes_in_window(datetime.now(), hours)
+        changes = self._get_changes_in_window(datetime.now(tz=timezone.utc), hours)
 
         if not changes:
             return RootCauseReport(
-                investigation_timestamp=datetime.now(),
+                investigation_timestamp=datetime.now(tz=timezone.utc),
                 degradation_alert_id=None,
                 analysis_window_hours=hours,
                 total_changes_analyzed=0,
@@ -277,7 +276,7 @@ class RootCauseInvestigator:
         suspicious_changes.sort(key=lambda rc: rc.correlation_score, reverse=True)
 
         return RootCauseReport(
-            investigation_timestamp=datetime.now(),
+            investigation_timestamp=datetime.now(tz=timezone.utc),
             degradation_alert_id=None,
             analysis_window_hours=hours,
             total_changes_analyzed=len(changes),
@@ -655,7 +654,7 @@ class RootCauseInvestigator:
 
         # Check recency (more recent = more suspicious)
         change_time = datetime.fromisoformat(change["timestamp"])
-        hours_ago = (datetime.now() - change_time).total_seconds() / 3600
+        hours_ago = (datetime.now(tz=timezone.utc) - change_time).total_seconds() / 3600
 
         if hours_ago < 6:
             score += 0.2

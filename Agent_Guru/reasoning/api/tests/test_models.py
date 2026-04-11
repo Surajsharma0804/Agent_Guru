@@ -5,7 +5,7 @@ This module tests the Pydantic models used for API requests and responses.
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import ValidationError
 
 from Agent_Guru.reasoning.api.models import (

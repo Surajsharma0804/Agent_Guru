@@ -160,7 +160,7 @@ class PerformanceMonitor:
             return 0.0
         try:
             return float(self._process.cpu_percent(interval=None))
-        except Exception:
+        except Exception as e:
             return 0.0
 
     def _get_memory(self) -> float:
@@ -169,7 +169,7 @@ class PerformanceMonitor:
         try:
             info = self._process.memory_info()
             return float(info.rss / (1024 * 1024))  # bytes → MB
-        except Exception:
+        except Exception as e:
             return 0.0
 
     @staticmethod

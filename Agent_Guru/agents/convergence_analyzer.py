@@ -6,7 +6,7 @@ Validates: Requirements 21.1, 21.2, 21.3, 21.4
 
 import statistics
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -69,7 +69,7 @@ class ConvergenceAnalyzer:
         variance = self.calculate_specialization_variance(agents, task_type)
 
         snapshot = ConvergenceMetrics(
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             task_type=task_type,
             success_rate=current_success_rate,
             specialization_variance=variance,

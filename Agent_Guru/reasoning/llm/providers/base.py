@@ -8,7 +8,7 @@ Includes circuit breaker, rate limiting, and retry logic.
 import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -68,7 +68,7 @@ class RateLimitState:
 
     def reset_if_needed(self) -> None:
         """Reset counters if minute has passed."""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         if now - self.minute_start >= timedelta(minutes=1):
             self.requests_this_minute = 0
             self.tokens_this_minute = 0
@@ -101,14 +101,14 @@ class CircuitBreakerState:
     def record_success(self) -> None:
         """Record successful request."""
         self.failure_count = 0
-        self.last_success_time = datetime.now()
+        self.last_success_time = datetime.now(tz=timezone.utc)
         if self.state == CircuitState.HALF_OPEN:
             self.state = CircuitState.CLOSED
 
     def record_failure(self, config: ProviderConfig) -> None:
         """Record failed request."""
         self.failure_count += 1
-        self.last_failure_time = datetime.now()
+        self.last_failure_time = datetime.now(tz=timezone.utc)
 
         if self.failure_count >= config.circuit_breaker_threshold:
             self.state = CircuitState.OPEN
@@ -121,7 +121,7 @@ class CircuitBreakerState:
         if self.state == CircuitState.OPEN:
             # Check if timeout has passed
             if self.last_failure_time:
-                elapsed = (datetime.now() - self.last_failure_time).total_seconds()
+                elapsed = (datetime.now(tz=timezone.utc) - self.last_failure_time).total_seconds()
                 if elapsed >= config.circuit_breaker_timeout:
                     self.state = CircuitState.HALF_OPEN
                     return True
@@ -202,7 +202,7 @@ class BaseLLMProvider(ABC):
         # Check rate limits
         if not self.rate_limit_state.can_make_request(self.config, estimated_tokens):
             # Wait until next minute
-            wait_time = 60 - (datetime.now() - self.rate_limit_state.minute_start).total_seconds()
+            wait_time = 60 - (datetime.now(tz=timezone.utc) - self.rate_limit_state.minute_start).total_seconds()
             if wait_time > 0:
                 await asyncio.sleep(wait_time)
             self.rate_limit_state.reset_if_needed()

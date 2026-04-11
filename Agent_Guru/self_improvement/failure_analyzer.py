@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 """
 Failure Analyzer for Self-Improvement Engine.
 
@@ -23,7 +25,7 @@ Date: 2024
 import json
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -127,7 +129,7 @@ class FailureAnalyzer:
         # Performance monitoring
         elapsed_ms = (time.time() - start_time) * 1000
         if elapsed_ms > 10:
-            print(f"WARNING: Failure analysis took {elapsed_ms:.2f}ms (target: <10ms)")
+            _logger.warning(f"WARNING: Failure analysis took {elapsed_ms:.2f}ms (target: <10ms)")
 
     def _store_failure(self, execution: TaskExecution) -> None:
         """
@@ -398,7 +400,7 @@ class FailureAnalyzer:
                     last_seen = ?,
                     confidence_score = MIN(1.0, confidence_score + 0.05)
                 WHERE pattern_id = ?
-            """, (datetime.now().isoformat(), pattern_id))
+            """, (datetime.now(tz=timezone.utc).isoformat(), pattern_id))
 
     def _create_new_pattern(
         self,
@@ -420,7 +422,7 @@ class FailureAnalyzer:
             # Generate unique pattern_id using timestamp + random component
             import random
             pattern_id = f"pattern_{int(time.time() * 1000000)}_{random.randint(1000, 9999)}"
-            now = datetime.now().isoformat()
+            now = datetime.now(tz=timezone.utc).isoformat()
 
             cursor.execute("""
                 INSERT INTO failure_patterns (
@@ -556,7 +558,7 @@ class FailureAnalyzer:
             task_id=task_id or f"hallucination_{int(time.time() * 1000)}",
             task_type="llm_response",
             strategy_id="unknown",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             success=False,
             execution_time_ms=0.0,
             failure_type=FailureType.HALLUCINATION,

@@ -188,7 +188,7 @@ class CloudSyncService:
 
             return True
 
-        except Exception:
+        except Exception as e:
             return False
 
     async def sync_from_cloud(
@@ -230,7 +230,7 @@ class CloudSyncService:
 
                 return None
 
-        except Exception:
+        except Exception as e:
             return None
 
     async def list_user_conversations(self, user_id: str, limit: int = 100) -> list[str]:
@@ -268,7 +268,7 @@ class CloudSyncService:
 
                 return [row["conversation_id"] for row in rows]
 
-        except Exception:
+        except Exception as e:
             return []
 
     async def delete_conversation(self, conversation_id: str, user_id: str) -> bool:
@@ -304,7 +304,7 @@ class CloudSyncService:
                 # Check if any rows were deleted
                 return result.split()[-1] != "0"
 
-        except Exception:
+        except Exception as e:
             return False
 
     async def get_sync_status(self, conversation_id: str, user_id: str) -> Optional[dict[str, Any]]:
@@ -338,5 +338,5 @@ class CloudSyncService:
 
                 return None
 
-        except Exception:
+        except Exception as e:
             return None

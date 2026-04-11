@@ -25,7 +25,7 @@ import time
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import structlog
@@ -207,7 +207,7 @@ class LatencyController:
             stage=stage.value,
             budget_ms=target_ms,
             max_budget_ms=max_ms,
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(tz=timezone.utc).isoformat(),
         )
 
         return timer
@@ -246,7 +246,7 @@ class LatencyController:
                 elapsed_ms=elapsed_ms,
                 budget_ms=timer.budget_ms,
                 utilization=timer.budget_utilization(),
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(tz=timezone.utc).isoformat(),
             )
 
         # Check for hard timeout (maximum budget)
@@ -256,7 +256,7 @@ class LatencyController:
                 stage=timer.stage.value,
                 elapsed_ms=elapsed_ms,
                 max_budget_ms=timer.max_budget_ms,
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(tz=timezone.utc).isoformat(),
             )
             return True
 
@@ -310,7 +310,7 @@ class LatencyController:
                 duration_ms=metrics.duration_ms,
                 budget_ms=timer.budget_ms,
                 utilization=timer.budget_utilization(),
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(tz=timezone.utc).isoformat(),
             )
         else:
             logger.warning(
@@ -320,7 +320,7 @@ class LatencyController:
                 budget_ms=timer.budget_ms,
                 exceeded_by_ms=budget_check["exceeded_by_ms"],
                 exceeded_by_percent=budget_check["exceeded_by_percent"],
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(tz=timezone.utc).isoformat(),
             )
 
         # Check if should activate degraded mode
@@ -331,7 +331,7 @@ class LatencyController:
                 stage=timer.stage.value,
                 duration_ms=metrics.duration_ms,
                 max_budget_ms=timer.max_budget_ms,
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(tz=timezone.utc).isoformat(),
             )
 
         return metrics

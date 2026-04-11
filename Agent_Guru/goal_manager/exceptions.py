@@ -196,7 +196,7 @@ class ExecutionError(GoalManagerError):
         try:
             await executor.execute_goal(goal_id)
         except ExecutionError as e:
-            logger.error(f"Failed to execute goal {goal_id}: {e}")
+            logger.error("Failed to execute goal %s: %s", goal_id, e)
             goal.status = GoalStatus.FAILED
             goal.error_message = str(e)
 

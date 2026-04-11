@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 """
 Conflict Resolution System for Self-Improvement Engine.
 
@@ -34,7 +36,7 @@ Date: 2026-02-28
 import json
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -224,7 +226,7 @@ class ConflictResolver:
                 confidence=0.0,
                 conflicting_executions=[],
                 details={"reason": "insufficient_data", "count": len(executions)},
-                detected_at=datetime.now()
+                detected_at=datetime.now(tz=timezone.utc)
             )
 
         # Extract success outcomes
@@ -250,7 +252,7 @@ class ConflictResolver:
                     "all_success": n1 == n,
                     "all_failure": n0 == n
                 },
-                detected_at=datetime.now()
+                detected_at=datetime.now(tz=timezone.utc)
             )
 
         # Count runs (sequences of consecutive same outcomes)
@@ -315,7 +317,7 @@ class ConflictResolver:
 
         elapsed_ms = (time.time() - start_time) * 1000
         if elapsed_ms > 20:
-            print(f"WARNING: Conflict detection took {elapsed_ms:.2f}ms (target: <20ms)")
+            _logger.warning(f"WARNING: Conflict detection took {elapsed_ms:.2f}ms (target: <20ms)")
 
         return ConflictDetection(
             has_conflict=has_conflict,
@@ -331,7 +333,7 @@ class ConflictResolver:
                 "oscillation_detected": oscillation_detected,
                 "variance_score": round(variance_score, 4)
             },
-            detected_at=datetime.now()
+            detected_at=datetime.now(tz=timezone.utc)
         )
 
     def detect_data_poisoning(
@@ -382,7 +384,7 @@ class ConflictResolver:
                 confidence=0.0,
                 conflicting_executions=[],
                 details={"reason": "insufficient_data", "count": len(executions)},
-                detected_at=datetime.now()
+                detected_at=datetime.now(tz=timezone.utc)
             )
 
         # Extract features with better discriminative power
@@ -552,7 +554,7 @@ class ConflictResolver:
 
             elapsed_ms = (time.time() - start_time) * 1000
             if elapsed_ms > 50:
-                print(f"WARNING: Poisoning detection took {elapsed_ms:.2f}ms (target: <50ms)")
+                _logger.warning(f"WARNING: Poisoning detection took {elapsed_ms:.2f}ms (target: <50ms)")
 
             return ConflictDetection(
                 has_conflict=has_conflict,
@@ -570,10 +572,10 @@ class ConflictResolver:
                     "lof_anomalies": len(lof_anomalies),
                     "mad_anomalies": len(z_anomalies)
                 },
-                detected_at=datetime.now()
+                detected_at=datetime.now(tz=timezone.utc)
             )
 
-        except Exception:
+        except Exception as e:
             # Fallback to statistical method if ensemble fails
             return self._detect_poisoning_statistical(
                 executions, anomaly_threshold, min_executions
@@ -606,7 +608,7 @@ class ConflictResolver:
                 confidence=0.0,
                 conflicting_executions=[],
                 details={"reason": "no_variance", "algorithm": "z_score_fallback"},
-                detected_at=datetime.now()
+                detected_at=datetime.now(tz=timezone.utc)
             )
 
         z_scores = np.abs((execution_times - mean_time) / std_time)
@@ -633,7 +635,7 @@ class ConflictResolver:
                 "anomaly_threshold": anomaly_threshold,
                 "algorithm": "z_score_fallback"
             },
-            detected_at=datetime.now()
+            detected_at=datetime.now(tz=timezone.utc)
         )
 
     def resolve_conflict(
@@ -772,7 +774,7 @@ class ConflictResolver:
         """
         duration = duration_hours if duration_hours is not None else self.quarantine_duration_hours
 
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         expires_at = now + timedelta(hours=duration)
 
         with self.pool.transaction() as conn:
@@ -809,7 +811,7 @@ class ConflictResolver:
         with self.pool.connection() as conn:
             cursor = conn.cursor()
 
-            now = datetime.now().isoformat()
+            now = datetime.now(tz=timezone.utc).isoformat()
 
             cursor.execute("""
                 SELECT COUNT(*) FROM quarantine
@@ -848,7 +850,7 @@ class ConflictResolver:
 
             if not include_expired:
                 query += " AND (released = 0 AND expires_at > ?)"
-                params.append(datetime.now().isoformat())
+                params.append(datetime.now(tz=timezone.utc).isoformat())
 
             query += " ORDER BY quarantined_at DESC"
 
@@ -881,7 +883,7 @@ class ConflictResolver:
         with self.pool.transaction() as conn:
             cursor = conn.cursor()
 
-            now = datetime.now().isoformat()
+            now = datetime.now(tz=timezone.utc).isoformat()
 
             cursor.execute("""
                 UPDATE quarantine

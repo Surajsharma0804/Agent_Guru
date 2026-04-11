@@ -772,7 +772,7 @@ class TestBackgroundServiceManager:
             action = random.choice(actions)
             try:
                 action()
-            except:
+            except Exception as e:
                 pass  # Some actions may fail in wrong state
         
         # Service should still be running

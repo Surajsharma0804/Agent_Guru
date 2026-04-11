@@ -4,7 +4,7 @@ Tests for System Event Integration.
 Coverage target: >80%
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -35,7 +35,7 @@ class TestSystemEventIntegration:
 
         event = SystemEvent(
             event_type=SystemEventType.APP_OPENED,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             data={"app_id": "com.example.app"},
         )
 
@@ -55,7 +55,7 @@ class TestSystemEventIntegration:
         # First open the app
         open_event = SystemEvent(
             event_type=SystemEventType.APP_OPENED,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             data={"app_id": "com.example.app"},
         )
         await integration.process_event(open_event)
@@ -63,7 +63,7 @@ class TestSystemEventIntegration:
         # Then close it
         close_event = SystemEvent(
             event_type=SystemEventType.APP_CLOSED,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             data={"app_id": "com.example.app"},
         )
         await integration.process_event(close_event)
@@ -80,7 +80,7 @@ class TestSystemEventIntegration:
 
         event = SystemEvent(
             event_type=SystemEventType.BATTERY_CHANGED,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             data={"battery_level": 75.0, "charging": True},
         )
 
@@ -98,7 +98,7 @@ class TestSystemEventIntegration:
 
         event = SystemEvent(
             event_type=SystemEventType.NETWORK_CHANGED,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             data={"network_type": "cellular"},
         )
 
@@ -115,7 +115,7 @@ class TestSystemEventIntegration:
 
         event = SystemEvent(
             event_type=SystemEventType.LOCATION_CHANGED,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             data={
                 "latitude": 37.7749,
                 "longitude": -122.4194,
@@ -136,7 +136,7 @@ class TestSystemEventIntegration:
         engine = WorldStateEngine()
         integration = SystemEventIntegration(engine)
 
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         event = SystemEvent(
             event_type=SystemEventType.CALENDAR_EVENT_ADDED,
             timestamp=now,
@@ -164,7 +164,7 @@ class TestSystemEventIntegration:
 
         event = SystemEvent(
             event_type=SystemEventType.CONTACT_ADDED,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             data={
                 "contact": {
                     "name": "John Doe",
@@ -188,7 +188,7 @@ class TestSystemEventIntegration:
 
         event = SystemEvent(
             event_type=SystemEventType.TASK_STARTED,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             data={"task_id": "task123"},
         )
 
@@ -206,7 +206,7 @@ class TestSystemEventIntegration:
         # Start task first
         start_event = SystemEvent(
             event_type=SystemEventType.TASK_STARTED,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             data={"task_id": "task123"},
         )
         await integration.process_event(start_event)
@@ -214,7 +214,7 @@ class TestSystemEventIntegration:
         # Complete task
         complete_event = SystemEvent(
             event_type=SystemEventType.TASK_COMPLETED,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             data={"task_id": "task123"},
         )
         await integration.process_event(complete_event)
@@ -231,7 +231,7 @@ class TestSystemEventIntegration:
 
         event = SystemEvent(
             event_type=SystemEventType.USER_ACTION,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             data={
                 "action_type": "manual_update",
                 "description": "User manually updated settings",
@@ -254,7 +254,7 @@ class TestSystemEventIntegration:
         # Event with missing required data
         event = SystemEvent(
             event_type=SystemEventType.APP_OPENED,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             data={},  # Missing app_id
         )
 
@@ -273,17 +273,17 @@ class TestSystemEventIntegration:
         events = [
             SystemEvent(
                 event_type=SystemEventType.BATTERY_CHANGED,
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
                 data={"battery_level": 100.0, "charging": True},
             ),
             SystemEvent(
                 event_type=SystemEventType.APP_OPENED,
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
                 data={"app_id": "app1"},
             ),
             SystemEvent(
                 event_type=SystemEventType.APP_OPENED,
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
                 data={"app_id": "app2"},
             ),
         ]

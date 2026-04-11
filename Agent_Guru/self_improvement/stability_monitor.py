@@ -18,7 +18,7 @@ Date: 2026-02-28
 
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -139,7 +139,7 @@ class StabilityMonitor:
             >>> monitor.record_change("prompt_evolution", "task_analysis", 0.82)
         """
         key = f"{component}:{metric_name}"
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
 
         # Initialize history if needed
         if key not in self._change_history:
@@ -493,7 +493,7 @@ class StabilityMonitor:
             "overall_stability_score": overall_stability_score,
             "unstable_metrics": unstable_metrics,
             "recommendations": recommendations,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
         }
 
     def reset_history(

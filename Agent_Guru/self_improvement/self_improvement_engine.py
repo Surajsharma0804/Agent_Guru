@@ -26,7 +26,7 @@ Version: 1.0.0
 
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 _logger = logging.getLogger(__name__)
@@ -212,7 +212,7 @@ class SelfImprovementEngine:
             task_id=task_id,
             task_type=task_type,
             strategy_id=strategy_used,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             success=success,
             execution_time_ms=execution_time_ms,
             failure_type=failure_type,
@@ -505,7 +505,7 @@ class SelfImprovementEngine:
             task_id=task_id,
             task_type=task_type,
             strategy_id=strategy_id,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             success=False,
             execution_time_ms=context.get("execution_time_ms", 0.0),
             failure_type=failure_type,
@@ -640,7 +640,7 @@ class SelfImprovementEngine:
         report = {
             "measurement_window": self.measurement_window,
             "total_tasks": self._task_sequence,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "improvement": improvement,
             "statistical_significance": significance,
             "threshold_met": improvement["relative_improvement"] >= (self.improvement_threshold * 100)

@@ -6,7 +6,7 @@ Validates: Requirements 13.1, 13.2, 13.3, 13.4, 13.5
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from .agent_lifecycle import AgentStatus
@@ -103,7 +103,7 @@ class PopulationManager:
             logger.info("Population suboptimal: %s", "; ".join(recommendations))
 
         snapshot = PopulationSnapshot(
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             total_agents=len(await self.storage.query_agents()),
             active_agents=count,
             recommendations=recommendations,

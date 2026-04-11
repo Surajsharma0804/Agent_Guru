@@ -1,11 +1,19 @@
 """
 Agent Orchestrator - Multi-agent coordination with self-improvement integration.
 
-This module provides the orchestration layer for Agent Guru, coordinating
-multiple agents and integrating with the self-improvement engine for
-continuous learning and optimization.
+BUG-015 disambiguation:
+  THIS file (agents/orchestrator.py) is the TASK ORCHESTRATOR.
+  It manages long-running multi-agent tasks, strategy selection, and
+  self-improvement learning. It is NOT related to voice pipeline control.
 
-**Integration with Self-Improvement Engine**:
+  The VOICE PIPELINE orchestrator lives in:
+    integration/orchestrator.py  (IntegrationOrchestrator)
+  That file owns the 8-stage STT → Memory → LLM → TTS pipeline.
+
+  The two classes have completely different responsibilities and are
+  intentionally separate. No consolidation is needed.
+
+Integration with Self-Improvement Engine:
 - Strategy selection before task execution
 - Outcome recording after task completion
 - Performance tracking and optimization
@@ -20,7 +28,7 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -206,7 +214,8 @@ class AgentOrchestrator:
             task_type=task_type,
             description=description,
             parameters=parameters,
-            created_at=datetime.now(),
+            # BUG-003 / BUG-015: use UTC-aware timestamp for consistency
+            created_at=datetime.now(tz=timezone.utc),
             status=TaskStatus.PENDING,
         )
 

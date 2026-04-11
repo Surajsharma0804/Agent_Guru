@@ -11,7 +11,7 @@ Tests cover:
 Coverage Target: 80%+
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest

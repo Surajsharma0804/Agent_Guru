@@ -23,7 +23,7 @@ Date: 2026-02-19
 Version: 1.0.0
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from hypothesis import HealthCheck, given, settings

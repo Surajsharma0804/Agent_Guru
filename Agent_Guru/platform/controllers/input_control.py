@@ -179,7 +179,7 @@ class MouseController:
             tween=getattr(pyautogui, self.config.tween)
         )
 
-        logger.debug(f"Moved cursor to ({x}, {y})")
+        logger.debug("Moved cursor to (%s, %s)", x, y)
 
     def move_relative(
         self,
@@ -209,7 +209,7 @@ class MouseController:
             tween=getattr(pyautogui, self.config.tween)
         )
 
-        logger.debug(f"Moved cursor by ({dx}, {dy})")
+        logger.debug("Moved cursor by (%s, %s)", dx, dy)
 
     def click(
         self,
@@ -233,7 +233,7 @@ class MouseController:
             >>> mouse.click("left", clicks=2)  # Double click
         """
         pyautogui.click(button=button, clicks=clicks, interval=interval)
-        logger.debug(f"Clicked {button} button {clicks} time(s)")
+        logger.debug("Clicked %s button %s time(s)", button, clicks)
 
     def click_at(
         self,
@@ -258,7 +258,7 @@ class MouseController:
             >>> mouse.click_at(300, 400, "right")  # Right click
         """
         pyautogui.click(x=x, y=y, button=button, clicks=clicks)
-        logger.debug(f"Clicked {button} at ({x}, {y})")
+        logger.debug("Clicked %s at (%s, %s)", button, x, y)
 
     def double_click(self, button: MouseButton = "left") -> None:
         """Double-click mouse button at current position.
@@ -316,7 +316,7 @@ class MouseController:
             tween=getattr(pyautogui, self.config.tween)
         )
 
-        logger.debug(f"Dragged to ({x}, {y})")
+        logger.debug("Dragged to (%s, %s)", x, y)
 
     def drag_relative(
         self,
@@ -348,7 +348,7 @@ class MouseController:
             tween=getattr(pyautogui, self.config.tween)
         )
 
-        logger.debug(f"Dragged by ({dx}, {dy})")
+        logger.debug("Dragged by (%s, %s)", dx, dy)
 
     def scroll(
         self,
@@ -467,7 +467,7 @@ class KeyboardController:
             >>> keyboard.press_key("space", presses=3)
         """
         pyautogui.press(key, presses=presses)
-        logger.debug(f"Pressed key: {key} ({presses} times)")
+        logger.debug("Pressed key: %s (%s times)", key, presses)
 
     def key_down(self, key: str) -> None:
         """Press key down (without releasing).
