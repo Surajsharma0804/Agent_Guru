@@ -1,5 +1,5 @@
 num_intents: 34
-test_size: 297
-total_size: 2970
-train_size: 2376
-val_size: 297
+test_size: 306
+total_size: 3060
+train_size: 2448
+val_size: 306

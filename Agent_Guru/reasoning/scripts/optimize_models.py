@@ -69,14 +69,14 @@ def check_prerequisites() -> bool:
     print(f"✅ Final model found: {final_model}")
 
     # Check if cleanup script exists
-    cleanup_script = Path("Agent_Guru/reasoning/cleanup_model_checkpoints.py")
+    cleanup_script = Path("Agent_Guru/reasoning/scripts/cleanup_model_checkpoints.py")
     if not cleanup_script.exists():
         print(f"❌ Cleanup script not found: {cleanup_script}")
         return False
     print(f"✅ Cleanup script found: {cleanup_script}")
 
     # Check if conversion script exists
-    convert_script = Path("Agent_Guru/reasoning/convert_to_onnx.py")
+    convert_script = Path("Agent_Guru/reasoning/scripts/convert_to_onnx.py")
     if not convert_script.exists():
         print(f"❌ Conversion script not found: {convert_script}")
         return False
@@ -113,7 +113,7 @@ def main():
 
     # Step 1: Cleanup checkpoints
     success = run_command(
-        [sys.executable, "Agent_Guru/reasoning/cleanup_model_checkpoints.py", "--execute"],
+        [sys.executable, "Agent_Guru/reasoning/scripts/cleanup_model_checkpoints.py", "--execute"],
         "Step 1: Cleaning up training checkpoints",
     )
 
@@ -123,7 +123,7 @@ def main():
 
     # Step 2: Convert to ONNX
     success = run_command(
-        [sys.executable, "Agent_Guru/reasoning/convert_to_onnx.py"],
+        [sys.executable, "Agent_Guru/reasoning/scripts/convert_to_onnx.py"],
         "Step 2: Converting model to ONNX format",
     )
 

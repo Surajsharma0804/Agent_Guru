@@ -1,68 +1,162 @@
-help_request	for me help
+open_app	right now launch Chrome
+query_fact	quickly who wrote Romeo and Juliet
+delete_event	cancel the party now
+make_call	phone John
+query_fact	what is the speed of light quickly
+multi_intent	create event tomorrow and set reminder now
+confirmation	right now correct
+cancellation	forget it now
+set_alarm	set an alarm for 7am now
+query_time	now tell me the time
+set_reminder	right now remind me to call mom at 3pm
+play_video	play workout videos now
+cancel_timer	cancel the timer for me
+pause_media	please pause the video
+control_device	please open the garage
+control_thermostat	what's the temperature quickly
+query_weather	right now weather forecast for tomorrow
+create_event	create meeting for next Monday please
+cancellation	for me forget it
+create_event	create event called project review now
+unknown	qwerty uiop for me
+send_message	please text my wife I'm on my way
+control_device	please turn on the vacuum
+stop_media	stop the video right now
+pause_media	pause the music right now
+stop_media	quickly stop what's playing
+query_date	quickly what's the date today
+query_time	tell me the time for me
+multi_intent	for me what's the weather and time
+control_lights	right now set lights to blue
+play_video	play funny videos for me
+query_weather	please how hot is it today
+create_event	create event called project review right now
+set_alarm	wake me up at 6:30 now
+stop_media	quickly stop the video
+query_date	what's tomorrow's date quickly
+update_event	quickly update event details
+close_app	right now exit YouTube
+cancellation	please cancel that
+create_event	for me create an event for tomorrow
+previous_track	back to previous
+previous_track	previous song right now
+control_device	start the coffee maker now
+send_email	quickly send an email to john@example.com
+close_app	please quit Chrome
+close_app	please close calculator
+open_app	now start Netflix
+delete_event	delete all events today
+delete_event	remove event from calendar right now
+send_email	email my boss about the project
+make_call	quickly dial emergency
+query_weather	quickly weather forecast for tomorrow
+set_timer	please can you set a timer for 45 minutes
+query_weather	now weather for next week
+unknown	blah blah blah quickly
+multi_intent	play music and turn off lights
+control_lights	now turn off bedroom lights
+confirmation	please correct
+cancellation	forget it please
+confirmation	please okay
+open_app	please open camera
+set_reminder	remind me to call mom at 3pm please
+system_command	now enable bluetooth
+confirmation	now correct
+query_fact	for me who invented the telephone
+next_track	now skip this
+cancellation	right now cancel
+confirmation	go ahead for me
+make_call	dial 555-1234 for me
+query_weather	quickly do I need an umbrella
+cancel_timer	for me cancel that timer
+confirmation	for me yes
+unknown	random gibberish now
+query_events	right now what meetings do I have
+next_track	right now play next
+set_alarm	wake me at 6am on Monday right now
+query_events	what's scheduled for Monday quickly
+control_thermostat	set temperature to 72 please
+delete_event	please delete meeting
+query_events	show me next week's events please
+control_lights	quickly dim the lights
+close_app	close calculator quickly
+unknown	asdfghjkl for me
+unknown	zxcvbnm now
+control_device	unlock front door right now
+cancel_timer	delete my timer for me
+previous_track	for me go back
+control_thermostat	quickly turn up the heat
+unknown	please the quick brown fox
+confirmation	quickly go ahead
 make_call	for me make a call to the office
 make_call	call mom please
 play_video	play music videos now
 clarification_request	I didn't catch that now
 query_date	tell me the date now
 update_event	update event details quickly
+cancellation	quickly negative
 control_lights	lights off quickly
 cancel_timer	quickly stop timer
-cancellation	please no
+help_request	show me how right now
+help_request	please guide me
 control_thermostat	quickly what's the temperature
 send_message	message the team about the update quickly
 create_event	create an event for tomorrow
 set_alarm	alarm for 8 o'clock tomorrow now
 open_app	open Spotify for me
+help_request	help now
 search_web	right now look up best laptops 2026
 query_events	show my events please
 close_app	quickly quit calendar
 send_message	send a message to John right now
-help_request	for me show me how
+multi_intent	play music and switch off lights
 query_time	current time now
 next_track	skip this song for me
 previous_track	right now back to previous
-help_request	help me with for me
+multi_intent	quickly open Spotify and play jazz
 previous_track	go back please
 pause_media	quickly pause what's playing
 make_call	for me call mom
 close_app	close email
 update_event	update meeting location right now
 clarification_request	I didn't catch that
+help_request	what are your capabilities for me
 play_video	play the latest news for me
 pause_media	pause the video right now
-help_request	what are your capabilities for me
+multi_intent	set alarm for 7am and remind me to exercise quickly
 search_web	search for pizza recipes right now
 pause_media	pause playback quickly
 create_event	add gym session to calendar
 send_message	text mom I'll be late right now
+help_request	please what are your capabilities
 system_command	right now take a screenshot
 pause_media	quickly pause the video
 play_video	play workout videos please
 query_date	what day is it right now
 system_command	increase volume quickly
 confirmation	affirmative quickly
-unknown	for me xyz abc 123
+control_thermostat	please turn on AC
 stop_media	right now stop playing
 control_device	activate the TV
 pause_media	right now stop the music
-help_request	now help
+multi_intent	now set a timer for 10 minutes and play music
 clarification_request	right now I don't understand
 stop_media	stop the music now
 control_lights	turn on the lights
-multi_intent	right now set a timer for 10 minutes and play music
+set_timer	set timer 2 hours
 play_video	play documentaries for me
 query_date	for me what day is it
-unknown	please xyz abc 123
+query_weather	right now weather for next week
 control_device	start the dishwasher for me
 search_web	quickly find hotels in Miami
-multi_intent	start a timer for 10 minutes and play music
+clarification_request	quickly what do you mean
 system_command	for me increase volume
 update_event	for me change event to next week
 clarification_request	please what did you say
 make_call	dial 555-1234 quickly
 make_call	quickly make a call to the office
 next_track	skip to next quickly
-help_request	right now what are your capabilities
+multi_intent	set alarm for 7am and remind me to exercise
 update_event	move meeting to 4pm for me
 play_video	play workout videos right now
 control_thermostat	now make it warmer
@@ -76,8 +170,9 @@ play_music	play jazz music for me
 play_video	play music videos
 play_music	now play jazz music
 query_date	tell me the date quickly
-cancellation	don't do that for me
+unknown	now qwerty uiop
 previous_track	please play previous
+help_request	what can you do right now
 query_fact	quickly how far is the moon
 delete_event	now cancel meeting at 3pm
 close_app	close Spotify now
@@ -118,13 +213,15 @@ query_weather	quickly weather for next week
 next_track	for me skip to next
 pause_media	pause this now
 previous_track	play the last one for me
-help_request	help please
+multi_intent	start a timer for 10 minutes and play music
 clarification_request	I didn't catch that please
-help_request	what can you do quickly
+unknown	now xyz abc 123
+multi_intent	what's the weather and time for me
 query_fact	who is the president quickly
 play_music	play Bohemian Rhapsody for me
 cancel_timer	now turn timer off
 cancel_timer	delete my timer please
+unknown	nonsense words for me
 make_call	dial 555-1234 please
 play_video	right now play funny videos
 clarification_request	can you clarify quickly
@@ -139,7 +236,7 @@ previous_track	previous song for me
 open_app	launch Chrome quickly
 next_track	skip this quickly
 send_email	send email with the report for me
-multi_intent	now create event tomorrow and set reminder
+update_event	quickly update meeting location
 control_device	open the garage
 play_music	play my workout playlist for me
 clarification_request	for me I didn't catch that
@@ -158,33 +255,35 @@ set_reminder	create reminder to take medicine at 8pm now
 stop_media	end playback now
 update_event	update event details for me
 cancel_timer	stop the countdown right now
+unknown	the quick brown fox now
 help_request	for me I need help
-multi_intent	create event tomorrow and set reminder for me
+query_date	tell me the date please
 previous_track	last song please
 stop_media	quickly stop
 query_events	any appointments today
 cancellation	forget it right now
 previous_track	play the last one
-help_request	quickly I'm stuck
+multi_intent	check weather and set umbrella reminder right now
 send_email	email the presentation to clients please
 open_app	quickly open camera
 query_fact	when was Einstein born quickly
 play_video	please play workout videos
 cancel_timer	stop the countdown
 control_lights	quickly turn off bedroom lights
+unknown	for me nonsense words
 query_date	what day of the week is it now
 close_app	exit YouTube for me
 send_message	text my wife I'm on my way please
-multi_intent	set a timer for 10 minutes and play music right now
+set_timer	put on a timer for 15 minutes now
 pause_media	stop playing for me
-unknown	xyz abc 123 please
+search_web	look up best laptops 2026 quickly
 set_alarm	create an alarm for 5:45 in the morning for me
 confirmation	right now go ahead
 open_app	open camera now
 query_events	right now what's scheduled for Monday
 play_music	play top hits for me
 help_request	what can you do now
-multi_intent	send message to John and call mom
+cancel_timer	delete my timer right now
 set_reminder	for me set a reminder to buy milk
 play_music	play songs by Taylor Swift quickly
 create_event	create meeting for next Monday for me
@@ -202,96 +301,6 @@ control_thermostat	set heating to 70 now
 update_event	update event details right now
 cancel_timer	right now turn timer off
 query_fact	how far is the moon for me
+help_request	guide me right now
 set_timer	can you create a timer for 45 minutes
 clarification_request	could you rephrase right now
-set_reminder	please I need a reminder to water plants
-create_event	now create meeting for next Monday
-open_app	for me launch Chrome
-previous_track	for me go back
-previous_track	previous track for me
-control_lights	set lights to 50% quickly
-query_weather	quickly will it rain today
-set_alarm	now create an alarm for 5:45 in the morning
-confirmation	quickly that's right
-confirmation	for me yep
-cancel_timer	quickly remove the timer
-help_request	what would you do
-play_video	now play workout videos
-send_email	compose email to the team now
-help_request	please help me with
-make_call	now call mom
-open_app	start YouTube right now
-control_device	now start the dishwasher
-control_lights	set lights to 50% right now
-multi_intent	what's the weather and time please
-cancel_timer	now stop the countdown
-control_lights	enable the lights
-play_music	play Bohemian Rhapsody now
-next_track	skip this right now
-make_call	make a call to the office quickly
-delete_event	delete next week's appointment now
-clarification_request	I don't understand
-search_web	please search for flight deals
-send_email	now email the presentation to clients
-query_date	right now what month is it
-delete_event	for me remove birthday event
-query_weather	temperature outside for me
-query_weather	right now weather for next week
-search_web	look up best laptops 2026 quickly
-control_thermostat	please turn on AC
-cancellation	negative now
-help_request	quickly help me with
-update_event	for me change meeting time to 5pm
-set_timer	put on a timer for 15 minutes quickly
-play_video	play a video please
-query_events	for me show me next week's events
-play_music	play relaxing music
-query_events	what's on my calendar now
-set_timer	for me put on a timer for 15 minutes
-set_timer	right now I need a timer for 1 hour and 30 minutes
-control_lights	for me make it brighter
-open_app	launch Chrome
-query_events	what's my schedule tomorrow quickly
-set_timer	set timer 2 hours
-set_timer	put on a timer for 15 minutes now
-update_event	change event time
-cancellation	no
-create_event	create event called project review quickly
-clarification_request	quickly what do you mean
-cancellation	right now never mind
-confirmation	yes quickly
-clarification_request	now can you clarify
-set_reminder	set reminder for grocery shopping please
-next_track	skip forward now
-control_device	right now turn on the vacuum
-delete_event	delete meeting now
-send_message	now send text to boss about the report
-set_timer	can you make a timer for 45 minutes
-query_date	quickly what's tomorrow's date
-unknown	quickly blah blah blah
-cancel_timer	right now cancel the timer
-send_email	send an email to support now
-clarification_request	say that again
-query_date	current date now
-control_lights	please make it brighter
-set_timer	start a 30 minute timer quickly
-set_reminder	reminder for dentist appointment tomorrow
-cancellation	right now stop
-cancel_timer	delete my timer right now
-set_alarm	quickly I need an alarm at 7:30 tomorrow
-delete_event	now remove birthday event
-set_reminder	now remind me to submit report by Friday
-multi_intent	quickly create event tomorrow and set reminder
-query_events	any appointments today please
-search_web	quickly search the web for news
-update_event	change event time now
-query_events	right now show my events
-multi_intent	quickly turn on lights and set temperature to 72
-query_date	tell me the date please
-query_fact	how far is the moon
-next_track	next song for me
-query_fact	please what is the population of China
-control_device	turn off all devices quickly
-update_event	quickly update meeting location
-confirmation	sure
-multi_intent	create event tomorrow and set reminder now

@@ -117,10 +117,10 @@ def main():
 
     # Check if all succeeded
     if all(results.values()):
-        print("🎉 ALL TRAINING COMPLETED SUCCESSFULLY!")
+        print("[SUCCESS] ALL TRAINING COMPLETED SUCCESSFULLY!")
         print("Models are ready for deployment.\n")
     else:
-        print("⚠ Some training steps failed. Please review the logs.\n")
+        print("[WARNING] Some training steps failed. Please review the logs.\n")
 
 
 if __name__ == "__main__":

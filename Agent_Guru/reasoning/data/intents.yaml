@@ -550,7 +550,11 @@ intents:
       - "random gibberish"
       - "xyz abc 123"
       - "nonsense words"
-    entities: []
+      - "qwerty uiop"
+      - "zxcvbnm"
+      - "foobar baz"
+      - "lorem ipsum dolor"
+      - "the quick brown fox"
 
   multi_intent:
     description: "Multiple intents in one utterance"
@@ -560,8 +564,11 @@ intents:
       - "turn on lights and set temperature to 72"
       - "send message to John and call mom"
       - "create event tomorrow and set reminder"
-    entities:
-      - multiple
+      - "play music and turn off lights"
+      - "set alarm for 7am and remind me to exercise"
+      - "open Spotify and play jazz"
+      - "check weather and set umbrella reminder"
+      - "call dad and send mom a message"
 
 # Entity Type Definitions
 entity_types:

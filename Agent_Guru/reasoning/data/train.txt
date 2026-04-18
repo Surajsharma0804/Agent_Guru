@@ -1,1142 +1,1308 @@
-make_call	quickly call customer service
-send_message	text John to call me for me
-query_date	what month is it quickly
-create_event	now schedule a meeting at 3pm
-query_date	now what's tomorrow's date
-system_command	enable bluetooth
-make_call	make a call to the office
-set_timer	start countdown for 3 minutes
-next_track	please next
-close_app	close camera quickly
-cancel_timer	right now stop the countdown
-query_fact	right now who wrote Romeo and Juliet
-previous_track	for me previous
-set_timer	timer for 10 seconds now
-pause_media	hold on pause right now
-next_track	play next now
-search_web	search for pizza recipes for me
-control_device	lock the door for me
-query_time	right now what time is it in Tokyo
-delete_event	remove event from calendar for me
-search_web	for me search for job openings
-query_time	now current time
-set_alarm	set my alarm for 8:00 right now
-help_request	for me how do I
-create_event	create an event for tomorrow now
-query_events	show my events now
-query_date	what's the date today quickly
-search_web	find hotels in Miami please
-search_web	google python tutorials for me
-search_web	right now search for pizza recipes
-update_event	reschedule to 3pm right now
-cancellation	right now cancel that
-next_track	for me go to next track
-query_weather	weather in New York for me
-confirmation	go ahead please
-create_event	please create event for team lunch
-send_message	message the team about the update now
-stop_media	stop playback right now
-cancellation	right now no
-confirmation	for me okay
-help_request	help
-query_time	quickly can you tell me the time
-update_event	reschedule dentist appointment
-clarification_request	I don't understand right now
-control_device	turn on the TV quickly
-control_lights	switch on kitchen lights
-query_fact	for me what is the speed of light
-send_email	quickly send email with the report
-delete_event	for me delete all events today
-control_thermostat	make it warmer quickly
-stop_media	stop
-send_message	message Sarah about the meeting right now
-delete_event	please remove gym session
-clarification_request	for me say that again
-delete_event	delete meeting quickly
-make_call	make a call to the office right now
-make_call	phone John please
-system_command	deactivate wifi
-delete_event	quickly remove gym session
-control_thermostat	turn off heating right now
-play_music	quickly play some music
-play_video	play documentaries
-create_event	create event for team lunch quickly
-query_time	please what's the time right now
-clarification_request	can you clarify please
-play_video	right now play sports highlights
-cancellation	cancel
-cancel_timer	quickly stop the cooking timer
-clarification_request	come again
-close_app	close camera please
-query_events	what's my schedule tomorrow
-query_time	what time is it
-control_thermostat	what's the temperature now
-play_music	play relaxing music right now
-pause_media	stop playing right now
-update_event	now reschedule dentist appointment
-control_thermostat	set temperature to 72 quickly
-control_thermostat	for me turn off heating
-create_event	add gym session to calendar right now
-play_video	play funny videos now
-play_music	for me play the Beatles
-send_message	now text John to call me
-query_events	quickly what's scheduled for Monday
-unknown	random gibberish now
-make_call	call back the last number quickly
-delete_event	quickly delete next week's appointment
-control_thermostat	turn off heating please
-open_app	now open settings
-set_alarm	I need an alarm at 7:30 tomorrow quickly
-query_weather	please weather for next week
-create_event	add dentist appointment to calendar now
-set_alarm	alarm at noon quickly
-control_device	deactivate the fan
-confirmation	affirmative for me
-control_device	for me turn off all devices
-stop_media	quickly stop this song
-set_timer	timer for 10 seconds for me
-help_request	I need help now
-control_device	open the garage please
-cancellation	please never mind
-query_time	time please quickly
-send_message	send text to dad
-next_track	go to next track please
-query_date	right now what day of the week is it
-set_reminder	please set reminder for grocery shopping
-send_email	send email with the report
-help_request	show me how please
-create_event	create event called project review please
-control_thermostat	turn off heating quickly
-play_music	play some music right now
-update_event	please reschedule to 3pm
-control_device	turn off all devices now
-set_alarm	alarm at noon for me
-multi_intent	set a timer for 10 minutes and play music please
-query_weather	weather forecast for tomorrow please
-help_request	what can you do right now
+clarification_request	what did you say right now
+open_app	for me launch Chrome
+query_time	what's the time
 delete_event	delete meeting right now
-pause_media	pause
-control_lights	quickly turn on kitchen lights
-control_thermostat	set thermostat to 68 degrees right now
-query_weather	how hot is it today for me
-system_command	switch off wifi
-set_reminder	right now remind me to submit report by Friday
-unknown	quickly xyz abc 123
-set_timer	quickly timer for 10 seconds
-query_time	now what time is it in Tokyo
-clarification_request	right now what did you say
-stop_media	turn off the music right now
-clarification_request	I didn't catch that quickly
-query_fact	what is the speed of light now
-stop_media	stop the music quickly
-set_alarm	for me set alarm 9:15 PM
-help_request	quickly help
-play_video	please play funny videos
-help_request	what could you do
-query_fact	how far is the moon quickly
-open_app	start Netflix for me
-create_event	create meeting for next Monday
-control_thermostat	disable heating
-query_time	current time in Paris please
-send_email	send an email to support
-make_call	phone the restaurant quickly
-set_timer	please set timer 2 hours
-send_message	text my wife I'm on my way right now
-clarification_request	please clarify
-stop_media	stop quickly
-cancellation	for me nope
-play_music	play jazz music
-query_fact	what is the speed of light
-previous_track	previous track
-play_music	play my workout playlist
-set_timer	now create a 20 second timer
-confirmation	affirmative please
+cancel_timer	right now cancel the timer
+unknown	quickly lorem ipsum dolor
+cancel_timer	stop timer
+query_weather	now temperature outside
+previous_track	now go back
+next_track	play next now
+cancel_timer	remove the timer quickly
+cancellation	right now forget it
+pause_media	stop playing right now
+make_call	dial emergency please
+play_video	quickly play the latest news
+query_events	now what's coming up
+stop_media	right now stop the music
+cancellation	quickly cancel
+control_lights	turn on the lights please
+previous_track	for me play previous
+query_weather	do I need an umbrella quickly
+stop_media	stop what's playing quickly
+unknown	asdfghjkl now
+query_fact	what is the largest ocean for me
+play_music	play relaxing music right now
+clarification_request	please explain now
 query_weather	now how hot is it today
-update_event	please move event to Monday
-send_message	right now send a text saying I'm here
-query_date	what day of the week is it please
-update_event	please update meeting location
-query_weather	now do I need an umbrella
-next_track	right now go to next track
-next_track	next quickly
-set_reminder	set reminder for grocery shopping now
-make_call	dial 555-1234 right now
-delete_event	cancel the party
-query_events	check my calendar for Friday for me
-control_lights	quickly set lights to 50%
-previous_track	skip backward now
-control_thermostat	set temperature to 72 now
-set_reminder	remind me to submit report by Friday
-search_web	quickly search for flight deals
-play_music	for me play relaxing music
-make_call	call mom for me
-clarification_request	quickly could you rephrase
-control_lights	brighten living room lights for me
-open_app	launch Chrome right now
-help_request	how do I for me
-next_track	skip to next please
-query_time	please tell me the time
-query_time	quickly current time
-cancel_timer	stop the countdown for me
-next_track	next track for me
-set_alarm	alarm at noon
-delete_event	remove birthday event now
-control_lights	for me lights off
-query_events	what's coming up quickly
-play_video	quickly play music videos
-control_thermostat	set thermostat to 68 degrees please
-send_email	quickly email the invoice to accounting
-system_command	increase volume
-system_command	take a screenshot quickly
-help_request	I'm stuck now
-search_web	search for job openings right now
-stop_media	stop playing please
-create_event	schedule conference call at 2pm now
-next_track	skip to next right now
-set_alarm	set alarm 9:15 PM now
-create_event	add gym session to calendar quickly
-control_device	for me close the blinds
-query_fact	for me who is the president
-delete_event	remove event from calendar quickly
-query_time	right now can you tell me the time
-pause_media	pause this right now
-query_events	what's coming up right now
-open_app	open settings
-control_thermostat	increase temperature for me
-control_device	quickly lock the door
-confirmation	yeah now
-send_message	message Sarah about the meeting for me
-cancellation	quickly don't do that
-open_app	right now open camera
-send_message	message the team about the update
-query_events	right now what's coming up
-cancellation	please cancel
-help_request	please what are your capabilities
-cancel_timer	stop the countdown now
-open_app	please open settings
-play_music	play relaxing music quickly
-confirmation	absolutely right now
-open_app	launch calendar now
-delete_event	delete all events today quickly
-clarification_request	repeat that quickly
-multi_intent	what's the weather and time
-set_alarm	set my alarm for 8:00 please
-help_request	for me assist me
-clarification_request	quickly repeat that
-send_message	for me send text to boss about the report
-query_fact	what is the speed of light please
-cancel_timer	turn timer off please
-query_time	now time in New York
-query_time	what's the time quickly
-previous_track	previous song
-cancel_timer	for me remove the timer
-delete_event	now delete tomorrow's meeting
-set_alarm	please I need an alarm at 7:30 tomorrow
-cancellation	please cancel that
-set_reminder	please remind me to submit report by Friday
-stop_media	stop playback now
-unknown	nonsense words now
-create_event	add birthday party to calendar now
-next_track	skip this song right now
-cancellation	quickly cancel that
-query_weather	weather for next week now
-control_thermostat	make it cooler quickly
-query_fact	what is the capital of France please
-next_track	quickly next track
-help_request	now show me how
-open_app	open camera right now
-open_app	open settings please
-make_call	now phone the restaurant
-next_track	skip this song please
-query_weather	what's the weather like right now
-query_date	quickly what day of the week is it
-close_app	exit Netflix quickly
-previous_track	play previous right now
-control_lights	make it brighter
-delete_event	for me delete tomorrow's meeting
+pause_media	for me stop playing
+query_weather	right now how hot is it today
+create_event	please add birthday party to calendar
+cancellation	don't do that for me
+cancel_timer	please turn off the timer
+stop_media	stop the music please
+unknown	xyz abc 123 now
+play_music	play songs by Taylor Swift right now
+cancellation	stop please
+update_event	update meeting location
+delete_event	right now delete meeting
+previous_track	right now go back
+query_events	check my calendar for Friday please
+set_alarm	alarm at noon quickly
+close_app	close Spotify for me
+search_web	look up movie reviews quickly
+system_command	now turn down volume
+query_weather	will it rain today for me
+query_fact	who invented the telephone please
+open_app	launch maps for me
+make_call	call my wife
+set_alarm	quickly set my alarm for 8:00
+open_app	start Netflix for me
+search_web	look up movie reviews for me
+cancel_timer	quickly stop the countdown
+multi_intent	what's the weather and time please
+unknown	lorem ipsum dolor quickly
+query_date	is today Monday please
+system_command	mute now
+set_timer	timer for 10 seconds for me
+send_email	now send email about vacation request
+query_fact	who invented the telephone now
+play_music	right now play my favorite songs
+stop_media	stop this song now
+set_reminder	make a reminder to buy milk
+open_app	for me start YouTube
+close_app	close calculator right now
+search_web	now search the web for news
+query_date	right now what day is it
+unknown	random gibberish please
+pause_media	pause right now
+query_time	please time in New York
 play_video	play cat videos please
-next_track	please next song
-set_timer	start countdown for 3 minutes right now
-send_email	for me email Sarah the meeting notes
-control_thermostat	make it warmer for me
-update_event	move event to Monday for me
-delete_event	right now delete all events today
-unknown	asdfghjkl right now
-query_fact	how tall is Mount Everest for me
-play_music	play my workout playlist quickly
-open_app	launch calendar
-update_event	move tomorrow's meeting to Friday quickly
-set_timer	right now set timer 2 hours
-set_alarm	for me wake me at 6am on Monday
-update_event	move meeting to 4pm
-create_event	create event for team lunch now
-control_lights	set lights to blue quickly
-update_event	right now move meeting to 4pm
-stop_media	stop the video now
-query_weather	right now will it rain today
-set_alarm	alarm for 8 o'clock tomorrow for me
-delete_event	delete next week's appointment
+send_email	right now email the presentation to clients
+set_reminder	set a reminder to buy milk
+stop_media	turn music off for me
+multi_intent	send message to John and call mom right now
+system_command	unmute please
+play_music	play the Beatles right now
+send_message	right now text my wife I'm on my way
+play_music	for me play some music
+search_web	search the web for news
+set_reminder	quickly reminder to pick up kids at 4pm
+delete_event	quickly remove gym session
+cancellation	cancel right now
+system_command	right now increase volume
+set_timer	start countdown for 3 minutes now
+cancellation	quickly cancel that
+cancel_timer	cancel that timer please
+help_request	what would you do
+confirmation	yep quickly
+send_message	quickly message Sarah about the meeting
+set_alarm	now I need an alarm at 7:30 tomorrow
+query_date	now what's tomorrow's date
+control_lights	now lights off
+query_events	what's on my calendar please
+set_reminder	now remind me about the meeting in 2 hours
+set_alarm	for me set alarm 9:15 PM
+cancel_timer	for me cancel the timer
+pause_media	for me pause the song
+control_device	turn on the TV quickly
+open_app	launch Chrome for me
+help_request	what are your capabilities please
+play_video	play funny videos right now
+play_music	play jazz music
+control_lights	please make it brighter
+cancel_timer	quickly remove the timer
+confirmation	that's right
+previous_track	quickly play the last one
+confirmation	quickly yep
+control_lights	dim the lights right now
+confirmation	absolutely now
+help_request	I need help please
+next_track	next song please
+query_weather	will it rain today right now
+close_app	right now exit Netflix
+next_track	go to next track for me
+unknown	right now blah blah blah
+clarification_request	I don't understand please
+create_event	please add dentist appointment to calendar
+multi_intent	what's the weather and time quickly
+send_message	right now send text to boss about the report
+close_app	quit calendar quickly
+update_event	now update meeting location
+confirmation	go ahead please
+unknown	right now foobar baz
+next_track	skip to next right now
+stop_media	stop what's playing please
+query_time	what time is it in Tokyo right now
+query_time	please tell me the time
+unknown	foobar baz for me
+play_video	for me play cooking tutorials
+multi_intent	call dad and send mom a message please
+search_web	please look up best laptops 2026
 delete_event	delete next week's appointment please
 set_timer	I need a timer for 1 hour and 30 minutes
-send_email	email the invoice to accounting now
-clarification_request	now please explain
-delete_event	delete next week's appointment quickly
-query_fact	who invented the telephone please
-send_message	message the team about the update for me
-next_track	quickly play the next one
-cancellation	forget it now
-play_video	now play cat videos
-pause_media	hold on pause
-set_alarm	start alarm for 10:30 tonight
-cancellation	right now don't do that
-control_device	lock the door
-system_command	quickly restart device
-query_events	what's scheduled for Monday right now
-create_event	right now add gym session to calendar
-multi_intent	turn on lights and set temperature to 72 for me
-cancellation	not now quickly
-create_event	schedule a meeting at 3pm please
-cancellation	no for me
-query_weather	now will it rain today
-make_call	call my wife
-stop_media	end playback for me
-stop_media	turn music off
-cancellation	for me don't do that
-query_events	right now do I have any meetings today
-cancel_timer	right now stop timer
-confirmation	correct please
-query_events	do I have any meetings today now
-unknown	for me blah blah blah
-play_music	for me play Bohemian Rhapsody
-play_music	right now play my workout playlist
-query_events	now what's on my calendar
-control_thermostat	turn off heating
-close_app	quickly close camera
-set_reminder	quickly reminder for dentist appointment tomorrow
-open_app	quickly open calculator
-cancellation	cancel please
-set_reminder	for me remind me to call mom at 3pm
-confirmation	yep right now
-control_lights	turn on the lights now
-multi_intent	create event tomorrow and set reminder right now
-send_message	text mom I'll be late please
-play_music	quickly play my workout playlist
-cancel_timer	quickly delete my timer
-search_web	please search for pizza recipes
-control_lights	right now dim the lights
-send_email	email my boss about the project for me
-make_call	make a call to the office please
-play_music	please play the Beatles
-play_music	play some music quickly
-update_event	update event details please
-update_event	update meeting location
-help_request	I'm stuck
-query_date	quickly date please
-query_weather	please weather in New York
-query_weather	what's the weather like now
-cancel_timer	quickly turn off the timer
-query_time	please time please
-create_event	add birthday party to calendar please
-set_alarm	now set an alarm for 7am
-query_date	for me what's tomorrow's date
-previous_track	previous track right now
-multi_intent	now turn on lights and set temperature to 72
-control_thermostat	turn on AC
-query_weather	how hot is it today quickly
-control_device	switch off the fan
-create_event	now schedule conference call at 2pm
-query_date	for me what's today's date
-stop_media	for me stop the video
-query_time	please time in New York
-query_date	is today Monday please
-query_events	show me next week's events right now
-close_app	quit Chrome now
-system_command	increase volume now
-query_date	for me what's the date today
-play_music	play songs by Taylor Swift right now
-control_lights	please dim the lights
-send_message	send a text saying I'm here now
-make_call	phone the restaurant now
-help_request	help now
-query_events	quickly what's on my calendar
-create_event	for me add birthday party to calendar
-set_reminder	set a reminder to buy milk
-query_fact	what is the capital of France quickly
-control_thermostat	quickly make it warmer
-make_call	now make a call to the office
-cancel_timer	remove the timer quickly
-delete_event	remove gym session for me
-update_event	quickly move meeting to 4pm
-cancellation	not now right now
-system_command	quickly turn down volume
-control_device	right now turn off the fan
-open_app	open calculator
-update_event	for me reschedule to 3pm
-search_web	quickly google python tutorials
-query_time	tell me the time now
-previous_track	go to previous track for me
-cancel_timer	for me cancel the timer
-stop_media	quickly stop playback
-send_message	send a text saying I'm here
-system_command	turn off wifi right now
-delete_event	cancel dentist appointment right now
-set_alarm	set an alarm for 7am
-open_app	start Netflix quickly
-control_thermostat	right now set heating to 70
-multi_intent	send message to John and call mom please
-send_email	email the invoice to accounting right now
-cancel_timer	cancel that timer for me
-create_event	schedule a meeting at 3pm quickly
-play_music	quickly play relaxing music
-create_event	add birthday party to calendar quickly
-pause_media	for me hold on pause
-query_date	date please now
-search_web	look up best laptops 2026
-search_web	google python tutorials now
-set_reminder	set a reminder to buy milk right now
-play_video	play documentaries right now
-set_timer	set timer 2 hours right now
-close_app	close Spotify right now
-create_event	now add gym session to calendar
-set_reminder	I need a reminder to water plants please
-control_lights	brighten living room lights please
-send_email	email the presentation to clients right now
-control_device	unlock front door
-query_weather	weather for next week for me
-create_event	schedule conference call at 2pm please
-confirmation	for me go ahead
-system_command	lock screen for me
-query_events	do I have any meetings today for me
-system_command	for me lock screen
-query_weather	now temperature outside
-system_command	now adjust brightness
-unknown	random gibberish for me
-close_app	quit maps
-next_track	please skip to next
-update_event	reschedule dentist appointment quickly
-set_alarm	for me alarm for 8 o'clock tomorrow
-send_message	quickly send a message to John
-close_app	for me quit maps
-unknown	blah blah blah please
-cancel_timer	cancel all timers right now
-query_events	for me do I have any meetings today
-previous_track	go back quickly
-control_lights	lights off
-next_track	play the next one now
-play_video	for me play movie trailers
-query_time	tell me the time
-send_email	send an email to support please
-send_message	right now send text to boss about the report
-search_web	search for nearby restaurants right now
-play_music	play the Beatles right now
-control_thermostat	please what's the temperature
-previous_track	go back for me
-update_event	quickly change meeting time to 5pm
-query_time	time in New York please
-play_music	play songs by Taylor Swift
-system_command	unmute right now
-set_timer	for me start countdown for 3 minutes
-clarification_request	say that again quickly
-cancellation	never mind now
-help_request	help quickly
-set_timer	start a 30 minute timer for me
-multi_intent	now send message to John and call mom
-update_event	update event details
-query_fact	who invented the telephone
-stop_media	stop playback please
-search_web	search the web for news right now
+delete_event	cancel the party for me
+make_call	call mom for me
+make_call	phone Sarah's mobile please
+cancellation	quickly stop
+set_alarm	alarm at noon
+query_fact	what is the population of China quickly
+update_event	reschedule dentist appointment
+control_device	turn on the vacuum now
+query_time	what time is it please
+search_web	right now search for pizza recipes
 send_email	send an email to john@example.com now
-set_timer	put on a timer for 15 minutes please
-set_timer	right now start a 30 minute timer
-update_event	right now change meeting time to 5pm
-stop_media	stop what's playing now
-close_app	quit calendar for me
-send_message	send a text saying I'm here quickly
-query_time	right now what's the time right now
-set_timer	start countdown for 3 minutes now
-query_fact	for me when was Einstein born
-cancellation	now not now
-close_app	close calculator please
-pause_media	hold on pause for me
-system_command	unmute
-create_event	for me create meeting for next Monday
-set_timer	quickly create a 20 second timer
-query_fact	now who wrote Romeo and Juliet
-control_device	now lock the door
-query_weather	please what's the weather in London
-confirmation	for me absolutely
-update_event	reschedule dentist appointment for me
-unknown	random gibberish
-confirmation	right now affirmative
-query_time	what time is it in Tokyo right now
-send_email	compose email to the team right now
-query_fact	please who invented the telephone
-query_date	now date please
-play_music	right now play my favorite songs
-clarification_request	what did you say right now
-send_message	message Sarah about the meeting please
-pause_media	now stop the music
-close_app	quickly close Spotify
-cancellation	now nope
-confirmation	yep quickly
-query_time	now current time in Paris
-pause_media	pause the video
-confirmation	right now absolutely
-create_event	quickly schedule dinner on Friday
-control_thermostat	set temperature to 72
-query_time	what time is it now
-make_call	please phone John
-control_device	start the coffee maker right now
-control_lights	brighten living room lights now
-make_call	dial emergency please
-pause_media	now pause playback
-query_weather	is it going to snow this weekend
-send_message	message Lisa happy birthday quickly
-set_alarm	create alarm for 10:30 tonight
-query_weather	right now do I need an umbrella
+system_command	turn off wifi right now
+pause_media	stop playing
 cancellation	cancel that now
-play_music	for me play some music
-next_track	quickly go to next track
-query_time	right now current time in Paris
-create_event	quickly add birthday party to calendar
-query_time	current time please
-play_video	play cat videos right now
-set_reminder	make a reminder to buy milk
-set_alarm	create an alarm for 5:45 in the morning now
-control_thermostat	right now set thermostat to 68 degrees
-clarification_request	would you clarify
-update_event	update meeting location for me
-make_call	quickly phone the restaurant
-close_app	for me close calculator
-play_video	right now play workout videos
-delete_event	right now delete tomorrow's meeting
+send_email	email my boss about the project quickly
+update_event	right now move meeting to 4pm
+confirmation	for me okay
+query_fact	what is the speed of light now
+unknown	nonsense words right now
+query_events	check my calendar for Friday quickly
+control_thermostat	make it warmer right now
+make_call	phone the restaurant please
+play_music	play Bohemian Rhapsody
+unknown	xyz abc 123
+query_weather	now do I need an umbrella
+help_request	help me with
+send_email	quickly send email with the report
+set_timer	right now timer for 10 seconds
+control_lights	activate kitchen lights
+control_thermostat	make it cooler for me
+close_app	quit Chrome
 update_event	move event to Monday quickly
-play_video	play sports highlights quickly
-previous_track	now play the last one
-query_events	quickly what's my schedule tomorrow
+play_music	now play Bohemian Rhapsody
+query_time	tell me the time
+set_alarm	create alarm for 10:30 tonight
+search_web	look up movie reviews please
+query_time	current time in Paris for me
+delete_event	please remove event from calendar
+clarification_request	please say that again
+set_timer	create a 20 second timer quickly
+open_app	launch maps right now
+play_music	play relaxing music quickly
+query_time	what time is it now
+cancel_timer	please stop timer
+control_device	quickly lock the door
+set_reminder	set reminder for grocery shopping now
+play_video	quickly play music videos
+send_message	text John to call me for me
+help_request	now I'm stuck
+search_web	search for job openings
+set_timer	now put on a timer for 15 minutes
+control_lights	turn on kitchen lights for me
+system_command	mute quickly
+set_alarm	set my alarm for 8:00 right now
 query_events	what's my schedule tomorrow right now
+search_web	search for job openings right now
+help_request	right now how do I
+close_app	please quit calendar
+help_request	quickly what are your capabilities
+play_video	right now play movie trailers
+set_timer	quickly create a 20 second timer
+query_fact	who is the president for me
+search_web	for me look up best laptops 2026
+play_music	quickly play my favorite songs
+query_time	tell me the time now
+close_app	now exit YouTube
+create_event	for me create event called project review
+send_message	text mom I'll be late please
+search_web	search for pizza recipes for me
+cancel_timer	turn off the timer right now
+cancellation	not now
+make_call	phone the restaurant now
+unknown	now lorem ipsum dolor
+query_weather	right now do I need an umbrella
+set_reminder	quickly set reminder for grocery shopping
+open_app	open calculator please
+unknown	nonsense words please
+send_email	send email about vacation request please
+pause_media	right now pause this
+set_timer	start a 30 minute timer for me
+set_alarm	quickly alarm for 8 o'clock tomorrow
+send_message	now send a text saying I'm here
+control_thermostat	for me turn up the heat
+open_app	quickly open email
+update_event	change event time for me
+send_message	send a message to John quickly
+clarification_request	now I don't understand
+multi_intent	now send message to John and call mom
+send_email	now compose message to hr@company.com
+update_event	please move event to Monday
+delete_event	delete next week's appointment right now
+next_track	quickly skip to next
+clarification_request	now come again
+delete_event	for me cancel dentist appointment
+multi_intent	quickly what's the weather and time
+search_web	now search for pizza recipes
+send_message	send a text saying I'm here right now
+clarification_request	now say that again
+play_video	play a video for me
+set_reminder	now create reminder to take medicine at 8pm
+help_request	please help
+help_request	assist me quickly
+confirmation	yes for me
+system_command	unmute now
+play_video	for me play movie trailers
+unknown	xyz abc 123 right now
+search_web	google python tutorials now
+confirmation	yep for me
+cancellation	cancel for me
+cancel_timer	right now stop timer
+pause_media	pause
+send_email	email my boss about the project for me
+delete_event	for me cancel meeting at 3pm
+send_email	compose message to hr@company.com now
+query_fact	what is the speed of light please
+query_weather	weather for next week for me
+control_thermostat	turn on AC
+play_music	play jazz music quickly
+play_music	right now play my workout playlist
+send_message	for me message Sarah about the meeting
+close_app	close camera please
+update_event	now change event to next week
+play_music	quickly play relaxing music
+set_timer	please set timer 2 hours
+open_app	now open settings
+system_command	for me adjust brightness
+stop_media	stop the music quickly
+system_command	please adjust brightness
+stop_media	please stop playing
+query_fact	how far is the moon please
+unknown	zxcvbnm please
+multi_intent	start alarm for 7am and remind me to exercise
+confirmation	that's right please
+query_events	please what's scheduled for Monday
+create_event	now create event called project review
+unknown	please blah blah blah
+search_web	find information about AI please
+help_request	for me help
+clarification_request	say that again
+update_event	now update event details
+stop_media	end playback please
+query_fact	who is the president please
+query_weather	please temperature outside
+previous_track	previous please
+create_event	add gym session to calendar now
+query_events	what's on my calendar
+stop_media	right now turn off the music
+query_weather	is it going to snow this weekend now
+clarification_request	quickly I didn't catch that
+next_track	please next
+clarification_request	can you clarify
+system_command	quickly lock screen
+query_time	right now current time in Paris
+control_thermostat	quickly turn on AC
+query_events	quickly check my calendar for Friday
+stop_media	turn off the music right now
+control_thermostat	right now what's the temperature
+search_web	search for nearby restaurants please
+create_event	for me create event for team lunch
+control_device	lock the door please
+set_reminder	for me remind me to call mom at 3pm
+open_app	open email
+stop_media	turn off the music now
+query_events	show my events quickly
+confirmation	yep right now
+query_weather	now will it rain today
+play_music	for me play the Beatles
+query_date	quickly what day of the week is it
+query_weather	temperature outside right now
+update_event	change meeting time to 5pm quickly
+set_alarm	alarm at noon for me
+stop_media	stop the music right now
+create_event	add dentist appointment to calendar now
+pause_media	hold on pause for me
+unknown	please foobar baz
+close_app	please close Spotify
+delete_event	remove gym session right now
+send_email	compose email to the team
+query_events	check my calendar for Friday
+clarification_request	for me come again
+query_time	what's the time quickly
+system_command	for me unmute
+play_music	right now play some music
+help_request	quickly I need help
+query_weather	weather for next week now
+create_event	schedule conference call at 2pm please
+make_call	dial emergency right now
+close_app	close settings quickly
+update_event	for me move event to Monday
+pause_media	hold on pause quickly
+search_web	search the web for news please
+unknown	quickly random gibberish
+send_email	for me email Sarah the meeting notes
+cancel_timer	quickly turn off the timer
+set_alarm	alarm for 8 o'clock tomorrow for me
+set_reminder	quickly reminder for dentist appointment tomorrow
+search_web	google python tutorials for me
+create_event	schedule a meeting at 3pm quickly
+search_web	search for pizza recipes quickly
+set_reminder	please set reminder for grocery shopping
+set_alarm	please I need an alarm at 7:30 tomorrow
+cancellation	nope now
+query_weather	please weather in New York
+query_weather	is it going to snow this weekend
+stop_media	quickly stop playback
+pause_media	for me stop the music
+send_email	for me send an email to john@example.com
+unknown	the quick brown fox right now
+control_thermostat	please set temperature to 72
+set_timer	create a timer for 5 minutes
+send_message	message the team about the update for me
+pause_media	now pause playback
+search_web	for me search for job openings
+stop_media	now turn music off
+query_events	what's coming up now
+set_timer	now create a 20 second timer
+update_event	change meeting time to 5pm for me
+system_command	for me turn down volume
+update_event	reschedule dentist appointment for me
+cancel_timer	stop the countdown now
+query_time	current time in Paris please
+send_message	text mom I'll be late now
+control_device	lock the door right now
+open_app	launch maps now
+query_events	what's on my calendar quickly
+set_alarm	set alarm 9:15 PM now
+control_lights	right now turn off bedroom lights
+control_lights	dim the lights
+open_app	open Spotify right now
+open_app	right now open calculator
+pause_media	hold on pause right now
+query_events	please what's my schedule tomorrow
+query_date	quickly tell me the date
+next_track	play the next one for me
+open_app	open calculator
+play_video	play music videos quickly
+control_thermostat	now set thermostat to 68 degrees
+unknown	now nonsense words
+create_event	now schedule a meeting at 3pm
+cancellation	cancel please
+control_thermostat	increase temperature
+create_event	create an event for tomorrow for me
+query_events	show me next week's events now
+query_time	now current time
+control_lights	disable bedroom lights
+help_request	help right now
+create_event	add gym session to calendar quickly
+cancellation	now not now
+delete_event	cancel dentist appointment for me
+close_app	close camera
+system_command	take a screenshot please
+open_app	launch maps
+query_fact	who is the president
+search_web	search for pizza recipes
+query_fact	for me what is the speed of light
+send_message	send a text saying I'm here
+delete_event	delete next week's appointment now
+make_call	make a call to the office please
+set_alarm	for me alarm for 8 o'clock tomorrow
+next_track	quickly next
+cancellation	please don't do that
+system_command	lock screen
+update_event	quickly move event to Monday
+query_date	quickly date please
+query_events	what's scheduled for Monday right now
+set_timer	timer for 10 seconds now
+unknown	lorem ipsum dolor
+control_lights	turn off all lights right now
+previous_track	quickly play previous
+query_date	what's the date today quickly
+control_device	right now turn off the fan
+set_alarm	start alarm for 10:30 tonight
+unknown	qwerty uiop quickly
+control_device	turn off all devices
+delete_event	right now delete tomorrow's meeting
+play_video	now play cat videos
+play_music	for me play jazz music
+control_thermostat	set thermostat to 68 degrees
+control_lights	right now turn off all lights
+make_call	phone Sarah's mobile quickly
+set_alarm	create an alarm for 5:45 in the morning now
+create_event	add gym session to calendar right now
+system_command	for me lock screen
+play_video	play a video please
+send_email	compose email to the team right now
+play_music	play my favorite songs now
+control_device	unlock front door
+pause_media	quickly stop playing
+next_track	skip this right now
+pause_media	please pause playback
+confirmation	correct right now
+help_request	help me with right now
+open_app	open calculator for me
+set_timer	create a 20 second timer
+unknown	blah blah blah right now
+query_date	now date please
+make_call	for me phone Sarah's mobile
+query_date	right now what day of the week is it
+update_event	now reschedule to 3pm
+multi_intent	please call dad and send mom a message
+stop_media	for me stop playback
+make_call	please make a call to the office
+open_app	open calculator now
+cancel_timer	cancel all timers right now
+update_event	move tomorrow's meeting to Friday right now
+query_time	quickly current time
+system_command	adjust brightness
+set_alarm	set alarm for 10:30 tonight for me
+play_video	for me play funny videos
+close_app	quit calendar
+previous_track	go to previous track for me
+clarification_request	please I didn't catch that
+system_command	increase volume
+control_device	close the blinds please
+next_track	quickly play the next one
+send_email	email Sarah the meeting notes please
+set_timer	set timer 2 hours right now
+query_weather	what's the weather like
+query_weather	weather in New York for me
+make_call	quickly call mom
+query_time	right now what's the time right now
+query_fact	for me who is the president
+cancel_timer	please delete my timer
+previous_track	right now previous
+control_device	turn off all devices now
+previous_track	please last song
+play_video	play music videos please
+stop_media	please stop the video
+cancellation	not now please
+clarification_request	what do you mean for me
+query_date	please what's the date today
+query_events	what's coming up quickly
+query_events	check my calendar for Friday right now
+query_time	please what time is it in Tokyo
+set_alarm	set alarm 9:15 PM please
+query_events	any appointments today right now
+play_video	for me play documentaries
+next_track	next quickly
+set_timer	start countdown for 3 minutes right now
+query_time	what time is it in Tokyo now
+next_track	for me next
+pause_media	pause what's playing for me
+previous_track	play previous for me
+help_request	right now guide me
+open_app	open camera
+confirmation	yep now
+create_event	schedule a meeting at 3pm please
+control_device	for me close the blinds
+query_time	right now what time is it in Tokyo
+next_track	skip to next now
+play_video	right now play workout videos
+query_time	now current time in Paris
+send_message	message Sarah about the meeting right now
+create_event	schedule conference call at 2pm quickly
+play_video	play documentaries right now
+update_event	now move event to Monday
+control_lights	please dim the lights
+update_event	right now reschedule to 3pm
+cancel_timer	for me remove the timer
+make_call	now phone the restaurant
+system_command	restart device now
+next_track	go to next track now
+query_time	right now what's the time
+set_timer	right now set timer 2 hours
+close_app	please exit YouTube
+open_app	quickly launch maps
+close_app	now close camera
+query_date	date please for me
+next_track	go to next track right now
+cancel_timer	turn timer off please
+query_time	now time in New York
+control_thermostat	what's the temperature now
+system_command	please unmute
+query_time	for me tell me the time
+create_event	schedule conference call at 2pm now
+clarification_request	right now say that again
+send_message	message Sarah about the meeting please
+multi_intent	quickly send message to John and call mom
+play_music	right now play classical music
+control_thermostat	for me turn off heating
+close_app	quit Chrome quickly
+cancellation	please no
+set_timer	put on a timer for 15 minutes please
+set_alarm	set an alarm for 7am
+send_email	email the presentation to clients right now
+delete_event	delete next week's appointment for me
+set_alarm	wake me at 6am on Monday for me
+confirmation	correct
+control_device	start the coffee maker quickly
+send_email	now send an email to support
+send_email	send an email to john@example.com quickly
+set_timer	I need a timer for 1 hour and 30 minutes please
+stop_media	stop what's playing right now
+next_track	play the next one right now
+play_video	play the latest news please
+play_video	play the latest news quickly
+send_message	send text to dad
+clarification_request	repeat that quickly
+previous_track	go back
+next_track	for me go to next track
+play_video	quickly play workout videos
+system_command	now increase volume
+control_lights	turn off all lights quickly
+control_thermostat	right now set thermostat to 68 degrees
+pause_media	pause the music now
+search_web	please search for flight deals
+pause_media	hold on pause
+confirmation	okay please
+send_email	send an email to support
+query_events	show my events right now
+confirmation	yeah please
+set_reminder	remind me about the meeting in 2 hours now
+cancellation	for me stop
+query_events	for me do I have any meetings today
+play_video	play movie trailers quickly
+control_device	quickly open the garage
+confirmation	now go ahead
+control_lights	quickly make it brighter
+clarification_request	now please explain
+make_call	call customer service quickly
+set_alarm	for me set my alarm for 8:00
+unknown	lorem ipsum dolor now
+query_fact	how far is the moon quickly
+send_message	send text to boss about the report for me
+unknown	asdfghjkl quickly
+system_command	for me turn off wifi
+previous_track	quickly previous song
+help_request	for me what can you do
+query_time	time in New York please
+help_request	I'm stuck right now
+control_thermostat	turn on AC for me
+confirmation	correct please
+send_message	please message Lisa happy birthday
+set_reminder	set a reminder to buy milk right now
+set_reminder	please remind me about dinner reservation at 7
+unknown	right now lorem ipsum dolor
+send_message	text John to call me right now
+send_email	now email Sarah the meeting notes
+set_timer	for me start countdown for 3 minutes
+set_reminder	right now remind me to submit report by Friday
+query_time	please time please
+set_reminder	now reminder to pick up kids at 4pm
+make_call	phone the restaurant quickly
+query_weather	please weather for next week
+make_call	call mom
+cancel_timer	quickly stop the cooking timer
+send_email	please compose email to the team
+next_track	next track
+delete_event	now delete next week's appointment
+query_weather	weather for next week please
+create_event	create event for team lunch now
+delete_event	delete all events today right now
+query_weather	right now will it rain today
+query_weather	how hot is it today for me
+help_request	help quickly
+clarification_request	for me say that again
+set_timer	set a timer for 5 minutes quickly
+clarification_request	for me could you rephrase
+open_app	start Netflix
+query_date	date please now
+play_video	play cat videos
+pause_media	pause this please
+query_time	quickly what's the time right now
+query_date	for me what's today's date
+stop_media	turn music off
+query_time	time please now
+help_request	how do I for me
+make_call	dial 555-1234 right now
+system_command	take a screenshot quickly
+cancellation	quickly never mind
+help_request	guide me please
+help_request	show me how quickly
+pause_media	now stop the music
+set_timer	quickly timer for 10 seconds
+search_web	find hotels in Miami please
+set_alarm	I need an alarm at 7:30 tomorrow
+control_lights	for me set lights to blue
+update_event	quickly change event to next week
+query_fact	what is the speed of light
+set_timer	put on a timer for 15 minutes quickly
+control_device	for me turn on the vacuum
+delete_event	right now cancel the party
+query_time	current time please
+cancel_timer	cancel that timer for me
+previous_track	go to previous track right now
+search_web	please search for pizza recipes
+multi_intent	please create event tomorrow and set reminder
+play_video	play movie trailers for me
+query_date	is today Monday now
+set_alarm	for me wake me at 6am on Monday
+system_command	please lock screen
+query_events	show me next week's events
+query_events	show my events
+query_events	right now what's my schedule tomorrow
+unknown	for me blah blah blah
+cancellation	quickly no
+control_device	please close the blinds
+play_music	right now play jazz music
+delete_event	remove birthday event now
+send_message	message Lisa happy birthday quickly
+unknown	blah blah blah
+control_thermostat	make it cooler right now
+query_date	for me what's the date today
+query_date	for me what's tomorrow's date
+previous_track	go back right now
+unknown	quickly qwerty uiop
+stop_media	stop
+send_email	email the invoice to accounting right now
+confirmation	please yeah
+set_timer	right now create a 20 second timer
+multi_intent	enable lights and set temperature to 72
+create_event	create event called project review for me
+close_app	exit YouTube right now
+send_message	text John to call me
+make_call	please phone John
+cancellation	don't do that
+system_command	enable bluetooth please
+previous_track	previous now
+query_date	please what day of the week is it
+clarification_request	now repeat that
+play_video	right now play music videos
+delete_event	please delete next week's appointment
+set_timer	right now start a 30 minute timer
+stop_media	please stop this song
+close_app	exit Netflix now
+control_lights	turn off bedroom lights please
+send_message	message Lisa happy birthday
+previous_track	right now last song
+query_time	time please quickly
+confirmation	for me correct
+cancellation	never mind for me
+send_message	send text to dad for me
+query_weather	how hot is it today quickly
+create_event	for me schedule a meeting at 3pm
+delete_event	now cancel dentist appointment
+query_events	show me next week's events right now
+create_event	schedule dinner on Friday please
+play_video	play documentaries
+set_reminder	right now set a reminder to buy milk
+pause_media	quickly pause
+pause_media	right now pause playback
+multi_intent	for me open Spotify and play jazz
+query_fact	now when was Einstein born
+search_web	please google python tutorials
+control_thermostat	now set temperature to 72
+set_reminder	please remind me to submit report by Friday
+search_web	right now google python tutorials
+close_app	quit calendar now
+set_alarm	I need an alarm at 7:30 tomorrow quickly
+query_events	for me what's scheduled for Monday
+send_email	send an email to support now
+control_lights	turn on the lights now
+next_track	skip this song please
+unknown	now zxcvbnm
+help_request	for me how do I
+query_weather	what's the weather like right now
+play_music	right now play Bohemian Rhapsody
+control_device	for me lock the door
+confirmation	sure
+make_call	now call mom
+next_track	skip forward
+control_device	for me turn off all devices
+control_thermostat	please increase temperature
+next_track	go to next track please
+close_app	close Spotify right now
+previous_track	for me previous song
+query_events	what meetings do I have now
+multi_intent	right now check weather and set umbrella reminder
+create_event	add dentist appointment to calendar quickly
+query_events	now what's on my calendar
+control_lights	switch on kitchen lights
+query_events	for me what's coming up
+search_web	right now search for nearby restaurants
+control_thermostat	turn off heating right now
+stop_media	turn off the music please
+query_fact	how tall is Mount Everest
+confirmation	that's right right now
 set_alarm	for me wake me up at 6:30
 cancel_timer	remove the timer please
-create_event	schedule conference call at 2pm for me
+query_fact	when was Einstein born right now
+cancellation	cancel quickly
 set_timer	I need a timer for 1 hour and 30 minutes for me
-update_event	move meeting to 4pm please
-play_video	now play the latest news
-search_web	find information about AI please
-help_request	I'm stuck quickly
-set_reminder	remind me about the meeting in 2 hours right now
-help_request	guide me now
-set_reminder	remind me to submit report by Friday quickly
-control_lights	turn on kitchen lights for me
-clarification_request	could you rephrase please
-cancellation	for me forget it
-play_music	play my favorite songs now
-query_time	what time is it in Tokyo for me
-set_reminder	right now create reminder to take medicine at 8pm
-stop_media	right now turn off the music
-close_app	close settings for me
-cancellation	right now forget it
-confirmation	sure please
-clarification_request	right now I didn't catch that
-system_command	enable bluetooth please
-next_track	next track right now
-open_app	open calculator please
-close_app	quit calendar right now
-set_alarm	alarm at noon please
-set_reminder	for me set reminder for grocery shopping
-query_events	please show me next week's events
-search_web	look up movie reviews quickly
-help_request	now guide me
-cancellation	not now
-clarification_request	quickly I didn't catch that
-query_time	can you tell me the time
-query_time	what's the time right now
-query_events	show my events quickly
-query_date	please what day of the week is it
-query_date	date please for me
-set_reminder	I need a reminder to water plants for me
-make_call	phone the restaurant please
-control_device	for me unlock front door
-set_alarm	wake me at 6am on Monday now
-query_events	for me any appointments today
-play_video	play funny videos quickly
-stop_media	now stop
-set_reminder	now remind me about dinner reservation at 7
-multi_intent	now what's the weather and time
-make_call	now call customer service
-query_fact	now how far is the moon
-query_fact	quickly what is the speed of light
-query_events	any appointments today now
-control_device	start the coffee maker quickly
-open_app	open settings right now
-set_timer	start a cooking timer for 25 minutes
-set_reminder	right now remind me about dinner reservation at 7
-update_event	change event time for me
-next_track	skip this now
-set_alarm	for me I need an alarm at 7:30 tomorrow
-query_events	what meetings do I have please
-set_timer	right now start countdown for 3 minutes
-control_thermostat	increase temperature
-create_event	add birthday party to calendar for me
-previous_track	play previous
-create_event	create an event for tomorrow for me
-help_request	now how do I
-system_command	take a screenshot for me
-delete_event	quickly delete meeting
-play_video	play a video right now
-previous_track	go to previous track right now
-query_fact	who wrote Romeo and Juliet
-previous_track	please play the last one
-create_event	add gym session to calendar please
-play_music	right now play classical music
-create_event	right now create event for team lunch
-query_fact	quickly who is the president
-make_call	please make a call to the office
-help_request	now I'm stuck
-make_call	dial emergency
-set_alarm	now set alarm for 10:30 tonight
-send_email	please compose email to the team
-multi_intent	create event tomorrow and set reminder please
-delete_event	for me delete meeting
-control_thermostat	set temperature to 72 for me
-multi_intent	what's the weather and time quickly
-set_alarm	right now set my alarm for 8:00
-unknown	random gibberish right now
-pause_media	pause right now
-make_call	call customer service please
 control_device	quickly turn off all devices
-update_event	move event to Monday
-search_web	right now find hotels in Miami
-system_command	for me turn off wifi
-control_lights	switch on the lights
-create_event	add dentist appointment to calendar right now
-stop_media	now stop playing
-multi_intent	right now send message to John and call mom
-confirmation	yeah
-open_app	quickly launch calendar
-confirmation	go ahead
-search_web	google python tutorials please
-query_date	is today Monday
-set_reminder	reminder for dentist appointment tomorrow quickly
-confirmation	now affirmative
-send_email	send an email to john@example.com quickly
-control_thermostat	make it cooler right now
-send_email	now compose message to hr@company.com
-pause_media	pause the video now
-system_command	lock screen quickly
-query_events	what meetings do I have
-query_events	what's scheduled for Monday now
-unknown	right now blah blah blah
-confirmation	yes now
-next_track	next track now
-send_email	email my boss about the project quickly
-delete_event	please cancel meeting at 3pm
-delete_event	remove gym session
-control_lights	right now lights off
-previous_track	play previous for me
-stop_media	turn off the music now
-previous_track	now skip backward
-stop_media	stop this song now
-stop_media	stop playing for me
-stop_media	now stop the music
-previous_track	please last song
-previous_track	quickly play previous
-control_thermostat	now turn on AC
-cancel_timer	for me cancel all timers
-previous_track	back to previous quickly
-next_track	next song please
+delete_event	delete tomorrow's meeting please
+send_email	quickly email the invoice to accounting
+next_track	skip this song right now
+query_time	right now can you tell me the time
+set_reminder	remind me about the meeting in 2 hours right now
+unknown	nonsense words now
+help_request	what can you do for me
+delete_event	cancel meeting at 3pm
 create_event	now add dentist appointment to calendar
-confirmation	quickly okay
-pause_media	now pause
-stop_media	stop this song for me
-play_music	play top hits now
-set_timer	can you set a timer for 45 minutes right now
-control_lights	now brighten living room lights
-query_events	for me what's my schedule tomorrow
-cancellation	please don't do that
-cancellation	right now cancel
-set_timer	for me timer for 10 seconds
-delete_event	right now remove event from calendar
-system_command	restart device
-set_alarm	right now wake me at 6am on Monday
-control_device	quickly open the garage
+control_lights	brighten living room lights please
+send_email	email Sarah the meeting notes now
+pause_media	for me hold on pause
+stop_media	stop what's playing now
+set_reminder	right now create reminder to take medicine at 8pm
+multi_intent	turn on lights and set temperature to 72 for me
+search_web	right now find hotels in Miami
+control_lights	make it brighter for me
+control_thermostat	make it warmer for me
+delete_event	remove gym session for me
+delete_event	cancel meeting at 3pm now
+control_thermostat	increase temperature for me
+cancellation	not now quickly
+system_command	unmute right now
+confirmation	quickly that's right
+play_music	play classical music please
+play_video	play sports highlights please
+set_alarm	alarm at noon please
+update_event	change event time
+multi_intent	turn on lights and set temperature to 72
+close_app	right now quit Chrome
+make_call	quickly phone the restaurant
+close_app	close Spotify
+create_event	right now create event for team lunch
+query_weather	right now weather in New York
+stop_media	stop playing right now
+cancellation	negative right now
+help_request	now help
+query_events	right now what's coming up
+clarification_request	what did you say now
+send_email	please send email with the report
+control_lights	turn off all lights
+search_web	search for job openings quickly
+create_event	add birthday party to calendar for me
+set_reminder	I need a reminder to water plants for me
+play_video	now play the latest news
+control_lights	please turn off bedroom lights
+play_music	play some music now
+query_fact	quickly what is the speed of light
+cancellation	never mind
 control_lights	set lights to 50% for me
-query_date	current date
-help_request	right now assist me
-set_alarm	right now I need an alarm at 7:30 tomorrow
-search_web	find hotels in Miami now
-open_app	for me start Netflix
-close_app	please quit calendar
+stop_media	end playback right now
+delete_event	quickly cancel dentist appointment
+help_request	help please
+set_timer	can you make a timer for 45 minutes
+multi_intent	play music and turn off lights right now
+multi_intent	please open Spotify and play jazz
+control_lights	switch on the lights
+query_date	what day of the week is it quickly
+control_device	start the coffee maker right now
+previous_track	now play previous
+query_fact	what is the capital of France please
+close_app	please close email
+unknown	for me zxcvbnm
+next_track	play next quickly
+pause_media	pause this right now
+set_timer	start a cooking timer for 25 minutes
+unknown	the quick brown fox quickly
+search_web	search the web for news right now
+set_reminder	right now remind me about dinner reservation at 7
+control_thermostat	quickly make it cooler
+cancellation	don't do that right now
+set_alarm	for me I need an alarm at 7:30 tomorrow
+control_device	right now turn on the TV
+make_call	phone Sarah's mobile right now
+send_email	send email with the report please
+create_event	create meeting for next Monday
+create_event	add birthday party to calendar quickly
+play_video	play movie trailers
+multi_intent	quickly check weather and set umbrella reminder
+confirmation	right now absolutely
+update_event	move meeting to 4pm
+pause_media	please pause
+unknown	now foobar baz
+play_video	play funny videos quickly
+pause_media	stop the music right now
+query_events	quickly what's scheduled for Monday
+previous_track	play previous right now
+stop_media	end playback for me
+query_fact	now how far is the moon
+control_device	lock the door
+query_weather	quickly what's the weather like
+pause_media	quickly hold on pause
+close_app	close settings
+send_email	send an email to support for me
+search_web	find information about AI for me
+search_web	look up best laptops 2026
+delete_event	now delete all events today
+play_video	play cat videos now
+play_video	for me play a video
+cancel_timer	for me stop the countdown
+system_command	take a screenshot right now
+set_alarm	now set alarm for 10:30 tonight
+help_request	I'm stuck
+delete_event	delete all events today now
+query_events	any appointments today for me
+send_message	quickly message the team about the update
+make_call	make a call to the office
+set_alarm	right now set my alarm for 8:00
+query_date	for me is today Monday
+query_fact	for me what is the largest ocean
+control_lights	brighten living room lights for me
+query_fact	who invented the telephone
+system_command	restart device
+open_app	open camera please
+send_email	email the invoice to accounting please
+query_events	now what meetings do I have
+control_device	now start the dishwasher
+query_events	please what's on my calendar
+control_device	close the blinds right now
+query_fact	quickly who is the president
+cancel_timer	disable the timer
+pause_media	now pause what's playing
+set_reminder	now remind me to submit report by Friday
+close_app	now exit Netflix
+make_call	quickly call customer service
+set_alarm	for me create an alarm for 5:45 in the morning
+system_command	restart device quickly
+close_app	quickly close email
+cancellation	quickly don't do that
+query_date	is today Monday
+system_command	enable bluetooth
+set_reminder	reminder for dentist appointment tomorrow quickly
+control_thermostat	increase temperature quickly
+cancellation	for me never mind
+update_event	right now change event time
+send_message	message the team about the update now
+stop_media	quickly stop this song
+play_video	play a video right now
+close_app	close email quickly
+make_call	call back the last number
+close_app	now close Spotify
+delete_event	delete next week's appointment quickly
+search_web	search for nearby restaurants right now
+clarification_request	please repeat that
+delete_event	remove event from calendar for me
+help_request	I'm stuck for me
+help_request	show me how please
+control_lights	turn on kitchen lights now
+set_alarm	set alarm 9:15 PM
+query_events	quickly what meetings do I have
+control_device	for me unlock front door
+control_lights	right now lights off
+create_event	create event for team lunch quickly
+stop_media	stop quickly
+make_call	now call customer service
+set_alarm	for me alarm at noon
+next_track	skip forward quickly
+previous_track	play previous
+send_message	right now send a text saying I'm here
+query_fact	for me when was Einstein born
+system_command	quickly restart device
+confirmation	yes please
+unknown	nonsense words quickly
+search_web	google python tutorials please
+delete_event	right now delete all events today
+previous_track	skip backward please
+previous_track	previous track
+cancel_timer	for me cancel all timers
+confirmation	please yes
+create_event	create an event for tomorrow right now
+help_request	right now what are your capabilities
+help_request	please what can you do
+next_track	next song quickly
+create_event	right now add dentist appointment to calendar
+stop_media	now stop
+set_timer	can you set a timer for 45 minutes right now
+query_events	what's scheduled for Monday for me
+open_app	for me open settings
+unknown	qwerty uiop
+confirmation	yeah now
+previous_track	back to previous right now
+make_call	now call back the last number
+play_music	play some music
+query_fact	when was Einstein born for me
+search_web	for me google python tutorials
+send_message	for me message Lisa happy birthday
+play_music	play classical music for me
+query_fact	how far is the moon
+stop_media	stop right now
+set_alarm	right now wake me at 6am on Monday
+query_fact	how tall is Mount Everest right now
+control_device	lock the door now
+delete_event	cancel dentist appointment right now
+send_message	send a text saying I'm here now
+delete_event	delete next week's appointment
+send_message	for me send a message to John
+multi_intent	create event tomorrow and set reminder
+system_command	right now turn down volume
+make_call	dial emergency
+close_app	now close calculator
+play_video	right now play sports highlights
+control_device	please unlock front door
 query_time	please what's the time
 set_timer	quickly set timer 2 hours
+make_call	call back the last number quickly
+next_track	skip forward now
 query_weather	please weather forecast for tomorrow
-send_message	send text to dad right now
-create_event	please create an event for tomorrow
-control_device	enable the TV
+clarification_request	now what did you say
+query_weather	do I need an umbrella please
+search_web	search for flight deals
+cancel_timer	turn off the timer
 set_timer	quickly start countdown for 3 minutes
 query_date	date please
+open_app	now launch maps
+system_command	turn down volume for me
 search_web	search for job openings now
 cancel_timer	right now turn off the timer
-set_alarm	alarm for 8 o'clock tomorrow
-query_time	what's the time right now right now
-delete_event	for me remove event from calendar
-delete_event	please remove birthday event
-query_events	what's scheduled for Monday for me
-multi_intent	quickly what's the weather and time
-help_request	what are your capabilities please
-play_music	play Bohemian Rhapsody
-open_app	launch calendar for me
+multi_intent	switch on lights and set temperature to 72
+delete_event	quickly delete all events today
+query_weather	what's the weather like for me
+set_timer	set a cooking timer for 25 minutes now
+send_message	send a text saying I'm here quickly
+update_event	reschedule to 3pm now
+update_event	update event details please
+clarification_request	repeat that now
+open_app	open settings for me
+search_web	look up movie reviews
+multi_intent	set alarm for 7am and remind me to exercise for me
+query_fact	right now who is the president
+previous_track	play the last one please
+play_video	play sports highlights quickly
 set_timer	set a timer for 5 minutes right now
 query_date	what's today's date please
-control_device	for me start the dishwasher
-confirmation	quickly absolutely
-control_thermostat	right now what's the temperature
-create_event	now schedule dinner on Friday
-open_app	open Spotify
-play_music	play some music now
+multi_intent	turn on lights and set temperature to 72 please
+clarification_request	I didn't catch that for me
+next_track	right now go to next track
+control_lights	right now dim the lights
+close_app	close camera for me
+query_weather	please do I need an umbrella
 query_weather	what's the weather in London
-delete_event	cancel dentist appointment for me
-next_track	skip this for me
+delete_event	cancel dentist appointment
+play_music	quickly play some music
 query_weather	for me weather forecast for tomorrow
-update_event	for me move event to Monday
-pause_media	pause the music now
-make_call	dial emergency right now
+play_music	play songs by Taylor Swift please
+control_device	turn off the fan
+send_email	right now send email with the report
+clarification_request	what do you mean quickly
+delete_event	delete meeting quickly
 query_date	for me what day of the week is it
-stop_media	deactivate the music
-query_date	right now tell me the date
-send_message	quickly message the team about the update
-stop_media	quickly turn off the music
-control_lights	turn off bedroom lights please
+previous_track	previous
+update_event	move meeting to 4pm now
+set_reminder	for me reminder to pick up kids at 4pm
+multi_intent	send message to John and call mom quickly
+stop_media	stop playback now
+set_timer	create a 20 second timer please
 set_timer	set a cooking timer for 25 minutes please
-update_event	please update event details
-close_app	right now close Spotify
-make_call	call mom
+close_app	quit Chrome now
+system_command	please turn off wifi
+cancel_timer	quickly turn timer off
+create_event	schedule conference call at 2pm for me
 query_time	right now tell me the time
 set_timer	quickly start a 30 minute timer
-stop_media	stop what's playing
-stop_media	stop playing right now
-make_call	phone Sarah's mobile please
-control_thermostat	turn up the heat please
-query_weather	do I need an umbrella for me
-help_request	how do I please
-pause_media	stop the music right now
-make_call	phone Sarah's mobile right now
-delete_event	now delete next week's appointment
-query_weather	for me weather for next week
-send_message	send a text saying I'm here right now
-update_event	move meeting to 4pm now
-clarification_request	now what did you say
-query_events	please any appointments today
-query_events	do I have any meetings today quickly
-control_thermostat	please set temperature to 72
-control_device	for me turn off the fan
-control_lights	turn off all lights quickly
-send_email	send email with the report please
-delete_event	right now cancel meeting at 3pm
-set_alarm	set alarm for 10:30 tonight
-cancellation	nope for me
-set_timer	start countdown for 3 minutes please
-search_web	for me google python tutorials
-send_message	please message Lisa happy birthday
-set_reminder	please set a reminder to buy milk
-clarification_request	for me come again
-previous_track	quickly previous
-control_device	quickly start the coffee maker
-query_time	quickly what time is it in Tokyo
-send_email	please send email with the report
-query_events	any appointments today for me
-send_message	for me message Sarah about the meeting
-update_event	for me move tomorrow's meeting to Friday
-confirmation	right now okay
-previous_track	skip backward quickly
-cancel_timer	turn off the timer right now
-search_web	please google python tutorials
-create_event	add gym session to calendar now
-stop_media	stop the music
-query_weather	temperature outside right now
-stop_media	right now stop playback
-send_message	now send a text saying I'm here
-create_event	create meeting for next Monday now
-play_video	play movie trailers
-control_lights	lights off please
-set_reminder	set reminder for grocery shopping right now
-close_app	right now close settings
-cancellation	cancel now
-confirmation	now sure
-previous_track	skip backward please
-make_call	call back the last number
-close_app	exit Netflix now
-cancellation	stop right now
-set_alarm	set alarm 9:15 PM
-pause_media	please stop playing
-query_fact	when was Einstein born right now
-search_web	look up movie reviews please
-send_message	message Lisa happy birthday
-previous_track	now go back
-create_event	schedule a meeting at 3pm right now
-query_fact	right now who is the president
-search_web	search for nearby restaurants please
-cancellation	now negative
-cancel_timer	please delete my timer
-pause_media	pause the song now
-system_command	enable bluetooth quickly
-cancel_timer	quickly turn timer off
-open_app	launch Chrome please
-set_reminder	create reminder to take medicine at 8pm please
-system_command	increase volume please
-help_request	I need help quickly
-stop_media	turn off the music
-control_device	now close the blinds
-create_event	add dentist appointment to calendar quickly
-play_music	play top hits quickly
-play_video	quickly play the latest news
-open_app	quickly launch maps
-play_video	play movie trailers for me
-set_timer	now put on a timer for 15 minutes
-create_event	please create meeting for next Monday
-update_event	now update event details
-query_events	show my events right now
-play_video	for me play cooking tutorials
-create_event	please add birthday party to calendar
-delete_event	quickly remove birthday event
-set_timer	set a cooking timer for 25 minutes now
-query_weather	what's the weather like for me
-previous_track	please go to previous track
-query_date	now what day of the week is it
-query_time	please what time is it in Tokyo
-pause_media	hold on pause quickly
-clarification_request	please could you rephrase
-previous_track	back to previous right now
-play_music	please play my favorite songs
-control_lights	dim the lights quickly
-previous_track	now previous song
-pause_media	quickly hold on pause
-update_event	reschedule to 3pm please
 set_alarm	set my alarm for 8:00 now
-clarification_request	I don't understand please
-set_alarm	for me set my alarm for 8:00
-send_message	text my wife I'm on my way now
-query_time	what's the time
-close_app	quit maps now
-delete_event	cancel the party for me
-query_events	for me check my calendar for Friday
-query_date	for me is today Monday
-create_event	schedule conference call at 2pm right now
-pause_media	pause quickly
-next_track	quickly next song
-pause_media	stop playing
-cancel_timer	please stop timer
-next_track	next track
-control_device	unlock front door quickly
-query_weather	will it rain today right now
-set_alarm	set alarm 9:15 PM please
-query_time	can you tell me the time right now
-search_web	now search the web for news
-make_call	call customer service quickly
-set_reminder	right now set a reminder to buy milk
-play_video	right now play music videos
-send_email	now send email about vacation request
-control_thermostat	turn on AC right now
-play_video	for me play documentaries
-play_video	play the latest news quickly
-close_app	close settings
-search_web	right now google python tutorials
-previous_track	play the last one right now
-previous_track	right now previous song
-confirmation	yeah quickly
-control_lights	turn on kitchen lights please
-system_command	enable bluetooth right now
-query_events	check my calendar for Friday right now
-search_web	right now search for nearby restaurants
-query_weather	quickly weather in New York
-query_fact	when was Einstein born for me
-create_event	please schedule dinner on Friday
-search_web	quickly search for pizza recipes
-query_fact	how tall is Mount Everest
-previous_track	previous quickly
-send_message	right now text my wife I'm on my way
-unknown	for me asdfghjkl
-open_app	open camera please
-query_fact	who is the president please
-play_video	for me play a video
-set_reminder	for me reminder to pick up kids at 4pm
-stop_media	stop the music for me
-unknown	please random gibberish
-set_timer	create a 20 second timer please
-clarification_request	I don't understand quickly
-cancel_timer	for me stop the countdown
-clarification_request	what do you mean quickly
-cancellation	never mind for me
-query_weather	quickly how hot is it today
-play_video	play sports highlights right now
-send_email	compose email to the team
-update_event	change meeting time to 5pm for me
-query_fact	who invented the telephone now
-confirmation	right now yep
-previous_track	now previous track
-open_app	for me launch maps
-send_message	send a message to John quickly
-send_message	for me send a message to John
-send_email	for me send an email to john@example.com
-play_video	play music videos please
-query_events	check my calendar for Friday please
-pause_media	pause what's playing
-previous_track	previous song now
-delete_event	remove gym session right now
-clarification_request	right now what do you mean
-help_request	guide me please
-send_message	right now message Lisa happy birthday
-send_email	email Sarah the meeting notes please
-search_web	find information about AI for me
-delete_event	quickly cancel meeting at 3pm
-open_app	please start Netflix
-query_fact	who is the president
-set_alarm	now wake me up at 6:30
-delete_event	quickly delete all events today
-next_track	go to next track now
-cancellation	not now please
-system_command	quickly increase volume
-cancellation	quickly cancel
-stop_media	turn music off now
-set_reminder	remind me about the meeting in 2 hours now
-previous_track	quickly back to previous
-search_web	search for job openings quickly
-open_app	open email quickly
-create_event	for me schedule dinner on Friday
-previous_track	previous now
-set_alarm	please wake me at 6am on Monday
-clarification_request	please come again
-make_call	call customer service right now
-pause_media	pause the song right now
-set_alarm	for me alarm at noon
-open_app	launch calendar quickly
-next_track	skip forward
-cancel_timer	cancel the timer quickly
-control_lights	for me turn on the lights
-create_event	please add dentist appointment to calendar
-query_fact	right now what is the population of China
-set_timer	create a 20 second timer
-system_command	right now turn down volume
-next_track	next
-control_thermostat	for me increase temperature
-pause_media	now pause what's playing
-delete_event	right now delete meeting
-set_timer	right now timer for 10 seconds
-stop_media	for me stop playback
-previous_track	previous
-stop_media	turn music off for me
-send_message	please send text to boss about the report
-cancel_timer	please turn off the timer
-delete_event	for me remove gym session
-play_video	play movie trailers quickly
-play_music	play some music
-make_call	call customer service now
-query_fact	what is the population of China quickly
-query_weather	right now how hot is it today
-delete_event	remove birthday event please
-system_command	please adjust brightness
-query_date	please what's the date today
-query_date	is today Monday now
-delete_event	cancel dentist appointment quickly
-create_event	schedule conference call at 2pm quickly
-create_event	schedule dinner on Friday
-search_web	look up movie reviews for me
-cancellation	quickly nope
-send_email	now send an email to support
-unknown	blah blah blah
-control_thermostat	make it cooler please
-control_device	right now turn on the TV
-confirmation	right now that's right
-query_time	quickly what's the time right now
-play_video	play cat videos now
-confirmation	right now sure
-cancellation	right now not now
-set_alarm	I need an alarm at 7:30 tomorrow
-help_request	I need help
-close_app	now quit calendar
-update_event	quickly move tomorrow's meeting to Friday
-query_fact	what is the largest ocean for me
-cancel_timer	delete my timer
-search_web	please look up best laptops 2026
-pause_media	right now pause the music
-create_event	create event for team lunch
-previous_track	right now last song
-set_reminder	now create reminder to take medicine at 8pm
-make_call	phone Sarah's mobile quickly
-close_app	quit calendar now
-close_app	please close settings
-next_track	next please
-search_web	search for pizza recipes quickly
-play_music	right now play jazz music
-send_message	text John to call me right now
-pause_media	pause this please
-query_fact	who wrote Romeo and Juliet quickly
+play_music	for me play classical music
+delete_event	for me remove birthday event
+unknown	quickly xyz abc 123
+send_email	email the invoice to accounting now
+send_message	message Sarah about the meeting for me
+query_fact	quickly when was Einstein born
 play_music	play the Beatles please
-open_app	right now open calculator
-play_video	play a video for me
-help_request	quickly assist me
-control_device	switch on the TV
-system_command	right now enable bluetooth
-confirmation	sure right now
-open_app	now launch calendar
-set_alarm	I need an alarm at 7:30 tomorrow now
-set_alarm	now I need an alarm at 7:30 tomorrow
-send_message	text mom I'll be late now
-stop_media	stop what's playing right now
-previous_track	skip backward right now
-confirmation	please yes
-play_music	play songs by Taylor Swift please
-previous_track	play the last one please
-create_event	for me create event for team lunch
-set_reminder	quickly reminder to pick up kids at 4pm
-search_web	look up movie reviews now
-system_command	for me adjust brightness
-system_command	for me turn down volume
-close_app	exit YouTube right now
-pause_media	pause this quickly
-query_weather	please temperature outside
+close_app	right now quit maps
+create_event	add dentist appointment to calendar for me
+send_message	for me send text to boss about the report
+update_event	move tomorrow's meeting to Friday please
+pause_media	pause playback
+make_call	phone John please
+unknown	asdfghjkl right now
+delete_event	right now cancel meeting at 3pm
+send_message	message the team about the update
+query_weather	for me weather for next week
+close_app	for me exit Netflix
+send_message	right now message Lisa happy birthday
 play_music	play my workout playlist please
-stop_media	please stop what's playing
-system_command	take a screenshot
-system_command	restart device right now
-help_request	please how do I
-stop_media	right now stop the music
-play_music	now play classical music
-query_weather	weather forecast for tomorrow
-set_alarm	wake me up at 6:30 please
-set_alarm	for me create an alarm for 5:45 in the morning
-send_message	quickly message Sarah about the meeting
-search_web	search the web for news please
-set_alarm	set alarm for 10:30 tonight for me
-query_date	what day of the week is it quickly
-control_lights	dim the lights right now
+control_device	please start the dishwasher
+close_app	right now close Spotify
+query_fact	right now what is the population of China
+multi_intent	check weather and set umbrella reminder now
+open_app	open settings right now
+help_request	I'm stuck now
+create_event	quickly create meeting for next Monday
+play_music	play my workout playlist
+help_request	how do I
+control_lights	quickly turn on kitchen lights
+pause_media	pause the video for me
+control_thermostat	turn off heating quickly
+set_alarm	set alarm for 10:30 tonight
+system_command	right now unmute
+clarification_request	come again
+set_timer	start countdown for 3 minutes please
+query_time	can you tell me the time right now
+stop_media	stop the music for me
+set_reminder	please set a reminder to buy milk
+unknown	the quick brown fox
+play_music	play some music right now
+control_device	switch on the TV
+create_event	please create an event for tomorrow
+query_time	quickly what time is it in Tokyo
+open_app	please start Netflix
+unknown	lorem ipsum dolor right now
+open_app	for me launch calendar
+confirmation	absolutely for me
+update_event	for me reschedule to 3pm
+update_event	reschedule to 3pm please
+set_reminder	I need a reminder to water plants please
+confirmation	sure now
+control_thermostat	set thermostat to 68 degrees for me
+update_event	quickly reschedule dentist appointment
+query_time	what time is it in Tokyo for me
+multi_intent	play music and turn off lights please
+create_event	schedule a meeting at 3pm right now
+pause_media	pause quickly
+set_reminder	remind me to submit report by Friday
+control_lights	brighten living room lights right now
+control_device	start the dishwasher
+cancellation	negative please
+previous_track	previous track now
+confirmation	yes
+previous_track	previous song now
+play_video	please play funny videos
+unknown	quickly the quick brown fox
+control_lights	quickly set lights to 50%
+query_fact	now who wrote Romeo and Juliet
+open_app	start YouTube
+create_event	quickly add birthday party to calendar
+send_message	text my wife I'm on my way now
+update_event	right now move event to Monday
+unknown	zxcvbnm quickly
+set_alarm	right now I need an alarm at 7:30 tomorrow
+query_events	what's my schedule tomorrow please
+query_time	what time is it
+query_fact	how tall is Mount Everest for me
+set_alarm	please wake me at 6am on Monday
+help_request	help me with for me
+open_app	open calculator quickly
+stop_media	stop playback right now
+set_alarm	now wake me up at 6:30
+pause_media	pause for me
+create_event	right now create meeting for next Monday
+delete_event	for me delete tomorrow's meeting
+cancel_timer	right now stop the countdown
+clarification_request	please explain please
+query_fact	please who invented the telephone
+set_timer	for me timer for 10 seconds
+query_time	can you tell me the time
+play_music	now play songs by Taylor Swift
+set_reminder	now remind me about dinner reservation at 7
+system_command	turn off wifi
+query_date	right now tell me the date
+send_message	now text John to call me
+set_timer	right now start countdown for 3 minutes
+cancellation	nope quickly
+set_reminder	for me set reminder for grocery shopping
+make_call	call customer service right now
+control_thermostat	set temperature to 72 right now
+query_events	show my events now
+set_alarm	wake me at 6am on Monday now
+control_lights	make it brighter
+control_device	for me open the garage
 control_thermostat	what's the temperature please
-send_email	right now send email with the report
-send_email	email Sarah the meeting notes now
-system_command	quickly enable bluetooth
-make_call	now call back the last number
-send_email	send an email to support for me
-query_events	check my calendar for Friday
-clarification_request	repeat that
-update_event	reschedule dentist appointment now
-query_weather	please do I need an umbrella
-send_email	email the invoice to accounting please
+query_weather	weather forecast for tomorrow
+query_weather	weather forecast for tomorrow please
+search_web	quickly search the web for news
+control_lights	for me set lights to 50%
+control_thermostat	set thermostat to 68 degrees right now
+query_weather	please what's the weather in London
+query_time	what's the time right now right now
+create_event	create meeting for next Monday now
+next_track	go to next track
+open_app	open email quickly
 stop_media	stop the video
-open_app	launch maps for me
-pause_media	right now pause playback
-close_app	quit calendar
+clarification_request	I don't understand quickly
+next_track	go to next track quickly
+set_alarm	now set an alarm for 7am
+query_date	what day of the week is it please
+make_call	call customer service please
+control_thermostat	for me increase temperature
+search_web	find hotels in Miami now
+stop_media	please stop what's playing
+control_lights	for me turn on the lights
+cancellation	please nope
+pause_media	stop playing please
+clarification_request	can you clarify please
+control_device	turn off all devices quickly
+close_app	exit YouTube
+create_event	create an event for tomorrow quickly
+query_events	check my calendar for Friday for me
+cancel_timer	quickly delete my timer
+query_time	what's the time right now
+query_date	now what day of the week is it
+update_event	reschedule dentist appointment now
+cancellation	negative
+open_app	for me start Netflix
+multi_intent	for me set a timer for 10 minutes and play music
+set_alarm	alarm for 8 o'clock tomorrow
+system_command	turn down volume now
+search_web	look up movie reviews now
+help_request	what can you do
+set_reminder	create reminder to take medicine at 8pm please
+control_device	for me turn off the fan
+stop_media	stop playback please
+multi_intent	check weather and set umbrella reminder quickly
+control_thermostat	please what's the temperature
+help_request	right now assist me
+send_message	text my wife I'm on my way right now
+create_event	now add birthday party to calendar
+delete_event	for me remove gym session
+create_event	schedule dinner on Friday
+query_fact	when was Einstein born please
+open_app	open settings
+make_call	make a call to the office right now
+query_weather	what's the weather like now
+pause_media	pause the video
+query_events	do I have any meetings today quickly
+help_request	I need help quickly
+close_app	now quit Chrome
+control_lights	now set lights to blue
+query_weather	do I need an umbrella for me
+control_device	now close the blinds
+query_fact	what is the capital of France quickly
+play_video	quickly play cooking tutorials
+control_device	right now turn on the vacuum
+make_call	call customer service now
+send_message	send text to dad right now
+open_app	right now open camera
+cancel_timer	cancel the timer quickly
+send_email	send email with the report
+previous_track	right now previous song
+previous_track	last song right now
+create_event	create event for team lunch for me
+open_app	now launch calendar
 clarification_request	can you clarify right now
-play_music	play jazz music quickly
+clarification_request	I don't understand right now
+search_web	quickly search for flight deals
+create_event	now create event for team lunch
+next_track	play next right now
+create_event	quickly add dentist appointment to calendar
+delete_event	now remove gym session
+previous_track	previous track right now
+control_thermostat	set temperature to 72
+cancellation	now never mind
+control_lights	turn off all lights for me
+pause_media	please stop playing
+cancellation	not now right now
+multi_intent	please what's the weather and time
+stop_media	end playback
+multi_intent	call dad and send mom a message for me
+next_track	next track for me
+make_call	call my wife right now
+control_device	turn on the vacuum
+make_call	now make a call to the office
+play_video	play cat videos right now
 send_email	compose email to the team please
-play_video	play music videos quickly
+stop_media	stop what's playing
 set_alarm	please set an alarm for 7am
-previous_track	right now previous
+control_device	enable the TV
 set_reminder	for me create reminder to take medicine at 8pm
-confirmation	now yeah
-pause_media	please pause playback
+control_lights	turn on the lights right now
+next_track	next track please
 send_email	email Sarah the meeting notes
 query_weather	do I need an umbrella
-control_lights	please set lights to blue
-help_request	how do I quickly
-next_track	go to next track for me
+system_command	enable bluetooth right now
+close_app	close settings right now
+control_thermostat	turn up the heat for me
 query_weather	weather forecast for tomorrow quickly
 query_time	now what's the time right now
-confirmation	please correct
-pause_media	for me pause the song
+unknown	blah blah blah please
+next_track	play the next one now
 cancel_timer	now stop timer
-create_event	for me schedule a meeting at 3pm
-help_request	please help
-close_app	quit maps please
-control_device	lock the door please
-next_track	go to next track
-unknown	nonsense words right now
-stop_media	stop right now
+make_call	dial 555-1234
+multi_intent	set a timer for 10 minutes and play music right now
+pause_media	hold on pause now
+stop_media	now stop playing
+control_device	for me start the coffee maker
+open_app	right now open Spotify
+play_music	quickly play my workout playlist
+create_event	create event called project review quickly
+create_event	please add gym session to calendar
 query_fact	how far is the moon right now
-clarification_request	what do you mean right now
-query_time	quickly what time is it
-stop_media	stop the music please
-stop_media	end playback please
-close_app	quit Chrome
-previous_track	now go to previous track
-previous_track	right now play previous
-control_device	turn off all devices right now
+system_command	enable bluetooth now
+delete_event	remove event from calendar quickly
+control_device	turn on the TV
+pause_media	pause the song now
+system_command	quickly turn off wifi
+cancellation	cancel that right now
+control_thermostat	turn off heating
+play_music	play top hits now
+clarification_request	please could you rephrase
 send_email	send email with the report quickly
-play_music	right now play Bohemian Rhapsody
-play_music	for me play jazz music
+stop_media	for me stop playing
+query_events	what's scheduled for Monday now
 search_web	google python tutorials right now
 query_fact	right now how far is the moon
-delete_event	delete all events today right now
-query_events	now what meetings do I have
+pause_media	pause the video now
+control_lights	set lights to 50% quickly
+multi_intent	set a timer for 10 minutes and play music
 make_call	right now phone the restaurant
 query_date	for me date please
-control_lights	turn on kitchen lights now
+create_event	create event for team lunch
 set_timer	set a timer for 5 minutes
+play_music	play my workout playlist quickly
+play_music	please play the Beatles
 set_timer	make a cooking timer for 25 minutes
 send_message	for me send text to dad
-close_app	quickly close email
-pause_media	for me pause the music
-control_lights	right now turn off all lights
-stop_media	turn off the music please
-system_command	turn down volume now
-stop_media	now turn music off
+stop_media	turn music off now
+next_track	skip this for me
+confirmation	sure right now
+previous_track	previous quickly
+delete_event	right now remove event from calendar
+next_track	play the next one
 send_email	right now email my boss about the project
-make_call	quickly call my wife
-pause_media	right now pause this
+delete_event	quickly remove birthday event
+next_track	skip to next please
 send_email	for me email my boss about the project
-cancellation	quickly stop
-stop_media	stop what's playing quickly
-close_app	close camera for me
+help_request	quickly help
+stop_media	stop this song for me
+control_lights	switch off bedroom lights
+control_device	now turn on the vacuum
 query_time	quickly what's the time
-cancellation	cancel quickly
-control_thermostat	now increase temperature
+control_thermostat	quickly set heating to 70
+update_event	change event to next week
+play_music	now play relaxing music
 query_time	what time is it for me
-control_lights	quickly brighten living room lights
-previous_track	go back right now
+previous_track	right now play previous
+cancellation	negative now
 query_date	tell me the date for me
-play_video	play the latest news please
-create_event	quickly create meeting for next Monday
+stop_media	stop the music
+system_command	switch off wifi
 query_fact	now how tall is Mount Everest
-previous_track	for me previous song
-create_event	add birthday party to calendar
-system_command	turn off wifi
-make_call	quickly dial 555-1234
+clarification_request	quickly could you rephrase
+pause_media	stop the music now
+help_request	I need help
+system_command	right now turn off wifi
 send_email	now email the invoice to accounting
 make_call	phone the restaurant
-control_thermostat	make it warmer right now
-control_thermostat	please turn off heating
-clarification_request	quickly say that again
-update_event	for me update meeting location
+create_event	create event called project review please
+set_timer	start a 30 minute timer please
+multi_intent	check weather and set umbrella reminder
+play_video	play sports highlights right now
+unknown	blah blah blah for me
+multi_intent	open Spotify and play jazz right now
 search_web	search for flight deals now
 query_fact	what is the largest ocean quickly
-control_lights	right now turn off bedroom lights
-pause_media	pause playback
+cancellation	right now not now
+delete_event	quickly delete meeting
 send_message	message Lisa happy birthday right now
 set_reminder	quickly set a reminder to buy milk
-confirmation	now that's right
+control_thermostat	for me what's the temperature
+stop_media	stop playing for me
 make_call	quickly call back the last number
-control_thermostat	turn up the heat right now
-confirmation	go ahead now
-clarification_request	what did you say please
-cancellation	negative please
+clarification_request	I don't understand
+control_lights	dim the lights please
+play_music	now play classical music
+system_command	right now restart device
+cancellation	cancel
+control_device	please turn off the fan
 query_fact	please what is the capital of France
-unknown	nonsense words
-unknown	asdfghjkl quickly
+query_events	what meetings do I have
+set_alarm	now create an alarm for 5:45 in the morning
 set_alarm	set an alarm for 7am right now
 send_email	now send an email to john@example.com
-clarification_request	come again for me
-clarification_request	come again please
-unknown	quickly asdfghjkl
+cancellation	never mind quickly
+delete_event	quickly cancel meeting at 3pm
+cancellation	now negative
 send_email	email the presentation to clients now
-control_device	deactivate all devices
-control_thermostat	for me set heating to 70
-stop_media	please stop playing
+set_reminder	for me remind me about dinner reservation at 7
+control_thermostat	set temperature to 72 quickly
+play_video	please play sports highlights
+previous_track	play previous quickly
 search_web	please look up movie reviews
+system_command	adjust brightness right now
 query_weather	weather in New York now
-control_thermostat	set heating to 70 please
-control_device	for me turn on the vacuum
+update_event	reschedule to 3pm
+play_music	please play my favorite songs
+unknown	for me xyz abc 123
+multi_intent	what's the weather and time
 send_message	quickly text my wife I'm on my way
-close_app	close email quickly
-unknown	asdfghjkl
-query_events	any appointments today right now
+multi_intent	please send message to John and call mom
+cancel_timer	please remove the timer
+delete_event	please cancel meeting at 3pm
 cancel_timer	cancel the timer now
 set_reminder	I need a reminder to water plants right now
 cancel_timer	turn timer off now
@@ -1144,907 +1310,880 @@ send_message	for me message the team about the update
 send_email	send email about vacation request for me
 search_web	search for flight deals for me
 query_date	what day is it now
-control_thermostat	for me what's the temperature
+help_request	now help me with
 send_message	text mom I'll be late
 send_message	please text mom I'll be late
-delete_event	delete next week's appointment right now
-stop_media	end playback right now
-multi_intent	set a timer for 10 minutes and play music
-clarification_request	right now repeat that
-control_thermostat	set thermostat to 68 degrees
+stop_media	turn off the music
+previous_track	go back quickly
+stop_media	right now turn music off
+cancellation	stop now
+update_event	now move meeting to 4pm
 query_date	what day is it
-send_message	send text to boss about the report please
-close_app	for me quit Chrome
-delete_event	delete tomorrow's meeting
-help_request	please I'm stuck
-confirmation	yep now
-system_command	please unmute
-previous_track	previous track now
+pause_media	for me pause the music
+query_events	please check my calendar for Friday
+search_web	look up best laptops 2026 right now
+cancellation	for me don't do that
+delete_event	for me delete all events today
+previous_track	skip backward quickly
+help_request	now what are your capabilities
+control_device	right now open the garage
+next_track	next song now
 set_reminder	start a reminder to buy milk
-control_lights	turn off all lights
-open_app	for me start YouTube
+delete_event	right now remove birthday event
+system_command	for me take a screenshot
 query_fact	what is the capital of France now
 search_web	look up best laptops 2026 now
-pause_media	pause for me
-pause_media	pause what's playing for me
-cancellation	forget it quickly
+next_track	please next song
+stop_media	now stop the music
+unknown	lorem ipsum dolor please
 set_reminder	reminder for dentist appointment tomorrow now
 set_alarm	wake me up at 6:30 right now
-next_track	quickly next
-previous_track	last song
+control_lights	now turn off all lights
+query_events	quickly what's my schedule tomorrow
 query_date	quickly what month is it
-query_events	quickly show me next week's events
+unknown	for me qwerty uiop
 query_time	tell me the time right now
+clarification_request	repeat that for me
 query_time	can you tell me the time now
-open_app	start Netflix
-control_thermostat	set thermostat to 68 degrees now
-open_app	open calculator quickly
-create_event	create an event for tomorrow right now
-delete_event	delete tomorrow's meeting quickly
+create_event	create event called project review
+update_event	reschedule dentist appointment please
+stop_media	now turn off the music
+set_reminder	remind me to call mom at 3pm for me
+query_events	what's coming up for me
 make_call	right now dial 555-1234
-update_event	now change event to next week
+play_video	right now play a video
 set_reminder	for me I need a reminder to water plants
-system_command	now turn off wifi
-multi_intent	quickly send message to John and call mom
-delete_event	cancel meeting at 3pm now
-system_command	mute now
-close_app	close email please
-help_request	right now show me how
-delete_event	cancel meeting at 3pm for me
-update_event	change event time quickly
-close_app	please exit Netflix
+previous_track	go back for me
+open_app	quickly open calculator
+open_app	start Netflix quickly
+help_request	I need help now
+cancellation	please stop
+multi_intent	play music and turn off lights quickly
+open_app	start Netflix right now
+query_events	for me any appointments today
+clarification_request	right now what do you mean
 set_timer	for me set a cooking timer for 25 minutes
 cancel_timer	right now remove the timer
-clarification_request	repeat that for me
+query_date	please what month is it
 send_message	quickly send text to dad
-query_events	what's my schedule tomorrow please
-previous_track	now back to previous
+open_app	launch calendar
+control_device	right now unlock front door
 make_call	phone Sarah's mobile
 query_time	right now time in New York
 query_weather	now is it going to snow this weekend
+previous_track	quickly skip backward
 query_weather	right now is it going to snow this weekend
 make_call	please call my wife
 set_reminder	create reminder to take medicine at 8pm quickly
 set_reminder	right now I need a reminder to water plants
-stop_media	stop the video please
-create_event	now add birthday party to calendar
-query_events	what's scheduled for Monday
-clarification_request	now say that again
-stop_media	now turn off the music
-open_app	open settings for me
+previous_track	skip backward now
+confirmation	go ahead
+delete_event	cancel the party quickly
+control_thermostat	make it warmer please
+update_event	change event time now
+previous_track	quickly previous
+multi_intent	right now send message to John and call mom
+help_request	guide me for me
+pause_media	right now pause the music
 query_date	now what day is it
-delete_event	remove event from calendar
-clarification_request	what do you mean now
-pause_media	stop the music now
-unknown	xyz abc 123 right now
+next_track	quickly next song
+previous_track	skip backward right now
+help_request	please help me with
+clarification_request	please explain quickly
+clarification_request	come again for me
+unknown	qwerty uiop please
 set_timer	start a 30 minute timer now
-control_thermostat	for me make it warmer
+confirmation	now sure
+create_event	for me add gym session to calendar
 cancel_timer	cancel all timers now
-next_track	play next quickly
+control_lights	lights off for me
 query_time	what's the time right now now
-control_thermostat	now set thermostat to 68 degrees
-next_track	quickly skip to next
+update_event	reschedule dentist appointment quickly
+control_thermostat	quickly set thermostat to 68 degrees
 search_web	now look up movie reviews
-confirmation	okay right now
-next_track	skip forward quickly
-query_events	now show my events
-control_device	please turn off the fan
-create_event	create an event for tomorrow quickly
-stop_media	please stop the video
-help_request	right now guide me
-stop_media	end playback
+multi_intent	now open Spotify and play jazz
+control_thermostat	set thermostat to 68 degrees now
+close_app	quickly quit maps
+stop_media	stop the video please
+set_timer	can you start a timer for 45 minutes
+multi_intent	for me play music and turn off lights
+control_device	switch off the fan
+create_event	add birthday party to calendar please
+update_event	reschedule to 3pm right now
+update_event	move tomorrow's meeting to Friday for me
 set_alarm	wake me up at 6:30
-system_command	right now increase volume
+system_command	take a screenshot now
+clarification_request	say that again quickly
 query_time	for me can you tell me the time
-control_device	for me start the coffee maker
-cancellation	don't do that now
+previous_track	now back to previous
+delete_event	for me delete meeting
+open_app	quickly open Spotify
+pause_media	pause what's playing
 search_web	search the web for news quickly
-update_event	change meeting time to 5pm right now
-cancellation	for me negative
-unknown	right now random gibberish
-multi_intent	turn on lights and set temperature to 72
-clarification_request	quickly I don't understand
-next_track	go to next track quickly
+query_events	what meetings do I have please
+unknown	zxcvbnm
+make_call	make a call to the office quickly
+control_device	deactivate all devices
+set_timer	right now can you set a timer for 45 minutes
+help_request	right now show me how
 set_reminder	remind me about dinner reservation at 7 for me
 query_time	current time
-system_command	lock screen
-cancellation	please stop
-pause_media	stop playing please
-control_thermostat	turn up the heat
-stop_media	please stop this song
-multi_intent	set a timer for 10 minutes and play music quickly
+confirmation	sure please
+open_app	right now start Netflix
+delete_event	now remove birthday event
+cancellation	cancel that for me
+control_lights	turn on kitchen lights please
+search_web	look up best laptops 2026 for me
 make_call	phone John quickly
-pause_media	pause the song please
+previous_track	for me previous
 cancel_timer	cancel the timer please
-pause_media	for me stop playing
-previous_track	quickly previous song
-system_command	take a screenshot please
+stop_media	for me stop the video
+next_track	please skip to next
+control_thermostat	now turn on AC
+confirmation	for me absolutely
 play_video	please play movie trailers
-multi_intent	what's the weather and time right now
+query_events	for me check my calendar for Friday
 send_email	for me send email with the report
 query_date	quickly is today Monday
 query_date	what month is it now
 set_alarm	set an alarm for 7am please
-system_command	restart device quickly
-previous_track	quickly skip backward
+confirmation	okay now
+confirmation	affirmative for me
 query_date	right now date please
 play_video	play cooking tutorials quickly
-cancellation	now never mind
-delete_event	cancel the party quickly
+unknown	right now xyz abc 123
+update_event	please reschedule to 3pm
 set_reminder	quickly remind me about the meeting in 2 hours
-confirmation	yeah for me
+help_request	now assist me
 query_fact	what is the capital of France
-next_track	for me play next
-control_lights	please set lights to 50%
+control_lights	lights off please
+control_thermostat	set heating to 70
+create_event	right now schedule a meeting at 3pm
 query_time	quickly current time in Paris
+system_command	now restart device
 set_timer	now set a timer for 5 minutes
+stop_media	quickly turn off the music
 set_timer	can you set a timer for 45 minutes
-system_command	now increase volume
+clarification_request	say that again right now
 play_music	please play some music
 query_fact	when was Einstein born now
 set_timer	set timer 2 hours quickly
 search_web	for me find information about AI
-control_lights	quickly make it brighter
+create_event	for me add birthday party to calendar
 play_music	play Bohemian Rhapsody quickly
-create_event	schedule a meeting at 3pm
-clarification_request	now could you rephrase
+set_timer	now set a cooking timer for 25 minutes
+control_thermostat	set thermostat to 68 degrees please
 search_web	search for flight deals right now
-query_events	please show my events
+close_app	quit maps for me
 send_message	please text John to call me
-next_track	play the next one for me
-clarification_request	now come again
+control_thermostat	set temperature to 72 for me
+query_events	do I have any meetings today
+unknown	the quick brown fox for me
 send_message	quickly message Lisa happy birthday
 play_video	play sports highlights for me
 set_reminder	remind me about dinner reservation at 7 right now
-query_events	show me next week's events now
+open_app	right now launch calendar
 make_call	right now phone John
 cancel_timer	remove the timer
 play_video	play cat videos quickly
-open_app	launch maps right now
-confirmation	yeah right now
+system_command	now mute
+cancellation	now cancel that
 query_date	right now current date
-unknown	blah blah blah right now
+send_email	compose email to the team now
 set_timer	timer for 10 seconds
-open_app	please open email
-control_device	disable all devices
+control_lights	please set lights to blue
+next_track	please skip forward
 query_fact	right now what is the capital of France
 query_weather	what's the weather like please
 pause_media	now stop playing
-confirmation	for me correct
+help_request	please I need help
 make_call	please call mom
-delete_event	quickly cancel dentist appointment
-query_weather	weather in New York
-confirmation	sure quickly
+query_events	please any appointments today
+delete_event	cancel the party
+next_track	next track now
+clarification_request	now can you clarify
 cancel_timer	deactivate the timer
-open_app	for me launch calendar
+system_command	restart device right now
 play_music	now play my favorite songs
-next_track	please skip this
-help_request	guide me for me
-query_weather	please is it going to snow this weekend
-update_event	right now reschedule dentist appointment
+control_lights	right now set lights to 50%
+multi_intent	quickly call dad and send mom a message
+open_app	please launch Chrome
+cancel_timer	stop timer please
 cancel_timer	right now cancel all timers
-confirmation	absolutely now
-system_command	mute
-next_track	next song quickly
-delete_event	now cancel dentist appointment
-control_lights	please turn on kitchen lights
-delete_event	now delete all events today
+help_request	quickly help me with
+clarification_request	could you rephrase quickly
+control_lights	brighten living room lights now
+help_request	quickly assist me
+create_event	add dentist appointment to calendar right now
+previous_track	please go to previous track
+open_app	open email right now
 make_call	call my wife quickly
 query_weather	now weather forecast for tomorrow
 send_email	compose message to hr@company.com for me
 set_alarm	wake me at 6am on Monday quickly
 pause_media	pause the music quickly
 play_video	play the latest news
-cancellation	negative quickly
-pause_media	now pause this
-cancellation	now stop
+unknown	zxcvbnm right now
+delete_event	now delete meeting
+create_event	please create event called project review
 send_email	compose message to hr@company.com
 set_reminder	remind me to submit report by Friday now
-clarification_request	right now say that again
+cancellation	don't do that please
 query_date	now is today Monday
 play_video	play cooking tutorials right now
 query_time	time in New York right now
 search_web	please find information about AI
-previous_track	right now go back
+update_event	for me move tomorrow's meeting to Friday
 send_message	now message the team about the update
-control_device	for me lock the door
-control_device	right now unlock front door
-help_request	please what can you do
-stop_media	for me stop playing
-next_track	go to next track right now
-clarification_request	please please explain
-close_app	right now quit maps
-cancellation	cancel that right now
+query_date	date please please
+query_events	please show me next week's events
+query_time	for me what time is it
+update_event	move event to Monday now
+previous_track	right now play the last one
+control_thermostat	turn up the heat right now
+system_command	lock screen now
+close_app	exit YouTube quickly
+stop_media	right now stop playback
+unknown	right now the quick brown fox
 play_music	right now play top hits
-confirmation	okay
+next_track	next
+control_device	start the dishwasher right now
+control_thermostat	turn up the heat please
 set_reminder	remind me about dinner reservation at 7 please
-control_lights	now lights off
+create_event	create event for team lunch right now
 set_reminder	for me reminder for dentist appointment tomorrow
 query_date	right now is today Monday
-unknown	for me nonsense words
+confirmation	right now sure
 play_music	play top hits
 pause_media	quickly stop the music
-control_thermostat	quickly set thermostat to 68 degrees
-query_events	please what's my schedule tomorrow
+update_event	now reschedule dentist appointment
+open_app	launch calendar quickly
 make_call	phone the restaurant for me
-create_event	now create event for team lunch
-send_email	send email about vacation request quickly
-system_command	increase volume for me
-unknown	random gibberish please
+confirmation	okay right now
+update_event	please update event details
+update_event	right now change meeting time to 5pm
+create_event	please schedule dinner on Friday
+play_music	play Bohemian Rhapsody now
+cancellation	negative quickly
 query_time	right now what time is it
+next_track	now next track
+next_track	next please
 query_fact	what is the largest ocean
 query_weather	for me temperature outside
-next_track	please next track
-unknown	nonsense words please
+control_lights	please turn on kitchen lights
+next_track	please skip this
+help_request	help me with now
 set_timer	set a cooking timer for 25 minutes
-confirmation	affirmative
-close_app	exit Netflix right now
-control_lights	please turn off bedroom lights
+open_app	for me launch maps
+search_web	now find hotels in Miami
+unknown	random gibberish for me
+control_device	for me start the dishwasher
 query_time	time in New York
-query_date	what month is it please
+help_request	what could you do
 make_call	call my wife please
-delete_event	cancel dentist appointment
-control_lights	make it brighter for me
+query_events	right now any appointments today
+create_event	right now schedule dinner on Friday
+multi_intent	quickly create event tomorrow and set reminder
 cancel_timer	stop timer right now
-create_event	for me create event called project review
-control_thermostat	set temperature to 72 right now
+query_events	do I have any meetings today now
+control_device	lock the door for me
+create_event	quickly schedule conference call at 2pm
 send_message	right now text mom I'll be late
-unknown	blah blah blah quickly
+play_video	now play workout videos
 set_alarm	right now alarm for 8 o'clock tomorrow
 query_time	time please right now
-confirmation	okay please
-help_request	assist me right now
-delete_event	please remove event from calendar
-next_track	next track please
-confirmation	now absolutely
+query_events	right now do I have any meetings today
+help_request	what can you do quickly
+query_events	now show me next week's events
+query_weather	please will it rain today
+previous_track	for me skip backward
+control_lights	please set lights to 50%
+next_track	skip this please
 pause_media	stop the music quickly
-control_thermostat	now make it cooler
+update_event	change event time quickly
 query_date	tell me the date
-help_request	show me how quickly
+multi_intent	quickly play music and turn off lights
 pause_media	for me pause the video
 query_date	quickly current date
-system_command	quickly lock screen
+query_events	what's my schedule tomorrow
 set_alarm	right now create an alarm for 5:45 in the morning
 send_email	for me email the presentation to clients
-cancellation	stop please
+update_event	reschedule to 3pm quickly
 stop_media	stop this song please
 query_date	what month is it for me
 query_date	what's the date today right now
-previous_track	play previous quickly
-close_app	please close email
-query_events	show me next week's events
+control_thermostat	turn off heating please
+clarification_request	say that again now
+control_lights	quickly brighten living room lights
 play_music	quickly play top hits
-system_command	adjust brightness right now
-control_device	close the blinds right now
+query_events	what's on my calendar now
+delete_event	remove birthday event please
 make_call	call customer service for me
 set_timer	please timer for 10 seconds
 set_reminder	right now remind me about the meeting in 2 hours
 play_video	play cooking tutorials
-create_event	quickly schedule conference call at 2pm
-confirmation	yes please
+control_device	quickly start the coffee maker
+cancellation	quickly forget it
 make_call	call back the last number now
 stop_media	stop playback
-control_device	close the blinds please
+query_date	quickly what's tomorrow's date
 send_email	email the invoice to accounting for me
-delete_event	delete tomorrow's meeting for me
-open_app	right now start YouTube
+clarification_request	I don't understand for me
+open_app	for me open camera
 send_email	email Sarah the meeting notes quickly
-cancellation	no please
-search_web	please search for nearby restaurants
-delete_event	cancel the party right now
-update_event	move tomorrow's meeting to Friday
-update_event	reschedule dentist appointment please
-open_app	open Spotify please
+cancellation	right now negative
+open_app	start YouTube right now
+close_app	quit calendar right now
+query_date	current date now
+pause_media	now pause the song
+next_track	skip this now
+next_track	please next track
+close_app	close camera right now
 play_video	now play documentaries
 query_time	what's the time right now please
 query_time	please what time is it
 set_timer	timer for 10 seconds right now
+query_events	for me show me next week's events
 play_video	for me play workout videos
-control_device	now turn on the vacuum
-next_track	skip this please
-query_events	now what's coming up
-system_command	for me mute
-clarification_request	quickly come again
+confirmation	absolutely quickly
+control_lights	set lights to 50% right now
+close_app	quit maps please
+confirmation	yes quickly
+cancellation	please never mind
 stop_media	stop this song right now
-previous_track	go back
+confirmation	now absolutely
+open_app	right now launch maps
+control_thermostat	turn on AC right now
 make_call	right now call customer service
-delete_event	cancel meeting at 3pm
-confirmation	now go ahead
-update_event	please change meeting time to 5pm
-control_lights	now turn off all lights
-control_device	right now open the garage
-control_thermostat	quickly turn on AC
-update_event	right now change event time
+create_event	add gym session to calendar please
+help_request	guide me
+cancellation	stop right now
+create_event	quickly schedule dinner on Friday
+query_events	please what's coming up
+update_event	for me update meeting location
+close_app	quickly close camera
 query_time	what time is it right now
-cancellation	never mind
-previous_track	now play previous
-control_thermostat	turn on AC for me
-control_lights	now set lights to blue
+unknown	random gibberish quickly
+previous_track	now play the last one
+control_thermostat	disable heating
+help_request	now guide me
+create_event	schedule conference call at 2pm right now
 search_web	search for flight deals please
-open_app	right now open email
-delete_event	delete all events today now
+cancellation	no
+confirmation	right now yep
 set_reminder	please remind me to call mom at 3pm
-control_device	please lock the door
+stop_media	now stop the video
+previous_track	now previous song
 query_time	please tell me the time
 cancel_timer	for me turn timer off
 query_fact	what is the largest ocean please
 query_fact	who wrote Romeo and Juliet please
 play_music	play relaxing music please
-system_command	now lock screen
+play_video	now play cooking tutorials
 send_email	compose message to hr@company.com right now
-control_device	start the coffee maker please
-system_command	please turn off wifi
-update_event	reschedule to 3pm now
-control_lights	quickly lights off
-control_lights	brighten living room lights quickly
+multi_intent	for me create event tomorrow and set reminder
+send_email	quickly email my boss about the project
+update_event	move meeting to 4pm please
+create_event	please create event for team lunch
+control_thermostat	enable AC
 query_time	what time is it in Tokyo
 set_timer	create a 20 second timer now
-help_request	I need help for me
+delete_event	for me remove event from calendar
 set_reminder	reminder to pick up kids at 4pm please
 pause_media	please pause this
 send_message	send a message to John please
-confirmation	yep please
-help_request	assist me
+help_request	what are your capabilities
+multi_intent	send message to John and call mom now
+system_command	please take a screenshot
 search_web	search the web for news for me
-open_app	for me open settings
-close_app	now close calculator
-control_device	start the dishwasher
-control_lights	turn off all lights for me
-update_event	reschedule to 3pm
-help_request	how do I right now
+system_command	now lock screen
+clarification_request	would you clarify
+next_track	right now next song
+create_event	please create meeting for next Monday
+set_alarm	wake me up at 6:30 for me
+multi_intent	please turn on lights and set temperature to 72
 set_timer	put on a timer for 15 minutes right now
-update_event	now move meeting to 4pm
+query_time	current time in Paris quickly
 set_alarm	start alarm 9:15 PM
-open_app	start YouTube
-previous_track	for me skip backward
-create_event	schedule dinner on Friday please
+system_command	unmute for me
+control_lights	set lights to blue now
+control_device	right now close the blinds
+system_command	take a screenshot
 set_timer	create a 20 second timer right now
 play_music	play my favorite songs for me
-open_app	open email
+close_app	right now close settings
+previous_track	please play the last one
 cancel_timer	now cancel the timer
 send_message	now text mom I'll be late
 make_call	for me phone the restaurant
-next_track	right now skip this
+delete_event	please remove gym session
 query_fact	who is the president now
-help_request	help me with
+multi_intent	open Spotify and play jazz
 cancel_timer	remove the timer right now
+delete_event	cancel dentist appointment quickly
 make_call	now dial emergency
-open_app	launch maps
-control_device	turn on the vacuum
+delete_event	remove gym session
+control_lights	for me lights off
+cancellation	please cancel
 make_call	dial emergency now
-create_event	now create event called project review
+previous_track	now previous track
+help_request	guide me now
+next_track	quickly go to next track
 send_message	please message Sarah about the meeting
-cancellation	forget it please
-send_email	please send an email to john@example.com
+create_event	add birthday party to calendar now
+query_events	now show my events
+update_event	move event to Monday
 query_weather	for me will it rain today
 set_reminder	remind me to call mom at 3pm right now
-close_app	now quit maps
+clarification_request	quickly I don't understand
 play_video	please play music videos
 send_message	now text my wife I'm on my way
-confirmation	sure now
+next_track	right now next
 query_date	what day is it for me
 query_fact	when was Einstein born
+system_command	quickly mute
+previous_track	for me go to previous track
 send_email	send an email to john@example.com for me
-query_events	right now any appointments today
+clarification_request	please I don't understand
 query_date	what's tomorrow's date please
-clarification_request	could you rephrase quickly
-clarification_request	what did you say now
+cancellation	for me not now
+cancellation	cancel now
 set_reminder	right now reminder for dentist appointment tomorrow
 stop_media	now stop this song
-clarification_request	please explain
-make_call	for me phone John
-system_command	right now adjust brightness
-delete_event	delete tomorrow's meeting please
-close_app	please quit maps
+cancellation	for me no
+query_events	quickly what's on my calendar
+control_thermostat	make it warmer quickly
+confirmation	now affirmative
+query_events	please show my events
+unknown	asdfghjkl please
+control_lights	enable the lights
+control_lights	lights off
 query_fact	now what is the population of China
-control_thermostat	make it cooler for me
+clarification_request	repeat that
 search_web	right now find information about AI
-open_app	open Spotify quickly
+create_event	schedule a meeting at 3pm
 send_email	quickly send email about vacation request
-query_events	please do I have any meetings today
-confirmation	for me yeah
-control_lights	for me set lights to blue
+open_app	right now start YouTube
+cancellation	right now cancel that
+system_command	restart device for me
 stop_media	end playback quickly
-control_thermostat	make it warmer please
-update_event	move tomorrow's meeting to Friday for me
-set_timer	quickly set a cooking timer for 25 minutes
-cancellation	nope
-system_command	for me unmute
+create_event	now add gym session to calendar
+send_message	send a message to John
+delete_event	please remove birthday event
+unknown	now asdfghjkl
+update_event	please change meeting time to 5pm
 stop_media	stop playback quickly
-delete_event	for me cancel dentist appointment
-query_events	show my events
+query_events	quickly any appointments today
+close_app	for me close calculator
 cancel_timer	turn off the timer now
-send_message	quickly text mom I'll be late
-cancellation	never mind quickly
+unknown	for me foobar baz
+confirmation	absolutely right now
 cancel_timer	stop the cooking timer now
 set_timer	right now set a cooking timer for 25 minutes
-send_email	right now compose message to hr@company.com
-cancellation	cancel right now
+close_app	exit Netflix quickly
+unknown	please random gibberish
 play_video	now play a video
-cancellation	quickly negative
+unknown	qwerty uiop now
 pause_media	stop the music
-update_event	quickly reschedule dentist appointment
-open_app	start Netflix right now
-open_app	right now launch maps
-open_app	open Spotify now
-system_command	mute quickly
-open_app	open settings quickly
-control_device	right now close the blinds
+search_web	for me search for flight deals
+close_app	quit calendar for me
+system_command	mute
+control_device	turn off all devices right now
+cancellation	right now no
+control_thermostat	right now set heating to 70
+system_command	lock screen quickly
+open_app	open Spotify
+set_reminder	reminder for dentist appointment tomorrow for me
+previous_track	play the last one right now
 play_music	play classical music
 set_reminder	create reminder to take medicine at 8pm
-create_event	right now create meeting for next Monday
-unknown	now asdfghjkl
-confirmation	absolutely
+set_reminder	reminder for dentist appointment tomorrow please
+previous_track	previous track for me
+help_request	help me with quickly
 play_video	please play cooking tutorials
 play_music	play classical music right now
 cancel_timer	delete my timer quickly
-delete_event	now remove gym session
-help_request	quickly what are your capabilities
-set_reminder	quickly I need a reminder to water plants
-control_thermostat	set heating to 70
-control_lights	dim the lights
+open_app	open Spotify now
+multi_intent	quickly set alarm for 7am and remind me to exercise
+delete_event	delete tomorrow's meeting right now
+update_event	change meeting time to 5pm right now
+close_app	now quit maps
+open_app	please open settings
 play_video	play cooking tutorials now
 pause_media	now pause the music
-create_event	quickly add dentist appointment to calendar
+stop_media	for me turn music off
+previous_track	back to previous quickly
 set_timer	for me start a 30 minute timer
+control_thermostat	turn off heating now
 send_email	right now email Sarah the meeting notes
 make_call	for me call back the last number
 query_date	now current date
+control_thermostat	make it cooler quickly
 query_fact	please what is the speed of light
-cancellation	for me stop
+unknown	nonsense words
 send_message	right now send a message to John
-confirmation	please yeah
+clarification_request	what did you say for me
 search_web	find hotels in Miami quickly
 set_alarm	please set alarm for 10:30 tonight
 set_alarm	I need an alarm at 7:30 tomorrow for me
+control_lights	brighten living room lights quickly
 next_track	next right now
-control_device	turn on the TV
+query_fact	for me how tall is Mount Everest
 query_time	please can you tell me the time
-clarification_request	I don't understand for me
-clarification_request	for me what did you say
+cancellation	no please
+control_lights	set lights to blue quickly
+help_request	now show me how
 pause_media	pause playback now
-query_weather	is it going to snow this weekend please
+control_lights	for me make it brighter
+close_app	quickly close Spotify
 send_message	send text to boss about the report
-update_event	move tomorrow's meeting to Friday right now
+stop_media	stop this song quickly
 set_alarm	please set my alarm for 8:00
-close_app	right now close camera
-update_event	now reschedule to 3pm
+clarification_request	right now please explain
+set_timer	start countdown for 3 minutes quickly
 set_reminder	reminder to pick up kids at 4pm quickly
-unknown	right now xyz abc 123
-confirmation	correct
-open_app	right now open Spotify
+query_weather	temperature outside for me
+multi_intent	quickly turn on lights and set temperature to 72
+unknown	qwerty uiop right now
+close_app	close camera quickly
 cancel_timer	stop the cooking timer for me
-query_events	right now what's my schedule tomorrow
+open_app	open settings quickly
 previous_track	for me previous track
 set_reminder	set reminder for grocery shopping quickly
-help_request	what can you do
-query_events	for me what's coming up
+multi_intent	right now set a timer for 10 minutes and play music
+close_app	for me quit maps
 stop_media	now stop playback
-control_lights	set lights to blue now
+create_event	for me create meeting for next Monday
+control_lights	dim the lights quickly
 make_call	dial emergency quickly
+control_device	unlock front door quickly
 play_music	play my favorite songs please
-create_event	create event called project review
+make_call	make a call to the office now
 set_timer	put on a timer for 15 minutes for me
 next_track	right now next track
-open_app	open calculator now
+control_thermostat	make it cooler please
+control_device	open the garage please
+cancellation	right now stop
 set_alarm	now set my alarm for 8:00
 query_date	what's tomorrow's date
-confirmation	yes
-clarification_request	please can you clarify
+open_app	please open email
+confirmation	for me go ahead
+clarification_request	please explain
 play_video	play a video quickly
 send_email	send email about vacation request
-query_events	please check my calendar for Friday
+control_thermostat	set heating to 70 please
+update_event	please update meeting location
 play_music	please play Bohemian Rhapsody
 send_message	message the team about the update right now
 make_call	call back the last number please
+control_lights	quickly lights off
 search_web	find hotels in Miami
-close_app	please exit YouTube
+control_thermostat	for me make it warmer
+set_alarm	quickly set alarm 9:15 PM
 play_music	please play relaxing music
 query_time	for me current time
 play_video	play funny videos please
-previous_track	please previous track
-control_thermostat	please increase temperature
+delete_event	delete meeting now
+confirmation	okay
 play_music	play songs by Taylor Swift now
-create_event	create event called project review for me
+control_lights	now brighten living room lights
+query_fact	please what is the largest ocean
 stop_media	stop playing
 set_alarm	set alarm for 10:30 tonight quickly
-multi_intent	please turn on lights and set temperature to 72
+create_event	add birthday party to calendar
 stop_media	please stop the music
-help_request	guide me right now
-confirmation	quickly go ahead
-close_app	now close settings
-system_command	for me restart device
+cancellation	forget it
+help_request	please I'm stuck
+clarification_request	please come again
+confirmation	correct now
 play_music	quickly play classical music
 query_date	quickly what day is it
-system_command	please lock screen
-control_lights	for me set lights to 50%
-send_email	send an email to support right now
+control_thermostat	set temperature to 72 now
+confirmation	sure quickly
+open_app	open camera right now
+delete_event	now delete tomorrow's meeting
 send_email	send an email to john@example.com
 query_time	time in New York now
 set_alarm	right now set an alarm for 7am
 send_email	email my boss about the project please
-close_app	quit maps for me
+clarification_request	what do you mean
 search_web	find information about AI
 search_web	quickly look up movie reviews
+control_device	deactivate the fan
 search_web	now find information about AI
 query_weather	will it rain today
 search_web	find hotels in Miami right now
-query_events	check my calendar for Friday quickly
+close_app	for me close email
 pause_media	pause the song
 set_reminder	quickly remind me to call mom at 3pm
-cancellation	cancel that
+unknown	for me lorem ipsum dolor
 stop_media	stop now
-query_events	now show me next week's events
+control_device	now lock the door
+open_app	launch calendar for me
 send_email	compose message to hr@company.com please
 send_message	send a message to John for me
-clarification_request	please explain now
-confirmation	yep
+cancellation	for me nope
+help_request	for me show me how
 set_reminder	remind me to submit report by Friday right now
-clarification_request	I didn't catch that for me
+control_thermostat	turn up the heat
+open_app	open Spotify please
 set_alarm	please alarm at noon
-cancellation	don't do that
-cancellation	quickly no
+multi_intent	make a timer for 10 minutes and play music
+multi_intent	call dad and send mom a message right now
 cancel_timer	now cancel that timer
-cancellation	forget it
+unknown	foobar baz quickly
 set_timer	for me I need a timer for 1 hour and 30 minutes
-close_app	exit YouTube please
-clarification_request	what do you mean
+clarification_request	please can you clarify
+query_weather	is it going to snow this weekend quickly
 send_email	email the presentation to clients quickly
-clarification_request	could you rephrase
+cancellation	quickly not now
 pause_media	pause playback for me
-clarification_request	please say that again
-control_lights	make it brighter now
-control_thermostat	quickly make it cooler
-multi_intent	now set a timer for 10 minutes and play music
+cancellation	don't do that now
+delete_event	quickly delete next week's appointment
+confirmation	yep
+open_app	right now open email
 send_message	text John to call me please
-set_timer	for me set a timer for 5 minutes
+update_event	move event to Monday for me
 search_web	google python tutorials
 set_alarm	alarm for 8 o'clock tomorrow quickly
 cancel_timer	please cancel all timers
 make_call	quickly phone John
-system_command	restart device now
+control_thermostat	quickly make it warmer
+confirmation	right now okay
 play_video	play a video
 search_web	search for job openings for me
 set_alarm	please wake me up at 6:30
 set_reminder	now set a reminder to buy milk
 query_time	time please
-unknown	xyz abc 123 now
-query_date	what's the date today
+query_date	right now what month is it
+update_event	quickly change meeting time to 5pm
 stop_media	stop please
-control_thermostat	turn off heating now
+cancellation	now nope
 play_music	play jazz music right now
-next_track	skip this song
+delete_event	remove event from calendar
+create_event	create an event for tomorrow now
 next_track	right now skip to next
-open_app	open camera
-system_command	quickly unmute
+system_command	for me mute
+confirmation	yes now
 send_message	send text to dad now
-close_app	quickly quit Chrome
+system_command	right now enable bluetooth
 query_weather	now what's the weather in London
-query_events	what's on my calendar quickly
-cancellation	quickly forget it
-open_app	launch maps now
-help_request	assist me for me
-system_command	restart device for me
+query_fact	right now who invented the telephone
+update_event	quickly move tomorrow's meeting to Friday
+system_command	right now mute
+multi_intent	right now create event tomorrow and set reminder
+system_command	take a screenshot for me
+multi_intent	for me call dad and send mom a message
 play_video	play documentaries now
-open_app	open Spotify right now
-query_events	what's coming up now
-open_app	please launch Chrome
+close_app	please close settings
+close_app	quit maps now
+create_event	now schedule dinner on Friday
+close_app	close settings now
 set_timer	put on a timer for 15 minutes
-system_command	please mute
+next_track	next song for me
 send_email	quickly email the presentation to clients
-control_device	please unlock front door
+help_request	help
+open_app	launch Chrome please
 play_video	play movie trailers please
 query_fact	for me what is the population of China
-help_request	now help me with
+multi_intent	open Spotify and play jazz now
+help_request	show me how now
+create_event	for me schedule dinner on Friday
 play_music	play my workout playlist now
 set_alarm	set my alarm for 8:00
-update_event	move event to Monday now
+next_track	for me skip this song
 cancel_timer	remove the timer now
-control_thermostat	increase temperature quickly
-confirmation	that's right
+update_event	move tomorrow's meeting to Friday quickly
+confirmation	correct for me
+help_request	I need help for me
 query_fact	please how far is the moon
 set_alarm	now wake me at 6am on Monday
 set_reminder	remind me about the meeting in 2 hours for me
-close_app	quickly quit maps
+create_event	now create meeting for next Monday
+delete_event	delete tomorrow's meeting
 query_fact	how tall is Mount Everest quickly
 set_timer	would you set a timer for 45 minutes
-control_device	lock the door right now
-open_app	open email please
-clarification_request	what do you mean for me
-confirmation	okay now
-confirmation	that's right for me
+query_date	what month is it
+close_app	close settings for me
+confirmation	absolutely
+help_request	please how do I
+help_request	assist me now
 send_email	now compose email to the team
 cancel_timer	turn timer off
-open_app	open calculator for me
-close_app	close Spotify for me
+system_command	increase volume now
+system_command	deactivate wifi
 previous_track	previous track quickly
 pause_media	pause what's playing now
-help_request	right now I need help
-query_events	quickly any appointments today
-multi_intent	send message to John and call mom right now
+confirmation	affirmative right now
+control_thermostat	now increase temperature
+open_app	launch Chrome
+send_email	email the presentation to clients
 control_lights	turn off all lights now
-set_reminder	remind me about the meeting in 2 hours
+query_events	what's my schedule tomorrow quickly
 search_web	for me search for nearby restaurants
 play_music	for me play my workout playlist
-query_events	for me what's scheduled for Monday
+delete_event	cancel the party right now
 search_web	right now look up movie reviews
-help_request	for me what can you do
-system_command	now turn down volume
+control_device	turn on the TV for me
+multi_intent	set a timer for 10 minutes and play music please
+clarification_request	could you rephrase
+control_device	disable the fan
 cancel_timer	turn timer off for me
-system_command	now mute
+confirmation	that's right quickly
+confirmation	right now yes
 next_track	right now skip this song
-send_message	quickly send text to boss about the report
+delete_event	cancel meeting at 3pm for me
 search_web	search for flight deals quickly
 set_alarm	create an alarm for 7am
-close_app	now exit Netflix
-query_events	what meetings do I have now
+delete_event	delete tomorrow's meeting for me
+close_app	for me quit Chrome
 set_reminder	please create reminder to take medicine at 8pm
-confirmation	affirmative now
+previous_track	skip backward
 query_time	could you tell me the time
 query_fact	who wrote Romeo and Juliet now
-multi_intent	for me send message to John and call mom
+set_alarm	quickly I need an alarm at 7:30 tomorrow
 stop_media	right now end playback
 query_time	current time in Paris now
 query_weather	how hot is it today right now
-close_app	now quit Chrome
-set_timer	start a 30 minute timer please
-query_events	do I have any meetings today
-query_fact	quickly what is the population of China
-next_track	for me next
-pause_media	now pause the video
-delete_event	for me cancel meeting at 3pm
-unknown	random gibberish quickly
-update_event	quickly change event to next week
-confirmation	correct now
-cancellation	right now nope
-cancel_timer	cancel that timer please
-query_fact	for me how tall is Mount Everest
-query_fact	for me what is the largest ocean
-query_time	time please now
-set_alarm	quickly set my alarm for 8:00
-next_track	please skip forward
-query_fact	right now who invented the telephone
-cancel_timer	turn off the timer
-close_app	close camera
-set_reminder	now remind me about the meeting in 2 hours
-create_event	please create event called project review
-control_device	for me open the garage
-query_time	what time is it please
-play_video	please play sports highlights
-close_app	close Spotify
-create_event	create event for team lunch for me
-cancellation	don't do that please
-query_weather	right now weather in New York
-close_app	quickly close calculator
-create_event	add dentist appointment to calendar for me
-previous_track	previous please
-control_thermostat	set thermostat to 68 degrees for me
-search_web	search for job openings
-open_app	launch Chrome for me
-stop_media	right now turn music off
-set_timer	create a timer for 5 minutes
-next_track	right now next
-control_device	turn off all devices
-set_reminder	now reminder to pick up kids at 4pm
-query_date	what month is it
-stop_media	now stop the video
-next_track	play the next one
-query_date	date please please
-search_web	look up movie reviews
-create_event	right now schedule a meeting at 3pm
-control_lights	activate kitchen lights
-play_video	play funny videos
-stop_media	stop the music right now
-query_time	for me what time is it
-search_web	for me look up best laptops 2026
-previous_track	skip backward
-play_video	for me play sports highlights
-cancellation	now cancel that
-system_command	take a screenshot right now
-play_music	for me play top hits
-next_track	next song now
-system_command	unmute please
-query_fact	how tall is Mount Everest right now
-pause_media	hold on pause now
-make_call	quickly call mom
-pause_media	pause the video for me
-control_lights	turn on the lights please
-send_message	send text to boss about the report for me
-next_track	for me skip this song
-cancel_timer	quickly stop the countdown
-cancel_timer	stop timer
-query_fact	when was Einstein born please
-multi_intent	please what's the weather and time
-system_command	turn down volume for me
-set_reminder	reminder for dentist appointment tomorrow for me
-play_video	quickly play cooking tutorials
-send_message	send a message to John
-help_request	guide me
-multi_intent	create event tomorrow and set reminder quickly
-clarification_request	what did you say for me
-set_alarm	wake me at 6am on Monday for me
-search_web	search the web for news
-control_thermostat	enable AC
-query_events	quickly check my calendar for Friday
-create_event	right now schedule dinner on Friday
-query_events	quickly what meetings do I have
-previous_track	for me go to previous track
-open_app	right now start Netflix
-next_track	right now next song
-play_video	now play cooking tutorials
-confirmation	for me affirmative
-set_timer	right now can you set a timer for 45 minutes
-help_request	please I need help
-query_fact	quickly when was Einstein born
-control_thermostat	quickly set heating to 70
-cancellation	right now negative
-control_lights	dim the lights please
-query_weather	please what's the weather like
-next_track	play next right now
-query_fact	how far is the moon please
-set_reminder	for me remind me about dinner reservation at 7
-create_event	create event for team lunch right now
-query_weather	is it going to snow this weekend now
-update_event	now update meeting location
-control_device	please start the dishwasher
-update_event	reschedule to 3pm quickly
-set_timer	set a timer for 5 minutes quickly
-send_email	send email about vacation request please
-make_call	for me phone Sarah's mobile
-set_timer	can you start a timer for 45 minutes
-create_event	please add gym session to calendar
-play_video	quickly play workout videos
-clarification_request	for me could you rephrase
-set_alarm	alarm for 8 o'clock tomorrow please
-set_reminder	remind me to call mom at 3pm for me
-set_timer	now set a cooking timer for 25 minutes
-delete_event	right now remove birthday event
-cancel_timer	right now stop the cooking timer
-query_fact	who is the president for me
-help_request	right now help me with
-make_call	dial 555-1234
-control_device	turn on the TV for me
-clarification_request	say that again now
-clarification_request	now what do you mean
-query_weather	please will it rain today
-play_music	for me play classical music
-cancel_timer	disable the timer
-play_music	play classical music for me
-play_music	quickly play my favorite songs
-search_web	search for pizza recipes
-stop_media	for me turn music off
-next_track	next song
-set_timer	right now create a 20 second timer
-play_video	play funny videos right now
-control_device	turn on the vacuum now
-query_events	now do I have any meetings today
-stop_media	stop what's playing please
-delete_event	please delete next week's appointment
-control_lights	brighten living room lights right now
-close_app	right now exit Netflix
-play_video	for me play funny videos
-query_time	right now what's the time
-query_weather	what's the weather like
-unknown	blah blah blah for me
-control_thermostat	for me turn up the heat
-control_thermostat	now set temperature to 72
-create_event	right now add dentist appointment to calendar
-search_web	search for pizza recipes now
-create_event	for me add gym session to calendar
-control_lights	disable bedroom lights
-confirmation	affirmative right now
-play_video	play cat videos
-query_weather	do I need an umbrella quickly
-previous_track	for me play previous
-set_alarm	quickly alarm for 8 o'clock tomorrow
-next_track	play the next one right now
-control_device	start the dishwasher right now
-multi_intent	turn on lights and set temperature to 72 now
-help_request	show me how now
-play_music	now play Bohemian Rhapsody
-open_app	open settings now
-close_app	now close Spotify
-pause_media	for me stop the music
-query_time	current time in Paris for me
-set_reminder	reminder for dentist appointment tomorrow please
-cancel_timer	please remove the timer
-query_time	for me tell me the time
-system_command	right now restart device
-previous_track	last song right now
-search_web	look up best laptops 2026 right now
-play_music	right now play some music
-send_email	compose message to hr@company.com now
-update_event	right now reschedule to 3pm
-clarification_request	repeat that now
-query_date	quickly tell me the date
-previous_track	right now play the last one
-unknown	asdfghjkl now
-control_device	lock the door now
-update_event	change event to next week
-query_weather	do I need an umbrella please
-play_video	right now play movie trailers
-query_fact	quickly how tall is Mount Everest
-set_timer	I need a timer for 1 hour and 30 minutes please
-query_weather	quickly what's the weather like
-query_date	right now what day is it
-search_web	now find hotels in Miami
-query_fact	now when was Einstein born
-make_call	make a call to the office now
-play_music	play classical music please
+play_music	play some music quickly
 close_app	quickly exit Netflix
-query_fact	please what is the largest ocean
-confirmation	please go ahead
-query_events	what's coming up for me
-play_music	now play songs by Taylor Swift
-send_email	right now email the presentation to clients
-search_web	look up best laptops 2026 for me
-next_track	now next track
-previous_track	quickly play the last one
-update_event	move tomorrow's meeting to Friday please
-delete_event	cancel meeting at 3pm right now
-control_lights	turn on the lights right now
-delete_event	delete tomorrow's meeting right now
-query_events	what's on my calendar please
-pause_media	quickly stop playing
-query_time	current time in Paris quickly
-system_command	right now unmute
-control_lights	switch off bedroom lights
-control_device	disable the fan
-pause_media	now pause the song
-query_weather	is it going to snow this weekend quickly
-confirmation	absolutely quickly
-cancel_timer	stop timer please
-search_web	for me search for flight deals
-update_event	right now move event to Monday
-close_app	please close Spotify
-set_alarm	quickly set alarm 9:15 PM
-send_email	email the presentation to clients
-play_music	now play relaxing music
-close_app	close calculator
-send_message	send text to dad for me
-make_call	call my wife right now
-query_date	please what month is it
-help_request	I need help please
-query_time	what time is it in Tokyo now
-pause_media	quickly pause
-pause_media	please pause
-play_video	play sports highlights please
-unknown	nonsense words quickly
-help_request	help me with now
-control_device	turn off the fan
-send_email	quickly email my boss about the project
-open_app	for me open camera
-multi_intent	switch on lights and set temperature to 72
-query_weather	will it rain today for me
-control_device	please close the blinds
-query_weather	weather for next week please
-search_web	now search for pizza recipes
-query_events	what's on my calendar
-send_message	text John to call me
-stop_media	stop this song quickly
-search_web	search for flight deals
-set_timer	create a 20 second timer quickly
-delete_event	now delete meeting
-clarification_request	please repeat that
-next_track	skip to next now
-control_lights	lights off for me
-send_message	for me message Lisa happy birthday
-play_video	right now play a video
-update_event	quickly move event to Monday
-update_event	change meeting time to 5pm quickly
-set_alarm	wake me up at 6:30 for me
-send_email	now email Sarah the meeting notes
-open_app	open email right now
-set_timer	start countdown for 3 minutes quickly
-set_reminder	quickly set reminder for grocery shopping
-system_command	right now mute
-update_event	now move event to Monday
-control_lights	turn off all lights right now
-control_thermostat	turn up the heat for me
+control_device	please lock the door
+stop_media	stop playing please
+query_weather	please what's the weather like
+query_fact	quickly what is the population of China
+pause_media	now pause the video
+close_app	exit Netflix right now
+send_email	send email about vacation request quickly
+cancel_timer	stop the countdown for me
+multi_intent	call dad and send mom a message
+query_date	what's the date today
+query_events	do I have any meetings today for me
+query_weather	quickly how hot is it today
+send_email	please send an email to john@example.com
+pause_media	pause this quickly
+search_web	quickly google python tutorials
+confirmation	yeah
+previous_track	quickly back to previous
+set_timer	for me set a timer for 5 minutes
+unknown	asdfghjkl
+query_time	please what's the time right now
+play_video	play funny videos
+play_video	for me play sports highlights
+previous_track	please previous track
+query_fact	who wrote Romeo and Juliet quickly
+help_request	how do I quickly
+next_track	quickly next track
+query_fact	right now who wrote Romeo and Juliet
+pause_media	now pause this
+update_event	right now reschedule dentist appointment
+control_thermostat	please turn off heating
+query_events	what's scheduled for Monday
+query_date	current date
+pause_media	pause the song please
 clarification_request	right now could you rephrase
-query_events	please what's on my calendar
-set_reminder	please remind me about dinner reservation at 7
-control_lights	right now set lights to 50%
+stop_media	deactivate the music
+query_weather	is it going to snow this weekend please
+cancellation	now stop
+previous_track	previous song
+cancel_timer	delete my timer
+next_track	skip this song
+query_time	quickly what time is it
+cancellation	forget it quickly
+query_date	what month is it please
+clarification_request	please explain for me
+clarification_request	right now I didn't catch that
+help_request	quickly guide me
+search_web	search for pizza recipes now
+multi_intent	for me send message to John and call mom
+unknown	quickly blah blah blah
+send_message	quickly text mom I'll be late
+query_events	for me what's my schedule tomorrow
+clarification_request	now what do you mean
+create_event	now schedule conference call at 2pm
+set_timer	start countdown for 3 minutes
+send_message	send text to boss about the report please
+send_email	send an email to support right now
+set_reminder	quickly I need a reminder to water plants
+query_weather	weather in New York
+set_alarm	set my alarm for 8:00 please
+update_event	update meeting location for me
+close_app	quickly close calculator
+pause_media	now pause
+update_event	move tomorrow's meeting to Friday
+search_web	please search for nearby restaurants
+clarification_request	come again right now
+next_track	next song
+set_alarm	alarm for 8 o'clock tomorrow please
+next_track	for me play next
+query_events	what's coming up right now
+send_email	right now compose message to hr@company.com
+search_web	quickly search for pizza recipes
+query_fact	who wrote Romeo and Juliet
+next_track	right now skip this
+delete_event	cancel meeting at 3pm right now
+send_message	please send text to boss about the report
+set_reminder	please I need a reminder to water plants
+play_music	for me play Bohemian Rhapsody
+system_command	increase volume please
+make_call	quickly dial 555-1234
+query_weather	please is it going to snow this weekend
+query_fact	quickly how tall is Mount Everest
+send_email	send an email to support please
+next_track	next track right now
+clarification_request	I didn't catch that quickly
+set_reminder	remind me to submit report by Friday quickly
+play_music	for me play top hits
+query_events	please do I have any meetings today
+send_message	quickly send text to boss about the report
+cancellation	please not now
+set_alarm	wake me up at 6:30 please
+help_request	right now help me with
+play_music	play songs by Taylor Swift
+previous_track	now go to previous track
+pause_media	pause the song right now
+update_event	for me change meeting time to 5pm
+stop_media	stop the video now
+update_event	quickly move meeting to 4pm
+create_event	right now add gym session to calendar
+confirmation	affirmative please
+previous_track	last song
+set_timer	quickly set a cooking timer for 25 minutes
+make_call	quickly call my wife
+send_message	quickly send a message to John
+close_app	right now quit calendar
+close_app	close calculator
+open_app	launch calendar now
+play_music	play top hits quickly
+cancel_timer	right now stop the cooking timer
+set_reminder	set reminder for grocery shopping right now
+help_request	show me how for me
+control_lights	make it brighter now
+update_event	update event details
+play_video	play funny videos now
+make_call	for me phone John
+set_alarm	I need an alarm at 7:30 tomorrow now
+query_date	what month is it quickly
+control_device	start the coffee maker please
+open_app	open email please
+play_music	for me play relaxing music
+confirmation	for me affirmative
+cancellation	right now never mind
+unknown	foobar baz now
+close_app	now quit calendar
+control_thermostat	now make it cooler
+system_command	lock screen for me
+close_app	close email for me
+close_app	quickly quit Chrome
+previous_track	now skip backward
+control_thermostat	for me set heating to 70
+confirmation	quickly okay
+set_reminder	remind me about the meeting in 2 hours
+control_device	disable all devices
+multi_intent	check weather and set umbrella reminder please
+query_time	now what time is it in Tokyo
+help_request	how do I please
+query_weather	quickly weather in New York
+query_time	quickly can you tell me the time
 control_device	now turn off the fan
 search_web	search for job openings please
 set_reminder	quickly remind me about dinner reservation at 7
@@ -2055,14 +2194,14 @@ cancel_timer	cancel that timer now
 next_track	for me skip forward
 control_lights	dim the lights for me
 send_message	send a message to John now
-delete_event	right now cancel the party
+open_app	open Spotify quickly
 send_email	now email my boss about the project
 set_reminder	reminder to pick up kids at 4pm
-unknown	now nonsense words
+set_timer	right now I need a timer for 1 hour and 30 minutes
 query_time	for me what time is it in Tokyo
-confirmation	correct right now
+system_command	unmute
 query_weather	what's the weather in London right now
-clarification_request	say that again right now
+cancellation	right now don't do that
 query_weather	temperature outside
 make_call	right now call my wife
 control_device	open the garage for me
@@ -2072,10 +2211,11 @@ query_fact	please who wrote Romeo and Juliet
 make_call	please call back the last number
 play_video	play workout videos
 set_reminder	now reminder for dentist appointment tomorrow
-close_app	for me close email
-help_request	right now how do I
-multi_intent	set a timer for 10 minutes and play music now
-confirmation	for me sure
+delete_event	delete tomorrow's meeting quickly
+system_command	right now adjust brightness
+multi_intent	turn on lights and set temperature to 72 quickly
+open_app	open settings please
+help_request	now how do I
 query_date	for me what month is it
 pause_media	stop the music please
 send_message	for me text John to call me
@@ -2086,31 +2226,32 @@ query_weather	for me weather in New York
 query_time	now time please
 play_music	play some music for me
 create_event	create an event for tomorrow please
-cancellation	cancel that for me
-close_app	close settings now
+unknown	for me the quick brown fox
+clarification_request	come again please
 send_message	for me text my wife I'm on my way
-close_app	now close camera
+clarification_request	please explain right now
+query_events	quickly show me next week's events
 query_time	time please please
 control_lights	turn on kitchen lights
-cancellation	for me no
+unknown	for me asdfghjkl
 create_event	add dentist appointment to calendar
-clarification_request	now repeat that
-clarification_request	please I didn't catch that
+cancellation	stop
+cancellation	for me negative
 query_weather	weather for next week
-query_events	please what's coming up
+close_app	right now close camera
 query_weather	for me do I need an umbrella
-cancellation	nope quickly
+unknown	quickly asdfghjkl
 send_message	right now message Sarah about the meeting
 cancel_timer	for me delete my timer
 send_email	please email the invoice to accounting
 play_music	for me play songs by Taylor Swift
 control_device	close the blinds
 pause_media	quickly pause this
-help_request	quickly I need help
-help_request	help me with quickly
+multi_intent	send message to John and call mom
+help_request	I'm stuck please
 pause_media	stop playing quickly
 make_call	right now call back the last number
-delete_event	delete next week's appointment for me
+confirmation	now that's right
 send_email	please compose message to hr@company.com
 query_time	time in New York quickly
 control_thermostat	set heating to 70 for me
@@ -2118,36 +2259,40 @@ set_reminder	reminder to pick up kids at 4pm right now
 cancel_timer	cancel all timers
 previous_track	skip backward for me
 query_date	right now what's today's date
-system_command	quickly turn off wifi
+confirmation	please that's right
 query_weather	temperature outside quickly
-clarification_request	now I don't understand
-close_app	close camera right now
+confirmation	please go ahead
+clarification_request	please please explain
 next_track	skip forward right now
 control_lights	right now make it brighter
+delete_event	delete all events today quickly
 send_email	quickly send an email to support
 set_alarm	quickly set alarm for 10:30 tonight
-close_app	exit YouTube
+clarification_request	what did you say
 play_music	now play top hits
 query_date	what's the date today for me
 set_reminder	now set reminder for grocery shopping
 update_event	right now update meeting location
 control_thermostat	make it warmer
 send_email	for me send email about vacation request
+query_events	now do I have any meetings today
 send_message	send text to dad quickly
 query_weather	for me how hot is it today
 play_video	quickly play sports highlights
 previous_track	quickly go back
 set_timer	please set a timer for 5 minutes
-help_request	show me how right now
-system_command	enable bluetooth now
+close_app	close email please
+confirmation	affirmative
 stop_media	quickly end playback
+query_events	any appointments today now
 send_email	email the invoice to accounting
 set_alarm	for me set an alarm for 7am
 control_lights	lights off now
-multi_intent	activate lights and set temperature to 72
+set_timer	start a 30 minute timer quickly
 query_date	what's tomorrow's date for me
 make_call	phone John right now
-cancellation	quickly never mind
+query_events	right now show my events
+unknown	random gibberish right now
 update_event	move tomorrow's meeting to Friday now
 next_track	play the next one quickly
 create_event	schedule a meeting at 3pm for me
@@ -2155,43 +2300,45 @@ make_call	call mom now
 play_video	play documentaries quickly
 play_video	play the latest news right now
 send_message	text mom I'll be late quickly
-close_app	exit YouTube quickly
+clarification_request	right now what did you say
 set_timer	set timer 2 hours please
 control_device	enable the vacuum
-open_app	quickly open email
-close_app	now exit YouTube
+multi_intent	activate lights and set temperature to 72
+close_app	quit maps
+clarification_request	for me what did you say
 pause_media	pause the music please
 play_music	play classical music now
 create_event	quickly schedule a meeting at 3pm
 cancel_timer	stop timer quickly
 control_lights	now dim the lights
-help_request	what can you do for me
+open_app	quickly launch calendar
 delete_event	quickly cancel the party
 send_email	please email my boss about the project
-help_request	now what are your capabilities
+multi_intent	for me set alarm for 7am and remind me to exercise
 set_reminder	for me remind me about the meeting in 2 hours
 update_event	change meeting time to 5pm please
-query_events	please what's scheduled for Monday
+close_app	close calculator please
 next_track	now skip forward
-close_app	quit Chrome quickly
+system_command	quickly enable bluetooth
 play_music	please play songs by Taylor Swift
 pause_media	pause the video quickly
 control_lights	set lights to blue please
-open_app	now launch maps
+system_command	please mute
 pause_media	right now pause the song
 send_email	compose email to the team quickly
 control_thermostat	quickly set temperature to 72
+open_app	launch Chrome right now
 set_alarm	wake me at 6am on Monday
 search_web	look up best laptops 2026 please
 query_date	what's tomorrow's date now
 previous_track	last song now
 next_track	next now
 create_event	schedule dinner on Friday quickly
-close_app	close calculator right now
-multi_intent	send message to John and call mom now
-cancellation	negative right now
+clarification_request	can you clarify now
+close_app	please quit maps
+unknown	zxcvbnm for me
 set_reminder	remind me to call mom at 3pm
-clarification_request	please explain quickly
+clarification_request	what did you say please
 delete_event	cancel dentist appointment now
 send_email	send email with the report right now
 query_time	quickly tell me the time
@@ -2199,26 +2346,27 @@ query_weather	what's the weather in London quickly
 make_call	call customer service
 query_fact	what is the capital of France right now
 next_track	right now play the next one
-system_command	for me take a screenshot
-confirmation	sure for me
+close_app	please exit Netflix
+multi_intent	play music and turn off lights for me
+system_command	quickly increase volume
 set_reminder	I need a reminder to water plants now
 next_track	now play next
-help_request	now assist me
+confirmation	sure for me
 control_device	activate the vacuum
 update_event	change event to next week please
-multi_intent	right now turn on lights and set temperature to 72
+unknown	xyz abc 123 please
 make_call	phone Sarah's mobile now
 set_reminder	remind me about dinner reservation at 7
 delete_event	remove birthday event right now
 play_music	play songs by Taylor Swift for me
-unknown	please blah blah blah
+system_command	quickly unmute
 stop_media	stop playing now
 set_alarm	set alarm 9:15 PM right now
 query_time	now what's the time
-close_app	close settings quickly
-close_app	quit calendar quickly
-close_app	close email for me
-clarification_request	please I don't understand
+clarification_request	quickly come again
+clarification_request	right now repeat that
+cancellation	no for me
+confirmation	yep please
 make_call	right now dial emergency
 delete_event	remove gym session quickly
 delete_event	remove birthday event
@@ -2233,144 +2381,68 @@ query_fact	who wrote Romeo and Juliet right now
 pause_media	pause now
 set_reminder	I need a reminder to water plants
 control_device	quickly close the blinds
-confirmation	now yes
+cancellation	cancel that
 control_thermostat	please set heating to 70
 cancel_timer	stop the cooking timer right now
 make_call	now phone John
 set_reminder	remind me to submit report by Friday please
-clarification_request	can you clarify now
+multi_intent	open Spotify and play jazz for me
 control_thermostat	what's the temperature
 pause_media	quickly pause the music
 cancel_timer	cancel the timer
 previous_track	for me play the last one
 pause_media	for me pause what's playing
-open_app	quickly open Spotify
+cancellation	nope
 query_fact	now who is the president
 send_message	message Sarah about the meeting quickly
 delete_event	now remove event from calendar
-unknown	quickly random gibberish
+cancel_timer	now stop the countdown
 pause_media	pause the music
 cancel_timer	cancel that timer
 play_music	quickly play the Beatles
 query_date	date please quickly
-system_command	now restart device
+confirmation	for me yep
 query_events	what meetings do I have right now
-clarification_request	come again now
+system_command	now adjust brightness
 control_lights	brighten living room lights
 control_thermostat	turn up the heat quickly
 control_lights	set lights to blue
 update_event	change meeting time to 5pm
 play_video	please play a video
-confirmation	that's right quickly
+help_request	assist me for me
 control_lights	turn off bedroom lights for me
-multi_intent	what's the weather and time for me
+set_reminder	set reminder for grocery shopping please
 set_alarm	right now alarm at noon
 send_message	message Lisa happy birthday now
 make_call	quickly phone Sarah's mobile
 set_timer	for me create a 20 second timer
 cancel_timer	quickly cancel the timer
-unknown	right now nonsense words
+close_app	exit YouTube please
+set_timer	for me put on a timer for 15 minutes
 cancel_timer	delete my timer now
 create_event	schedule dinner on Friday for me
 query_fact	what is the largest ocean now
-system_command	take a screenshot now
+confirmation	yeah quickly
 next_track	now skip this song
 control_thermostat	make it warmer now
+open_app	open settings now
 previous_track	go to previous track
-close_app	for me exit Netflix
+clarification_request	what do you mean right now
 pause_media	pause this
-cancellation	stop
+unknown	please xyz abc 123
 set_timer	quickly I need a timer for 1 hour and 30 minutes
-help_request	I'm stuck please
-open_app	right now launch calendar
+multi_intent	check weather and set umbrella reminder for me
+system_command	for me restart device
+help_request	assist me
 update_event	for me update event details
-unknown	xyz abc 123
+send_email	now email the presentation to clients
 query_time	current time for me
 previous_track	now previous
-system_command	right now turn off wifi
+confirmation	right now that's right
 send_email	send email about vacation request now
 set_reminder	create reminder to take medicine at 8pm right now
-confirmation	yeah please
+multi_intent	what's the weather and time right now
 previous_track	back to previous please
 search_web	search for nearby restaurants quickly
 delete_event	please cancel dentist appointment
 delete_event	remove gym session now
-send_message	right now send text to dad
-play_video	now play music videos
-set_alarm	alarm for 8 o'clock tomorrow right now
-play_music	for me play my favorite songs
-open_app	now launch Chrome
-confirmation	correct for me
-cancel_timer	please cancel that timer
-play_music	play the Beatles
-make_call	now dial 555-1234
-query_date	for me tell me the date
-system_command	adjust brightness
-close_app	right now quit Chrome
-stop_media	turn music off right now
-clarification_request	please explain please
-query_time	current time in Paris
-help_request	assist me quickly
-query_weather	is it going to snow this weekend right now
-cancel_timer	now stop the cooking timer
-send_message	now message Lisa happy birthday
-control_device	turn off the fan right now
-control_lights	make it brighter please
-query_date	what's tomorrow's date right now
-send_message	send a text saying I'm here please
-stop_media	please turn music off
-control_device	turn on the TV right now
-query_fact	what is the speed of light for me
-set_timer	now set timer 2 hours
-open_app	now open camera
-query_events	quickly do I have any meetings today
-cancel_timer	stop timer now
-query_date	what day of the week is it
-query_date	now what's today's date
-previous_track	for me last song
-query_date	for me current date
-help_request	what are your capabilities
-next_track	for me play the next one
-clarification_request	please explain right now
-query_weather	right now what's the weather in London
-system_command	unmute for me
-query_weather	right now what's the weather like
-previous_track	now last song
-send_email	email Sarah the meeting notes for me
-cancel_timer	switch off the timer
-create_event	please schedule conference call at 2pm
-query_date	quickly what's today's date
-control_thermostat	now turn up the heat
-query_time	for me time please
-cancellation	nope now
-set_timer	set timer 2 hours now
-help_request	please guide me
-control_device	start the coffee maker for me
-delete_event	please delete all events today
-send_email	for me compose email to the team
-close_app	right now quit calendar
-cancel_timer	please stop the countdown
-create_event	schedule conference call at 2pm
-send_message	text John to call me now
-set_timer	set a timer for 5 minutes please
-query_weather	right now temperature outside
-query_weather	weather in New York please
-control_thermostat	right now turn on AC
-send_email	email the invoice to accounting quickly
-play_video	play sports highlights
-control_lights	now turn on the lights
-set_reminder	remind me about the meeting in 2 hours quickly
-query_fact	who invented the telephone right now
-next_track	quickly skip forward
-cancel_timer	please turn timer off
-make_call	for me call my wife
-next_track	skip to next
-unknown	asdfghjkl please
-play_music	play my workout playlist right now
-query_fact	how tall is Mount Everest please
-play_video	for me play music videos
-query_date	what's today's date
-send_message	message Sarah about the meeting
-control_thermostat	make it cooler now
-set_timer	make a timer for 5 minutes
-control_device	turn on the vacuum right now
