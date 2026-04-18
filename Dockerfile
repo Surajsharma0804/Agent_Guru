@@ -1,29 +1,41 @@
 # Multi-stage Production Dockerfile for Agent_Guru Core Reasoning Engine
-# Optimized for minimal size with Alpine base and layer caching
+# Uses python:3.11-slim (Debian/glibc) so PyTorch wheels resolve correctly.
+# GPU acceleration is handled at runtime via CUDA drivers on the host —
+# the image itself installs the CPU-only torch build to keep image size
+# manageable and avoid needing a GPU on the CI runner.
 
 # Build stage
-FROM python:3.11-alpine as builder
+FROM python:3.11-slim AS builder
 
 # Set working directory
 WORKDIR /app
 
 # Install build dependencies (cached layer)
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
-    build-base \
+    build-essential \
     curl \
     libffi-dev \
-    openssl-dev \
-    && rm -rf /var/cache/apk/*
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files first (cached layer if unchanged)
 COPY pyproject.toml ./
 COPY requirements.txt ./
+COPY requirements-cpu.txt ./
 
 # Install Python dependencies (cached layer)
+# We use the CPU-only PyTorch index so the build works on any runner
+# (including CI machines without a GPU). At runtime, if a CUDA-capable
+# GPU is present, swap the image for one built with the cu118/cu121 index.
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir build wheel && \
-    pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
+    pip install --no-cache-dir \
+        torch>=2.0.0 torchvision>=0.15.0 torchaudio>=2.0.0 \
+        --index-url https://download.pytorch.org/whl/cpu && \
+    pip wheel --no-cache-dir --wheel-dir /wheels \
+        --find-links https://download.pytorch.org/whl/cpu \
+        -r requirements-cpu.txt
 
 # Copy source code
 COPY Agent_Guru/ ./Agent_Guru/
@@ -32,8 +44,8 @@ COPY main.py ./
 # Build package
 RUN python -m build
 
-# Production stage - Alpine for minimal size
-FROM python:3.11-alpine
+# Production stage — slim for a smaller final image
+FROM python:3.11-slim
 
 # Build arguments
 ARG BUILD_DATE
@@ -54,24 +66,28 @@ LABEL org.opencontainers.image.created="${BUILD_DATE}" \
 WORKDIR /app
 
 # Install runtime dependencies only (minimal set)
-RUN apk add --no-cache \
-    libffi \
-    openssl \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libffi8 \
+    libssl3 \
     curl \
     ca-certificates \
-    && rm -rf /var/cache/apk/*
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
-RUN addgroup -g 1000 agentguru && \
-    adduser -D -u 1000 -G agentguru agentguru && \
+RUN groupadd -g 1000 agentguru && \
+    useradd -m -u 1000 -g agentguru agentguru && \
     chown -R agentguru:agentguru /app
 
 # Copy wheels from builder
 COPY --from=builder /wheels /wheels
 COPY --from=builder /app/dist/*.whl /tmp/
 
-# Install the package and dependencies
+# Install torch (CPU) first from the PyTorch index, then install the
+# rest of the dependencies from the pre-built wheels, then the package.
 RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+        torch>=2.0.0 torchvision>=0.15.0 torchaudio>=2.0.0 \
+        --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir --find-links=/wheels /tmp/*.whl && \
     rm -rf /tmp/*.whl /wheels
 
