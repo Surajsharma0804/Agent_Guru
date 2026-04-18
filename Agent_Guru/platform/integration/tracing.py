@@ -358,7 +358,7 @@ class Tracer:
 
         self._active_spans[span.span_id] = span
         self._spans_started += 1
-        logger.debug(f"Started span: {name} [{span.span_id[:8]}] trace=[{trace_id[:8]}]")
+        logger.debug("Started span: %s [%s] trace=[%s]", name, span.span_id[:8], trace_id[:8])
         return SpanManager(span, self)
 
     def finish_span(self, span: Span, error: Optional[str] = None) -> None:

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Agent Orchestration Client for Speech Engine.
 
 Routes voice commands to the Agent Orchestration system for execution.
@@ -32,7 +32,7 @@ class RoutingResult:
     task_id: Optional[str]
     output: Any
     error: Optional[str] = None
-    routed_at: datetime = field(default_factory=datetime.now)
+    routed_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 class AgentOrchestrationClient:

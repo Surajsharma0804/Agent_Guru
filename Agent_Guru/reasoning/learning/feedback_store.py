@@ -262,11 +262,13 @@ class FeedbackStore:
                     AND feedback_type IN ('intent_correction', 'entity_correction', 'negative')
                     ORDER BY timestamp DESC
                 """
+                params_list: list[Any] = [model_version]
 
                 if limit:
-                    query += f" LIMIT {limit}"
+                    query += " LIMIT ?"
+                    params_list.append(limit)
 
-                cursor.execute(query, (model_version,))
+                cursor.execute(query, params_list)
                 rows = cursor.fetchall()
                 return [self._row_to_feedback(row) for row in rows]
             finally:

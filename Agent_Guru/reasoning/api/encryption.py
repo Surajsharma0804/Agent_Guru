@@ -264,7 +264,7 @@ class SecretsManager:
                     token=vault_token,
                 )
                 logger.info("vault_client_initialized")
-            except ImportError:
+            except ImportError as e:
                 logger.error("hvac_not_installed")
                 raise ImportError("hvac library required for Vault backend") from e
 
@@ -274,7 +274,7 @@ class SecretsManager:
                 import boto3  # type: ignore
                 self._aws_client = boto3.client("secretsmanager")
                 logger.info("aws_secrets_manager_initialized")
-            except ImportError:
+            except ImportError as e:
                 logger.error("boto3_not_installed")
                 raise ImportError("boto3 library required for AWS backend") from e
 

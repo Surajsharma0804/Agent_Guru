@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: agent_guru.platform.mobile.background_service
 Purpose: Mobile background service manager for always-on operation
 
@@ -80,7 +80,7 @@ class BatteryUsageStats:
     total_wake_time: float = 0.0
     battery_level_start: float = 100.0
     battery_level_current: float = 100.0
-    last_updated: datetime = field(default_factory=datetime.now)
+    last_updated: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 @dataclass
@@ -544,7 +544,7 @@ class MobileBackgroundService:
         old_state = self._state
         self._state = new_state
 
-        logger.info(f"State change: {old_state.value} -> {new_state.value}")
+        logger.info("State change: %s -> %s", old_state.value, new_state.value)
 
         if self._state_change_callback:
             try:

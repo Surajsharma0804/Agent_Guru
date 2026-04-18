@@ -576,7 +576,7 @@ class LinuxIntegration:
                 start_new_session=True  # Linux equivalent of CREATE_NEW_PROCESS_GROUP
             )
 
-            logger.info(f"Started process: {executable} (PID: {process.pid})")
+            logger.info("Started process: %s (PID: %s)", executable, process.pid)
             return process.pid
 
         except FileNotFoundError as e:

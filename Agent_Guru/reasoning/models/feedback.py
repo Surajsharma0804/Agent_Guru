@@ -1,4 +1,4 @@
-"""
+﻿"""
 Feedback data models for online learning.
 
 This module defines data structures for collecting user feedback on intent
@@ -51,7 +51,7 @@ class IntentFeedback(BaseModel):
 
     feedback_id: str = Field(..., description="Unique feedback identifier")
     user_id: str = Field(..., description="User identifier")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Feedback timestamp")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Feedback timestamp")
 
     # Original prediction
     original_input: str = Field(..., min_length=1, description="Original user input")
@@ -127,7 +127,7 @@ class ModelPerformanceMetrics(BaseModel):
 
     metric_id: str = Field(..., description="Unique metric identifier")
     model_version: str = Field(..., description="Model version")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Metric timestamp")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Metric timestamp")
 
     # Performance metrics
     total_predictions: int = Field(..., ge=0, description="Total predictions")

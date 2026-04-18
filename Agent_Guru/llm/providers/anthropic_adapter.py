@@ -109,26 +109,21 @@ class AnthropicAdapter(ProviderAdapter):
         client = self._get_client()
         system_prompt, anthropic_messages = self._to_anthropic_messages(request.messages)
 
-        # Build prompt in Anthropic v0.8 format (HUMAN_PROMPT / AI_PROMPT)
-        import anthropic as _anthropic  # type: ignore[import]
-        prompt_parts: list[str] = []
+        kwargs: dict[str, Any] = {}
         if system_prompt:
-            prompt_parts.append(system_prompt)
-        for m in anthropic_messages:
-            if m["role"] == "user":
-                prompt_parts.append(f"{_anthropic.HUMAN_PROMPT} {m['content']}")
-            else:
-                prompt_parts.append(f"{_anthropic.AI_PROMPT} {m['content']}")
-        prompt_parts.append(_anthropic.AI_PROMPT)
-        full_prompt = "\n".join(prompt_parts)
+            kwargs["system"] = system_prompt
+        if request.functions:
+            kwargs["tools"] = self._to_anthropic_tools(request.functions)
 
-        response = await client.completions.acreate(
+        response = await client.messages.create(
             model=request.model,
-            prompt=full_prompt,
-            max_tokens_to_sample=request.max_tokens or 1024,
+            messages=anthropic_messages,
+            max_tokens=request.max_tokens or 1024,
+            temperature=request.temperature,
+            **kwargs,
         )
 
-        content = response.completion or ""
+        content = response.content[0].text if response.content else ""
 
         return CompletionResponse(
             content=content,
@@ -136,10 +131,14 @@ class AnthropicAdapter(ProviderAdapter):
             provider=ModelProvider.ANTHROPIC,
             finish_reason=response.stop_reason or "stop",
             usage=TokenUsage(
-                prompt_tokens=0,
-                completion_tokens=len(content.split()),
-                total_tokens=len(content.split()),
-                estimated_cost=0.0,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
+                total_tokens=response.usage.input_tokens + response.usage.output_tokens,
+                estimated_cost=self._calculate_cost(
+                    response.usage.input_tokens,
+                    response.usage.output_tokens,
+                    request.model,
+                ),
             ),
             function_call=None,
             latency_ms=0.0,

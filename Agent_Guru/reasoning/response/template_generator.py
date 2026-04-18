@@ -236,6 +236,10 @@ class TemplateGenerator:
             if error_template_key in self._templates:
                 return self._templates[error_template_key]
 
+        # Final fallback — always return a valid template
+        return self._templates.get("generic_success" if result.success else "generic_error",
+                                   list(self._templates.values())[0])
+
     def _create_error_from_result(self, result: ExecutionResult) -> Error:
         """
         Create Error object from ExecutionResult.
@@ -480,8 +484,10 @@ class TemplateGenerator:
         # Limit to 3 suggestions
         return suggestions[:3]
 
-    def _get_intent_suggestions(self, intent_type: str) -> list[str]:
+    def _get_intent_suggestions(self, intent_type: Any) -> list[str]:
         """Get suggestions for specific intent type."""
+        # Normalize to string value
+        intent_type_str = intent_type.value if hasattr(intent_type, "value") else str(intent_type)
         suggestions_map = {
             "set_timer": ["Set another timer", "Cancel timer", "Check remaining time"],
             "query_weather": ["Check tomorrow's weather", "Get hourly forecast", "Weather alerts"],
@@ -492,7 +498,7 @@ class TemplateGenerator:
             "query_calendar": ["Create event", "View tomorrow", "Check conflicts"],
             "control_smart_home": ["Check device status", "Create automation", "View all devices"],
         }
-        return suggestions_map.get(intent_type, [])
+        return suggestions_map.get(intent_type_str, [])
 
     def _load_default_templates(self) -> None:
         """

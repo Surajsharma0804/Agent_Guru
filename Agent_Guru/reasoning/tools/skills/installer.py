@@ -1,6 +1,4 @@
-import logging
-_logger = logging.getLogger(__name__)
-"""
+﻿"""
 Skill installer for managing skill installation, updates, and uninstallation.
 
 Provides functionality to:
@@ -9,6 +7,9 @@ Provides functionality to:
 - Uninstall skills with cleanup
 - Track skill usage statistics
 """
+
+import logging
+_logger = logging.getLogger(__name__)
 
 import json
 import shutil

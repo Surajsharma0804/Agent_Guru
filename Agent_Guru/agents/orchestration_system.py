@@ -1,4 +1,4 @@
-"""
+﻿"""
 Orchestration System - Main API wiring all components together.
 
 Validates: Requirements 6.1, 7.1, 8.1, 8.2, 8.3, 8.4, 15.1
@@ -33,7 +33,7 @@ class TaskResult:
     agent_id: Optional[str]
     sub_results: list["TaskResult"] = field(default_factory=list)
     error: Optional[str] = None
-    completed_at: datetime = field(default_factory=datetime.now)
+    completed_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 class OrchestrationSystem:
@@ -142,7 +142,6 @@ class OrchestrationSystem:
                         success=False,
                         output=None,
                         error=str(result),
-                        completion_time_ms=0.0,
                     )
                 else:
                     completed[task.id] = result

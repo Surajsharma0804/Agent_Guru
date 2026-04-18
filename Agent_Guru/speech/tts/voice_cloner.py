@@ -340,7 +340,7 @@ class VoiceCloner:
 
             profile = self._voice_profiles[voice_id]
 
-            logger.info(f"Synthesizing with cloned voice '{voice_id}': {text[:50]}...")
+            logger.info("Synthesizing with cloned voice '%s': %s...", voice_id, text[:50])
 
             # PRODUCTION IMPLEMENTATION - ZERO COMPROMISE
             # Use neural TTS with voice embedding

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: agent_guru.platform.github.integrator
 Purpose: Core GitHub integration for automated Git operations
 
@@ -30,7 +30,7 @@ Version: 1.0.0
 import logging
 import subprocess
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -334,7 +334,7 @@ class GitHubIntegrator:
         if not files:
             raise ValueError("Files list cannot be empty")
 
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Validate files exist
@@ -346,7 +346,7 @@ class GitHubIntegrator:
             # Stage files
             result = self._run_git_command(["add", *files])
 
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
 
             if result.success:
                 return GitOperationResult(
@@ -361,7 +361,7 @@ class GitHubIntegrator:
                 raise GitError(f"Failed to stage files: {result.stderr}")
 
         except Exception as e:
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             logger.error("Failed to add files: %s", e)
             return GitOperationResult(
                 success=False,
@@ -390,7 +390,7 @@ class GitHubIntegrator:
         if not message or not message.strip():
             raise ValueError("Commit message cannot be empty")
 
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Build commit command
@@ -400,7 +400,7 @@ class GitHubIntegrator:
 
             result = self._run_git_command(cmd)
 
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
 
             if result.success:
                 # Extract commit hash
@@ -425,7 +425,7 @@ class GitHubIntegrator:
                 raise GitError(f"Commit failed: {result.stderr}")
 
         except Exception as e:
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             logger.error("Failed to commit: %s", e)
             return GitOperationResult(
                 success=False,
@@ -457,7 +457,7 @@ class GitHubIntegrator:
             GitRemoteError: If push fails
             GitAuthenticationError: If authentication fails
         """
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Get current branch if not specified
@@ -478,7 +478,7 @@ class GitHubIntegrator:
                 result = self._run_git_command(cmd)
 
                 if result.success:
-                    duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+                    duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
                     return GitOperationResult(
                         success=True,
                         message=f"Pushed to {self.remote_name}/{branch}",
@@ -503,10 +503,10 @@ class GitHubIntegrator:
                     )
 
                 last_error = result.stderr
-                logger.warning(f"Push attempt {attempt + 1} failed: {last_error}")
+                logger.warning("Push attempt %d failed: %s", attempt + 1, last_error)
 
             # All retries failed
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             raise GitRemoteError(
                 f"Push failed after {self.max_retries} attempts: {last_error}"
             )
@@ -514,7 +514,7 @@ class GitHubIntegrator:
         except (GitAuthenticationError, GitConflictError, GitRemoteError):
             raise
         except Exception as e:
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             logger.error("Failed to push: %s", e)
             return GitOperationResult(
                 success=False,
@@ -540,7 +540,7 @@ class GitHubIntegrator:
             GitRemoteError: If pull fails
             GitConflictError: If conflicts detected
         """
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Get current branch if not specified
@@ -555,7 +555,7 @@ class GitHubIntegrator:
 
             result = self._run_git_command(cmd)
 
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
 
             if result.success:
                 return GitOperationResult(
@@ -578,7 +578,7 @@ class GitHubIntegrator:
         except (GitConflictError, GitRemoteError):
             raise
         except Exception as e:
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             logger.error("Failed to pull: %s", e)
             return GitOperationResult(
                 success=False,
@@ -606,7 +606,7 @@ class GitHubIntegrator:
         Returns:
             GitOperationResult with combined operation status
         """
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Stage files
@@ -632,7 +632,7 @@ class GitHubIntegrator:
             # Push
             push_result = self.push(branch)
 
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
 
             return GitOperationResult(
                 success=push_result.success,
@@ -643,7 +643,7 @@ class GitHubIntegrator:
             )
 
         except Exception as e:
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             logger.error("Failed to commit and push: %s", e)
             return GitOperationResult(
                 success=False,
@@ -1058,7 +1058,7 @@ class GitHubIntegrator:
             ... else:
             ...     print(f"Failed to resolve: {result.message}")
         """
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Get current branch if not specified
@@ -1086,7 +1086,7 @@ class GitHubIntegrator:
             attempt_details = []
 
             for attempt in range(1, max_attempts + 1):
-                logger.info(f"Conflict resolution attempt {attempt}/{max_attempts}")
+                logger.info("Conflict resolution attempt %d/%d", attempt, max_attempts)
 
                 try:
                     # Fetch latest changes
@@ -1115,7 +1115,7 @@ class GitHubIntegrator:
                         # Success! Check if there are any remaining conflicts
                         has_conflicts, _ = self.detect_conflicts()
                         if not has_conflicts:
-                            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+                            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
                             logger.info(
                                 f"Conflict resolution successful on attempt {attempt}"
                             )
@@ -1163,7 +1163,7 @@ class GitHubIntegrator:
                     logger.error(error_msg)
 
             # All attempts failed
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
 
             # Build detailed error message
             error_details = "\n".join(attempt_details)
@@ -1192,7 +1192,7 @@ class GitHubIntegrator:
         except GitConflictError:
             raise
         except Exception as e:
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             error_message = f"Conflict resolution failed with exception: {e}"
             logger.error(error_message)
 
@@ -1242,7 +1242,7 @@ class GitHubIntegrator:
             ... else:
             ...     print(f"Push failed: {result.message}")
         """
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Get current branch if not specified
@@ -1258,14 +1258,14 @@ class GitHubIntegrator:
             last_error = None
 
             for attempt in range(1, max_retries + 1):
-                logger.info(f"Push attempt {attempt}/{max_retries}")
+                logger.info("Push attempt %d/%d", attempt, max_retries)
 
                 try:
                     # Attempt push
                     push_result = self.push(branch=branch, force=force)
 
                     if push_result.success:
-                        duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+                        duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
                         logger.info("Push successful on attempt %s", attempt)
                         return GitOperationResult(
                             success=True,
@@ -1279,9 +1279,7 @@ class GitHubIntegrator:
                     # Check if rejection is due to conflicts
                     stderr_lower = push_result.stderr.lower()
                     if "rejected" in stderr_lower and not force:
-                        logger.warning(
-                            f"Push rejected on attempt {attempt}, attempting conflict resolution"
-                        )
+                        logger.warning("Push rejected on attempt %d, attempting conflict resolution", attempt,)
 
                         # Attempt conflict resolution
                         resolve_result = self.resolve_conflicts_with_rebase(
@@ -1300,7 +1298,7 @@ class GitHubIntegrator:
 
                     # Other push error
                     last_error = push_result.message
-                    logger.warning(f"Push failed on attempt {attempt}: {last_error}")
+                    logger.warning("Push failed on attempt %d: %s", attempt, last_error)
 
                 except GitAuthenticationError as e:
                     # Don't retry authentication errors
@@ -1308,10 +1306,10 @@ class GitHubIntegrator:
                     raise
                 except Exception as e:
                     last_error = str(e)
-                    logger.error(f"Exception during push attempt {attempt}: {e}")
+                    logger.error("Exception during push attempt %d: %s", attempt, e)
 
             # All attempts failed
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             error_message = (
                 f"Push failed after {max_retries} attempts.\n"
                 f"Last error: {last_error}\n\n"
@@ -1341,7 +1339,7 @@ class GitHubIntegrator:
         except GitAuthenticationError:
             raise
         except Exception as e:
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             error_message = f"Push with conflict resolution failed: {e}"
             logger.error(error_message)
 
@@ -1397,7 +1395,7 @@ class GitHubIntegrator:
             #     operation=operation,
             #     error_message=error_message,
             #     attempt_count=attempt_count,
-            #     timestamp=datetime.now()
+            #     timestamp=datetime.now(tz=timezone.utc)
             # )
 
         except Exception as e:
@@ -1485,7 +1483,7 @@ class GitHubIntegrator:
             ... else:
             ...     print(f"Failed to resolve: {result.message}")
         """
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Get current branch if not specified
@@ -1513,7 +1511,7 @@ class GitHubIntegrator:
             attempt_details = []
 
             for attempt in range(1, max_attempts + 1):
-                logger.info(f"Conflict resolution attempt {attempt}/{max_attempts}")
+                logger.info("Conflict resolution attempt %d/%d", attempt, max_attempts)
 
                 try:
                     # Fetch latest changes
@@ -1542,7 +1540,7 @@ class GitHubIntegrator:
                         # Success! Check if there are any remaining conflicts
                         has_conflicts, _ = self.detect_conflicts()
                         if not has_conflicts:
-                            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+                            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
                             logger.info(
                                 f"Conflict resolution successful on attempt {attempt}"
                             )
@@ -1590,7 +1588,7 @@ class GitHubIntegrator:
                     logger.error(error_msg)
 
             # All attempts failed
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
 
             # Build detailed error message
             error_details = "\n".join(attempt_details)
@@ -1619,7 +1617,7 @@ class GitHubIntegrator:
         except GitConflictError:
             raise
         except Exception as e:
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             error_message = f"Conflict resolution failed with exception: {e}"
             logger.error(error_message)
 
@@ -1669,7 +1667,7 @@ class GitHubIntegrator:
             ... else:
             ...     print(f"Push failed: {result.message}")
         """
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Get current branch if not specified
@@ -1685,14 +1683,14 @@ class GitHubIntegrator:
             last_error = None
 
             for attempt in range(1, max_retries + 1):
-                logger.info(f"Push attempt {attempt}/{max_retries}")
+                logger.info("Push attempt %d/%d", attempt, max_retries)
 
                 try:
                     # Attempt push
                     push_result = self.push(branch=branch, force=force)
 
                     if push_result.success:
-                        duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+                        duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
                         logger.info("Push successful on attempt %s", attempt)
                         return GitOperationResult(
                             success=True,
@@ -1706,9 +1704,7 @@ class GitHubIntegrator:
                     # Check if rejection is due to conflicts
                     stderr_lower = push_result.stderr.lower()
                     if "rejected" in stderr_lower and not force:
-                        logger.warning(
-                            f"Push rejected on attempt {attempt}, attempting conflict resolution"
-                        )
+                        logger.warning("Push rejected on attempt %d, attempting conflict resolution", attempt,)
 
                         # Attempt conflict resolution
                         resolve_result = self.resolve_conflicts_with_rebase(
@@ -1727,7 +1723,7 @@ class GitHubIntegrator:
 
                     # Other push error
                     last_error = push_result.message
-                    logger.warning(f"Push failed on attempt {attempt}: {last_error}")
+                    logger.warning("Push failed on attempt %d: %s", attempt, last_error)
 
                 except GitAuthenticationError as e:
                     # Don't retry authentication errors
@@ -1735,10 +1731,10 @@ class GitHubIntegrator:
                     raise
                 except Exception as e:
                     last_error = str(e)
-                    logger.error(f"Exception during push attempt {attempt}: {e}")
+                    logger.error("Exception during push attempt %d: %s", attempt, e)
 
             # All attempts failed
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             error_message = (
                 f"Push failed after {max_retries} attempts.\n"
                 f"Last error: {last_error}\n\n"
@@ -1768,7 +1764,7 @@ class GitHubIntegrator:
         except GitAuthenticationError:
             raise
         except Exception as e:
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             error_message = f"Push with conflict resolution failed: {e}"
             logger.error(error_message)
 
@@ -1824,7 +1820,7 @@ class GitHubIntegrator:
             #     operation=operation,
             #     error_message=error_message,
             #     attempt_count=attempt_count,
-            #     timestamp=datetime.now()
+            #     timestamp=datetime.now(tz=timezone.utc)
             # )
 
         except Exception as e:
@@ -1860,7 +1856,7 @@ class GitHubIntegrator:
         if not branch_name or not branch_name.strip():
             raise ValueError("Branch name cannot be empty")
 
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Check if branch already exists
@@ -1879,7 +1875,7 @@ class GitHubIntegrator:
 
             result = self._run_git_command(cmd)
 
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
 
             if result.success:
                 logger.info("Created branch: %s", branch_name)
@@ -1895,7 +1891,7 @@ class GitHubIntegrator:
                 raise GitError(f"Failed to create branch: {result.stderr}")
 
         except Exception as e:
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             logger.error("Failed to create branch: %s", e)
             return GitOperationResult(
                 success=False,
@@ -2105,7 +2101,7 @@ class GitHubIntegrator:
         if not source_branch or not source_branch.strip():
             raise ValueError("Source branch cannot be empty")
 
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Validate source branch exists
@@ -2168,7 +2164,7 @@ class GitHubIntegrator:
                 timeout=self.timeout
             )
 
-            (datetime.now() - start_time).total_seconds() * 1000
+            (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
 
             if result.returncode == 0:
                 # Extract PR URL from output
@@ -2207,7 +2203,7 @@ class GitHubIntegrator:
                 error="Timeout"
             )
         except Exception as e:
-            (datetime.now() - start_time).total_seconds() * 1000
+            (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
             logger.error("Failed to create PR: %s", e)
             return PullRequestResult(
                 success=False,

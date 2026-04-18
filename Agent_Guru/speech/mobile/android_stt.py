@@ -125,7 +125,7 @@ class AndroidSpeechRecognizer:
 
             # Check if recognition is available
             if not self.SpeechRecognizer.isRecognitionAvailable(context):
-                raise AndroidSTTError("Speech recognition not available on this device") from e
+                raise AndroidSTTError("Speech recognition not available on this device")
 
             self.is_initialized = True
             logger.info("Android speech recognizer initialized successfully")

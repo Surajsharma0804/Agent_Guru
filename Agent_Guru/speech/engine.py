@@ -403,9 +403,10 @@ class SpeechEngine:
         )
 
         self.logger.info(
-            f"Transcribed with {personality.value} personality: "
-            f"{result.text[:50] if result.text else '(empty)'}... "
-            f"(language: {result.language})"
+            "Transcribed with %s personality: %s... (language: %s)",
+            personality.value,
+            result.text[:50] if result.text else "(empty)",
+            result.language,
         )
 
         return result
@@ -464,8 +465,9 @@ class SpeechEngine:
         )
 
         self.logger.info(
-            f"Synthesized response with {personality.value} personality "
-            f"and {emotion.value} emotion"
+            "Synthesized response with %s personality and %s emotion",
+            personality.value,
+            emotion.value,
         )
 
         return audio
@@ -516,6 +518,7 @@ class SpeechEngine:
                 asyncio.get_running_loop()
                 is_running = True
             except RuntimeError:
+                # RuntimeError("no running event loop") is the expected signal
                 is_running = False
 
             if is_running:
@@ -525,8 +528,8 @@ class SpeechEngine:
                     result: VoiceFeatures = future.result(timeout=10)
             else:
                 result = asyncio.run(coro)
-        except RuntimeError:
-            result = asyncio.run(coro)
+        except concurrent.futures.TimeoutError as exc:
+            raise RuntimeError("Voice feature extraction timed out after 10s") from exc
 
         return result
 

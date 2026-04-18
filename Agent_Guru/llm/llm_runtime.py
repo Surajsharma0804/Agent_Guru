@@ -178,7 +178,6 @@ class LLMRuntime:
             lambda: asyncio.wait_for(adapter.complete(request), timeout=timeout),
             provider=provider.value,
         )
-
         # Update context
         if request.session_id and request.messages:
             await self.context_manager.update_context(

@@ -162,11 +162,11 @@ class VoicePipeline:
             next_state = transitions.get(event)
 
             if next_state is None:
-                logger.debug(f"Event {event.value} ignored in state {current.value}")
+                logger.debug("Event %s ignored in state %s", event.value, current.value)
                 return False
 
             self._state = next_state
-            logger.info(f"Pipeline: {current.value} → {next_state.value} (event: {event.value})")
+            logger.info("Pipeline: %s → %s (event: %s)", current.value, next_state.value, event.value)
 
         # Notify listeners outside lock
         for listener in self._state_listeners:

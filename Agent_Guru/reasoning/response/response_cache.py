@@ -71,7 +71,7 @@ class ResponseCacheStats:
     freshness_invalidations: int = 0
     ttl_expirations: int = 0
     evictions: int = 0
-    last_reset: datetime = field(default_factory=datetime.now)
+    last_reset: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def record_hit(self) -> None:
         """Record cache hit."""
@@ -321,10 +321,6 @@ class ResponseCache:
         # Record hit
         self.stats.record_hit()
         self._update_intent_hit_rate(intent_type, hit=True)
-
-        # Log cache hit latency
-        (time.perf_counter() - start_time) * 1000
-        # Should be <1ms
 
         return entry.response
 

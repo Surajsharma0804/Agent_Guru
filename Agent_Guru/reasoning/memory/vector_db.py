@@ -97,7 +97,7 @@ class VectorDatabase:
         self.embedding_dimension = embedding_dimension
         self.in_memory = in_memory
 
-        logger.info(f"Initializing VectorDatabase at {self.db_path} (in_memory={in_memory})")
+        logger.info("Initializing VectorDatabase at %s (in_memory=%s)", self.db_path, in_memory)
 
         # Create database directory if not in-memory mode
         if not in_memory:
@@ -151,10 +151,10 @@ class VectorDatabase:
 
                 # Log collection stats
                 count = collection.count()
-                logger.info(f"Initialized collection '{collection_name}' " f"with {count} memories")
+                logger.info("Initialized collection '%s' with %d memories", collection_name, count)
 
             except Exception as e:
-                logger.error(f"Failed to initialize collection '{collection_name}': {e}")
+                logger.error("Failed to initialize collection '%s': %s", collection_name, e)
                 raise RuntimeError(f"Collection initialization failed: {e}") from e
 
     def store(
@@ -222,7 +222,7 @@ class VectorDatabase:
                 metadatas=[metadata],
             )
 
-            logger.debug(f"Stored memory {memory_id_str} in {memory_type.value} collection")
+            logger.debug("Stored memory %s in %s collection", memory_id_str, memory_type.value)
 
             return memory_id_str
 
@@ -309,8 +309,8 @@ class VectorDatabase:
                         formatted_results.append((memory_id, content, similarity, metadata))
 
             logger.debug(
-                f"Found {len(formatted_results)} memories for user {user_id} "
-                f"in {memory_type.value} collection"
+                "Found %d memories for user %s in %s collection",
+                len(formatted_results), user_id, memory_type.value,
             )
 
             return formatted_results
@@ -497,7 +497,7 @@ class VectorDatabase:
                     self.client.delete_collection(name=collection_name)
                     logger.info("Deleted collection '%s'", collection_name)
                 except Exception as e:
-                    logger.warning(f"Failed to delete collection '{collection_name}': {e}")
+                    logger.warning("Failed to delete collection '%s': %s", collection_name, e)
 
             # Reinitialize collections
             self._initialize_collections()
@@ -520,5 +520,5 @@ class VectorDatabase:
                 )
                 self.collections[memory_type] = collection
             except Exception as e:
-                logger.error(f"Failed to reset collection '{collection_name}': {e}")
+                logger.error("Failed to reset collection '%s': %s", collection_name, e)
                 raise RuntimeError(f"Collection reset failed: {e}") from e

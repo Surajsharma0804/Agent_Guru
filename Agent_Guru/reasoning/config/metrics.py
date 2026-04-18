@@ -362,14 +362,6 @@ def _get_collector() -> MetricsCollector:
     return get_metrics_collector()
 
 
-# Export commonly used metrics as module-level variables
-PARSING_LATENCY = property(lambda self: _get_collector().parsing_latency)
-PARSING_SUCCESS_COUNTER = property(lambda self: _get_collector().parsing_success)
-PARSING_FAILURE_COUNTER = property(lambda self: _get_collector().parsing_failure)
-PARSING_RETRY_COUNTER = property(lambda self: _get_collector().parsing_retry)
-CONFIDENCE_SCORE_HISTOGRAM = property(lambda self: _get_collector().confidence_score)
-
-
 # Create module-level accessors
 class _MetricsAccessor:
     """Accessor for module-level metrics."""

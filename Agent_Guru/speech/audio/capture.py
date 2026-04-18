@@ -77,8 +77,12 @@ class MicrophoneCapture(AudioCapture):
         if duration is None:
             raise AudioInputError("Duration is required for microphone capture")
 
+        # BUG-013: reject non-positive duration before passing to sounddevice
+        if duration <= 0:
+            raise AudioInputError(f"Duration must be > 0, got {duration}")
+
         try:
-            logger.debug(f"Capturing {duration}s of audio at {self.sample_rate}Hz")
+            logger.debug("Capturing %.3fs of audio at %dHz", duration, self.sample_rate)
 
             # Record audio
             audio = sd.rec(
@@ -193,8 +197,8 @@ class FileCapture(AudioCapture):
                 audio = audio[:max_samples]
 
             logger.debug(
-                f"Loaded {len(audio)} samples at {sample_rate}Hz "
-                f"({len(audio)/sample_rate:.2f}s)"
+                "Loaded %d samples at %dHz (%.2fs)",
+                len(audio), sample_rate, len(audio) / sample_rate,
             )
 
             return audio, sample_rate

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Prompt Caching System
 
 Implements LRU cache for prompt templates to reduce token usage by 80%.
@@ -42,7 +42,7 @@ class CacheStats:
     cache_misses: int = 0
     total_tokens_saved: int = 0
     evictions: int = 0
-    last_reset: datetime = field(default_factory=datetime.now)
+    last_reset: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def record_hit(self, tokens_saved: int) -> None:
         """Record cache hit."""

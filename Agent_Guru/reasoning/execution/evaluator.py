@@ -1,4 +1,4 @@
-"""
+﻿"""
 Execution Evaluator with feedback loop for Core Reasoning Engine.
 
 Performance Requirements:
@@ -23,6 +23,7 @@ Date: 2026-02-22
 Version: 1.0.0
 """
 
+from collections import defaultdict, deque
 from collections.abc import Callable
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
@@ -109,7 +110,7 @@ class EvaluationResult:
     plan_adjustment: dict[str, Any] | None = None
     should_abandon: bool = False
     abandonment_reason: str | None = None
-    timestamp: datetime = dataclass_field(default_factory=datetime.now)
+    timestamp: datetime = dataclass_field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 class ResultValidator:
@@ -474,8 +475,8 @@ class ExecutionEvaluator:
         self.base_retry_delay = base_retry_delay
         self.validator = ResultValidator()
 
-        # Track retry patterns for improvement
-        self._retry_stats: dict[str, list[bool]] = {}  # error_type -> [success/failure]
+        # Track retry patterns for improvement — use defaultdict of deque for O(1) bounded append
+        self._retry_stats: dict[str, deque[bool]] = defaultdict(lambda: deque(maxlen=100))
 
     def evaluate(
         self,
@@ -751,14 +752,8 @@ class ExecutionEvaluator:
             error_type: Type of error that was retried
             success: Whether retry was successful
         """
-        if error_type not in self._retry_stats:
-            self._retry_stats[error_type] = []
-
+        # defaultdict(deque(maxlen=100)) auto-creates and auto-evicts — no manual management needed
         self._retry_stats[error_type].append(success)
-
-        # Keep last 100 results per error type
-        if len(self._retry_stats[error_type]) > 100:
-            self._retry_stats[error_type].pop(0)
 
     def get_retry_stats(self, error_type: str) -> dict[str, Any]:
         """Get retry statistics for error type.

@@ -146,8 +146,8 @@ class TaskExecutor:
         for task in tasks:
             self._statuses[task.id] = ExecutionStatus.PENDING
 
-        # Build id → task map for dependency lookup
-        {t.id: t for t in tasks}
+        # Build id → task map for dependency lookup (used for future extension)
+        _task_map = {t.id: t for t in tasks}
 
         # Execute in waves: each wave contains tasks whose deps are done
         completed_ids: set[str] = set()

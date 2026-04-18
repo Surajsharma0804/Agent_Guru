@@ -1,6 +1,4 @@
-import logging
-_logger = logging.getLogger(__name__)
-"""
+﻿"""
 Failure Analyzer for Self-Improvement Engine.
 
 This module analyzes failures to identify patterns and root causes.
@@ -21,6 +19,9 @@ Design Decisions:
 Author: Kiro AI
 Date: 2024
 """
+
+import logging
+_logger = logging.getLogger(__name__)
 
 import json
 import time
@@ -129,7 +130,7 @@ class FailureAnalyzer:
         # Performance monitoring
         elapsed_ms = (time.time() - start_time) * 1000
         if elapsed_ms > 10:
-            _logger.warning(f"WARNING: Failure analysis took {elapsed_ms:.2f}ms (target: <10ms)")
+            _logger.warning("WARNING: Failure analysis took %.2fms (target: <10ms)", elapsed_ms)
 
     def _store_failure(self, execution: TaskExecution) -> None:
         """

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Base LLM Provider Interface
 
 Defines the common interface and utilities for all LLM providers.
@@ -64,7 +64,7 @@ class RateLimitState:
 
     requests_this_minute: int = 0
     tokens_this_minute: int = 0
-    minute_start: datetime = field(default_factory=datetime.now)
+    minute_start: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def reset_if_needed(self) -> None:
         """Reset counters if minute has passed."""

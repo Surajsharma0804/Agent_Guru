@@ -218,12 +218,14 @@ class TaskOutputParser:
 
                 if retry_count < self.max_retries:
                     self.logger.warning(
-                        f"Parsing failed, retrying ({retry_count + 1}/{self.max_retries})",
+                        "Parsing failed, retrying (%d/%d)",
+                        retry_count + 1, self.max_retries,
                         extra={"error": str(e)},
                     )
                 else:
                     self.logger.error(
-                        f"Parsing failed after {self.max_retries} retries", extra={"error": str(e)}
+                        "Parsing failed after %d retries", self.max_retries,
+                        extra={"error": str(e)},
                     )
                     raise
 

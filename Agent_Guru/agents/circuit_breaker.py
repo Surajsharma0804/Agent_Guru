@@ -88,6 +88,7 @@ class CircuitBreaker:
             return result
         except Exception as e:
             self._on_failure()
+            logger.debug("Circuit %s recorded failure: %s", self.name, e)
             raise
 
     def _on_success(self) -> None:

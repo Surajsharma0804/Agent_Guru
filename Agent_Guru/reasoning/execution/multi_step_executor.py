@@ -1,4 +1,4 @@
-"""
+﻿"""
 Multi-step plan executor for Core Reasoning Engine.
 
 Performance Requirements:
@@ -55,7 +55,7 @@ class StepResult:
     result_data: Any | None = None
     error: dict[str, Any] | None = None
     execution_time: float = 0.0
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -94,7 +94,7 @@ class MultiStepResult:
     total_execution_time: float = 0.0
     failed_at_step: int | None = None
     error: dict[str, Any] | None = None
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""

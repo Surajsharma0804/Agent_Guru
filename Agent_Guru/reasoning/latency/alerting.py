@@ -257,7 +257,7 @@ class LatencyMonitor:
         if self.alert_callback:
             try:
                 self.alert_callback(alert)
-            except Exception as e:
+            except Exception:
                 # Don't let alert callback failures break monitoring
                 pass
 

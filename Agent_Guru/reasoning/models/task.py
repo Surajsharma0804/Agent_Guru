@@ -1,4 +1,4 @@
-"""
+﻿"""
 Task data models for structured LLM output parsing.
 
 This module defines the Task and TaskStep data models that represent
@@ -138,14 +138,14 @@ class Task(BaseModel):
     task_type: TaskType = Field(..., description="Type of task")
     entities: dict[str, Any] = Field(default_factory=dict, description="Extracted entities")
     steps: list[TaskStep] = Field(
-        ..., min_items=1, max_items=5, description="Execution steps (1-5)"
+        ..., min_length=1, max_length=5, description="Execution steps (1-5)"
     )
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score (0.0-1.0)")
     requires_confirmation: bool = Field(default=False, description="Requires user confirmation")
     estimated_duration: float = Field(..., gt=0, description="Total estimated duration in seconds")
     status: TaskStatus = Field(default=TaskStatus.PENDING, description="Execution status")
     retry_count: int = Field(default=0, ge=0, le=3, description="Retry attempts (max 3)")
-    created_at: datetime = Field(default_factory=datetime.now, description="Creation timestamp")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Creation timestamp")
     started_at: Optional[datetime] = Field(default=None, description="Start timestamp")
     completed_at: Optional[datetime] = Field(default=None, description="Completion timestamp")
     error: Optional[str] = Field(default=None, description="Error message if failed")

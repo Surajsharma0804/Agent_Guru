@@ -1,4 +1,4 @@
-"""
+﻿"""
 Conversation State Manager.
 
 This module implements thread-safe conversation state management with LRU caching
@@ -9,7 +9,7 @@ import asyncio
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
 from Agent_Guru.reasoning.models.conversation import (
     ConversationState,
@@ -341,7 +341,7 @@ class ConversationStateManager:
         self,
         conversation_id: str,
         turn_number: int,
-        entities: dict[str, any],
+        entities: dict[str, Any],
     ) -> None:
         """
         Extract and track entities from a conversation turn.
@@ -501,7 +501,7 @@ class ConversationStateManager:
         self,
         conversation_id: str,
         current_input: str,
-    ) -> Optional[dict[str, any]]:
+    ) -> Optional[dict[str, Any]]:
         """
         Resolve implicit reference from context.
 

@@ -100,7 +100,7 @@ class ProactiveSuggestionGenerator:
         Returns:
             List of follow-up suggestions
         """
-        suggestions: list[str] = []
+        suggestions: list[Suggestion] = []
 
         # Only generate for successful actions
         if not result.success:
@@ -148,7 +148,7 @@ class ProactiveSuggestionGenerator:
         Returns:
             List of proactive suggestions
         """
-        suggestions: list[str] = []
+        suggestions: list[Suggestion] = []
 
         # Get user's patterns
         patterns = self.user_patterns.get(user_id, [])
@@ -180,7 +180,7 @@ class ProactiveSuggestionGenerator:
         Returns:
             List of alternative suggestions
         """
-        suggestions: list[str] = []
+        suggestions: list[Suggestion] = []
 
         # Get alternative templates for this action
         templates = self.ALTERNATIVE_SUGGESTIONS.get(task.task_type, [])
@@ -278,7 +278,17 @@ class ProactiveSuggestionGenerator:
 
         # Increase if related to recent conversation
         if conversation_state.last_intent:
-            if conversation_state.last_intent.intent_type == task.task_type:
+            last_intent_str = (
+                conversation_state.last_intent.intent_type.value
+                if hasattr(conversation_state.last_intent.intent_type, "value")
+                else str(conversation_state.last_intent.intent_type)
+            )
+            task_type_str = (
+                task.task_type.value
+                if hasattr(task.task_type, "value")
+                else str(task.task_type)
+            )
+            if last_intent_str == task_type_str:
                 relevance += 0.2
 
         # Decrease for long conversations (user might be tired)
@@ -311,7 +321,7 @@ class ProactiveSuggestionGenerator:
             return "make_call"
 
         # Default to original task type
-        return task.task_type
+        return task.task_type if isinstance(task.task_type, str) else task.task_type.value
 
     def _is_pattern_relevant(
         self, pattern: dict[str, Any], current_time: Optional[datetime]
@@ -398,7 +408,7 @@ class ProactiveSuggestionGenerator:
         Returns:
             List of context-based suggestions
         """
-        suggestions: list[str] = []
+        suggestions: list[Suggestion] = []
 
         # Time-based suggestions
         if current_time:

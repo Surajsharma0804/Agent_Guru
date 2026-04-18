@@ -272,7 +272,7 @@ class ParallelExecutor:
             results: list[ExecutionResult] = []
             for result in results_raw:
                 if isinstance(result, Exception):
-                    converted_results.append(ExecutionResult(
+                    results.append(ExecutionResult(
                         success=False,
                         error={
                             "error_code": type(result).__name__,
@@ -283,7 +283,7 @@ class ParallelExecutor:
                     results.append(result)
 
         # Map results to step IDs
-        return dict(zip(step_ids, converted_results if "converted_results" in locals() else results))
+        return dict(zip(step_ids, results))
 
     async def _execute_step_async(self, step: StepExecution) -> ExecutionResult:
         """Execute a single step asynchronously.

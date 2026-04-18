@@ -24,6 +24,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections import deque
 from typing import Optional
 
 import numpy as np
@@ -263,7 +264,7 @@ class AvatarRenderer:
         self._frame_count = 0
         self._fps_start = time.perf_counter()
         self._measured_fps = 0.0
-        self._frame_times: list[float] = []
+        self._frame_times: deque[float] = deque(maxlen=100)
 
         # Transition state
         self._transition_start: Optional[float] = None
@@ -421,11 +422,9 @@ class AvatarRenderer:
         self._frame_count += 1
         self._update_fps()
 
-        # Track frame time
+        # Track frame time — deque(maxlen=100) auto-evicts oldest
         frame_ms = (time.perf_counter() - t_start) * 1000.0
         self._frame_times.append(frame_ms)
-        if len(self._frame_times) > 100:
-            self._frame_times.pop(0)
 
         return frame
 

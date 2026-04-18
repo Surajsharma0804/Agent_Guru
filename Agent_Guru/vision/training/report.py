@@ -51,7 +51,7 @@ class TrainingSummary:
 class Report:
     """Complete pipeline report."""
     pipeline_name: str = "guruvision-pipeline"
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(tz=timezone.utc).isoformat())
     model_metadata: ModelMetadata = field(default_factory=ModelMetadata)
     training_summary: TrainingSummary = field(default_factory=TrainingSummary)
     benchmark_results: list[BenchmarkResult] = field(default_factory=list)

@@ -30,6 +30,7 @@ Version: 1.0.0
 """
 
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog

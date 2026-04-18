@@ -1,4 +1,4 @@
-"""
+﻿"""
 LLM Reasoning Core
 
 Implements reasoning plan generation with:
@@ -64,7 +64,7 @@ class ReasoningPlan:
     confidence: float
     requires_confirmation: bool = False
     estimated_duration_seconds: float = 0.0
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def __post_init__(self):
         """Validate plan fields."""

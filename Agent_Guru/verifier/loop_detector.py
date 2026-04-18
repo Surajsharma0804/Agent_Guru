@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections import Counter
+from collections import Counter, deque
 from typing import Any
 
 from Agent_Guru.verifier.models import LoopDetectionResult
@@ -26,8 +26,8 @@ class LoopDetector:
     def __init__(self, threshold: int = 3, window_size: int = 50) -> None:
         self._threshold = threshold
         self._window_size = window_size
-        # Per-session state tracking: session_id -> list of state hashes
-        self._traces: dict[str, list[str]] = {}
+        # Per-session state tracking: session_id -> deque of state hashes (bounded)
+        self._traces: dict[str, deque[str]] = {}
 
     def record_state(self, session_id: str, state: Any) -> LoopDetectionResult:
         """Record a new state and check for loops.
@@ -42,14 +42,11 @@ class LoopDetector:
         state_hash = self._hash_state(state)
 
         if session_id not in self._traces:
-            self._traces[session_id] = []
+            self._traces[session_id] = deque(maxlen=self._window_size)
 
         trace = self._traces[session_id]
         trace.append(state_hash)
-
-        # Keep sliding window
-        if len(trace) > self._window_size:
-            trace.pop(0)
+        # deque(maxlen=window_size) auto-evicts oldest — no manual pop needed
 
         # Count occurrences
         counts = Counter(trace)

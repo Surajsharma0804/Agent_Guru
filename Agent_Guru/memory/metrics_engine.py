@@ -1,4 +1,4 @@
-"""Metrics and Monitoring Engine.
+﻿"""Metrics and Monitoring Engine.
 
 Tracks all memory system metrics in-memory with:
 - record_metric: store a MetricSnapshot (Property 52)
@@ -35,7 +35,7 @@ class AlertEvent:
     metric_type: MetricType
     current_value: float
     threshold: float
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     message: str = ""
 
 

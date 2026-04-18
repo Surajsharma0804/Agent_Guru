@@ -13,6 +13,7 @@ Date: 2026-03-14
 """
 
 import logging
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -68,9 +69,9 @@ class MemoryClient:
         """
         self._system = memory_system
         self._max_buffer = max_buffer_size
-        # Local ring-buffer for offline/degraded operation
-        self._emotion_buffer: list[dict[str, Any]] = []
-        self._conversation_buffer: list[ConversationTurn] = []
+        # Local ring-buffer for offline/degraded operation — deque for O(1) eviction
+        self._emotion_buffer: deque[dict[str, Any]] = deque(maxlen=max_buffer_size)
+        self._conversation_buffer: deque[ConversationTurn] = deque(maxlen=max_buffer_size)
         logger.info(
             "MemoryClient initialized (system=%s)",
             "connected" if memory_system else "disabled",
@@ -105,10 +106,8 @@ class MemoryClient:
             "metadata": metadata or {},
         }
 
-        # Buffer locally (bounded ring-buffer)
+        # Buffer locally (bounded ring-buffer — deque auto-evicts oldest)
         self._emotion_buffer.append(record)
-        if len(self._emotion_buffer) > self._max_buffer:
-            self._emotion_buffer.pop(0)
 
         if self._system is None:
             return True
@@ -152,10 +151,8 @@ class MemoryClient:
             timestamp=timestamp or datetime.now(tz=timezone.utc),
         )
 
-        # Buffer locally
+        # Buffer locally — deque auto-evicts oldest
         self._conversation_buffer.append(turn)
-        if len(self._conversation_buffer) > self._max_buffer:
-            self._conversation_buffer.pop(0)
 
         if self._system is None:
             return True

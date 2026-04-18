@@ -89,7 +89,7 @@ class DatabasePool:
             if self._initialized:
                 return
 
-            logger.info(f"Initializing database pool: {self.database} (min={self.min_size}, max={self.max_size})")
+            logger.info("Initializing database pool: %s (min=%s, max=%s)", self.database, self.min_size, self.max_size)
 
             # Create minimum connections
             for _ in range(self.min_size):
@@ -255,7 +255,7 @@ class RedisPool:
         try:
             import aioredis
 
-            logger.info(f"Initializing Redis pool: {self.host}:{self.port} (min={self.min_size}, max={self.max_size})")
+            logger.info("Initializing Redis pool: %s:%s (min=%s, max=%s)", self.host, self.port, self.min_size, self.max_size)
 
             self._pool = await aioredis.create_redis_pool(  # type: ignore[attr-defined]
                 f'redis://{self.host}:{self.port}/{self.db}',

@@ -34,15 +34,20 @@ logger = logging.getLogger(__name__)
 # to a proper OS application-data directory so logs survive working directory
 # changes and are never accidentally committed to git.
 import os as _os
-_DEFAULT_LOG_PATH = (
-    Path(_os.environ.get("AGENT_GURU_LOG_DIR", ""))
-    if _os.environ.get("AGENT_GURU_LOG_DIR")
-    else Path.home() / (
-        "AppData" / Path("Local") / "agent_guru" / "logs" / "errors.log"
-        if _os.name == "nt"
-        else Path(".local") / "share" / "agent_guru" / "logs" / "errors.log"
+if _os.name == "nt":
+    _DEFAULT_LOG_PATH = (
+        Path(_os.environ.get("AGENT_GURU_LOG_DIR", ""))
+        if _os.environ.get("AGENT_GURU_LOG_DIR")
+        else Path(_os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+        / "agent_guru" / "logs" / "errors.log"
     )
-)
+else:
+    _DEFAULT_LOG_PATH = (
+        Path(_os.environ.get("AGENT_GURU_LOG_DIR", ""))
+        if _os.environ.get("AGENT_GURU_LOG_DIR")
+        else Path(_os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+        / "agent_guru" / "logs" / "errors.log"
+    )
 _MAX_LOG_SIZE_BYTES = 100 * 1024 * 1024  # 100MB
 
 # Retry defaults
@@ -192,12 +197,12 @@ class RetryPolicy:
                         self._max_delay,
                     )
                     logger.warning(
-                        f"Attempt {attempt + 1}/{self._max_retries + 1} failed: {e}. "
-                        f"Retrying in {delay:.2f}s"
+                        "Attempt %d/%d failed: %s. Retrying in %.2fs",
+                        attempt + 1, self._max_retries + 1, e, delay,
                     )
                     time.sleep(delay)
                 else:
-                    logger.error(f"All {self._max_retries + 1} attempts failed: {e}")
+                    logger.error("All %d attempts failed: %s", self._max_retries + 1, e)
 
         raise last_exc  # type: ignore
 
@@ -266,7 +271,7 @@ class ErrorLogger:
                 with open(self._log_path, "a", encoding="utf-8") as f:
                     f.write(json.dumps(record.to_dict()) + "\n")
             except OSError as e:
-                logger.warning(f"ErrorLogger: could not write to {self._log_path}: {e}")
+                logger.warning("ErrorLogger: could not write to %s: %s", self._log_path, e)
 
     def _rotate_if_needed(self) -> None:
         """Rotate log file if it exceeds max size."""
@@ -274,7 +279,7 @@ class ErrorLogger:
             if self._log_path.exists() and self._log_path.stat().st_size >= self._max_size_bytes:
                 rotated = self._log_path.with_suffix(".log.1")
                 self._log_path.rename(rotated)
-                logger.info(f"ErrorLogger: rotated {self._log_path} → {rotated}")
+                logger.info("ErrorLogger: rotated %s → %s", self._log_path, rotated)
         except OSError as e:
             logger.warning("ErrorLogger: rotation failed: %s", e)
 

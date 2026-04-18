@@ -1,4 +1,4 @@
-"""
+﻿"""
 Memory data models for retrieval-augmented reasoning.
 
 This module implements comprehensive memory models for storing and retrieving
@@ -91,7 +91,7 @@ class Memory(BaseModel):
         description="Current relevance score (0.0-1.0, decays over time)",
     )
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="When this memory was created (UTC)"
+        default_factory=lambda: datetime.now(tz=timezone.utc), description="When this memory was created (UTC)"
     )
     user_id: str = Field(..., min_length=1, max_length=255, description="User who owns this memory")
 

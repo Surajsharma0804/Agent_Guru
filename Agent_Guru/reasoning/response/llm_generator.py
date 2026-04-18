@@ -403,7 +403,7 @@ Response:"""
             llm_response: LLMResponse = await asyncio.wait_for(
                 self.llm_router.generate(llm_request), timeout=self.timeout_seconds
             )
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as e:
             raise RuntimeError(f"LLM generation timed out after {self.timeout_seconds}s") from e
 
         # Parse response text

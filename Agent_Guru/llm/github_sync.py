@@ -17,6 +17,7 @@ import asyncio
 import base64
 import logging
 import uuid
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -71,7 +72,7 @@ class GitHubSyncEngine:
         self.max_retries = max_retries
         self.batch_window_s = batch_window_s
 
-        self.pending_operations: list[SyncOperation] = []
+        self.pending_operations: deque[SyncOperation] = deque()
         self._client: Optional[Any] = None
         self._sync_task: Optional[asyncio.Task] = None  # type: ignore[type-arg]
 
@@ -151,8 +152,8 @@ class GitHubSyncEngine:
 
         # Batch multiple pending operations into one
         if len(self.pending_operations) > 1:
-            batched = self._batch_operations(self.pending_operations)
-            self.pending_operations = [batched]
+            batched = self._batch_operations(list(self.pending_operations))
+            self.pending_operations = deque([batched])
 
         operation = self.pending_operations[0]
         operation.status = "in_progress"
@@ -160,7 +161,7 @@ class GitHubSyncEngine:
         try:
             await self._update_readme(operation.content, operation.commit_message)
             operation.status = "completed"
-            self.pending_operations.pop(0)
+            self.pending_operations.popleft()
             logger.info("GitHub sync completed: %s", operation.operation_id)
 
         except Exception as exc:
@@ -169,7 +170,7 @@ class GitHubSyncEngine:
 
             if operation.retry_count >= self.max_retries:
                 operation.status = "failed"
-                self.pending_operations.pop(0)
+                self.pending_operations.popleft()
                 logger.error(
                     "GitHub sync failed after %d retries: %s — %s",
                     self.max_retries,

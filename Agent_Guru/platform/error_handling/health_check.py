@@ -1,4 +1,4 @@
-"""
+﻿"""
 Health Check System for Platform Integration.
 
 This module provides comprehensive health checking for all platform components,
@@ -40,7 +40,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -222,7 +222,7 @@ class HealthCheckManager:
         """
         # Return cached result if available and fresh
         if use_cache and self._last_health_status:
-            age = datetime.now() - self._last_health_status.timestamp
+            age = datetime.now(tz=timezone.utc) - self._last_health_status.timestamp
             if age < self._cache_ttl:
                 logger.debug("Returning cached health status")
                 return self._last_health_status
@@ -259,7 +259,7 @@ class HealthCheckManager:
         system_health = SystemHealth(
             status=overall_status,
             components=component_results,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             total_response_time_ms=total_time_ms,
             healthy_count=healthy_count,
             degraded_count=degraded_count,
@@ -304,7 +304,7 @@ class HealthCheckManager:
 
             end_time = time.perf_counter()
             result.response_time_ms = (end_time - start_time) * 1000
-            result.last_check = datetime.now()
+            result.last_check = datetime.now(tz=timezone.utc)
 
             return result
 
@@ -321,7 +321,7 @@ class HealthCheckManager:
                 name=component_name,
                 status=HealthStatus.UNHEALTHY,
                 message=f"Health check timed out after {self._check_timeout}s",
-                last_check=datetime.now(),
+                last_check=datetime.now(tz=timezone.utc),
                 response_time_ms=response_time_ms
             )
 
@@ -338,7 +338,7 @@ class HealthCheckManager:
                 name=component_name,
                 status=HealthStatus.UNHEALTHY,
                 message=f"Health check failed: {str(e)}",
-                last_check=datetime.now(),
+                last_check=datetime.now(tz=timezone.utc),
                 response_time_ms=response_time_ms,
                 metadata={"error": str(e)}
             )
@@ -429,7 +429,7 @@ async def check_system_resources() -> ComponentHealth:
             name="system_resources",
             status=status,
             message=message,
-            last_check=datetime.now(),
+            last_check=datetime.now(tz=timezone.utc),
             response_time_ms=0.0,  # Will be set by manager
             metadata={
                 "cpu_percent": cpu_percent,
@@ -443,7 +443,7 @@ async def check_system_resources() -> ComponentHealth:
             name="system_resources",
             status=HealthStatus.UNHEALTHY,
             message=f"Failed to check system resources: {e}",
-            last_check=datetime.now(),
+            last_check=datetime.now(tz=timezone.utc),
             response_time_ms=0.0
         )
 
@@ -464,7 +464,7 @@ async def check_platform_integration() -> ComponentHealth:
             name="platform_integration",
             status=HealthStatus.HEALTHY,
             message=f"Platform integration operational ({platform_info.os_name})",
-            last_check=datetime.now(),
+            last_check=datetime.now(tz=timezone.utc),
             response_time_ms=0.0,
             metadata={
                 "os_name": platform_info.os_name,
@@ -478,6 +478,6 @@ async def check_platform_integration() -> ComponentHealth:
             name="platform_integration",
             status=HealthStatus.UNHEALTHY,
             message=f"Platform integration failed: {e}",
-            last_check=datetime.now(),
+            last_check=datetime.now(tz=timezone.utc),
             response_time_ms=0.0
         )

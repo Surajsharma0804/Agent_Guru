@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: Agent_Guru.platform.permissions.time_checker
 Purpose: Enhanced time-based permission validation with timezone support
 
@@ -199,7 +199,7 @@ class TimeRestriction:
             True if time is allowed, False otherwise
         """
         if dt is None:
-            dt = datetime.now()
+            dt = datetime.now(tz=timezone.utc)
 
         # Convert to target timezone if specified
         if self.timezone_name:

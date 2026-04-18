@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: Agent_Guru.platform.integration.memory_client
 Purpose: Memory System integration client for operation metadata storage.
 
@@ -23,7 +23,7 @@ import logging
 import random
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 from uuid import UUID, uuid4
@@ -471,7 +471,7 @@ ize
             if attempt < self.max_retries:
                 delay = self._backoff_delay(attempt)
                 self._retry_count += 1
-                logger.debug(f"Retrying in {delay:.2f}s (attempt {attempt + 2})")
+                logger.debug("Retrying in %.2fs (attempt %d)", delay, attempt + 2)
                 await asyncio.sleep(delay)
 
         logger.error(
@@ -509,7 +509,7 @@ ize
 
         payload = {
             "data_type": data_type,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "data": data,
         }
         url = f"{self.base_url}/api/v1/memory/historical"
@@ -526,7 +526,7 @@ ize
                     else:
                         return False
             except (asyncio.TimeoutError, aiohttp.ClientConnectionError) as e:
-                logger.warning(f"Historical store attempt {attempt + 1} failed: {e}")
+                logger.warning("Historical store attempt %d failed: %s", attempt + 1, e)
                 self._circuit.record_failure()
             except Exception as e:
                 logger.error("Unexpected error storing historical data: %s", e)

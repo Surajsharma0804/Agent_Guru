@@ -1,6 +1,4 @@
-import logging
-_logger = logging.getLogger(__name__)
-"""
+﻿"""
 Vision Event Bus for the Agent Guru Vision System.
 
 Provides async pub/sub delivery of VisionEvents to registered subscribers,
@@ -13,6 +11,9 @@ Design goals:
   Frame Dispatcher can skip modules with zero subscribers.
 - Standalone importability: no other Agent Guru components required.
 """
+
+import logging
+_logger = logging.getLogger(__name__)
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Error Manager for comprehensive error handling and classification.
 
 Provides centralized error management with:
@@ -75,7 +75,7 @@ class ErrorSeverity(str, Enum):
 class ErrorContext(BaseModel):
     """Context information for an error."""
 
-    timestamp: datetime = Field(default_factory=datetime.now)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     user_id: Optional[str] = None
     conversation_id: Optional[str] = None
     turn_id: Optional[str] = None

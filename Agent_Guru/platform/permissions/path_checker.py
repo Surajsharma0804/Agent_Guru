@@ -184,7 +184,7 @@ class PathPermissionChecker:
         # Check blocked patterns first (security priority)
         for blocked_pattern in self._blocked_patterns:
             if self._match_pattern(normalized_path, blocked_pattern):
-                logger.warning(f"Path blocked by pattern: {path} -> {blocked_pattern}")
+                logger.warning("Path blocked by pattern: %s -> %s", path, blocked_pattern)
                 return PathValidationResult(
                     allowed=False,
                     normalized_path=normalized_path,

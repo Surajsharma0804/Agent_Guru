@@ -1,4 +1,4 @@
-"""
+﻿"""
 Async execution engine with timeout and cancellation support.
 
 Performance Requirements:
@@ -55,7 +55,7 @@ class AsyncExecutionResult:
     cancelled: bool = False
     timed_out: bool = False
     partial_result: Any | None = None
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""

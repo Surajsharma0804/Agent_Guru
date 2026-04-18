@@ -52,6 +52,7 @@ class DegradationController:
                 resp = await client.head(NETWORK_CHECK_URL)
                 self._online = resp.status_code < 500
         except Exception as e:
+            logger.debug("Network check failed: %s", e)
             self._online = False
         return self._online
 

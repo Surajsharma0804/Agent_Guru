@@ -1,4 +1,4 @@
-"""
+﻿"""
 Hybrid LLM Router
 
 Intelligently routes requests between local and cloud LLM providers based on:
@@ -54,7 +54,7 @@ class RoutingMetrics:
     cloud_latency_ms: list[float] = field(default_factory=list)
     local_errors: int = 0
     cloud_errors: int = 0
-    last_updated: datetime = field(default_factory=datetime.now)
+    last_updated: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def record_request(
         self, decision: RoutingDecision, latency_ms: float, error: bool = False

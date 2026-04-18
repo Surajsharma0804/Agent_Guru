@@ -116,7 +116,7 @@ class FaceDetector:
         detections = detector.detect(frame)
         for d in detections:
             x, y, w, h = d.bbox
-            _logger.info(f"Face at ({x},{y}) size {w}x{h}, conf={d.confidence:.2f}")
+            _logger.info("Face at (%s,%s) size %sx%s, conf=%.2f", x, y, w, h, d.confidence)
     """
 
     def __init__(

@@ -1,4 +1,4 @@
-"""
+﻿"""
 API request and response models.
 
 This module defines Pydantic models for API requests and responses with
@@ -162,7 +162,7 @@ class ProcessResponse(BaseModel):
         examples=["abc123def456"],
     )
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="Response timestamp",
     )
 
@@ -323,7 +323,7 @@ class ErrorResponse(BaseModel):
         description="Additional error details",
     )
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="Error timestamp",
     )
     trace_id: Optional[str] = Field(

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Persistent goal and trigger data models.
 
 This module defines data structures for persistent goals that can be triggered
@@ -136,7 +136,7 @@ class PersistentGoal(BaseModel):
     trigger_condition: dict[str, Any] = Field(..., description="Trigger configuration")
     action_plan: dict[str, Any] = Field(..., description="Action to execute")
     status: GoalStatus = Field(default=GoalStatus.ACTIVE, description="Goal status")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation time")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Creation time")
     last_evaluated: Optional[datetime] = Field(default=None, description="Last evaluation time")
     last_triggered: Optional[datetime] = Field(default=None, description="Last trigger time")
     trigger_count: int = Field(default=0, ge=0, description="Trigger count")
@@ -218,4 +218,4 @@ class GoalExecutionResult(BaseModel):
     result_data: Optional[dict[str, Any]] = Field(default=None, description="Result data")
     error: Optional[str] = Field(default=None, description="Error message")
     execution_time: float = Field(..., ge=0.0, description="Execution time in seconds")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Execution time")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Execution time")

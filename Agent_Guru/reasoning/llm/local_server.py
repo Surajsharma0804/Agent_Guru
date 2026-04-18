@@ -204,6 +204,9 @@ class LocalLLMServer:
 
         Requirements: 4.2
         """
+        import asyncio
+        import concurrent.futures
+
         start_time = time.time()
 
         try:
@@ -218,8 +221,13 @@ class LocalLLMServer:
                     error_message="Server process not running",
                 )
 
-            # Check health endpoint
-            response = requests.get(f"{self._base_url}/health", timeout=1.0)
+            # Run blocking HTTP call in thread pool to avoid blocking event loop
+            loop = asyncio.get_running_loop()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                response = await loop.run_in_executor(
+                    pool,
+                    lambda: requests.get(f"{self._base_url}/health", timeout=1.0),
+                )
 
             latency_ms = (time.time() - start_time) * 1000
 
@@ -285,12 +293,20 @@ class LocalLLMServer:
                 "stream": request.stream,
             }
 
-            # Call completion endpoint
-            response = requests.post(
-                f"{self._base_url}/completion",
-                json=payload,
-                timeout=10.0,  # 10s timeout for inference
-            )
+            # Run blocking HTTP call in thread pool to avoid blocking event loop
+            import asyncio
+            import concurrent.futures
+
+            loop = asyncio.get_running_loop()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                response = await loop.run_in_executor(
+                    pool,
+                    lambda: requests.post(
+                        f"{self._base_url}/completion",
+                        json=payload,
+                        timeout=10.0,
+                    ),
+                )
 
             latency_ms = (time.time() - start_time) * 1000
 

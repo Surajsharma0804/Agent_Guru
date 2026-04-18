@@ -1,10 +1,11 @@
-import logging
-_logger = logging.getLogger(__name__)
-"""
+﻿"""
 Permission manager for skill permissions with user consent.
 
 Manages permission requests, grants, revocations, and trust levels for skills.
 """
+
+import logging
+_logger = logging.getLogger(__name__)
 
 import asyncio
 import json

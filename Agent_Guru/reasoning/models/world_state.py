@@ -1,4 +1,4 @@
-"""
+﻿"""
 World State data models for context-aware reasoning.
 
 Performance: O(1) state queries, <20ms latency
@@ -131,7 +131,7 @@ class WorldState(BaseModel):
     recent_activities: list[Activity] = Field(default_factory=list, max_length=100)
 
     # Metadata
-    last_updated: datetime = Field(default_factory=datetime.now)
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     def get_active_app_count(self) -> int:

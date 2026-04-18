@@ -1,6 +1,4 @@
-import logging
-_logger = logging.getLogger(__name__)
-"""
+﻿"""
 Memory System Integration - Interface for persistent storage integration.
 
 This module provides integration hooks for the memory system to enable
@@ -15,6 +13,9 @@ Author: Agent Guru Team
 Date: 2026-02-28
 Version: 1.0.0
 """
+
+import logging
+_logger = logging.getLogger(__name__)
 
 from datetime import datetime, timezone
 from typing import Any, Optional

@@ -203,10 +203,10 @@ class RequestQueue:
 
                 except Exception as e:
                     request.future.set_exception(e)
-                    logger.error(f"Error processing request {request.request_id}: {e}")
+                    logger.error("Error processing request %s: %s", request.request_id, e)
 
             except Exception as e:
-                logger.error(f"Worker {worker_id} error: {e}", exc_info=True)
+                logger.error("Worker %s error: %s", worker_id, e, exc_info=True)
 
         logger.info("Worker %s stopped", worker_id)
 

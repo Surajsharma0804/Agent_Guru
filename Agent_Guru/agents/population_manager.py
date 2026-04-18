@@ -125,11 +125,20 @@ class PopulationManager:
 
         Validates: Requirement 13.1
         """
-        merged = await self.merger.detect_merge_candidates()
+        candidates = await self.merger.detect_merge_candidates()
         count = 0
-        for agent_a, agent_b in merged:
-            await self.merger.merge_agents(agent_a.id, agent_b.id)
-            count += 1
+        merged_ids: set[str] = set()
+        for agent_a_id, agent_b_id, _similarity in candidates:
+            # Skip if either agent was already merged in this pass
+            if agent_a_id in merged_ids or agent_b_id in merged_ids:
+                continue
+            try:
+                await self.merger.merge_agents(agent_a_id, agent_b_id)
+                merged_ids.add(agent_a_id)
+                merged_ids.add(agent_b_id)
+                count += 1
+            except (ValueError, Exception) as exc:
+                logger.warning("Merge failed for %s + %s: %s", agent_a_id, agent_b_id, exc)
         return count
 
     def adjust_retirement_threshold(self, base_threshold: float) -> float:

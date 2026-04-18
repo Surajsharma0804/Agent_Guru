@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: agent_guru.self_improvement.git_integration
 Purpose: Automated Git integration for learning data versioning
 Author: Agent Guru Self-Improvement Team
@@ -22,7 +22,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
@@ -196,7 +196,7 @@ class GitIntegration:
         # Create commit data
         commit_data = CommitData(
             commit_id=f"exec_{execution.task_id}_{int(time.time())}",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             message=message,
             files=["learning_data/executions.json"],
             data=data
@@ -228,7 +228,7 @@ class GitIntegration:
         # Create commit data
         commit_data = CommitData(
             commit_id=f"report_{int(time.time())}",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(tz=timezone.utc),
             message=message,
             files=["learning_data/improvement_reports.json", "README.md"],
             data=report
@@ -306,10 +306,10 @@ class GitIntegration:
             except GitCommandError as e:
                 retry_count += 1
                 commit_data.retry_count = retry_count
-                commit_data.last_retry = datetime.now()
+                commit_data.last_retry = datetime.now(tz=timezone.utc)
 
                 if retry_count >= self.max_retries:
-                    logger.error(f"Push failed after {self.max_retries} retries: {e}")
+                    logger.error("Push failed after %d retries: %s", self.max_retries, e)
                     self._queue_commit(commit_data)
                     return False
 

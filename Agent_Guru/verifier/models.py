@@ -1,4 +1,4 @@
-"""Core data models for the Verifier System.
+﻿"""Core data models for the Verifier System.
 
 All models use Pydantic v2 for validation and serialization.
 """
@@ -172,7 +172,7 @@ class VerificationResult(BaseModel):
     confidence_score: ConfidenceScore = Field(default_factory=ConfidenceScore)
     feedback: SelfCorrectionFeedback = Field(default_factory=SelfCorrectionFeedback)
     latency_ms: float = 0.0
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("confidence")
@@ -247,7 +247,7 @@ class VerificationLogEntry(BaseModel):
     hallucination_detected: bool
     validation_passed: bool
     loop_detected: bool
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     context_type: str = ""  # "llm_response", "task_output", "storage"
     metadata: dict[str, Any] = Field(default_factory=dict)
 

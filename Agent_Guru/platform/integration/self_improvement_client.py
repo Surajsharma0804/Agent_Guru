@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: Agent_Guru.platform.integration.self_improvement_client
 Purpose: Self-Improvement Engine integration client for performance metrics reporting.
 
@@ -26,7 +26,7 @@ class PerformanceMetrics:
     execution_time_ms: float
     success: bool
     resource_usage: dict[str, float] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -49,7 +49,7 @@ class ErrorStatistics:
     operation_type: str
     time_window_minutes: int = 60
     sample_messages: list[str] = field(default_factory=list)
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def to_dict(self) -> dict[str, Any]:
         return {

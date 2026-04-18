@@ -1,4 +1,4 @@
-"""
+﻿"""
 Synchronous execution engine for Core Reasoning Engine.
 
 Performance Requirements:
@@ -45,7 +45,7 @@ class ExecutionResult:
     action_id: str = ""
     retries: int = 0
     timed_out: bool = False
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -321,7 +321,7 @@ class SyncExecutor:
 
                     # Timeout exceeded
                     future.cancel()
-                    raise TimeoutError(f"Execution exceeded timeout of {timeout}s") from e
+                    raise TimeoutError(f"Execution exceeded timeout of {timeout}s")
                 else:
                     # No cancellation token, just wait for result
                     result = future.result(timeout=timeout)
@@ -330,7 +330,7 @@ class SyncExecutor:
             except concurrent.futures.TimeoutError:
                 # Cancel the future
                 future.cancel()
-                raise TimeoutError(f"Execution exceeded timeout of {timeout}s") from e
+                raise TimeoutError(f"Execution exceeded timeout of {timeout}s")
 
     def _is_transient_error(self, error: Exception) -> bool:
         """Check if error is transient and retryable.
@@ -374,11 +374,11 @@ class SyncExecutor:
         if tool_id not in self._latency_stats:
             self._latency_stats[tool_id] = []
 
-        # Keep last 100 measurements per tool
+        # Keep last 100 measurements per tool — use deque for O(1) eviction
         stats = self._latency_stats[tool_id]
         stats.append(latency)
         if len(stats) > 100:
-            stats.pop(0)
+            del stats[0]  # O(n) but only triggers once per 100 samples
 
     def get_latency_stats(self, tool_id: str) -> dict[str, float]:
         """Get latency statistics for tool.

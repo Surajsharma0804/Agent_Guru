@@ -8,6 +8,7 @@ Requirements: 13.1, 13.2, 13.3, 13.4
 from __future__ import annotations
 
 import logging
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 class AccuracySnapshot:
     """Point-in-time accuracy snapshot."""
 
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     false_positive_rate: float = 0.0
     false_negative_rate: float = 0.0
     total_verifications: int = 0
@@ -41,15 +42,14 @@ class AccuracyTracker:
         self._window_size = window_size
 
         # Ground truth labels: result_id -> (predicted_positive, actual_positive)
-        self._labels: list[tuple[bool, bool]] = []
+        self._labels: deque[tuple[bool, bool]] = deque(maxlen=window_size)
         self._snapshots: list[AccuracySnapshot] = []
         self._alerts: list[str] = []
 
     def record(self, predicted_positive: bool, actual_positive: bool) -> None:
         """Record a verification outcome with ground truth label."""
         self._labels.append((predicted_positive, actual_positive))
-        if len(self._labels) > self._window_size:
-            self._labels.pop(0)
+        # deque(maxlen=window_size) auto-evicts oldest — no manual pop needed
 
         # Check for degradation
         fp_rate = self.false_positive_rate

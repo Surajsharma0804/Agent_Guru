@@ -1,6 +1,4 @@
-import logging
-_logger = logging.getLogger(__name__)
-"""
+﻿"""
 Skill sandbox executor with resource limits and permission checking.
 
 Integrates SkillSandbox with the skill execution pipeline, providing:
@@ -9,6 +7,9 @@ Integrates SkillSandbox with the skill execution pipeline, providing:
 - Cleanup after execution
 - Error handling for sandbox violations
 """
+
+import logging
+_logger = logging.getLogger(__name__)
 
 import time
 from dataclasses import dataclass

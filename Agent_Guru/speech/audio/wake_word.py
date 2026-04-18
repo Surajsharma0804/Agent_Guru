@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -121,8 +122,8 @@ class WakeWordDetector:
         self.config = config or WakeWordConfig()
         self._last_detection_time: float = 0.0
 
-        # MFCC energy buffer for fallback detector
-        self._energy_buffer: list[float] = []
+        # MFCC energy buffer for fallback detector — deque for O(1) bounded append
+        self._energy_buffer: deque[float] = deque(maxlen=10)
 
         # Vosk recognizer (lazy-initialised)
         self._vosk_recognizer: Any | None = None
@@ -484,8 +485,7 @@ class WakeWordDetector:
             return None
 
         self._energy_buffer.append(rms)
-        if len(self._energy_buffer) > 10:
-            self._energy_buffer.pop(0)
+        # deque(maxlen=10) auto-evicts oldest — no manual pop needed
 
         # 1 frame minimum — a single spoken word should trigger detection
         required_frames = 1

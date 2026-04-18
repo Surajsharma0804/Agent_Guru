@@ -262,9 +262,10 @@ class ProviderFailoverRouter:
 
                 latency_ms = (time.perf_counter() - start) * 1000
                 logger.info(
-                    f"Failover router: used {provider.value} "
-                    f"(tried: {[p.value for p in providers_tried]}, "
-                    f"latency: {latency_ms:.1f}ms)"
+                    "Failover router: used %s (tried: %s, latency: %.1fms)",
+                    provider.value,
+                    [p.value for p in providers_tried],
+                    latency_ms,
                 )
 
                 return FailoverResult(
@@ -277,8 +278,8 @@ class ProviderFailoverRouter:
 
             except Exception as e:
                 logger.warning(
-                    f"Provider {provider.value} failed: {e}. "
-                    f"Trying next provider..."
+                    "Provider %s failed: %s. Trying next provider...",
+                    provider.value, e,
                 )
                 async with self._lock:
                     health.status = ProviderStatus.UNAVAILABLE

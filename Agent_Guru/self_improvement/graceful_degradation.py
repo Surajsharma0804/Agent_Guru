@@ -83,7 +83,7 @@ class GracefulDegradationHandler:
 
             # Reset failure count on success
             if self.failure_count > 0:
-                self.logger.info(f"{operation_name} recovered after {self.failure_count} failures")
+                self.logger.info("%s recovered after %d failures", operation_name, self.failure_count)
                 self.failure_count = 0
                 self.mode = DegradationMode.NORMAL
 

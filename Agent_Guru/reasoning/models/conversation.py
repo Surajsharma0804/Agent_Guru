@@ -1,4 +1,4 @@
-"""Conversation state management data models."""
+﻿"""Conversation state management data models."""
 
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -80,7 +80,7 @@ class ConversationTurn(BaseModel):
     action_taken: Optional[Action] = Field(default=None, description="Action executed")
     response: str = Field(default="", description="System response")
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="Turn timestamp",
     )
     user_feedback: Optional[str] = Field(
@@ -182,11 +182,11 @@ class ConversationState(BaseModel):
         description="IDs of running async tasks",
     )
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="Conversation creation timestamp",
     )
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="Last update timestamp",
     )
     metadata: dict[str, Any] = Field(

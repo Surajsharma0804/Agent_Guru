@@ -32,11 +32,18 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-import os
-
 # Default limits
 _DEFAULT_MAX_TURNS = 50
-_DEFAULT_PERSIST_PATH = Path(".kiro/memory/conversations.enc")
+# BUG-002: use OS-appropriate app-data directory so data survives working-directory
+# changes and is never accidentally committed to git.
+def _default_persist_path() -> Path:
+    if os.name == "nt":
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    return base / "agent_guru" / "memory" / "conversations.enc"
+
+_DEFAULT_PERSIST_PATH = _default_persist_path()
 _KEY_ID = os.environ.get("CONVERSATION_KEY_ID", "conversation_key")
 
 
@@ -123,8 +130,9 @@ class ConversationMemory:
         self._key: bytes | None = None
 
         logger.info(
-            f"ConversationMemory initialized: max_turns={max_turns}, "
-            f"persist_path={self._persist_path}"
+            "ConversationMemory initialized: max_turns=%d, persist_path=%s",
+            max_turns,
+            self._persist_path,
         )
 
     # ------------------------------------------------------------------
@@ -185,6 +193,9 @@ class ConversationMemory:
 
         if last_n is not None and last_n > 0:
             turns = turns[-last_n:]
+        elif last_n is not None and last_n <= 0:
+            # BUG-004: last_n=0 should return empty list, not all turns
+            return []
 
         return turns
 

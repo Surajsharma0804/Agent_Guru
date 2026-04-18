@@ -267,7 +267,10 @@ class IdentityManager:
             public_key_obj = Ed25519PublicKey.from_public_bytes(public_key)
             public_key_obj.verify(signature, message)
             return True
-        except Exception as e:
+        except Exception:
+            # cryptography raises InvalidSignature (subclass of Exception) on bad sig.
+            # All other exceptions (ValueError for bad key length, etc.) also mean
+            # verification failed — return False rather than propagating.
             return False
 
     def get_identity(self, profile_id: str) -> IdentityProfile:

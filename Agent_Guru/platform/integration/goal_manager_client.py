@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: Agent_Guru.platform.integration.goal_manager_client
 Purpose: Goal Manager integration client for task completion notifications
 
@@ -99,7 +99,7 @@ class TaskCompletionNotification:
     notification_id: UUID = field(default_factory=uuid4)
     task_id: str = ""
     task_description: str = ""
-    completion_time: datetime = field(default_factory=datetime.now)
+    completion_time: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     operations: list[OperationResult] = field(default_factory=list)
     overall_status: OperationStatus = OperationStatus.SUCCESS
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -381,7 +381,7 @@ class GoalManagerClient:
             self._circuit_open = True
             self._circuit_open_time = datetime.now(tz=timezone.utc)
             logger.error(
-                f"Circuit breaker opened after {self._failure_count} failures"
+                "Circuit breaker opened after %d failures", self._failure_count
             )
 
     def _should_attempt_reset(self) -> bool:

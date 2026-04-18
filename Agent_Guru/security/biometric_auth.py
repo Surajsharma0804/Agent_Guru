@@ -12,7 +12,7 @@ are made exclusively here.
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -33,7 +33,7 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     """Cosine similarity in [-1.0, 1.0] (raw, not normalised to [0,1])."""
     norm_a = float(np.linalg.norm(a))
     norm_b = float(np.linalg.norm(b))
-    if norm_a == 0.0 or norm_b == 0.0:
+    if norm_a < 1e-10 or norm_b < 1e-10:
         return 0.0
     return float(np.dot(a, b) / (norm_a * norm_b))
 
@@ -79,6 +79,8 @@ class BiometricAuthenticator:
 
         # In-memory face template store: {profile_id: embedding (512,)}
         self._face_templates: dict[str, np.ndarray] = {}
+        # Cached SpeechEngine — initialized lazily, reused across calls
+        self._speech_engine: Any = None
 
     # ------------------------------------------------------------------
     # Face authentication
@@ -195,9 +197,11 @@ class BiometricAuthenticator:
         # Local import to break circular dependency:
         # security -> speech -> security
         from Agent_Guru.speech.engine import SpeechEngine  # noqa: PLC0415
-        engine = SpeechEngine()
-        engine.initialize()
-        voice_features = engine.extract_voice_features(audio_data)
+        # Reuse a cached engine instance to avoid re-initializing on every call
+        if not hasattr(self, "_speech_engine") or self._speech_engine is None:
+            self._speech_engine = SpeechEngine()
+            self._speech_engine.initialize()
+        voice_features = self._speech_engine.extract_voice_features(audio_data)
         self.voice_authenticator.enroll_user(profile_id, voice_features)
         logger.info("Enrolled voice template for %s", profile_id)
 
@@ -215,9 +219,11 @@ class BiometricAuthenticator:
         # Local import to break circular dependency:
         # security -> speech -> security
         from Agent_Guru.speech.engine import SpeechEngine  # noqa: PLC0415
-        engine = SpeechEngine()
-        engine.initialize()
-        voice_features = engine.extract_voice_features(audio_data)
+        # Reuse a cached engine instance to avoid re-initializing on every call
+        if not hasattr(self, "_speech_engine") or self._speech_engine is None:
+            self._speech_engine = SpeechEngine()
+            self._speech_engine.initialize()
+        voice_features = self._speech_engine.extract_voice_features(audio_data)
 
         try:
             authenticated, matched_id, similarity = self.voice_authenticator.authenticate(

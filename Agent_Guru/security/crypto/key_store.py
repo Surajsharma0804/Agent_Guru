@@ -135,6 +135,13 @@ class KeyStore:
         """Close the database connection."""
         self._conn.close()
 
+    def __del__(self) -> None:
+        """Ensure connection is closed when object is garbage-collected."""
+        try:
+            self._conn.close()
+        except Exception:
+            pass
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------

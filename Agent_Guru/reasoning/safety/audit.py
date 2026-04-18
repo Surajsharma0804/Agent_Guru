@@ -256,7 +256,7 @@ class AuditLogger:
 
         # Build query with filters
         query = "SELECT * FROM audit_log WHERE 1=1"
-        params: list[str | float] = []
+        params: list[Any] = []
 
         if user_id:
             query += " AND user_id = ?"
@@ -272,14 +272,14 @@ class AuditLogger:
 
         if start_time:
             query += " AND timestamp >= ?"
-            params.append(str(start_time))
+            params.append(start_time)
 
         if end_time:
             query += " AND timestamp <= ?"
-            params.append(str(end_time))
+            params.append(end_time)
 
         query += " ORDER BY timestamp DESC LIMIT ?"
-        params.append(str(limit))
+        params.append(limit)
 
         cursor.execute(query, params)
 
@@ -334,7 +334,7 @@ class AuditLogger:
 
         # Build base query
         where_clause = "WHERE 1=1"
-        params: list[str | float] = []
+        params: list[Any] = []
 
         if user_id:
             where_clause += " AND user_id = ?"
@@ -342,11 +342,11 @@ class AuditLogger:
 
         if start_time:
             where_clause += " AND timestamp >= ?"
-            params.append(str(start_time))
+            params.append(start_time)
 
         if end_time:
             where_clause += " AND timestamp <= ?"
-            params.append(str(end_time))
+            params.append(end_time)
 
         # Get total count — where_clause is built from hardcoded strings with ? placeholders only
         cursor.execute(

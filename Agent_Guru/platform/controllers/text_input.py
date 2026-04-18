@@ -243,7 +243,7 @@ class TextInputController:
         if not key:
             raise ValueError("Key cannot be empty")
 
-        logger.debug(f"Typing special key: key={key}, modifiers={modifiers}")
+        logger.debug("Typing special key: key=%s, modifiers=%s", key, modifiers)
 
         try:
             pyautogui = _get_pyautogui()
@@ -252,7 +252,7 @@ class TextInputController:
             else:
                 pyautogui.press(key)
 
-            logger.info(f"Successfully pressed key: {key} with modifiers {modifiers}")
+            logger.info("Successfully pressed key: %s with modifiers %s", key, modifiers)
 
         except Exception as e:
             logger.error("Failed to press key: %s", e)

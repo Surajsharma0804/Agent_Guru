@@ -1,4 +1,4 @@
-"""
+﻿"""
 Memory monitoring and management for Agent_Guru reasoning engine.
 
 This module provides memory usage tracking, limit enforcement, and leak detection
@@ -22,7 +22,7 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import psutil
@@ -63,7 +63,7 @@ class ComponentMemoryStats:
         self.avg_mb = ((self.avg_mb * (self.samples - 1)) + memory_mb) / self.samples
 
         # Add to history
-        self.history.append((datetime.now(), memory_mb))
+        self.history.append((datetime.now(tz=timezone.utc), memory_mb))
 
 
 class MemoryMonitor:
@@ -176,7 +176,7 @@ class MemoryMonitor:
                 self._detect_leaks()
                 time.sleep(self.check_interval)
             except Exception as e:
-                logger.error(f"Error in memory monitor loop: {e}", exc_info=True)
+                logger.error("Error in memory monitor loop: %s", e, exc_info=True)
 
     def _check_memory(self) -> None:
         """Check current memory usage and enforce limits."""
@@ -190,7 +190,7 @@ class MemoryMonitor:
 
             # Create snapshot
             snapshot = MemorySnapshot(
-                timestamp=datetime.now(),
+                timestamp=datetime.now(tz=timezone.utc),
                 total_mb=rss_mb,
                 rss_mb=rss_mb,
                 vms_mb=vms_mb,
@@ -203,20 +203,20 @@ class MemoryMonitor:
             # Check if over limit
             if rss_mb > self.max_memory_mb:
                 logger.error(
-                    f"Memory limit exceeded: {rss_mb:.1f}MB > {self.max_memory_mb}MB"
+                    "Memory limit exceeded: %.1fMB > %.1fMB", rss_mb, self.max_memory_mb
                 )
                 self._trigger_emergency_gc()
 
             # Check if approaching limit
             elif rss_mb > (self.max_memory_mb * self.gc_threshold_percent):
                 logger.warning(
-                    f"Memory usage high: {rss_mb:.1f}MB "
-                    f"({mem_percent:.1f}% of limit)"
+                    "Memory usage high: %.1fMB (%.1f%% of limit)",
+                    rss_mb, mem_percent,
                 )
                 self._trigger_gc()
 
         except Exception as e:
-            logger.error(f"Error checking memory: {e}", exc_info=True)
+            logger.error("Error checking memory: %s", e, exc_info=True)
 
     def _trigger_gc(self) -> None:
         """Trigger garbage collection."""
@@ -232,8 +232,8 @@ class MemoryMonitor:
         self._last_gc_time = time.time()
 
         logger.info(
-            f"GC triggered: collected {collected} objects in {duration*1000:.1f}ms "
-            f"(total GC count: {self._gc_count})"
+            "GC triggered: collected %d objects in %.1fms (total GC count: %d)",
+            collected, duration * 1000, self._gc_count,
         )
 
     def _trigger_emergency_gc(self) -> None:
@@ -243,7 +243,7 @@ class MemoryMonitor:
         # Collect all generations
         for generation in range(3):
             collected = gc.collect(generation)
-            logger.info(f"Emergency GC generation {generation}: collected {collected}")
+            logger.info("Emergency GC generation %d: collected %d", generation, collected)
 
         self._last_gc_time = time.time()
 
@@ -281,7 +281,7 @@ class MemoryMonitor:
                     self._trigger_gc()
 
         except Exception as e:
-            logger.error(f"Error detecting leaks: {e}", exc_info=True)
+            logger.error("Error detecting leaks: %s", e, exc_info=True)
 
     def track_component(self, component_name: str, memory_mb: float) -> None:
         """

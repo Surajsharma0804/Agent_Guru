@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: Agent_Guru.platform.integration.verifier_client
 Purpose: Verifier System integration client for output validation.
 
@@ -40,7 +40,7 @@ class ValidationRequest:
     output_data: dict[str, Any] = field(default_factory=dict)
     expected_schema: Optional[dict[str, Any]] = None
     validation_rules: list[str] = field(default_factory=list)
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def to_dict(self) -> dict[str, Any]:
         return {

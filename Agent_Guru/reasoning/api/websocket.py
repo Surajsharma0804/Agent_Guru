@@ -1,4 +1,4 @@
-"""
+﻿"""
 WebSocket API for real-time updates.
 
 This module implements WebSocket endpoints for streaming responses and
@@ -62,7 +62,7 @@ class WebSocketMessage(BaseModel):
         description="Message data",
     )
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="Message timestamp",
     )
     request_id: Optional[str] = Field(

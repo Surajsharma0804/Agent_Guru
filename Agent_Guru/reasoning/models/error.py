@@ -1,4 +1,4 @@
-"""Error handling data models."""
+﻿"""Error handling data models."""
 
 from datetime import datetime, timezone
 from enum import Enum
@@ -107,7 +107,7 @@ class Error(BaseModel):
         description="Whether error is recoverable",
     )
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="Error timestamp",
     )
     stack_trace: Optional[str] = Field(

@@ -30,6 +30,7 @@ import logging
 import sqlite3
 import threading
 import time
+from collections import deque
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -171,8 +172,8 @@ class ConnectionPool:
         self._total_releases = 0
         self._failed_acquisitions = 0
         self._failed_transactions = 0
-        self._acquisition_times: list[float] = []
-        self._transaction_times: list[float] = []
+        self._acquisition_times: deque[float] = deque(maxlen=1000)
+        self._transaction_times: deque[float] = deque(maxlen=1000)
 
         # Initialize minimum connections
         self._initialize_pool()
@@ -259,9 +260,7 @@ class ConnectionPool:
             with self._lock:
                 self._total_acquisitions += 1
                 self._acquisition_times.append(acquisition_time)
-                # Keep only last 1000 measurements
-                if len(self._acquisition_times) > 1000:
-                    self._acquisition_times.pop(0)
+                # deque(maxlen=1000) auto-evicts oldest — no manual pop needed
 
             return conn
 
@@ -455,8 +454,7 @@ class ConnectionPool:
             transaction_time = (time.time() - start_time) * 1000  # ms
             with self._lock:
                 self._transaction_times.append(transaction_time)
-                if len(self._transaction_times) > 1000:
-                    self._transaction_times.pop(0)
+                # deque(maxlen=1000) auto-evicts oldest — no manual pop needed
 
         except Exception as e:
             # Rollback on error

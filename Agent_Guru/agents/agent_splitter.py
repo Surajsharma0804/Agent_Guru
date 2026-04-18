@@ -431,7 +431,7 @@ class AgentSplitter:
                     continue
 
                 # Check similarity with cluster members
-                avg_similarity = np.mean([similarity_matrix[i][j] for i in clusters[cluster_id]])
+                avg_similarity = float(np.mean([similarity_matrix[member_idx][j] for member_idx in clusters[cluster_id]]))
 
                 if avg_similarity > 0.5:  # Similarity threshold
                     clusters[cluster_id].append(j)

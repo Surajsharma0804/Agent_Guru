@@ -637,13 +637,14 @@ class GoalManager:
                     {"goal_id": goal_id, "status": goal.status.value}
                 )
 
+            old_description = goal.description
             # Update description
             goal.description = description
 
             logger.info(
                 "goal_description_modified",
                 goal_id=goal_id,
-                old_description=goal.description[:50] if goal.description else None,
+                old_description=old_description[:50] if old_description else None,
                 new_description=description[:50]
             )
 

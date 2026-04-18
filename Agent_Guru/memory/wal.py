@@ -1,4 +1,4 @@
-"""Write-Ahead Log (WAL) for crash recovery.
+﻿"""Write-Ahead Log (WAL) for crash recovery.
 
 Provides:
 - WAL for all mutations: log before applying (Requirement 17.1)
@@ -38,7 +38,7 @@ class WALEntry:
     operation: str = ""
     payload: dict[str, Any] = field(default_factory=dict)
     status: WALEntryStatus = WALEntryStatus.PENDING
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     error: str | None = None
 
 

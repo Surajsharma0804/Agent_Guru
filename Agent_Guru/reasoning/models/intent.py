@@ -1,4 +1,4 @@
-"""Intent detection data models."""
+﻿"""Intent detection data models."""
 
 from datetime import datetime, timezone
 from enum import Enum
@@ -192,7 +192,7 @@ class Intent(BaseModel):
         description="Alternative intents with confidence scores",
     )
     detected_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="Timestamp when intent was detected",
     )
     detection_method: str = Field(

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: Agent_Guru.platform.permissions.model_manager
 Purpose: Permission model manager with YAML configuration and hot reload
 
@@ -24,7 +24,7 @@ import hashlib
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from enum import Enum
 from pathlib import Path
 from threading import RLock
@@ -77,7 +77,7 @@ class TimeRestriction:
     def is_allowed(self, dt: Optional[datetime] = None) -> bool:
         """Check if current time is within allowed window."""
         if dt is None:
-            dt = datetime.now()
+            dt = datetime.now(tz=timezone.utc)
 
         # Check day of week
         day_name = dt.strftime("%A").lower()
@@ -149,7 +149,7 @@ class QuotaStatus:
 class OperationContext:
     """Context for permission evaluation."""
     user_id: str
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
     additional_data: dict[str, Any] = field(default_factory=dict)
@@ -227,8 +227,8 @@ class PermissionModelManager:
 
         # Quota tracking (in-memory, reset hourly/daily)
         self._quota_counters: dict[str, dict[OperationType, dict[str, int]]] = {}
-        self._last_hour_reset = datetime.now().replace(minute=0, second=0, microsecond=0)
-        self._last_day_reset = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        self._last_hour_reset = datetime.now(tz=timezone.utc).replace(minute=0, second=0, microsecond=0)
+        self._last_day_reset = datetime.now(tz=timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
         # Load initial configuration
         self.model: PermissionModel = self.load_model()
@@ -486,10 +486,10 @@ class PermissionModelManager:
 
                 if normalized_path.startswith(allowed_path_normalized):
                     if path_perm.is_allowed(operation, context.timestamp):
-                        logger.debug(f"Path operation allowed: {path} ({operation.value})")
+                        logger.debug("Path operation allowed: %s (%s)", path, operation.value)
                         return True
 
-            logger.warning(f"Path operation denied: {path} ({operation.value})")
+            logger.warning("Path operation denied: %s (%s)", path, operation.value)
             return False
 
     def is_command_allowed(
@@ -583,13 +583,13 @@ class PermissionModelManager:
                     # Wildcard subdomain matching
                     base_domain = allowed_domain[2:]
                     if domain.endswith(base_domain):
-                        logger.debug(f"Network request allowed: {url} ({method.value})")
+                        logger.debug("Network request allowed: %s (%s)", url, method.value)
                         return True
                 elif domain == allowed_domain:
-                    logger.debug(f"Network request allowed: {url} ({method.value})")
+                    logger.debug("Network request allowed: %s (%s)", url, method.value)
                     return True
 
-            logger.warning(f"Network request denied: {url} ({method.value})")
+            logger.warning("Network request denied: %s (%s)", url, method.value)
             return False
 
     def check_quota(
@@ -656,7 +656,7 @@ class PermissionModelManager:
 
     def _reset_quotas_if_needed(self) -> None:
         """Reset quota counters if hour or day has changed."""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         current_hour = now.replace(minute=0, second=0, microsecond=0)
         current_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -690,7 +690,7 @@ class PermissionModelManager:
         with self._lock:
             if not self._lockdown_mode:
                 self._lockdown_mode = True
-                self._lockdown_activated_at = datetime.now()
+                self._lockdown_activated_at = datetime.now(tz=timezone.utc)
                 self._lockdown_reason = reason
                 self._lockdown_activated_by = activated_by
 
@@ -729,7 +729,7 @@ class PermissionModelManager:
             if self._lockdown_mode:
                 duration = None
                 if self._lockdown_activated_at:
-                    duration = (datetime.now() - self._lockdown_activated_at).total_seconds()
+                    duration = (datetime.now(tz=timezone.utc) - self._lockdown_activated_at).total_seconds()
 
                 self._lockdown_mode = False
 
@@ -782,7 +782,7 @@ class PermissionModelManager:
 
             duration = None
             if self._lockdown_activated_at:
-                duration = (datetime.now() - self._lockdown_activated_at).total_seconds()
+                duration = (datetime.now(tz=timezone.utc) - self._lockdown_activated_at).total_seconds()
 
             return {
                 "active": True,

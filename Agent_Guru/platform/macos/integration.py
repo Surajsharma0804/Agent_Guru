@@ -516,7 +516,7 @@ class MacOSIntegration:
                         if time.time() - cached_time < self._cache_ttl:
                             duration_ms = (time.time() - start_time) * 1000
                             self._record_metric(operation, duration_ms, True)
-                            logger.debug(f"Cache hit: {domain} {key}")
+                            logger.debug("Cache hit: %s %s", domain, key)
                             return cached_value
 
             # Cache miss or caching disabled - read from defaults
@@ -687,14 +687,14 @@ class MacOSIntegration:
                 logger.error(error_msg)
                 raise RuntimeError(error_msg)
 
-            logger.info(f"Wrote preference: {domain} {key} = {value}")
+            logger.info("Wrote preference: %s %s = %s", domain, key, value)
 
             # Invalidate cache for this preference
             if self.enable_caching:
                 cache_key = (domain, key)
                 with self._cache_lock:
                     self._preference_cache.pop(cache_key, None)
-                    logger.debug(f"Cache invalidated after write: {domain} {key}")
+                    logger.debug("Cache invalidated after write: %s %s", domain, key)
 
         except subprocess.TimeoutExpired as e:
             error_msg = f"Preference write timed out: {domain} {key}"
@@ -777,7 +777,7 @@ class MacOSIntegration:
                 stderr=subprocess.PIPE
             )
 
-            logger.info(f"Started process: {executable} (PID: {process.pid})")
+            logger.info("Started process: %s (PID: %s)", executable, process.pid)
             return process.pid
 
         except FileNotFoundError as e:

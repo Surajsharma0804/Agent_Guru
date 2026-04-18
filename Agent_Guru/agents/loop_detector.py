@@ -14,7 +14,7 @@ Validates: Requirements 11.3, 11.4, 11.5
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import defaultdict, deque
 
 
 class LoopDetector:
@@ -65,10 +65,10 @@ class LoopDetector:
 
         self.pattern_window = pattern_window
         self.repetition_threshold = repetition_threshold
-        # agent_id -> recent action list (bounded by pattern_window)
-        self._action_history: dict[str, list[str]] = defaultdict(list)
+        # agent_id -> recent action deque (bounded by pattern_window)
+        self._action_history: dict[str, deque[str]] = defaultdict(lambda: deque(maxlen=self.pattern_window))
         # task_type -> recent (from, to) delegation pairs
-        self._delegation_history: dict[str, list[tuple[str, str]]] = defaultdict(list)
+        self._delegation_history: dict[str, deque[tuple[str, str]]] = defaultdict(lambda: deque(maxlen=self.pattern_window))
 
     # ------------------------------------------------------------------
     # Action loop detection
@@ -88,8 +88,7 @@ class LoopDetector:
         """
         history = self._action_history[agent_id]
         history.append(action)
-        if len(history) > self.pattern_window:
-            history.pop(0)
+        # deque(maxlen=pattern_window) auto-evicts oldest — no manual pop needed
 
     def detect_action_loop(self, agent_id: str) -> bool:
         """Detect whether an agent is stuck in an action loop.
@@ -107,11 +106,11 @@ class LoopDetector:
         Time Complexity: O(w) where w is pattern_window
         Validates: Requirements 11.3, 11.4
         """
-        history = self._action_history.get(agent_id, [])
-        if len(history) < self.repetition_threshold:
+        history = self._action_history.get(agent_id)
+        if history is None or len(history) < self.repetition_threshold:
             return False
 
-        recent = history[-self.repetition_threshold:]
+        recent = list(history)[-self.repetition_threshold:]
 
         # Pattern 1: all identical
         if len(set(recent)) == 1:
@@ -158,8 +157,7 @@ class LoopDetector:
         """
         history = self._delegation_history[task_type]
         history.append((from_agent, to_agent))
-        if len(history) > self.pattern_window:
-            history.pop(0)
+        # deque(maxlen=pattern_window) auto-evicts oldest — no manual pop needed
 
     def detect_delegation_loop(self, task_type: str) -> bool:
         """Detect whether a task type has a delegation loop.
@@ -176,11 +174,11 @@ class LoopDetector:
         Time Complexity: O(w) where w is pattern_window
         Validates: Requirements 11.3, 11.4
         """
-        history = self._delegation_history.get(task_type, [])
-        if len(history) < self.repetition_threshold:
+        history = self._delegation_history.get(task_type)
+        if history is None or len(history) < self.repetition_threshold:
             return False
 
-        recent = history[-self.repetition_threshold:]
+        recent = list(history)[-self.repetition_threshold:]
 
         # All recent delegations are the same pair
         if len(set(recent)) == 1:

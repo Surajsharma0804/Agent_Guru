@@ -281,8 +281,10 @@ class AuditLogger:
                 oldest.unlink()
 
             logger.info(
-                f"AuditLogger rotated: {self._log_path} → {rotated} "
-                f"(was {size / 1024 / 1024:.1f} MB)"
+                "AuditLogger rotated: %s → %s (was %.1f MB)",
+                self._log_path,
+                rotated,
+                size / 1024 / 1024,
             )
         except Exception as e:
             logger.error("AuditLogger rotation failed: %s", e)

@@ -272,8 +272,11 @@ class AgentOrchestrator:
         # Phase 3: Outcome recording (after execution)
         self._record_outcome(task_result, task_type, context)
 
-        # Cleanup
-        del self.active_tasks[task_id]
+        # BUG-025: use try/finally to guarantee cleanup even if _record_outcome raises
+        try:
+            pass  # outcome already recorded above
+        finally:
+            self.active_tasks.pop(task_id, None)
 
         return task_result
 

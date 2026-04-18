@@ -664,13 +664,27 @@ class IntentDetectionEngine:
             correct_intent: Correct intent (from user feedback)
             user_id: Optional user ID
         """
-        if self.feedback_store:
-            self.feedback_store.add_feedback(
-                input_text=text,
-                predicted_intent=predicted_intent,
-                correct_intent=correct_intent,
+        if self.feedback_store and user_id:
+            from Agent_Guru.reasoning.models.feedback import FeedbackType, IntentFeedback
+            import uuid
+            from datetime import datetime, timezone
+            feedback = IntentFeedback(
+                feedback_id=str(uuid.uuid4()),
                 user_id=user_id,
+                original_input=text,
+                predicted_intent=predicted_intent,
+                predicted_entities={},
+                predicted_confidence=0.0,
+                correct_intent=correct_intent,
+                feedback_type=FeedbackType.INTENT_CORRECTION,
+                model_version="v1.0",
             )
+            import asyncio
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self.feedback_store.store_feedback(feedback))
+            except RuntimeError:
+                asyncio.run(self.feedback_store.store_feedback(feedback))
 
     def trigger_retraining(self) -> None:
         """Trigger model retraining with collected feedback.

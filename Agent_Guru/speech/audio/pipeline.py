@@ -295,7 +295,7 @@ class AudioPipeline:
         """Attempt to reconnect to audio device."""
         for attempt in range(_MAX_RECONNECT_ATTEMPTS):
             delay = _RECONNECT_DELAY_S * (2 ** attempt)  # Exponential backoff
-            logger.info(f"Reconnect attempt {attempt + 1}/{_MAX_RECONNECT_ATTEMPTS} in {delay:.1f}s")
+            logger.info("Reconnect attempt %d/%d in %.1fs", attempt + 1, _MAX_RECONNECT_ATTEMPTS, delay)
 
             with self._lock:
                 self._device_state = DeviceState.RECONNECTING

@@ -64,7 +64,7 @@ class LangChainBenchmark(BaseBenchmark):
 
             print("LangChain agent initialized successfully")
 
-        except ImportError:
+        except ImportError as e:
             raise ImportError("LangChain not installed") from e
         except Exception as e:
             raise Exception(f"Failed to initialize LangChain agent: {e}") from e

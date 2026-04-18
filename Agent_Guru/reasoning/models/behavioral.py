@@ -1,4 +1,4 @@
-"""
+﻿"""
 Behavioral learning data models.
 
 This module defines data structures for tracking user behavior patterns,
@@ -39,7 +39,7 @@ class CommandFrequency(BaseModel):
     command: str = Field(..., description="Command text or intent type")
     user_id: str = Field(..., description="User identifier")
     frequency: int = Field(default=0, ge=0, description="Usage frequency")
-    last_used: datetime = Field(default_factory=datetime.utcnow, description="Last usage time")
+    last_used: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Last usage time")
     success_rate: float = Field(default=1.0, ge=0.0, le=1.0, description="Success rate")
     total_executions: int = Field(default=0, ge=0, description="Total executions")
     successful_executions: int = Field(default=0, ge=0, description="Successful executions")
@@ -116,7 +116,7 @@ class TimePattern(BaseModel):
     frequency: int = Field(default=1, ge=1, description="Number of occurrences")
     confidence: float = Field(default=0.5, ge=0.0, le=1.0, description="Pattern confidence")
     last_occurrence: datetime = Field(
-        default_factory=datetime.utcnow, description="Last occurrence time"
+        default_factory=lambda: datetime.now(tz=timezone.utc), description="Last occurrence time"
     )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
@@ -152,7 +152,7 @@ class AppUsage(BaseModel):
     open_count: int = Field(default=0, ge=0, description="Number of opens")
     total_duration: float = Field(default=0.0, ge=0.0, description="Total duration in seconds")
     avg_duration: float = Field(default=0.0, ge=0.0, description="Average duration in seconds")
-    last_used: datetime = Field(default_factory=datetime.utcnow, description="Last usage time")
+    last_used: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Last usage time")
     usage_patterns: list[str] = Field(default_factory=list, description="Time-based usage patterns")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
@@ -204,7 +204,7 @@ class UserPreference(BaseModel):
     confidence: float = Field(default=0.5, ge=0.0, le=1.0, description="Confidence score")
     learned_from: str = Field(..., description="How preference was learned")
     sample_count: int = Field(default=1, ge=1, description="Number of samples")
-    last_updated: datetime = Field(default_factory=datetime.utcnow, description="Last update time")
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Last update time")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     def update_preference(self, new_value: Any, weight: float = 0.2) -> None:
@@ -268,7 +268,7 @@ class ProactiveSuggestion(BaseModel):
     relevance: float = Field(..., ge=0.0, le=1.0, description="Relevance score")
     based_on: str = Field(..., description="Pattern this is based on")
     context: dict[str, Any] = Field(..., description="Current context")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation time")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Creation time")
     expires_at: datetime = Field(..., description="Expiration time")
     accepted: Optional[bool] = Field(default=None, description="Whether accepted")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
@@ -315,5 +315,5 @@ class BehavioralStats(BaseModel):
     suggestion_acceptance_rate: float = Field(
         default=0.0, ge=0.0, le=1.0, description="Acceptance rate"
     )
-    last_updated: datetime = Field(default_factory=datetime.utcnow, description="Last update")
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Last update")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional stats")

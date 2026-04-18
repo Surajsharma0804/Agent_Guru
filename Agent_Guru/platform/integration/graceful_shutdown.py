@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: Agent_Guru.platform.integration.graceful_shutdown
 Purpose: Graceful shutdown with signal handling, in-flight tracking, and state persistence.
 
@@ -54,7 +54,7 @@ class ShutdownState:
     Useful for post-mortem analysis and restart recovery.
     """
 
-    shutdown_time: datetime = field(default_factory=datetime.utcnow)
+    shutdown_time: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     reason: str = "normal"
     in_flight_at_shutdown: int = 0
     cleanup_handlers_run: int = 0
@@ -196,7 +196,7 @@ class GracefulShutdownManager:
             timeout=timeout if timeout is not None else self.default_handler_timeout,
         )
         self._cleanup_entries.append(entry)
-        logger.debug(f"Registered cleanup handler: '{resolved_name}' (timeout={entry.timeout}s)")
+        logger.debug("Registered cleanup handler: '%s' (timeout=%.1fs)", resolved_name, entry.timeout)
 
     def register_signals(self) -> None:
         """
@@ -358,7 +358,7 @@ class GracefulShutdownManager:
                 json.dump(state.to_dict(), f, indent=2)
             logger.debug("Shutdown state persisted to '%s'", self.state_file)
         except OSError as e:
-            logger.error(f"Failed to persist shutdown state to '{self.state_file}': {e}")
+            logger.error("Failed to persist shutdown state to '%s': %s", self.state_file, e)
 
     # ─── Observability ────────────────────────────────────────────────────
 

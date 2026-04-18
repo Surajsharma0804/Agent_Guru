@@ -1,4 +1,4 @@
-"""
+﻿"""
 Data models for Goal Manager.
 
 Defines core data structures using Pydantic for validation.
@@ -75,7 +75,7 @@ class Goal(BaseModel):
     priority: Priority = Field(default=Priority.MEDIUM)
     goal_type: GoalType = Field(default=GoalType.TASK)
     progress: float = Field(default=0.0, ge=0.0, le=1.0)
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     deadline: Optional[datetime] = None

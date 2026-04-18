@@ -1,4 +1,4 @@
-"""
+﻿"""
 Tool Intelligence Engine for learning and optimizing tool performance.
 
 This module implements intelligent tool tracking, ranking, and learning based on:
@@ -57,7 +57,7 @@ class DegradationAlert:
     severity: AlertSeverity
     reason: str
     metrics: dict[str, Any]
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     alert_id: str = field(default="")
 
     def __post_init__(self) -> None:
@@ -300,10 +300,10 @@ class ToolStats(BaseModel):
         default=None, description="Timestamp of last successful execution"
     )
     created_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Timestamp when stats were created"
+        default_factory=lambda: datetime.now(tz=timezone.utc), description="Timestamp when stats were created"
     )
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="Timestamp when stats were last updated",
     )
 
@@ -573,10 +573,10 @@ class UserToolPreference(BaseModel):
         default=None, description="Timestamp of last selection"
     )
     created_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Timestamp when preference was created"
+        default_factory=lambda: datetime.now(tz=timezone.utc), description="Timestamp when preference was created"
     )
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="Timestamp when preference was last updated",
     )
 

@@ -1,6 +1,4 @@
-import logging
-_logger = logging.getLogger(__name__)
-"""
+﻿"""
 Improvement Reporter for Self-Improvement Engine.
 
 Generates comprehensive improvement reports after every 100 tasks with
@@ -16,6 +14,9 @@ Performance Requirements:
 Author: Agent Guru Team
 Date: 2026-02-28
 """
+
+import logging
+_logger = logging.getLogger(__name__)
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -349,11 +350,11 @@ class ImprovementReporter:
         _logger.info("=" * 80)
         _logger.info("⚠️  IMPROVEMENT ALERT")
         _logger.info("=" * 80)
-        _logger.info(f"Reason: {report.alert_reason}")
+        _logger.info("Reason: %s", report.alert_reason)
         _logger.info("")
-        _logger.info(f"Current Improvement: {report.relative_improvement_percent:+.2f}%")
-        _logger.info(f"Required Threshold: {report.improvement_threshold * 100:.0f}%")
-        _logger.info(f"Gap: {report.threshold_gap * 100:+.2f}%")
+        _logger.info("Current Improvement: %+.2f%%", report.relative_improvement_percent)
+        _logger.info("Required Threshold: %.0f%%", report.improvement_threshold * 100)
+        _logger.info("Gap: %+.2f%%", report.threshold_gap * 100)
         _logger.info("")
         _logger.info("Recommendations:")
         _logger.info("1. Review failure patterns in Failure Analyzer")

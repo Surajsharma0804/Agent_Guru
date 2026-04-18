@@ -361,8 +361,8 @@ class DegradationManager:
             duration = time.time() - self._degraded_since
             if duration < self.config.min_degraded_duration:
                 logger.warning(
-                    f"Cannot recover yet (min duration: {self.config.min_degraded_duration}s, "
-                    f"current: {duration:.1f}s)"
+                    "Cannot recover yet (min duration: %.1fs, current: %.1fs)",
+                    self.config.min_degraded_duration, duration,
                 )
                 return
 
@@ -474,7 +474,8 @@ class DegradationManager:
         resource_stats = self.get_resource_stats()
 
         logger.info(
-            f"Mode transition: {old_mode.value} -> {new_mode.value}",
+            "Mode transition: %s -> %s",
+            old_mode.value, new_mode.value,
             extra={
                 "reason": reason,
                 "cpu_percent": resource_stats["cpu_percent"],

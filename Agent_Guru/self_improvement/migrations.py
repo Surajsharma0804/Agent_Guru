@@ -416,7 +416,7 @@ class MigrationSystem:
         Raises:
             sqlite3.Error: If migration fails
         """
-        logger.info(f"Applying migration {migration.version}: {migration.description}")
+        logger.info("Applying migration %s: %s", migration.version, migration.description)
 
         # Connect with explicit transaction mode
         conn = sqlite3.connect(self.db_path)
@@ -448,8 +448,8 @@ class MigrationSystem:
             cursor.execute("COMMIT")
 
             logger.info(
-                f"Migration {migration.version} applied successfully "
-                f"in {execution_time:.2f}ms"
+                "Migration %s applied successfully in %.2fms",
+                migration.version, execution_time,
             )
 
         except Exception as e:
@@ -458,7 +458,7 @@ class MigrationSystem:
                 cursor.execute("ROLLBACK")
             except sqlite3.Error as rollback_exc:
                 logger.warning("ROLLBACK failed during migration %s: %s", migration.version, rollback_exc)
-            logger.error(f"Migration {migration.version} failed: {e}")
+            logger.error("Migration %s failed: %s", migration.version, e)
             raise
         finally:
             conn.close()
@@ -475,7 +475,7 @@ class MigrationSystem:
         Raises:
             sqlite3.Error: If rollback fails
         """
-        logger.info(f"Rolling back migration {migration.version}: {migration.description}")
+        logger.info("Rolling back migration %s: %s", migration.version, migration.description)
 
         # Connect with manual transaction control
         conn = sqlite3.connect(self.db_path)
@@ -509,7 +509,7 @@ class MigrationSystem:
                 cursor.execute("ROLLBACK")
             except sqlite3.Error as rollback_exc:
                 logger.warning("ROLLBACK failed during rollback of migration %s: %s", migration.version, rollback_exc)
-            logger.error(f"Rollback of migration {migration.version} failed: {e}")
+            logger.error("Rollback of migration %s failed: %s", migration.version, e)
             raise
         finally:
             conn.close()
@@ -628,20 +628,20 @@ if __name__ == "__main__":
     # Show status
     status = system.get_migration_status()
     _logger.info("\n=== Migration Status ===")
-    _logger.info(f"Current version: {status['current_version']}")
-    _logger.info(f"Latest version: {status['latest_version']}")
-    _logger.info(f"Up to date: {status['is_up_to_date']}")
+    _logger.info("Current version: %s", status['current_version'])
+    _logger.info("Latest version: %s", status['latest_version'])
+    _logger.info("Up to date: %s", status['is_up_to_date'])
 
     if status['applied_migrations']:
         _logger.info("\nApplied migrations:")
         for m in status['applied_migrations']:
-            _logger.info(f"  v{m['version']}: {m['description']}")
-            _logger.info(f"    Applied at: {m['applied_at']}")
+            _logger.info("  v%s: %s", m['version'], m['description'])
+            _logger.info("    Applied at: %s", m['applied_at'])
 
     if status['pending_migrations']:
         _logger.info("\nPending migrations:")
         for m in status['pending_migrations']:
-            _logger.info(f"  v{m['version']}: {m['description']}")
+            _logger.info("  v%s: %s", m['version'], m['description'])
 
         # Ask to apply
         response = input("\nApply pending migrations? (y/n): ")

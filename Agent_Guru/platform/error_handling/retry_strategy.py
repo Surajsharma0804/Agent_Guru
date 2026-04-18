@@ -193,7 +193,7 @@ class RetryStrategy:
         # Check if max attempts reached
         if attempt >= self.config.max_attempts:
             logger.warning(
-                f"Max retry attempts ({self.config.max_attempts}) reached"
+                "Max retry attempts (%d) reached", self.config.max_attempts
             )
             return RetryDecision.ABORT
 
@@ -204,8 +204,8 @@ class RetryStrategy:
 
         # Retry for transient errors
         logger.info(
-            f"Retryable error on attempt {attempt + 1}/{self.config.max_attempts}: "
-            f"{type(error).__name__}: {error}"
+            "Retryable error on attempt %d/%d: %s: %s",
+            attempt + 1, self.config.max_attempts, type(error).__name__, error,
         )
         return RetryDecision.RETRY
 
@@ -251,8 +251,8 @@ class RetryStrategy:
 
                 # Success
                 logger.info(
-                    f"Operation succeeded on attempt {attempt + 1} "
-                    f"(total delay: {total_delay:.2f}s)"
+                    "Operation succeeded on attempt %d (total delay: %.2fs)",
+                    attempt + 1, total_delay,
                 )
                 return RetryResult(
                     success=True,
@@ -273,7 +273,7 @@ class RetryStrategy:
 
             except Exception as e:
                 last_error = e
-                logger.debug(f"Operation failed: {type(e).__name__}: {e}")
+                logger.debug("Operation failed: %s: %s", type(e).__name__, e)
 
                 # Check if should retry
                 decision = self.should_retry(attempt, e)
@@ -294,10 +294,10 @@ class RetryStrategy:
                     total_delay += delay
 
         # All retries exhausted
-        error_msg = f"{type(last_error).__name__}: {last_error}" if last_error else "Unknown error"
+        error_msg = "%s: %s" % (type(last_error).__name__, last_error) if last_error else "Unknown error"
         logger.error(
-            f"Operation failed after {self.config.max_attempts} attempts "
-            f"(total delay: {total_delay:.2f}s): {error_msg}"
+            "Operation failed after %d attempts (total delay: %.2fs): %s",
+            self.config.max_attempts, total_delay, error_msg,
         )
         return RetryResult(
             success=False,
@@ -349,8 +349,8 @@ class RetryStrategy:
 
                 # Success
                 logger.info(
-                    f"Async operation succeeded on attempt {attempt + 1} "
-                    f"(total delay: {total_delay:.2f}s)"
+                    "Async operation succeeded on attempt %d (total delay: %.2fs)",
+                    attempt + 1, total_delay,
                 )
                 return RetryResult(
                     success=True,
@@ -371,7 +371,7 @@ class RetryStrategy:
 
             except Exception as e:
                 last_error = e
-                logger.debug(f"Async operation failed: {type(e).__name__}: {e}")
+                logger.debug("Async operation failed: %s: %s", type(e).__name__, e)
 
                 # Check if should retry
                 decision = self.should_retry(attempt, e)
@@ -392,10 +392,10 @@ class RetryStrategy:
                     total_delay += delay
 
         # All retries exhausted
-        error_msg = f"{type(last_error).__name__}: {last_error}" if last_error else "Unknown error"
+        error_msg = "%s: %s" % (type(last_error).__name__, last_error) if last_error else "Unknown error"
         logger.error(
-            f"Async operation failed after {self.config.max_attempts} attempts "
-            f"(total delay: {total_delay:.2f}s): {error_msg}"
+            "Async operation failed after %d attempts (total delay: %.2fs): %s",
+            self.config.max_attempts, total_delay, error_msg,
         )
         return RetryResult(
             success=False,

@@ -355,7 +355,7 @@ class ProcessManager:
             logger.info("Process PID=%d terminated successfully", pid)
             return True
 
-        except psutil.NoSuchProcess:
+        except psutil.NoSuchProcess as e:
             logger.error("Process not found: PID=%d", pid)
             raise ProcessNotFoundError(f"Process not found: PID={pid}") from e
         except psutil.AccessDenied as e:
@@ -394,7 +394,7 @@ class ProcessManager:
             logger.debug("Process PID=%d status: %s", pid, normalized_status)
             return normalized_status
 
-        except psutil.NoSuchProcess:
+        except psutil.NoSuchProcess as e:
             logger.error("Process not found: PID=%d", pid)
             raise ProcessNotFoundError(f"Process not found: PID={pid}") from e
         except Exception as e:
@@ -443,7 +443,7 @@ class ProcessManager:
             logger.debug("Retrieved info for process PID=%d: %s", pid, name)
             return process_info
 
-        except psutil.NoSuchProcess:
+        except psutil.NoSuchProcess as e:
             logger.error("Process not found: PID=%d", pid)
             raise ProcessNotFoundError(f"Process not found: PID={pid}") from e
         except Exception as e:

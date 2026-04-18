@@ -58,7 +58,7 @@ class RawInput(BaseModel):
     content: Any = Field(..., description="Raw input content")
     source: InputSource = Field(..., description="Input source type")
     user_id: str = Field(..., description="User identifier")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Input timestamp")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Input timestamp")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     @field_validator("user_id")

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Core data models for Agent Orchestration System.
 
 Defines agents, tasks, performance records, and evolution events using Pydantic
@@ -108,7 +108,7 @@ class PerformanceRecord(BaseModel):
         description="Resource usage metrics (cpu_ms, memory_mb, api_calls)"
     )
     timestamp: datetime = Field(
-        default_factory=datetime.now,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="When task was completed"
     )
     error_message: Optional[str] = Field(
@@ -157,11 +157,11 @@ class Agent(BaseModel):
         description="Historical performance records"
     )
     created_at: datetime = Field(
-        default_factory=datetime.now,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="When agent was created"
     )
     last_active: datetime = Field(
-        default_factory=datetime.now,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="Last activity timestamp"
     )
     total_tasks: int = Field(
@@ -262,7 +262,7 @@ class Task(BaseModel):
         description="Task status (pending, assigned, in_progress, completed, failed)"
     )
     created_at: datetime = Field(
-        default_factory=datetime.now,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="When task was created"
     )
     completed_at: Optional[datetime] = Field(
@@ -308,7 +308,7 @@ class EvolutionEvent(BaseModel):
         description="Additional event details"
     )
     timestamp: datetime = Field(
-        default_factory=datetime.now,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="When event occurred"
     )
     synced_to_github: bool = Field(

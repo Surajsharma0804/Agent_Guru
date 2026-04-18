@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: Agent_Guru.platform.permissions.quota_manager
 Purpose: Operation quota tracking and enforcement system
 
@@ -23,7 +23,7 @@ Version: 1.0.0
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from threading import RLock
@@ -247,7 +247,7 @@ class QuotaManager:
         self._user_quotas: dict[str, UserQuotaCounters] = {}
 
         # Track last reset times
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         self._last_hour_reset = now.replace(minute=0, second=0, microsecond=0)
         self._last_day_reset = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -432,7 +432,7 @@ class QuotaManager:
         Time Complexity: O(u * o) where u=users, o=operation types
         Space Complexity: O(1)
         """
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         current_hour = now.replace(minute=0, second=0, microsecond=0)
         current_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
 

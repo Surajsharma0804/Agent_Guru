@@ -206,9 +206,9 @@ class GuruVisionIntegration:
         production_ready: bool,
         manifest_path: str,
     ) -> None:
-        from datetime import datetime
+        from datetime import datetime, timezone
         manifest = {
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(tz=timezone.utc).isoformat(),
             "production_ready": production_ready,
             "artifacts": {
                 "onnx_model": onnx_path,

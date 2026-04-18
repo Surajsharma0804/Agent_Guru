@@ -336,23 +336,24 @@ class DuplicateDetector:
             adjacency[agent1_id].append(agent2_id)
             adjacency[agent2_id].append(agent1_id)
 
-        # Find connected components (clusters)
+        # Find connected components (clusters) — iterative BFS to avoid recursion limit
         visited = set()
         clusters = []
 
-        def dfs(agent_id: str, cluster: list[str]) -> None:
-            """Depth-first search to find cluster."""
-            visited.add(agent_id)
-            cluster.append(agent_id)
-
-            for neighbor_id in adjacency.get(agent_id, []):
-                if neighbor_id not in visited:
-                    dfs(neighbor_id, cluster)
-
-        for agent_id in adjacency.keys():
-            if agent_id not in visited:
-                cluster: list[str] = []
-                dfs(agent_id, cluster)
-                clusters.append(cluster)
+        for start_id in adjacency.keys():
+            if start_id in visited:
+                continue
+            cluster: list[str] = []
+            queue = [start_id]
+            while queue:
+                agent_id = queue.pop()
+                if agent_id in visited:
+                    continue
+                visited.add(agent_id)
+                cluster.append(agent_id)
+                for neighbor_id in adjacency.get(agent_id, []):
+                    if neighbor_id not in visited:
+                        queue.append(neighbor_id)
+            clusters.append(cluster)
 
         return clusters

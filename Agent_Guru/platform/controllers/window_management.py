@@ -395,7 +395,7 @@ class WindowManager:
         if not window_identifier or not window_identifier.strip():
             raise ValueError("window_identifier cannot be empty")
 
-        logger.info(f"Snapping window '{window_identifier}' to {position.value}")
+        logger.info("Snapping window '%s' to %s", window_identifier, position.value)
 
         # Get screen information
         screens = self.get_screens()

@@ -62,7 +62,7 @@ class AccessAuditEntry:
     permission: Permission = Permission.READ
     resource: str = ""
     granted: bool = True
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 class MemorySecurityManager:

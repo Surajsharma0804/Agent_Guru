@@ -1,4 +1,4 @@
-"""
+﻿"""
 Feature Flags and A/B Testing Framework - Task 48.
 
 Provides feature flag management with gradual rollout and A/B testing
@@ -53,8 +53,8 @@ class FeatureFlag:
     enabled: bool = False
     rollout_percentage: float = 0.0   # 0.0 to 100.0
     strategy: RolloutStrategy = RolloutStrategy.DISABLED
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def is_enabled_for(self, user_id: str) -> bool:
@@ -247,7 +247,7 @@ class Experiment:
     name: str
     description: str
     variants: list[ExperimentVariant]
-    started_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     ended_at: Optional[datetime] = None
     is_active: bool = True
     winner: Optional[str] = None

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: agent_guru.platform.network.webhook
 Purpose: Webhook registration, signature verification, and event routing
 Author: Agent Guru Team
@@ -104,7 +104,7 @@ class WebhookHandler:
     secret_key: Optional[str]
     config: WebhookConfig
     event_types: list[str] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     last_triggered: Optional[datetime] = None
     trigger_count: int = 0
 

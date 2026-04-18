@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: agent_guru.platform.github.auto_commit
 Purpose: Automatic commit and push with task completion detection and batching
 
@@ -31,7 +31,7 @@ Version: 1.0.0
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -57,7 +57,7 @@ class TaskContext:
     task_description: str
     component: str
     files_changed: list[str] = field(default_factory=list)
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 @dataclass
@@ -73,7 +73,7 @@ class PendingCommit:
     task_context: TaskContext
     message: str
     files: list[str]
-    created_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 @dataclass
@@ -229,11 +229,7 @@ class AutoCommitManager:
         if not task_context.task_id:
             raise ValueError("Task ID cannot be empty")
 
-        start_time = datetime.now()
-
-        try:
-            # Detect changed files
-            changed_files = await self._detect_changed_files(task_context)
+        start_time = datetime.now(tz=timezone.utc)
 
             if not changed_files:
                 logger.info("No changes detected for task %s", task_context.task_id)
@@ -255,12 +251,11 @@ class AutoCommitManager:
             # Add to queue
             self._pending_commits.append(pending)
 
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
 
             logger.info(
-                f"Commit queued for task {task_context.task_id}: "
-                f"{len(changed_files)} file(s), "
-                f"pending={len(self._pending_commits)}"
+                "Commit queued for task %s: %d file(s), pending=%d",
+                task_context.task_id, len(changed_files), len(self._pending_commits),
             )
 
             # Check if we should force push
@@ -275,8 +270,8 @@ class AutoCommitManager:
             )
 
         except Exception as e:
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
-            logger.error(f"Failed to queue commit for task {task_context.task_id}: {e}")
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
+            logger.error("Failed to queue commit for task %s: %s", task_context.task_id, e)
             return GitOperationResult(
                 success=False,
                 message=f"Failed to queue commit: {e}",
@@ -396,7 +391,7 @@ class AutoCommitManager:
 
                 # Check batch window
                 if self._last_push_time:
-                    elapsed = datetime.now() - self._last_push_time
+                    elapsed = datetime.now(tz=timezone.utc) - self._last_push_time
                     if elapsed.total_seconds() < self.config.batch_window_seconds:
                         continue
 
@@ -422,7 +417,7 @@ class AutoCommitManager:
         if not self._pending_commits:
             return
 
-        start_time = datetime.now()
+        start_time = datetime.now(tz=timezone.utc)
 
         try:
             # Collect all files and messages
@@ -451,8 +446,8 @@ class AutoCommitManager:
                 commit_message += "\n\nAuto-committed by Agent_Guru"
 
             logger.info(
-                f"Processing batch: {len(self._pending_commits)} commit(s), "
-                f"{len(all_files)} file(s)"
+                "Processing batch: %d commit(s), %d file(s)",
+                len(self._pending_commits), len(all_files),
             )
 
             # Commit and push
@@ -461,17 +456,17 @@ class AutoCommitManager:
                 files=all_files
             )
 
-            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
 
             if result.success:
                 logger.info(
-                    f"Batch processed successfully: {len(self._pending_commits)} commit(s), "
-                    f"duration={duration_ms:.0f}ms"
+                    "Batch processed successfully: %d commit(s), duration=%.0fms",
+                    len(self._pending_commits), duration_ms,
                 )
 
                 # Clear pending commits
                 self._pending_commits.clear()
-                self._last_push_time = datetime.now()
+                self._last_push_time = datetime.now(tz=timezone.utc)
             else:
                 logger.error("Batch processing failed: %s", result.message)
                 # Keep pending commits for retry
@@ -499,7 +494,7 @@ class AutoCommitManager:
         if not self._last_push_time:
             return 0.0
 
-        elapsed = datetime.now() - self._last_push_time
+        elapsed = datetime.now(tz=timezone.utc) - self._last_push_time
         remaining = self.config.batch_window_seconds - elapsed.total_seconds()
 
         return max(0.0, remaining)

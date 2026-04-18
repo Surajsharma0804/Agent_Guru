@@ -231,7 +231,7 @@ class StartupTimer:
         """
         elapsed_ms = (time.perf_counter() - self._start) * 1000
         self._checkpoints[name] = elapsed_ms
-        logger.debug(f"Startup checkpoint '{name}': {elapsed_ms:.1f}ms")
+        logger.debug("Startup checkpoint '%s': %.1fms", name, elapsed_ms)
         return elapsed_ms
 
     def total_ms(self) -> float:

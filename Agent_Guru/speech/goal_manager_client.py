@@ -1,4 +1,4 @@
-"""
+﻿"""
 Goal Manager Client for Speech Engine.
 
 Enables voice-driven task creation by routing task-creation commands
@@ -29,7 +29,7 @@ class TaskCreationResult:
     description: str
     confirmation_text: str
     error: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 class GoalManagerClient:

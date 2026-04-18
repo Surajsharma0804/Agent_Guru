@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: agent_guru.reasoning.models.verification
 Purpose: Data models for reasoning verification and validation
 Author: Agent Guru Team
@@ -96,7 +96,7 @@ class VerificationIssue(BaseModel):
         None, ge=0, description="Step index affected by this issue (None for plan-level)"
     )
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="When the issue was detected"
+        default_factory=lambda: datetime.now(tz=timezone.utc), description="When the issue was detected"
     )
 
     @field_validator("description")
@@ -156,7 +156,7 @@ class VerificationResult(BaseModel):
         ..., ge=0.0, description="Verification time in milliseconds"
     )
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="When verification was performed"
+        default_factory=lambda: datetime.now(tz=timezone.utc), description="When verification was performed"
     )
 
     @field_validator("confidence")

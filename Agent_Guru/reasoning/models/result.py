@@ -1,4 +1,4 @@
-"""Execution result and response data models."""
+﻿"""Execution result and response data models."""
 
 from datetime import datetime, timezone
 from enum import Enum
@@ -36,7 +36,7 @@ class ExecutionResult(BaseModel):
     action_id: str = Field(..., description="ID of executed action")
     tool_id: str = Field(..., description="ID of tool that was executed")
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="Execution timestamp",
     )
     metadata: dict[str, Any] = Field(
@@ -136,7 +136,7 @@ class Response(BaseModel):
         description="Available action options for user",
     )
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(tz=timezone.utc),
         description="Response generation timestamp",
     )
 

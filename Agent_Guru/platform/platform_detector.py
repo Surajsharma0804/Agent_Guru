@@ -304,14 +304,14 @@ def _is_android() -> bool:
     Returns:
         True if running on Android, False otherwise
     """
+    import os as _os
     # Check for Android-specific environment variables
-    if "ANDROID_ROOT" in sys.platform or "ANDROID_DATA" in sys.platform:
+    if "ANDROID_ROOT" in _os.environ or "ANDROID_DATA" in _os.environ:
         return True
 
     # Check for Android-specific system properties
     try:
-        import os
-        if os.path.exists("/system/build.prop"):
+        if _os.path.exists("/system/build.prop"):
             return True
     except OSError as exc:
         import logging as _logging

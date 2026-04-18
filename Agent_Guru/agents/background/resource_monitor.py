@@ -1,4 +1,4 @@
-"""
+﻿"""
 Resource Monitor - Monitors battery, thermal, network, and audio focus.
 
 Tracks system resource states and triggers appropriate responses:
@@ -76,7 +76,7 @@ class ResourceSnapshot:
     thermal_state: ThermalState
     network_state: NetworkState
     audio_focus: AudioFocusState
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 # Async callback type

@@ -549,7 +549,7 @@ class LinuxMediaBackend(MediaBackend):
             logger.debug("playerctl %s executed", command)
             return result.stdout.strip()
         except subprocess.CalledProcessError as e:
-            logger.error(f"playerctl {command} failed: {e.stderr}")
+            logger.error("playerctl %s failed: %s", command, e.stderr)
             raise MediaCommandError(
                 f"playerctl {command} failed: {e.stderr}"
             ) from e

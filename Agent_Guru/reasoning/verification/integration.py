@@ -524,7 +524,7 @@ class VerificationIntegration:
                         attempt,
                         user_id or "unknown",
                         conversation_id or "unknown",
-                        current_task.task_id,
+                        current_task.goal,  # Task has no task_id; use goal as identifier
                         original_input,
                         cache_hit,
                     )

@@ -165,7 +165,7 @@ class ReasoningResult:
     stage_latencies: dict[str, float] = field(default_factory=dict)
     error: Optional[str] = None
     trace_id: Optional[str] = None
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for logging/storage.
@@ -887,7 +887,7 @@ class ReasoningEngine:
         # This uses YOUR reasoning model from the repo with local LLM
         if self.llm_reasoning and intent.intent_type.value in ["query_time", "query_date", "query_weather", "query_fact", "unknown", "conversation"]:
             try:
-                from datetime import datetime
+                from datetime import datetime, timezone
 
                 with self.latency_controller.stage_context(PipelineStage.REASONING) as timer:
                     # Build context-aware prompt with dynamic personality
@@ -952,7 +952,7 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
                     )
                     stage_latencies["custom_reasoning_local"] = timer.elapsed_ms()
 
-                    logger.info(f"Ollama response ({llm_response.latency_ms:.0f}ms): {llm_response.text.strip()}")
+                    logger.info("Ollama response (%.0fms): %s", llm_response.latency_ms, llm_response.text.strip())
 
                     return ReasoningResult(
                         response=llm_response.text.strip(),
@@ -961,7 +961,11 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
                         stage_latencies=stage_latencies,
                     )
 
-            except (Exception, asyncio.TimeoutError, asyncio.CancelledError) as reasoning_error:
+            except asyncio.CancelledError:
+                # Re-raise CancelledError — it must not be swallowed; it signals
+                # task cancellation and must propagate to the event loop.
+                raise
+            except (Exception, asyncio.TimeoutError) as reasoning_error:
                 logger.error("Custom reasoning (Ollama) failed: %s", reasoning_error, exc_info=True)
 
                 # Provide helpful error message

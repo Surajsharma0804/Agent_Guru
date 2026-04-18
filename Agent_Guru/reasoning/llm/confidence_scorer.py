@@ -1,4 +1,4 @@
-"""
+﻿"""
 Enhanced confidence scoring for LLM-generated Task objects.
 
 This module implements sophisticated confidence scoring that goes beyond
@@ -41,7 +41,7 @@ class HistoricalAccuracy:
     total_attempts: int = 0
     successful_attempts: int = 0
     confidence_sum: float = 0.0
-    last_updated: datetime = field(default_factory=datetime.now)
+    last_updated: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     @property
     def success_rate(self) -> float:

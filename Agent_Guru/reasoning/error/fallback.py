@@ -110,9 +110,8 @@ class LLMFallbackHandler(FallbackHandler):
                     result=result,
                     fallback_count=1,
                 )
-            except Exception as e:
-                # Continue to next fallback
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _logger.warning("Local LLM fallback failed: %s", exc)
 
         if current_backend in ["cloud", "local"]:
             # Fallback to rule-based
@@ -124,9 +123,8 @@ class LLMFallbackHandler(FallbackHandler):
                     result=result,
                     fallback_count=2,
                 )
-            except Exception as e:
-                # Continue to next fallback
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _logger.warning("Rule-based fallback failed: %s", exc)
 
         # Final fallback: cached response
         try:
@@ -470,8 +468,8 @@ class FallbackRegistry:
 
                 return result
 
-            except Exception as e:
-                # Continue to next handler
+            except Exception as exc:  # noqa: BLE001
+                _logger.warning("Fallback handler failed: %s", exc)
                 continue
 
         # All handlers failed

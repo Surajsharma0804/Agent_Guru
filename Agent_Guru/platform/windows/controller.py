@@ -237,7 +237,7 @@ class WindowsController:
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
             )
             latency_ms = (time.perf_counter() - start) * 1000
-            logger.info(f"Launched app: {resolved} (PID: {proc.pid})")
+            logger.info("Launched app: %s (PID: %s)", resolved, proc.pid)
             return WindowsControllerResult(
                 success=True,
                 operation="launch_app",

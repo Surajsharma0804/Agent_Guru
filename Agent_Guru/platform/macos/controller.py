@@ -247,7 +247,7 @@ class MacOSController:
                     stderr=subprocess.DEVNULL,
                 )
                 latency_ms = (time.perf_counter() - start) * 1000
-                logger.info(f"Launched via direct exec: {resolved} (PID: {proc.pid})")
+                logger.info("Launched via direct exec: %s (PID: %s)", resolved, proc.pid)
                 return MacOSControllerResult(
                     success=True,
                     operation="launch_app",

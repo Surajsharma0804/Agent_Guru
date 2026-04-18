@@ -310,7 +310,7 @@ class WindowsIntegration:
                 # Delete a specific value
                 with winreg.OpenKey(hive, key_path, 0, winreg.KEY_SET_VALUE) as key:
                     winreg.DeleteValue(key, value_name)
-                    logger.info(f"Deleted registry value: {key_path}\\{value_name}")
+                    logger.info("Deleted registry value: %s\\%s", key_path, value_name)
             else:
                 # Delete entire key
                 winreg.DeleteKey(hive, key_path)
@@ -385,8 +385,8 @@ class WindowsIntegration:
             startup_type = self._get_service_startup_type(service_name)
 
             logger.debug(
-                f"Service {service_name}: status={service_status}, "
-                f"startup={startup_type}"
+                "Service %s: status=%s, startup=%s",
+                service_name, service_status, startup_type,
             )
 
             return ServiceStatus(
@@ -397,7 +397,7 @@ class WindowsIntegration:
 
         except pywintypes.error as e:
             error_msg = f"Service not found or access denied: {service_name}"
-            logger.error(f"{error_msg}: {e}")
+            logger.error("%s: %s", error_msg, e)
             raise RuntimeError(error_msg) from e
 
         except Exception as e:
@@ -516,7 +516,7 @@ class WindowsIntegration:
                         | subprocess.DETACHED_PROCESS
                     ),
                 )
-                logger.info(f"Started process: {executable} (PID: {process.pid})")
+                logger.info("Started process: %s (PID: %s)", executable, process.pid)
                 return process.pid
             except (FileNotFoundError, OSError):
                 pass
@@ -533,10 +533,10 @@ class WindowsIntegration:
                         stderr=subprocess.DEVNULL,
                         stdin=subprocess.DEVNULL,
                     )
-                    logger.info(f"Started process via shell: {executable} (PID: {proc.pid})")
+                    logger.info("Started process via shell: %s (PID: %s)", executable, proc.pid)
                     return proc.pid
                 except (OSError, FileNotFoundError) as exc:
-                    logger.warning(f"Shell launch failed for {executable!r}: {exc}")
+                    logger.warning("Shell launch failed for %r: %s", executable, exc)
 
             # Last resort: os.startfile (Windows only, no PID returned)
             try:

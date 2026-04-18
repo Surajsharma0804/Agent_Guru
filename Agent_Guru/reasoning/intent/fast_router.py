@@ -1,5 +1,3 @@
-import logging
-_logger = logging.getLogger(__name__)
 """
 Fast Intent Router - Ultra-low latency intent detection (<50ms P95)
 
@@ -22,6 +20,7 @@ Date: 2026-02-19
 Version: 1.0.0
 """
 
+import logging
 import re
 import time
 from dataclasses import dataclass, field
@@ -33,6 +32,8 @@ from typing import Any, Optional
 import yaml
 
 from Agent_Guru.reasoning.models.intent import Entity, EntityType
+
+_logger = logging.getLogger(__name__)
 
 
 class MatchQuality(Enum):
@@ -173,7 +174,6 @@ class FastIntentRouter:
         for pattern_data in self._patterns:
             pattern = pattern_data["pattern"].lower()
             intent_type = pattern_data["intent"]
-            pattern_data.get("entities", {})
 
             # Split pattern into words and track entity positions
             words = pattern.split()

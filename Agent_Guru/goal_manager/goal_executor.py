@@ -93,14 +93,15 @@ class GoalExecutor:
         try:
             self.git_repo = Repo(git_repo_path)
         except Exception as e:
-            logger.error(
+            logger.warning(
                 "git_repo_initialization_failed",
                 operation="init",
                 git_repo_path=git_repo_path,
                 error=str(e),
                 error_type=type(e).__name__
             )
-            raise ExecutionError(f"Failed to initialize Git repository: {e}") from e
+            # Gracefully degrade — GitHub commits will be skipped
+            self.git_repo = None
 
         # Track active executions: goal_id -> task_id
         self.active_executions: dict[str, str] = {}
@@ -138,7 +139,7 @@ class GoalExecutor:
                 operation="execute",
                 error="Goal not found"
             )
-            raise ExecutionError(f"Goal {goal_id} not found") from e
+            raise ExecutionError(f"Goal {goal_id} not found")
 
         # Mark as IN_PROGRESS with timestamp
         goal.status = GoalStatus.IN_PROGRESS
@@ -367,6 +368,9 @@ class GoalExecutor:
             that GitHub connectivity issues don't prevent goal completion.
         """
         try:
+            if self.git_repo is None:
+                return
+
             # Stage all changes with git.add(A=True)
             self.git_repo.git.add(A=True)
 
@@ -479,7 +483,7 @@ class GoalExecutor:
                 operation="resume",
                 error="Goal not found"
             )
-            raise ExecutionError(f"Goal {goal_id} not found") from e
+            raise ExecutionError(f"Goal {goal_id} not found")
 
         # Find last completed sub-goal index
         last_completed_idx = -1

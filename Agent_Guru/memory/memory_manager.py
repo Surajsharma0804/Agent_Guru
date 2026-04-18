@@ -144,7 +144,7 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
     dot = sum(x * y for x, y in zip(a, b))
     mag_a = sum(x * x for x in a) ** 0.5
     mag_b = sum(x * x for x in b) ** 0.5
-    if mag_a == 0.0 or mag_b == 0.0:
+    if mag_a < 1e-10 or mag_b < 1e-10:
         return 0.0
     return dot / (mag_a * mag_b)
 
@@ -307,15 +307,13 @@ class MemoryManager:
             )
             return False
 
-        # BUG-011: old check only rejected when BOTH were empty, allowing partial
-        # turns (one empty message) to be stored — which corrupts retrieval.
-        # Now reject if EITHER message is empty.
-        if not user_message or not ai_message:
+        # BUG-010: strip whitespace before checking — reject whitespace-only messages
+        if not user_message.strip() or not ai_message.strip():
             logger.warning(
                 "store_interaction: requires non-empty user_message AND ai_message — skipping "
                 "(user_empty=%s, ai_empty=%s)",
-                not user_message,
-                not ai_message,
+                not user_message.strip(),
+                not ai_message.strip(),
             )
             return False
 

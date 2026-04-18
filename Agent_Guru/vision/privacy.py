@@ -161,7 +161,7 @@ class PrivacyFilter:
 
         if relevant_region is None:
             # Blur entire frame
-            entire = BoundingBox(x=0.0, y=0.0, width=float(w), height=float(h))
+            entire = BoundingBox(x=0, y=0, width=w, height=h)
             result = _gaussian_blur_region(result, entire, self._blur_sigma)
             return result
 
@@ -175,7 +175,7 @@ class PrivacyFilter:
         saved_region = frame[ry1:ry2, rx1:rx2].copy()
 
         # Blur entire frame
-        entire = BoundingBox(x=0.0, y=0.0, width=float(w), height=float(h))
+        entire = BoundingBox(x=0, y=0, width=w, height=h)
         result = _gaussian_blur_region(result, entire, self._blur_sigma)
 
         # Restore the relevant region unblurred

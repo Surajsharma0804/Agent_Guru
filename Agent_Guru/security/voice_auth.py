@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import numpy as np
@@ -76,14 +76,14 @@ class VoiceAuthenticator:
         profile = VoiceProfile(
             user_id=user_id,
             feature_vector=voice_features.feature_vector,
-            enrollment_date=datetime.now(),
-            last_updated=datetime.now(),
+            enrollment_date=datetime.now(tz=timezone.utc),
+            last_updated=datetime.now(tz=timezone.utc),
             quality_score=voice_features.quality_score,
             sample_count=1
         )
 
         self._profiles[user_id] = profile
-        self.logger.info(f"Enrolled user: {user_id} (quality: {voice_features.quality_score:.2f})")
+        self.logger.info("Enrolled user: %s (quality: %.2f)", user_id, voice_features.quality_score)
 
         return profile
 
@@ -108,8 +108,9 @@ class VoiceAuthenticator:
         # Liveness check: reject non-live audio immediately
         if not voice_features.is_live:
             self.logger.warning(
-                f"SECURITY: Liveness check failed for {'user ' + user_id if user_id else 'identification'} "
-                f"(liveness_score: {voice_features.liveness_score:.3f}) — authentication rejected"
+                "SECURITY: Liveness check failed for %s (liveness_score: %.3f) — authentication rejected",
+                ("user " + user_id) if user_id else "identification",
+                voice_features.liveness_score,
             )
             return False, None, 0.0
 
@@ -130,9 +131,10 @@ class VoiceAuthenticator:
                 BIOMETRIC_THRESHOLD,
             )
             self.logger.info(
-                f"Verification for {user_id}: "
-                f"{'SUCCESS' if authenticated else 'FAILED'} "
-                f"(similarity: {similarity:.3f})"
+                "Verification for %s: %s (similarity: %.3f)",
+                user_id,
+                "SUCCESS" if authenticated else "FAILED",
+                similarity,
             )
 
             return authenticated, user_id if authenticated else None, similarity
@@ -164,9 +166,10 @@ class VoiceAuthenticator:
                 )
             )
             self.logger.info(
-                f"Identification: "
-                f"{'SUCCESS' if authenticated else 'FAILED'} "
-                f"(user: {best_match}, similarity: {best_similarity:.3f})"
+                "Identification: %s (user: %s, similarity: %.3f)",
+                "SUCCESS" if authenticated else "FAILED",
+                best_match,
+                best_similarity,
             )
 
             return authenticated, best_match if authenticated else None, best_similarity
@@ -201,7 +204,7 @@ class VoiceAuthenticator:
             alpha * voice_features.feature_vector
         )
 
-        profile.last_updated = datetime.now()
+        profile.last_updated = datetime.now(tz=timezone.utc)
         profile.sample_count += 1
         profile.quality_score = (
             (profile.quality_score * (profile.sample_count - 1) +
@@ -209,8 +212,10 @@ class VoiceAuthenticator:
         )
 
         self.logger.info(
-            f"Updated profile for {user_id} "
-            f"(samples: {profile.sample_count}, quality: {profile.quality_score:.2f})"
+            "Updated profile for %s (samples: %d, quality: %.2f)",
+            user_id,
+            profile.sample_count,
+            profile.quality_score,
         )
 
         return profile

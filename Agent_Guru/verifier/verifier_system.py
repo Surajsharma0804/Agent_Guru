@@ -346,6 +346,7 @@ class VerifierSystem:
 
         # Build coroutines for parallel execution
         tasks: dict[str, Any] = {}
+        loop = asyncio.get_running_loop()
 
         if strategy.use_hallucination_detection and self.config.enable_hallucination_detection:
             _text, _ctx, _facts = text, context, expected_facts
@@ -519,6 +520,6 @@ class VerifierSystem:
                 "timestamp": result.timestamp.isoformat(),
             }
         )
-        # Keep last 1000 reports
+        # Keep last 1000 reports — use list slicing to avoid O(n) pop(0)
         if len(self._failure_reports) > 1000:
-            self._failure_reports.pop(0)
+            self._failure_reports = self._failure_reports[-1000:]

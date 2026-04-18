@@ -332,7 +332,7 @@ class AsyncExecutor:
 
         return True
 
-    def wait_for_task(
+    async def wait_for_task(
         self,
         task_id: str,
         timeout: float | None = None,
@@ -437,7 +437,7 @@ class AsyncExecutionController:
         """
         return self.async_executor.cancel_task(task_id)
 
-    def wait(
+    async def wait(
         self,
         task_id: str,
         timeout: float | None = None,
@@ -454,4 +454,4 @@ class AsyncExecutionController:
         Raises:
             TimeoutError: If timeout exceeded
         """
-        return self.async_executor.wait_for_task(task_id, timeout)
+        return await self.async_executor.wait_for_task(task_id, timeout)

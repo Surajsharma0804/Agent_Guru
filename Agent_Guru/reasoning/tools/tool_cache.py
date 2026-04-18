@@ -1,4 +1,4 @@
-"""
+﻿"""
 Tool Selection Caching System
 
 Implements caching for tool selection to reduce latency.
@@ -97,7 +97,7 @@ class ToolCacheStats:
     availability_misses: int = 0
     mapping_evictions: int = 0
     availability_evictions: int = 0
-    last_reset: datetime = field(default_factory=datetime.now)
+    last_reset: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def record_mapping_hit(self) -> None:
         """Record mapping cache hit."""

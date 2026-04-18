@@ -161,8 +161,16 @@ class OllamaServer:
         Raises:
             RuntimeError: If listing fails
         """
+        import asyncio
+        import concurrent.futures
+
         try:
-            response = requests.get(f"{self._base_url}/api/tags", timeout=2.0)
+            loop = asyncio.get_running_loop()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                response = await loop.run_in_executor(
+                    pool,
+                    lambda: requests.get(f"{self._base_url}/api/tags", timeout=2.0),
+                )
 
             if response.status_code == 200:
                 data = response.json()
@@ -185,21 +193,28 @@ class OllamaServer:
 
         Requirements: 4.2
         """
+        import asyncio
+        import concurrent.futures
+
         start_time = time.time()
 
         try:
-            # Check if Ollama is running
-            response = requests.get(f"{self._base_url}/api/tags", timeout=1.0)
+            # Run blocking HTTP call in thread pool to avoid blocking event loop
+            loop = asyncio.get_running_loop()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                response = await loop.run_in_executor(
+                    pool,
+                    lambda: requests.get(f"{self._base_url}/api/tags", timeout=1.0),
+                )
 
             latency_ms = (time.time() - start_time) * 1000
 
             if response.status_code == 200:
-                # Ollama is running and responsive
                 return ServerHealth(
                     is_healthy=True,
                     model_loaded=len(self._available_models) > 0,
-                    gpu_available=True,  # Ollama uses GPU if available
-                    gpu_backend=GPUBackend.CUDA,  # Assume CUDA for now
+                    gpu_available=True,
+                    gpu_backend=GPUBackend.CUDA,
                     latency_ms=latency_ms,
                 )
             else:
@@ -263,7 +278,7 @@ class OllamaServer:
             payload: dict[str, Any] = {
                 "model": model_name,
                 "prompt": request.prompt,
-                "stream": False,  # Non-streaming for now
+                "stream": False,
                 "options": {
                     "temperature": request.temperature,
                     "top_p": request.top_p,
@@ -277,12 +292,20 @@ class OllamaServer:
                 if isinstance(options, dict):
                     options["stop"] = request.stop_sequences
 
-            # Call Ollama generate endpoint
-            response = requests.post(
-                f"{self._base_url}/api/generate",
-                json=payload,
-                timeout=15.0,  # 15s timeout for inference
-            )
+            # Run blocking HTTP call in thread pool to avoid blocking event loop
+            import asyncio
+            import concurrent.futures
+
+            loop = asyncio.get_running_loop()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                response = await loop.run_in_executor(
+                    pool,
+                    lambda: requests.post(
+                        f"{self._base_url}/api/generate",
+                        json=payload,
+                        timeout=15.0,
+                    ),
+                )
 
             latency_ms = (time.time() - start_time) * 1000
 

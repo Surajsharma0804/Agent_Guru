@@ -205,7 +205,7 @@ class NetworkPermissionChecker:
             self._allowed_patterns.append(compiled_pattern)
             logger.debug("Added allowed URL pattern: %s", pattern)
         except re.error as e:
-            logger.error(f"Invalid regex pattern: {pattern} ({e})")
+            logger.error("Invalid regex pattern: %s (%s)", pattern, e)
             raise NetworkValidationError(f"Invalid regex pattern: {pattern}") from e
 
     def add_blocked_pattern(self, pattern: str) -> None:
@@ -225,7 +225,7 @@ class NetworkPermissionChecker:
             self._blocked_patterns.append(compiled_pattern)
             logger.debug("Added blocked URL pattern: %s", pattern)
         except re.error as e:
-            logger.error(f"Invalid regex pattern: {pattern} ({e})")
+            logger.error("Invalid regex pattern: %s (%s)", pattern, e)
             raise NetworkValidationError(f"Invalid regex pattern: {pattern}") from e
 
     def validate_url(
@@ -319,7 +319,7 @@ class NetworkPermissionChecker:
 
         # Validate port
         if port is not None and port not in self._allowed_ports:
-            logger.warning(f"Port not allowed: {port} in {url}")
+            logger.warning("Port not allowed: %s in %s", port, url)
             warnings.append(f"Port {port} not in allowed ports: {self._allowed_ports}")
 
         # Check blocked patterns first (security priority)

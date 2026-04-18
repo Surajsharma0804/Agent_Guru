@@ -1,4 +1,4 @@
-"""
+﻿"""
 Skill data models for the skill ecosystem.
 
 Defines data structures for skills, permissions, and installed skills.
@@ -103,7 +103,7 @@ class InstalledSkill(BaseModel):
         default_factory=list, description="Granted permissions"
     )
     install_date: datetime = Field(
-        default_factory=datetime.now, description="Installation date"
+        default_factory=lambda: datetime.now(tz=timezone.utc), description="Installation date"
     )
     last_used: Optional[datetime] = Field(
         None, description="Last usage timestamp"

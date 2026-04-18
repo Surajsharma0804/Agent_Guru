@@ -1,6 +1,4 @@
-import logging
-_logger = logging.getLogger(__name__)
-"""
+﻿"""
 Policy Engine Integration - Interface for policy constraint enforcement.
 
 This module provides integration hooks for the policy engine to ensure
@@ -15,6 +13,9 @@ Author: Agent Guru Team
 Date: 2026-02-28
 Version: 1.0.0
 """
+
+import logging
+_logger = logging.getLogger(__name__)
 
 from enum import Enum
 from typing import Any, Optional

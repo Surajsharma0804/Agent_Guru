@@ -1,4 +1,4 @@
-"""Adversarial Robustness Engine.
+﻿"""Adversarial Robustness Engine.
 
 Provides:
 - Conflict preservation: both versions stored, neither discarded (Property 57)
@@ -34,7 +34,7 @@ class ConflictRecord:
     version_b: dict[str, Any] = field(default_factory=dict)
     confidence_a: float = 1.0
     confidence_b: float = 1.0
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     resolved: bool = False
 
 
@@ -44,7 +44,7 @@ class PoisoningFlag:
     item_id: UUID = field(default_factory=uuid4)
     source: str = ""
     reason: str = ""
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 @dataclass
@@ -53,14 +53,14 @@ class IntegrityViolation:
     structure_id: str = ""
     expected_checksum: str = ""
     actual_checksum: str = ""
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     quarantined: bool = False
 
 
 @dataclass
 class MemorySnapshot:
     snapshot_id: UUID = field(default_factory=uuid4)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     data: dict[str, Any] = field(default_factory=dict)
 
 

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Data models for LLM infrastructure.
 
 Defines request/response structures for local and cloud LLM interactions.
@@ -60,7 +60,7 @@ class LLMResponse:
     tokens_generated: int
     finish_reason: str  # "stop", "length", "error"
     metadata: dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def __post_init__(self):
         """Validate response fields."""
@@ -117,4 +117,4 @@ class ServerHealth:
     gpu_backend: Optional[GPUBackend]
     latency_ms: Optional[float]
     error_message: Optional[str] = None
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))

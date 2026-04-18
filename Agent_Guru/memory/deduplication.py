@@ -97,21 +97,23 @@ class DeduplicationEngine:
         return score, {"type_match": type_sim, "action_sim": action_sim, "outcome_sim": outcome_sim}
 
     def _sequence_similarity(self, s1: list[str], s2: list[str]) -> float:
-        """Normalized edit distance similarity."""
+        """Normalized LCS similarity — O(min(m,n)) space, O(m*n) time."""
         if not s1 and not s2:
             return 1.0
         if not s1 or not s2:
             return 0.0
-        # Simple LCS-based similarity
         m, n = len(s1), len(s2)
-        dp = [[0] * (n + 1) for _ in range(m + 1)]
+        # Use two-row DP to reduce space from O(m*n) to O(n)
+        prev = [0] * (n + 1)
         for i in range(1, m + 1):
+            curr = [0] * (n + 1)
             for j in range(1, n + 1):
                 if s1[i - 1] == s2[j - 1]:
-                    dp[i][j] = dp[i - 1][j - 1] + 1
+                    curr[j] = prev[j - 1] + 1
                 else:
-                    dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
-        lcs = dp[m][n]
+                    curr[j] = max(prev[j], curr[j - 1])
+            prev = curr
+        lcs = prev[n]
         return 2 * lcs / (m + n)
 
     # ------------------------------------------------------------------

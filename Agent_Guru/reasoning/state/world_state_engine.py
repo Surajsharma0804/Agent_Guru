@@ -1,5 +1,3 @@
-import logging
-_logger = logging.getLogger(__name__)
 """
 World State Engine - Real-time context tracking.
 
@@ -20,9 +18,13 @@ Architecture:
 """
 
 import asyncio
+import logging
+from collections import deque
 from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any, Optional
+
+_logger = logging.getLogger(__name__)
 from uuid import uuid4
 
 import structlog
@@ -76,7 +78,7 @@ class WorldStateEngine:
         self._state = WorldState()
         self._subscribers: dict[str, Callable[[StateChangeEvent], None]] = {}
         self._lock = asyncio.Lock()
-        self._change_history: list[StateChangeEvent] = []
+        self._change_history: deque[StateChangeEvent] = deque(maxlen=1000)
         self._max_history_size = 1000
 
         logger.info("world_state_engine_initialized")
@@ -135,10 +137,8 @@ class WorldStateEngine:
                     )
                     changes.append(event)
 
-                    # Add to history
+                    # Add to history — deque(maxlen=1000) auto-evicts oldest
                     self._change_history.append(event)
-                    if len(self._change_history) > self._max_history_size:
-                        self._change_history.pop(0)
 
             # Notify subscribers (outside lock to avoid deadlock)
             if changes:
@@ -193,7 +193,7 @@ class WorldStateEngine:
         Example:
             def on_battery_change(event: StateChangeEvent):
                 if event.field_path == "device_status.battery_level":
-                    _logger.debug(f"Battery: {event.new_value}%")
+                    _logger.debug("Battery: %s%%", event.new_value)
 
             sub_id = engine.subscribe_to_updates(on_battery_change)
         """
@@ -297,7 +297,7 @@ class WorldStateEngine:
         Returns:
             List of state change events (most recent first)
         """
-        history = self._change_history[::-1]  # Reverse for most recent first
+        history = list(reversed(self._change_history))  # Most recent first
 
         if field_path:
             history = [e for e in history if e.field_path == field_path]

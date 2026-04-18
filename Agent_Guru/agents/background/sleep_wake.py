@@ -1,4 +1,4 @@
-"""
+﻿"""
 Sleep/Wake Coordinator - Manages power mode transitions across all components.
 
 Coordinates sleep/wake transitions to optimise battery usage:
@@ -49,7 +49,7 @@ class ComponentPowerState:
 
     name: str
     mode: PowerMode
-    last_transition: datetime = field(default_factory=datetime.now)
+    last_transition: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     transition_count: int = 0
 
 

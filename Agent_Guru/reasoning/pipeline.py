@@ -93,7 +93,7 @@ class PipelineMetrics:
     knowledge_query_type: Optional[str] = None
     knowledge_confidence: Optional[float] = None
     error: Optional[str] = None
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def add_stage_latency(self, stage: PipelineStage, latency_ms: float) -> None:
         """Add latency for a pipeline stage.

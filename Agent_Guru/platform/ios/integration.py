@@ -470,7 +470,7 @@ class IOSIntegration:
             request = BGAppRefreshTaskRequest.alloc().initWithIdentifier_(task_id)
 
             # Set earliest begin date
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
             earliest_date = datetime.now(tz=timezone.utc) + timedelta(seconds=interval_seconds)
             request.setEarliestBeginDate_(earliest_date)
 

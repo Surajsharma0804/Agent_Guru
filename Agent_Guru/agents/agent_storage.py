@@ -159,14 +159,16 @@ class AgentStorage:
             """
             )
 
-            cursor.execute(
-                """
-                CREATE INDEX IF NOT EXISTS idx_task_assignments_agent
-                ON task_assignments(agent_id)
-            """
-            ) if cursor.execute(
+            # Only create the task_assignments index if the table exists
+            if cursor.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='task_assignments'"
-            ).fetchone() else None
+            ).fetchone():
+                cursor.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_task_assignments_agent
+                    ON task_assignments(agent_id)
+                """
+                )
 
             conn.commit()
 

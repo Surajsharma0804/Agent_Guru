@@ -438,25 +438,3 @@ class KnowledgeAnswer(BaseModel):
         if len(v) > 10:
             raise ValueError(f"Too many patterns ({len(v)}), maximum is 10")
         return v
-
-    class Config:
-        """Pydantic configuration."""
-
-        json_schema_extra = {
-            "example": {
-                "summary": "You last called John 3 days ago on January 15th at 2:30pm",
-                "confidence": 0.98,
-                "supporting_memories": ["mem_123", "mem_456"],
-                "patterns": [
-                    {
-                        "pattern_type": "weekly",
-                        "description": "You typically call John on Mondays",
-                        "frequency": 0.85,
-                        "confidence": 0.90,
-                        "examples": ["2024-01-08", "2024-01-15", "2024-01-22"],
-                    }
-                ],
-                "statistics": {"total_calls": 15, "avg_duration": 300, "last_call_days_ago": 3},
-                "visualization_data": {"type": "timeline", "data": []},
-            }
-        }

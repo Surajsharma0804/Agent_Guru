@@ -1,6 +1,4 @@
-import logging
-_logger = logging.getLogger(__name__)
-"""
+﻿"""
 Database schema for Self-Improvement Engine.
 
 This module defines the SQLite database schema for storing:
@@ -22,6 +20,9 @@ Design Decisions:
 - Foreign keys for referential integrity
 - Timestamps for temporal analysis
 """
+
+import logging
+_logger = logging.getLogger(__name__)
 
 import sqlite3
 from pathlib import Path

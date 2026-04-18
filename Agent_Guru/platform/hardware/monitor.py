@@ -288,7 +288,7 @@ class HardwareMonitor:
                 percent=usage.percent,
                 path=path
             )
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             raise ValueError(f"Path does not exist: {path}") from e
         except Exception as e:
             raise RuntimeError(f"Failed to get disk usage: {e}") from e

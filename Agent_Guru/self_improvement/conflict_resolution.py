@@ -1,6 +1,4 @@
-import logging
-_logger = logging.getLogger(__name__)
-"""
+﻿"""
 Conflict Resolution System for Self-Improvement Engine.
 
 World-class production-grade implementation using state-of-the-art algorithms:
@@ -32,6 +30,9 @@ Architecture Principles:
 Author: Agent Guru Team
 Date: 2026-02-28
 """
+
+import logging
+_logger = logging.getLogger(__name__)
 
 import json
 import time
@@ -317,7 +318,7 @@ class ConflictResolver:
 
         elapsed_ms = (time.time() - start_time) * 1000
         if elapsed_ms > 20:
-            _logger.warning(f"WARNING: Conflict detection took {elapsed_ms:.2f}ms (target: <20ms)")
+            _logger.warning("WARNING: Conflict detection took %.2fms (target: <20ms)", elapsed_ms)
 
         return ConflictDetection(
             has_conflict=has_conflict,
@@ -554,7 +555,7 @@ class ConflictResolver:
 
             elapsed_ms = (time.time() - start_time) * 1000
             if elapsed_ms > 50:
-                _logger.warning(f"WARNING: Poisoning detection took {elapsed_ms:.2f}ms (target: <50ms)")
+                _logger.warning("WARNING: Poisoning detection took %.2fms (target: <50ms)", elapsed_ms)
 
             return ConflictDetection(
                 has_conflict=has_conflict,

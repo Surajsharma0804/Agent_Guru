@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module: Agent_Guru.platform.integration.service_discovery
 Purpose: Service discovery for component registration and lookup.
 
@@ -36,7 +36,7 @@ class ServiceEndpoint:
     protocol: str = "http"
     version: str = "1.0.0"
     metadata: dict[str, Any] = field(default_factory=dict)
-    registered_at: datetime = field(default_factory=datetime.now)
+    registered_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
     last_health_check: Optional[datetime] = None
     status: ServiceStatus = ServiceStatus.UNKNOWN
 
@@ -190,7 +190,7 @@ class ServiceRegistry:
 
         endpoint.status = status
         endpoint.last_health_check = datetime.now(tz=timezone.utc)
-        logger.debug(f"Health updated: {service_name} -> {status.value}")
+        logger.debug("Health updated: %s -> %s", service_name, status.value)
         return True
 
     async def start_health_checks(self) -> None:

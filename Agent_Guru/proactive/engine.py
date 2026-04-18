@@ -80,8 +80,8 @@ class ProactiveEngine:
     def _in_quiet_hours(self) -> bool:
         if self.quiet_hours is None:
             return False
-        import datetime
-        hour = datetime.datetime.now(tz=timezone.utc).hour
+        from datetime import datetime, timezone
+        hour = datetime.now(tz=timezone.utc).hour
         start, end = self.quiet_hours
         if start <= end:
             return start <= hour < end
