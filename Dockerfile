@@ -1,40 +1,38 @@
-# Multi-stage Production Dockerfile for Agent_Guru Core Reasoning Engine
+# Multi-stage Production Dockerfile for Agent Guru — Core Reasoning Engine API
 #
-# Base: python:3.11-slim (Debian/glibc) — required for PyTorch manylinux wheels.
-#       Alpine (musl libc) cannot install PyTorch wheels.
-#
-# PyTorch: CPU-only build installed from download.pytorch.org/whl/cpu via a
-#          dedicated requirements-torch.txt that embeds the --index-url directive.
-#          GPU support is handled at runtime through host CUDA drivers; swap
-#          requirements-torch.txt for the cu118/cu121 variant to build a GPU image.
+# Design decisions:
+#   - Base: python:3.11-slim (Debian/glibc). Alpine (musl) cannot install
+#     manylinux wheels (numpy, cryptography, etc.) without recompiling.
+#   - No PyTorch / OpenCV / Whisper / audio libs in this image.
+#     Those require GPU drivers, system audio devices, and large model
+#     downloads — none of which belong in a stateless API container.
+#     The reasoning engine talks to LLM providers over HTTP; it does not
+#     run local inference inside Docker.
+#   - requirements-docker.txt contains only what the API actually needs.
+#   - For GPU/local-inference builds, extend this image and add torch
+#     via requirements-torch.txt separately.
 
 # ─── Build stage ─────────────────────────────────────────────────────────────
 FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# System build deps
+# System build deps — only what's needed to compile C extensions in the
+# requirements-docker.txt set (cryptography, aiohttp, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
     build-essential \
-    curl \
     libffi-dev \
     libssl-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency manifests first so Docker layer cache is reused when only
-# source code changes.
-COPY requirements-torch.txt ./
-COPY requirements-cpu.txt ./
+# Copy manifests first — Docker layer cache is reused when only source changes
 COPY pyproject.toml ./
+COPY requirements-docker.txt ./
 
-# 1. Upgrade pip/wheel tooling
-# 2. Install PyTorch CPU wheels (index-url is embedded in requirements-torch.txt)
-# 3. Pre-build wheels for all other CPU deps so the production stage never
-#    needs a compiler.
+# Pre-build all wheels so the production stage needs no compiler
 RUN pip install --no-cache-dir --upgrade pip wheel build && \
-    pip install --no-cache-dir -r requirements-torch.txt && \
-    pip wheel --no-cache-dir --wheel-dir /wheels -r requirements-cpu.txt
+    pip wheel --no-cache-dir --wheel-dir /wheels -r requirements-docker.txt
 
 # Copy source and build the distributable package
 COPY Agent_Guru/ ./Agent_Guru/
@@ -50,16 +48,16 @@ ARG VERSION=1.0.0
 
 LABEL org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.authors="Agent_Guru Team" \
-      org.opencontainers.image.url="https://github.com/agent-guru/agent-guru" \
-      org.opencontainers.image.source="https://github.com/agent-guru/agent-guru" \
+      org.opencontainers.image.url="https://github.com/Surajsharma0804/Agent_Guru" \
+      org.opencontainers.image.source="https://github.com/Surajsharma0804/Agent_Guru" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.title="Agent Guru Reasoning Engine" \
-      org.opencontainers.image.description="Production-grade AI reasoning engine"
+      org.opencontainers.image.description="Production-grade AI reasoning engine API"
 
 WORKDIR /app
 
-# Minimal runtime system deps (no compiler needed — wheels were pre-built)
+# Minimal runtime system libs — no compiler, no dev headers
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi8 \
     libssl3 \
@@ -72,19 +70,14 @@ RUN groupadd -g 1000 agentguru && \
     useradd -m -u 1000 -g agentguru agentguru && \
     chown -R agentguru:agentguru /app
 
-# Bring in pre-built wheels and the distributable package from the builder
+# Install pre-built wheels and the Agent Guru package.
+# --find-links points pip at the local wheel cache so no PyPI calls needed.
 COPY --from=builder /wheels /wheels
 COPY --from=builder /app/dist/*.whl /tmp/
-COPY requirements-torch.txt ./
 
-# Install in order:
-#   1. PyTorch CPU (from its own index — embedded in requirements-torch.txt)
-#   2. All other deps from pre-built wheels
-#   3. The Agent Guru package itself
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements-torch.txt && \
     pip install --no-cache-dir --find-links=/wheels /tmp/*.whl && \
-    rm -rf /tmp/*.whl /wheels requirements-torch.txt
+    rm -rf /tmp/*.whl /wheels
 
 USER agentguru
 
@@ -97,6 +90,5 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app
 
-# In Docker, mic/screen access isn't available — this starts the
-# LLM/API reasoning-only mode automatically.
+# Starts the reasoning API in HTTP-only mode (no mic/screen/GPU needed)
 CMD ["python", "main.py"]
