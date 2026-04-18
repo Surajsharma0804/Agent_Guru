@@ -1,4 +1,4 @@
-﻿"""
+"""
 Data models for LLM infrastructure.
 
 Defines request/response structures for local and cloud LLM interactions.

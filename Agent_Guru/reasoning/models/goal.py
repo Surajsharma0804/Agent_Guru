@@ -1,4 +1,4 @@
-﻿"""
+"""
 Persistent goal and trigger data models.
 
 This module defines data structures for persistent goals that can be triggered

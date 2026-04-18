@@ -1,4 +1,4 @@
-﻿"""
+"""
 Multi-step plan executor for Core Reasoning Engine.
 
 Performance Requirements:

@@ -1,4 +1,4 @@
-﻿"""Entity annotation pipeline for training data.
+"""Entity annotation pipeline for training data.
 
 Comprehensive entity extraction covering ALL entity types defined in intents.yaml.
 Target: >95% entity coverage across all utterances that should have entities.

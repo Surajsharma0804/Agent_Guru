@@ -1,4 +1,4 @@
-﻿"""
+"""
 Conversation State Manager.
 
 This module implements thread-safe conversation state management with LRU caching

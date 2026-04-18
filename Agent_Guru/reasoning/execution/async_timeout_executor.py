@@ -1,4 +1,4 @@
-﻿"""
+"""
 Async execution engine with timeout and cancellation support.
 
 Performance Requirements:

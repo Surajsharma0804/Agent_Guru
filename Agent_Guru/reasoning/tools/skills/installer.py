@@ -1,4 +1,4 @@
-﻿"""
+"""
 Skill installer for managing skill installation, updates, and uninstallation.
 
 Provides functionality to:

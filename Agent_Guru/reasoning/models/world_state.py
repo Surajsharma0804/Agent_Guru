@@ -1,4 +1,4 @@
-﻿"""
+"""
 World State data models for context-aware reasoning.
 
 Performance: O(1) state queries, <20ms latency

@@ -1,4 +1,4 @@
-﻿"""Execution result and response data models."""
+"""Execution result and response data models."""
 
 from datetime import datetime, timezone
 from enum import Enum

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Skill data models for the skill ecosystem.
 
 Defines data structures for skills, permissions, and installed skills.

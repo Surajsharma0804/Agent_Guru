@@ -1,4 +1,4 @@
-﻿"""
+"""
 Prompt Caching System
 
 Implements LRU cache for prompt templates to reduce token usage by 80%.

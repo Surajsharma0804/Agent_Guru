@@ -1,4 +1,4 @@
-﻿"""Conversation state management data models."""
+"""Conversation state management data models."""
 
 from datetime import datetime, timezone
 from typing import Any, Optional

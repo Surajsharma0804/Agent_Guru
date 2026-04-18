@@ -1,4 +1,4 @@
-﻿"""
+"""
 Enhanced confidence scoring for LLM-generated Task objects.
 
 This module implements sophisticated confidence scoring that goes beyond

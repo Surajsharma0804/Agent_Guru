@@ -1,4 +1,4 @@
-﻿"""
+"""
 Memory data models for retrieval-augmented reasoning.
 
 This module implements comprehensive memory models for storing and retrieving

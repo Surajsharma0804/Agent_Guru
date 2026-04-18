@@ -1,4 +1,4 @@
-﻿"""Error handling data models."""
+"""Error handling data models."""
 
 from datetime import datetime, timezone
 from enum import Enum

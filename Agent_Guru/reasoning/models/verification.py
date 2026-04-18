@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: agent_guru.reasoning.models.verification
 Purpose: Data models for reasoning verification and validation
 Author: Agent Guru Team

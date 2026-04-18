@@ -1,4 +1,4 @@
-﻿"""
+"""
 Memory monitoring and management for Agent_Guru reasoning engine.
 
 This module provides memory usage tracking, limit enforcement, and leak detection

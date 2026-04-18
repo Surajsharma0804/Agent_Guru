@@ -1,4 +1,4 @@
-﻿"""
+"""
 Task data models for structured LLM output parsing.
 
 This module defines the Task and TaskStep data models that represent

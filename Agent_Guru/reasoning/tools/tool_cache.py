@@ -1,4 +1,4 @@
-﻿"""
+"""
 Tool Selection Caching System
 
 Implements caching for tool selection to reduce latency.

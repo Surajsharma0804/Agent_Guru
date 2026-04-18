@@ -1,4 +1,4 @@
-﻿"""
+"""
 Skill loader for loading and registering third-party skills.
 
 Handles skill discovery, validation, and registration with the tool registry.

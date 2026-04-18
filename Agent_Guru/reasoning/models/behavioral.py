@@ -1,4 +1,4 @@
-﻿"""
+"""
 Behavioral learning data models.
 
 This module defines data structures for tracking user behavior patterns,

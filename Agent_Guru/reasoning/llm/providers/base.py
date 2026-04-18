@@ -1,4 +1,4 @@
-﻿"""
+"""
 Base LLM Provider Interface
 
 Defines the common interface and utilities for all LLM providers.

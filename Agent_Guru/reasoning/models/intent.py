@@ -1,4 +1,4 @@
-﻿"""Intent detection data models."""
+"""Intent detection data models."""
 
 from datetime import datetime, timezone
 from enum import Enum

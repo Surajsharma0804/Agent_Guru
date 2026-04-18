@@ -1,4 +1,4 @@
-﻿"""
+"""
 API request and response models.
 
 This module defines Pydantic models for API requests and responses with

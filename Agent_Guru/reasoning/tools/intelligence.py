@@ -1,4 +1,4 @@
-﻿"""
+"""
 Tool Intelligence Engine for learning and optimizing tool performance.
 
 This module implements intelligent tool tracking, ranking, and learning based on:

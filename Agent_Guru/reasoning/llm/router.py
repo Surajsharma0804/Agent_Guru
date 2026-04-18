@@ -1,4 +1,4 @@
-﻿"""
+"""
 Hybrid LLM Router
 
 Intelligently routes requests between local and cloud LLM providers based on:

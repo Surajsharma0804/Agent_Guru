@@ -1,4 +1,4 @@
-﻿"""
+"""
 WebSocket API for real-time updates.
 
 This module implements WebSocket endpoints for streaming responses and

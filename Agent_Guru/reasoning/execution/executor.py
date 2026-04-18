@@ -1,4 +1,4 @@
-﻿"""
+"""
 Synchronous execution engine for Core Reasoning Engine.
 
 Performance Requirements:

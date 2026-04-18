@@ -1,4 +1,4 @@
-﻿"""
+"""
 LLM Reasoning Core
 
 Implements reasoning plan generation with:

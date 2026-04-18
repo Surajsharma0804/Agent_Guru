@@ -1,4 +1,4 @@
-﻿"""
+"""
 Error Manager for comprehensive error handling and classification.
 
 Provides centralized error management with:

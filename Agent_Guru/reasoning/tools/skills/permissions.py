@@ -1,4 +1,4 @@
-﻿"""
+"""
 Permission manager for skill permissions with user consent.
 
 Manages permission requests, grants, revocations, and trust levels for skills.

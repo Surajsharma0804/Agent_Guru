@@ -1,4 +1,4 @@
-﻿"""
+"""
 Feedback data models for online learning.
 
 This module defines data structures for collecting user feedback on intent

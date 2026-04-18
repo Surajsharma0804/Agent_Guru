@@ -1,4 +1,4 @@
-﻿"""
+"""
 Skill sandbox executor with resource limits and permission checking.
 
 Integrates SkillSandbox with the skill execution pipeline, providing:

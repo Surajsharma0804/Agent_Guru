@@ -1,4 +1,4 @@
-﻿"""
+"""
 Execution Evaluator with feedback loop for Core Reasoning Engine.
 
 Performance Requirements:
