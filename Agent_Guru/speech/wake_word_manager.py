@@ -619,7 +619,7 @@ class WakeWordManager:
 
                 await asyncio.sleep(poll_interval)
 
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 break
             except Exception as exc:
                 logger.error("Listen loop error: %s", exc)

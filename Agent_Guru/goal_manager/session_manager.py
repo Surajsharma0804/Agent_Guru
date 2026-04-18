@@ -220,7 +220,7 @@ class SessionManager:
 
                         # Update the database with the recovered goal
                         await self.storage.update_goal(goal)
-                except Exception:
+                except Exception as e:
                     # Can't even extract ID - skip this goal entirely
                     logger.error(
                         "goal_recovery_impossible",

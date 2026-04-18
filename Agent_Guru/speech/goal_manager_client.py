@@ -1,4 +1,4 @@
-﻿"""
+"""
 Goal Manager Client for Speech Engine.
 
 Enables voice-driven task creation by routing task-creation commands

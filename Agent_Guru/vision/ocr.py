@@ -171,8 +171,8 @@ class OCREngine:
                         "confidence": float(data["conf"][i]) / 100.0,
                     })
             return words
-        except ImportError:
-            logger.warning("OCREngine: neither PaddleOCR nor Tesseract available")
+        except ImportError as e:
+            logger.warning("OCREngine: neither PaddleOCR nor Tesseract available: %s", e)
             return []
 
     # ------------------------------------------------------------------

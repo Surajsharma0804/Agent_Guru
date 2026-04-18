@@ -346,7 +346,7 @@ class PathPermissionChecker:
 
             try:
                 return bool(re.match(regex_pattern, path))
-            except re.error:
+            except re.error as e:
                 logger.error("Invalid regex pattern: %s", regex_pattern)
                 return False
         else:

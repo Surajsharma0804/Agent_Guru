@@ -121,7 +121,7 @@ class TestReasoningEngine:
             text="set a timer for 5 minutes",
             source=InputSource.TEXT,
             user_id="user_123",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
         intent = await engine._detect_intent(normalized, None)
 
@@ -227,7 +227,7 @@ class TestReasoningEngine:
             text="set a timer for 5 minutes",
             source=InputSource.TEXT,
             user_id="user_123",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
         intent = Intent(
             intent_type=IntentType.SET_TIMER,
@@ -255,7 +255,7 @@ class TestReasoningEngine:
             text="send a message to John",
             source=InputSource.TEXT,
             user_id="user_123",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
         intent = Intent(
             intent_type=IntentType.SEND_MESSAGE,

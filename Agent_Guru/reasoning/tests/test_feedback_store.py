@@ -61,7 +61,7 @@ class TestFeedbackStoreInitialization:
         await store.initialize()
 
         # Check tables exist by querying them
-        feedback_list = await store.get_feedback_since(since=datetime.utcnow() - timedelta(days=1))
+        feedback_list = await store.get_feedback_since(since=datetime.now(tz=timezone.utc) - timedelta(days=1))
         assert feedback_list == []
 
     @pytest.mark.asyncio
@@ -94,7 +94,7 @@ class TestFeedbackStorage:
         await store.store_feedback(feedback)
 
         # Verify stored
-        retrieved = await store.get_feedback_since(since=datetime.utcnow() - timedelta(hours=1))
+        retrieved = await store.get_feedback_since(since=datetime.now(tz=timezone.utc) - timedelta(hours=1))
         assert len(retrieved) == 1
         assert retrieved[0].feedback_id == "test-123"
 
@@ -114,7 +114,7 @@ class TestFeedbackStorage:
             )
             await store.store_feedback(feedback)
 
-        retrieved = await store.get_feedback_since(since=datetime.utcnow() - timedelta(hours=1))
+        retrieved = await store.get_feedback_since(since=datetime.now(tz=timezone.utc) - timedelta(hours=1))
         assert len(retrieved) == 5
 
     @pytest.mark.asyncio
@@ -135,7 +135,7 @@ class TestFeedbackStorage:
 
         await store.store_feedback(feedback)
 
-        retrieved = await store.get_feedback_since(since=datetime.utcnow() - timedelta(hours=1))
+        retrieved = await store.get_feedback_since(since=datetime.now(tz=timezone.utc) - timedelta(hours=1))
         assert len(retrieved) == 1
         assert retrieved[0].correct_intent == "play_music"
         assert retrieved[0].correct_entities == {"action": "play"}
@@ -151,7 +151,7 @@ class TestFeedbackRetrieval:
         old_feedback = IntentFeedback(
             feedback_id="old-123",
             user_id="user-456",
-            timestamp=datetime.utcnow() - timedelta(days=10),
+            timestamp=datetime.now(tz=timezone.utc) - timedelta(days=10),
             original_input="old input",
             predicted_intent="test",
             predicted_entities={},
@@ -175,7 +175,7 @@ class TestFeedbackRetrieval:
         await store.store_feedback(recent_feedback)
 
         # Get feedback from last 7 days
-        retrieved = await store.get_feedback_since(since=datetime.utcnow() - timedelta(days=7))
+        retrieved = await store.get_feedback_since(since=datetime.now(tz=timezone.utc) - timedelta(days=7))
 
         assert len(retrieved) == 1
         assert retrieved[0].feedback_id == "recent-123"
@@ -211,7 +211,7 @@ class TestFeedbackRetrieval:
 
         # Get v1.0 feedback only
         retrieved = await store.get_feedback_since(
-            since=datetime.utcnow() - timedelta(hours=1), model_version="v1.0"
+            since=datetime.now(tz=timezone.utc) - timedelta(hours=1), model_version="v1.0"
         )
 
         assert len(retrieved) == 1
@@ -308,7 +308,7 @@ class TestMetricsStorage:
         old_metrics = ModelPerformanceMetrics(
             metric_id="old-123",
             model_version="v1.0",
-            timestamp=datetime.utcnow() - timedelta(days=7),
+            timestamp=datetime.now(tz=timezone.utc) - timedelta(days=7),
             total_predictions=100,
             correct_predictions=95,
             accuracy=0.95,
@@ -405,7 +405,7 @@ class TestFeedbackCount:
         old_feedback = IntentFeedback(
             feedback_id="old-123",
             user_id="user-456",
-            timestamp=datetime.utcnow() - timedelta(days=10),
+            timestamp=datetime.now(tz=timezone.utc) - timedelta(days=10),
             original_input="old",
             predicted_intent="test",
             predicted_entities={},
@@ -428,5 +428,5 @@ class TestFeedbackCount:
         )
         await store.store_feedback(recent_feedback)
 
-        count = await store.get_feedback_count(since=datetime.utcnow() - timedelta(days=7))
+        count = await store.get_feedback_count(since=datetime.now(tz=timezone.utc) - timedelta(days=7))
         assert count == 1

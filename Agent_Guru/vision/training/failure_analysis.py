@@ -294,5 +294,5 @@ class FailureAnalyzer:
             fig.savefig(str(path))
             plt.close(fig)
             logger.info("Failure distribution plot saved to '%s'", output_path)
-        except ImportError:
-            logger.warning("matplotlib not available; skipping failure distribution plot")
+        except ImportError as e:
+            logger.warning("matplotlib not available; skipping failure distribution plot: %s", e)

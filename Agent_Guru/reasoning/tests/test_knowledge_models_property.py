@@ -29,7 +29,7 @@ def time_range_strategy(draw):
     """Generate valid TimeRange instances."""
     # Generate start time
     days_ago = draw(st.integers(min_value=1, max_value=365))
-    start = datetime.utcnow() - timedelta(days=days_ago)
+    start = datetime.now(tz=timezone.utc) - timedelta(days=days_ago)
 
     # Generate end time after start
     duration_days = draw(st.integers(min_value=0, max_value=days_ago))

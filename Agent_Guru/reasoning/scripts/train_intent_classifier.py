@@ -408,7 +408,7 @@ class IntentDataset(Dataset):
         self.use_augmentation = use_augmentation
 
         # Load data
-        with open(data_path) as f:  # nosec - path validated by caller via safe_path
+        with open(data_path, encoding='utf-8') as f:  # nosec - path validated by caller via safe_path
             self.data = yaml.safe_load(f)
 
         # Filter out unknown intents for training (keep for validation/test)
@@ -760,7 +760,7 @@ class IntentClassifierModule(pl.LightningModule):
         # Save to file
         output_path = Path(self.config.output_dir) / "test_results.json"
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding='utf-8') as f:
             json.dump(results, f, indent=2)
 
         print(f"\n{'='*60}")
@@ -828,8 +828,8 @@ class IntentClassifierModule(pl.LightningModule):
 def load_intent_mapping(data_dir: str) -> tuple[dict[str, int], dict[int, str]]:
     """Load intent to ID mapping from intents.yaml."""
     _data_base = Path(data_dir).resolve()
-    intents_path = safe_path(_data_base, "intents.yaml")
-    with open(intents_path) as f:  # nosec - path validated by safe_path
+    intents_path = safe_path("intents.yaml", _data_base)
+    with open(intents_path, encoding='utf-8') as f:  # nosec - path validated by safe_path
         intents_data = yaml.safe_load(f)
 
     # Create mappings
@@ -869,9 +869,9 @@ def load_data_from_txt(
         return texts, labels
 
     _data_base = Path(data_dir).resolve()
-    train_texts, train_labels = read_file(safe_path(Path(data_dir) / "train.txt", _data_base))  # nosec
-    val_texts, val_labels = read_file(safe_path(Path(data_dir) / "val.txt", _data_base))  # nosec
-    test_texts, test_labels = read_file(safe_path(Path(data_dir) / "test.txt", _data_base))  # nosec
+    train_texts, train_labels = read_file(safe_path("train.txt", _data_base))  # nosec
+    val_texts, val_labels = read_file(safe_path("val.txt", _data_base))  # nosec
+    test_texts, test_labels = read_file(safe_path("test.txt", _data_base))  # nosec
 
     return train_texts, train_labels, val_texts, val_labels, test_texts, test_labels
 
@@ -973,7 +973,7 @@ def train_intent_classifier(config: TrainingConfig):
     _data_base = Path(config.data_dir).resolve()
     print("\nCreating datasets...")
     train_dataset = IntentDataset(
-        data_path=safe_path(Path(config.data_dir) / "train_annotated.yaml", _data_base),  # nosec
+        data_path=safe_path("train_annotated.yaml", _data_base),  # nosec
         tokenizer=tokenizer,
         intent_to_id=intent_to_id,
         max_length=config.max_length,
@@ -982,7 +982,7 @@ def train_intent_classifier(config: TrainingConfig):
     )
 
     val_dataset = IntentDataset(
-        data_path=safe_path(Path(config.data_dir) / "val_annotated.yaml", _data_base),  # nosec
+        data_path=safe_path("val_annotated.yaml", _data_base),  # nosec
         tokenizer=tokenizer,
         intent_to_id=intent_to_id,
         max_length=config.max_length,
@@ -990,7 +990,7 @@ def train_intent_classifier(config: TrainingConfig):
     )
 
     test_dataset = IntentDataset(
-        data_path=safe_path(Path(config.data_dir) / "test_annotated.yaml", _data_base),  # nosec
+        data_path=safe_path("test_annotated.yaml", _data_base),  # nosec
         tokenizer=tokenizer,
         intent_to_id=intent_to_id,
         max_length=config.max_length,
@@ -1113,7 +1113,7 @@ def train_intent_classifier(config: TrainingConfig):
     # Save final model and tokenizer
     print("\nSaving final model and tokenizer...")
     _output_base = Path(config.output_dir).resolve()
-    final_model_path = safe_path(Path(config.output_dir) / "final_model", _output_base)  # nosec
+    final_model_path = safe_path("final_model", _output_base)  # nosec
     final_model_path.mkdir(parents=True, exist_ok=True)
 
     # Load best checkpoint
@@ -1136,7 +1136,7 @@ def train_intent_classifier(config: TrainingConfig):
         "id_to_intent": id_to_intent,
         "num_labels": num_labels,
     }
-    with open(final_model_path / "intent_mappings.json", "w") as f:  # nosec - path validated by safe_path
+    with open(final_model_path / "intent_mappings.json", "w", encoding='utf-8') as f:  # nosec - path validated by safe_path
         json.dump(mappings, f, indent=2)
 
     # Also save in the format expected by NeuralIntentClassifier (label_mappings.yaml)
@@ -1149,7 +1149,7 @@ def train_intent_classifier(config: TrainingConfig):
         yaml.dump(label_mappings, f, default_flow_style=False)
 
     # Save training config
-    with open(final_model_path / "training_config.json", "w") as f:  # nosec - path validated by safe_path
+    with open(final_model_path / "training_config.json", "w", encoding='utf-8') as f:  # nosec - path validated by safe_path
         json.dump(vars(config), f, indent=2)
 
     print(f"\n{'='*80}")

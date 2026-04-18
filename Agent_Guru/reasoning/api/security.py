@@ -33,7 +33,7 @@ from typing import Any, Optional
 
 import structlog
 from fastapi import HTTPException, Request, status
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, field_validator
 
 logger = structlog.get_logger(__name__)
 
@@ -317,12 +317,14 @@ class SecureProcessRequest(BaseModel):
     source: str = Field(..., max_length=50)
     metadata: Optional[dict[str, Any]] = None
 
-    @validator("text")
+    @field_validator("text")
+    @classmethod
     def validate_text(cls, v):
         """Validate and sanitize text input."""
         return SecurityValidator.validate_string(v, "text")
 
-    @validator("user_id")
+    @field_validator("user_id")
+    @classmethod
     def validate_user_id(cls, v):
         """Validate user_id format."""
         # Only allow alphanumeric and underscore
@@ -330,7 +332,8 @@ class SecureProcessRequest(BaseModel):
             raise ValueError("user_id contains invalid characters")
         return v
 
-    @validator("source")
+    @field_validator("source")
+    @classmethod
     def validate_source(cls, v):
         """Validate source value."""
         allowed_sources = ["text", "voice", "system_event"]
@@ -338,7 +341,8 @@ class SecureProcessRequest(BaseModel):
             raise ValueError(f"source must be one of {allowed_sources}")
         return v
 
-    @validator("metadata")
+    @field_validator("metadata")
+    @classmethod
     def validate_metadata(cls, v):
         """Validate metadata structure."""
         if v is not None:

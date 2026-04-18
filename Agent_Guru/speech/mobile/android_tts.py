@@ -233,7 +233,7 @@ class AndroidTTS:
                 try:
                     if os.path.exists(tmp_path):
                         os.unlink(tmp_path)
-                except OSError:
+                except OSError as e:
                     pass
 
         except Exception as e:

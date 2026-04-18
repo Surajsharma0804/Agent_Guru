@@ -33,10 +33,10 @@ def download_model(output_dir: Path, model_name: str = "llama-3.2-8b-q4_k_m") ->
     """
     try:
         from huggingface_hub import hf_hub_download
-    except ImportError:
+    except ImportError as e:
         raise ImportError(
             "huggingface_hub not installed. " "Install with: pip install huggingface-hub"
-        )
+        ) from e
 
     output_dir.mkdir(parents=True, exist_ok=True)
 

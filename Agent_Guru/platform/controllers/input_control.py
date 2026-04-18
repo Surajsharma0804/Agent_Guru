@@ -43,7 +43,7 @@ from typing import Literal, Optional, Union
 try:
     import pyautogui
     PYAUTOGUI_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     PYAUTOGUI_AVAILABLE = False
 
 logger = logging.getLogger(__name__)

@@ -468,7 +468,7 @@ class WindowsIntegration:
                     memory_percent=info.get("memory_percent") or 0.0,
                     create_time=info.get("create_time") or 0.0,
                 ))
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError):
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError) as e:
                 continue
 
         logger.debug("Retrieved %s processes", len(processes))
@@ -547,10 +547,10 @@ class WindowsIntegration:
             except Exception as e:
                 raise FileNotFoundError(f"Could not start '{executable}': {e}") from e
 
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             logger.error("Executable not found: %s", executable)
             raise
-        except PermissionError:
+        except PermissionError as e:
             logger.error("Permission denied starting process: %s", executable)
             raise
         except Exception as e:

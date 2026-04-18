@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: Agent_Guru.platform.permissions.model_manager
 Purpose: Permission model manager with YAML configuration and hot reload
 
@@ -273,7 +273,7 @@ class PermissionModelManager:
                 logger.info("Configuration loaded successfully (hash: %s...)", new_hash[:8])
                 return model
 
-            except FileNotFoundError:
+            except FileNotFoundError as e:
                 logger.error("Configuration file not found: %s", self.config_path)
                 raise
             except yaml.YAMLError as e:

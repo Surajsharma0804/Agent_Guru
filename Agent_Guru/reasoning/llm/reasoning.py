@@ -185,11 +185,11 @@ class ReasoningPlanGenerator:
 
                 return plan
 
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 # Outer wait_for cancelled the inner coroutine — treat as timeout
                 raise asyncio.TimeoutError(
                     f"LLM plan generation timed out after {self.TIMEOUT_SECONDS}s"
-                )
+                ) from e
 
             except (ValueError, json.JSONDecodeError) as e:
                 if attempt == self.MAX_RETRIES - 1:

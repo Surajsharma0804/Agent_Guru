@@ -314,7 +314,7 @@ class SyncExecutor:
                         try:
                             result = future.result(timeout=poll_interval)
                             return result
-                        except concurrent.futures.TimeoutError:
+                        except concurrent.futures.TimeoutError as e:
                             # Not done yet, continue polling
                             elapsed += poll_interval
                             continue
@@ -327,10 +327,10 @@ class SyncExecutor:
                     result = future.result(timeout=timeout)
                     return result
 
-            except concurrent.futures.TimeoutError:
+            except concurrent.futures.TimeoutError as e:
                 # Cancel the future
                 future.cancel()
-                raise TimeoutError(f"Execution exceeded timeout of {timeout}s")
+                raise TimeoutError(f"Execution exceeded timeout of {timeout}s") from e
 
     def _is_transient_error(self, error: Exception) -> bool:
         """Check if error is transient and retryable.

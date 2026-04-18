@@ -165,7 +165,8 @@ class ErrorHandler:
                 backoff_ms = min(backoff_ms * 2, self.max_backoff_ms)
 
         # Should never reach here
-        assert last_error is not None
+        if not (last_error is not None):
+            raise AssertionError("last_error is not None assertion failed")
         raise last_error
 
     # ------------------------------------------------------------------

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Sleep/Wake Coordinator - Manages power mode transitions across all components.
 
 Coordinates sleep/wake transitions to optimise battery usage:

@@ -234,7 +234,7 @@ class BaseLLMProvider(ABC):
                     await asyncio.sleep(2**attempt)
                 continue
 
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 # Propagate cancellation immediately — do not retry.
                 # This happens when an outer asyncio.wait_for fires.
                 raise

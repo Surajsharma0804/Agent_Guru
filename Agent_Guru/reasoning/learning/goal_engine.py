@@ -506,7 +506,7 @@ class GoalEngine:
             try:
                 await self.evaluate_triggers()
                 await asyncio.sleep(self.evaluation_interval)
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 break
             except Exception as e:
                 # Log error but continue running

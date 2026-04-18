@@ -343,7 +343,7 @@ def main():
     json_path = output_dir / f"system_stability_verification_{timestamp}.json"
     md_path = output_dir / f"system_stability_verification_{timestamp}.md"
     
-    with open(json_path, 'w') as f:
+    with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2)
     
     print(f"✅ Results saved to: {json_path}")

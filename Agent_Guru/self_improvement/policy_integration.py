@@ -1,4 +1,4 @@
-﻿"""
+"""
 Policy Engine Integration - Interface for policy constraint enforcement.
 
 This module provides integration hooks for the policy engine to ensure

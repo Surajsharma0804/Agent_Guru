@@ -193,13 +193,13 @@ class RequestQueue:
                     )
                     request.future.set_result(result)
 
-                except asyncio.TimeoutError:
+                except asyncio.TimeoutError as e:
                     async with self._metrics_lock:
                         self.metrics.total_timeouts += 1
                     request.future.set_exception(
                         TimeoutError(f"Request timed out after {self.timeout}s")
                     )
-                    logger.warning("Request %s timed out", request.request_id)
+                    logger.warning("Request %s timed out: %s", request.request_id, e)
 
                 except Exception as e:
                     request.future.set_exception(e)

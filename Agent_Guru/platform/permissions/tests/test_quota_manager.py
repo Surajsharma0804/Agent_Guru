@@ -409,7 +409,7 @@ class TestQuotaManagerPersistence:
         manager.check_and_consume("user123", OperationType.FILE_OPERATION)
         
         # Read storage file
-        with open(storage_path, 'r') as f:
+        with open(storage_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
         assert "last_hour_reset" in data

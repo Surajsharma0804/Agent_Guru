@@ -79,7 +79,7 @@ class TestTrainingConfig:
 
         # Data augmentation
         assert config.use_augmentation is True
-        assert config.augmentation_factor == 10
+        assert config.augmentation_factor == 3
 
         # Advanced techniques
         assert config.use_adversarial_training is False
@@ -440,7 +440,7 @@ class TestIntentDataset:
             },  # Should be filtered
         ]
 
-        with open(data_file, "w") as f:
+        with open(data_file, "w", encoding='utf-8') as f:
             yaml.dump(data, f)
 
         yield str(data_file), temp_dir
@@ -462,7 +462,7 @@ class TestIntentDataset:
             },  # Should NOT be filtered
         ]
 
-        with open(data_file, "w") as f:
+        with open(data_file, "w", encoding='utf-8') as f:
             yaml.dump(data, f)
 
         yield str(data_file), temp_dir
@@ -471,12 +471,17 @@ class TestIntentDataset:
 
     @pytest.fixture
     def mock_tokenizer(self):
-        """Create mock tokenizer."""
+        """Create mock tokenizer that returns batch-sized tensors."""
         tokenizer = Mock()
-        tokenizer.return_value = {
-            "input_ids": torch.tensor([[1, 2, 3]]),
-            "attention_mask": torch.tensor([[1, 1, 1]]),
-        }
+
+        def _tokenize(texts, **kwargs):
+            n = len(texts) if isinstance(texts, list) else 1
+            return {
+                "input_ids": torch.ones(n, 3, dtype=torch.long),
+                "attention_mask": torch.ones(n, 3, dtype=torch.long),
+            }
+
+        tokenizer.side_effect = _tokenize
         return tokenizer
 
     @pytest.fixture
@@ -532,8 +537,8 @@ class TestIntentDataset:
         dataset = IntentDataset(data_file, mock_tokenizer, intent_mapping)
 
         assert hasattr(dataset, "class_weights")
-        assert isinstance(dataset.class_weights, dict)
-        assert len(dataset.class_weights) > 0
+        assert isinstance(dataset.class_weights, torch.Tensor)
+        assert dataset.class_weights.numel() > 0
 
 
 class TestLoadIntentMapping:
@@ -553,7 +558,7 @@ class TestLoadIntentMapping:
         }
 
         intents_file = Path(temp_dir) / "intents.yaml"
-        with open(intents_file, "w") as f:
+        with open(intents_file, "w", encoding='utf-8') as f:
             yaml.dump(intents_data, f)
 
         yield temp_dir
@@ -1125,7 +1130,7 @@ class TestIntentDatasetWithAugmentation:
             {"utterance": "play some music", "intent": "play_music", "entities": []},
         ]
 
-        with open(data_file, "w") as f:
+        with open(data_file, "w", encoding='utf-8') as f:
             yaml.dump(data, f)
 
         yield str(data_file), temp_dir
@@ -1134,12 +1139,17 @@ class TestIntentDatasetWithAugmentation:
 
     @pytest.fixture
     def mock_tokenizer(self):
-        """Create mock tokenizer."""
+        """Create mock tokenizer that returns batch-sized tensors."""
         tokenizer = Mock()
-        tokenizer.return_value = {
-            "input_ids": torch.tensor([[1, 2, 3]]),
-            "attention_mask": torch.tensor([[1, 1, 1]]),
-        }
+
+        def _tokenize(texts, **kwargs):
+            n = len(texts) if isinstance(texts, list) else 1
+            return {
+                "input_ids": torch.ones(n, 3, dtype=torch.long),
+                "attention_mask": torch.ones(n, 3, dtype=torch.long),
+            }
+
+        tokenizer.side_effect = _tokenize
         return tokenizer
 
     @pytest.fixture
@@ -1202,7 +1212,7 @@ class TestTrainIntentClassifierFunction:
             }
         }
         intents_file = Path(temp_dir) / "intents.yaml"
-        with open(intents_file, "w") as f:
+        with open(intents_file, "w", encoding='utf-8') as f:
             yaml.dump(intents_data, f)
 
         # Create train_annotated.yaml
@@ -1211,7 +1221,7 @@ class TestTrainIntentClassifierFunction:
             {"utterance": "play music", "intent": "play_music", "entities": []},
         ]
         train_file = Path(temp_dir) / "train_annotated.yaml"
-        with open(train_file, "w") as f:
+        with open(train_file, "w", encoding='utf-8') as f:
             yaml.dump(train_data, f)
 
         # Create val_annotated.yaml
@@ -1219,7 +1229,7 @@ class TestTrainIntentClassifierFunction:
             {"utterance": "set timer", "intent": "set_timer", "entities": []},
         ]
         val_file = Path(temp_dir) / "val_annotated.yaml"
-        with open(val_file, "w") as f:
+        with open(val_file, "w", encoding='utf-8') as f:
             yaml.dump(val_data, f)
 
         # Create test_annotated.yaml
@@ -1227,7 +1237,7 @@ class TestTrainIntentClassifierFunction:
             {"utterance": "play music", "intent": "play_music", "entities": []},
         ]
         test_file = Path(temp_dir) / "test_annotated.yaml"
-        with open(test_file, "w") as f:
+        with open(test_file, "w", encoding='utf-8') as f:
             yaml.dump(test_data, f)
 
         yield temp_dir
@@ -1319,7 +1329,7 @@ class TestTrainIntentClassifierFunction:
 
         # Mock datasets
         mock_train_dataset = Mock()
-        mock_train_dataset.class_weights = {0: 1.0, 1: 1.0}
+        mock_train_dataset.class_weights = torch.tensor([1.0, 1.0])
         type(mock_train_dataset).__len__ = Mock(return_value=100)
 
         mock_val_dataset = Mock()
@@ -1413,7 +1423,7 @@ class TestTrainIntentClassifierFunction:
 
         # Mock datasets
         mock_train_dataset = Mock()
-        mock_train_dataset.class_weights = {0: 1.0, 1: 1.0}
+        mock_train_dataset.class_weights = torch.tensor([1.0, 1.0])
         type(mock_train_dataset).__len__ = Mock(return_value=10)
 
         mock_val_dataset = Mock()

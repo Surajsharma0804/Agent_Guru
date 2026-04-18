@@ -400,8 +400,8 @@ class IOSBackgroundService:
                 # Sleep for 1 second
                 await asyncio.sleep(1)
 
-        except asyncio.CancelledError:
-            logger.info("Service loop cancelled")
+        except asyncio.CancelledError as e:
+            logger.info("Service loop cancelled: %s", e)
         except Exception as e:
             logger.error("Service loop error: %s", e)
 

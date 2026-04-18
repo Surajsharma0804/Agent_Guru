@@ -34,7 +34,7 @@ def create_test_synthesizer():
 @st.composite
 def memory_strategy(draw):
     """Generate valid Memory objects."""
-    now = datetime.utcnow()
+    now = datetime.now(tz=timezone.utc)
     days_ago = draw(st.integers(min_value=0, max_value=365))
 
     return Memory(
@@ -407,7 +407,7 @@ class TestFactualQueryProperties:
                 embedding=[0.1] * 768,
                 metadata={},
                 relevance_score=0.3,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 user_id="user_123",
             )
         ]
@@ -424,7 +424,7 @@ class TestFactualQueryProperties:
                 embedding=[0.1] * 768,
                 metadata={},
                 relevance_score=0.95,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 user_id="user_123",
             )
         ]

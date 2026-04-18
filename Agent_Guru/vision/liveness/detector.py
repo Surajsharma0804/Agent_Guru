@@ -213,8 +213,8 @@ class LivenessDetector:
             import cv2  # type: ignore[import]
             gray = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
             lap = cv2.Laplacian(gray, cv2.CV_64F)
-        except ImportError:
-            logger.warning("cv2 not available — falling back to numpy Laplacian")
+        except ImportError as e:
+            logger.warning("cv2 not available — falling back to numpy Laplacian: %s", e)
             gray = (
                 0.114 * face[:, :, 0].astype(np.float64)
                 + 0.587 * face[:, :, 1].astype(np.float64)

@@ -33,7 +33,7 @@ class TestMemoryIntegration:
         if os.path.exists(path):
             try:
                 os.unlink(path)
-            except PermissionError:
+            except PermissionError as e:
                 time.sleep(0.1)
                 try:
                     os.unlink(path)

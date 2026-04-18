@@ -163,7 +163,7 @@ class DepthEstimator:
             try:
                 import cv2  # type: ignore[import]
                 normalised = cv2.resize(normalised, (w, h), interpolation=cv2.INTER_LINEAR)
-            except ImportError:
+            except ImportError as e:
                 normalised = np.zeros((h, w), dtype=np.float32)
 
         confidence = float(1.0 - normalised.std())

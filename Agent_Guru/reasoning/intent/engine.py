@@ -188,7 +188,7 @@ class IntentDetectionEngine:
         if self._initialized:
             return
 
-        print("Initializing Intent Detection Engine...")
+        _logger.info("Initializing Intent Detection Engine...")
 
         # Initialize Fast-Path Router
         if self.config.enable_fast_path:
@@ -297,7 +297,10 @@ class IntentDetectionEngine:
         if self.config.enable_online_learning:
             try:
                 self.feedback_store = FeedbackStore(self.config.feedback_db_path)
-                self.online_learner = OnlineLearner(self.feedback_store)
+                self.online_learner = OnlineLearner(
+                    model_version="v1.0",
+                    db_path=self.config.feedback_db_path,
+                )
                 _logger.info("Online Learning initialized")
             except Exception as e:
                 _logger.warning("Online Learning initialization failed: %s — disabled", e)
@@ -682,7 +685,7 @@ class IntentDetectionEngine:
             import asyncio
             try:
                 loop = asyncio.get_running_loop()
-                loop.create_task(self.feedback_store.store_feedback(feedback))
+                _task = loop.create_task(self.feedback_store.store_feedback(feedback))
             except RuntimeError:
                 asyncio.run(self.feedback_store.store_feedback(feedback))
 
@@ -693,7 +696,12 @@ class IntentDetectionEngine:
         based on user feedback.
         """
         if self.online_learner:
-            self.online_learner.retrain_models()
+            import asyncio
+            try:
+                loop = asyncio.get_running_loop()
+                _task = loop.create_task(self.online_learner.should_retrain())
+            except RuntimeError:
+                asyncio.run(self.online_learner.should_retrain())
 
     def _update_metrics(self, method: str, latency_ms: float) -> None:
         """Update detection metrics.

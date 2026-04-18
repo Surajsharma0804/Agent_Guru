@@ -567,13 +567,13 @@ def run_100_task_cycle(
 
     # Save detailed results
     results_file = os.path.join(output_dir, f"task_results_{timestamp}.json")
-    with open(results_file, 'w') as f:
+    with open(results_file, 'w', encoding='utf-8') as f:
         json.dump([asdict(r) for r in all_results], f, indent=2)
     print(f"✓ Saved task results to: {results_file}")
 
     # Save validation report
     report_file = os.path.join(output_dir, f"validation_report_{timestamp}.json")
-    with open(report_file, 'w') as f:
+    with open(report_file, 'w', encoding='utf-8') as f:
         json.dump(asdict(report), f, indent=2)
     print(f"✓ Saved validation report to: {report_file}")
 

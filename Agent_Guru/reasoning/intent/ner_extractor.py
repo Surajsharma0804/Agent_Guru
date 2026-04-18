@@ -151,15 +151,15 @@ class NEREntityExtractor:
             try:
                 self._gpu_active = spacy.prefer_gpu()
                 if self._gpu_active:
-                    print("✓ NER extractor using GPU")
+                    _logger.info("NER extractor using GPU")
                 else:
-                    print("⚠ GPU requested but not available — using CPU")
+                    _logger.warning("GPU requested but not available — using CPU")
             except Exception as e:
-                print(f"⚠ GPU setup failed: {e} — using CPU")
+                _logger.warning("GPU setup failed: %s — using CPU", e)
                 self._gpu_active = False
 
-        print(f"✓ NER model loaded: {model_path}")
-        print(f"✓ Entity types: {len(self.nlp.get_pipe('ner').labels)}")
+        _logger.info("NER model loaded: %s", model_path)
+        _logger.info("Entity types: %d", len(self.nlp.get_pipe('ner').labels))
 
         # Warm up model
         self._warmup()
@@ -170,10 +170,10 @@ class NEREntityExtractor:
         Runs several dummy extractions to initialize GPU kernels.
         """
         if self.config.warmup_iterations == 0:
-            print("Skipping warmup (warmup_iterations=0)")
+            _logger.debug("Skipping warmup (warmup_iterations=0)")
             return
 
-        print(f"Warming up model ({self.config.warmup_iterations} iterations)...")
+        _logger.info("Warming up model (%d iterations)...", self.config.warmup_iterations)
 
         dummy_text = "set timer for 5 minutes at 3pm tomorrow"
         start_time = time.perf_counter()
@@ -184,7 +184,7 @@ class NEREntityExtractor:
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         avg_latency = elapsed_ms / self.config.warmup_iterations
 
-        print(f"✓ Warmup complete: {avg_latency:.2f}ms average latency")
+        _logger.info("Warmup complete: %.2fms average latency", avg_latency)
 
     def _extract_sync(self, text: str) -> ExtractionResult:
         """Synchronous entity extraction (internal use).

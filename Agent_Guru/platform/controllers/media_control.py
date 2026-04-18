@@ -408,8 +408,8 @@ class MacOSMediaBackend(MediaBackend):
             end tell
             '''
             self._execute_applescript(script)
-        except MediaCommandError:
-            logger.warning("Stop command not available via media keys")
+        except MediaCommandError as e:
+            logger.warning("Stop command not available via media keys: %s", e)
 
     def next_track(self) -> None:
         """Skip to next track."""

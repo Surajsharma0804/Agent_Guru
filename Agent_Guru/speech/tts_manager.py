@@ -669,7 +669,8 @@ class TTSManager:
         volume: float,
     ) -> SynthesisResult:
         """Synthesize using CoquiTTS SynthesisEngine."""
-        assert self._synthesis_engine is not None
+        if not (self._synthesis_engine is not None):
+            raise AssertionError("self._synthesis_engine is not None assertion failed")
         engine = self._synthesis_engine
         engine.set_voice_profile(voice_profile)
         engine.set_speech_rate(speech_rate)
@@ -689,7 +690,8 @@ class TTSManager:
         volume: float,
     ) -> SynthesisResult:
         """Synthesize using pyttsx3 fallback backend."""
-        assert self._desktop_backend is not None
+        if not (self._desktop_backend is not None):
+            raise AssertionError("self._desktop_backend is not None assertion failed")
         # Update gender based on voice profile
         self._desktop_backend._gender = self._voice_profile_to_gender(voice_profile)
         self._desktop_backend._speech_rate = speech_rate
@@ -712,7 +714,8 @@ class TTSManager:
         volume: float,
     ) -> SynthesisResult:
         """Synthesize using Android TextToSpeech backend."""
-        assert self._android_backend is not None
+        if not (self._android_backend is not None):
+            raise AssertionError("self._android_backend is not None assertion failed")
         loop = asyncio.get_running_loop()
         t_start = time.perf_counter()
         audio_bytes: bytes = await loop.run_in_executor(
@@ -729,7 +732,8 @@ class TTSManager:
         volume: float,
     ) -> SynthesisResult:
         """Synthesize using iOS AVSpeechSynthesizer backend."""
-        assert self._ios_backend is not None
+        if not (self._ios_backend is not None):
+            raise AssertionError("self._ios_backend is not None assertion failed")
         loop = asyncio.get_running_loop()
         t_start = time.perf_counter()
         audio_bytes: bytes = await loop.run_in_executor(

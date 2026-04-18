@@ -1,4 +1,4 @@
-﻿"""Core data models for the Verifier System.
+"""Core data models for the Verifier System.
 
 All models use Pydantic v2 for validation and serialization.
 """

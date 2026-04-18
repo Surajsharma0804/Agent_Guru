@@ -128,7 +128,7 @@ class PackageManager:
         except subprocess.TimeoutExpired as exc:
             self._cleanup_partial(package_path)
             raise InstallationError(f"Installation timed out: {exc}") from exc
-        except InstallationError:
+        except InstallationError as e:
             self._cleanup_partial(package_path)
             raise
         except Exception as exc:

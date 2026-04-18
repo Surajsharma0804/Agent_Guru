@@ -324,7 +324,7 @@ class LatencyEnforcer:
 
             return result, metrics
 
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as e:
             # Mark as timeout and log
             self.tracker.end_stage(metrics, timeout=True)
             logger.warning(

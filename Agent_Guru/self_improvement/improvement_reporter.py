@@ -1,4 +1,4 @@
-﻿"""
+"""
 Improvement Reporter for Self-Improvement Engine.
 
 Generates comprehensive improvement reports after every 100 tasks with

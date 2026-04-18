@@ -365,8 +365,8 @@ class DesktopTextController:
         """Blocking pyautogui.typewrite call — must run in executor."""
         try:
             import pyautogui  # type: ignore[import]
-        except ImportError:
-            logger.warning("pyautogui not available — cannot type text")
+        except ImportError as e:
+            logger.warning("pyautogui not available — cannot type text: %s", e)
             raise
 
         pyautogui.typewrite(text, interval=interval)
@@ -375,8 +375,8 @@ class DesktopTextController:
         """Blocking pyautogui.press call — must run in executor."""
         try:
             import pyautogui  # type: ignore[import]
-        except ImportError:
-            logger.warning("pyautogui not available — cannot press key")
+        except ImportError as e:
+            logger.warning("pyautogui not available — cannot press key: %s", e)
             raise
 
         pyautogui.press(key)
@@ -386,8 +386,8 @@ class DesktopTextController:
         self._clipboard_copy(text)
         try:
             import pyautogui  # type: ignore[import]
-        except ImportError:
-            logger.warning("pyautogui not available — cannot send paste hotkey")
+        except ImportError as e:
+            logger.warning("pyautogui not available — cannot send paste hotkey: %s", e)
             raise
 
         if self._platform == "macos":
@@ -399,8 +399,8 @@ class DesktopTextController:
         """Select-all then delete — blocking."""
         try:
             import pyautogui  # type: ignore[import]
-        except ImportError:
-            logger.warning("pyautogui not available — cannot clear field")
+        except ImportError as e:
+            logger.warning("pyautogui not available — cannot clear field: %s", e)
             raise
 
         if self._platform == "macos":
@@ -420,8 +420,8 @@ class DesktopTextController:
             import pyperclip  # type: ignore[import]
             pyperclip.copy(text)
             return
-        except ImportError:
-            logger.debug("pyperclip not available — trying platform clipboard")
+        except ImportError as e:
+            logger.debug("pyperclip not available — trying platform clipboard: %s", e)
         except Exception as exc:
             logger.debug("pyperclip.copy failed: %s — trying platform clipboard", exc)
 
@@ -483,7 +483,7 @@ class DesktopTextController:
                 )
                 if proc.returncode == 0:
                     return
-            except FileNotFoundError:
+            except FileNotFoundError as e:
                 continue
             except Exception as exc:
                 logger.debug("Clipboard command %r failed: %s", cmd[0], exc)

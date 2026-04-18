@@ -92,7 +92,7 @@ class TestRetrieveRelevantData:
         synthesizer = KnowledgeSynthesizer(memory_retriever)
 
         # Create test query
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         time_range = TimeRange(start=now - timedelta(days=30), end=now, description="last month")
         query = KnowledgeQuery(
             query_text="when did I last call John?",
@@ -181,7 +181,7 @@ class TestRetrieveRelevantData:
         )
 
         # Mock memories with different timestamps
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         mock_memories = [
             EpisodicMemory(
                 content="Recent action",
@@ -219,7 +219,7 @@ class TestDetectPatterns:
         synthesizer = KnowledgeSynthesizer(memory_retriever, pattern_min_frequency=0.3)
 
         # Create memories with daily pattern (same hour)
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         memories = [
             EpisodicMemory(
                 content=f"Action {i}",
@@ -253,7 +253,7 @@ class TestDetectPatterns:
         synthesizer = KnowledgeSynthesizer(memory_retriever, pattern_min_frequency=0.3)
 
         # Create memories with weekly pattern (Mondays)
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         # Find next Monday
         days_until_monday = (7 - now.weekday()) % 7
         next_monday = now + timedelta(days=days_until_monday)
@@ -361,7 +361,7 @@ class TestDetectPatterns:
         )  # Higher threshold
 
         # Create memories with low frequency pattern (only 2 out of 5 at same hour)
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         memories = [
             EpisodicMemory(
                 content=f"Action {i}",
@@ -395,7 +395,7 @@ class TestAggregateStatistics:
         synthesizer = KnowledgeSynthesizer(memory_retriever)
 
         # Create test memories
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         memories = [
             EpisodicMemory(
                 content="Called John",
@@ -490,7 +490,7 @@ class TestGenerateAnswer:
         synthesizer = KnowledgeSynthesizer(memory_retriever)
 
         # Create test data
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         memories = [
             EpisodicMemory(
                 content="Called John",
@@ -686,7 +686,7 @@ class TestSynthesizeAnswer:
         )
 
         # Mock memory retrieval
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         mock_memories = [
             EpisodicMemory(
                 content="Called John",
@@ -756,7 +756,7 @@ class TestSynthesizeAnswer:
         )
 
         # Mock memory retrieval with pattern
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         mock_memories = [
             EpisodicMemory(
                 content=f"Called John {i}",

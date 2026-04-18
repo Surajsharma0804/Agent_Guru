@@ -240,8 +240,8 @@ class WindowManager:
 
             return screens
 
-        except ImportError:
-            logger.warning("win32api not available, using fallback")
+        except ImportError as e:
+            logger.warning("win32api not available, using fallback: %s", e)
             # Fallback: single screen with common resolution
             return [ScreenInfo(
                 index=0,
@@ -542,8 +542,8 @@ class WindowManager:
             logger.info("Snapped window to (%s, %s, %s, %s)", x, y, width, height)
             return True
 
-        except ImportError:
-            logger.error("win32gui not available")
+        except ImportError as e:
+            logger.error("win32gui not available: %s", e)
             return False
         except Exception as e:
             logger.error("Failed to snap window on Windows: %s", e)
@@ -661,8 +661,8 @@ class WindowManager:
                 logger.error("wmctrl error: %s", result.stderr)
                 return False
 
-        except FileNotFoundError:
-            logger.error("wmctrl not installed")
+        except FileNotFoundError as e:
+            logger.error("wmctrl not installed: %s", e)
             return False
         except Exception as e:
             logger.error("Failed to snap window on Linux: %s", e)
@@ -778,8 +778,8 @@ class WindowManager:
             win32gui.EnumWindows(callback, windows)
             return windows
 
-        except ImportError:
-            logger.error("win32gui not available")
+        except ImportError as e:
+            logger.error("win32gui not available: %s", e)
             return []
 
     def _get_visible_windows_macos(self) -> list[str]:
@@ -845,8 +845,8 @@ class WindowManager:
             else:
                 return []
 
-        except FileNotFoundError:
-            logger.error("wmctrl not installed")
+        except FileNotFoundError as e:
+            logger.error("wmctrl not installed: %s", e)
             return []
 
     def _arrange_tile(self, windows: list[str], screen: ScreenInfo) -> bool:
@@ -1032,8 +1032,8 @@ class WindowManager:
             logger.info("Created virtual desktop on Windows")
             return f"desktop_{int(time.time())}"
 
-        except ImportError:
-            logger.error("pyautogui not available")
+        except ImportError as e:
+            logger.error("pyautogui not available: %s", e)
             return None
         except Exception as e:
             logger.error("Failed to create virtual desktop on Windows: %s", e)
@@ -1097,8 +1097,8 @@ class WindowManager:
                 logger.error("wmctrl error: %s", result.stderr)
                 return None
 
-        except FileNotFoundError:
-            logger.error("wmctrl not installed")
+        except FileNotFoundError as e:
+            logger.error("wmctrl not installed: %s", e)
             return None
         except Exception as e:
             logger.error("Failed to create virtual desktop on Linux: %s", e)
@@ -1154,8 +1154,8 @@ class WindowManager:
                 logger.error("Invalid desktop ID: %s", desktop_id)
                 return False
 
-        except ImportError:
-            logger.error("pyautogui not available")
+        except ImportError as e:
+            logger.error("pyautogui not available: %s", e)
             return False
         except Exception as e:
             logger.error("Failed to switch desktop on Windows: %s", e)
@@ -1228,8 +1228,8 @@ class WindowManager:
                 logger.error("wmctrl error: %s", result.stderr)
                 return False
 
-        except FileNotFoundError:
-            logger.error("wmctrl not installed")
+        except FileNotFoundError as e:
+            logger.error("wmctrl not installed: %s", e)
             return False
         except Exception as e:
             logger.error("Failed to switch desktop on Linux: %s", e)
@@ -1279,8 +1279,8 @@ class WindowManager:
             logger.info("Closed desktop: %s", desktop_id)
             return True
 
-        except ImportError:
-            logger.error("pyautogui not available")
+        except ImportError as e:
+            logger.error("pyautogui not available: %s", e)
             return False
         except Exception as e:
             logger.error("Failed to close desktop on Windows: %s", e)
@@ -1350,8 +1350,8 @@ class WindowManager:
                 logger.error("wmctrl error: %s", result.stderr)
                 return False
 
-        except FileNotFoundError:
-            logger.error("wmctrl not installed")
+        except FileNotFoundError as e:
+            logger.error("wmctrl not installed: %s", e)
             return False
         except Exception as e:
             logger.error("Failed to close desktop on Linux: %s", e)
@@ -1448,8 +1448,8 @@ class WindowManager:
             else:
                 return []
 
-        except FileNotFoundError:
-            logger.error("wmctrl not installed")
+        except FileNotFoundError as e:
+            logger.error("wmctrl not installed: %s", e)
             return []
         except Exception as e:
             logger.error("Failed to list desktops on Linux: %s", e)

@@ -364,7 +364,7 @@ class TestMemoryRanking:
         old_memory = Memory(
             memory_type=MemoryType.EPISODIC,
             content="User set a timer",
-            timestamp=datetime.utcnow() - timedelta(days=60),
+            timestamp=datetime.now(tz=timezone.utc) - timedelta(days=60),
             user_id="user_123",
         )
 
@@ -372,7 +372,7 @@ class TestMemoryRanking:
         recent_memory = Memory(
             memory_type=MemoryType.EPISODIC,
             content="User set a timer",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
             user_id="user_123",
         )
 
@@ -428,7 +428,7 @@ class TestMemoryRanking:
         memory1 = Memory(
             memory_type=MemoryType.EPISODIC,
             content="User set a timer for cooking",
-            timestamp=datetime.utcnow() - timedelta(days=80),
+            timestamp=datetime.now(tz=timezone.utc) - timedelta(days=80),
             relevance_score=0.2,
             user_id="user_123",
         )
@@ -437,7 +437,7 @@ class TestMemoryRanking:
         memory2 = Memory(
             memory_type=MemoryType.EPISODIC,
             content="User set an alarm",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
             relevance_score=0.9,
             user_id="user_123",
         )

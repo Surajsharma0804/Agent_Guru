@@ -360,7 +360,7 @@ class TestWindowsIntegrationEdgeCases:
                 "ProductName"
             )
             assert value is not None
-        except PermissionError:
+        except PermissionError as e:
             pytest.skip("Insufficient permissions")
     
     def test_process_list_handles_terminated_processes(self):

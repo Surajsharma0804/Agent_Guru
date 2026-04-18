@@ -193,7 +193,7 @@ class GoalStorage:
                     raise _StorageError(f"Goal {goal_id} not found")
                 conn.commit()
                 self._close(conn)
-        except _StorageError:
+        except _StorageError as e:
             raise
         except Exception as e:
             raise _StorageError(f"Failed to update goal status: {e}") from e
@@ -319,7 +319,7 @@ class GoalStorage:
             )
             raise StorageError(f"Goal with ID {goal.id} already exists: {e}") from e
 
-        except StorageError:
+        except StorageError as e:
             raise
 
         except Exception as e:
@@ -399,7 +399,7 @@ class GoalStorage:
 
                 conn.commit()
 
-        except StorageError:
+        except StorageError as e:
             raise
 
         except Exception as e:
@@ -589,7 +589,7 @@ class GoalStorage:
             goals = await self.query_goals()
 
             output_file = self._resolve_data_path(output_path)
-            with output_file.open('w') as f:
+            with output_file.open('w', encoding='utf-8') as f:
                 json.dump(
                     [self._goal_to_dict(g) for g in goals],
                     f,
@@ -633,7 +633,7 @@ class GoalStorage:
                 try:
                     await self.store_goal(goal)
                     count += 1
-                except StorageError:
+                except StorageError as e:
                     # Skip duplicates
                     pass
 

@@ -85,8 +85,8 @@ class StateManager:
         """
         try:
             ratio = lip_sync.mouth_open_ratio
-        except AttributeError:
-            logger.error("update_lip_sync rejected: missing mouth_open_ratio")
+        except AttributeError as e:
+            logger.error("update_lip_sync rejected: missing mouth_open_ratio: %s", e)
             return False
 
         if not 0.0 <= ratio <= 1.0:

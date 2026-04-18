@@ -77,13 +77,13 @@ def suppress_c_stderr():
     if _platform_module.system() == 'Windows':
         try:
             ctypes.CDLL('msvcrt')
-            with open(os.devnull, 'w') as devnull:
+            with open(os.devnull, 'w', encoding='utf-8') as devnull:
                 os.dup2(devnull.fileno(), 2)  # Redirect stderr (fd=2) to devnull
         except OSError as exc:  # noqa: BLE001
             _logger.debug("stderr suppression skipped on Windows: %s", exc)  # Fallback: continue without suppression
     else:
         try:
-            with open(os.devnull, 'w') as devnull:
+            with open(os.devnull, 'w', encoding='utf-8') as devnull:
                 os.dup2(devnull.fileno(), 2)
         except OSError as exc:  # noqa: BLE001
             _logger.debug("stderr suppression skipped: %s", exc)
@@ -230,7 +230,7 @@ class CoquiTTSEngine:
             raise TTSError(
                 f"Required library not installed: {e}. Install with: pip install TTS phonemizer",
                 e
-            )
+            ) from e
         except Exception as e:
             # Fallback to CPU if GPU fails
             if self._use_gpu and device == "cuda":

@@ -153,7 +153,7 @@ def intent_strategy(draw: st.DrawFn) -> Intent:
         requires_reasoning=requires_reasoning,
         original_input=original_input,
         alternative_intents=alternative_intents,
-        detected_at=datetime.utcnow(),
+        detected_at=datetime.now(tz=timezone.utc),
         detection_method=detection_method,
     )
 

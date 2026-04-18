@@ -170,12 +170,12 @@ class OllamaProvider(BaseLLMProvider):
         except aiohttp.ClientConnectorError as e:
             raise RuntimeError(
                 f"Ollama server not reachable at {self.ollama_config.base_url}: {e}"
-            )
-        except asyncio.TimeoutError:
+            ) from e
+        except asyncio.TimeoutError as e:
             raise RuntimeError(
                 f"Ollama request timed out after {self.config.timeout_seconds}s "
                 f"(connect timeout: {self._CONNECT_TIMEOUT_S}s)"
-            )
+            ) from e
         except aiohttp.ClientError as e:
             raise RuntimeError(f"Ollama HTTP client error: {e}") from e
 

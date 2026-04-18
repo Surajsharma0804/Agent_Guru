@@ -128,7 +128,7 @@ class FACSExpressionRenderer:
         """
         try:
             import cv2  # type: ignore[import]
-        except ImportError:
+        except ImportError as e:
             return frame
 
         cx, cy = face_center

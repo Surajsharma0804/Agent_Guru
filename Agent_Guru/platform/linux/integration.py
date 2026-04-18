@@ -29,7 +29,7 @@ import psutil
 try:
     import dbus
     DBUS_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     DBUS_AVAILABLE = False
     logging.warning("dbus-python not available - some Linux features will be limited")
 
@@ -535,7 +535,7 @@ class LinuxIntegration:
                     memory_percent=info['memory_percent'] or 0.0,
                     create_time=info['create_time']
                 ))
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
+            except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
                 # Process terminated or access denied - skip it
                 continue
 
@@ -745,7 +745,7 @@ class LinuxIntegration:
         try:
             import os
             return os.geteuid() == 0
-        except Exception:
+        except Exception as e:
             return False
 
     def require_root(self) -> None:

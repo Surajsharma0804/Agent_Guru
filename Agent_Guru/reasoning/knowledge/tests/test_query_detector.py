@@ -177,7 +177,7 @@ class TestKnowledgeQueryDetector:
 
         assert time_range is not None
         assert time_range.description == "today"
-        assert time_range.start.date() == datetime.utcnow().date()
+        assert time_range.start.date() == datetime.now(tz=timezone.utc).date()
 
     def test_extract_time_range_yesterday(self, detector):
         """Test extraction of 'yesterday' time range."""

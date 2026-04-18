@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: Agent_Guru.platform.integration.graceful_shutdown
 Purpose: Graceful shutdown with signal handling, in-flight tracking, and state persistence.
 
@@ -216,7 +216,7 @@ class GracefulShutdownManager:
                 lambda: asyncio.create_task(self.shutdown(reason="SIGINT")),
             )
             logger.info("Registered SIGTERM and SIGINT handlers via asyncio event loop")
-        except (NotImplementedError, RuntimeError):
+        except (NotImplementedError, RuntimeError) as e:
             # Windows: add_signal_handler not supported
             logger.warning(
                 "asyncio signal handlers not supported on this platform. "
@@ -328,7 +328,7 @@ class GracefulShutdownManager:
                 await asyncio.wait_for(entry.handler(), timeout=entry.timeout)
                 handlers_run += 1
                 logger.debug("Cleanup handler completed: '%s'", entry.name)
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as e:
                 msg = f"Cleanup handler '{entry.name}' timed out after {entry.timeout}s"
                 logger.error(msg)
                 state.cleanup_errors.append(msg)

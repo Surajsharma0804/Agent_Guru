@@ -92,7 +92,7 @@ class MemorySecurityManager:
         """Encrypt plaintext with AES-256-GCM. Returns nonce + tag + ciphertext."""
         try:
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        except ImportError:
+        except ImportError as e:
             # Fallback: XOR with key hash (NOT production-safe, for testing only)
             return self._xor_encrypt(key_id, plaintext)
         key = self._keys.get(key_id)
@@ -107,7 +107,7 @@ class MemorySecurityManager:
         """Decrypt AES-256-GCM ciphertext."""
         try:
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        except ImportError:
+        except ImportError as e:
             return self._xor_decrypt(key_id, ciphertext)
         key = self._keys.get(key_id)
         if key is None:

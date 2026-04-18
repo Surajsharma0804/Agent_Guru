@@ -437,8 +437,8 @@ class EmotionRecognizer:
         try:
             import deepface  # noqa: F401
             return True
-        except ImportError:
-            logger.debug("DeepFace not available")
+        except ImportError as e:
+            logger.debug("DeepFace not available: %s", e)
             return False
 
     @staticmethod
@@ -446,8 +446,8 @@ class EmotionRecognizer:
         try:
             import fer  # noqa: F401
             return True
-        except ImportError:
-            logger.debug("FER not available")
+        except ImportError as e:
+            logger.debug("FER not available: %s", e)
             return False
 
     @staticmethod

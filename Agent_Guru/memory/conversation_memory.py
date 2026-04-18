@@ -319,9 +319,9 @@ class ConversationMemory:
             aesgcm = AESGCM(key)
             ct = aesgcm.encrypt(nonce, plaintext.encode("utf-8"), None)
             return nonce + ct
-        except ImportError:
+        except ImportError as e:
             # Fallback: store as plain JSON (dev/test only)
-            logger.warning("cryptography not available - storing unencrypted")
+            logger.warning("cryptography not available - storing unencrypted: %s", e)
             return plaintext.encode("utf-8")
 
     def _decrypt(self, data: bytes) -> str:

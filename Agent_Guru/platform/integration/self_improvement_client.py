@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: Agent_Guru.platform.integration.self_improvement_client
 Purpose: Self-Improvement Engine integration client for performance metrics reporting.
 

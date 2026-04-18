@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: Agent_Guru.platform.integration.verifier_client
 Purpose: Verifier System integration client for output validation.
 

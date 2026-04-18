@@ -218,9 +218,9 @@ class ContextManager:
             while ctx.token_count > target_tokens and len(ctx.messages) > 1:
                 # Preserve system message at index 0
                 if ctx.messages[0].role == "system" and len(ctx.messages) > 1:
-                    ctx.messages.pop(1)
+                    del ctx.messages[1]  # O(n) but bounded by conversation length
                 else:
-                    ctx.messages.pop(0)
+                    del ctx.messages[0]  # O(n) but bounded by conversation length
 
                 # BUG-016: use session's recorded model (same fix as update_context)
                 model_for_count = ctx.metadata.get("model", "gpt-3.5-turbo")

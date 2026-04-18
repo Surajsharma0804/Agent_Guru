@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: agent_guru.platform.github.integrator
 Purpose: Core GitHub integration for automated Git operations
 
@@ -511,7 +511,7 @@ class GitHubIntegrator:
                 f"Push failed after {self.max_retries} attempts: {last_error}"
             )
 
-        except (GitAuthenticationError, GitConflictError, GitRemoteError):
+        except (GitAuthenticationError, GitConflictError, GitRemoteError) as e:
             raise
         except Exception as e:
             duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
@@ -575,7 +575,7 @@ class GitHubIntegrator:
                     )
                 raise GitRemoteError(f"Pull failed: {result.stderr}")
 
-        except (GitConflictError, GitRemoteError):
+        except (GitConflictError, GitRemoteError) as e:
             raise
         except Exception as e:
             duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
@@ -1189,7 +1189,7 @@ class GitHubIntegrator:
 
             raise GitConflictError(error_message)
 
-        except GitConflictError:
+        except GitConflictError as e:
             raise
         except Exception as e:
             duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
@@ -1336,7 +1336,7 @@ class GitHubIntegrator:
                 duration_ms=duration_ms
             )
 
-        except GitAuthenticationError:
+        except GitAuthenticationError as e:
             raise
         except Exception as e:
             duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
@@ -1614,7 +1614,7 @@ class GitHubIntegrator:
 
             raise GitConflictError(error_message)
 
-        except GitConflictError:
+        except GitConflictError as e:
             raise
         except Exception as e:
             duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
@@ -1761,7 +1761,7 @@ class GitHubIntegrator:
                 duration_ms=duration_ms
             )
 
-        except GitAuthenticationError:
+        except GitAuthenticationError as e:
             raise
         except Exception as e:
             duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
@@ -2175,7 +2175,7 @@ class GitHubIntegrator:
                 if "/pull/" in pr_url:
                     try:
                         pr_number = int(pr_url.split("/pull/")[-1])
-                    except (ValueError, IndexError):
+                    except (ValueError, IndexError) as e:
                         pass
 
                 logger.info("PR created successfully: %s", pr_url)
@@ -2196,7 +2196,7 @@ class GitHubIntegrator:
                     error=error_msg
                 )
 
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as e:
             return PullRequestResult(
                 success=False,
                 message=f"PR creation timed out after {self.timeout}s",

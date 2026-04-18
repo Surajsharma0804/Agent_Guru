@@ -91,7 +91,7 @@ class BenchmarkResult:
 
     def to_json(self, filepath: str) -> None:
         """Save result to JSON file."""
-        with open(filepath, 'w') as f:
+        with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(self.to_dict(), f, indent=2)
 
 
@@ -293,7 +293,7 @@ class BaseBenchmark:
             results: List of benchmark results to compare
             output_path: Path to save markdown report
         """
-        with open(output_path, 'w') as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             f.write("# Agent Framework Benchmark Results\n\n")
             f.write(f"Generated: {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}\n\n")
 

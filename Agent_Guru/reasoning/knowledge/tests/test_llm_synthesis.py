@@ -47,7 +47,7 @@ def create_test_memory(
         "user_id": "user1",
         "content": content,
         "memory_type": memory_type,
-        "timestamp": datetime.utcnow(),
+        "timestamp": datetime.now(tz=timezone.utc),
         "relevance_score": 0.9,
     }
     defaults.update(kwargs)
@@ -149,7 +149,7 @@ class TestPromptGeneration:
                 user_id="user1",
                 content="Called John about project",
                 memory_type=MemoryType.EPISODIC,
-                timestamp=datetime.utcnow() - timedelta(days=2),
+                timestamp=datetime.now(tz=timezone.utc) - timedelta(days=2),
                 relevance_score=0.95,
             )
         ]
@@ -215,7 +215,7 @@ class TestPromptGeneration:
                 user_id="user1",
                 content=f"Memory {i}",
                 memory_type=MemoryType.SEMANTIC,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 relevance_score=0.9 - i * 0.01,
             )
             for i in range(20)
@@ -356,7 +356,7 @@ class TestLLMSynthesis:
                 user_id="user1",
                 content="Called John",
                 memory_type=MemoryType.EPISODIC,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 relevance_score=0.9,
             )
         ]
@@ -415,7 +415,7 @@ class TestLLMSynthesis:
                 user_id="user1",
                 content="Test memory",
                 memory_type=MemoryType.SEMANTIC,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 relevance_score=0.9,
             )
         ]
@@ -469,7 +469,7 @@ class TestLLMSynthesis:
                 user_id="user1",
                 content="Test memory",
                 memory_type=MemoryType.SEMANTIC,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 relevance_score=0.9,
             )
         ]
@@ -506,7 +506,7 @@ class TestSupportingMemories:
                 user_id="user1",
                 content=f"Memory {i}",
                 memory_type=MemoryType.SEMANTIC,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 relevance_score=0.9 - i * 0.1,
             )
             for i in range(10)
@@ -560,7 +560,7 @@ class TestSupportingMemories:
                 user_id="user1",
                 content="Memory 1",
                 memory_type=MemoryType.SEMANTIC,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 relevance_score=0.9,
             ),
             Memory(
@@ -568,7 +568,7 @@ class TestSupportingMemories:
                 user_id="user1",
                 content="Memory 2",
                 memory_type=MemoryType.SEMANTIC,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 relevance_score=0.8,
             ),
         ]
@@ -604,7 +604,7 @@ class TestConfidenceIndicator:
                 user_id="user1",
                 content="Called John",
                 memory_type=MemoryType.EPISODIC,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 relevance_score=0.9,
             )
         ]
@@ -635,7 +635,7 @@ class TestConfidenceIndicator:
                 user_id="user1",
                 content="Called John",
                 memory_type=MemoryType.EPISODIC,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 relevance_score=0.9,
             )
         ]

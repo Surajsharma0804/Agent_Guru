@@ -160,7 +160,7 @@ class TestDatasetGenerator:
         generator.save_dataset(train, val, test, output_dir=temp_dir)
         
         # Read and verify content
-        with open(Path(temp_dir, "train.txt"), 'r', encoding='utf-8') as f:
+        with open(Path(temp_dir, "train.txt", encoding='utf-8'), 'r', encoding='utf-8') as f:
             content = f.read()
             assert "set_timer\ttest utterance" in content
     
@@ -225,7 +225,7 @@ class TestDatasetGenerator:
         stats_file = Path(temp_dir, "dataset_stats.yaml")
         assert stats_file.exists()
         
-        with open(stats_file, 'r') as f:
+        with open(stats_file, 'r', encoding='utf-8') as f:
             stats = yaml.safe_load(f)
             assert 'train_size' in stats
             assert 'val_size' in stats

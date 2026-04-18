@@ -122,7 +122,7 @@ class RuleEvaluator:
 
         try:
             result = self._evaluate_node(rule, context)
-        except RuleEvaluationError:
+        except RuleEvaluationError as e:
             raise
         except Exception as exc:
             msg = f"Rule evaluation error: {exc}"

@@ -128,7 +128,7 @@ class TestUserDataIsolation:
             user_id="user_1",
             content="User 1 called John",
             embedding=[0.1] * 768,  # 768-dimensional embedding
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
             relevance_score=0.9,
             action_taken="call",
             result="success",
@@ -141,7 +141,7 @@ class TestUserDataIsolation:
             user_id="user_2",
             content="User 2 called Jane",
             embedding=[0.2] * 768,  # 768-dimensional embedding
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
             relevance_score=0.8,
             action_taken="call",
             result="success",
@@ -191,7 +191,7 @@ class TestUserDataIsolation:
             user_id="user_1",
             content="User 1 data",
             embedding=[0.1] * 768,  # 768-dimensional embedding
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
             relevance_score=0.9,
             action_taken="test",
             result="success",
@@ -204,7 +204,7 @@ class TestUserDataIsolation:
             user_id="user_2",  # Wrong user!
             content="User 2 data (should be filtered)",
             embedding=[0.2] * 768,  # 768-dimensional embedding
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
             relevance_score=0.8,
             action_taken="test",
             result="success",
@@ -284,7 +284,7 @@ class TestConfidenceThresholds:
             user_id="user_1",
             content="Called John 2 weeks ago",
             embedding=[0.1] * 768,  # 768-dimensional embedding
-            timestamp=datetime.utcnow() - timedelta(days=14),
+            timestamp=datetime.now(tz=timezone.utc) - timedelta(days=14),
             relevance_score=0.4,  # Low relevance
             action_taken="call",
             result="success",
@@ -324,7 +324,7 @@ class TestConfidenceThresholds:
             user_id="user_1",
             content="Called John today",
             embedding=[0.1] * 768,  # 768-dimensional embedding
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
             relevance_score=0.95,  # High relevance
             action_taken="call",
             result="success",
@@ -500,7 +500,7 @@ class TestPrivacyPreservingAggregation:
             user_id="user_1",
             content="John's email is john@example.com and phone is 555-123-4567",
             embedding=[0.1] * 768,  # 768-dimensional embedding
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
             relevance_score=0.9,
             fact="Contact info",
             source="user_input",
@@ -538,7 +538,7 @@ class TestPrivacyPreservingAggregation:
                 user_id="user_1",
                 content=f"Called john@example.com at 555-{i:04d}",
                 embedding=[0.1] * 768,  # 768-dimensional embedding
-                timestamp=datetime.utcnow() - timedelta(days=i),
+                timestamp=datetime.now(tz=timezone.utc) - timedelta(days=i),
                 relevance_score=0.9,
                 action_taken="call",
                 result="success",

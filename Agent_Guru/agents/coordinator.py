@@ -204,7 +204,8 @@ class ComponentCoordinator:
         for attempt in range(self.max_retries + 1):
             try:
                 info.status = ComponentStatus.BUSY
-                assert info.handler is not None
+                if not (info.handler is not None):
+                    raise AssertionError("info.handler is not None assertion failed")
                 output = await info.handler(capability, payload)
                 info.status = ComponentStatus.READY
                 return CoordinationResult(

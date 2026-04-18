@@ -51,7 +51,7 @@ class CloudSyncService:
     Space Complexity: O(n) where n is number of conversations
 
     Example:
-        >>> config = SyncConfig(host="db.example.com", password="secret")
+        >>> config = SyncConfig(host="db.example.com", password="secret")  # nosec B106 — docstring example only
         >>> sync = CloudSyncService(config)
         >>> await sync.initialize()
         >>> await sync.sync_to_cloud(conversation_state)

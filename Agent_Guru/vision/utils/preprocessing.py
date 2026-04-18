@@ -80,8 +80,8 @@ def enhance_low_light(frame: np.ndarray) -> np.ndarray:
         lab_enhanced = cv2.merge([l_enhanced, a_channel, b_channel])
         return cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2BGR)
 
-    except ImportError:
-        logger.warning("cv2 not available — falling back to numpy histogram equalisation")
+    except ImportError as e:
+        logger.warning("cv2 not available — falling back to numpy histogram equalisation: %s", e)
         return _numpy_equalize(frame)
 
 

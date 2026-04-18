@@ -37,7 +37,7 @@ def run_command(cmd: list[str], description: str) -> bool:
         print(f"\n❌ {description} - FAILED")
         print(f"Error: {e}\n")
         return False
-    except FileNotFoundError:
+    except FileNotFoundError as e:
         print(f"\n❌ {description} - FAILED")
         print("Error: Command not found. Make sure Python is in your PATH.\n")
         return False

@@ -95,10 +95,10 @@ def stop_ffmpeg_process(process: subprocess.Popen, timeout: int = 5) -> None:
         process.wait(timeout=timeout)
         logger.info("Screen recording stopped")
 
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as e:
         process.kill()
         process.wait()
-        logger.warning("Recording process killed (timeout)")
+        logger.warning("Recording process killed (timeout): %s", e)
     except Exception as e:
         error_msg = f"Failed to stop recording: {e}"
         logger.error(error_msg)
@@ -152,7 +152,7 @@ class WindowsScreenCaptureBackend(ScreenCaptureBackend):
         try:
             import pyautogui
             self.pyautogui = pyautogui
-        except ImportError:
+        except ImportError as e:
             self.pyautogui = None
 
     def capture_screenshot(self, output_path: str) -> None:

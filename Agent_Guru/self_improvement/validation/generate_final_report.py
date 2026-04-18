@@ -19,7 +19,7 @@ def load_json_file(file_path: Path) -> dict[str, Any]:
     """Load a JSON file."""
     if not file_path.exists():
         return {}
-    with open(file_path) as f:
+    with open(file_path, encoding='utf-8') as f:
         return json.load(f)
 
 
@@ -336,7 +336,7 @@ def main():
     json_path = output_dir / f"final_validation_report_{timestamp}.json"
     md_path = output_dir / f"final_validation_report_{timestamp}.md"
 
-    with open(json_path, 'w') as f:
+    with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(report, f, indent=2)
 
     print(f"✅ JSON report saved to: {json_path}")

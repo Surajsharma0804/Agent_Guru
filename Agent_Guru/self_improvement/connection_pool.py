@@ -264,7 +264,7 @@ class ConnectionPool:
 
             return conn
 
-        except TimeoutError:
+        except TimeoutError as e:
             with self._lock:
                 self._failed_acquisitions += 1
             raise
@@ -296,7 +296,7 @@ class ConnectionPool:
             conn.execute("PRAGMA foreign_keys=ON")
 
             # Set busy timeout
-            conn.execute(f"PRAGMA busy_timeout={int(self.timeout * 1000)}")
+            conn.execute(f"PRAGMA busy_timeout={int(self.timeout * 1000)}")  # nosec B608 — integer value, no injection risk
         except Exception as e:
             conn.close()
             raise

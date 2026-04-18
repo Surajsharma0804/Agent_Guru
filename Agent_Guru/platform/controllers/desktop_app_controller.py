@@ -351,8 +351,8 @@ class DesktopApplicationController:
                 win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
                 return True
             return False
-        except ImportError:
-            logger.debug("win32gui not available — skipping graceful close")
+        except ImportError as e:
+            logger.debug("win32gui not available — skipping graceful close: %s", e)
             return False
         except Exception as exc:
             logger.debug("win32 close failed: %s", exc)
@@ -386,7 +386,7 @@ class DesktopApplicationController:
             if hwnd:
                 win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
                 return True
-        except ImportError:
+        except ImportError as e:
             pass
         except Exception as exc:
             logger.debug("win32 minimize failed: %s", exc)
@@ -404,7 +404,7 @@ class DesktopApplicationController:
             if hwnd:
                 win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
                 return True
-        except ImportError:
+        except ImportError as e:
             pass
         except Exception as exc:
             logger.debug("win32 maximize failed: %s", exc)
@@ -421,7 +421,7 @@ class DesktopApplicationController:
             if hwnd:
                 win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
                 return True
-        except ImportError:
+        except ImportError as e:
             pass
         except Exception as exc:
             logger.debug("win32 restore failed: %s", exc)
@@ -437,7 +437,7 @@ class DesktopApplicationController:
             if hwnd:
                 win32gui.SetForegroundWindow(hwnd)
                 return True
-        except ImportError:
+        except ImportError as e:
             pass
         except Exception as exc:
             logger.debug("win32 switch failed: %s", exc)
@@ -558,7 +558,7 @@ class DesktopApplicationController:
             )
             # Don't wait — detach the process
             return True
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             pass
         except Exception as exc:
             logger.debug("Direct exec failed for %r: %s", app_name, exc)

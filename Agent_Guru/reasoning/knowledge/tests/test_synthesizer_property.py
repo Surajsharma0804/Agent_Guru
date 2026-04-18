@@ -88,7 +88,7 @@ def memory_strategy(draw):
 
     # Generate timestamp within last year
     days_ago = draw(st.integers(min_value=0, max_value=365))
-    timestamp = datetime.utcnow() - timedelta(days=days_ago)
+    timestamp = datetime.now(tz=timezone.utc) - timedelta(days=days_ago)
 
     if memory_type == "episodic":
         return EpisodicMemory(

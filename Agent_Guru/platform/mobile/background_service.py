@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: agent_guru.platform.mobile.background_service
 Purpose: Mobile background service manager for always-on operation
 
@@ -529,7 +529,7 @@ class MobileBackgroundService:
 
                 await asyncio.sleep(1.0)
 
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 break
             except Exception as e:
                 logger.error("Monitoring loop error: %s", e)

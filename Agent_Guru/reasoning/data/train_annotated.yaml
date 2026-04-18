@@ -429,11 +429,7 @@
     type: duration
   intent: set_timer
   utterance: timer for 10 seconds for me
-- entities:
-  - end: 29
-    start: 15
-    text: about vacation
-    type: recipient
+- entities: []
   intent: send_email
   utterance: now send email about vacation request
 - entities:
@@ -525,10 +521,6 @@
   intent: play_video
   utterance: play cat videos please
 - entities:
-  - end: 32
-    start: 16
-    text: the presentation
-    type: recipient
   - end: 43
     start: 36
     text: clients
@@ -550,10 +542,14 @@
   intent: stop_media
   utterance: turn music off for me
 - entities:
+  - end: 20
+    start: 16
+    text: John
+    type: recipient
   - end: 43
-    start: 13
-    text: to John and call mom right now
-    type: message_content
+    start: 30
+    text: mom right now
+    type: event_name
   intent: multi_intent
   utterance: send message to John and call mom right now
 - entities:
@@ -572,8 +568,8 @@
   utterance: play the Beatles right now
 - entities:
   - end: 22
-    start: 15
-    text: my wife
+    start: 18
+    text: wife
     type: recipient
   intent: send_message
   utterance: right now text my wife I'm on my way
@@ -651,10 +647,10 @@
   intent: confirmation
   utterance: yep quickly
 - entities:
-  - end: 39
+  - end: 21
     start: 16
-    text: Sarah about the meeting
-    type: message_content
+    text: Sarah
+    type: recipient
   intent: send_message
   utterance: quickly message Sarah about the meeting
 - entities:
@@ -838,10 +834,14 @@
   intent: close_app
   utterance: right now exit Netflix
 - entities:
-  - end: 16
+  - end: 10
     start: 6
-    text: next track
-    type: recipient
+    text: next
+    type: action
+  - end: 16
+    start: 11
+    text: track
+    type: action
   intent: next_track
   utterance: go to next track for me
 - entities: []
@@ -869,9 +869,9 @@
   intent: multi_intent
   utterance: what's the weather and time quickly
 - entities:
-  - end: 33
+  - end: 27
     start: 23
-    text: boss about
+    text: boss
     type: recipient
   intent: send_message
   utterance: right now send text to boss about the report
@@ -900,10 +900,10 @@
     start: 0
     text: skip
     type: action
-  - end: 18
+  - end: 12
     start: 8
-    text: next right
-    type: recipient
+    text: next
+    type: action
   intent: next_track
   utterance: skip to next right now
 - entities:
@@ -985,9 +985,9 @@
   intent: delete_event
   utterance: cancel the party for me
 - entities:
-  - end: 12
+  - end: 8
     start: 5
-    text: mom for
+    text: mom
     type: recipient
   intent: make_call
   utterance: call mom for me
@@ -1049,8 +1049,8 @@
   utterance: right now search for pizza recipes
 - entities:
   - end: 21
-    start: 14
-    text: to john
+    start: 17
+    text: john
     type: recipient
   intent: send_email
   utterance: send an email to john@example.com now
@@ -1085,8 +1085,8 @@
   utterance: cancel that now
 - entities:
   - end: 13
-    start: 6
-    text: my boss
+    start: 9
+    text: boss
     type: recipient
   intent: send_email
   utterance: email my boss about the project quickly
@@ -1130,8 +1130,8 @@
   utterance: make it warmer right now
 - entities:
   - end: 20
-    start: 6
-    text: the restaurant
+    start: 10
+    text: restaurant
     type: recipient
   intent: make_call
   utterance: phone the restaurant please
@@ -1163,11 +1163,7 @@
     type: help_topic
   intent: help_request
   utterance: help me with
-- entities:
-  - end: 27
-    start: 19
-    text: with the
-    type: recipient
+- entities: []
   intent: send_email
   utterance: quickly send email with the report
 - entities:
@@ -1327,13 +1323,9 @@
   intent: play_video
   utterance: quickly play music videos
 - entities:
-  - end: 12
+  - end: 9
     start: 5
-    text: John to
-    type: recipient
-  - end: 24
-    start: 18
-    text: me for
+    text: John
     type: recipient
   intent: send_message
   utterance: text John to call me for me
@@ -1504,8 +1496,8 @@
   utterance: not now
 - entities:
   - end: 20
-    start: 6
-    text: the restaurant
+    start: 10
+    text: restaurant
     type: recipient
   intent: make_call
   utterance: phone the restaurant now
@@ -1540,11 +1532,7 @@
     type: app_name
   intent: unknown
   utterance: nonsense words please
-- entities:
-  - end: 25
-    start: 11
-    text: about vacation
-    type: recipient
+- entities: []
   intent: send_email
   utterance: send email about vacation request please
 - entities:
@@ -1577,10 +1565,6 @@
   intent: set_alarm
   utterance: quickly alarm for 8 o'clock tomorrow
 - entities:
-  - end: 22
-    start: 16
-    text: saying
-    type: recipient
   - end: 31
     start: 23
     text: I'm here
@@ -1610,26 +1594,26 @@
   utterance: change event time for me
 - entities:
   - end: 30
-    start: 15
-    text: to John quickly
-    type: message_content
+    start: 18
+    text: John quickly
+    type: recipient
   intent: send_message
   utterance: send a message to John quickly
 - entities: []
   intent: clarification_request
   utterance: now I don't understand
 - entities:
+  - end: 24
+    start: 20
+    text: John
+    type: recipient
   - end: 37
-    start: 17
-    text: to John and call mom
-    type: message_content
+    start: 34
+    text: mom
+    type: recipient
   intent: multi_intent
   utterance: now send message to John and call mom
-- entities:
-  - end: 37
-    start: 20
-    text: to hr@company.com
-    type: message_content
+- entities: []
   intent: send_email
   utterance: now compose message to hr@company.com
 - entities:
@@ -1686,10 +1670,6 @@
   intent: search_web
   utterance: now search for pizza recipes
 - entities:
-  - end: 18
-    start: 12
-    text: saying
-    type: recipient
   - end: 37
     start: 19
     text: I'm here right now
@@ -1800,8 +1780,8 @@
   utterance: pause
 - entities:
   - end: 13
-    start: 6
-    text: my boss
+    start: 9
+    text: boss
     type: recipient
   intent: send_email
   utterance: email my boss about the project for me
@@ -1816,11 +1796,7 @@
     type: time
   intent: delete_event
   utterance: for me cancel meeting at 3pm
-- entities:
-  - end: 37
-    start: 16
-    text: to hr@company.com now
-    type: message_content
+- entities: []
   intent: send_email
   utterance: compose message to hr@company.com now
 - entities:
@@ -1859,10 +1835,10 @@
   intent: play_music
   utterance: right now play my workout playlist
 - entities:
-  - end: 38
+  - end: 20
     start: 15
-    text: Sarah about the meeting
-    type: message_content
+    text: Sarah
+    type: recipient
   intent: send_message
   utterance: for me message Sarah about the meeting
 - entities:
@@ -2281,13 +2257,9 @@
   intent: delete_event
   utterance: remove gym session right now
 - entities:
-  - end: 20
-    start: 14
-    text: to the
-    type: recipient
   - end: 25
-    start: 21
-    text: team
+    start: 17
+    text: the team
     type: recipient
   intent: send_email
   utterance: compose email to the team
@@ -2382,9 +2354,9 @@
   intent: unknown
   utterance: quickly random gibberish
 - entities:
-  - end: 22
+  - end: 18
     start: 13
-    text: Sarah the
+    text: Sarah
     type: recipient
   intent: send_email
   utterance: for me email Sarah the meeting notes
@@ -2501,8 +2473,8 @@
   utterance: for me stop the music
 - entities:
   - end: 28
-    start: 21
-    text: to john
+    start: 24
+    text: john
     type: recipient
   intent: send_email
   utterance: for me send an email to john@example.com
@@ -2528,10 +2500,10 @@
   intent: set_timer
   utterance: create a timer for 5 minutes
 - entities:
-  - end: 40
-    start: 8
-    text: the team about the update for me
-    type: message_content
+  - end: 16
+    start: 12
+    text: team
+    type: recipient
   intent: send_message
   utterance: message the team about the update for me
 - entities:
@@ -2875,10 +2847,6 @@
   intent: query_fact
   utterance: for me what is the speed of light
 - entities:
-  - end: 18
-    start: 12
-    text: saying
-    type: recipient
   - end: 27
     start: 19
     text: I'm here
@@ -2897,10 +2865,6 @@
   intent: delete_event
   utterance: delete next week's appointment now
 - entities:
-  - end: 18
-    start: 12
-    text: to the
-    type: recipient
   - end: 25
     start: 19
     text: office
@@ -3114,10 +3078,6 @@
   intent: play_video
   utterance: play a video please
 - entities:
-  - end: 20
-    start: 14
-    text: to the
-    type: recipient
   - end: 25
     start: 21
     text: team
@@ -3245,13 +3205,9 @@
   intent: stop_media
   utterance: for me stop playback
 - entities:
-  - end: 25
-    start: 19
-    text: to the
-    type: recipient
   - end: 32
-    start: 26
-    text: office
+    start: 22
+    text: the office
     type: recipient
   intent: make_call
   utterance: please make a call to the office
@@ -3320,10 +3276,14 @@
   intent: close_app
   utterance: quit calendar
 - entities:
-  - end: 20
+  - end: 14
     start: 6
-    text: previous track
-    type: recipient
+    text: previous
+    type: action
+  - end: 20
+    start: 15
+    text: track
+    type: action
   intent: previous_track
   utterance: go to previous track for me
 - entities:
@@ -3363,9 +3323,9 @@
   intent: next_track
   utterance: quickly play the next one
 - entities:
-  - end: 15
+  - end: 11
     start: 6
-    text: Sarah the
+    text: Sarah
     type: recipient
   intent: send_email
   utterance: email Sarah the meeting notes please
@@ -3650,10 +3610,10 @@
   intent: query_time
   utterance: now current time in Paris
 - entities:
-  - end: 41
+  - end: 13
     start: 8
-    text: Sarah about the meeting right now
-    type: message_content
+    text: Sarah
+    type: recipient
   intent: send_message
   utterance: message Sarah about the meeting right now
 - entities:
@@ -3713,10 +3673,14 @@
   intent: system_command
   utterance: restart device now
 - entities:
-  - end: 16
+  - end: 10
     start: 6
-    text: next track
-    type: recipient
+    text: next
+    type: action
+  - end: 16
+    start: 11
+    text: track
+    type: action
   intent: next_track
   utterance: go to next track now
 - entities:
@@ -3762,10 +3726,14 @@
   intent: query_date
   utterance: date please for me
 - entities:
-  - end: 16
+  - end: 10
     start: 6
-    text: next track
-    type: recipient
+    text: next
+    type: action
+  - end: 16
+    start: 11
+    text: track
+    type: action
   intent: next_track
   utterance: go to next track right now
 - entities:
@@ -3814,17 +3782,21 @@
   intent: clarification_request
   utterance: right now say that again
 - entities:
-  - end: 38
+  - end: 13
     start: 8
-    text: Sarah about the meeting please
-    type: message_content
+    text: Sarah
+    type: recipient
   intent: send_message
   utterance: message Sarah about the meeting please
 - entities:
+  - end: 28
+    start: 24
+    text: John
+    type: recipient
   - end: 41
-    start: 21
-    text: to John and call mom
-    type: message_content
+    start: 38
+    text: mom
+    type: recipient
   intent: multi_intent
   utterance: quickly send message to John and call mom
 - entities:
@@ -3869,15 +3841,7 @@
     type: time
   intent: set_alarm
   utterance: set an alarm for 7am
-- entities:
-  - end: 22
-    start: 6
-    text: the presentation
-    type: recipient
-  - end: 39
-    start: 26
-    text: clients right
-    type: recipient
+- entities: []
   intent: send_email
   utterance: email the presentation to clients right now
 - entities:
@@ -3925,8 +3889,8 @@
   utterance: now send an email to support
 - entities:
   - end: 21
-    start: 14
-    text: to john
+    start: 17
+    text: john
     type: recipient
   intent: send_email
   utterance: send an email to john@example.com quickly
@@ -4159,9 +4123,9 @@
   intent: query_fact
   utterance: how far is the moon quickly
 - entities:
-  - end: 23
+  - end: 17
     start: 13
-    text: boss about
+    text: boss
     type: recipient
   intent: send_message
   utterance: send text to boss about the report for me
@@ -4222,10 +4186,10 @@
   intent: confirmation
   utterance: correct please
 - entities:
-  - end: 34
+  - end: 19
     start: 15
-    text: Lisa happy birthday
-    type: message_content
+    text: Lisa
+    type: recipient
   intent: send_message
   utterance: please message Lisa happy birthday
 - entities:
@@ -4246,20 +4210,16 @@
   intent: unknown
   utterance: right now lorem ipsum dolor
 - entities:
-  - end: 12
+  - end: 9
     start: 5
-    text: John to
-    type: recipient
-  - end: 26
-    start: 18
-    text: me right
+    text: John
     type: recipient
   intent: send_message
   utterance: text John to call me right now
 - entities:
-  - end: 19
+  - end: 15
     start: 10
-    text: Sarah the
+    text: Sarah
     type: recipient
   intent: send_email
   utterance: now email Sarah the meeting notes
@@ -4301,8 +4261,8 @@
   utterance: now reminder to pick up kids at 4pm
 - entities:
   - end: 20
-    start: 6
-    text: the restaurant
+    start: 10
+    text: restaurant
     type: recipient
   intent: make_call
   utterance: phone the restaurant quickly
@@ -4336,13 +4296,9 @@
   intent: cancel_timer
   utterance: quickly stop the cooking timer
 - entities:
-  - end: 27
-    start: 21
-    text: to the
-    type: recipient
   - end: 32
-    start: 28
-    text: team
+    start: 24
+    text: the team
     type: recipient
   intent: send_email
   utterance: please compose email to the team
@@ -4630,10 +4586,14 @@
   intent: cancel_timer
   utterance: cancel that timer for me
 - entities:
-  - end: 20
+  - end: 14
     start: 6
-    text: previous track
-    type: recipient
+    text: previous
+    type: action
+  - end: 20
+    start: 15
+    text: track
+    type: action
   intent: previous_track
   utterance: go to previous track right now
 - entities:
@@ -4739,10 +4699,10 @@
   intent: delete_event
   utterance: remove birthday event now
 - entities:
-  - end: 35
+  - end: 12
     start: 8
-    text: Lisa happy birthday quickly
-    type: message_content
+    text: Lisa
+    type: recipient
   intent: send_message
   utterance: message Lisa happy birthday quickly
 - entities: []
@@ -4786,15 +4746,7 @@
     type: action
   intent: stop_media
   utterance: stop
-- entities:
-  - end: 17
-    start: 6
-    text: the invoice
-    type: recipient
-  - end: 37
-    start: 21
-    text: accounting right
-    type: recipient
+- entities: []
   intent: send_email
   utterance: email the invoice to accounting right now
 - entities: []
@@ -4841,9 +4793,13 @@
   intent: close_app
   utterance: exit YouTube right now
 - entities:
-  - end: 12
+  - end: 9
     start: 5
-    text: John to
+    text: John
+    type: recipient
+  - end: 20
+    start: 13
+    text: call me
     type: recipient
   intent: send_message
   utterance: text John to call me
@@ -4944,10 +4900,10 @@
   intent: control_lights
   utterance: turn off bedroom lights please
 - entities:
-  - end: 27
+  - end: 12
     start: 8
-    text: Lisa happy birthday
-    type: message_content
+    text: Lisa
+    type: recipient
   intent: send_message
   utterance: message Lisa happy birthday
 - entities:
@@ -4979,9 +4935,9 @@
   intent: cancellation
   utterance: never mind for me
 - entities:
-  - end: 20
+  - end: 16
     start: 13
-    text: dad for
+    text: dad
     type: recipient
   intent: send_message
   utterance: send text to dad for me
@@ -5140,9 +5096,9 @@
   intent: query_events
   utterance: for me what's scheduled for Monday
 - entities:
-  - end: 24
-    start: 14
-    text: to support
+  - end: 28
+    start: 17
+    text: support now
     type: recipient
   intent: send_email
   utterance: send an email to support now
@@ -5239,10 +5195,14 @@
   intent: control_thermostat
   utterance: please increase temperature
 - entities:
-  - end: 16
+  - end: 10
     start: 6
-    text: next track
-    type: recipient
+    text: next
+    type: action
+  - end: 16
+    start: 11
+    text: track
+    type: action
   intent: next_track
   utterance: go to next track please
 - entities:
@@ -5406,10 +5366,6 @@
   intent: delete_event
   utterance: delete tomorrow's meeting please
 - entities:
-  - end: 25
-    start: 14
-    text: the invoice
-    type: recipient
   - end: 39
     start: 29
     text: accounting
@@ -5485,9 +5441,9 @@
   intent: control_lights
   utterance: brighten living room lights please
 - entities:
-  - end: 15
+  - end: 11
     start: 6
-    text: Sarah the
+    text: Sarah
     type: recipient
   intent: send_email
   utterance: email Sarah the meeting notes now
@@ -5715,11 +5671,7 @@
     type: help_topic
   intent: clarification_request
   utterance: what did you say now
-- entities:
-  - end: 26
-    start: 18
-    text: with the
-    type: recipient
+- entities: []
   intent: send_email
   utterance: please send email with the report
 - entities:
@@ -6008,11 +5960,7 @@
     type: recipient
   intent: make_call
   utterance: phone Sarah's mobile right now
-- entities:
-  - end: 19
-    start: 11
-    text: with the
-    type: recipient
+- entities: []
   intent: send_email
   utterance: send email with the report please
 - entities:
@@ -6151,8 +6099,8 @@
   utterance: close settings
 - entities:
   - end: 24
-    start: 14
-    text: to support
+    start: 17
+    text: support
     type: recipient
   intent: send_email
   utterance: send an email to support for me
@@ -6250,20 +6198,16 @@
   intent: query_events
   utterance: any appointments today for me
 - entities:
-  - end: 41
-    start: 16
-    text: the team about the update
-    type: message_content
+  - end: 24
+    start: 20
+    text: team
+    type: recipient
   intent: send_message
   utterance: quickly message the team about the update
 - entities:
-  - end: 18
-    start: 12
-    text: to the
-    type: recipient
   - end: 25
-    start: 19
-    text: office
+    start: 15
+    text: the office
     type: recipient
   intent: make_call
   utterance: make a call to the office
@@ -6321,10 +6265,6 @@
   intent: open_app
   utterance: open camera please
 - entities:
-  - end: 17
-    start: 6
-    text: the invoice
-    type: recipient
   - end: 38
     start: 21
     text: accounting please
@@ -6500,10 +6440,10 @@
   intent: update_event
   utterance: right now change event time
 - entities:
-  - end: 37
-    start: 8
-    text: the team about the update now
-    type: message_content
+  - end: 16
+    start: 12
+    text: team
+    type: recipient
   intent: send_message
   utterance: message the team about the update now
 - entities:
@@ -6536,9 +6476,9 @@
   intent: close_app
   utterance: close email quickly
 - entities:
-  - end: 13
-    start: 5
-    text: back the
+  - end: 25
+    start: 14
+    text: last number
     type: recipient
   intent: make_call
   utterance: call back the last number
@@ -6685,10 +6625,6 @@
   intent: previous_track
   utterance: play previous
 - entities:
-  - end: 28
-    start: 22
-    text: saying
-    type: recipient
   - end: 37
     start: 29
     text: I'm here
@@ -6843,16 +6779,16 @@
     start: 1
     text: ac
     type: device_name
-  - end: 22
+  - end: 16
     start: 8
-    text: previous right
-    type: recipient
+    text: previous
+    type: action
   intent: previous_track
   utterance: back to previous right now
 - entities:
-  - end: 17
-    start: 9
-    text: back the
+  - end: 29
+    start: 18
+    text: last number
     type: recipient
   intent: make_call
   utterance: now call back the last number
@@ -6878,10 +6814,10 @@
   intent: search_web
   utterance: for me google python tutorials
 - entities:
-  - end: 34
+  - end: 19
     start: 15
-    text: Lisa happy birthday
-    type: message_content
+    text: Lisa
+    type: recipient
   intent: send_message
   utterance: for me message Lisa happy birthday
 - entities:
@@ -6942,10 +6878,6 @@
   intent: delete_event
   utterance: cancel dentist appointment right now
 - entities:
-  - end: 18
-    start: 12
-    text: saying
-    type: recipient
   - end: 31
     start: 19
     text: I'm here now
@@ -6961,9 +6893,9 @@
   utterance: delete next week's appointment
 - entities:
   - end: 29
-    start: 22
-    text: to John
-    type: message_content
+    start: 25
+    text: John
+    type: recipient
   intent: send_message
   utterance: for me send a message to John
 - entities:
@@ -7031,9 +6963,9 @@
   intent: set_timer
   utterance: quickly set timer 2 hours
 - entities:
-  - end: 13
-    start: 5
-    text: back the
+  - end: 25
+    start: 14
+    text: last number
     type: recipient
   intent: make_call
   utterance: call back the last number quickly
@@ -7178,10 +7110,6 @@
   intent: set_timer
   utterance: set a cooking timer for 25 minutes now
 - entities:
-  - end: 18
-    start: 12
-    text: saying
-    type: recipient
   - end: 35
     start: 19
     text: I'm here quickly
@@ -7385,11 +7313,7 @@
     type: device_name
   intent: control_device
   utterance: turn off the fan
-- entities:
-  - end: 29
-    start: 21
-    text: with the
-    type: recipient
+- entities: []
   intent: send_email
   utterance: right now send email with the report
 - entities: []
@@ -7435,10 +7359,14 @@
   intent: set_reminder
   utterance: for me reminder to pick up kids at 4pm
 - entities:
+  - end: 20
+    start: 16
+    text: John
+    type: recipient
   - end: 41
-    start: 13
-    text: to John and call mom quickly
-    type: message_content
+    start: 30
+    text: mom quickly
+    type: recipient
   intent: multi_intent
   utterance: send message to John and call mom quickly
 - entities:
@@ -7541,10 +7469,6 @@
   intent: unknown
   utterance: quickly xyz abc 123
 - entities:
-  - end: 17
-    start: 6
-    text: the invoice
-    type: recipient
   - end: 35
     start: 21
     text: accounting now
@@ -7552,10 +7476,10 @@
   intent: send_email
   utterance: email the invoice to accounting now
 - entities:
-  - end: 38
+  - end: 13
     start: 8
-    text: Sarah about the meeting for me
-    type: message_content
+    text: Sarah
+    type: recipient
   intent: send_message
   utterance: message Sarah about the meeting for me
 - entities:
@@ -7587,9 +7511,9 @@
   intent: create_event
   utterance: add dentist appointment to calendar for me
 - entities:
-  - end: 30
+  - end: 24
     start: 20
-    text: boss about
+    text: boss
     type: recipient
   intent: send_message
   utterance: for me send text to boss about the report
@@ -7637,10 +7561,10 @@
   intent: delete_event
   utterance: right now cancel meeting at 3pm
 - entities:
-  - end: 33
-    start: 8
-    text: the team about the update
-    type: message_content
+  - end: 16
+    start: 12
+    text: team
+    type: recipient
   intent: send_message
   utterance: message the team about the update
 - entities:
@@ -7658,10 +7582,10 @@
   intent: close_app
   utterance: for me exit Netflix
 - entities:
-  - end: 37
+  - end: 22
     start: 18
-    text: Lisa happy birthday
-    type: message_content
+    text: Lisa
+    type: recipient
   intent: send_message
   utterance: right now message Lisa happy birthday
 - entities:
@@ -8074,8 +7998,8 @@
   utterance: quickly add birthday party to calendar
 - entities:
   - end: 12
-    start: 5
-    text: my wife
+    start: 8
+    text: wife
     type: recipient
   intent: send_message
   utterance: text my wife I'm on my way now
@@ -8253,9 +8177,13 @@
   intent: query_date
   utterance: right now tell me the date
 - entities:
-  - end: 16
+  - end: 13
     start: 9
-    text: John to
+    text: John
+    type: recipient
+  - end: 24
+    start: 17
+    text: call me
     type: recipient
   intent: send_message
   utterance: now text John to call me
@@ -8434,10 +8362,14 @@
   intent: clarification_request
   utterance: I don't understand quickly
 - entities:
-  - end: 16
+  - end: 10
     start: 6
-    text: next track
-    type: recipient
+    text: next
+    type: action
+  - end: 16
+    start: 11
+    text: track
+    type: action
   intent: next_track
   utterance: go to next track quickly
 - entities:
@@ -8695,8 +8627,8 @@
   utterance: right now assist me
 - entities:
   - end: 12
-    start: 5
-    text: my wife
+    start: 8
+    text: wife
     type: recipient
   intent: send_message
   utterance: text my wife I'm on my way right now
@@ -8736,10 +8668,6 @@
   intent: open_app
   utterance: open settings
 - entities:
-  - end: 18
-    start: 12
-    text: to the
-    type: recipient
   - end: 25
     start: 19
     text: office
@@ -8851,9 +8779,9 @@
   intent: make_call
   utterance: call customer service now
 - entities:
-  - end: 22
+  - end: 16
     start: 13
-    text: dad right
+    text: dad
     type: recipient
   intent: send_message
   utterance: send text to dad right now
@@ -8871,11 +8799,7 @@
     type: action
   intent: cancel_timer
   utterance: cancel the timer quickly
-- entities:
-  - end: 19
-    start: 11
-    text: with the
-    type: recipient
+- entities: []
   intent: send_email
   utterance: send email with the report
 - entities:
@@ -9051,8 +8975,8 @@
   utterance: next track for me
 - entities:
   - end: 12
-    start: 5
-    text: my wife
+    start: 8
+    text: wife
     type: recipient
   intent: make_call
   utterance: call my wife right now
@@ -9068,13 +8992,9 @@
   intent: control_device
   utterance: turn on the vacuum
 - entities:
-  - end: 22
-    start: 16
-    text: to the
-    type: recipient
   - end: 29
-    start: 23
-    text: office
+    start: 19
+    text: the office
     type: recipient
   intent: make_call
   utterance: now make a call to the office
@@ -9086,10 +9006,6 @@
   intent: play_video
   utterance: play cat videos right now
 - entities:
-  - end: 20
-    start: 14
-    text: to the
-    type: recipient
   - end: 25
     start: 21
     text: team
@@ -9159,9 +9075,9 @@
   intent: next_track
   utterance: next track please
 - entities:
-  - end: 15
+  - end: 11
     start: 6
-    text: Sarah the
+    text: Sarah
     type: recipient
   intent: send_email
   utterance: email Sarah the meeting notes
@@ -9405,11 +9321,7 @@
 - entities: []
   intent: clarification_request
   utterance: please could you rephrase
-- entities:
-  - end: 19
-    start: 11
-    text: with the
-    type: recipient
+- entities: []
   intent: send_email
   utterance: send email with the report quickly
 - entities:
@@ -9593,8 +9505,8 @@
   utterance: play the next one
 - entities:
   - end: 23
-    start: 16
-    text: my boss
+    start: 19
+    text: boss
     type: recipient
   intent: send_email
   utterance: right now email my boss about the project
@@ -9618,8 +9530,8 @@
   utterance: skip to next please
 - entities:
   - end: 20
-    start: 13
-    text: my boss
+    start: 16
+    text: boss
     type: recipient
   intent: send_email
   utterance: for me email my boss about the project
@@ -9793,10 +9705,6 @@
   intent: system_command
   utterance: right now turn off wifi
 - entities:
-  - end: 21
-    start: 10
-    text: the invoice
-    type: recipient
   - end: 35
     start: 25
     text: accounting
@@ -9889,10 +9797,10 @@
   intent: delete_event
   utterance: quickly delete meeting
 - entities:
-  - end: 37
+  - end: 12
     start: 8
-    text: Lisa happy birthday right now
-    type: message_content
+    text: Lisa
+    type: recipient
   intent: send_message
   utterance: message Lisa happy birthday right now
 - entities:
@@ -9917,9 +9825,9 @@
   intent: stop_media
   utterance: stop playing for me
 - entities:
-  - end: 21
-    start: 13
-    text: back the
+  - end: 33
+    start: 22
+    text: last number
     type: recipient
   intent: make_call
   utterance: quickly call back the last number
@@ -9995,8 +9903,8 @@
   utterance: set an alarm for 7am right now
 - entities:
   - end: 25
-    start: 18
-    text: to john
+    start: 21
+    text: john
     type: recipient
   intent: send_email
   utterance: now send an email to john@example.com
@@ -10022,10 +9930,6 @@
   intent: cancellation
   utterance: now negative
 - entities:
-  - end: 22
-    start: 6
-    text: the presentation
-    type: recipient
   - end: 37
     start: 26
     text: clients now
@@ -10119,16 +10023,20 @@
   utterance: what's the weather and time
 - entities:
   - end: 20
-    start: 13
-    text: my wife
+    start: 16
+    text: wife
     type: recipient
   intent: send_message
   utterance: quickly text my wife I'm on my way
 - entities:
+  - end: 27
+    start: 23
+    text: John
+    type: recipient
   - end: 40
-    start: 20
-    text: to John and call mom
-    type: message_content
+    start: 37
+    text: mom
+    type: recipient
   intent: multi_intent
   utterance: please send message to John and call mom
 - entities:
@@ -10171,17 +10079,13 @@
   intent: cancel_timer
   utterance: turn timer off now
 - entities:
-  - end: 40
-    start: 15
-    text: the team about the update
-    type: message_content
+  - end: 23
+    start: 19
+    text: team
+    type: recipient
   intent: send_message
   utterance: for me message the team about the update
-- entities:
-  - end: 25
-    start: 11
-    text: about vacation
-    type: recipient
+- entities: []
   intent: send_email
   utterance: send email about vacation request for me
 - entities:
@@ -10759,10 +10663,14 @@
   intent: previous_track
   utterance: quickly previous
 - entities:
+  - end: 30
+    start: 26
+    text: John
+    type: recipient
   - end: 43
-    start: 23
-    text: to John and call mom
-    type: message_content
+    start: 40
+    text: mom
+    type: recipient
   intent: multi_intent
   utterance: right now send message to John and call mom
 - entities:
@@ -11075,10 +10983,6 @@
   intent: unknown
   utterance: zxcvbnm
 - entities:
-  - end: 18
-    start: 12
-    text: to the
-    type: recipient
   - end: 25
     start: 19
     text: office
@@ -11225,11 +11129,7 @@
     type: date
   intent: query_events
   utterance: for me check my calendar for Friday
-- entities:
-  - end: 26
-    start: 18
-    text: with the
-    type: recipient
+- entities: []
   intent: send_email
   utterance: for me send email with the report
 - entities:
@@ -11458,9 +11358,13 @@
   intent: close_app
   utterance: quit maps for me
 - entities:
-  - end: 19
+  - end: 16
     start: 12
-    text: John to
+    text: John
+    type: recipient
+  - end: 27
+    start: 20
+    text: call me
     type: recipient
   intent: send_message
   utterance: please text John to call me
@@ -11486,10 +11390,10 @@
   intent: unknown
   utterance: the quick brown fox for me
 - entities:
-  - end: 35
+  - end: 20
     start: 16
-    text: Lisa happy birthday
-    type: message_content
+    text: Lisa
+    type: recipient
   intent: send_message
   utterance: quickly message Lisa happy birthday
 - entities:
@@ -11552,10 +11456,6 @@
   intent: query_date
   utterance: right now current date
 - entities:
-  - end: 20
-    start: 14
-    text: to the
-    type: recipient
   - end: 25
     start: 21
     text: team
@@ -11785,8 +11685,8 @@
   utterance: open email right now
 - entities:
   - end: 12
-    start: 5
-    text: my wife
+    start: 8
+    text: wife
     type: recipient
   intent: make_call
   utterance: call my wife quickly
@@ -11797,11 +11697,7 @@
     type: date
   intent: query_weather
   utterance: now weather forecast for tomorrow
-- entities:
-  - end: 40
-    start: 16
-    text: to hr@company.com for me
-    type: message_content
+- entities: []
   intent: send_email
   utterance: compose message to hr@company.com for me
 - entities:
@@ -11850,11 +11746,7 @@
     type: event_name
   intent: create_event
   utterance: please create event called project review
-- entities:
-  - end: 33
-    start: 16
-    text: to hr@company.com
-    type: message_content
+- entities: []
   intent: send_email
   utterance: compose message to hr@company.com
 - entities:
@@ -11919,10 +11811,10 @@
   intent: update_event
   utterance: for me move tomorrow's meeting to Friday
 - entities:
-  - end: 37
-    start: 12
-    text: the team about the update
-    type: message_content
+  - end: 20
+    start: 16
+    text: team
+    type: recipient
   intent: send_message
   utterance: now message the team about the update
 - entities:
@@ -12100,8 +11992,8 @@
   utterance: launch calendar quickly
 - entities:
   - end: 20
-    start: 6
-    text: the restaurant
+    start: 10
+    text: restaurant
     type: recipient
   intent: make_call
   utterance: phone the restaurant for me
@@ -12250,8 +12142,8 @@
   utterance: what could you do
 - entities:
   - end: 12
-    start: 5
-    text: my wife
+    start: 8
+    text: wife
     type: recipient
   intent: make_call
   utterance: call my wife please
@@ -12478,10 +12370,6 @@
   intent: set_alarm
   utterance: right now create an alarm for 5:45 in the morning
 - entities:
-  - end: 29
-    start: 13
-    text: the presentation
-    type: recipient
   - end: 40
     start: 33
     text: clients
@@ -12617,9 +12505,9 @@
   intent: cancellation
   utterance: quickly forget it
 - entities:
-  - end: 13
-    start: 5
-    text: back the
+  - end: 25
+    start: 14
+    text: last number
     type: recipient
   intent: make_call
   utterance: call back the last number now
@@ -12641,15 +12529,7 @@
     type: date
   intent: query_date
   utterance: quickly what's tomorrow's date
-- entities:
-  - end: 17
-    start: 6
-    text: the invoice
-    type: recipient
-  - end: 35
-    start: 21
-    text: accounting for
-    type: recipient
+- entities: []
   intent: send_email
   utterance: email the invoice to accounting for me
 - entities:
@@ -12667,9 +12547,9 @@
   intent: open_app
   utterance: for me open camera
 - entities:
-  - end: 15
+  - end: 11
     start: 6
-    text: Sarah the
+    text: Sarah
     type: recipient
   intent: send_email
   utterance: email Sarah the meeting notes quickly
@@ -13032,11 +12912,7 @@
     type: video_query
   intent: play_video
   utterance: now play cooking tutorials
-- entities:
-  - end: 43
-    start: 16
-    text: to hr@company.com right now
-    type: message_content
+- entities: []
   intent: send_email
   utterance: compose message to hr@company.com right now
 - entities:
@@ -13048,8 +12924,8 @@
   utterance: for me create event tomorrow and set reminder
 - entities:
   - end: 21
-    start: 14
-    text: my boss
+    start: 17
+    text: boss
     type: recipient
   intent: send_email
   utterance: quickly email my boss about the project
@@ -13123,9 +12999,9 @@
   utterance: please pause this
 - entities:
   - end: 29
-    start: 15
-    text: to John please
-    type: message_content
+    start: 18
+    text: John please
+    type: recipient
   intent: send_message
   utterance: send a message to John please
 - entities:
@@ -13136,10 +13012,14 @@
   intent: help_request
   utterance: what are your capabilities
 - entities:
+  - end: 20
+    start: 16
+    text: John
+    type: recipient
   - end: 37
-    start: 13
-    text: to John and call mom now
-    type: message_content
+    start: 30
+    text: mom now
+    type: recipient
   intent: multi_intent
   utterance: send message to John and call mom now
 - entities:
@@ -13428,10 +13308,10 @@
   intent: next_track
   utterance: quickly go to next track
 - entities:
-  - end: 38
+  - end: 20
     start: 15
-    text: Sarah about the meeting
-    type: message_content
+    text: Sarah
+    type: recipient
   intent: send_message
   utterance: please message Sarah about the meeting
 - entities:
@@ -13485,8 +13365,8 @@
   utterance: please play music videos
 - entities:
   - end: 16
-    start: 9
-    text: my wife
+    start: 12
+    text: wife
     type: recipient
   intent: send_message
   utterance: now text my wife I'm on my way
@@ -13527,8 +13407,8 @@
   utterance: for me go to previous track
 - entities:
   - end: 21
-    start: 14
-    text: to john
+    start: 17
+    text: john
     type: recipient
   intent: send_email
   utterance: send an email to john@example.com for me
@@ -13650,11 +13530,7 @@
     type: time
   intent: create_event
   utterance: schedule a meeting at 3pm
-- entities:
-  - end: 33
-    start: 19
-    text: about vacation
-    type: recipient
+- entities: []
   intent: send_email
   utterance: quickly send email about vacation request
 - entities:
@@ -13686,9 +13562,9 @@
   utterance: now add gym session to calendar
 - entities:
   - end: 22
-    start: 15
-    text: to John
-    type: message_content
+    start: 18
+    text: John
+    type: recipient
   intent: send_message
   utterance: send a message to John
 - entities:
@@ -14062,16 +13938,16 @@
   intent: control_thermostat
   utterance: turn off heating now
 - entities:
-  - end: 25
+  - end: 21
     start: 16
-    text: Sarah the
+    text: Sarah
     type: recipient
   intent: send_email
   utterance: right now email Sarah the meeting notes
 - entities:
-  - end: 20
-    start: 12
-    text: back the
+  - end: 32
+    start: 21
+    text: last number
     type: recipient
   intent: make_call
   utterance: for me call back the last number
@@ -14105,9 +13981,9 @@
   utterance: nonsense words
 - entities:
   - end: 32
-    start: 25
-    text: to John
-    type: message_content
+    start: 28
+    text: John
+    type: recipient
   intent: send_message
   utterance: right now send a message to John
 - entities:
@@ -14225,9 +14101,9 @@
   intent: close_app
   utterance: quickly close Spotify
 - entities:
-  - end: 23
+  - end: 17
     start: 13
-    text: boss about
+    text: boss
     type: recipient
   intent: send_message
   utterance: send text to boss about the report
@@ -14427,10 +14303,6 @@
   intent: play_music
   utterance: play my favorite songs please
 - entities:
-  - end: 18
-    start: 12
-    text: to the
-    type: recipient
   - end: 25
     start: 19
     text: office
@@ -14514,11 +14386,7 @@
     type: video_query
   intent: play_video
   utterance: play a video quickly
-- entities:
-  - end: 25
-    start: 11
-    text: about vacation
-    type: recipient
+- entities: []
   intent: send_email
   utterance: send email about vacation request
 - entities:
@@ -14551,16 +14419,16 @@
   intent: play_music
   utterance: please play Bohemian Rhapsody
 - entities:
-  - end: 43
-    start: 8
-    text: the team about the update right now
-    type: message_content
+  - end: 16
+    start: 12
+    text: team
+    type: recipient
   intent: send_message
   utterance: message the team about the update right now
 - entities:
-  - end: 13
-    start: 5
-    text: back the
+  - end: 25
+    start: 14
+    text: last number
     type: recipient
   intent: make_call
   utterance: call back the last number please
@@ -14748,8 +14616,8 @@
   utterance: now delete tomorrow's meeting
 - entities:
   - end: 21
-    start: 14
-    text: to john
+    start: 17
+    text: john
     type: recipient
   intent: send_email
   utterance: send an email to john@example.com
@@ -14769,8 +14637,8 @@
   utterance: right now set an alarm for 7am
 - entities:
   - end: 13
-    start: 6
-    text: my boss
+    start: 9
+    text: boss
     type: recipient
   intent: send_email
   utterance: email my boss about the project please
@@ -14880,18 +14748,14 @@
     type: app_name
   intent: open_app
   utterance: launch calendar for me
-- entities:
-  - end: 40
-    start: 16
-    text: to hr@company.com please
-    type: message_content
+- entities: []
   intent: send_email
   utterance: compose message to hr@company.com please
 - entities:
-  - end: 29
-    start: 15
-    text: to John for me
-    type: message_content
+  - end: 22
+    start: 18
+    text: John
+    type: recipient
   intent: send_message
   utterance: send a message to John for me
 - entities: []
@@ -14986,10 +14850,6 @@
   intent: query_weather
   utterance: is it going to snow this weekend quickly
 - entities:
-  - end: 22
-    start: 6
-    text: the presentation
-    type: recipient
   - end: 41
     start: 26
     text: clients quickly
@@ -15035,9 +14895,9 @@
   intent: open_app
   utterance: right now open email
 - entities:
-  - end: 12
+  - end: 9
     start: 5
-    text: John to
+    text: John
     type: recipient
   - end: 27
     start: 18
@@ -15320,10 +15180,6 @@
   intent: next_track
   utterance: next song for me
 - entities:
-  - end: 30
-    start: 14
-    text: the presentation
-    type: recipient
   - end: 41
     start: 34
     text: clients
@@ -15537,13 +15393,9 @@
   intent: help_request
   utterance: assist me now
 - entities:
-  - end: 24
-    start: 18
-    text: to the
-    type: recipient
   - end: 29
-    start: 25
-    text: team
+    start: 21
+    text: the team
     type: recipient
   intent: send_email
   utterance: now compose email to the team
@@ -15608,10 +15460,6 @@
   intent: open_app
   utterance: launch Chrome
 - entities:
-  - end: 22
-    start: 6
-    text: the presentation
-    type: recipient
   - end: 33
     start: 26
     text: clients
@@ -15911,11 +15759,7 @@
     type: app_name
   intent: close_app
   utterance: exit Netflix right now
-- entities:
-  - end: 25
-    start: 11
-    text: about vacation
-    type: recipient
+- entities: []
   intent: send_email
   utterance: send email about vacation request quickly
 - entities:
@@ -15959,8 +15803,8 @@
   utterance: quickly how hot is it today
 - entities:
   - end: 28
-    start: 21
-    text: to john
+    start: 24
+    text: john
     type: recipient
   intent: send_email
   utterance: please send an email to john@example.com
@@ -16227,10 +16071,14 @@
   intent: search_web
   utterance: search for pizza recipes now
 - entities:
+  - end: 27
+    start: 23
+    text: John
+    type: recipient
   - end: 40
-    start: 20
-    text: to John and call mom
-    type: message_content
+    start: 37
+    text: mom
+    type: recipient
   intent: multi_intent
   utterance: for me send message to John and call mom
 - entities: []
@@ -16268,16 +16116,16 @@
   intent: set_timer
   utterance: start countdown for 3 minutes
 - entities:
-  - end: 23
+  - end: 17
     start: 13
-    text: boss about
+    text: boss
     type: recipient
   intent: send_message
   utterance: send text to boss about the report please
 - entities:
   - end: 24
-    start: 14
-    text: to support
+    start: 17
+    text: support
     type: recipient
   intent: send_email
   utterance: send an email to support right now
@@ -16384,11 +16232,7 @@
     type: query_type
   intent: query_events
   utterance: what's coming up right now
-- entities:
-  - end: 43
-    start: 26
-    text: to hr@company.com
-    type: message_content
+- entities: []
   intent: send_email
   utterance: right now compose message to hr@company.com
 - entities:
@@ -16424,9 +16268,9 @@
   intent: delete_event
   utterance: cancel meeting at 3pm right now
 - entities:
-  - end: 30
+  - end: 24
     start: 20
-    text: boss about
+    text: boss
     type: recipient
   intent: send_message
   utterance: please send text to boss about the report
@@ -16473,9 +16317,9 @@
   intent: query_fact
   utterance: quickly how tall is Mount Everest
 - entities:
-  - end: 24
-    start: 14
-    text: to support
+  - end: 31
+    start: 17
+    text: support please
     type: recipient
   intent: send_email
   utterance: send an email to support please
@@ -16523,9 +16367,9 @@
   intent: query_events
   utterance: please do I have any meetings today
 - entities:
-  - end: 31
+  - end: 25
     start: 21
-    text: boss about
+    text: boss
     type: recipient
   intent: send_message
   utterance: quickly send text to boss about the report
@@ -16633,9 +16477,9 @@
   utterance: quickly call my wife
 - entities:
   - end: 30
-    start: 23
-    text: to John
-    type: message_content
+    start: 26
+    text: John
+    type: recipient
   intent: send_message
   utterance: quickly send a message to John
 - entities:
@@ -16973,9 +16817,9 @@
   utterance: dim the lights for me
 - entities:
   - end: 26
-    start: 15
-    text: to John now
-    type: message_content
+    start: 18
+    text: John now
+    type: recipient
   intent: send_message
   utterance: send a message to John now
 - entities:
@@ -16987,8 +16831,8 @@
   utterance: open Spotify quickly
 - entities:
   - end: 17
-    start: 10
-    text: my boss
+    start: 13
+    text: boss
     type: recipient
   intent: send_email
   utterance: now email my boss about the project
@@ -17101,9 +16945,9 @@
   intent: query_fact
   utterance: please who wrote Romeo and Juliet
 - entities:
-  - end: 20
-    start: 12
-    text: back the
+  - end: 32
+    start: 21
+    text: last number
     type: recipient
   intent: make_call
   utterance: please call back the last number
@@ -17195,9 +17039,13 @@
   intent: pause_media
   utterance: stop the music please
 - entities:
-  - end: 19
+  - end: 16
     start: 12
-    text: John to
+    text: John
+    type: recipient
+  - end: 27
+    start: 20
+    text: call me
     type: recipient
   intent: send_message
   utterance: for me text John to call me
@@ -17258,8 +17106,8 @@
   utterance: come again please
 - entities:
   - end: 19
-    start: 12
-    text: my wife
+    start: 15
+    text: wife
     type: recipient
   intent: send_message
   utterance: for me text my wife I'm on my way
@@ -17336,10 +17184,10 @@
   intent: unknown
   utterance: quickly asdfghjkl
 - entities:
-  - end: 41
+  - end: 23
     start: 18
-    text: Sarah about the meeting
-    type: message_content
+    text: Sarah
+    type: recipient
   intent: send_message
   utterance: right now message Sarah about the meeting
 - entities:
@@ -17354,10 +17202,6 @@
   intent: cancel_timer
   utterance: for me delete my timer
 - entities:
-  - end: 24
-    start: 13
-    text: the invoice
-    type: recipient
   - end: 38
     start: 28
     text: accounting
@@ -17394,10 +17238,14 @@
   intent: pause_media
   utterance: quickly pause this
 - entities:
+  - end: 20
+    start: 16
+    text: John
+    type: recipient
   - end: 33
-    start: 13
-    text: to John and call mom
-    type: message_content
+    start: 30
+    text: mom
+    type: recipient
   intent: multi_intent
   utterance: send message to John and call mom
 - entities:
@@ -17419,20 +17267,16 @@
   intent: pause_media
   utterance: stop playing quickly
 - entities:
-  - end: 23
-    start: 15
-    text: back the
+  - end: 35
+    start: 24
+    text: last number
     type: recipient
   intent: make_call
   utterance: right now call back the last number
 - entities: []
   intent: confirmation
   utterance: now that's right
-- entities:
-  - end: 40
-    start: 23
-    text: to hr@company.com
-    type: message_content
+- entities: []
   intent: send_email
   utterance: please compose message to hr@company.com
 - entities:
@@ -17594,11 +17438,7 @@
     type: action
   intent: control_thermostat
   utterance: make it warmer
-- entities:
-  - end: 32
-    start: 18
-    text: about vacation
-    type: recipient
+- entities: []
   intent: send_email
   utterance: for me send email about vacation request
 - entities:
@@ -17668,10 +17508,6 @@
   intent: query_events
   utterance: any appointments today now
 - entities:
-  - end: 17
-    start: 6
-    text: the invoice
-    type: recipient
   - end: 31
     start: 21
     text: accounting
@@ -17707,9 +17543,9 @@
   intent: query_date
   utterance: what's tomorrow's date for me
 - entities:
-  - end: 16
+  - end: 10
     start: 6
-    text: John right
+    text: John
     type: recipient
   intent: make_call
   utterance: phone John right now
@@ -17893,8 +17729,8 @@
   utterance: quickly cancel the party
 - entities:
   - end: 20
-    start: 13
-    text: my boss
+    start: 16
+    text: boss
     type: recipient
   intent: send_email
   utterance: please email my boss about the project
@@ -18012,10 +17848,6 @@
   intent: pause_media
   utterance: right now pause the song
 - entities:
-  - end: 20
-    start: 14
-    text: to the
-    type: recipient
   - end: 25
     start: 21
     text: team
@@ -18128,11 +17960,7 @@
     type: event_name
   intent: delete_event
   utterance: cancel dentist appointment now
-- entities:
-  - end: 19
-    start: 11
-    text: with the
-    type: recipient
+- entities: []
   intent: send_email
   utterance: send email with the report right now
 - entities:
@@ -18539,10 +18367,10 @@
   intent: query_fact
   utterance: now who is the president
 - entities:
-  - end: 39
+  - end: 13
     start: 8
-    text: Sarah about the meeting quickly
-    type: message_content
+    text: Sarah
+    type: recipient
   intent: send_message
   utterance: message Sarah about the meeting quickly
 - entities:
@@ -18700,10 +18528,10 @@
   intent: set_alarm
   utterance: right now alarm at noon
 - entities:
-  - end: 31
+  - end: 12
     start: 8
-    text: Lisa happy birthday now
-    type: message_content
+    text: Lisa
+    type: recipient
   intent: send_message
   utterance: message Lisa happy birthday now
 - entities:
@@ -18858,10 +18686,6 @@
   intent: update_event
   utterance: for me update event details
 - entities:
-  - end: 26
-    start: 10
-    text: the presentation
-    type: recipient
   - end: 37
     start: 30
     text: clients
@@ -18885,11 +18709,7 @@
 - entities: []
   intent: confirmation
   utterance: right now that's right
-- entities:
-  - end: 25
-    start: 11
-    text: about vacation
-    type: recipient
+- entities: []
   intent: send_email
   utterance: send email about vacation request now
 - entities:

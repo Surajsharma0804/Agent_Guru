@@ -303,10 +303,10 @@ class SkillSandboxExecutor:
                 },
             }
 
-        except TimeoutError:
+        except TimeoutError as e:
             raise TimeoutError(
                 f"Skill execution exceeded {sandbox.config.resource_limits.max_execution_time_s}s limit"
-            )
+            ) from e
 
     async def _validate_result(self, result: dict[str, Any]) -> None:
         """Validate execution result.

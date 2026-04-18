@@ -544,7 +544,7 @@ class TestReasoningPipelineMetricsTracking:
 
         # Check timestamp
         assert isinstance(metrics.timestamp, datetime)
-        assert (datetime.utcnow() - metrics.timestamp).total_seconds() < 1
+        assert (datetime.now(tz=timezone.utc) - metrics.timestamp).total_seconds() < 1
 
     def test_metrics_to_dict_conversion(self):
         """Test converting metrics to dictionary for logging."""

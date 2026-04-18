@@ -1,4 +1,4 @@
-﻿"""
+"""
 Agent Orchestration Client for Speech Engine.
 
 Routes voice commands to the Agent Orchestration system for execution.

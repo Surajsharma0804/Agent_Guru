@@ -1,4 +1,4 @@
-﻿"""Write-Ahead Log (WAL) for crash recovery.
+"""Write-Ahead Log (WAL) for crash recovery.
 
 Provides:
 - WAL for all mutations: log before applying (Requirement 17.1)

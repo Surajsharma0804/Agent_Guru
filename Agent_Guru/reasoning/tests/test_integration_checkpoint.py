@@ -132,7 +132,7 @@ class TestErrorHandlingAndFallbacks:
             result = await engine.process(raw_input)
             # If no exception, verify it's an error result
             assert result.success is False or result.error is not None
-        except ValueError:
+        except ValueError as e:
             # ValueError is also acceptable
             pass
         

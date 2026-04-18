@@ -1,4 +1,4 @@
-﻿"""
+"""
 Data models for Goal Manager.
 
 Defines core data structures using Pydantic for validation.

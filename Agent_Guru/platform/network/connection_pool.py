@@ -216,7 +216,7 @@ class ConnectionPoolManager:
             self._cleanup_task.cancel()
             try:
                 await self._cleanup_task
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 pass
             self._cleanup_task = None
 
@@ -233,7 +233,7 @@ class ConnectionPoolManager:
             try:
                 await asyncio.sleep(self.config.cleanup_interval)
                 await self._cleanup_idle_connections()
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 break
             except Exception as e:
                 logger.error(

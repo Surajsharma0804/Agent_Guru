@@ -45,7 +45,7 @@ def synthesizer(mock_memory_retriever):
 @pytest.fixture
 def sample_memories():
     """Create sample memories for testing."""
-    now = datetime.utcnow()
+    now = datetime.now(tz=timezone.utc)
     memories = []
 
     # Create memories with different timestamps
@@ -95,7 +95,7 @@ class TestHandleTemporalQuery:
 
     def test_handle_temporal_query_with_old_memory(self, synthesizer):
         """Test temporal query with old memory."""
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         old_memory = Memory(
             memory_id=uuid.uuid4(),
             memory_type=MemoryType.EPISODIC,
@@ -150,7 +150,7 @@ class TestHandleTemporalQuery:
 
     def test_handle_temporal_query_low_confidence_indicator(self, synthesizer):
         """Test that low confidence adds indicator to summary."""
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         memory = Memory(
             memory_id=uuid.uuid4(),
             memory_type=MemoryType.EPISODIC,
@@ -184,7 +184,7 @@ class TestHandleAggregationQuery:
     def test_handle_aggregation_query_with_clear_winner(self, synthesizer):
         """Test aggregation query with clear winner."""
         memories = []
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
 
         # Create memories with different entities
         for i in range(20):
@@ -227,7 +227,7 @@ class TestHandleAggregationQuery:
     def test_handle_aggregation_query_close_race(self, synthesizer):
         """Test aggregation query with close race."""
         memories = []
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
 
         # Create memories with similar counts
         for i in range(10):
@@ -269,7 +269,7 @@ class TestHandleAggregationQuery:
     def test_handle_aggregation_query_small_sample(self, synthesizer):
         """Test aggregation query with small sample size."""
         memories = []
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
 
         for i in range(3):
             memory = Memory(
@@ -310,7 +310,7 @@ class TestHandlePatternQuery:
     def test_handle_pattern_query_with_strong_pattern(self, synthesizer):
         """Test pattern query with strong pattern."""
         memories = []
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
 
         # Create memories with strong daily pattern (same hour)
         for i in range(10):
@@ -358,7 +358,7 @@ class TestHandlePatternQuery:
     def test_handle_pattern_query_multiple_patterns(self, synthesizer):
         """Test pattern query with multiple patterns."""
         memories = []
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
 
         for i in range(10):
             memory = Memory(
@@ -410,7 +410,7 @@ class TestHandlePatternQuery:
     def test_handle_pattern_query_no_patterns(self, synthesizer):
         """Test pattern query with no patterns detected."""
         memories = []
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
 
         for i in range(3):
             memory = Memory(
@@ -454,7 +454,7 @@ class TestHandleFactualQuery:
             embedding=[0.1] * 768,
             metadata={"source": "user_correction", "entity": "John"},
             relevance_score=0.95,  # High relevance
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
             user_id="user_123",
         )
 
@@ -484,7 +484,7 @@ class TestHandleFactualQuery:
             embedding=[0.1] * 768,
             metadata={"source": "verified_fact"},  # Trusted source
             relevance_score=0.85,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
             user_id="user_123",
         )
 
@@ -516,7 +516,7 @@ class TestHandleFactualQuery:
                 embedding=[0.1] * 768,
                 metadata={"source": f"source_{i}"},
                 relevance_score=0.8 - (i * 0.1),
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 user_id="user_123",
             )
             memories.append(memory)
@@ -547,7 +547,7 @@ class TestHandleFactualQuery:
             embedding=[0.1] * 768,
             metadata={},
             relevance_score=0.3,  # Low relevance
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
             user_id="user_123",
         )
 
@@ -573,7 +573,7 @@ class TestConfidenceCalculations:
 
     def test_temporal_confidence_recent_data(self, synthesizer):
         """Test temporal confidence with recent data."""
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         memories = [
             Memory(
                 memory_id=uuid.uuid4(),
@@ -613,7 +613,7 @@ class TestConfidenceCalculations:
                 embedding=[0.1] * 768,
                 metadata={},
                 relevance_score=0.8,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 user_id="user_123",
             )
             for i in range(25)
@@ -649,7 +649,7 @@ class TestConfidenceCalculations:
                 embedding=[0.1] * 768,
                 metadata={},
                 relevance_score=0.8,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 user_id="user_123",
             )
             for i in range(10)
@@ -692,7 +692,7 @@ class TestConfidenceCalculations:
                 embedding=[0.1] * 768,
                 metadata={"source": "verified_fact"},
                 relevance_score=0.95,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 user_id="user_123",
             )
             for _ in range(3)

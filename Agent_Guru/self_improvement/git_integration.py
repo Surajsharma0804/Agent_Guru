@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: agent_guru.self_improvement.git_integration
 Purpose: Automated Git integration for learning data versioning
 Author: Agent Guru Self-Improvement Team
@@ -31,7 +31,7 @@ try:
     import git
     from git import GitCommandError, InvalidGitRepositoryError, Repo
     GIT_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     GIT_AVAILABLE = False
     git = None
     Repo = None
@@ -140,10 +140,10 @@ class GitIntegration:
         # Initialize repository
         try:
             self.repo = Repo(self.repo_path)
-        except InvalidGitRepositoryError:
+        except InvalidGitRepositoryError as e:
             raise InvalidGitRepositoryError(
                 f"Path {repo_path} is not a valid Git repository"
-            )
+            ) from e
 
         # Initialize offline queue
         if queue_path:
@@ -420,7 +420,7 @@ class GitIntegration:
             if full_path.exists() and full_path.suffix == ".json":
                 # Append to JSON array
                 try:
-                    with open(full_path) as f:
+                    with open(full_path, encoding='utf-8') as f:
                         existing_data = json.load(f)
                     if not isinstance(existing_data, list):
                         existing_data = [existing_data]
@@ -429,11 +429,11 @@ class GitIntegration:
 
                 existing_data.append(commit_data.data)
 
-                with open(full_path, 'w') as f:
+                with open(full_path, 'w', encoding='utf-8') as f:
                     json.dump(existing_data, f, indent=2)
             else:
                 # Write new file - always create as list for consistency
-                with open(full_path, 'w') as f:
+                with open(full_path, 'w', encoding='utf-8') as f:
                     json.dump([commit_data.data], f, indent=2)
 
     def _queue_commit(
@@ -472,7 +472,7 @@ class GitIntegration:
             for c in self._pending_commits
         ]
 
-        with open(queue_file, 'w') as f:
+        with open(queue_file, 'w', encoding='utf-8') as f:
             json.dump(queue_data, f, indent=2)
 
     def _load_queue(self) -> None:
@@ -483,7 +483,7 @@ class GitIntegration:
             return
 
         try:
-            with open(queue_file) as f:
+            with open(queue_file, encoding='utf-8') as f:
                 queue_data = json.load(f)
 
             self._pending_commits = [

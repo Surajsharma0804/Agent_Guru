@@ -259,7 +259,7 @@ class RollbackManager:
                     f"Required: {min_bytes / (1024**3):.2f} GB, "
                     f"Available: {usage.free / (1024**3):.2f} GB"
                 )
-        except InsufficientSpaceError:
+        except InsufficientSpaceError as e:
             raise
         except OSError as exc:
             logger.warning("disk_check_failed", path=str(path), error=str(exc))  # Non-fatal if disk check fails

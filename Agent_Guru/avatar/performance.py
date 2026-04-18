@@ -190,6 +190,6 @@ class PerformanceMonitor:
         try:
             import psutil  # noqa: F401
             return True
-        except ImportError:
-            logger.debug("psutil not available — performance monitoring limited")
+        except ImportError as e:
+            logger.debug("psutil not available — performance monitoring limited: %s", e)
             return False

@@ -140,7 +140,7 @@ class GitHubSyncEngine:
                 await asyncio.sleep(self.batch_window_s)
                 if self.pending_operations:
                     await self._process_pending_operations()
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 break
             except Exception as exc:
                 logger.error("Error in GitHub sync loop: %s", exc)

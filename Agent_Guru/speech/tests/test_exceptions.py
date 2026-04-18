@@ -134,8 +134,8 @@ class TestExceptionChaining:
         try:
             try:
                 raise IOError("File not found")
-            except IOError:
-                raise ModelLoadError("Model file missing")
+            except IOError as e:
+                raise ModelLoadError("Model file missing") from e
         except ModelLoadError as error:
             assert str(error) == "Model file missing"
             assert isinstance(error.__context__, IOError)

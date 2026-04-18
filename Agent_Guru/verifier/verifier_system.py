@@ -392,7 +392,7 @@ class VerifierSystem:
                             name,
                             res,
                         )
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as e:
                 logger.warning(
                     "Verification timed out after %.0fms — returning degraded result",
                     self.config.max_latency_ms,

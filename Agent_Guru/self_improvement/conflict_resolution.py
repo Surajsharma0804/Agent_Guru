@@ -1,4 +1,4 @@
-﻿"""
+"""
 Conflict Resolution System for Self-Improvement Engine.
 
 World-class production-grade implementation using state-of-the-art algorithms:

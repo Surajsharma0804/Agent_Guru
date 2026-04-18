@@ -245,7 +245,7 @@ class IdentityManager:
             active_key = self._active_keys.get(profile_id, profile.key_pair)
             private_key_obj = Ed25519PrivateKey.from_private_bytes(active_key.private_key)
             return private_key_obj.sign(message)
-        except IdentityNotFoundError:
+        except IdentityNotFoundError as e:
             raise
         except Exception as exc:
             raise SignatureError(f"Signing failed: type={type(exc).__name__}") from exc

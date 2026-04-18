@@ -260,8 +260,8 @@ class ResourceMonitor:
         try:
             import psutil  # noqa: F401
             self._psutil_available = True
-        except ImportError:
-            logger.warning("psutil not available - resource monitoring disabled")
+        except ImportError as e:
+            logger.warning("psutil not available - resource monitoring disabled: %s", e)
 
     def get_cpu_percent(self, interval: float = 0.1) -> float:
         """Get current CPU usage percentage.

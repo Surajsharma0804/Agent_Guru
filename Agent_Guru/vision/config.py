@@ -237,7 +237,7 @@ class GuruVisionConfig:
             if not isinstance(result, dict):
                 raise ValueError(f"Expected a YAML mapping at the top level in {path!r}")
             return result
-        except ImportError:
+        except ImportError as e:
             logger.warning("PyYAML not installed; attempting to parse %r as JSON", path)
             return cls._parse_json(text, path)
 

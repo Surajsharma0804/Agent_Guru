@@ -34,7 +34,7 @@ class DatasetGenerator:
 
     def _load_intents(self) -> dict[Any, Any]:
         """Load intents from YAML file."""
-        with open(self.intents_file) as f:
+        with open(self.intents_file, encoding='utf-8') as f:
             data: dict[Any, Any] = yaml.safe_load(f)
             return data
 
@@ -181,7 +181,7 @@ class DatasetGenerator:
             'num_intents': len(self.intents_data['intents']),
         }
 
-        with open(output_path / "dataset_stats.yaml", 'w') as f:
+        with open(output_path / "dataset_stats.yaml", 'w', encoding='utf-8') as f:
             yaml.dump(stats, f, default_flow_style=False)
 
         print(f"Dataset saved to {output_dir}")

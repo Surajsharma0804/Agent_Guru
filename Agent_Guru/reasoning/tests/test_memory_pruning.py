@@ -51,7 +51,7 @@ class TestImportanceScoring:
             result="success",
             success=True,
             user_id="user_123",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
 
         # Old memory
@@ -61,7 +61,7 @@ class TestImportanceScoring:
             result="success",
             success=True,
             user_id="user_123",
-            timestamp=datetime.utcnow() - timedelta(days=80),
+            timestamp=datetime.now(tz=timezone.utc) - timedelta(days=80),
         )
 
         recent_score = retriever.compute_importance_score(recent)
@@ -130,7 +130,7 @@ class TestImportanceScoring:
         retriever = MemoryRetriever()
 
         # Create memories of different types with same other attributes
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(tz=timezone.utc)
 
         semantic = SemanticMemory(
             content="Semantic memory",
@@ -196,7 +196,7 @@ class TestMemoryPruning:
             success=True,
             user_id="user_123",
             relevance_score=0.9,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
         retriever.store(high_importance)
 
@@ -208,7 +208,7 @@ class TestMemoryPruning:
             success=True,
             user_id="user_123",
             relevance_score=0.1,
-            timestamp=datetime.utcnow() - timedelta(days=80),
+            timestamp=datetime.now(tz=timezone.utc) - timedelta(days=80),
         )
         retriever.store(low_importance)
 
@@ -235,7 +235,7 @@ class TestMemoryPruning:
                 success=True,
                 user_id="user_123",
                 relevance_score=0.1,
-                timestamp=datetime.utcnow() - timedelta(days=80),
+                timestamp=datetime.now(tz=timezone.utc) - timedelta(days=80),
             )
             retriever.store(memory)
 
@@ -260,7 +260,7 @@ class TestMemoryPruning:
             confidence=1.0,
             user_id="user_123",
             relevance_score=1.0,  # Maximum relevance
-            timestamp=datetime.utcnow() - timedelta(days=10),  # Very recent
+            timestamp=datetime.now(tz=timezone.utc) - timedelta(days=10),  # Very recent
             metadata={"retrieval_count": 50},  # High usage
         )
         retriever.store(high_importance)
@@ -273,7 +273,7 @@ class TestMemoryPruning:
             success=True,
             user_id="user_123",
             relevance_score=0.2,
-            timestamp=datetime.utcnow() - timedelta(days=100),
+            timestamp=datetime.now(tz=timezone.utc) - timedelta(days=100),
         )
         retriever.store(low_importance)
 
@@ -304,7 +304,7 @@ class TestMemoryPruning:
             result="success",
             success=True,
             user_id="user_123",
-            timestamp=datetime.utcnow() - timedelta(days=30),
+            timestamp=datetime.now(tz=timezone.utc) - timedelta(days=30),
         )
         retriever.store(recent)
 
@@ -315,7 +315,7 @@ class TestMemoryPruning:
             result="success",
             success=True,
             user_id="user_123",
-            timestamp=datetime.utcnow() - timedelta(days=100),
+            timestamp=datetime.now(tz=timezone.utc) - timedelta(days=100),
         )
         retriever.store(old)
 
@@ -338,7 +338,7 @@ class TestMemoryPruning:
             success=True,
             user_id="user_1",
             relevance_score=0.1,
-            timestamp=datetime.utcnow() - timedelta(days=80),
+            timestamp=datetime.now(tz=timezone.utc) - timedelta(days=80),
         )
         retriever.store(user1_memory)
 
@@ -350,7 +350,7 @@ class TestMemoryPruning:
             success=True,
             user_id="user_2",
             relevance_score=0.1,
-            timestamp=datetime.utcnow() - timedelta(days=80),
+            timestamp=datetime.now(tz=timezone.utc) - timedelta(days=80),
         )
         retriever.store(user2_memory)
 
@@ -554,7 +554,7 @@ class TestRetrievalCountTracking:
             success=True,
             user_id="user_123",
             relevance_score=0.5,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
         retriever.store(memory1)
 
@@ -565,7 +565,7 @@ class TestRetrievalCountTracking:
             success=True,
             user_id="user_123",
             relevance_score=0.5,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
         )
         retriever.store(memory2)
 

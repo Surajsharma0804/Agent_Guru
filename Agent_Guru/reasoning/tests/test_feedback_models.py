@@ -196,7 +196,7 @@ class TestIntentFeedback:
 
     def test_default_timestamp(self):
         """Test timestamp defaults to current time."""
-        before = datetime.utcnow()
+        before = datetime.now(tz=timezone.utc)
         feedback = IntentFeedback(
             feedback_id="test-123",
             user_id="user-456",
@@ -207,7 +207,7 @@ class TestIntentFeedback:
             feedback_type=FeedbackType.POSITIVE,
             model_version="v1.0",
         )
-        after = datetime.utcnow()
+        after = datetime.now(tz=timezone.utc)
 
         assert before <= feedback.timestamp <= after
 
@@ -347,7 +347,7 @@ class TestModelPerformanceMetrics:
 
     def test_default_timestamp(self):
         """Test timestamp defaults to current time."""
-        before = datetime.utcnow()
+        before = datetime.now(tz=timezone.utc)
         metrics = ModelPerformanceMetrics(
             metric_id="metric-123",
             model_version="v1.0",
@@ -358,7 +358,7 @@ class TestModelPerformanceMetrics:
             low_confidence_rate=0.05,
             correction_rate=0.03,
         )
-        after = datetime.utcnow()
+        after = datetime.now(tz=timezone.utc)
 
         assert before <= metrics.timestamp <= after
 

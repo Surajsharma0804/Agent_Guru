@@ -229,8 +229,8 @@ class MonitoringManager:
                 send_default_pii=False,  # Never send PII
             )
             logger.info("sentry_initialized")
-        except ImportError:
-            logger.warning("sentry_sdk_not_installed")
+        except ImportError as e:
+            logger.warning("sentry_sdk_not_installed: %s", e)
 
     def _init_prometheus(self) -> None:
         try:

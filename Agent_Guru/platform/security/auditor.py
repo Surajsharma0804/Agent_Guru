@@ -755,7 +755,7 @@ class SecurityAuditor:
                             # Apply filters (optimized with early exit)
                             if self._matches_filters(entry, filters):
                                 results.append(entry)
-                        except json.JSONDecodeError:
+                        except json.JSONDecodeError as e:
                             logger.warning("invalid_log_entry", line=line[:100])
                             continue
             except IOError as e:

@@ -366,7 +366,7 @@ class TestNormalizedInput:
             text="test",
             source=InputSource.TEXT,
             user_id="user_123",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(tz=timezone.utc)
         )
         
         assert normalized.text == "test"
@@ -383,7 +383,7 @@ class TestNormalizedInput:
             text="test",
             source=InputSource.TEXT,
             user_id="user_123",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(tz=timezone.utc),
             metadata=metadata,
             original_content="original"
         )
@@ -398,7 +398,7 @@ class TestNormalizedInput:
                 text="",
                 source=InputSource.TEXT,
                 user_id="user_123",
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(tz=timezone.utc)
             )
     
     def test_normalized_input_whitespace_text(self):
@@ -408,7 +408,7 @@ class TestNormalizedInput:
                 text="   ",
                 source=InputSource.TEXT,
                 user_id="user_123",
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(tz=timezone.utc)
             )
     
     def test_normalized_input_empty_user_id(self):
@@ -418,7 +418,7 @@ class TestNormalizedInput:
                 text="test",
                 source=InputSource.TEXT,
                 user_id="",
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(tz=timezone.utc)
             )
 
 

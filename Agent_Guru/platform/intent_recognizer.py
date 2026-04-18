@@ -728,7 +728,8 @@ class IntentRecognizer:
         Returns:
             :class:`IntentResult` or ``None`` on failure.
         """
-        assert self._llm_manager is not None
+        if not (self._llm_manager is not None):
+            raise AssertionError("self._llm_manager is not None assertion failed")
 
         prompt = _INTENT_PROMPT_TEMPLATE.format(
             text=text, platform=platform_name

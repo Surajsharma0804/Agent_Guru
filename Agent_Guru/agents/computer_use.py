@@ -152,7 +152,7 @@ class ComputerUseAgent:
                             task.status = "failed"
                             return task
 
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as e:
             task.status = "timeout"
             logger.warning("Task %s timed out after %ds", task.task_id, TASK_TIMEOUT_S)
             return task

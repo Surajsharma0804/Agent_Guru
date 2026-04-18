@@ -618,7 +618,7 @@ def main():
     
     # JSON report
     json_path = results_dir / f"improvement_verification_{timestamp}.json"
-    with open(json_path, "w") as f:
+    with open(json_path, "w", encoding='utf-8') as f:
         f.write(verifier.generate_report_json(report))
     print(f"✅ JSON report: {json_path}")
     

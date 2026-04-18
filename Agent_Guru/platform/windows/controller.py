@@ -38,8 +38,8 @@ try:
     import pyautogui  # type: ignore[import]
     pyautogui.FAILSAFE = False  # Disable corner-of-screen failsafe for automation
     _PYAUTOGUI_AVAILABLE = True
-except ImportError:
-    logger.warning("pyautogui not available – keyboard/mouse simulation limited")
+except ImportError as e:
+    logger.warning("pyautogui not available – keyboard/mouse simulation limited: %s", e)
 
 if sys.platform == "win32":
     try:
@@ -49,8 +49,8 @@ if sys.platform == "win32":
         import win32gui  # type: ignore[import]
         import win32process  # type: ignore[import]
         _PYWIN32_AVAILABLE = True
-    except ImportError:
-        logger.warning("pywin32 not available – window management limited")
+    except ImportError as e:
+        logger.warning("pywin32 not available – window management limited: %s", e)
 
     try:
         _CTYPES_AVAILABLE = True
@@ -246,7 +246,7 @@ class WindowsController:
                 metadata={"pid": proc.pid, "executable": resolved},
             )
 
-        except (FileNotFoundError, OSError):
+        except (FileNotFoundError, OSError) as e:
             # Fallback: os.startfile (uses Windows shell association)
             try:
                 os.startfile(resolved)  # type: ignore[attr-defined]

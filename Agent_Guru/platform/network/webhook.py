@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: agent_guru.platform.network.webhook
 Purpose: Webhook registration, signature verification, and event routing
 Author: Agent Guru Team

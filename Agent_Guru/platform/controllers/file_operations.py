@@ -214,7 +214,7 @@ class FileOperationsController:
         )
 
         try:
-            with open(self.audit_log_path, "a") as f:
+            with open(self.audit_log_path, "a", encoding="utf-8") as f:
                 f.write(entry.to_json() + "\n")
         except Exception as e:
             logger.error("Failed to write audit log: %s", e)
@@ -390,7 +390,7 @@ class FileOperationsController:
 
             return content
 
-        except PermissionError:
+        except PermissionError as e:
             # Re-raise PermissionError so callers can detect path traversal violations
             raise
         except Exception as e:

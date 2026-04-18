@@ -104,8 +104,8 @@ class GestureRecognizer:
                         "gesture_confidence": gesture_conf,
                     })
                 return output
-        except ImportError:
-            logger.warning("GestureRecognizer: MediaPipe not available")
+        except ImportError as e:
+            logger.warning("GestureRecognizer: MediaPipe not available: %s", e)
             return []
 
     @staticmethod

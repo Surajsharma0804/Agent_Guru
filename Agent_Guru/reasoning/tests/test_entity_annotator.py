@@ -325,8 +325,14 @@ class TestEntityAnnotator:
         monkeypatch.setattr('Agent_Guru.reasoning.data.entity_annotator.EntityAnnotator.validate_annotations',
                            lambda self, annotated_file: {
                                'coverage': 0.5,
+                               'examples_with_entities': 5,
+                               'total_examples': 10,
+                               'adjusted_coverage': 0.6,
+                               'adjusted_with_entities': 6,
+                               'adjusted_total': 10,
                                'avg_entities_per_example': 1.0,
-                               'entity_type_distribution': {'duration': 1}
+                               'entity_type_distribution': {'duration': 1},
+                               'per_intent_coverage': {},
                            })
         
         # Execute main

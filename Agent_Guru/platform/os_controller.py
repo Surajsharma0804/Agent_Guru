@@ -284,8 +284,8 @@ class OSController:
                 DesktopApplicationController,
             )
             return DesktopApplicationController()
-        except RuntimeError:
-            logger.info("DesktopApplicationController not available on mobile platform")
+        except RuntimeError as e:
+            logger.info("DesktopApplicationController not available on mobile platform: %s", e)
             return None
         except Exception as exc:
             logger.warning("DesktopApplicationController failed to initialize: %s", exc)
@@ -320,7 +320,7 @@ class OSController:
         )
 
         try:
-            with open(self.audit_log_path, "a") as f:
+            with open(self.audit_log_path, "a", encoding="utf-8") as f:
                 f.write(entry.to_json() + "\n")
         except Exception as e:
             logger.error("Failed to write audit log: %s", e)

@@ -154,7 +154,7 @@ class TestConversationResponse:
     
     def test_valid_conversation(self):
         """Test valid conversation response."""
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         response = ConversationResponse(
             conversation_id="conv_456",
             user_id="user_123",
@@ -171,7 +171,7 @@ class TestConversationResponse:
     
     def test_negative_turn_count_fails(self):
         """Test that negative turn count fails validation."""
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         with pytest.raises(ValidationError):
             ConversationResponse(
                 conversation_id="conv_456",
@@ -187,7 +187,7 @@ class TestTaskStatusResponse:
     
     def test_valid_task_status(self):
         """Test valid task status response."""
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         response = TaskStatusResponse(
             task_id="task_789",
             status="running",
@@ -202,7 +202,7 @@ class TestTaskStatusResponse:
     
     def test_invalid_status_fails(self):
         """Test that invalid status fails validation."""
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         with pytest.raises(ValidationError):
             TaskStatusResponse(
                 task_id="task_789",
@@ -213,7 +213,7 @@ class TestTaskStatusResponse:
     
     def test_progress_bounds(self):
         """Test progress must be between 0 and 1."""
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         
         # Valid progress
         response = TaskStatusResponse(

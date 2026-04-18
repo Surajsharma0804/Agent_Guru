@@ -622,7 +622,7 @@ class TestMemoryUsageStats:
     def test_memory_usage_stats_creation(self):
         """Test MemoryUsageStats creation."""
         memory_id = uuid4()
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
 
         stats = MemoryUsageStats(
             memory_id=memory_id, usage_count=5, last_used=now, relevance_boost=0.3
@@ -1181,7 +1181,7 @@ class TestMemoryUsageStats:
     def test_memory_usage_stats_creation(self):
         """Test MemoryUsageStats creation."""
         memory_id = uuid4()
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
 
         stats = MemoryUsageStats(
             memory_id=memory_id, usage_count=5, last_used=now, relevance_boost=0.3

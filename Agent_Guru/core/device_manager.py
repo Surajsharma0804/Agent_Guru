@@ -12,7 +12,7 @@ import logging
 try:
     import torch
     _TORCH_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     torch = None  # type: ignore[assignment]
     _TORCH_AVAILABLE = False
 

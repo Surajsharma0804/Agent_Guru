@@ -805,7 +805,7 @@ class NetworkManager:
 
                     return http_response
 
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as e:
                 last_exception = TimeoutError(f"Request timed out after {request_timeout}s: {url}")
                 logger.warning(
                     "Request timeout",

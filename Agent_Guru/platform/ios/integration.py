@@ -101,7 +101,7 @@ class IOSIntegration:
         """Check if pyobjus is available."""
         try:
             return True
-        except ImportError:
+        except ImportError as e:
             logger.warning(
                 "pyobjus not available - iOS integration will use fallback mode"
             )

@@ -1,4 +1,4 @@
-﻿"""Metrics and Monitoring Engine.
+"""Metrics and Monitoring Engine.
 
 Tracks all memory system metrics in-memory with:
 - record_metric: store a MetricSnapshot (Property 52)

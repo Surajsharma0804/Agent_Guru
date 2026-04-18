@@ -1,4 +1,4 @@
-﻿"""
+"""
 Failure Analyzer for Self-Improvement Engine.
 
 This module analyzes failures to identify patterns and root causes.

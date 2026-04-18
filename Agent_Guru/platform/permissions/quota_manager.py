@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: Agent_Guru.platform.permissions.quota_manager
 Purpose: Operation quota tracking and enforcement system
 
@@ -491,7 +491,7 @@ class QuotaManager:
 
             # Write atomically (write to temp file, then rename)
             temp_path = self.storage_path.with_suffix('.tmp')
-            with open(temp_path, 'w') as f:
+            with open(temp_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
             temp_path.replace(self.storage_path)
 
@@ -506,7 +506,7 @@ class QuotaManager:
             return
 
         try:
-            with open(self.storage_path) as f:
+            with open(self.storage_path, encoding='utf-8') as f:
                 data = json.load(f)
 
             # Load reset times

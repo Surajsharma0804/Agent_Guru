@@ -341,7 +341,7 @@ class ProcessManager:
             # Wait for process to terminate (with timeout)
             try:
                 process.wait(timeout=5.0)
-            except psutil.TimeoutExpired:
+            except psutil.TimeoutExpired as e:
                 logger.warning("Process PID=%d did not terminate within timeout", pid)
                 if not force:
                     # If graceful termination timed out, force kill

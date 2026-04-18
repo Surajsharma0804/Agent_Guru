@@ -116,7 +116,7 @@ class AdvancedNoiseCancellation:
 
             return reduced
 
-        except AudioProcessingError:
+        except AudioProcessingError as e:
             raise
         except Exception as e:
             raise AudioProcessingError(f"Advanced noise reduction failed: {e}") from e

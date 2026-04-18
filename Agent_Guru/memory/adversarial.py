@@ -1,4 +1,4 @@
-﻿"""Adversarial Robustness Engine.
+"""Adversarial Robustness Engine.
 
 Provides:
 - Conflict preservation: both versions stored, neither discarded (Property 57)

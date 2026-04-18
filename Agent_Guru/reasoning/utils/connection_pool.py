@@ -268,8 +268,8 @@ class RedisPool:
             self._initialized = True
             logger.info("Redis pool initialized")
 
-        except ImportError:
-            logger.warning("aioredis not installed, Redis pooling disabled")
+        except ImportError as e:
+            logger.warning("aioredis not installed, Redis pooling disabled: %s", e)
             self._pool = None
         except Exception as e:
             logger.error("Failed to initialize Redis pool: %s", e)
@@ -618,7 +618,7 @@ if __name__ == "__main__":
         start = time.perf_counter()
         for i in range(100):
             async with pool.acquire() as conn:
-                conn.execute("INSERT INTO test (value) VALUES (?)", (f"value_{i}",))
+                conn.execute("INSERT INTO test (value) VALUES (?)", (f"value_{i}",))  # nosec B608 — parameterized query, no injection risk
                 conn.commit()
         pooled_time = time.perf_counter() - start
 

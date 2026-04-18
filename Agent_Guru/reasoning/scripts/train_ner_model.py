@@ -259,9 +259,9 @@ def train_ner_model(config: NERTrainingConfig):
     # Load data
     print("Loading training data...")
     _data_base = Path(config.data_dir).resolve()
-    train_data = load_ner_data(safe_path(Path(config.data_dir) / "train_annotated.yaml", _data_base))  # nosec
-    val_data = load_ner_data(safe_path(Path(config.data_dir) / "val_annotated.yaml", _data_base))  # nosec
-    test_data = load_ner_data(safe_path(Path(config.data_dir) / "test_annotated.yaml", _data_base))  # nosec
+    train_data = load_ner_data(safe_path("train_annotated.yaml", _data_base))  # nosec
+    val_data = load_ner_data(safe_path("val_annotated.yaml", _data_base))  # nosec
+    test_data = load_ner_data(safe_path("test_annotated.yaml", _data_base))  # nosec
 
     print("Original dataset sizes:")
     print(f"  Train: {len(train_data)}")
@@ -363,7 +363,7 @@ def train_ner_model(config: NERTrainingConfig):
 
     # Save final model
     _output_base = Path(config.output_dir).resolve()
-    final_model_path = safe_path(Path(config.output_dir) / "final_model", _output_base)  # nosec
+    final_model_path = safe_path("final_model", _output_base)  # nosec
     final_model_path.mkdir(parents=True, exist_ok=True)
     model.save_pretrained(str(final_model_path))
 

@@ -39,8 +39,8 @@ def make_policy(
         resources=resources or ["*"],
         actions=actions or ["*"],
         conditions=conditions or {},
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(tz=timezone.utc),
+        updated_at=datetime.now(tz=timezone.utc),
         active=active,
     )
 
@@ -63,7 +63,7 @@ def make_role(
         id=role_id,
         name=name,
         permissions=permissions or [],
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(tz=timezone.utc),
         parent_role_id=parent_role_id,
     )
 

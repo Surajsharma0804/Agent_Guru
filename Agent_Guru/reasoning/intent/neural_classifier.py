@@ -189,9 +189,9 @@ class NeuralIntentClassifier:
             str(model_path), sess_options=sess_options, providers=providers
         )
 
-        print(f"✓ Neural classifier loaded: {model_path}")
-        print(f"✓ Execution providers: {self.session.get_providers()}")
-        print(f"✓ Label mappings: {len(self.id_to_label)} intents")
+        _logger.info("Neural classifier loaded: %s", model_path)
+        _logger.info("Execution providers: %s", self.session.get_providers())
+        _logger.info("Label mappings: %d intents", len(self.id_to_label))
 
         # Warm up model
         self._warmup()
@@ -213,7 +213,7 @@ class NeuralIntentClassifier:
         elif "ROCMExecutionProvider" in available_providers:
             return ["ROCMExecutionProvider", "CPUExecutionProvider"]
         else:
-            print("⚠ GPU requested but not available, falling back to CPU")
+            _logger.warning("GPU requested but not available, falling back to CPU")
             return ["CPUExecutionProvider"]
 
     def _warmup(self) -> None:
@@ -222,10 +222,10 @@ class NeuralIntentClassifier:
         Runs several dummy inferences to initialize GPU kernels and caches.
         """
         if self.config.warmup_iterations == 0:
-            print("Skipping warmup (warmup_iterations=0)")
+            _logger.debug("Skipping warmup (warmup_iterations=0)")
             return
 
-        print(f"Warming up model ({self.config.warmup_iterations} iterations)...")
+        _logger.info("Warming up model (%d iterations)...", self.config.warmup_iterations)
 
         dummy_text = "set timer for 5 minutes"
         start_time = time.perf_counter()
@@ -236,7 +236,7 @@ class NeuralIntentClassifier:
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         avg_latency = elapsed_ms / self.config.warmup_iterations
 
-        print(f"✓ Warmup complete: {avg_latency:.2f}ms average latency")
+        _logger.info("Warmup complete: %.2fms average latency", avg_latency)
 
     def _classify_sync(self, text: str) -> ClassificationResult:
         """Synchronous classification (internal use).

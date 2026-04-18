@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: Agent_Guru.platform.integration.memory_client
 Purpose: Memory System integration client for operation metadata storage.
 
@@ -453,7 +453,7 @@ ize
                         )
                         return False
 
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as e:
                 logger.warning(
                     f"Memory System timeout on attempt {attempt + 1}/{self.max_retries + 1}"
                 )
@@ -617,8 +617,8 @@ ize
                 self._circuit.record_failure()
                 return MemoryQueryResult(query_time_ms=query_time_ms)
 
-        except asyncio.TimeoutError:
-            logger.warning("Memory query timed out")
+        except asyncio.TimeoutError as e:
+            logger.warning("Memory query timed out: %s", e)
             self._circuit.record_failure()
             return MemoryQueryResult()
         except Exception as e:

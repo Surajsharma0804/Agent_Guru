@@ -1,4 +1,4 @@
-﻿"""
+"""
 Health Check System for Platform Integration.
 
 This module provides comprehensive health checking for all platform components,
@@ -308,7 +308,7 @@ class HealthCheckManager:
 
             return result
 
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as e:
             end_time = time.perf_counter()
             response_time_ms = (end_time - start_time) * 1000
 

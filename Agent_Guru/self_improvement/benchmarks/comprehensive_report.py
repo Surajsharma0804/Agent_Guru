@@ -61,7 +61,7 @@ class ComprehensiveBenchmarkReport:
 
         # Save JSON analysis
         json_path = output_path.replace(".md", ".json")
-        with open(json_path, 'w') as f:
+        with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(analysis, f, indent=2)
 
         return analysis

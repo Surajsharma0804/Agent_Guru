@@ -99,7 +99,7 @@ try:
                     import yaml  # type: ignore[import]
                     with resolved.open() as fh:
                         raw = yaml.safe_load(fh)
-                except ImportError:
+                except ImportError as e:
                     raise ImportError("PyYAML required for YAML config files: pip install pyyaml") from None
             else:
                 with resolved.open() as fh:

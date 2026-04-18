@@ -1,54 +1,63 @@
 # Agent Guru — Module Dependency Graph
-**Generated:** Audit Phase 1
+*Generated: 2026-04-18*
 
-## Circular Import Resolution
-
-### Issue Found & Fixed
-- **Chain:** `speech/engine.py` → `speech/tts/voice_cloner.py` → `security/__init__.py` → `security/biometric_auth.py` → `speech/engine.py`
-- **Fix:** Converted top-level `from Agent_Guru.speech.engine import SpeechEngine` in `biometric_auth.py` to local imports inside `enroll_voice()` and `authenticate_voice()` methods.
-- **Status:** ✅ RESOLVED
-
-## Import Dependency Layers
+## Layer Architecture
 
 ```
-Layer 0 (no internal deps):
-  Agent_Guru/integration/gpu_pool.py
-  Agent_Guru/policy/models.py
-  Agent_Guru/speech/models.py
-  Agent_Guru/llm/models.py
-  Agent_Guru/security/models.py
-
-Layer 1 (depend on Layer 0):
-  Agent_Guru/policy/engine.py
-  Agent_Guru/llm/providers/*.py
-  Agent_Guru/speech/audio/wake_word.py
-  Agent_Guru/speech/stt/whisper_stt.py
-  Agent_Guru/speech/tts/tts_engine.py
-
-Layer 2 (depend on Layer 1):
-  Agent_Guru/speech/engine.py
-  Agent_Guru/llm/llm_runtime.py
-  Agent_Guru/platform/os_controller.py
-  Agent_Guru/memory/memory_manager.py
-  Agent_Guru/security/biometric_auth.py  [uses local import for SpeechEngine]
-
-Layer 3 (depend on Layer 2):
-  Agent_Guru/integration/orchestrator.py
-  Agent_Guru/core/agent_guru.py
-
-Layer 4 (top-level):
-  main.py
+┌─────────────────────────────────────────────────────────┐
+│  Application Layer                                      │
+│  speech  vision  avatar  emotion  translation           │
+├─────────────────────────────────────────────────────────┤
+│  Intelligence Layer                                     │
+│  reasoning  llm  memory  learning  self_improvement     │
+├─────────────────────────────────────────────────────────┤
+│  Orchestration Layer                                    │
+│  agents  goal_manager  policy  verifier  integration    │
+├─────────────────────────────────────────────────────────┤
+│  Infrastructure Layer                                   │
+│  platform  security  deployment  health  resilience     │
+└─────────────────────────────────────────────────────────┘
 ```
 
-## Cross-Module Interfaces
+## Critical Dependencies
 
-| From | To | Interface |
-|------|----|-----------|
-| orchestrator | speech_engine | `transcribe(audio, sr)`, `synthesize_to_array(text, personality)` |
-| orchestrator | llm_runtime | `complete(CompletionRequest)` |
-| orchestrator | memory | `search(query)` |
-| orchestrator | policy | `evaluate_policy(principal, resource, action)` |
-| orchestrator | platform | `open_application(name)`, `set_volume(n)` |
-| orchestrator | reasoning | `process(RawInput)` |
-| biometric_auth | speech_engine | local import — `extract_voice_features(audio)` |
-| biometric_auth | vision | `extract_face_embedding(image)` |
+```
+integration/orchestrator.py
+  ├── speech/engine.py
+  │     ├── speech/audio/wake_word.py
+  │     ├── speech/stt_manager.py
+  │     └── speech/tts_manager.py
+  ├── vision/engine.py
+  │     ├── vision/detection/detector.py
+  │     ├── vision/recognition/recognizer.py
+  │     └── vision/emotion/recognizer.py
+  ├── llm/llm_runtime.py
+  │     ├── llm/providers/openai_adapter.py
+  │     ├── llm/providers/google_adapter.py
+  │     ├── llm/providers/anthropic_adapter.py
+  │     └── llm/providers/ollama_adapter.py
+  ├── reasoning/engine.py
+  │     ├── reasoning/intent/engine.py
+  │     ├── reasoning/execution/executor.py
+  │     └── reasoning/knowledge/synthesizer.py
+  ├── memory/memory_manager.py
+  │     ├── memory/knowledge_graph.py
+  │     └── memory/conversation_memory.py
+  ├── agents/orchestrator.py
+  │     └── platform/os_controller.py
+  ├── security/security_system.py
+  │     ├── security/biometric_auth.py
+  │     └── security/crypto/identity.py
+  └── policy/engine.py
+```
+
+## Zero-Dependency Modules (leaf nodes)
+
+- `utils/path_utils.py`
+- `security/path_utils.py`
+- `training/seed_utils.py`
+- `resilience/cache.py`
+
+## Circular Dependency Check
+
+No circular imports detected. All dependencies flow downward through layers.

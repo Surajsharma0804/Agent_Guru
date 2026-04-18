@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: Agent_Guru.platform.integration.service_discovery
 Purpose: Service discovery for component registration and lookup.
 
@@ -208,7 +208,7 @@ class ServiceRegistry:
             self._health_check_task.cancel()
             try:
                 await self._health_check_task
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 pass
             self._health_check_task = None
         logger.info("Service discovery health checks stopped")

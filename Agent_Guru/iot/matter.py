@@ -130,7 +130,7 @@ class MatterController:
                 device.attributes.update(command.params)
                 device.last_updated = time.time()
             return result
-        except (RuntimeError, OSError):
+        except (RuntimeError, OSError) as e:
             logger.error("Device %s failed after all retries", command.device_id)
             return False
 

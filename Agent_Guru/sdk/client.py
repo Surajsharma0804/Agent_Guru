@@ -60,13 +60,13 @@ try:
                 raise ValueError("prompt must not be empty")
             return v
 
-except ImportError:
-    logger.warning("pydantic not installed — using lightweight request validation fallback")
+except ImportError as e:
+    logger.warning("pydantic not installed — using lightweight request validation fallback: %s", e)
 
     class TranscribeRequest:  # type: ignore[no-redef]
         def __init__(self, audio_b64: str, language: str | None = None) -> None:
             if not audio_b64:
-                raise InvalidParameterError("audio_b64", "must not be empty")
+                raise InvalidParameterError("audio_b64", "must not be empty") from e
             self.audio_b64 = audio_b64
             self.language = language
 

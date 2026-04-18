@@ -335,9 +335,9 @@ if __name__ == "__main__":
 
             uvicorn.run(app, host="0.0.0.0", port=8080)  # nosec B104
 
-        except ImportError:
-            logger.error("uvicorn not installed, cannot run server")
-            logger.info("Install with: pip install uvicorn")
+        except ImportError as e:
+            logger.error("uvicorn not installed, cannot run server: %s", e)
+            logger.info("Install with: pip install uvicorn: %s", e)
     else:
         logger.error("FastAPI not available, cannot create health app")
         logger.info("Install with: pip install fastapi uvicorn")

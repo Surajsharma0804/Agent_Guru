@@ -175,8 +175,8 @@ class PoseEstimator:
                         ]
                     }
                 ]
-        except ImportError:
-            logger.warning("PoseEstimator: MediaPipe not available")
+        except ImportError as e:
+            logger.warning("PoseEstimator: MediaPipe not available: %s", e)
             return []
 
     # ------------------------------------------------------------------

@@ -122,13 +122,13 @@ class SkillSandbox:
                     "stderr": stderr.decode("utf-8", errors="replace"),
                 }
 
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as e:
                 # Kill process on timeout
                 process.kill()
                 await process.wait()
                 raise TimeoutError(
                     f"Execution exceeded {self.config.resource_limits.max_execution_time_s}s limit"
-                )
+                ) from e
 
         finally:
             self.process = None

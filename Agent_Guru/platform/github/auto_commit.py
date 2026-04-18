@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: agent_guru.platform.github.auto_commit
 Purpose: Automatic commit and push with task completion detection and batching
 
@@ -198,7 +198,7 @@ class AutoCommitManager:
             self._batch_task.cancel()
             try:
                 await self._batch_task
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 pass
 
         logger.info("AutoCommitManager stopped")
@@ -230,6 +230,9 @@ class AutoCommitManager:
             raise ValueError("Task ID cannot be empty")
 
         start_time = datetime.now(tz=timezone.utc)
+
+        try:
+            changed_files = await self._detect_changed_files(task_context)
 
             if not changed_files:
                 logger.info("No changes detected for task %s", task_context.task_id)
@@ -398,7 +401,7 @@ class AutoCommitManager:
                 # Process pending commits
                 await self._process_pending_commits()
 
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 break
             except Exception as e:
                 logger.error("Error in batch processor: %s", e)

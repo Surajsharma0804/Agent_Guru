@@ -1,4 +1,4 @@
-﻿"""
+"""
 Memory System Integration - Interface for persistent storage integration.
 
 This module provides integration hooks for the memory system to enable

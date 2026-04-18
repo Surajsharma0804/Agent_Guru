@@ -260,8 +260,10 @@ class EntityAnnotator:
 
         if "recipient" in expected or not expected:
             # Pattern: after "to/call/message/text/email/phone/ring/contact"
+            # Negative lookahead prevents matching "message saying/that ..." (that's message_content)
             for pat in [
-                r"(?:to|call|message|text|email|phone|ring|contact|send\s+(?:a\s+)?(?:message|text|email)\s+to)\s+([A-Za-z][a-z]+(?:\s+[A-Za-z][a-z]+)?)",
+                r"(?:to|call|message|text|email|phone|ring|contact|send\s+(?:a\s+)?(?:message|text|email)\s+to)\s+(?!saying\b|that\b)([A-Za-z][a-z]+(?:\s+[A-Za-z][a-z]+)?)\s*(?:saying\b|that\b|$)",
+                r"(?:to|call|message|text|email|phone|ring|contact|send\s+(?:a\s+)?(?:message|text|email)\s+to)\s+(?!saying\b|that\b)([A-Za-z][a-z]+)(?:\s+[A-Za-z][a-z]+)?(?=\s+(?:saying|that)\b|$)",
                 r"(?:call|phone|ring)\s+(mom|dad|wife|husband|boss|sister|brother)",
             ]:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
@@ -313,9 +315,10 @@ class EntityAnnotator:
                         entities.append((task_text, m.start(1), m.end(1), "task"))
 
         if "message_content" in expected or not expected:
-            # Extract message content after "saying/that/message"
+            # Extract message content after "saying/that/message" — but NOT when
+            # "message to <name>" pattern is present (that's a recipient, not content)
             for pat in [
-                r"(?:saying|that|message)\s+['\"]?(.+?)['\"]?$",
+                r"(?:saying|that)\s+['\"]?(.+?)['\"]?$",
                 r"(?:text|message)\s+\w+\s+(?:saying|that)\s+(.+?)$",
             ]:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):

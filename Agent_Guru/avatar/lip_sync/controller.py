@@ -154,8 +154,8 @@ class AudioFeatureExtractor:
         try:
             import librosa  # noqa: F401
             return True
-        except ImportError:
-            logger.debug("librosa not available — using energy fallback")
+        except ImportError as e:
+            logger.debug("librosa not available — using energy fallback: %s", e)
             return False
 
 
@@ -334,8 +334,8 @@ class LandmarkGenerator:
         try:
             import mediapipe  # noqa: F401
             return True
-        except ImportError:
-            logger.debug("MediaPipe not available — using parametric landmarks")
+        except ImportError as e:
+            logger.debug("MediaPipe not available — using parametric landmarks: %s", e)
             return False
 
 

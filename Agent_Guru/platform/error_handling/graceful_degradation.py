@@ -390,7 +390,7 @@ class DegradationManager:
         self._monitoring_task.cancel()
         try:
             await self._monitoring_task
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as e:
             pass
 
         self._monitoring_task = None
@@ -622,7 +622,7 @@ class DegradationManager:
                                     f"Resources recovered: CPU={cpu:.1f}%, Memory={memory:.1f}%"
                                 )
 
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 raise
             except Exception as e:
                 logger.error("Error in monitoring loop: %s", e)

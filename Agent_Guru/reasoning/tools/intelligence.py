@@ -460,7 +460,7 @@ class ToolStats(BaseModel):
                 # Send alert (works in both sync and async contexts)
                 try:
                     asyncio.get_running_loop()
-                    asyncio.create_task(_alert_manager.send_alert(alert))
+                    _task = asyncio.create_task(_alert_manager.send_alert(alert))
                 except RuntimeError:
                     # No event loop running, send synchronously
                     asyncio.run(_alert_manager.send_alert(alert))
@@ -1003,7 +1003,7 @@ class ToolIntelligenceEngine:
 
         # Write to file
         self._stats_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self._stats_file, "w") as f:
+        with open(self._stats_file, "w", encoding='utf-8') as f:
             json.dump(stats_data, f, indent=2, default=str)
 
     def _load_stats(self) -> None:
@@ -1012,7 +1012,7 @@ class ToolIntelligenceEngine:
             return
 
         try:
-            with open(self._stats_file) as f:
+            with open(self._stats_file, encoding='utf-8') as f:
                 stats_data = json.load(f)
 
             # Convert from JSON to ToolStats objects
@@ -1036,7 +1036,7 @@ class ToolIntelligenceEngine:
 
         # Write to file
         self._preferences_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self._preferences_file, "w") as f:
+        with open(self._preferences_file, "w", encoding='utf-8') as f:
             json.dump(prefs_data, f, indent=2, default=str)
 
     def _load_preferences(self) -> None:
@@ -1045,7 +1045,7 @@ class ToolIntelligenceEngine:
             return
 
         try:
-            with open(self._preferences_file) as f:
+            with open(self._preferences_file, encoding='utf-8') as f:
                 prefs_data = json.load(f)
 
             # Convert from JSON to UserToolPreference objects

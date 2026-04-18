@@ -215,7 +215,8 @@ class ModelRouterClient:
 
         # Verify fallback completed within 1 second
         elapsed = time.time() - start_time
-        assert elapsed < 1.0, f"Fallback took {elapsed:.3f}s, must be <1s"
+        if not (elapsed < 1.0):
+            raise AssertionError(f"Fallback took {elapsed:.3f}s, must be <1s")
 
         return model_info
 

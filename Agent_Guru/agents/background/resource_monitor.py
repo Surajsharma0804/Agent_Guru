@@ -1,4 +1,4 @@
-﻿"""
+"""
 Resource Monitor - Monitors battery, thermal, network, and audio focus.
 
 Tracks system resource states and triggers appropriate responses:

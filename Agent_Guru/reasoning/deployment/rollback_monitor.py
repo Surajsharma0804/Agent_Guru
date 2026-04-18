@@ -530,8 +530,8 @@ async def main():
 
     try:
         await monitor.start_monitoring()
-    except KeyboardInterrupt:
-        logger.info("shutting_down")
+    except KeyboardInterrupt as e:
+        logger.info("shutting_down: %s", e)
         monitor.stop_monitoring()
 
 

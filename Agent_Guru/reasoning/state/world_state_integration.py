@@ -132,8 +132,8 @@ class WorldStateContextGenerator:
         try:
             start = datetime.fromisoformat(proposed_start)
             end = datetime.fromisoformat(proposed_end)
-        except ValueError:
-            logger.warning("invalid_datetime_format")
+        except ValueError as e:
+            logger.warning("invalid_datetime_format: %s", e)
             return []
 
         conflicts = []

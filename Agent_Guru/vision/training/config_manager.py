@@ -439,6 +439,6 @@ def verify_gpu() -> dict[str, Any]:
             )
         else:
             logger.warning("No GPU available. Training will use CPU.")
-    except ImportError:
-        logger.warning("PyTorch not installed; cannot verify GPU.")
+    except ImportError as e:
+        logger.warning("PyTorch not installed; cannot verify GPU.: %s", e)
     return result

@@ -228,10 +228,10 @@ class ApplicationController:
             logger.info("Successfully launched %s with PID %s", app_name, pid)
             return pid
 
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             logger.error("Application not found: %s", app_name)
             raise
-        except PermissionError:
+        except PermissionError as e:
             logger.error("Permission denied to launch: %s", app_name)
             raise
         except Exception as e:
@@ -394,7 +394,7 @@ class ApplicationController:
                             deep = os.path.join(sub_dir, sub2, exe_name)
                             if deep.startswith(prog_dir_real + os.sep) and os.path.exists(deep):
                                 return deep
-            except (PermissionError, OSError):
+            except (PermissionError, OSError) as e:
                 continue
 
         # 4. Last resort: return the bare exe name and let the OS find it
@@ -567,7 +567,7 @@ class ApplicationController:
 
             return success
 
-        except ProcessLookupError:
+        except ProcessLookupError as e:
             logger.error("Application not found: %s", app_identifier)
             raise
         except Exception as e:
@@ -752,8 +752,8 @@ class ApplicationController:
             win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
             return True
 
-        except ImportError:
-            logger.error("pywin32 not available")
+        except ImportError as e:
+            logger.error("pywin32 not available: %s", e)
             return False
         except Exception as e:
             logger.error("Failed to minimize window: %s", e)
@@ -862,8 +862,8 @@ class ApplicationController:
         except ValueError as e:
             logger.error("Invalid window identifier: %s", e)
             return False
-        except FileNotFoundError:
-            logger.warning("wmctrl not available, trying xdotool")
+        except FileNotFoundError as e:
+            logger.warning("wmctrl not available, trying xdotool: %s", e)
             try:
                 # Sanitize input for xdotool
                 safe_identifier = self._sanitize_window_identifier(window_identifier)
@@ -877,8 +877,8 @@ class ApplicationController:
             except ValueError as e:
                 logger.error("Invalid window identifier: %s", e)
                 return False
-            except FileNotFoundError:
-                logger.error("Neither wmctrl nor xdotool available")
+            except FileNotFoundError as e:
+                logger.error("Neither wmctrl nor xdotool available: %s", e)
                 return False
         except Exception as e:
             logger.error("Failed to minimize window: %s", e)
@@ -1004,7 +1004,7 @@ class ApplicationController:
                     timeout=5.0
                 )
                 return result.returncode == 0
-            except (ValueError, FileNotFoundError):
+            except (ValueError, FileNotFoundError) as e:
                 return False
         except Exception as e:
             logger.error("Failed to maximize window: %s", e)
@@ -1122,7 +1122,7 @@ class ApplicationController:
         except ValueError as e:
             logger.error("Invalid window identifier: %s", e)
             return False
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             return False
         except Exception as e:
             logger.error("Failed to restore window: %s", e)
@@ -1250,7 +1250,7 @@ class ApplicationController:
                     timeout=5.0
                 )
                 return result.returncode == 0
-            except (ValueError, FileNotFoundError):
+            except (ValueError, FileNotFoundError) as e:
                 return False
         except Exception as e:
             logger.error("Failed to focus window: %s", e)
@@ -1452,8 +1452,8 @@ class ApplicationController:
 
             return windows
 
-        except FileNotFoundError:
-            logger.warning("wmctrl not available")
+        except FileNotFoundError as e:
+            logger.warning("wmctrl not available: %s", e)
             return []
         except Exception as e:
             logger.error("Failed to list windows: %s", e)

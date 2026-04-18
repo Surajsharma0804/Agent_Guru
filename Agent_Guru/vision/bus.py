@@ -1,4 +1,4 @@
-﻿"""
+"""
 Vision Event Bus for the Agent Guru Vision System.
 
 Provides async pub/sub delivery of VisionEvents to registered subscribers,

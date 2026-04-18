@@ -37,7 +37,7 @@ from typing import Any, Optional
 try:
     from jnius import autoclass, cast
     ANDROID_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     ANDROID_AVAILABLE = False
     autoclass = None
     cast = None
@@ -187,7 +187,7 @@ class AndroidIntegration:
             logger.info("Launched app: %s", package_name)
             return True
 
-        except AppNotFoundError:
+        except AppNotFoundError as e:
             raise
         except Exception as e:
             logger.error("Failed to launch app %s: %s", package_name, e)
@@ -295,7 +295,7 @@ class AndroidIntegration:
                 technology=technology,
             )
 
-        except AndroidIntegrationError:
+        except AndroidIntegrationError as e:
             raise
         except Exception as e:
             logger.error("Failed to get battery info: %s", e)
@@ -423,7 +423,7 @@ class AndroidIntegration:
             logger.error("Failed to request battery optimization exemption: %s", e)
             raise AndroidIntegrationError(
                 f"Failed to request battery optimization exemption: {e}"
-            )
+            ) from e
 
     def is_battery_optimization_exempted(self) -> bool:
         """Check if app is exempted from battery optimization."""

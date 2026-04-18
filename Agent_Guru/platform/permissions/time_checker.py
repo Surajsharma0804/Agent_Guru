@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: Agent_Guru.platform.permissions.time_checker
 Purpose: Enhanced time-based permission validation with timezone support
 
@@ -154,7 +154,7 @@ class TimeWindow:
             raise ValueError(
                 f"Invalid time range format: {time_range}. "
                 f"Expected format: HH:MM-HH:MM. Error: {e}"
-            )
+            ) from e
 
     def __str__(self) -> str:
         """String representation."""
@@ -280,7 +280,7 @@ class TimeRestriction:
         try:
             from zoneinfo import ZoneInfo
             return ZoneInfo(tz_name)
-        except ImportError:
+        except ImportError as e:
             # Fallback for Python < 3.9
             logger.warning(
                 f"zoneinfo not available. Using UTC offset for {tz_name}. "

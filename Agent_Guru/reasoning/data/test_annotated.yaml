@@ -143,8 +143,8 @@
   utterance: qwerty uiop for me
 - entities:
   - end: 19
-    start: 12
-    text: my wife
+    start: 15
+    text: wife
     type: recipient
   intent: send_message
   utterance: please text my wife I'm on my way
@@ -333,8 +333,8 @@
   utterance: start the coffee maker now
 - entities:
   - end: 29
-    start: 22
-    text: to john
+    start: 25
+    text: john
     type: recipient
   intent: send_email
   utterance: quickly send an email to john@example.com
@@ -379,8 +379,8 @@
   utterance: remove event from calendar right now
 - entities:
   - end: 13
-    start: 6
-    text: my boss
+    start: 9
+    text: boss
     type: recipient
   intent: send_email
   utterance: email my boss about the project
@@ -657,13 +657,9 @@
   intent: confirmation
   utterance: quickly go ahead
 - entities:
-  - end: 25
-    start: 19
-    text: to the
-    type: recipient
   - end: 32
-    start: 26
-    text: office
+    start: 22
+    text: the office
     type: recipient
   intent: make_call
   utterance: for me make a call to the office
@@ -741,10 +737,10 @@
   intent: control_thermostat
   utterance: quickly what's the temperature
 - entities:
-  - end: 41
-    start: 8
-    text: the team about the update quickly
-    type: message_content
+  - end: 16
+    start: 12
+    text: team
+    type: recipient
   intent: send_message
   utterance: message the team about the update quickly
 - entities:
@@ -801,10 +797,10 @@
   intent: close_app
   utterance: quickly quit calendar
 - entities:
-  - end: 32
-    start: 15
-    text: to John right now
-    type: message_content
+  - end: 22
+    start: 18
+    text: John
+    type: recipient
   intent: send_message
   utterance: send a message to John right now
 - entities:
@@ -1195,13 +1191,9 @@
   intent: make_call
   utterance: dial 555-1234 quickly
 - entities:
-  - end: 26
-    start: 20
-    text: to the
-    type: recipient
   - end: 33
-    start: 27
-    text: office
+    start: 23
+    text: the office
     type: recipient
   intent: make_call
   utterance: quickly make a call to the office
@@ -1393,9 +1385,9 @@
   intent: close_app
   utterance: close Spotify now
 - entities:
-  - end: 14
+  - end: 8
     start: 5
-    text: mom right
+    text: mom
     type: recipient
   intent: make_call
   utterance: call mom right now
@@ -1865,11 +1857,7 @@
     type: action
   intent: next_track
   utterance: skip this quickly
-- entities:
-  - end: 19
-    start: 11
-    text: with the
-    type: recipient
+- entities: []
   intent: send_email
   utterance: send email with the report for me
 - entities:
@@ -1985,9 +1973,9 @@
   intent: cancel_timer
   utterance: cancel all timers for me
 - entities:
-  - end: 24
-    start: 14
-    text: to support
+  - end: 32
+    start: 17
+    text: support quickly
     type: recipient
   intent: send_email
   utterance: send an email to support quickly
@@ -2117,10 +2105,6 @@
   intent: multi_intent
   utterance: check weather and set umbrella reminder right now
 - entities:
-  - end: 22
-    start: 6
-    text: the presentation
-    type: recipient
   - end: 40
     start: 26
     text: clients please
@@ -2193,8 +2177,8 @@
   utterance: exit YouTube for me
 - entities:
   - end: 12
-    start: 5
-    text: my wife
+    start: 8
+    text: wife
     type: recipient
   intent: send_message
   utterance: text my wife I'm on my way please
@@ -2304,10 +2288,6 @@
   intent: help_request
   utterance: show me how
 - entities:
-  - end: 25
-    start: 19
-    text: saying
-    type: recipient
   - end: 34
     start: 26
     text: I'm here
@@ -2315,9 +2295,9 @@
   intent: send_message
   utterance: for me send a text saying I'm here
 - entities:
-  - end: 22
+  - end: 18
     start: 13
-    text: Sarah the
+    text: Sarah
     type: recipient
   intent: send_email
   utterance: please email Sarah the meeting notes

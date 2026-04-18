@@ -89,7 +89,8 @@ class StorageError(GoalManagerError):
         try:
             await storage.store_goal(goal)
         except StorageError as e:
-            logger.error(f"Failed to store goal {goal.id}: {e}")
+            logger.error("Failed to store goal %s: %s", goal.id, e")
+
             # Retry with backoff or notify user
 
     Attributes:
@@ -123,7 +124,8 @@ class DecompositionError(GoalManagerError):
         try:
             sub_goals = await decomposer.decompose(goal)
         except DecompositionError as e:
-            logger.error(f"Failed to decompose goal {goal.id}: {e}")
+            logger.error("Failed to decompose goal %s: %s", goal.id, e")
+
             goal.status = GoalStatus.FAILED
             goal.error_message = str(e)
 
@@ -160,7 +162,8 @@ class ValidationError(GoalManagerError):
         try:
             dependency_resolver.validate_dependencies(goal)
         except ValidationError as e:
-            logger.error(f"Validation failed for goal {goal.id}: {e}")
+            logger.error("Validation failed for goal %s: %s", goal.id, e")
+
             # Return error to user with suggested fix
 
     Attributes:

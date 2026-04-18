@@ -1,4 +1,4 @@
-﻿"""Core data models for the Memory System.
+"""Core data models for the Memory System.
 
 All models use Pydantic v2 for validation. Confidence scores are
 constrained to [0.0, 1.0]. All identifiers are UUIDs.

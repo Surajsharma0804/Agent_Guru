@@ -1,4 +1,4 @@
-﻿"""
+"""
 Module: Agent_Guru.platform.integration.goal_manager_client
 Purpose: Goal Manager integration client for task completion notifications
 

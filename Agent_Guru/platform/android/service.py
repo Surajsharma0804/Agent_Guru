@@ -33,7 +33,7 @@ from typing import Optional
 try:
     from jnius import PythonJavaClass, autoclass, cast, java_method
     ANDROID_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     ANDROID_AVAILABLE = False
     autoclass = None
     cast = None

@@ -243,8 +243,8 @@ class ReportGenerator:
                 figures["failure_distribution"] = fig
                 plt.close(fig)
 
-        except ImportError:
-            logger.warning("matplotlib not available; skipping visualizations")
+        except ImportError as e:
+            logger.warning("matplotlib not available; skipping visualizations: %s", e)
 
         return figures
 
@@ -327,7 +327,7 @@ class ReportGenerator:
                 story.append(Paragraph(f"• {rec}", styles["Normal"]))
             doc.build(story)
             logger.info("PDF report written to '%s'", output_path)
-        except ImportError:
+        except ImportError as e:
             # Fallback to HTML
             html_path = output_path.replace(".pdf", ".html")
             self.export_html(report, html_path)

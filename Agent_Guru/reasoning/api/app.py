@@ -259,7 +259,7 @@ def create_app(
                 timestamp=result.timestamp,
             )
 
-        except HTTPException:
+        except HTTPException as e:
             raise
         except Exception as e:
             # Track error
@@ -281,7 +281,7 @@ def create_app(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Processing failed: {str(e)}",
-            )
+            ) from e
 
     # Conversations endpoint
     @app.get(
@@ -353,7 +353,7 @@ def create_app(
                 updated_at=state.updated_at,
             )
 
-        except HTTPException:
+        except HTTPException as e:
             raise
         except Exception as e:
             logger.error(
@@ -366,7 +366,7 @@ def create_app(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve conversation: {str(e)}",
-            )
+            ) from e
 
     # List conversations endpoint
     @app.get(
@@ -422,7 +422,7 @@ def create_app(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to list conversations: {str(e)}",
-            )
+            ) from e
 
     # Tasks endpoint
     @app.get(
@@ -479,7 +479,7 @@ def create_app(
                 updated_at=task_info["updated_at"],
             )
 
-        except HTTPException:
+        except HTTPException as e:
             raise
         except Exception as e:
             logger.error(
@@ -492,7 +492,7 @@ def create_app(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve task status: {str(e)}",
-            )
+            ) from e
 
     # Statistics endpoint
     @app.get(
@@ -527,7 +527,7 @@ def create_app(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve statistics: {str(e)}",
-            )
+            ) from e
 
     # WebSocket endpoint
     @app.websocket("/v1/ws")

@@ -100,7 +100,7 @@ def temp_model_dir(label_mappings):
 
         # Create label mappings
         mappings_path = tmpdir_path / "label_mappings.yaml"
-        with open(mappings_path, "w") as f:
+        with open(mappings_path, "w", encoding='utf-8') as f:
             yaml.dump(label_mappings, f)
 
         yield tmpdir_path

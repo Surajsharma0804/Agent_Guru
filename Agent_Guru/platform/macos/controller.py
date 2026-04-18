@@ -37,22 +37,22 @@ try:
     import pyautogui  # type: ignore[import]
     pyautogui.FAILSAFE = False
     _PYAUTOGUI_AVAILABLE = True
-except ImportError:
-    logger.warning("pyautogui not available – keyboard/mouse simulation limited")
+except ImportError as e:
+    logger.warning("pyautogui not available – keyboard/mouse simulation limited: %s", e)
 
 if sys.platform == "darwin":
     try:
         import AppKit  # type: ignore[import]
         import Foundation  # type: ignore[import]
         _APPKIT_AVAILABLE = True
-    except ImportError:
-        logger.warning("pyobjc-framework-AppKit not available")
+    except ImportError as e:
+        logger.warning("pyobjc-framework-AppKit not available: %s", e)
 
     try:
         import Quartz  # type: ignore[import]
         _QUARTZ_AVAILABLE = True
-    except ImportError:
-        logger.warning("pyobjc-framework-Quartz not available")
+    except ImportError as e:
+        logger.warning("pyobjc-framework-Quartz not available: %s", e)
 
 
 # ---------------------------------------------------------------------------

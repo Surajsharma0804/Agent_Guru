@@ -118,7 +118,7 @@ class ZKProofSystem:
                 nonce=nonce,
             )
 
-        except ZKProofError:
+        except ZKProofError as e:
             raise
         except Exception as exc:
             raise ZKProofError(f"Proof generation failed: type={type(exc).__name__}") from exc
@@ -183,7 +183,7 @@ class ZKProofSystem:
 
             return valid
 
-        except (ReplayAttackError, ZKProofError):
+        except (ReplayAttackError, ZKProofError) as e:
             raise
         except Exception as exc:
             raise ZKProofError(f"Verification failed: type={type(exc).__name__}") from exc

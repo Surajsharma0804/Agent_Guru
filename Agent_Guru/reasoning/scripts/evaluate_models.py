@@ -132,7 +132,7 @@ class IntentClassifierEvaluator:
         mappings_path = (self.model_path / "intent_mappings.json").resolve()
         if not str(mappings_path).startswith(str(base := Path("Agent_Guru/reasoning/models").resolve())):
             raise ValueError(f"intent_mappings.json path outside allowed directory")
-        with open(mappings_path) as f:  # nosec B101
+        with open(mappings_path, encoding='utf-8') as f:  # nosec B101
             mappings = json.load(f)
         self.intent_to_id = mappings["intent_to_id"]
         self.id_to_intent = {int(k): v for k, v in mappings["id_to_intent"].items()}
@@ -194,7 +194,7 @@ class IntentClassifierEvaluator:
             raise ValueError(f"test_data_path outside allowed directory: {test_data_path}")
 
         # Load test data
-        with open(resolved_test) as f:  # nosec B101
+        with open(resolved_test, encoding='utf-8') as f:  # nosec B101
             test_data = yaml.safe_load(f)
 
         print(f"Test set size: {len(test_data)}")
@@ -323,7 +323,7 @@ class IntentClassifierEvaluator:
 
         # Save results
         output_path = self.model_path / "evaluation_results.json"
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding='utf-8') as f:
             json.dump(asdict(results), f, indent=2)
         print(f"\n✓ Results saved to: {output_path}")
 

@@ -154,8 +154,8 @@ class GuruVisionIntegration:
                 [o.name for o in outputs],
             )
             return True
-        except ImportError:
-            logger.warning("onnxruntime not available; skipping ONNX validation")
+        except ImportError as e:
+            logger.warning("onnxruntime not available; skipping ONNX validation: %s", e)
             return True
         except Exception as exc:
             logger.error("ONNX compatibility check failed: %s", exc)

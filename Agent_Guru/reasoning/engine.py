@@ -961,7 +961,7 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
                         stage_latencies=stage_latencies,
                     )
 
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 # Re-raise CancelledError — it must not be swallowed; it signals
                 # task cancellation and must propagate to the event loop.
                 raise

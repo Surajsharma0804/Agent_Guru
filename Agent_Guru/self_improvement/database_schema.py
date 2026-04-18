@@ -1,4 +1,4 @@
-﻿"""
+"""
 Database schema for Self-Improvement Engine.
 
 This module defines the SQLite database schema for storing:

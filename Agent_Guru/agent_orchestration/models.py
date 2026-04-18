@@ -1,4 +1,4 @@
-﻿"""
+"""
 Core data models for Agent Orchestration System.
 
 Defines agents, tasks, performance records, and evolution events using Pydantic

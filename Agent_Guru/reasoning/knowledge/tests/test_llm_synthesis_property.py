@@ -60,7 +60,7 @@ def memory_strategy(draw):
     content = draw(st.text(min_size=1, max_size=500))
     memory_type = draw(st.sampled_from(list(MemoryType)))
     days_ago = draw(st.integers(min_value=0, max_value=365))
-    timestamp = datetime.utcnow() - timedelta(days=days_ago)
+    timestamp = datetime.now(tz=timezone.utc) - timedelta(days=days_ago)
     relevance_score = draw(st.floats(min_value=0.0, max_value=1.0))
 
     return Memory(
@@ -347,7 +347,7 @@ class TestAnswerCreationProperties:
                 user_id="user1",
                 content=f"Memory {i}",
                 memory_type=MemoryType.SEMANTIC,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 relevance_score=0.9,
             )
             for i in range(num_memories)
@@ -392,7 +392,7 @@ class TestConfidenceIndicatorProperties:
                 user_id="user1",
                 content="Test",
                 memory_type=MemoryType.SEMANTIC,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 relevance_score=0.9,
             )
         ]
@@ -431,7 +431,7 @@ class TestConfidenceIndicatorProperties:
                 user_id="user1",
                 content="Test",
                 memory_type=MemoryType.SEMANTIC,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(tz=timezone.utc),
                 relevance_score=0.9,
             )
         ]

@@ -49,7 +49,7 @@ import psutil
 try:
     # pyobjc imports for native Objective-C API access
     PYOBJC_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     PYOBJC_AVAILABLE = False
     logging.warning("pyobjc not available - some macOS features will be limited")
 
@@ -737,7 +737,7 @@ class MacOSIntegration:
                     memory_percent=info['memory_percent'] or 0.0,
                     create_time=info['create_time']
                 ))
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
+            except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
                 # Process terminated or access denied - skip it
                 continue
 

@@ -177,7 +177,7 @@ class BackgroundServiceOrchestrator:
             self._watchdog_task.cancel()
             try:
                 await self._watchdog_task
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 pass
 
         for name in list(self.services.keys()):

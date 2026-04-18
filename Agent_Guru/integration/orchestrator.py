@@ -317,7 +317,7 @@ class IntegrationOrchestrator:
                 if device_cfg is not None:
                     try:
                         await asyncio.to_thread(init, device_cfg=device_cfg)
-                    except TypeError:
+                    except TypeError as e:
                         await loop.run_in_executor(None, init)
                 else:
                     await loop.run_in_executor(None, init)
@@ -729,7 +729,7 @@ class IntegrationOrchestrator:
                     loop = asyncio.get_running_loop()
                     result = await loop.run_in_executor(None, process_fn, raw)
                 return result
-            except ImportError:
+            except ImportError as e:
                 # RawInput not available — call with transcript only
                 if asyncio.iscoroutinefunction(process_fn):
                     return await process_fn(transcript)
@@ -824,7 +824,7 @@ class IntegrationOrchestrator:
                 )
                 response = await complete_fn(request)
                 return response.content or ""
-            except ImportError:
+            except ImportError as e:
                 return ""
 
         except Exception as exc:
@@ -924,7 +924,7 @@ class IntegrationOrchestrator:
                 if hasattr(decision, "effect"):
                     return decision.effect.value.upper() == "ALLOW"
                 return bool(decision)
-            except ImportError:
+            except ImportError as e:
                 return False  # Can't build Principal/Resource — deny by default (secure)
 
         except Exception as exc:
@@ -967,7 +967,7 @@ class IntegrationOrchestrator:
                     # Only return if we got a real result; otherwise fall through
                     if result is not None:
                         return result
-                except AttributeError:
+                except AttributeError as e:
                     pass  # execute() not found — fall through to direct platform control
                 except Exception as exc:
                     logger.warning("Agent orchestrator execute failed: %s — trying direct platform control", exc)
@@ -1449,7 +1449,7 @@ class IntegrationOrchestrator:
                     loop = asyncio.get_running_loop()
                     await loop.run_in_executor(None, _play)
                     logger.info("TTS played: %.1fs of audio", len(audio_array) / sample_rate)
-                except ImportError:
+                except ImportError as e:
                     logger.warning(
                         "sounddevice not installed — TTS audio not played. "
                         "Run: pip install sounddevice"
