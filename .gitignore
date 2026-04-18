@@ -251,6 +251,16 @@ test_logs/
 bandit_results.json
 FULL_REPOSITORY_AUDIT_REPORT.txt
 
+# Generated run artifacts (timestamped outputs, not source)
+Agent_Guru/self_improvement/validation/results/
+Agent_Guru/self_improvement/benchmarks/results/
+
+# TensorBoard training logs (generated during training runs)
+Agent_Guru/reasoning/logs/
+
+# Empty hidden folders
+.guru/
+
 # Root-level model weight files (should live under models/)
 /*.pt
 /*.pth
