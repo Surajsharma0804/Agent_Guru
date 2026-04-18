@@ -1,410 +1,194 @@
 - entities: []
   intent: system_command
-  utterance: adjust brightness
+  utterance: please take a screenshot
 - entities: []
-  intent: make_call
-  utterance: please make a call to the office
+  intent: query_fact
+  utterance: what is the capital of France for me
 - entities:
-  - end: 32
-    start: 27
-    text: today
-    type: date
-  intent: query_events
-  utterance: right now any appointments today
-- entities: []
-  intent: confirmation
-  utterance: for me absolutely
-- entities: []
-  intent: send_email
-  utterance: right now send email about vacation request
-- entities: []
-  intent: open_app
-  utterance: quickly launch calendar
-- entities: []
+  - end: 28
+    start: 23
+    text: Paris
+    type: location
   intent: query_time
-  utterance: what's the time
+  utterance: please current time in Paris
+- entities:
+  - end: 36
+    start: 26
+    text: 15 minutes
+    type: duration
+  intent: set_timer
+  utterance: please put on a timer for 15 minutes
 - entities: []
-  intent: control_lights
-  utterance: turn on the lights
+  intent: control_device
+  utterance: now turn off all devices
 - entities: []
-  intent: stop_media
-  utterance: now turn music off
+  intent: query_weather
+  utterance: for me is it going to snow this weekend
+- entities:
+  - end: 28
+    start: 25
+    text: 3pm
+    type: time
+  intent: set_reminder
+  utterance: remind me to call mom at 3pm now
 - entities: []
   intent: multi_intent
-  utterance: send message to John and call mom
+  utterance: create event tomorrow and set reminder
+- entities: []
+  intent: stop_media
+  utterance: stop the video for me
 - entities:
-  - end: 43
-    start: 37
-    text: Friday
-    type: date
-  intent: set_reminder
-  utterance: please remind me to submit report by Friday
+  - end: 26
+    start: 23
+    text: 4pm
+    type: time
+  intent: update_event
+  utterance: for me move meeting to 4pm
+- entities: []
+  intent: open_app
+  utterance: start YouTube quickly
 - entities:
-  - end: 30
-    start: 19
-    text: next Monday
+  - end: 23
+    start: 15
+    text: New York
+    type: location
+  intent: query_time
+  utterance: for me time in New York
+- entities:
+  - end: 12
+    start: 5
+    text: Netflix
+    type: app_name
+  intent: close_app
+  utterance: exit Netflix
+- entities: []
+  intent: query_events
+  utterance: what's coming up
+- entities: []
+  intent: stop_media
+  utterance: for me turn off the music
+- entities: []
+  intent: play_music
+  utterance: play my favorite songs
+- entities: []
+  intent: pause_media
+  utterance: pause the song for me
+- entities: []
+  intent: cancellation
+  utterance: don't do that right now
+- entities:
+  - end: 35
+    start: 26
+    text: next week
     type: date
-  intent: create_event
-  utterance: create meeting for next Monday now
+  intent: update_event
+  utterance: right now change event to next week
+- entities: []
+  intent: send_message
+  utterance: send a text saying I'm here for me
+- entities: []
+  intent: clarification_request
+  utterance: come again right now
+- entities:
+  - end: 17
+    start: 13
+    text: boss
+    type: recipient
+  intent: send_message
+  utterance: send text to boss about the report now
 - entities: []
   intent: control_lights
   utterance: turn off bedroom lights
 - entities:
-  - end: 35
-    start: 27
-    text: tomorrow
-    type: date
-  intent: create_event
-  utterance: for me create an event for tomorrow
-- entities: []
-  intent: confirmation
-  utterance: for me okay
-- entities: []
-  intent: next_track
-  utterance: go to next track quickly
-- entities: []
-  intent: cancel_timer
-  utterance: now cancel the timer
-- entities: []
-  intent: clarification_request
-  utterance: I didn't catch that for me
-- entities:
-  - end: 22
-    start: 19
-    text: '72 '
-    type: temperature
-  intent: control_thermostat
-  utterance: set temperature to 72 right now
-- entities: []
-  intent: query_weather
-  utterance: right now do I need an umbrella
-- entities: []
-  intent: update_event
-  utterance: reschedule dentist appointment
-- entities:
-  - end: 19
-    start: 14
-    text: today
-    type: date
-  intent: query_weather
-  utterance: how hot is it today right now
-- entities: []
-  intent: query_weather
-  utterance: for me temperature outside
-- entities:
-  - end: 32
-    start: 26
-    text: London
-    type: location
-  intent: query_weather
-  utterance: now what's the weather in London
-- entities: []
-  intent: cancel_timer
-  utterance: cancel all timers now
-- entities:
-  - end: 31
-    start: 23
-    text: tomorrow
-    type: date
-  intent: query_events
-  utterance: now what's my schedule tomorrow
-- entities: []
-  intent: query_fact
-  utterance: what is the largest ocean
-- entities: []
-  intent: control_thermostat
-  utterance: make it warmer quickly
-- entities: []
-  intent: multi_intent
-  utterance: activate lights and set temperature to 72
-- entities: []
-  intent: help_request
-  utterance: please how do I
-- entities: []
-  intent: create_event
-  utterance: quickly add gym session to calendar
-- entities: []
-  intent: next_track
-  utterance: next song
-- entities:
-  - end: 21
-    start: 12
+  - end: 17
+    start: 8
     text: next week
     type: date
-  intent: query_weather
-  utterance: weather for next week please
-- entities: []
-  intent: create_event
-  utterance: add dentist appointment to calendar quickly
-- entities: []
-  intent: control_device
-  utterance: unlock front door
-- entities: []
-  intent: delete_event
-  utterance: remove event from calendar
-- entities: []
-  intent: previous_track
-  utterance: play previous now
-- entities:
-  - end: 25
-    start: 22
-    text: 3pm
-    type: time
-  intent: create_event
-  utterance: schedule a meeting at 3pm please
-- entities: []
-  intent: make_call
-  utterance: please call customer service
-- entities: []
-  intent: delete_event
-  utterance: cancel dentist appointment
-- entities:
-  - end: 19
-    start: 16
-    text: 4pm
-    type: time
-  intent: update_event
-  utterance: move meeting to 4pm
-- entities:
-  - end: 8
-    start: 5
-    text: mom
-    type: recipient
-  intent: make_call
-  utterance: call mom
-- entities: []
-  intent: query_time
-  utterance: now can you tell me the time
-- entities: []
-  intent: confirmation
-  utterance: that's right please
-- entities:
-  - end: 23
-    start: 20
-    text: 4pm
-    type: time
-  intent: update_event
-  utterance: now move meeting to 4pm
-- entities: []
-  intent: open_app
-  utterance: open settings please
-- entities: []
-  intent: confirmation
-  utterance: now go ahead
-- entities: []
-  intent: stop_media
-  utterance: now stop
-- entities: []
-  intent: system_command
-  utterance: turn down volume right now
-- entities: []
-  intent: cancellation
-  utterance: negative
-- entities: []
-  intent: next_track
-  utterance: skip this song quickly
-- entities: []
-  intent: pause_media
-  utterance: pause please
-- entities:
-  - end: 21
-    start: 16
-    text: today
-    type: date
-  intent: query_date
-  utterance: what's the date today quickly
-- entities: []
-  intent: cancel_timer
-  utterance: quickly delete my timer
-- entities: []
-  intent: query_fact
-  utterance: who invented the telephone for me
-- entities: []
-  intent: next_track
-  utterance: quickly skip to next
-- entities:
-  - end: 19
-    start: 11
-    text: New York
-    type: location
-  intent: query_weather
-  utterance: weather in New York please
-- entities: []
-  intent: cancel_timer
-  utterance: turn timer off please
-- entities: []
-  intent: help_request
-  utterance: now show me how
-- entities:
-  - end: 13
-    start: 7
-    text: Chrome
-    type: app_name
-  intent: open_app
-  utterance: launch Chrome
-- entities: []
-  intent: cancellation
-  utterance: for me don't do that
-- entities: []
-  intent: create_event
-  utterance: add gym session to calendar quickly
-- entities: []
-  intent: control_device
-  utterance: open the garage please
-- entities:
-  - end: 28
-    start: 22
-    text: Friday
-    type: date
   intent: query_events
-  utterance: check my calendar for Friday
-- entities: []
-  intent: confirmation
-  utterance: quickly correct
-- entities:
-  - end: 34
-    start: 29
-    text: '7:30 '
-    type: time
-  - end: 42
-    start: 34
-    text: tomorrow
-    type: date
-  intent: set_alarm
-  utterance: right now I need an alarm at 7:30 tomorrow
-- entities: []
-  intent: delete_event
-  utterance: cancel the party now
-- entities: []
-  intent: stop_media
-  utterance: please stop playback
-- entities: []
-  intent: close_app
-  utterance: now close camera
-- entities:
-  - end: 41
-    start: 33
-    text: tomorrow
-    type: date
-  intent: set_reminder
-  utterance: reminder for dentist appointment tomorrow
+  utterance: show me next week's events quickly
 - entities: []
   intent: cancellation
-  utterance: stop
+  utterance: stop now
 - entities: []
-  intent: open_app
-  utterance: start YouTube now
+  intent: next_track
+  utterance: play next
 - entities: []
-  intent: delete_event
-  utterance: quickly cancel dentist appointment
-- entities:
-  - end: 24
-    start: 19
-    text: Tokyo
-    type: location
-  intent: query_time
-  utterance: what time is it in Tokyo right now
+  intent: control_device
+  utterance: quickly start the dishwasher
 - entities: []
   intent: close_app
-  utterance: close email please
-- entities: []
-  intent: control_lights
-  utterance: for me turn on kitchen lights
+  utterance: close settings right now
 - entities:
   - end: 20
-    start: 14
-    text: Monday
-    type: date
-  intent: update_event
-  utterance: move event to Monday right now
-- entities:
-  - end: 24
-    start: 15
-    text: next week
-    type: date
-  intent: query_events
-  utterance: please show me next week's events
-- entities: []
-  intent: cancel_timer
-  utterance: quickly turn off the timer
-- entities: []
-  intent: query_time
-  utterance: can you tell me the time
+    start: 10
+    text: 10 seconds
+    type: duration
+  intent: set_timer
+  utterance: timer for 10 seconds please
 - entities: []
   intent: close_app
-  utterance: quickly quit calendar
+  utterance: close calculator now
 - entities: []
-  intent: create_event
-  utterance: quickly add birthday party to calendar
+  intent: pause_media
+  utterance: pause what's playing quickly
+- entities: []
+  intent: update_event
+  utterance: for me change event time
+- entities: []
+  intent: control_device
+  utterance: close the blinds for me
+- entities: []
+  intent: next_track
+  utterance: please play the next one
+- entities: []
+  intent: play_music
+  utterance: play the Beatles for me
+- entities: []
+  intent: delete_event
+  utterance: now cancel the party
+- entities: []
+  intent: control_lights
+  utterance: right now brighten living room lights
+- entities: []
+  intent: cancellation
+  utterance: please not now
+- entities: []
+  intent: cancel_timer
+  utterance: quickly cancel all timers
+- entities: []
+  intent: control_device
+  utterance: open the garage now
+- entities: []
+  intent: previous_track
+  utterance: please previous song
+- entities: []
+  intent: control_lights
+  utterance: quickly turn off all lights
+- entities: []
+  intent: play_music
+  utterance: play jazz music now
+- entities: []
+  intent: close_app
+  utterance: now close email
 - entities:
-  - end: 21
-    start: 16
+  - end: 25
+    start: 20
     text: today
     type: date
   intent: query_date
-  utterance: what's the date today now
-- entities:
-  - end: 36
-    start: 30
-    text: Friday
-    type: date
-  intent: set_reminder
-  utterance: remind me to submit report by Friday for me
+  utterance: now what's the date today
 - entities: []
-  intent: play_video
-  utterance: play movie trailers please
+  intent: clarification_request
+  utterance: what did you say
 - entities: []
-  intent: search_web
-  utterance: search for job openings
-- entities:
-  - end: 34
-    start: 24
-    text: 25 minutes
-    type: duration
-  intent: set_timer
-  utterance: set a cooking timer for 25 minutes
+  intent: previous_track
+  utterance: please back to previous
 - entities: []
-  intent: next_track
-  utterance: now next
+  intent: system_command
+  utterance: unmute now
 - entities: []
-  intent: play_music
-  utterance: quickly play Bohemian Rhapsody
-- entities: []
-  intent: control_lights
-  utterance: quickly brighten living room lights
-- entities:
-  - end: 29
-    start: 19
-    text: 15 minutes
-    type: duration
-  intent: set_timer
-  utterance: put on a timer for 15 minutes quickly
-- entities: []
-  intent: help_request
-  utterance: show me how
-- entities:
-  - end: 17
-    start: 10
-    text: 9:15 PM
-    type: time
-  intent: set_alarm
-  utterance: set alarm 9:15 PM
-- entities:
-  - end: 21
-    start: 16
-    text: Paris
-    type: location
-  intent: query_time
-  utterance: current time in Paris quickly
-- entities: []
-  intent: search_web
-  utterance: search for job openings now
-- entities: []
-  intent: multi_intent
-  utterance: quickly create event tomorrow and set reminder
-- entities: []
-  intent: cancellation
-  utterance: negative right now
+  intent: pause_media
+  utterance: quickly pause the song
 - entities:
   - end: 8
     start: 3
@@ -417,128 +201,959 @@
   intent: query_date
   utterance: is today Monday quickly
 - entities: []
-  intent: query_fact
-  utterance: what is the speed of light
-- entities: []
-  intent: pause_media
-  utterance: pause the music for me
-- entities:
-  - end: 30
-    start: 20
-    text: 10 seconds
-    type: duration
-  intent: set_timer
-  utterance: right now timer for 10 seconds
-- entities: []
-  intent: query_fact
-  utterance: who invented the telephone quickly
-- entities: []
-  intent: next_track
-  utterance: go to next track
-- entities: []
   intent: make_call
-  utterance: phone Sarah's mobile please
+  utterance: now call my wife
 - entities:
-  - end: 15
-    start: 12
-    text: mom
-    type: recipient
-  intent: make_call
-  utterance: please call mom
-- entities: []
-  intent: send_email
-  utterance: email the invoice to accounting
-- entities: []
-  intent: clarification_request
-  utterance: please explain right now
-- entities: []
-  intent: cancel_timer
-  utterance: stop the countdown
-- entities: []
-  intent: send_email
-  utterance: send an email to support
-- entities: []
-  intent: clarification_request
-  utterance: could you rephrase
-- entities:
-  - end: 31
-    start: 26
+  - end: 12
+    start: 7
     text: today
     type: date
   intent: query_date
-  utterance: right now what's the date today
+  utterance: what's today's date for me
+- entities: []
+  intent: query_time
+  utterance: what's the time right now quickly
 - entities: []
   intent: play_music
-  utterance: play my workout playlist please
+  utterance: right now play the Beatles
+- entities:
+  - end: 36
+    start: 30
+    text: Friday
+    type: date
+  intent: set_reminder
+  utterance: remind me to submit report by Friday for me
 - entities: []
-  intent: previous_track
-  utterance: for me previous song
+  intent: control_lights
+  utterance: make it brighter right now
+- entities: []
+  intent: query_date
+  utterance: what day is it quickly
+- entities: []
+  intent: help_request
+  utterance: I'm stuck right now
+- entities: []
+  intent: delete_event
+  utterance: cancel the party please
+- entities: []
+  intent: play_music
+  utterance: play Bohemian Rhapsody right now
+- entities: []
+  intent: system_command
+  utterance: lock screen now
+- entities: []
+  intent: play_video
+  utterance: for me play cat videos
+- entities: []
+  intent: play_video
+  utterance: play cooking tutorials please
+- entities: []
+  intent: pause_media
+  utterance: right now hold on pause
+- entities: []
+  intent: multi_intent
+  utterance: right now create event tomorrow and set reminder
+- entities:
+  - end: 28
+    start: 22
+    text: Friday
+    type: date
+  intent: query_events
+  utterance: check my calendar for Friday now
+- entities: []
+  intent: play_music
+  utterance: play top hits please
+- entities:
+  - end: 27
+    start: 19
+    text: tomorrow
+    type: date
+  intent: query_events
+  utterance: what's my schedule tomorrow now
+- entities: []
+  intent: system_command
+  utterance: quickly mute
+- entities: []
+  intent: open_app
+  utterance: please launch calendar
 - entities: []
   intent: set_reminder
-  utterance: I need a reminder to water plants right now
-- entities:
-  - end: 24
-    start: 21
-    text: 7am
-    type: time
-  intent: set_alarm
-  utterance: now set an alarm for 7am
+  utterance: set reminder for grocery shopping
+- entities: []
+  intent: confirmation
+  utterance: right now yes
+- entities: []
+  intent: send_message
+  utterance: text my wife I'm on my way
+- entities: []
+  intent: confirmation
+  utterance: yep for me
+- entities: []
+  intent: query_fact
+  utterance: quickly who invented the telephone
+- entities: []
+  intent: control_thermostat
+  utterance: right now make it cooler
+- entities: []
+  intent: stop_media
+  utterance: turn music off please
+- entities: []
+  intent: close_app
+  utterance: exit YouTube now
+- entities: []
+  intent: send_message
+  utterance: right now message the team about the update
 - entities: []
   intent: send_email
-  utterance: send email about vacation request quickly
+  utterance: quickly compose message to hr@company.com
+- entities: []
+  intent: query_time
+  utterance: for me what's the time
+- entities: []
+  intent: control_thermostat
+  utterance: now what's the temperature
+- entities: []
+  intent: cancel_timer
+  utterance: stop the cooking timer quickly
+- entities: []
+  intent: stop_media
+  utterance: right now stop what's playing
+- entities: []
+  intent: make_call
+  utterance: right now phone Sarah's mobile
+- entities: []
+  intent: control_device
+  utterance: unlock front door please
 - entities:
-  - end: 35
-    start: 29
+  - end: 32
+    start: 27
+    text: '5:45 '
+    type: time
+  - end: 46
+    start: 39
+    text: morning
+    type: time
+  intent: set_alarm
+  utterance: please create an alarm for 5:45 in the morning
+- entities: []
+  intent: play_video
+  utterance: play movie trailers right now
+- entities:
+  - end: 13
+    start: 5
+    text: 555-1234
+    type: phone_number
+  intent: make_call
+  utterance: dial 555-1234 now
+- entities:
+  - end: 28
+    start: 22
     text: London
     type: location
   intent: query_weather
-  utterance: please what's the weather in London
+  utterance: what's the weather in London please
+- entities:
+  - end: 28
+    start: 18
+    text: 68 degrees
+    type: temperature
+  intent: control_thermostat
+  utterance: set thermostat to 68 degrees quickly
 - entities: []
-  intent: cancellation
-  utterance: not now
+  intent: multi_intent
+  utterance: what's the weather and time now
+- entities: []
+  intent: query_events
+  utterance: show my events for me
+- entities: []
+  intent: control_device
+  utterance: turn on the TV now
+- entities:
+  - end: 13
+    start: 9
+    text: noon
+    type: time
+  intent: set_alarm
+  utterance: alarm at noon right now
+- entities: []
+  intent: multi_intent
+  utterance: send message to John and call mom for me
+- entities: []
+  intent: next_track
+  utterance: quickly skip this song
+- entities: []
+  intent: help_request
+  utterance: help me with right now
+- entities: []
+  intent: help_request
+  utterance: help right now
+- entities: []
+  intent: clarification_request
+  utterance: right now please explain
+- entities:
+  - end: 13
+    start: 6
+    text: Spotify
+    type: app_name
+  intent: close_app
+  utterance: close Spotify quickly
+- entities: []
+  intent: query_time
+  utterance: please current time
+- entities: []
+  intent: clarification_request
+  utterance: can you clarify
+- entities:
+  - end: 16
+    start: 9
+    text: Spotify
+    type: app_name
+  intent: open_app
+  utterance: now open Spotify
+- entities:
+  - end: 25
+    start: 16
+    text: next week
+    type: date
+  intent: update_event
+  utterance: change event to next week right now
+- entities: []
+  intent: open_app
+  utterance: start YouTube for me
+- entities: []
+  intent: control_device
+  utterance: start the dishwasher please
+- entities: []
+  intent: query_fact
+  utterance: what is the population of China for me
+- entities: []
+  intent: play_video
+  utterance: play cat videos for me
+- entities: []
+  intent: query_events
+  utterance: what meetings do I have for me
+- entities: []
+  intent: send_email
+  utterance: compose email to the team for me
+- entities: []
+  intent: unknown
+  utterance: nonsense words for me
+- entities:
+  - end: 33
+    start: 28
+    text: '5:45 '
+    type: time
+  - end: 47
+    start: 40
+    text: morning
+    type: time
+  intent: set_alarm
+  utterance: quickly create an alarm for 5:45 in the morning
+- entities: []
+  intent: play_video
+  utterance: right now play the latest news
+- entities: []
+  intent: send_email
+  utterance: right now send an email to john@example.com
+- entities:
+  - end: 25
+    start: 20
+    text: '5:45 '
+    type: time
+  - end: 39
+    start: 32
+    text: morning
+    type: time
+  intent: set_alarm
+  utterance: create an alarm for 5:45 in the morning
+- entities: []
+  intent: open_app
+  utterance: now start YouTube
+- entities: []
+  intent: help_request
+  utterance: quickly guide me
+- entities: []
+  intent: query_fact
+  utterance: what is the population of China now
+- entities: []
+  intent: update_event
+  utterance: now change event time
+- entities: []
+  intent: control_device
+  utterance: start the coffee maker
+- entities: []
+  intent: control_lights
+  utterance: quickly set lights to blue
+- entities: []
+  intent: update_event
+  utterance: update meeting location quickly
+- entities: []
+  intent: confirmation
+  utterance: quickly yep
+- entities:
+  - end: 32
+    start: 23
+    text: next week
+    type: date
+  intent: update_event
+  utterance: please change event to next week
+- entities: []
+  intent: delete_event
+  utterance: delete meeting
+- entities: []
+  intent: open_app
+  utterance: launch maps please
+- entities: []
+  intent: help_request
+  utterance: I'm stuck for me
+- entities: []
+  intent: search_web
+  utterance: for me find hotels in Miami
 - entities: []
   intent: query_date
   utterance: please current date
 - entities:
-  - end: 9
+  - end: 26
+    start: 23
+    text: 4pm
+    type: time
+  intent: update_event
+  utterance: please move meeting to 4pm
+- entities:
+  - end: 42
+    start: 32
+    text: 45 minutes
+    type: duration
+  intent: set_timer
+  utterance: quickly can you set a timer for 45 minutes
+- entities: []
+  intent: next_track
+  utterance: play next please
+- entities: []
+  intent: help_request
+  utterance: assist me now
+- entities: []
+  intent: control_device
+  utterance: now open the garage
+- entities: []
+  intent: help_request
+  utterance: what are your capabilities now
+- entities: []
+  intent: search_web
+  utterance: search for nearby restaurants for me
+- entities: []
+  intent: query_date
+  utterance: please tell me the date
+- entities: []
+  intent: play_video
+  utterance: please play cat videos
+- entities: []
+  intent: update_event
+  utterance: quickly change event time
+- entities: []
+  intent: query_fact
+  utterance: who invented the telephone quickly
+- entities: []
+  intent: cancellation
+  utterance: now forget it
+- entities: []
+  intent: query_fact
+  utterance: quickly what is the largest ocean
+- entities: []
+  intent: query_events
+  utterance: for me what meetings do I have
+- entities: []
+  intent: update_event
+  utterance: please reschedule dentist appointment
+- entities: []
+  intent: help_request
+  utterance: how do I
+- entities: []
+  intent: control_thermostat
+  utterance: right now turn up the heat
+- entities: []
+  intent: previous_track
+  utterance: last song for me
+- entities:
+  - end: 11
     start: 5
+    text: Chrome
+    type: app_name
+  intent: close_app
+  utterance: quit Chrome for me
+- entities: []
+  intent: query_date
+  utterance: current date quickly
+- entities: []
+  intent: system_command
+  utterance: turn down volume right now
+- entities: []
+  intent: confirmation
+  utterance: that's right please
+- entities: []
+  intent: clarification_request
+  utterance: please explain for me
+- entities: []
+  intent: delete_event
+  utterance: quickly remove event from calendar
+- entities:
+  - end: 21
+    start: 16
+    text: today
+    type: date
+  intent: query_date
+  utterance: what's the date today please
+- entities: []
+  intent: next_track
+  utterance: skip forward please
+- entities: []
+  intent: search_web
+  utterance: search the web for news now
+- entities: []
+  intent: query_time
+  utterance: what's the time now
+- entities: []
+  intent: play_video
+  utterance: quickly play documentaries
+- entities: []
+  intent: send_email
+  utterance: please send email about vacation request
+- entities: []
+  intent: query_time
+  utterance: what's the time for me
+- entities: []
+  intent: pause_media
+  utterance: quickly pause playback
+- entities:
+  - end: 19
+    start: 14
+    text: today
+    type: date
+  intent: query_date
+  utterance: please what's today's date
+- entities: []
+  intent: cancel_timer
+  utterance: cancel that timer quickly
+- entities: []
+  intent: close_app
+  utterance: quickly close settings
+- entities: []
+  intent: system_command
+  utterance: quickly adjust brightness
+- entities: []
+  intent: play_video
+  utterance: now play movie trailers
+- entities: []
+  intent: query_fact
+  utterance: what is the largest ocean right now
+- entities: []
+  intent: clarification_request
+  utterance: what do you mean please
+- entities: []
+  intent: cancellation
+  utterance: for me never mind
+- entities: []
+  intent: next_track
+  utterance: now next song
+- entities: []
+  intent: stop_media
+  utterance: now stop what's playing
+- entities: []
+  intent: query_time
+  utterance: right now current time
+- entities: []
+  intent: help_request
+  utterance: for me what are your capabilities
+- entities: []
+  intent: previous_track
+  utterance: back to previous for me
+- entities: []
+  intent: system_command
+  utterance: for me enable bluetooth
+- entities: []
+  intent: previous_track
+  utterance: go to previous track quickly
+- entities: []
+  intent: cancellation
+  utterance: for me not now
+- entities: []
+  intent: pause_media
+  utterance: pause playback right now
+- entities: []
+  intent: query_events
+  utterance: what's on my calendar right now
+- entities: []
+  intent: update_event
+  utterance: please change event time
+- entities: []
+  intent: make_call
+  utterance: please phone Sarah's mobile
+- entities: []
+  intent: confirmation
+  utterance: go ahead for me
+- entities: []
+  intent: control_device
+  utterance: right now start the dishwasher
+- entities: []
+  intent: search_web
+  utterance: right now search for job openings
+- entities: []
+  intent: pause_media
+  utterance: pause what's playing right now
+- entities: []
+  intent: next_track
+  utterance: skip this song quickly
+- entities: []
+  intent: search_web
+  utterance: search for nearby restaurants
+- entities: []
+  intent: confirmation
+  utterance: please that's right
+- entities:
+  - end: 28
+    start: 22
+    text: London
+    type: location
+  intent: query_weather
+  utterance: what's the weather in London for me
+- entities: []
+  intent: close_app
+  utterance: right now close email
+- entities:
+  - end: 31
+    start: 28
+    text: 4pm
+    type: time
+  intent: set_reminder
+  utterance: reminder to pick up kids at 4pm now
+- entities: []
+  intent: play_music
+  utterance: now play the Beatles
+- entities:
+  - end: 16
+    start: 13
+    text: dad
+    type: recipient
+  intent: send_message
+  utterance: send text to dad please
+- entities:
+  - end: 19
+    start: 15
     text: John
     type: recipient
   intent: send_message
-  utterance: text John to call me
+  utterance: right now text John to call me
+- entities:
+  - end: 17
+    start: 8
+    text: 30 minute
+    type: duration
+  intent: set_timer
+  utterance: start a 30 minute timer
 - entities: []
-  intent: pause_media
-  utterance: right now pause the music
+  intent: previous_track
+  utterance: go to previous track now
+- entities: []
+  intent: control_thermostat
+  utterance: for me turn on AC
+- entities: []
+  intent: confirmation
+  utterance: absolutely for me
 - entities: []
   intent: control_device
-  utterance: please lock the door
+  utterance: unlock front door for me
 - entities: []
-  intent: cancel_timer
-  utterance: stop timer
-- entities: []
-  intent: control_lights
-  utterance: brighten living room lights quickly
+  intent: search_web
+  utterance: now search for job openings
 - entities: []
   intent: system_command
-  utterance: quickly enable bluetooth
+  utterance: adjust brightness please
+- entities:
+  - end: 24
+    start: 17
+    text: 9:15 PM
+    type: time
+  intent: set_alarm
+  utterance: please set alarm 9:15 PM
+- entities: []
+  intent: cancellation
+  utterance: cancel for me
+- entities: []
+  intent: control_thermostat
+  utterance: quickly increase temperature
+- entities: []
+  intent: search_web
+  utterance: find information about AI right now
+- entities: []
+  intent: search_web
+  utterance: right now search the web for news
+- entities: []
+  intent: clarification_request
+  utterance: repeat that right now
 - entities: []
   intent: control_lights
-  utterance: turn off all lights
+  utterance: set lights to 50% now
 - entities: []
-  intent: query_time
-  utterance: for me what time is it
+  intent: send_email
+  utterance: for me send an email to support
+- entities:
+  - end: 32
+    start: 24
+    text: tomorrow
+    type: date
+  intent: create_event
+  utterance: now create an event for tomorrow
 - entities: []
-  intent: control_lights
-  utterance: activate kitchen lights
+  intent: control_thermostat
+  utterance: make it cooler
 - entities: []
-  intent: play_music
-  utterance: play some music now
+  intent: open_app
+  utterance: please open calculator
 - entities: []
-  intent: update_event
-  utterance: right now update event details
+  intent: stop_media
+  utterance: please stop
 - entities: []
-  intent: update_event
-  utterance: update event details
+  intent: query_fact
+  utterance: how tall is Mount Everest now
+- entities:
+  - end: 23
+    start: 17
+    text: Chrome
+    type: app_name
+  intent: open_app
+  utterance: right now launch Chrome
+- entities: []
+  intent: query_fact
+  utterance: quickly who wrote Romeo and Juliet
+- entities: []
+  intent: delete_event
+  utterance: cancel the party now
 - entities: []
   intent: make_call
   utterance: phone John
+- entities: []
+  intent: query_fact
+  utterance: what is the speed of light quickly
+- entities: []
+  intent: confirmation
+  utterance: right now correct
+- entities: []
+  intent: confirmation
+  utterance: that's right right now
+- entities:
+  - end: 20
+    start: 17
+    text: 7am
+    type: time
+  intent: set_alarm
+  utterance: set an alarm for 7am now
+- entities: []
+  intent: query_time
+  utterance: now tell me the time
+- entities:
+  - end: 38
+    start: 35
+    text: 3pm
+    type: time
+  intent: set_reminder
+  utterance: right now remind me to call mom at 3pm
+- entities: []
+  intent: play_video
+  utterance: play workout videos now
+- entities: []
+  intent: cancel_timer
+  utterance: cancel the timer for me
+- entities: []
+  intent: pause_media
+  utterance: please pause the video
+- entities: []
+  intent: control_device
+  utterance: please open the garage
+- entities: []
+  intent: control_thermostat
+  utterance: what's the temperature quickly
+- entities:
+  - end: 39
+    start: 31
+    text: tomorrow
+    type: date
+  intent: query_weather
+  utterance: right now weather forecast for tomorrow
+- entities:
+  - end: 30
+    start: 19
+    text: next Monday
+    type: date
+  intent: create_event
+  utterance: create meeting for next Monday please
+- entities: []
+  intent: confirmation
+  utterance: yes for me
+- entities: []
+  intent: create_event
+  utterance: create event called project review now
+- entities: []
+  intent: cancellation
+  utterance: negative
+- entities: []
+  intent: send_message
+  utterance: please text my wife I'm on my way
+- entities: []
+  intent: control_device
+  utterance: please turn on the vacuum
+- entities: []
+  intent: stop_media
+  utterance: stop the video right now
+- entities: []
+  intent: pause_media
+  utterance: pause the music right now
+- entities: []
+  intent: stop_media
+  utterance: quickly stop what's playing
+- entities:
+  - end: 29
+    start: 24
+    text: today
+    type: date
+  intent: query_date
+  utterance: quickly what's the date today
+- entities: []
+  intent: query_time
+  utterance: tell me the time for me
+- entities:
+  - end: 15
+    start: 12
+    text: '123'
+    type: temperature
+  intent: unknown
+  utterance: now xyz abc 123
+- entities: []
+  intent: control_lights
+  utterance: right now set lights to blue
+- entities: []
+  intent: play_video
+  utterance: play funny videos for me
+- entities:
+  - end: 26
+    start: 21
+    text: today
+    type: date
+  intent: query_weather
+  utterance: please how hot is it today
+- entities: []
+  intent: create_event
+  utterance: create event called project review right now
+- entities:
+  - end: 19
+    start: 14
+    text: '6:30 '
+    type: time
+  intent: set_alarm
+  utterance: wake me up at 6:30 now
+- entities: []
+  intent: stop_media
+  utterance: quickly stop the video
+- entities:
+  - end: 15
+    start: 7
+    text: tomorrow
+    type: date
+  intent: query_date
+  utterance: what's tomorrow's date quickly
+- entities: []
+  intent: update_event
+  utterance: quickly update event details
+- entities: []
+  intent: close_app
+  utterance: right now exit YouTube
+- entities:
+  - end: 35
+    start: 27
+    text: tomorrow
+    type: date
+  intent: create_event
+  utterance: for me create an event for tomorrow
+- entities: []
+  intent: previous_track
+  utterance: back to previous
+- entities: []
+  intent: previous_track
+  utterance: previous song right now
+- entities: []
+  intent: control_device
+  utterance: start the coffee maker now
+- entities: []
+  intent: send_email
+  utterance: quickly send an email to john@example.com
+- entities:
+  - end: 18
+    start: 12
+    text: Chrome
+    type: app_name
+  intent: close_app
+  utterance: please quit Chrome
+- entities: []
+  intent: close_app
+  utterance: please close calculator
+- entities:
+  - end: 17
+    start: 10
+    text: Netflix
+    type: app_name
+  intent: open_app
+  utterance: now start Netflix
+- entities:
+  - end: 23
+    start: 18
+    text: today
+    type: date
+  intent: delete_event
+  utterance: delete all events today
+- entities: []
+  intent: delete_event
+  utterance: remove event from calendar right now
+- entities: []
+  intent: send_email
+  utterance: email my boss about the project
+- entities: []
+  intent: make_call
+  utterance: quickly dial emergency
+- entities:
+  - end: 37
+    start: 29
+    text: tomorrow
+    type: date
+  intent: query_weather
+  utterance: quickly weather forecast for tomorrow
+- entities:
+  - end: 41
+    start: 31
+    text: 45 minutes
+    type: duration
+  intent: set_timer
+  utterance: please can you set a timer for 45 minutes
+- entities:
+  - end: 25
+    start: 16
+    text: next week
+    type: date
+  intent: query_weather
+  utterance: now weather for next week
+- entities: []
+  intent: cancellation
+  utterance: please nope
+- entities: []
+  intent: help_request
+  utterance: show me how for me
+- entities: []
+  intent: control_lights
+  utterance: now turn off bedroom lights
+- entities: []
+  intent: confirmation
+  utterance: please okay
+- entities: []
+  intent: open_app
+  utterance: please open camera
+- entities:
+  - end: 28
+    start: 25
+    text: 3pm
+    type: time
+  intent: set_reminder
+  utterance: remind me to call mom at 3pm please
+- entities: []
+  intent: system_command
+  utterance: now enable bluetooth
+- entities: []
+  intent: confirmation
+  utterance: now correct
+- entities: []
+  intent: query_fact
+  utterance: for me who invented the telephone
+- entities: []
+  intent: next_track
+  utterance: now skip this
+- entities:
+  - end: 13
+    start: 5
+    text: 555-1234
+    type: phone_number
+  intent: make_call
+  utterance: dial 555-1234 for me
+- entities: []
+  intent: query_weather
+  utterance: quickly do I need an umbrella
+- entities: []
+  intent: cancel_timer
+  utterance: for me cancel that timer
+- entities: []
+  intent: confirmation
+  utterance: for me yes
+- entities: []
+  intent: multi_intent
+  utterance: for me set a timer for 10 minutes and play music
+- entities: []
+  intent: query_events
+  utterance: right now what meetings do I have
+- entities: []
+  intent: next_track
+  utterance: right now play next
+- entities:
+  - end: 14
+    start: 11
+    text: 6am
+    type: time
+  - end: 24
+    start: 18
+    text: Monday
+    type: date
+  intent: set_alarm
+  utterance: wake me at 6am on Monday right now
+- entities:
+  - end: 27
+    start: 21
+    text: Monday
+    type: date
+  intent: query_events
+  utterance: what's scheduled for Monday quickly
+- entities:
+  - end: 22
+    start: 19
+    text: '72 '
+    type: temperature
+  intent: control_thermostat
+  utterance: set temperature to 72 please
+- entities: []
+  intent: delete_event
+  utterance: please delete meeting
+- entities:
+  - end: 17
+    start: 8
+    text: next week
+    type: date
+  intent: query_events
+  utterance: show me next week's events please
+- entities: []
+  intent: control_lights
+  utterance: quickly dim the lights
+- entities: []
+  intent: close_app
+  utterance: close calculator quickly
+- entities: []
+  intent: cancellation
+  utterance: now no
+- entities: []
+  intent: cancellation
+  utterance: quickly not now
+- entities: []
+  intent: control_device
+  utterance: unlock front door right now
+- entities: []
+  intent: cancel_timer
+  utterance: delete my timer for me
+- entities: []
+  intent: unknown
+  utterance: asdfghjkl for me
+- entities: []
+  intent: control_thermostat
+  utterance: quickly turn up the heat

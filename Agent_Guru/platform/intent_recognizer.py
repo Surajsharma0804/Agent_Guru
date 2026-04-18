@@ -735,14 +735,29 @@ class IntentRecognizer:
         )
 
         try:
-            response = await self._llm_manager.generate_response(
-                query=prompt,
-                personality="guru",
-                session_id="intent_recognizer",
-                max_tokens=200,
-                temperature=0.0,
-            )
-            raw_content: str = response.content if hasattr(response, "content") else str(response)
+            # Support both LLMManager.generate_response() and LLMRuntime.complete()
+            if hasattr(self._llm_manager, "generate_response"):
+                response = await self._llm_manager.generate_response(
+                    query=prompt,
+                    personality="guru",
+                    session_id="intent_recognizer",
+                    max_tokens=200,
+                    temperature=0.0,
+                )
+                raw_content: str = response.content if hasattr(response, "content") else str(response)
+            elif hasattr(self._llm_manager, "complete"):
+                from Agent_Guru.llm.models import CompletionRequest, Message
+                request = CompletionRequest(
+                    model="mistral:7b-instruct",
+                    messages=[Message(role="user", content=prompt)],
+                    max_tokens=200,
+                    temperature=0.0,
+                )
+                response = await self._llm_manager.complete(request)
+                raw_content = response.content if hasattr(response, "content") else str(response)
+            else:
+                logger.warning("LLM manager has no usable generation method")
+                return None
             result = _parse_llm_response(raw_content, text, platform_name)
             if result is not None:
                 logger.debug(

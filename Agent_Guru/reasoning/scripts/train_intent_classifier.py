@@ -31,6 +31,7 @@ import random
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from Agent_Guru.security.path_utils import safe_path
 from Agent_Guru.training.seed_utils import set_deterministic_seeds
@@ -135,14 +136,14 @@ class TrainingConfig:
     gradient_clip_val: float = 1.0
     label_smoothing: float = 0.1
 
-    # GPU optimization
+    # GPU optimization — tuned for RTX 2050 (4GB VRAM)
     mixed_precision: bool = True
-    gradient_accumulation_steps: int = 32  # Effective batch 32 (1*32) - INCREASED for smaller batch
-    num_workers: int = min(4, os.cpu_count() or 1)  # Optimal DataLoader workers (Req 2.26)
+    gradient_accumulation_steps: int = 32  # Effective batch 32 (1*32)
+    num_workers: int = min(4, os.cpu_count() or 1)
 
-    # Data augmentation (research-backed)
+    # Data augmentation — reduced to 3x to avoid OOM on 4GB GPU
     use_augmentation: bool = True
-    augmentation_factor: int = 10  # MAXIMUM 10x for GUARANTEED 98%+ accuracy
+    augmentation_factor: int = 3  # 3x is safe for 4GB VRAM (was 10x — caused OOM)
 
     # Advanced techniques (proven effective)
     use_adversarial_training: bool = False  # DISABLED to save memory (4GB VRAM limit)
@@ -825,15 +826,9 @@ class IntentClassifierModule(pl.LightningModule):
 
 
 def load_intent_mapping(data_dir: str) -> tuple[dict[str, int], dict[int, str]]:
-    """Load intent to ID mapping from intents.yaml.
-
-    Args:
-        data_dir: Data directory path
-
-    Returns:
-        Tuple of (intent_to_id, id_to_intent) mappings
-    """
-    intents_path = safe_path(Path(data_dir) / "intents.yaml", Path(data_dir).resolve())  # nosec
+    """Load intent to ID mapping from intents.yaml."""
+    _data_base = Path(data_dir).resolve()
+    intents_path = safe_path(_data_base, "intents.yaml")
     with open(intents_path) as f:  # nosec - path validated by safe_path
         intents_data = yaml.safe_load(f)
 

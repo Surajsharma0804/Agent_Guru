@@ -33,6 +33,14 @@ from Agent_Guru.security.path_utils import safe_path
 from sklearn.metrics import precision_recall_fscore_support  # type: ignore[import-untyped]
 from tqdm import tqdm  # type: ignore[import-untyped]
 
+try:
+    from gliner import GLiNER  # type: ignore[import-untyped]
+except ImportError as _gliner_err:
+    raise ImportError(
+        "GLiNER is required for NER training. "
+        "Install with: pip install gliner"
+    ) from _gliner_err
+
 
 @dataclass
 class NERTrainingConfig:
@@ -142,32 +150,59 @@ def evaluate_ner(model: GLiNER, test_data: list[dict], entity_types: list[str]) 
     for example in tqdm(test_data, desc="Evaluating"):
         text = " ".join(example["tokenized_text"])
         true_entities = example["ner"]
+        tokens = example["tokenized_text"]
 
         # Predict
         pred_entities = model.predict_entities(text, entity_types, threshold=0.5)
 
-        # Convert to label sequences for evaluation
-        tokens = example["tokenized_text"]
+        # Build token-level label sequences using character offsets
         true_labels = ["O"] * len(tokens)
         pred_labels = ["O"] * len(tokens)
 
-        # Fill true labels
-        for ent in true_entities:
-            # Simple token-level labeling
-            label = ent["label"]
-            # Mark first token as B-, rest as I-
-            true_labels[0] = f"B-{label}"
-            for i in range(1, len(tokens)):
-                if true_labels[i] == "O":
-                    true_labels[i] = f"I-{label}"
+        # Map true entities to token indices using simple word-boundary matching
+        token_starts: list[int] = []
+        pos = 0
+        for tok in tokens:
+            token_starts.append(pos)
+            pos += len(tok) + 1  # +1 for space
 
-        # Fill pred labels
+        def _char_to_token(char_start: int, char_end: int) -> tuple[int, int]:
+            """Return (first_token_idx, last_token_idx) for a char span."""
+            t_start = -1
+            t_end = -1
+            for ti, ts in enumerate(token_starts):
+                te = ts + len(tokens[ti])
+                if t_start == -1 and ts <= char_start < te:
+                    t_start = ti
+                if ts < char_end <= te:
+                    t_end = ti
+                    break
+            if t_start == -1:
+                t_start = 0
+            if t_end == -1:
+                t_end = t_start
+            return t_start, t_end
+
+        # Fill true labels (B-/I- scheme)
+        for ent in true_entities:
+            label = ent["label"]
+            t0, t1 = _char_to_token(ent.get("start", 0), ent.get("end", len(text)))
+            true_labels[t0] = f"B-{label}"
+            for ti in range(t0 + 1, t1 + 1):
+                true_labels[ti] = f"I-{label}"
+
+        # Fill pred labels (B-/I- scheme)
         for ent in pred_entities:
             label = ent["label"]
-            pred_labels[0] = f"B-{label}"
-            for i in range(1, len(tokens)):
-                if pred_labels[i] == "O":
-                    pred_labels[i] = f"I-{label}"
+            ent_text: str = ent.get("text", "")
+            # Find token span by matching text
+            ent_tokens = ent_text.split()
+            for ti in range(len(tokens) - len(ent_tokens) + 1):
+                if tokens[ti : ti + len(ent_tokens)] == ent_tokens:
+                    pred_labels[ti] = f"B-{label}"
+                    for tj in range(ti + 1, ti + len(ent_tokens)):
+                        pred_labels[tj] = f"I-{label}"
+                    break
 
         all_true.extend(true_labels)
         all_pred.extend(pred_labels)
