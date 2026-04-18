@@ -69,8 +69,8 @@ class ClassifierConfig:
     """
 
     model_path: str = "Agent_Guru/reasoning/models/intent_classifier/final_model/model.onnx"
-    tokenizer_path: str = "Agent_Guru/reasoning/models/intent_classifier"
-    label_mappings_path: str = "Agent_Guru/reasoning/models/intent_classifier/label_mappings.yaml"
+    tokenizer_path: str = "Agent_Guru/reasoning/models/intent_classifier/final_model"
+    label_mappings_path: str = "Agent_Guru/reasoning/models/intent_classifier/final_model/label_mappings.yaml"
     confidence_threshold: float = 0.8
     max_length: int = 256
     batch_size: int = 32

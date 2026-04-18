@@ -258,11 +258,11 @@ def expand_dataset():
     print(f"{'='*60}\n")
 
     # OVERWRITE original file - NO DUPLICATES
-    with open(train_file, "w") as f:
+    with open(train_file, "w", encoding="utf-8") as f:
         yaml.dump(expanded_data, f, default_flow_style=False, allow_unicode=True)
 
-    print(f"✓ Updated original file: {train_file}")
-    print("✓ NO duplicate files created")
+    print(f"[OK] Updated original file: {train_file}")
+    print("[OK] NO duplicate files created")
 
     # Update stats
     intent_counts: dict[str, int] = {}

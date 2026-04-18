@@ -53,7 +53,7 @@
 - entities: []
   intent: previous_track
   utterance: for me previous
-- entities:
+- entities: &id036
   - end: 20
     start: 10
     text: 10 seconds
@@ -82,13 +82,13 @@
 - entities: []
   intent: delete_event
   utterance: remove event from calendar for me
-- entities: []
+- entities: &id052 []
   intent: search_web
   utterance: for me search for job openings
 - entities: []
   intent: query_time
   utterance: now current time
-- entities:
+- entities: &id103
   - end: 22
     start: 17
     text: '8:00 '
@@ -165,7 +165,7 @@
 - entities: []
   intent: help_request
   utterance: help
-- entities: []
+- entities: &id094 []
   intent: query_time
   utterance: quickly can you tell me the time
 - entities: []
@@ -174,7 +174,7 @@
 - entities: []
   intent: clarification_request
   utterance: I don't understand right now
-- entities: []
+- entities: &id058 []
   intent: control_device
   utterance: turn on the TV quickly
 - entities: []
@@ -199,7 +199,7 @@
 - entities: []
   intent: stop_media
   utterance: stop
-- entities:
+- entities: &id012
   - end: 13
     start: 8
     text: Sarah
@@ -227,7 +227,7 @@
 - entities: []
   intent: delete_event
   utterance: quickly remove gym session
-- entities: []
+- entities: &id159 []
   intent: control_thermostat
   utterance: turn off heating right now
 - entities: []
@@ -242,7 +242,7 @@
 - entities: []
   intent: query_time
   utterance: please what's the time right now
-- entities: []
+- entities: &id129 []
   intent: clarification_request
   utterance: can you clarify please
 - entities: []
@@ -289,7 +289,7 @@
     type: temperature
   intent: control_thermostat
   utterance: set temperature to 72 quickly
-- entities: []
+- entities: &id154 []
   intent: control_thermostat
   utterance: for me turn off heating
 - entities: []
@@ -298,7 +298,7 @@
 - entities: []
   intent: play_video
   utterance: play funny videos now
-- entities: []
+- entities: &id172 []
   intent: play_music
   utterance: for me play the Beatles
 - entities:
@@ -328,7 +328,7 @@
     type: date
   intent: delete_event
   utterance: quickly delete next week's appointment
-- entities: []
+- entities: &id153 []
   intent: control_thermostat
   utterance: turn off heating please
 - entities: []
@@ -355,7 +355,7 @@
 - entities: []
   intent: create_event
   utterance: add dentist appointment to calendar now
-- entities:
+- entities: &id104
   - end: 13
     start: 9
     text: noon
@@ -368,7 +368,7 @@
 - entities: []
   intent: confirmation
   utterance: affirmative for me
-- entities: []
+- entities: &id069 []
   intent: control_device
   utterance: for me turn off all devices
 - entities: []
@@ -384,7 +384,7 @@
 - entities: []
   intent: help_request
   utterance: I need help now
-- entities: []
+- entities: &id090 []
   intent: control_device
   utterance: open the garage please
 - entities: []
@@ -418,7 +418,7 @@
 - entities: []
   intent: create_event
   utterance: create event called project review please
-- entities: []
+- entities: &id157 []
   intent: control_thermostat
   utterance: turn off heating quickly
 - entities: []
@@ -431,17 +431,17 @@
     type: time
   intent: update_event
   utterance: please reschedule to 3pm
-- entities: []
+- entities: &id067 []
   intent: control_device
   utterance: turn off all devices now
-- entities:
+- entities: &id102
   - end: 13
     start: 9
     text: noon
     type: time
   intent: set_alarm
   utterance: alarm at noon for me
-- entities: []
+- entities: &id196 []
   intent: multi_intent
   utterance: set a timer for 10 minutes and play music please
 - entities:
@@ -451,7 +451,7 @@
     type: date
   intent: query_weather
   utterance: weather forecast for tomorrow please
-- entities: []
+- entities: &id110 []
   intent: help_request
   utterance: what can you do right now
 - entities: []
@@ -460,7 +460,7 @@
 - entities: []
   intent: pause_media
   utterance: pause
-- entities: []
+- entities: &id130 []
   intent: control_lights
   utterance: quickly turn on kitchen lights
 - entities:
@@ -511,7 +511,7 @@
 - entities: []
   intent: clarification_request
   utterance: right now what did you say
-- entities: []
+- entities: &id125 []
   intent: stop_media
   utterance: turn off the music right now
 - entities: []
@@ -603,7 +603,7 @@
 - entities: []
   intent: play_music
   utterance: play my workout playlist
-- entities:
+- entities: &id031
   - end: 22
     start: 13
     text: 20 second
@@ -704,7 +704,7 @@
 - entities: []
   intent: control_lights
   utterance: brighten living room lights for me
-- entities:
+- entities: &id177
   - end: 13
     start: 7
     text: Chrome
@@ -767,7 +767,7 @@
 - entities: []
   intent: help_request
   utterance: I'm stuck now
-- entities: []
+- entities: &id054 []
   intent: search_web
   utterance: search for job openings right now
 - entities: []
@@ -793,7 +793,7 @@
 - entities: []
   intent: create_event
   utterance: add gym session to calendar quickly
-- entities: []
+- entities: &id084 []
   intent: control_device
   utterance: for me close the blinds
 - entities: []
@@ -802,7 +802,7 @@
 - entities: []
   intent: delete_event
   utterance: remove event from calendar quickly
-- entities: []
+- entities: &id093 []
   intent: query_time
   utterance: right now can you tell me the time
 - entities: []
@@ -833,7 +833,7 @@
 - entities: []
   intent: cancellation
   utterance: quickly don't do that
-- entities: []
+- entities: &id180 []
   intent: open_app
   utterance: right now open camera
 - entities: []
@@ -1074,7 +1074,7 @@
     type: date
   intent: update_event
   utterance: move tomorrow's meeting to Friday quickly
-- entities:
+- entities: &id033
   - end: 27
     start: 20
     text: 2 hours
@@ -1215,7 +1215,7 @@
 - entities: []
   intent: create_event
   utterance: right now add gym session to calendar
-- entities: []
+- entities: &id192 []
   intent: multi_intent
   utterance: turn on lights and set temperature to 72 for me
 - entities: []
@@ -1282,7 +1282,7 @@
 - entities: []
   intent: query_events
   utterance: now what's on my calendar
-- entities: []
+- entities: &id155 []
   intent: control_thermostat
   utterance: turn off heating
 - entities: []
@@ -1295,7 +1295,7 @@
     type: date
   intent: set_reminder
   utterance: quickly reminder for dentist appointment tomorrow
-- entities: []
+- entities: &id179 []
   intent: open_app
   utterance: quickly open calculator
 - entities: []
@@ -1311,7 +1311,7 @@
 - entities: []
   intent: confirmation
   utterance: yep right now
-- entities: []
+- entities: &id135 []
   intent: control_lights
   utterance: turn on the lights now
 - entities: []
@@ -1339,7 +1339,7 @@
 - entities: []
   intent: send_email
   utterance: email my boss about the project for me
-- entities: []
+- entities: &id001 []
   intent: make_call
   utterance: make a call to the office please
 - entities: []
@@ -1360,7 +1360,7 @@
 - entities: []
   intent: query_date
   utterance: quickly date please
-- entities:
+- entities: &id115
   - end: 26
     start: 18
     text: New York
@@ -1370,7 +1370,7 @@
 - entities: []
   intent: query_weather
   utterance: what's the weather like now
-- entities: []
+- entities: &id047 []
   intent: cancel_timer
   utterance: quickly turn off the timer
 - entities: []
@@ -1396,10 +1396,10 @@
 - entities: []
   intent: previous_track
   utterance: previous track right now
-- entities: []
+- entities: &id193 []
   intent: multi_intent
   utterance: now turn on lights and set temperature to 72
-- entities: []
+- entities: &id161 []
   intent: control_thermostat
   utterance: turn on AC
 - entities:
@@ -1471,13 +1471,13 @@
     type: date
   intent: query_date
   utterance: for me what's the date today
-- entities: []
+- entities: &id168 []
   intent: play_music
   utterance: play songs by Taylor Swift right now
 - entities: []
   intent: control_lights
   utterance: please dim the lights
-- entities: []
+- entities: &id016 []
   intent: send_message
   utterance: send a text saying I'm here now
 - entities: []
@@ -1492,7 +1492,7 @@
 - entities: []
   intent: create_event
   utterance: for me add birthday party to calendar
-- entities: []
+- entities: &id189 []
   intent: set_reminder
   utterance: set a reminder to buy milk
 - entities: []
@@ -1523,7 +1523,7 @@
 - entities: []
   intent: system_command
   utterance: quickly turn down volume
-- entities: []
+- entities: &id077 []
   intent: control_device
   utterance: right now turn off the fan
 - entities: []
@@ -1554,7 +1554,7 @@
 - entities: []
   intent: send_message
   utterance: send a text saying I'm here
-- entities: []
+- entities: &id022 []
   intent: system_command
   utterance: turn off wifi right now
 - entities: []
@@ -1615,7 +1615,7 @@
 - entities: []
   intent: search_web
   utterance: google python tutorials now
-- entities: []
+- entities: &id186 []
   intent: set_reminder
   utterance: set a reminder to buy milk right now
 - entities: []
@@ -1750,7 +1750,7 @@
 - entities: []
   intent: send_email
   utterance: send an email to support please
-- entities:
+- entities: &id018
   - end: 27
     start: 23
     text: boss
@@ -1760,7 +1760,7 @@
 - entities: []
   intent: search_web
   utterance: search for nearby restaurants right now
-- entities: []
+- entities: &id173 []
   intent: play_music
   utterance: play the Beatles right now
 - entities: []
@@ -1905,7 +1905,7 @@
 - entities: []
   intent: control_device
   utterance: now lock the door
-- entities:
+- entities: &id112
   - end: 35
     start: 29
     text: London
@@ -2186,7 +2186,7 @@
     type: date
   intent: set_reminder
   utterance: remind me to submit report by Friday quickly
-- entities: []
+- entities: &id137 []
   intent: control_lights
   utterance: turn on kitchen lights for me
 - entities: []
@@ -2212,7 +2212,7 @@
     type: time
   intent: set_reminder
   utterance: right now create reminder to take medicine at 8pm
-- entities: []
+- entities: &id122 []
   intent: stop_media
   utterance: right now turn off the music
 - entities: []
@@ -2233,13 +2233,13 @@
 - entities: []
   intent: next_track
   utterance: next track right now
-- entities: []
+- entities: &id178 []
   intent: open_app
   utterance: open calculator please
 - entities: []
   intent: close_app
   utterance: quit calendar right now
-- entities:
+- entities: &id105
   - end: 13
     start: 9
     text: noon
@@ -2268,7 +2268,7 @@
 - entities: []
   intent: clarification_request
   utterance: quickly I didn't catch that
-- entities: []
+- entities: &id097 []
   intent: query_time
   utterance: can you tell me the time
 - entities: []
@@ -2421,7 +2421,7 @@
 - entities: []
   intent: create_event
   utterance: add gym session to calendar please
-- entities: []
+- entities: &id171 []
   intent: play_music
   utterance: right now play classical music
 - entities: []
@@ -2430,7 +2430,7 @@
 - entities: []
   intent: query_fact
   utterance: quickly who is the president
-- entities: []
+- entities: &id009 []
   intent: make_call
   utterance: please make a call to the office
 - entities: []
@@ -2439,7 +2439,7 @@
 - entities: []
   intent: make_call
   utterance: dial emergency
-- entities:
+- entities: &id100
   - end: 24
     start: 18
     text: '10:30 '
@@ -2485,7 +2485,7 @@
 - entities: []
   intent: make_call
   utterance: call customer service please
-- entities: []
+- entities: &id085 []
   intent: control_device
   utterance: quickly turn off all devices
 - entities:
@@ -2498,7 +2498,7 @@
 - entities: []
   intent: search_web
   utterance: right now find hotels in Miami
-- entities: []
+- entities: &id026 []
   intent: system_command
   utterance: for me turn off wifi
 - entities: []
@@ -2599,7 +2599,7 @@
 - entities: []
   intent: previous_track
   utterance: play previous for me
-- entities: []
+- entities: &id120 []
   intent: stop_media
   utterance: turn off the music now
 - entities: []
@@ -2620,7 +2620,7 @@
 - entities: []
   intent: previous_track
   utterance: quickly play previous
-- entities: []
+- entities: &id164 []
   intent: control_thermostat
   utterance: now turn on AC
 - entities: []
@@ -2694,7 +2694,7 @@
     type: date
   intent: set_alarm
   utterance: right now wake me at 6am on Monday
-- entities: []
+- entities: &id086 []
   intent: control_device
   utterance: quickly open the garage
 - entities: []
@@ -2706,7 +2706,7 @@
 - entities: []
   intent: help_request
   utterance: right now assist me
-- entities:
+- entities: &id106
   - end: 34
     start: 29
     text: '7:30 '
@@ -2764,7 +2764,7 @@
 - entities: []
   intent: control_device
   utterance: enable the TV
-- entities:
+- entities: &id032
   - end: 37
     start: 28
     text: 3 minutes
@@ -2774,10 +2774,10 @@
 - entities: []
   intent: query_date
   utterance: date please
-- entities: []
+- entities: &id051 []
   intent: search_web
   utterance: search for job openings now
-- entities: []
+- entities: &id046 []
   intent: cancel_timer
   utterance: right now turn off the timer
 - entities:
@@ -2813,7 +2813,7 @@
 - entities: []
   intent: help_request
   utterance: what are your capabilities please
-- entities: []
+- entities: &id170 []
   intent: play_music
   utterance: play Bohemian Rhapsody
 - entities: []
@@ -2904,10 +2904,10 @@
 - entities: []
   intent: send_message
   utterance: quickly message the team about the update
-- entities: []
+- entities: &id121 []
   intent: stop_media
   utterance: quickly turn off the music
-- entities: []
+- entities: &id138 []
   intent: control_lights
   utterance: turn off bedroom lights please
 - entities:
@@ -2965,7 +2965,7 @@
 - entities: []
   intent: pause_media
   utterance: stop the music right now
-- entities: []
+- entities: &id002 []
   intent: make_call
   utterance: phone Sarah's mobile right now
 - entities:
@@ -3016,10 +3016,10 @@
     type: temperature
   intent: control_thermostat
   utterance: please set temperature to 72
-- entities: []
+- entities: &id081 []
   intent: control_device
   utterance: for me turn off the fan
-- entities: []
+- entities: &id148 []
   intent: control_lights
   utterance: turn off all lights quickly
 - entities: []
@@ -3063,7 +3063,7 @@
     type: recipient
   intent: send_message
   utterance: please message Lisa happy birthday
-- entities: []
+- entities: &id188 []
   intent: set_reminder
   utterance: please set a reminder to buy milk
 - entities: []
@@ -3116,7 +3116,7 @@
 - entities: []
   intent: previous_track
   utterance: skip backward quickly
-- entities: []
+- entities: &id050 []
   intent: cancel_timer
   utterance: turn off the timer right now
 - entities: []
@@ -3134,7 +3134,7 @@
 - entities: []
   intent: stop_media
   utterance: right now stop playback
-- entities: []
+- entities: &id015 []
   intent: send_message
   utterance: now send a text saying I'm here
 - entities:
@@ -3252,10 +3252,10 @@
 - entities: []
   intent: help_request
   utterance: I need help quickly
-- entities: []
+- entities: &id124 []
   intent: stop_media
   utterance: turn off the music
-- entities: []
+- entities: &id068 []
   intent: control_device
   utterance: now close the blinds
 - entities: []
@@ -3439,7 +3439,7 @@
     type: time
   intent: set_alarm
   utterance: set alarm 9:15 PM please
-- entities: []
+- entities: &id095 []
   intent: query_time
   utterance: can you tell me the time right now
 - entities: []
@@ -3448,7 +3448,7 @@
 - entities: []
   intent: make_call
   utterance: call customer service quickly
-- entities: []
+- entities: &id185 []
   intent: set_reminder
   utterance: right now set a reminder to buy milk
 - entities: []
@@ -3457,7 +3457,7 @@
 - entities: []
   intent: send_email
   utterance: now send email about vacation request
-- entities: []
+- entities: &id156 []
   intent: control_thermostat
   utterance: turn on AC right now
 - entities: []
@@ -3481,7 +3481,7 @@
 - entities: []
   intent: confirmation
   utterance: yeah quickly
-- entities: []
+- entities: &id150 []
   intent: control_lights
   utterance: turn on kitchen lights please
 - entities: []
@@ -3523,7 +3523,7 @@
 - entities: []
   intent: previous_track
   utterance: previous quickly
-- entities: []
+- entities: &id010 []
   intent: send_message
   utterance: right now text my wife I'm on my way
 - entities: []
@@ -3709,7 +3709,7 @@
 - entities: []
   intent: previous_track
   utterance: quickly back to previous
-- entities: []
+- entities: &id057 []
   intent: search_web
   utterance: search for job openings quickly
 - entities: []
@@ -3761,7 +3761,7 @@
 - entities: []
   intent: cancel_timer
   utterance: cancel the timer quickly
-- entities: []
+- entities: &id139 []
   intent: control_lights
   utterance: for me turn on the lights
 - entities: []
@@ -3792,7 +3792,7 @@
 - entities: []
   intent: delete_event
   utterance: right now delete meeting
-- entities:
+- entities: &id028
   - end: 30
     start: 20
     text: 10 seconds
@@ -3815,7 +3815,7 @@
     type: recipient
   intent: send_message
   utterance: please send text to boss about the report
-- entities: []
+- entities: &id048 []
   intent: cancel_timer
   utterance: please turn off the timer
 - entities: []
@@ -3896,7 +3896,7 @@
 - entities: []
   intent: control_thermostat
   utterance: make it cooler please
-- entities: []
+- entities: &id074 []
   intent: control_device
   utterance: right now turn on the TV
 - entities: []
@@ -3970,7 +3970,7 @@
 - entities: []
   intent: make_call
   utterance: phone Sarah's mobile quickly
-- entities: []
+- entities: &id039 []
   intent: close_app
   utterance: quit calendar now
 - entities: []
@@ -3985,7 +3985,7 @@
 - entities: []
   intent: play_music
   utterance: right now play jazz music
-- entities:
+- entities: &id017
   - end: 9
     start: 5
     text: John
@@ -4001,7 +4001,7 @@
 - entities: []
   intent: play_music
   utterance: play the Beatles please
-- entities: []
+- entities: &id183 []
   intent: open_app
   utterance: right now open calculator
 - entities: []
@@ -4022,7 +4022,7 @@
 - entities: []
   intent: open_app
   utterance: now launch calendar
-- entities:
+- entities: &id101
   - end: 24
     start: 19
     text: '7:30 '
@@ -4122,7 +4122,7 @@
     type: date
   intent: query_weather
   utterance: weather forecast for tomorrow
-- entities:
+- entities: &id099
   - end: 19
     start: 14
     text: '6:30 '
@@ -4216,7 +4216,7 @@
 - entities: []
   intent: close_app
   utterance: quit calendar
-- entities: []
+- entities: &id127 []
   intent: clarification_request
   utterance: can you clarify right now
 - entities: []
@@ -4254,7 +4254,7 @@
 - entities: []
   intent: send_email
   utterance: email Sarah the meeting notes
-- entities: []
+- entities: &id118 []
   intent: query_weather
   utterance: do I need an umbrella
 - entities: []
@@ -4338,7 +4338,7 @@
 - entities: []
   intent: previous_track
   utterance: right now play previous
-- entities: []
+- entities: &id070 []
   intent: control_device
   utterance: turn off all devices right now
 - entities: []
@@ -4372,7 +4372,7 @@
 - entities: []
   intent: query_date
   utterance: for me date please
-- entities: []
+- entities: &id134 []
   intent: control_lights
   utterance: turn on kitchen lights now
 - entities:
@@ -4396,16 +4396,16 @@
     type: recipient
   intent: send_message
   utterance: for me send text to dad
-- entities: []
+- entities: &id038 []
   intent: close_app
   utterance: quickly close email
 - entities: []
   intent: pause_media
   utterance: for me pause the music
-- entities: []
+- entities: &id136 []
   intent: control_lights
   utterance: right now turn off all lights
-- entities: []
+- entities: &id123 []
   intent: stop_media
   utterance: turn off the music please
 - entities: []
@@ -4475,7 +4475,7 @@
 - entities: []
   intent: create_event
   utterance: add birthday party to calendar
-- entities: []
+- entities: &id024 []
   intent: system_command
   utterance: turn off wifi
 - entities:
@@ -4494,7 +4494,7 @@
 - entities: []
   intent: control_thermostat
   utterance: make it warmer right now
-- entities: []
+- entities: &id162 []
   intent: control_thermostat
   utterance: please turn off heating
 - entities: []
@@ -4509,7 +4509,7 @@
 - entities: []
   intent: query_fact
   utterance: what is the largest ocean quickly
-- entities: []
+- entities: &id146 []
   intent: control_lights
   utterance: right now turn off bedroom lights
 - entities: []
@@ -4522,7 +4522,7 @@
     type: recipient
   intent: send_message
   utterance: message Lisa happy birthday right now
-- entities: []
+- entities: &id187 []
   intent: set_reminder
   utterance: quickly set a reminder to buy milk
 - entities: []
@@ -4604,7 +4604,7 @@
     type: temperature
   intent: control_thermostat
   utterance: set heating to 70 please
-- entities: []
+- entities: &id065 []
   intent: control_device
   utterance: for me turn on the vacuum
 - entities: []
@@ -4654,7 +4654,7 @@
     type: recipient
   intent: send_message
   utterance: text mom I'll be late
-- entities:
+- entities: &id013
   - end: 15
     start: 12
     text: mom
@@ -4671,7 +4671,7 @@
 - entities: []
   intent: stop_media
   utterance: end playback right now
-- entities: []
+- entities: &id198 []
   intent: multi_intent
   utterance: set a timer for 10 minutes and play music
 - entities: []
@@ -4723,7 +4723,7 @@
 - entities: []
   intent: set_reminder
   utterance: start a reminder to buy milk
-- entities: []
+- entities: &id144 []
   intent: control_lights
   utterance: turn off all lights
 - entities: []
@@ -4777,7 +4777,7 @@
 - entities: []
   intent: query_time
   utterance: tell me the time right now
-- entities: []
+- entities: &id096 []
   intent: query_time
   utterance: can you tell me the time now
 - entities:
@@ -4828,7 +4828,7 @@
 - entities: []
   intent: set_reminder
   utterance: for me I need a reminder to water plants
-- entities: []
+- entities: &id025 []
   intent: system_command
   utterance: now turn off wifi
 - entities: []
@@ -4897,7 +4897,7 @@
 - entities: []
   intent: previous_track
   utterance: now back to previous
-- entities: []
+- entities: &id003 []
   intent: make_call
   utterance: phone Sarah's mobile
 - entities:
@@ -4942,7 +4942,7 @@
 - entities: []
   intent: clarification_request
   utterance: now say that again
-- entities: []
+- entities: &id119 []
   intent: stop_media
   utterance: now turn off the music
 - entities: []
@@ -5008,7 +5008,7 @@
 - entities: []
   intent: query_events
   utterance: now show my events
-- entities: []
+- entities: &id088 []
   intent: control_device
   utterance: please turn off the fan
 - entities:
@@ -5037,7 +5037,7 @@
 - entities: []
   intent: system_command
   utterance: right now increase volume
-- entities: []
+- entities: &id091 []
   intent: query_time
   utterance: for me can you tell me the time
 - entities: []
@@ -5062,7 +5062,7 @@
 - entities: []
   intent: unknown
   utterance: right now random gibberish
-- entities: []
+- entities: &id200 []
   intent: multi_intent
   utterance: turn on lights and set temperature to 72
 - entities: []
@@ -5092,7 +5092,7 @@
 - entities: []
   intent: stop_media
   utterance: please stop this song
-- entities: []
+- entities: &id191 []
   intent: multi_intent
   utterance: set a timer for 10 minutes and play music quickly
 - entities: []
@@ -5373,7 +5373,7 @@
 - entities: []
   intent: delete_event
   utterance: now cancel dentist appointment
-- entities: []
+- entities: &id132 []
   intent: control_lights
   utterance: please turn on kitchen lights
 - entities:
@@ -5471,7 +5471,7 @@
 - entities: []
   intent: control_device
   utterance: right now unlock front door
-- entities: []
+- entities: &id107 []
   intent: help_request
   utterance: please what can you do
 - entities: []
@@ -5589,7 +5589,7 @@
     type: app_name
   intent: close_app
   utterance: exit Netflix right now
-- entities: []
+- entities: &id142 []
   intent: control_lights
   utterance: please turn off bedroom lights
 - entities:
@@ -5717,7 +5717,7 @@
 - entities: []
   intent: previous_track
   utterance: play previous quickly
-- entities: []
+- entities: &id037 []
   intent: close_app
   utterance: please close email
 - entities:
@@ -5733,10 +5733,10 @@
 - entities: []
   intent: system_command
   utterance: adjust brightness right now
-- entities: []
+- entities: &id064 []
   intent: control_device
   utterance: close the blinds right now
-- entities: []
+- entities: &id008 []
   intent: make_call
   utterance: call customer service for me
 - entities:
@@ -5768,7 +5768,7 @@
 - entities: []
   intent: stop_media
   utterance: stop playback
-- entities: []
+- entities: &id061 []
   intent: control_device
   utterance: close the blinds please
 - entities: []
@@ -5810,7 +5810,7 @@
 - entities: []
   intent: update_event
   utterance: reschedule dentist appointment please
-- entities:
+- entities: &id175
   - end: 12
     start: 5
     text: Spotify
@@ -5826,7 +5826,7 @@
 - entities: []
   intent: query_time
   utterance: please what time is it
-- entities:
+- entities: &id035
   - end: 20
     start: 10
     text: 10 seconds
@@ -5836,7 +5836,7 @@
 - entities: []
   intent: play_video
   utterance: for me play workout videos
-- entities: []
+- entities: &id063 []
   intent: control_device
   utterance: now turn on the vacuum
 - entities: []
@@ -5877,13 +5877,13 @@
     type: time
   intent: update_event
   utterance: please change meeting time to 5pm
-- entities: []
+- entities: &id140 []
   intent: control_lights
   utterance: now turn off all lights
-- entities: []
+- entities: &id083 []
   intent: control_device
   utterance: right now open the garage
-- entities: []
+- entities: &id163 []
   intent: control_thermostat
   utterance: quickly turn on AC
 - entities: []
@@ -5898,7 +5898,7 @@
 - entities: []
   intent: previous_track
   utterance: now play previous
-- entities: []
+- entities: &id152 []
   intent: control_thermostat
   utterance: turn on AC for me
 - entities: []
@@ -5951,7 +5951,7 @@
 - entities: []
   intent: control_device
   utterance: start the coffee maker please
-- entities: []
+- entities: &id021 []
   intent: system_command
   utterance: please turn off wifi
 - entities:
@@ -6019,7 +6019,7 @@
 - entities: []
   intent: control_device
   utterance: start the dishwasher
-- entities: []
+- entities: &id149 []
   intent: control_lights
   utterance: turn off all lights for me
 - entities:
@@ -6110,7 +6110,7 @@
 - entities: []
   intent: open_app
   utterance: launch maps
-- entities: []
+- entities: &id089 []
   intent: control_device
   utterance: turn on the vacuum
 - entities: []
@@ -6225,7 +6225,7 @@
 - entities: []
   intent: search_web
   utterance: right now find information about AI
-- entities:
+- entities: &id174
   - end: 12
     start: 5
     text: Spotify
@@ -6287,7 +6287,7 @@
 - entities: []
   intent: query_events
   utterance: show my events
-- entities: []
+- entities: &id049 []
   intent: cancel_timer
   utterance: turn off the timer now
 - entities:
@@ -6338,7 +6338,7 @@
 - entities: []
   intent: open_app
   utterance: right now launch maps
-- entities:
+- entities: &id182
   - end: 12
     start: 5
     text: Spotify
@@ -6351,7 +6351,7 @@
 - entities: []
   intent: open_app
   utterance: open settings quickly
-- entities: []
+- entities: &id087 []
   intent: control_device
   utterance: right now close the blinds
 - entities: []
@@ -6424,7 +6424,7 @@
 - entities: []
   intent: send_email
   utterance: right now email Sarah the meeting notes
-- entities: []
+- entities: &id006 []
   intent: make_call
   utterance: for me call back the last number
 - entities: []
@@ -6474,10 +6474,10 @@
 - entities: []
   intent: next_track
   utterance: next right now
-- entities: []
+- entities: &id066 []
   intent: control_device
   utterance: turn on the TV
-- entities: []
+- entities: &id092 []
   intent: query_time
   utterance: please can you tell me the time
 - entities: []
@@ -6567,7 +6567,7 @@
 - entities: []
   intent: set_reminder
   utterance: set reminder for grocery shopping quickly
-- entities: []
+- entities: &id111 []
   intent: help_request
   utterance: what can you do
 - entities: []
@@ -6618,7 +6618,7 @@
 - entities: []
   intent: confirmation
   utterance: 'yes'
-- entities: []
+- entities: &id126 []
   intent: clarification_request
   utterance: please can you clarify
 - entities: []
@@ -6684,7 +6684,7 @@
     type: time
   intent: set_alarm
   utterance: set alarm for 10:30 tonight quickly
-- entities: []
+- entities: &id190 []
   intent: multi_intent
   utterance: please turn on lights and set temperature to 72
 - entities: []
@@ -6702,7 +6702,7 @@
 - entities: []
   intent: system_command
   utterance: for me restart device
-- entities: []
+- entities: &id166 []
   intent: play_music
   utterance: quickly play classical music
 - entities: []
@@ -6841,7 +6841,7 @@
     type: duration
   intent: set_timer
   utterance: for me I need a timer for 1 hour and 30 minutes
-- entities: []
+- entities: &id044 []
   intent: close_app
   utterance: exit YouTube please
 - entities: []
@@ -6865,7 +6865,7 @@
 - entities: []
   intent: control_thermostat
   utterance: quickly make it cooler
-- entities: []
+- entities: &id194 []
   intent: multi_intent
   utterance: now set a timer for 10 minutes and play music
 - entities:
@@ -6908,7 +6908,7 @@
 - entities: []
   intent: play_video
   utterance: play a video
-- entities: []
+- entities: &id053 []
   intent: search_web
   utterance: search for job openings for me
 - entities:
@@ -6918,7 +6918,7 @@
     type: time
   intent: set_alarm
   utterance: please wake me up at 6:30
-- entities: []
+- entities: &id184 []
   intent: set_reminder
   utterance: now set a reminder to buy milk
 - entities: []
@@ -6941,7 +6941,7 @@
 - entities: []
   intent: stop_media
   utterance: stop please
-- entities: []
+- entities: &id158 []
   intent: control_thermostat
   utterance: turn off heating now
 - entities: []
@@ -7146,7 +7146,7 @@
 - entities: []
   intent: multi_intent
   utterance: send message to John and call mom right now
-- entities: []
+- entities: &id143 []
   intent: control_lights
   utterance: turn off all lights now
 - entities: []
@@ -7168,7 +7168,7 @@
 - entities: []
   intent: search_web
   utterance: right now look up movie reviews
-- entities: []
+- entities: &id109 []
   intent: help_request
   utterance: for me what can you do
 - entities: []
@@ -7200,7 +7200,7 @@
     type: time
   intent: set_alarm
   utterance: create an alarm for 7am
-- entities:
+- entities: &id040
   - end: 16
     start: 9
     text: Netflix
@@ -7336,7 +7336,7 @@
 - entities: []
   intent: create_event
   utterance: please create event called project review
-- entities: []
+- entities: &id075 []
   intent: control_device
   utterance: for me open the garage
 - entities: []
@@ -7345,7 +7345,7 @@
 - entities: []
   intent: play_video
   utterance: please play sports highlights
-- entities:
+- entities: &id043
   - end: 13
     start: 6
     text: Spotify
@@ -7381,7 +7381,7 @@
     type: temperature
   intent: control_thermostat
   utterance: set thermostat to 68 degrees for me
-- entities: []
+- entities: &id056 []
   intent: search_web
   utterance: search for job openings
 - entities:
@@ -7404,7 +7404,7 @@
 - entities: []
   intent: next_track
   utterance: right now next
-- entities: []
+- entities: &id076 []
   intent: control_device
   utterance: turn off all devices
 - entities:
@@ -7463,7 +7463,7 @@
 - entities: []
   intent: system_command
   utterance: take a screenshot right now
-- entities: []
+- entities: &id167 []
   intent: play_music
   utterance: for me play top hits
 - entities: []
@@ -7488,10 +7488,10 @@
 - entities: []
   intent: pause_media
   utterance: pause the video for me
-- entities: []
+- entities: &id145 []
   intent: control_lights
   utterance: turn on the lights please
-- entities:
+- entities: &id019
   - end: 17
     start: 13
     text: boss
@@ -7579,7 +7579,7 @@
 - entities: []
   intent: previous_track
   utterance: for me go to previous track
-- entities:
+- entities: &id176
   - end: 23
     start: 16
     text: Netflix
@@ -7621,7 +7621,7 @@
 - entities: []
   intent: control_lights
   utterance: dim the lights please
-- entities: []
+- entities: &id117 []
   intent: query_weather
   utterance: please what's the weather like
 - entities: []
@@ -7725,7 +7725,7 @@
     type: phone_number
   intent: make_call
   utterance: dial 555-1234
-- entities: []
+- entities: &id072 []
   intent: control_device
   utterance: turn on the TV for me
 - entities: []
@@ -7750,7 +7750,7 @@
 - entities: []
   intent: play_music
   utterance: play classical music for me
-- entities: []
+- entities: &id169 []
   intent: play_music
   utterance: quickly play my favorite songs
 - entities: []
@@ -7762,7 +7762,7 @@
 - entities: []
   intent: next_track
   utterance: next song
-- entities:
+- entities: &id029
   - end: 28
     start: 19
     text: 20 second
@@ -7772,7 +7772,7 @@
 - entities: []
   intent: play_video
   utterance: play funny videos right now
-- entities: []
+- entities: &id080 []
   intent: control_device
   utterance: turn on the vacuum now
 - entities:
@@ -7865,7 +7865,7 @@
 - entities: []
   intent: control_device
   utterance: start the dishwasher right now
-- entities: []
+- entities: &id195 []
   intent: multi_intent
   utterance: turn on lights and set temperature to 72 now
 - entities: []
@@ -7951,7 +7951,7 @@
     type: date
   intent: update_event
   utterance: change event to next week
-- entities: []
+- entities: &id114 []
   intent: query_weather
   utterance: do I need an umbrella please
 - entities: []
@@ -8034,7 +8034,7 @@
     type: time
   intent: delete_event
   utterance: cancel meeting at 3pm right now
-- entities: []
+- entities: &id131 []
   intent: control_lights
   utterance: turn on the lights right now
 - entities:
@@ -8108,10 +8108,10 @@
 - entities: []
   intent: play_music
   utterance: now play relaxing music
-- entities: []
+- entities: &id042 []
   intent: close_app
   utterance: close calculator
-- entities:
+- entities: &id014
   - end: 16
     start: 13
     text: dad
@@ -8168,7 +8168,7 @@
     type: date
   intent: query_weather
   utterance: will it rain today for me
-- entities: []
+- entities: &id059 []
   intent: control_device
   utterance: please close the blinds
 - entities:
@@ -8253,7 +8253,7 @@
 - entities: []
   intent: open_app
   utterance: open email right now
-- entities:
+- entities: &id027
   - end: 29
     start: 20
     text: 3 minutes
@@ -8273,7 +8273,7 @@
     type: date
   intent: update_event
   utterance: now move event to Monday
-- entities: []
+- entities: &id147 []
   intent: control_lights
   utterance: turn off all lights right now
 - entities: []
@@ -8291,10 +8291,10 @@
 - entities: []
   intent: control_lights
   utterance: right now set lights to 50%
-- entities: []
+- entities: &id078 []
   intent: control_device
   utterance: now turn off the fan
-- entities: []
+- entities: &id055 []
   intent: search_web
   utterance: search for job openings please
 - entities: []
@@ -8368,16 +8368,16 @@
 - entities: []
   intent: query_weather
   utterance: temperature outside
-- entities: []
+- entities: &id007 []
   intent: make_call
   utterance: right now call my wife
-- entities: []
+- entities: &id079 []
   intent: control_device
   utterance: open the garage for me
 - entities: []
   intent: control_lights
   utterance: set lights to 50%
-- entities:
+- entities: &id098
   - end: 25
     start: 20
     text: '5:45 '
@@ -8391,7 +8391,7 @@
 - entities: []
   intent: query_fact
   utterance: please who wrote Romeo and Juliet
-- entities: []
+- entities: &id004 []
   intent: make_call
   utterance: please call back the last number
 - entities: []
@@ -8410,7 +8410,7 @@
 - entities: []
   intent: help_request
   utterance: right now how do I
-- entities: []
+- entities: &id197 []
   intent: multi_intent
   utterance: set a timer for 10 minutes and play music now
 - entities: []
@@ -8422,7 +8422,7 @@
 - entities: []
   intent: pause_media
   utterance: stop the music please
-- entities:
+- entities: &id011
   - end: 16
     start: 12
     text: John
@@ -8452,7 +8452,7 @@
 - entities: []
   intent: query_time
   utterance: now time please
-- entities: []
+- entities: &id165 []
   intent: play_music
   utterance: play some music for me
 - entities:
@@ -8477,7 +8477,7 @@
 - entities: []
   intent: query_time
   utterance: time please please
-- entities: []
+- entities: &id151 []
   intent: control_lights
   utterance: turn on kitchen lights
 - entities: []
@@ -8524,7 +8524,7 @@
 - entities: []
   intent: play_music
   utterance: for me play songs by Taylor Swift
-- entities: []
+- entities: &id062 []
   intent: control_device
   utterance: close the blinds
 - entities: []
@@ -8586,10 +8586,10 @@
     type: date
   intent: query_date
   utterance: right now what's today's date
-- entities: []
+- entities: &id020 []
   intent: system_command
   utterance: quickly turn off wifi
-- entities: []
+- entities: &id116 []
   intent: query_weather
   utterance: temperature outside quickly
 - entities: []
@@ -8650,7 +8650,7 @@
     type: recipient
   intent: send_message
   utterance: send text to dad quickly
-- entities:
+- entities: &id113
   - end: 26
     start: 21
     text: today
@@ -8787,7 +8787,7 @@
 - entities: []
   intent: control_lights
   utterance: now dim the lights
-- entities: []
+- entities: &id108 []
   intent: help_request
   utterance: what can you do for me
 - entities: []
@@ -8885,7 +8885,7 @@
     type: date
   intent: create_event
   utterance: schedule dinner on Friday quickly
-- entities: []
+- entities: &id045 []
   intent: close_app
   utterance: close calculator right now
 - entities: []
@@ -8954,7 +8954,7 @@
     type: date
   intent: update_event
   utterance: change event to next week please
-- entities: []
+- entities: &id199 []
   intent: multi_intent
   utterance: right now turn on lights and set temperature to 72
 - entities: []
@@ -8988,7 +8988,7 @@
 - entities: []
   intent: close_app
   utterance: close settings quickly
-- entities: []
+- entities: &id041 []
   intent: close_app
   utterance: quit calendar quickly
 - entities: []
@@ -8997,7 +8997,7 @@
 - entities: []
   intent: clarification_request
   utterance: please I don't understand
-- entities: []
+- entities: &id005 []
   intent: make_call
   utterance: right now dial emergency
 - entities: []
@@ -9029,7 +9029,7 @@
 - entities: []
   intent: query_date
   utterance: current date please
-- entities:
+- entities: &id034
   - end: 40
     start: 19
     text: 1 hour and 30 minutes
@@ -9048,7 +9048,7 @@
 - entities: []
   intent: set_reminder
   utterance: I need a reminder to water plants
-- entities: []
+- entities: &id060 []
   intent: control_device
   utterance: quickly close the blinds
 - entities: []
@@ -9074,7 +9074,7 @@
     type: date
   intent: set_reminder
   utterance: remind me to submit report by Friday please
-- entities: []
+- entities: &id128 []
   intent: clarification_request
   utterance: can you clarify now
 - entities: []
@@ -9158,7 +9158,7 @@
 - entities: []
   intent: confirmation
   utterance: that's right quickly
-- entities: []
+- entities: &id141 []
   intent: control_lights
   utterance: turn off bedroom lights for me
 - entities: []
@@ -9261,7 +9261,7 @@
 - entities: []
   intent: previous_track
   utterance: now previous
-- entities: []
+- entities: &id023 []
   intent: system_command
   utterance: right now turn off wifi
 - entities: []
@@ -9378,7 +9378,7 @@
     type: recipient
   intent: send_message
   utterance: now message Lisa happy birthday
-- entities: []
+- entities: &id071 []
   intent: control_device
   utterance: turn off the fan right now
 - entities: []
@@ -9397,7 +9397,7 @@
 - entities: []
   intent: stop_media
   utterance: please turn music off
-- entities: []
+- entities: &id073 []
   intent: control_device
   utterance: turn on the TV right now
 - entities: []
@@ -9410,7 +9410,7 @@
     type: duration
   intent: set_timer
   utterance: now set timer 2 hours
-- entities: []
+- entities: &id181 []
   intent: open_app
   utterance: now open camera
 - entities:
@@ -9553,7 +9553,7 @@
     type: location
   intent: query_weather
   utterance: weather in New York please
-- entities: []
+- entities: &id160 []
   intent: control_thermostat
   utterance: right now turn on AC
 - entities: []
@@ -9562,7 +9562,7 @@
 - entities: []
   intent: play_video
   utterance: play sports highlights
-- entities: []
+- entities: &id133 []
   intent: control_lights
   utterance: now turn on the lights
 - entities: []
@@ -9612,13 +9612,1327 @@
 - entities: []
   intent: control_thermostat
   utterance: make it cooler now
-- entities:
+- entities: &id030
   - end: 26
     start: 17
     text: 5 minutes
     type: duration
   intent: set_timer
   utterance: make a timer for 5 minutes
-- entities: []
+- entities: &id082 []
   intent: control_device
   utterance: turn on the vacuum right now
+- entities: *id001
+  intent: make_call
+  utterance: make phone call
+- entities: *id002
+  intent: make_call
+  utterance: start call
+- entities: *id003
+  intent: make_call
+  utterance: ring someone
+- entities: *id004
+  intent: make_call
+  utterance: I want to call
+- entities: *id005
+  intent: make_call
+  utterance: make a call
+- entities: *id006
+  intent: make_call
+  utterance: place a call
+- entities: *id007
+  intent: make_call
+  utterance: phone someone
+- entities: *id005
+  intent: make_call
+  utterance: call please
+- entities: *id008
+  intent: make_call
+  utterance: dial number
+- entities: *id009
+  intent: make_call
+  utterance: call someone
+- entities: *id010
+  intent: send_message
+  utterance: I want to send a message
+- entities: *id011
+  intent: send_message
+  utterance: send sms
+- entities: *id012
+  intent: send_message
+  utterance: send a text
+- entities: *id013
+  intent: send_message
+  utterance: text someone
+- entities: *id014
+  intent: send_message
+  utterance: send message
+- entities: *id015
+  intent: send_message
+  utterance: write a message
+- entities: *id016
+  intent: send_message
+  utterance: compose message
+- entities: *id017
+  intent: send_message
+  utterance: message someone
+- entities: *id018
+  intent: send_message
+  utterance: send text message
+- entities: *id019
+  intent: send_message
+  utterance: text message
+- entities: *id020
+  intent: system_command
+  utterance: quickly switch off wifi
+- entities: *id021
+  intent: system_command
+  utterance: please disable wifi
+- entities: *id020
+  intent: system_command
+  utterance: quickly disable wifi
+- entities: *id022
+  intent: system_command
+  utterance: disable wifi right now
+- entities: *id023
+  intent: system_command
+  utterance: right now disable wifi
+- entities: *id024
+  intent: system_command
+  utterance: disable wifi
+- entities: *id023
+  intent: system_command
+  utterance: right now switch off wifi
+- entities: *id025
+  intent: system_command
+  utterance: now switch off wifi
+- entities: *id021
+  intent: system_command
+  utterance: please switch off wifi
+- entities: *id020
+  intent: system_command
+  utterance: quickly deactivate wifi
+- entities: *id023
+  intent: system_command
+  utterance: right now deactivate wifi
+- entities: *id025
+  intent: system_command
+  utterance: now disable wifi
+- entities: *id026
+  intent: system_command
+  utterance: for me switch off wifi
+- entities: *id021
+  intent: system_command
+  utterance: please deactivate wifi
+- entities: *id025
+  intent: system_command
+  utterance: now deactivate wifi
+- entities: *id026
+  intent: system_command
+  utterance: for me deactivate wifi
+- entities: *id022
+  intent: system_command
+  utterance: switch off wifi right now
+- entities: *id022
+  intent: system_command
+  utterance: deactivate wifi right now
+- entities: *id026
+  intent: system_command
+  utterance: for me disable wifi
+- entities: *id027
+  intent: set_timer
+  utterance: make a timer for {duration}
+- entities: *id028
+  intent: set_timer
+  utterance: start countdown for {duration}
+- entities: *id029
+  intent: set_timer
+  utterance: begin timer {duration}
+- entities: *id030
+  intent: set_timer
+  utterance: set timer for {duration}
+- entities: *id031
+  intent: set_timer
+  utterance: start a {duration} timer
+- entities: *id032
+  intent: set_timer
+  utterance: I need a {duration} timer
+- entities: *id033
+  intent: set_timer
+  utterance: timer for {duration} please
+- entities: *id034
+  intent: set_timer
+  utterance: create timer {duration}
+- entities: *id035
+  intent: set_timer
+  utterance: can you set a timer for {duration}
+- entities: *id036
+  intent: set_timer
+  utterance: set a {duration} countdown
+- entities: *id037
+  intent: close_app
+  utterance: quit app
+- entities: *id038
+  intent: close_app
+  utterance: kill app
+- entities: *id039
+  intent: close_app
+  utterance: terminate app
+- entities: *id040
+  intent: close_app
+  utterance: exit app
+- entities: *id041
+  intent: close_app
+  utterance: close program
+- entities: *id042
+  intent: close_app
+  utterance: stop app
+- entities: *id040
+  intent: close_app
+  utterance: end app
+- entities: *id043
+  intent: close_app
+  utterance: close application
+- entities: *id044
+  intent: close_app
+  utterance: close app
+- entities: *id045
+  intent: close_app
+  utterance: shut down app
+- entities: *id046
+  intent: cancel_timer
+  utterance: right now deactivate the timer
+- entities: *id047
+  intent: cancel_timer
+  utterance: quickly deactivate the timer
+- entities: *id047
+  intent: cancel_timer
+  utterance: quickly disable the timer
+- entities: *id046
+  intent: cancel_timer
+  utterance: right now switch off the timer
+- entities: *id047
+  intent: cancel_timer
+  utterance: quickly switch off the timer
+- entities: *id048
+  intent: cancel_timer
+  utterance: please switch off the timer
+- entities: *id049
+  intent: cancel_timer
+  utterance: deactivate the timer now
+- entities: *id049
+  intent: cancel_timer
+  utterance: disable the timer now
+- entities: *id046
+  intent: cancel_timer
+  utterance: right now disable the timer
+- entities: *id050
+  intent: cancel_timer
+  utterance: deactivate the timer right now
+- entities: *id049
+  intent: cancel_timer
+  utterance: switch off the timer now
+- entities: *id050
+  intent: cancel_timer
+  utterance: switch off the timer right now
+- entities: *id050
+  intent: cancel_timer
+  utterance: disable the timer right now
+- entities: *id048
+  intent: cancel_timer
+  utterance: please deactivate the timer
+- entities: *id048
+  intent: cancel_timer
+  utterance: please disable the timer
+- entities: *id051
+  intent: search_web
+  utterance: search for job runings now
+- entities: *id052
+  intent: search_web
+  utterance: for me search for job runings
+- entities: *id053
+  intent: search_web
+  utterance: search for job runings for me
+- entities: *id054
+  intent: search_web
+  utterance: search for job launchings right now
+- entities: *id055
+  intent: search_web
+  utterance: search for job launchings please
+- entities: *id052
+  intent: search_web
+  utterance: for me search for job startings
+- entities: *id056
+  intent: search_web
+  utterance: search for job launchings
+- entities: *id052
+  intent: search_web
+  utterance: for me search for job launchings
+- entities: *id051
+  intent: search_web
+  utterance: search for job launchings now
+- entities: *id056
+  intent: search_web
+  utterance: search for job runings
+- entities: *id055
+  intent: search_web
+  utterance: search for job runings please
+- entities: *id057
+  intent: search_web
+  utterance: search for job startings quickly
+- entities: *id055
+  intent: search_web
+  utterance: search for job startings please
+- entities: *id054
+  intent: search_web
+  utterance: search for job startings right now
+- entities: *id057
+  intent: search_web
+  utterance: search for job runings quickly
+- entities: *id053
+  intent: search_web
+  utterance: search for job launchings for me
+- entities: *id051
+  intent: search_web
+  utterance: search for job startings now
+- entities: *id056
+  intent: search_web
+  utterance: search for job startings
+- entities: *id054
+  intent: search_web
+  utterance: search for job runings right now
+- entities: *id057
+  intent: search_web
+  utterance: search for job launchings quickly
+- entities: *id053
+  intent: search_web
+  utterance: search for job startings for me
+- entities: *id058
+  intent: control_device
+  utterance: switch on the TV quickly
+- entities: *id059
+  intent: control_device
+  utterance: please exit the blinds
+- entities: *id060
+  intent: control_device
+  utterance: quickly exit the blinds
+- entities: *id061
+  intent: control_device
+  utterance: quit the blinds please
+- entities: *id059
+  intent: control_device
+  utterance: please stop the blinds
+- entities: *id062
+  intent: control_device
+  utterance: stop the blinds
+- entities: *id063
+  intent: control_device
+  utterance: now switch on the vacuum
+- entities: *id064
+  intent: control_device
+  utterance: quit the blinds right now
+- entities: *id065
+  intent: control_device
+  utterance: for me switch on the vacuum
+- entities: *id066
+  intent: control_device
+  utterance: activate the TV
+- entities: *id067
+  intent: control_device
+  utterance: switch off all devices now
+- entities: *id068
+  intent: control_device
+  utterance: now stop the blinds
+- entities: *id069
+  intent: control_device
+  utterance: for me deactivate all devices
+- entities: *id070
+  intent: control_device
+  utterance: switch off all devices right now
+- entities: *id071
+  intent: control_device
+  utterance: disable the fan right now
+- entities: *id072
+  intent: control_device
+  utterance: activate the TV for me
+- entities: *id073
+  intent: control_device
+  utterance: activate the TV right now
+- entities: *id064
+  intent: control_device
+  utterance: stop the blinds right now
+- entities: *id068
+  intent: control_device
+  utterance: now quit the blinds
+- entities: *id074
+  intent: control_device
+  utterance: right now activate the TV
+- entities: *id075
+  intent: control_device
+  utterance: for me run the garage
+- entities: *id070
+  intent: control_device
+  utterance: disable all devices right now
+- entities: *id076
+  intent: control_device
+  utterance: switch off all devices
+- entities: *id077
+  intent: control_device
+  utterance: right now deactivate the fan
+- entities: *id078
+  intent: control_device
+  utterance: now deactivate the fan
+- entities: *id079
+  intent: control_device
+  utterance: launch the garage for me
+- entities: *id080
+  intent: control_device
+  utterance: enable the vacuum now
+- entities: *id080
+  intent: control_device
+  utterance: activate the vacuum now
+- entities: *id071
+  intent: control_device
+  utterance: switch off the fan right now
+- entities: *id061
+  intent: control_device
+  utterance: stop the blinds please
+- entities: *id067
+  intent: control_device
+  utterance: disable all devices now
+- entities: *id081
+  intent: control_device
+  utterance: for me deactivate the fan
+- entities: *id062
+  intent: control_device
+  utterance: exit the blinds
+- entities: *id059
+  intent: control_device
+  utterance: please quit the blinds
+- entities: *id079
+  intent: control_device
+  utterance: run the garage for me
+- entities: *id082
+  intent: control_device
+  utterance: switch on the vacuum right now
+- entities: *id061
+  intent: control_device
+  utterance: exit the blinds please
+- entities: *id072
+  intent: control_device
+  utterance: switch on the TV for me
+- entities: *id073
+  intent: control_device
+  utterance: enable the TV right now
+- entities: *id083
+  intent: control_device
+  utterance: right now run the garage
+- entities: *id084
+  intent: control_device
+  utterance: for me quit the blinds
+- entities: *id071
+  intent: control_device
+  utterance: deactivate the fan right now
+- entities: *id080
+  intent: control_device
+  utterance: switch on the vacuum now
+- entities: *id073
+  intent: control_device
+  utterance: switch on the TV right now
+- entities: *id085
+  intent: control_device
+  utterance: quickly disable all devices
+- entities: *id068
+  intent: control_device
+  utterance: now exit the blinds
+- entities: *id065
+  intent: control_device
+  utterance: for me enable the vacuum
+- entities: *id077
+  intent: control_device
+  utterance: right now switch off the fan
+- entities: *id075
+  intent: control_device
+  utterance: for me start the garage
+- entities: *id085
+  intent: control_device
+  utterance: quickly deactivate all devices
+- entities: *id085
+  intent: control_device
+  utterance: quickly switch off all devices
+- entities: *id086
+  intent: control_device
+  utterance: quickly run the garage
+- entities: *id079
+  intent: control_device
+  utterance: start the garage for me
+- entities: *id083
+  intent: control_device
+  utterance: right now launch the garage
+- entities: *id086
+  intent: control_device
+  utterance: quickly start the garage
+- entities: *id087
+  intent: control_device
+  utterance: right now stop the blinds
+- entities: *id069
+  intent: control_device
+  utterance: for me disable all devices
+- entities: *id084
+  intent: control_device
+  utterance: for me exit the blinds
+- entities: *id062
+  intent: control_device
+  utterance: quit the blinds
+- entities: *id063
+  intent: control_device
+  utterance: now enable the vacuum
+- entities: *id075
+  intent: control_device
+  utterance: for me launch the garage
+- entities: *id081
+  intent: control_device
+  utterance: for me switch off the fan
+- entities: *id064
+  intent: control_device
+  utterance: exit the blinds right now
+- entities: *id078
+  intent: control_device
+  utterance: now switch off the fan
+- entities: *id082
+  intent: control_device
+  utterance: enable the vacuum right now
+- entities: *id088
+  intent: control_device
+  utterance: please disable the fan
+- entities: *id063
+  intent: control_device
+  utterance: now activate the vacuum
+- entities: *id060
+  intent: control_device
+  utterance: quickly quit the blinds
+- entities: *id086
+  intent: control_device
+  utterance: quickly launch the garage
+- entities: *id072
+  intent: control_device
+  utterance: enable the TV for me
+- entities: *id088
+  intent: control_device
+  utterance: please deactivate the fan
+- entities: *id067
+  intent: control_device
+  utterance: deactivate all devices now
+- entities: *id058
+  intent: control_device
+  utterance: activate the TV quickly
+- entities: *id078
+  intent: control_device
+  utterance: now disable the fan
+- entities: *id070
+  intent: control_device
+  utterance: deactivate all devices right now
+- entities: *id081
+  intent: control_device
+  utterance: for me disable the fan
+- entities: *id082
+  intent: control_device
+  utterance: activate the vacuum right now
+- entities: *id089
+  intent: control_device
+  utterance: switch on the vacuum
+- entities: *id058
+  intent: control_device
+  utterance: enable the TV quickly
+- entities: *id087
+  intent: control_device
+  utterance: right now exit the blinds
+- entities: *id087
+  intent: control_device
+  utterance: right now quit the blinds
+- entities: *id077
+  intent: control_device
+  utterance: right now disable the fan
+- entities: *id090
+  intent: control_device
+  utterance: run the garage please
+- entities: *id083
+  intent: control_device
+  utterance: right now start the garage
+- entities: *id069
+  intent: control_device
+  utterance: for me switch off all devices
+- entities: *id074
+  intent: control_device
+  utterance: right now switch on the TV
+- entities: *id084
+  intent: control_device
+  utterance: for me stop the blinds
+- entities: *id074
+  intent: control_device
+  utterance: right now enable the TV
+- entities: *id088
+  intent: control_device
+  utterance: please switch off the fan
+- entities: *id060
+  intent: control_device
+  utterance: quickly stop the blinds
+- entities: *id090
+  intent: control_device
+  utterance: start the garage please
+- entities: *id065
+  intent: control_device
+  utterance: for me activate the vacuum
+- entities: *id090
+  intent: control_device
+  utterance: launch the garage please
+- entities: *id091
+  intent: query_time
+  utterance: for me would you tell me the time
+- entities: *id092
+  intent: query_time
+  utterance: please could you tell me the time
+- entities: *id093
+  intent: query_time
+  utterance: right now could you tell me the time
+- entities: *id094
+  intent: query_time
+  utterance: quickly would you tell me the time
+- entities: *id095
+  intent: query_time
+  utterance: would you tell me the time right now
+- entities: *id095
+  intent: query_time
+  utterance: please tell me the time right now
+- entities: *id096
+  intent: query_time
+  utterance: would you tell me the time now
+- entities: *id091
+  intent: query_time
+  utterance: for me please tell me the time
+- entities: *id093
+  intent: query_time
+  utterance: right now would you tell me the time
+- entities: *id094
+  intent: query_time
+  utterance: quickly please tell me the time
+- entities: *id091
+  intent: query_time
+  utterance: for me could you tell me the time
+- entities: *id094
+  intent: query_time
+  utterance: quickly could you tell me the time
+- entities: *id097
+  intent: query_time
+  utterance: would you tell me the time
+- entities: *id096
+  intent: query_time
+  utterance: could you tell me the time now
+- entities: *id096
+  intent: query_time
+  utterance: please tell me the time now
+- entities: *id093
+  intent: query_time
+  utterance: right now please tell me the time
+- entities: *id092
+  intent: query_time
+  utterance: please please tell me the time
+- entities: *id092
+  intent: query_time
+  utterance: please would you tell me the time
+- entities: *id095
+  intent: query_time
+  utterance: could you tell me the time right now
+- entities: *id098
+  intent: set_alarm
+  utterance: alarm at {time}
+- entities: *id099
+  intent: set_alarm
+  utterance: set an alarm for {time}
+- entities: *id100
+  intent: set_alarm
+  utterance: wake me at {time}
+- entities: *id101
+  intent: set_alarm
+  utterance: wake me up at {time}
+- entities: *id102
+  intent: set_alarm
+  utterance: alarm for {time} please
+- entities: *id103
+  intent: set_alarm
+  utterance: create alarm {time}
+- entities: *id104
+  intent: set_alarm
+  utterance: I need an alarm at {time}
+- entities: *id105
+  intent: set_alarm
+  utterance: set alarm for {time}
+- entities: *id101
+  intent: set_alarm
+  utterance: set wake up alarm {time}
+- entities: *id106
+  intent: set_alarm
+  utterance: alarm me at {time}
+- entities: *id107
+  intent: help_request
+  utterance: please what please do
+- entities: *id108
+  intent: help_request
+  utterance: what please do for me
+- entities: *id109
+  intent: help_request
+  utterance: for me what could you do
+- entities: *id108
+  intent: help_request
+  utterance: what would you do for me
+- entities: *id110
+  intent: help_request
+  utterance: what could you do right now
+- entities: *id111
+  intent: help_request
+  utterance: what would you do
+- entities: *id109
+  intent: help_request
+  utterance: for me what would you do
+- entities: *id107
+  intent: help_request
+  utterance: please what would you do
+- entities: *id108
+  intent: help_request
+  utterance: what could you do for me
+- entities: *id107
+  intent: help_request
+  utterance: please what could you do
+- entities: *id110
+  intent: help_request
+  utterance: what would you do right now
+- entities: *id111
+  intent: help_request
+  utterance: what please do
+- entities: *id109
+  intent: help_request
+  utterance: for me what please do
+- entities: *id110
+  intent: help_request
+  utterance: what please do right now
+- entities: *id112
+  intent: query_weather
+  utterance: is it raining
+- entities: *id113
+  intent: query_weather
+  utterance: weather forecast
+- entities: *id114
+  intent: query_weather
+  utterance: weather today
+- entities: *id115
+  intent: query_weather
+  utterance: weather report
+- entities: *id116
+  intent: query_weather
+  utterance: what's it like outside
+- entities: *id117
+  intent: query_weather
+  utterance: how's the weather
+- entities: *id118
+  intent: query_weather
+  utterance: what's the weather
+- entities: *id112
+  intent: query_weather
+  utterance: tell me the weather
+- entities: *id119
+  intent: stop_media
+  utterance: now disable the music
+- entities: *id120
+  intent: stop_media
+  utterance: switch off the music now
+- entities: *id121
+  intent: stop_media
+  utterance: quickly disable the music
+- entities: *id122
+  intent: stop_media
+  utterance: right now deactivate the music
+- entities: *id123
+  intent: stop_media
+  utterance: deactivate the music please
+- entities: *id124
+  intent: stop_media
+  utterance: disable the music
+- entities: *id124
+  intent: stop_media
+  utterance: switch off the music
+- entities: *id123
+  intent: stop_media
+  utterance: disable the music please
+- entities: *id120
+  intent: stop_media
+  utterance: deactivate the music now
+- entities: *id125
+  intent: stop_media
+  utterance: switch off the music right now
+- entities: *id119
+  intent: stop_media
+  utterance: now switch off the music
+- entities: *id122
+  intent: stop_media
+  utterance: right now switch off the music
+- entities: *id122
+  intent: stop_media
+  utterance: right now disable the music
+- entities: *id125
+  intent: stop_media
+  utterance: disable the music right now
+- entities: *id125
+  intent: stop_media
+  utterance: deactivate the music right now
+- entities: *id120
+  intent: stop_media
+  utterance: disable the music now
+- entities: *id121
+  intent: stop_media
+  utterance: quickly switch off the music
+- entities: *id121
+  intent: stop_media
+  utterance: quickly deactivate the music
+- entities: *id119
+  intent: stop_media
+  utterance: now deactivate the music
+- entities: *id123
+  intent: stop_media
+  utterance: switch off the music please
+- entities: *id126
+  intent: clarification_request
+  utterance: please please clarify
+- entities: *id127
+  intent: clarification_request
+  utterance: could you clarify right now
+- entities: *id127
+  intent: clarification_request
+  utterance: would you clarify right now
+- entities: *id128
+  intent: clarification_request
+  utterance: please clarify now
+- entities: *id128
+  intent: clarification_request
+  utterance: would you clarify now
+- entities: *id126
+  intent: clarification_request
+  utterance: please would you clarify
+- entities: *id129
+  intent: clarification_request
+  utterance: could you clarify please
+- entities: *id128
+  intent: clarification_request
+  utterance: could you clarify now
+- entities: *id127
+  intent: clarification_request
+  utterance: please clarify right now
+- entities: *id129
+  intent: clarification_request
+  utterance: please clarify please
+- entities: *id129
+  intent: clarification_request
+  utterance: would you clarify please
+- entities: *id126
+  intent: clarification_request
+  utterance: please could you clarify
+- entities: *id130
+  intent: control_lights
+  utterance: quickly switch on kitchen lights
+- entities: *id131
+  intent: control_lights
+  utterance: switch on the lights right now
+- entities: *id132
+  intent: control_lights
+  utterance: please enable kitchen lights
+- entities: *id133
+  intent: control_lights
+  utterance: now activate the lights
+- entities: *id134
+  intent: control_lights
+  utterance: switch on kitchen lights now
+- entities: *id135
+  intent: control_lights
+  utterance: switch on the lights now
+- entities: *id136
+  intent: control_lights
+  utterance: right now disable all lights
+- entities: *id137
+  intent: control_lights
+  utterance: activate kitchen lights for me
+- entities: *id138
+  intent: control_lights
+  utterance: deactivate bedroom lights please
+- entities: *id139
+  intent: control_lights
+  utterance: for me enable the lights
+- entities: *id136
+  intent: control_lights
+  utterance: right now switch off all lights
+- entities: *id140
+  intent: control_lights
+  utterance: now deactivate all lights
+- entities: *id135
+  intent: control_lights
+  utterance: enable the lights now
+- entities: *id141
+  intent: control_lights
+  utterance: deactivate bedroom lights for me
+- entities: *id133
+  intent: control_lights
+  utterance: now switch on the lights
+- entities: *id141
+  intent: control_lights
+  utterance: switch off bedroom lights for me
+- entities: *id134
+  intent: control_lights
+  utterance: enable kitchen lights now
+- entities: *id138
+  intent: control_lights
+  utterance: switch off bedroom lights please
+- entities: *id142
+  intent: control_lights
+  utterance: please deactivate bedroom lights
+- entities: *id143
+  intent: control_lights
+  utterance: disable all lights now
+- entities: *id137
+  intent: control_lights
+  utterance: switch on kitchen lights for me
+- entities: *id134
+  intent: control_lights
+  utterance: activate kitchen lights now
+- entities: *id139
+  intent: control_lights
+  utterance: for me activate the lights
+- entities: *id132
+  intent: control_lights
+  utterance: please activate kitchen lights
+- entities: *id144
+  intent: control_lights
+  utterance: disable all lights
+- entities: *id145
+  intent: control_lights
+  utterance: switch on the lights please
+- entities: *id146
+  intent: control_lights
+  utterance: right now disable bedroom lights
+- entities: *id136
+  intent: control_lights
+  utterance: right now deactivate all lights
+- entities: *id147
+  intent: control_lights
+  utterance: disable all lights right now
+- entities: *id148
+  intent: control_lights
+  utterance: deactivate all lights quickly
+- entities: *id142
+  intent: control_lights
+  utterance: please disable bedroom lights
+- entities: *id149
+  intent: control_lights
+  utterance: disable all lights for me
+- entities: *id139
+  intent: control_lights
+  utterance: for me switch on the lights
+- entities: *id150
+  intent: control_lights
+  utterance: switch on kitchen lights please
+- entities: *id145
+  intent: control_lights
+  utterance: enable the lights please
+- entities: *id148
+  intent: control_lights
+  utterance: switch off all lights quickly
+- entities: *id131
+  intent: control_lights
+  utterance: activate the lights right now
+- entities: *id137
+  intent: control_lights
+  utterance: enable kitchen lights for me
+- entities: *id140
+  intent: control_lights
+  utterance: now disable all lights
+- entities: *id150
+  intent: control_lights
+  utterance: activate kitchen lights please
+- entities: *id148
+  intent: control_lights
+  utterance: disable all lights quickly
+- entities: *id130
+  intent: control_lights
+  utterance: quickly activate kitchen lights
+- entities: *id144
+  intent: control_lights
+  utterance: switch off all lights
+- entities: *id131
+  intent: control_lights
+  utterance: enable the lights right now
+- entities: *id143
+  intent: control_lights
+  utterance: switch off all lights now
+- entities: *id147
+  intent: control_lights
+  utterance: switch off all lights right now
+- entities: *id150
+  intent: control_lights
+  utterance: enable kitchen lights please
+- entities: *id146
+  intent: control_lights
+  utterance: right now deactivate bedroom lights
+- entities: *id142
+  intent: control_lights
+  utterance: please switch off bedroom lights
+- entities: *id147
+  intent: control_lights
+  utterance: deactivate all lights right now
+- entities: *id132
+  intent: control_lights
+  utterance: please switch on kitchen lights
+- entities: *id140
+  intent: control_lights
+  utterance: now switch off all lights
+- entities: *id149
+  intent: control_lights
+  utterance: deactivate all lights for me
+- entities: *id135
+  intent: control_lights
+  utterance: activate the lights now
+- entities: *id149
+  intent: control_lights
+  utterance: switch off all lights for me
+- entities: *id144
+  intent: control_lights
+  utterance: deactivate all lights
+- entities: *id130
+  intent: control_lights
+  utterance: quickly enable kitchen lights
+- entities: *id143
+  intent: control_lights
+  utterance: deactivate all lights now
+- entities: *id141
+  intent: control_lights
+  utterance: disable bedroom lights for me
+- entities: *id151
+  intent: control_lights
+  utterance: enable kitchen lights
+- entities: *id145
+  intent: control_lights
+  utterance: activate the lights please
+- entities: *id138
+  intent: control_lights
+  utterance: disable bedroom lights please
+- entities: *id133
+  intent: control_lights
+  utterance: now enable the lights
+- entities: *id146
+  intent: control_lights
+  utterance: right now switch off bedroom lights
+- entities: *id152
+  intent: control_thermostat
+  utterance: enable AC for me
+- entities: *id153
+  intent: control_thermostat
+  utterance: disable heating please
+- entities: *id154
+  intent: control_thermostat
+  utterance: for me deactivate heating
+- entities: *id155
+  intent: control_thermostat
+  utterance: deactivate heating
+- entities: *id156
+  intent: control_thermostat
+  utterance: switch on AC right now
+- entities: *id157
+  intent: control_thermostat
+  utterance: disable heating quickly
+- entities: *id156
+  intent: control_thermostat
+  utterance: activate AC right now
+- entities: *id158
+  intent: control_thermostat
+  utterance: disable heating now
+- entities: *id159
+  intent: control_thermostat
+  utterance: switch off heating right now
+- entities: *id160
+  intent: control_thermostat
+  utterance: right now switch on AC
+- entities: *id154
+  intent: control_thermostat
+  utterance: for me switch off heating
+- entities: *id161
+  intent: control_thermostat
+  utterance: activate AC
+- entities: *id156
+  intent: control_thermostat
+  utterance: enable AC right now
+- entities: *id157
+  intent: control_thermostat
+  utterance: deactivate heating quickly
+- entities: *id162
+  intent: control_thermostat
+  utterance: please switch off heating
+- entities: *id163
+  intent: control_thermostat
+  utterance: quickly switch on AC
+- entities: *id157
+  intent: control_thermostat
+  utterance: switch off heating quickly
+- entities: *id155
+  intent: control_thermostat
+  utterance: switch off heating
+- entities: *id158
+  intent: control_thermostat
+  utterance: switch off heating now
+- entities: *id159
+  intent: control_thermostat
+  utterance: disable heating right now
+- entities: *id164
+  intent: control_thermostat
+  utterance: now enable AC
+- entities: *id159
+  intent: control_thermostat
+  utterance: deactivate heating right now
+- entities: *id163
+  intent: control_thermostat
+  utterance: quickly activate AC
+- entities: *id160
+  intent: control_thermostat
+  utterance: right now activate AC
+- entities: *id153
+  intent: control_thermostat
+  utterance: switch off heating please
+- entities: *id161
+  intent: control_thermostat
+  utterance: switch on AC
+- entities: *id153
+  intent: control_thermostat
+  utterance: deactivate heating please
+- entities: *id164
+  intent: control_thermostat
+  utterance: now switch on AC
+- entities: *id162
+  intent: control_thermostat
+  utterance: please disable heating
+- entities: *id164
+  intent: control_thermostat
+  utterance: now activate AC
+- entities: *id152
+  intent: control_thermostat
+  utterance: activate AC for me
+- entities: *id154
+  intent: control_thermostat
+  utterance: for me disable heating
+- entities: *id160
+  intent: control_thermostat
+  utterance: right now enable AC
+- entities: *id162
+  intent: control_thermostat
+  utterance: please deactivate heating
+- entities: *id152
+  intent: control_thermostat
+  utterance: switch on AC for me
+- entities: *id158
+  intent: control_thermostat
+  utterance: deactivate heating now
+- entities: *id163
+  intent: control_thermostat
+  utterance: quickly enable AC
+- entities: *id165
+  intent: play_music
+  utterance: I want to listen to music
+- entities: *id166
+  intent: play_music
+  utterance: play a song
+- entities: *id167
+  intent: play_music
+  utterance: start playing music
+- entities: *id168
+  intent: play_music
+  utterance: play my playlist
+- entities: *id169
+  intent: play_music
+  utterance: music please
+- entities: *id170
+  intent: play_music
+  utterance: start music
+- entities: *id171
+  intent: play_music
+  utterance: turn on music
+- entities: *id172
+  intent: play_music
+  utterance: play music
+- entities: *id173
+  intent: play_music
+  utterance: put on some music
+- entities: *id174
+  intent: open_app
+  utterance: start application
+- entities: *id175
+  intent: open_app
+  utterance: start app
+- entities: *id176
+  intent: open_app
+  utterance: I want to open app
+- entities: *id177
+  intent: open_app
+  utterance: run application
+- entities: *id178
+  intent: open_app
+  utterance: launch application
+- entities: *id179
+  intent: open_app
+  utterance: launch app
+- entities: *id180
+  intent: open_app
+  utterance: run app
+- entities: *id181
+  intent: open_app
+  utterance: open program
+- entities: *id182
+  intent: open_app
+  utterance: open app
+- entities: *id183
+  intent: open_app
+  utterance: open application
+- entities: *id184
+  intent: set_reminder
+  utterance: now make a reminder to buy milk
+- entities: *id185
+  intent: set_reminder
+  utterance: right now create a reminder to buy milk
+- entities: *id185
+  intent: set_reminder
+  utterance: right now make a reminder to buy milk
+- entities: *id184
+  intent: set_reminder
+  utterance: now start a reminder to buy milk
+- entities: *id186
+  intent: set_reminder
+  utterance: create a reminder to buy milk right now
+- entities: *id187
+  intent: set_reminder
+  utterance: quickly create a reminder to buy milk
+- entities: *id186
+  intent: set_reminder
+  utterance: start a reminder to buy milk right now
+- entities: *id188
+  intent: set_reminder
+  utterance: please start a reminder to buy milk
+- entities: *id188
+  intent: set_reminder
+  utterance: please make a reminder to buy milk
+- entities: *id185
+  intent: set_reminder
+  utterance: right now start a reminder to buy milk
+- entities: *id187
+  intent: set_reminder
+  utterance: quickly make a reminder to buy milk
+- entities: *id187
+  intent: set_reminder
+  utterance: quickly start a reminder to buy milk
+- entities: *id186
+  intent: set_reminder
+  utterance: make a reminder to buy milk right now
+- entities: *id184
+  intent: set_reminder
+  utterance: now create a reminder to buy milk
+- entities: *id188
+  intent: set_reminder
+  utterance: please create a reminder to buy milk
+- entities: *id189
+  intent: set_reminder
+  utterance: create a reminder to buy milk
+- entities: *id190
+  intent: multi_intent
+  utterance: please activate lights and set temperature to 72
+- entities: *id191
+  intent: multi_intent
+  utterance: make a timer for 10 minutes and play music quickly
+- entities: *id192
+  intent: multi_intent
+  utterance: enable lights and set temperature to 72 for me
+- entities: *id193
+  intent: multi_intent
+  utterance: now switch on lights and set temperature to 72
+- entities: *id194
+  intent: multi_intent
+  utterance: now create a timer for 10 minutes and play music
+- entities: *id191
+  intent: multi_intent
+  utterance: create a timer for 10 minutes and play music quickly
+- entities: *id195
+  intent: multi_intent
+  utterance: enable lights and set temperature to 72 now
+- entities: *id194
+  intent: multi_intent
+  utterance: now make a timer for 10 minutes and play music
+- entities: *id196
+  intent: multi_intent
+  utterance: start a timer for 10 minutes and play music please
+- entities: *id197
+  intent: multi_intent
+  utterance: start a timer for 10 minutes and play music now
+- entities: *id197
+  intent: multi_intent
+  utterance: make a timer for 10 minutes and play music now
+- entities: *id198
+  intent: multi_intent
+  utterance: start a timer for 10 minutes and play music
+- entities: *id198
+  intent: multi_intent
+  utterance: create a timer for 10 minutes and play music
+- entities: *id195
+  intent: multi_intent
+  utterance: switch on lights and set temperature to 72 now
+- entities: *id197
+  intent: multi_intent
+  utterance: create a timer for 10 minutes and play music now
+- entities: *id191
+  intent: multi_intent
+  utterance: start a timer for 10 minutes and play music quickly
+- entities: *id199
+  intent: multi_intent
+  utterance: right now activate lights and set temperature to 72
+- entities: *id190
+  intent: multi_intent
+  utterance: please switch on lights and set temperature to 72
+- entities: *id198
+  intent: multi_intent
+  utterance: make a timer for 10 minutes and play music
+- entities: *id193
+  intent: multi_intent
+  utterance: now enable lights and set temperature to 72
+- entities: *id192
+  intent: multi_intent
+  utterance: activate lights and set temperature to 72 for me
+- entities: *id196
+  intent: multi_intent
+  utterance: create a timer for 10 minutes and play music please
+- entities: *id200
+  intent: multi_intent
+  utterance: enable lights and set temperature to 72
+- entities: *id196
+  intent: multi_intent
+  utterance: make a timer for 10 minutes and play music please
+- entities: *id192
+  intent: multi_intent
+  utterance: switch on lights and set temperature to 72 for me
+- entities: *id193
+  intent: multi_intent
+  utterance: now activate lights and set temperature to 72
+- entities: *id199
+  intent: multi_intent
+  utterance: right now enable lights and set temperature to 72
+- entities: *id199
+  intent: multi_intent
+  utterance: right now switch on lights and set temperature to 72
+- entities: *id195
+  intent: multi_intent
+  utterance: activate lights and set temperature to 72 now
+- entities: *id190
+  intent: multi_intent
+  utterance: please enable lights and set temperature to 72
+- entities: *id194
+  intent: multi_intent
+  utterance: now start a timer for 10 minutes and play music

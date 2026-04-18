@@ -457,13 +457,29 @@ Classify the following input:"""
             Validated response object
 
         Raises:
-            ValidationError: If response doesn't match schema
+            ValueError: If response cannot be parsed
         """
-        # Parse JSON
-        response_data = json.loads(response_text)
+        # Strip markdown code fences if present
+        text = response_text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        # Parse JSON — raise ValueError on failure so caller can retry
+        try:
+            response_data = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"LLM returned invalid JSON: {exc} — raw: {text[:200]}") from exc
 
         # Validate with Pydantic
-        return LLMIntentResponse(**response_data)
+        try:
+            return LLMIntentResponse(**response_data)
+        except Exception as exc:
+            raise ValueError(f"LLM response failed schema validation: {exc}") from exc
 
     def _parse_entities(self, entities_dict: dict[str, Any]) -> dict[str, Entity]:
         """Parse entities from LLM response into Entity objects.

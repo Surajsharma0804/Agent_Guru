@@ -117,6 +117,7 @@ class NEREntityExtractor:
 
         self.config = config or NERConfig()
         self.nlp: Optional[spacy.Language] = None
+        self._gpu_active: bool = False
 
         # Metrics
         self.total_extractions = 0
@@ -148,11 +149,14 @@ class NEREntityExtractor:
         # Configure GPU if requested
         if self.config.use_gpu:
             try:
-                spacy.require_gpu()
-                print("✓ NER extractor using GPU")
+                self._gpu_active = spacy.prefer_gpu()
+                if self._gpu_active:
+                    print("✓ NER extractor using GPU")
+                else:
+                    print("⚠ GPU requested but not available — using CPU")
             except Exception as e:
-                print(f"⚠ GPU requested but not available: {e}")
-                print("⚠ Falling back to CPU")
+                print(f"⚠ GPU setup failed: {e} — using CPU")
+                self._gpu_active = False
 
         print(f"✓ NER model loaded: {model_path}")
         print(f"✓ Entity types: {len(self.nlp.get_pipe('ner').labels)}")
@@ -231,8 +235,9 @@ class NEREntityExtractor:
         # Calculate latency
         extraction_time_ms = (time.perf_counter() - start_time) * 1000
 
-        # Check if GPU was used
-        used_gpu = spacy.prefer_gpu()
+        # Check if GPU was used — spacy.prefer_gpu() returns True only when
+        # a GPU was successfully activated; store the result at load time.
+        used_gpu = self._gpu_active
 
         return ExtractionResult(
             entities=entities,

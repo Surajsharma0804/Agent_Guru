@@ -32,11 +32,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Optional
 
-import GPUtil  # type: ignore[import-not-found]
-import matplotlib.pyplot as plt
 import numpy as np
 import psutil
-import seaborn as sns  # type: ignore[import-untyped]
 import torch
 
 # Set PyTorch seeds at import time for reproducibility
@@ -50,9 +47,27 @@ from sklearn.metrics import (  # type: ignore[import-untyped]
     precision_recall_fscore_support,
 )
 from tqdm import tqdm  # type: ignore[import-untyped]
-from transformers import RobertaForSequenceClassification, RobertaTokenizer
+from transformers import DebertaV2ForSequenceClassification, DebertaV2Tokenizer
 
 from Agent_Guru.training.seed_utils import set_deterministic_seeds
+
+# Optional visualization dependencies
+try:
+    import matplotlib.pyplot as plt
+    import seaborn as sns  # type: ignore[import-untyped]
+    _VIZ_AVAILABLE = True
+except ImportError:
+    _VIZ_AVAILABLE = False
+    plt = None  # type: ignore[assignment]
+    sns = None  # type: ignore[assignment]
+
+# Optional GPU monitoring
+try:
+    import GPUtil  # type: ignore[import-not-found]
+    _GPUTIL_AVAILABLE = True
+except ImportError:
+    _GPUTIL_AVAILABLE = False
+    GPUtil = None  # type: ignore[assignment]
 
 
 @dataclass
@@ -108,10 +123,10 @@ class IntentClassifierEvaluator:
             raise ValueError(f"model_path outside allowed directory: {model_path}")
         self.model_path = resolved
 
-        # Load model
+        # Load model — must use DeBERTa-v3 (same architecture as training)
         print(f"Loading intent classifier from {model_path}...")
-        self.model = RobertaForSequenceClassification.from_pretrained(model_path)  # nosec B615
-        self.tokenizer = RobertaTokenizer.from_pretrained(model_path)  # nosec B615
+        self.model = DebertaV2ForSequenceClassification.from_pretrained(model_path)  # nosec B615
+        self.tokenizer = DebertaV2Tokenizer.from_pretrained(model_path)  # nosec B615
 
         # Load intent mappings — path already validated via self.model_path
         mappings_path = (self.model_path / "intent_mappings.json").resolve()
@@ -260,10 +275,13 @@ class IntentClassifierEvaluator:
         ram_mb = psutil.Process().memory_info().rss / 1024 / 1024
 
         gpu_memory_mb = None
-        if self.device.type == "cuda":
+        if self.device.type == "cuda" and _GPUTIL_AVAILABLE:
             gpus = GPUtil.getGPUs()
             if gpus:
                 gpu_memory_mb = gpus[0].memoryUsed
+        elif self.device.type == "cuda":
+            # Fallback: use torch to get GPU memory
+            gpu_memory_mb = torch.cuda.memory_allocated() / 1024 / 1024
 
         # Model info
         num_parameters = sum(p.numel() for p in self.model.parameters())
@@ -298,7 +316,10 @@ class IntentClassifierEvaluator:
 
         # Visualizations
         if visualize:
-            self._create_visualizations(results, cm, sorted(set(true_labels)), latencies)
+            if _VIZ_AVAILABLE:
+                self._create_visualizations(results, cm, sorted(set(true_labels)), latencies)
+            else:
+                print("⚠ Skipping visualizations — install matplotlib and seaborn: pip install matplotlib seaborn")
 
         # Save results
         output_path = self.model_path / "evaluation_results.json"

@@ -1129,7 +1129,8 @@ def train_intent_classifier(config: TrainingConfig):
     best_model.model.save_pretrained(final_model_path)
     tokenizer.save_pretrained(final_model_path)
 
-    # Save intent mappings
+    # Save intent mappings — save BOTH formats so both the training pipeline
+    # and the NeuralIntentClassifier (which expects label_mappings.yaml) work.
     mappings = {
         "intent_to_id": intent_to_id,
         "id_to_intent": id_to_intent,
@@ -1137,6 +1138,15 @@ def train_intent_classifier(config: TrainingConfig):
     }
     with open(final_model_path / "intent_mappings.json", "w") as f:  # nosec - path validated by safe_path
         json.dump(mappings, f, indent=2)
+
+    # Also save in the format expected by NeuralIntentClassifier (label_mappings.yaml)
+    label_mappings = {
+        "label_to_id": intent_to_id,
+        "id_to_label": {str(k): v for k, v in id_to_intent.items()},
+        "num_labels": num_labels,
+    }
+    with open(final_model_path / "label_mappings.yaml", "w") as f:  # nosec - path validated by safe_path
+        yaml.dump(label_mappings, f, default_flow_style=False)
 
     # Save training config
     with open(final_model_path / "training_config.json", "w") as f:  # nosec - path validated by safe_path
