@@ -1,16 +1,19 @@
 # Multi-stage Production Dockerfile for Agent_Guru Core Reasoning Engine
-# Uses python:3.11-slim (Debian/glibc) so PyTorch wheels resolve correctly.
-# GPU acceleration is handled at runtime via CUDA drivers on the host —
-# the image itself installs the CPU-only torch build to keep image size
-# manageable and avoid needing a GPU on the CI runner.
+#
+# Base: python:3.11-slim (Debian/glibc) — required for PyTorch manylinux wheels.
+#       Alpine (musl libc) cannot install PyTorch wheels.
+#
+# PyTorch: CPU-only build installed from download.pytorch.org/whl/cpu via a
+#          dedicated requirements-torch.txt that embeds the --index-url directive.
+#          GPU support is handled at runtime through host CUDA drivers; swap
+#          requirements-torch.txt for the cu118/cu121 variant to build a GPU image.
 
-# Build stage
+# ─── Build stage ─────────────────────────────────────────────────────────────
 FROM python:3.11-slim AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Install build dependencies (cached layer)
+# System build deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     build-essential \
@@ -19,40 +22,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files first (cached layer if unchanged)
-COPY pyproject.toml ./
-COPY requirements.txt ./
+# Copy dependency manifests first so Docker layer cache is reused when only
+# source code changes.
+COPY requirements-torch.txt ./
 COPY requirements-cpu.txt ./
+COPY pyproject.toml ./
 
-# Install Python dependencies (cached layer)
-# We use the CPU-only PyTorch index so the build works on any runner
-# (including CI machines without a GPU). At runtime, if a CUDA-capable
-# GPU is present, swap the image for one built with the cu118/cu121 index.
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir build wheel && \
-    pip install --no-cache-dir \
-        torch>=2.0.0 torchvision>=0.15.0 torchaudio>=2.0.0 \
-        --index-url https://download.pytorch.org/whl/cpu && \
-    pip wheel --no-cache-dir --wheel-dir /wheels \
-        --find-links https://download.pytorch.org/whl/cpu \
-        -r requirements-cpu.txt
+# 1. Upgrade pip/wheel tooling
+# 2. Install PyTorch CPU wheels (index-url is embedded in requirements-torch.txt)
+# 3. Pre-build wheels for all other CPU deps so the production stage never
+#    needs a compiler.
+RUN pip install --no-cache-dir --upgrade pip wheel build && \
+    pip install --no-cache-dir -r requirements-torch.txt && \
+    pip wheel --no-cache-dir --wheel-dir /wheels -r requirements-cpu.txt
 
-# Copy source code
+# Copy source and build the distributable package
 COPY Agent_Guru/ ./Agent_Guru/
 COPY main.py ./
-
-# Build package
 RUN python -m build
 
-# Production stage — slim for a smaller final image
+# ─── Production stage ────────────────────────────────────────────────────────
 FROM python:3.11-slim
 
-# Build arguments
 ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION=1.0.0
 
-# Labels (OCI standard)
 LABEL org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.authors="Agent_Guru Team" \
       org.opencontainers.image.url="https://github.com/agent-guru/agent-guru" \
@@ -62,10 +57,9 @@ LABEL org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.title="Agent Guru Reasoning Engine" \
       org.opencontainers.image.description="Production-grade AI reasoning engine"
 
-# Set working directory
 WORKDIR /app
 
-# Install runtime dependencies only (minimal set)
+# Minimal runtime system deps (no compiler needed — wheels were pre-built)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi8 \
     libssl3 \
@@ -73,42 +67,36 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user for security
+# Non-root user for security
 RUN groupadd -g 1000 agentguru && \
     useradd -m -u 1000 -g agentguru agentguru && \
     chown -R agentguru:agentguru /app
 
-# Copy wheels from builder
+# Bring in pre-built wheels and the distributable package from the builder
 COPY --from=builder /wheels /wheels
 COPY --from=builder /app/dist/*.whl /tmp/
+COPY requirements-torch.txt ./
 
-# Install torch (CPU) first from the PyTorch index, then install the
-# rest of the dependencies from the pre-built wheels, then the package.
+# Install in order:
+#   1. PyTorch CPU (from its own index — embedded in requirements-torch.txt)
+#   2. All other deps from pre-built wheels
+#   3. The Agent Guru package itself
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir \
-        torch>=2.0.0 torchvision>=0.15.0 torchaudio>=2.0.0 \
-        --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements-torch.txt && \
     pip install --no-cache-dir --find-links=/wheels /tmp/*.whl && \
-    rm -rf /tmp/*.whl /wheels
+    rm -rf /tmp/*.whl /wheels requirements-torch.txt
 
-# Switch to non-root user
 USER agentguru
 
-# Expose port for API/monitoring
 EXPOSE 8000
 
-# Health check endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app
 
-# Default command — runs the full voice assistant entry point
-# NOTE: mic/screen access requires running on the HOST, not in Docker.
-# In Docker this starts the LLM/API reasoning-only mode.
+# In Docker, mic/screen access isn't available — this starts the
+# LLM/API reasoning-only mode automatically.
 CMD ["python", "main.py"]
-
-
