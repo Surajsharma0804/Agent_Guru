@@ -257,10 +257,12 @@ async def run() -> None:
         logger.info("Wake word: '%s' → %s", detection.wake_word, personality_name)
         _logger.info("[%s] Listening for your command...", personality_name)
 
-        # Capture ~3 seconds of command audio after the wake word
+        # Capture ~6 seconds of command audio after the wake word.
+        # BUG-FIX: was chunks=2 (3s) — too short for a full sentence.
+        # Increased to chunks=4 (6s) so the user has time to finish speaking.
         import numpy as np
         try:
-            audio_bytes = await wake_manager.capture_command_audio(chunks=2)
+            audio_bytes = await wake_manager.capture_command_audio(chunks=4)
             if audio_bytes:
                 command_audio = np.frombuffer(audio_bytes, dtype=np.float32)
                 rms = float(np.sqrt(np.mean(command_audio ** 2)))

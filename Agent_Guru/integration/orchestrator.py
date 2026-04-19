@@ -636,7 +636,10 @@ class IntegrationOrchestrator:
                 logger.debug("STT: audio too short (%d samples), skipping", len(audio_np))
                 return ("", "")
             rms = float(np.sqrt(np.mean(audio_np ** 2)))
-            if rms < 0.001:
+            # BUG-FIX: old threshold of 0.001 was too strict — normal speech
+            # captured right after a wake word often starts at rms ~0.003-0.005.
+            # Lowered to 0.0003 so we only skip true silence/noise floor.
+            if rms < 0.0003:
                 logger.debug("STT: audio too quiet (rms=%.5f), skipping", rms)
                 return ("", "")
 
@@ -818,14 +821,35 @@ class IntegrationOrchestrator:
                     Message(role="system", content=system_prompt),
                     Message(role="user", content=prompt),
                 ]
+                # BUG-FIX: model was hardcoded to "mistral:7b-instruct".
+                # If that model isn't pulled in Ollama the call fails silently
+                # and the user gets no reply. Now reads OLLAMA_MODEL env var
+                # (set in .env) with "mistral:7b-instruct" as fallback.
+                import os as _os
+                ollama_model = (
+                    _os.environ.get("OLLAMA_MODEL", "").strip()
+                    or "mistral:7b-instruct"
+                )
                 request = CompletionRequest(
-                    model="mistral:7b-instruct",
+                    model=ollama_model,
                     messages=messages,
                 )
                 response = await complete_fn(request)
                 return response.content or ""
             except ImportError as e:
+                logger.warning("LLM stage: CompletionRequest import failed: %s", e)
                 return ""
+            except Exception as e:
+                # BUG-FIX: was silently returning "" — now logs the actual error
+                # so the user/developer can see WHY there's no reply (e.g. model
+                # not pulled, Ollama not running, API key missing).
+                logger.error(
+                    "LLM stage: inference failed (model=%s): %s — "
+                    "check Ollama is running and the model is pulled: "
+                    "ollama pull %s",
+                    ollama_model, e, ollama_model,
+                )
+                return f"Sorry, I couldn't process that. ({type(e).__name__})"
 
         except Exception as exc:
             logger.warning("LLM stage error: %s", exc)
@@ -1449,11 +1473,48 @@ class IntegrationOrchestrator:
                     loop = asyncio.get_running_loop()
                     await loop.run_in_executor(None, _play)
                     logger.info("TTS played: %.1fs of audio", len(audio_array) / sample_rate)
-                except ImportError as e:
+                except ImportError:
+                    # BUG-FIX: sounddevice missing was silently swallowed — the
+                    # TTS audio was synthesized but never played, so the user
+                    # heard nothing. Now falls back to pyttsx3 (always available
+                    # on Windows/macOS/Linux) so the reply is always spoken.
                     logger.warning(
-                        "sounddevice not installed — TTS audio not played. "
-                        "Run: pip install sounddevice"
+                        "sounddevice not installed — falling back to pyttsx3 TTS. "
+                        "For best audio quality: pip install sounddevice"
                     )
+                    try:
+                        import pyttsx3  # type: ignore[import]
+                        from Agent_Guru.speech.models import PersonalityType as _PT
+
+                        def _play_pyttsx3() -> None:
+                            engine = pyttsx3.init()
+                            # Match voice gender to personality
+                            voices = engine.getProperty("voices")
+                            if voices:
+                                if personality == Personality.MAYA:
+                                    # Pick first female voice if available
+                                    female = next(
+                                        (v for v in voices if "female" in v.name.lower()
+                                         or "zira" in v.name.lower()
+                                         or "hazel" in v.name.lower()),
+                                        voices[-1],
+                                    )
+                                    engine.setProperty("voice", female.id)
+                                else:
+                                    engine.setProperty("voice", voices[0].id)
+                            engine.setProperty("rate", 175)
+                            engine.say(text)
+                            engine.runAndWait()
+
+                        loop = asyncio.get_running_loop()
+                        await loop.run_in_executor(None, _play_pyttsx3)
+                        logger.info("TTS played via pyttsx3 fallback")
+                    except Exception as tts_exc:
+                        logger.error(
+                            "TTS playback failed (both sounddevice and pyttsx3 unavailable): %s. "
+                            "Install sounddevice: pip install sounddevice",
+                            tts_exc,
+                        )
                 except Exception as exc:
                     logger.warning("Audio playback error: %s", exc)
 
