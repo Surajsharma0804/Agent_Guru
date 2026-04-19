@@ -259,18 +259,7 @@ class IntentDetectionEngine:
                     else:
                         _logger.info("LLM Fallback: DeepSeek API (FAST)")
 
-                # Use Gemini as primary if no DeepSeek
-                elif gemini_key:
-                    llm_config = LLMFallbackConfig(
-                        provider="openai",  # Will need Gemini provider
-                        model="gemini-2.5-flash",  # Gemini 2.5 Flash (250K tokens)
-                        api_key=gemini_key,
-                        timeout_ms=2000.0,
-                    )
-                    self.llm_fallback = LLMFallbackClassifier(llm_config)
-                    _logger.info("LLM Fallback: Gemini API (FAST)")
-
-                # Use OpenAI as fallback
+                # Use OpenAI as fallback (only if key is valid — not Gemini key)
                 elif openai_key:
                     llm_config = LLMFallbackConfig(
                         provider="openai",
@@ -281,18 +270,26 @@ class IntentDetectionEngine:
                     self.llm_fallback = LLMFallbackClassifier(llm_config)
                     _logger.info("LLM Fallback: OpenAI API (FAST)")
 
-                # Fallback to Ollama (slow but free)
+                # Fallback to Ollama (slow but free, no API key needed)
                 else:
                     llm_config = LLMFallbackConfig(
                         provider="ollama",
-                        model="mistral:7b-instruct",
-                        timeout_ms=20000.0,  # 20 seconds for Ollama (slow)
+                        model=os.environ.get("OLLAMA_MODEL", "mistral:7b-instruct"),
+                        timeout_ms=45000.0,  # 45s for CPU Ollama inference
                     )
                     self.llm_fallback = LLMFallbackClassifier(llm_config)
-                    _logger.warning(
-                        "LLM Fallback: Ollama (mistral:7b-instruct) — SLOW (15-30s). "
-                        "Set DEEPSEEK_API_KEY or GEMINI_API_KEY for fast cloud responses."
-                    )
+                    if gemini_key:
+                        _logger.info(
+                            "LLM Fallback: Ollama (GEMINI_API_KEY set but Gemini provider "
+                            "not supported in this classifier — using Ollama). "
+                            "Set DEEPSEEK_API_KEY for fast cloud intent classification."
+                        )
+                    else:
+                        _logger.warning(
+                            "LLM Fallback: Ollama (%s) — may be slow on CPU. "
+                            "Set DEEPSEEK_API_KEY for fast cloud responses.",
+                            llm_config.model,
+                        )
 
             except Exception as e:
                 _logger.warning("LLM Fallback initialization failed: %s — disabled", e)
