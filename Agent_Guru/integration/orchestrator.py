@@ -581,6 +581,9 @@ class IntegrationOrchestrator:
         Returns:
             (transcript, language_code) where language_code is ISO 639-1
             e.g. ("नमस्ते", "hi") or ("", "") on failure/silence.
+            Language is only returned when Whisper's detection confidence
+            is high enough (>=0.7). Below that threshold we default to "en"
+            to avoid sending wrong-language instructions to the LLM.
         """
         try:
             import numpy as np
@@ -664,7 +667,24 @@ class IntegrationOrchestrator:
 
             if hasattr(result, "text") and hasattr(result, "language"):
                 text = (result.text or "").strip()
-                language = result.language or ""
+                raw_language = result.language or ""
+                # Language confidence check: Whisper can misidentify English as
+                # Hindi ('hi'), Portuguese, etc. when audio quality is low or
+                # the speaker has an accent. Only trust the detected language
+                # when confidence >= 0.70; otherwise default to 'en' so the LLM
+                # doesn't respond in the wrong language.
+                lang_prob = getattr(result, "language_probability", None)
+                if lang_prob is None:
+                    # Try to get it from the info object if available
+                    lang_prob = getattr(result, "language_confidence", None)
+                if lang_prob is not None and float(lang_prob) < 0.70:
+                    logger.info(
+                        "STT: low language confidence (%.2f) for '%s' — defaulting to 'en'",
+                        float(lang_prob), raw_language,
+                    )
+                    language = "en"
+                else:
+                    language = raw_language
             elif hasattr(result, "text"):
                 text = (result.text or "").strip()
                 language = ""
@@ -810,7 +830,11 @@ class IntegrationOrchestrator:
                 )
 
                 lang_instruction = ""
-                if language_code and language_code != "en":
+                # Only add language instruction when we're confident the user
+                # actually spoke a non-English language. Low-confidence detections
+                # (e.g. Whisper misidentifying English as 'hi') cause the LLM to
+                # respond in the wrong language (seen as Portuguese in logs).
+                if language_code and language_code not in ("en", "en-US", "en-GB", ""):
                     lang_instruction = (
                         f"\n\nIMPORTANT: The user spoke in language code '{language_code}'. "
                         f"You MUST respond in the same language. Do NOT respond in English."
@@ -833,6 +857,10 @@ class IntegrationOrchestrator:
                 request = CompletionRequest(
                     model=ollama_model,
                     messages=messages,
+                    # Reduce timeout for local Ollama — 30s default × 3 retries = 90s delay.
+                    # 15s is enough for a 7B model on a mid-range GPU (RTX 2050 = ~8s).
+                    # Cloud providers (OpenAI, Anthropic) use their own timeouts.
+                    max_tokens=256,  # Voice responses should be concise
                 )
                 response = await complete_fn(request)
                 return response.content or ""

@@ -148,16 +148,18 @@ class WhisperTranscriber:
             # Verify real-time factor <0.5
             duration / audio_duration if audio_duration > 0 else 0.0
 
-            return TranscriptionResult(
+            result = TranscriptionResult(
                 text=full_text,
                 language=info.language,
                 confidence=avg_confidence,
                 segments=transcription_segments,
                 duration=audio_duration
             )
-
-        except Exception as e:
-            raise GuruSpeechError(f"Transcription failed: {e}") from e
+            # Expose Whisper's language detection probability so the orchestrator
+            # can apply a confidence threshold and avoid wrong-language responses.
+            # Whisper often misidentifies English as 'hi' (Hindi) at low confidence.
+            result.language_probability = getattr(info, "language_probability", None)
+            return result
 
     def transcribe_file(
         self,

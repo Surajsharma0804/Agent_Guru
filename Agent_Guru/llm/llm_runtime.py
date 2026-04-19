@@ -170,8 +170,13 @@ class LLMRuntime:
                 f"{context_limit} for model '{request.model}'."
             )
 
-        # Resolve per-request timeout (config.timeout → 30s default)
+        # Resolve per-request timeout (config.timeout → 15s for local Ollama,
+        # 30s for cloud providers). Local 7B models on a mid-range GPU take ~8s;
+        # 15s gives headroom without causing 90s delays on 3 retries.
         timeout: float = getattr(self.config, "timeout", None) or 30.0
+        # Use a shorter timeout for local Ollama to avoid 90s retry storms
+        if self._get_provider(request.model) == ModelProvider.OLLAMA:
+            timeout = min(timeout, 15.0)
 
         # Execute with retry, enforcing timeout on each adapter call
         response = await self.error_handler.execute_with_retry(
