@@ -161,6 +161,9 @@ class WhisperTranscriber:
             result.language_probability = getattr(info, "language_probability", None)
             return result
 
+        except Exception as e:
+            raise GuruSpeechError(f"Transcription failed: {e}") from e
+
     def transcribe_file(
         self,
         file_path: str,

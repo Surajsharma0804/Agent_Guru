@@ -235,10 +235,15 @@ class IntentDetectionEngine:
                 # Try cloud APIs first (MUCH faster: 200-500ms vs Ollama 15-30s)
                 # Priority: DeepSeek (cheapest, fastest) > Gemini (smart) > OpenAI (expensive)
 
-                # Check which APIs are available
-                deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
-                gemini_key = os.environ.get("GEMINI_API_KEY")
-                openai_key = os.environ.get("OPENAI_API_KEY")
+                # Check which APIs are available — only use a key if it's
+                # non-empty and not a placeholder value
+                def _valid_key(k: str | None) -> bool:
+                    return bool(k and k.strip() and "your-" not in k.lower() and len(k) > 8)
+
+                deepseek_key = os.environ.get("DEEPSEEK_API_KEY") if _valid_key(os.environ.get("DEEPSEEK_API_KEY")) else None
+                gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+                gemini_key = gemini_key if _valid_key(gemini_key) else None
+                openai_key = os.environ.get("OPENAI_API_KEY") if _valid_key(os.environ.get("OPENAI_API_KEY")) else None
 
                 # Use DeepSeek as primary (fastest and cheapest)
                 if deepseek_key:

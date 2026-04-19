@@ -218,8 +218,12 @@ class CoquiTTSEngine:
             _logger.info("Using TTS device: %s", device)
 
             # Load model (cuDNN warnings suppressed at C level)
-            tts_model = TTS(model_name=model_name, progress_bar=False)
-            self._tts = tts_model.to(device)
+            # Redirect stdout to suppress Coqui TTS verbose model config output
+            import io as _io
+            import contextlib as _contextlib
+            with _contextlib.redirect_stdout(_io.StringIO()):
+                tts_model = TTS(model_name=model_name, progress_bar=False)
+                self._tts = tts_model.to(device)
             self._model_loaded = True
 
             _logger.info("TTS model loaded successfully: %s", model_name)
@@ -342,12 +346,16 @@ class CoquiTTSEngine:
             if self._tts is None:
                 raise TTSError("TTS model not loaded")
 
-            self._tts.tts_to_file(
-                text=text,
-                speaker=speaker,
-                file_path=tmp_path,
-                speed=speed
-            )
+            # Suppress Coqui TTS verbose stdout during synthesis
+            import io as _io
+            import contextlib as _contextlib
+            with _contextlib.redirect_stdout(_io.StringIO()):
+                self._tts.tts_to_file(
+                    text=text,
+                    speaker=speaker,
+                    file_path=tmp_path,
+                    speed=speed
+                )
 
             # Read audio file
             with open(tmp_path, 'rb') as f:
