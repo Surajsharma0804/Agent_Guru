@@ -85,6 +85,7 @@ class OllamaAdapter(ProviderAdapter):
             messages=messages,
             options=options,
         )
+        prompt_tokens = response.get("prompt_eval_count", 0)
         completion_tokens = response.get("eval_count", 0)
 
         return CompletionResponse(

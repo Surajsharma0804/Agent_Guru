@@ -1051,12 +1051,15 @@ class IntegrationOrchestrator:
 
             # --- Application control ---
             if action == "open_app" and param:
+                # Strip trailing punctuation from STT artifacts (e.g. "notepad." → "notepad")
+                param = param.rstrip(".,!?;:")
                 logger.info("ACTION: open_application('%s')", param)
                 result = await asyncio.to_thread(ctrl.open_application, param)
                 safe_param = self._sanitize_output(param)
                 return f"Opened {safe_param}" if getattr(result, "success", True) else f"Failed to open {safe_param}"
 
             if action == "close_app" and param:
+                param = param.rstrip(".,!?;:")
                 logger.info("ACTION: close_application('%s')", param)
                 result = await asyncio.to_thread(ctrl.close_application, param)
                 safe_param = self._sanitize_output(param)
