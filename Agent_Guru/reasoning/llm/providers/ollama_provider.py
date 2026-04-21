@@ -112,6 +112,10 @@ class OllamaProvider(BaseLLMProvider):
                 "temperature": request.temperature,
                 "top_p": request.top_p,
                 "num_predict": request.max_tokens,
+                # Request GPU offloading per-request so it works even when
+                # OLLAMA_NO_CUDA or OLLAMA_LLM_LIBRARY=cpu is set at system level.
+                # 99 = offload as many layers as fit in VRAM.
+                "num_gpu": 99,
             },
         }
 

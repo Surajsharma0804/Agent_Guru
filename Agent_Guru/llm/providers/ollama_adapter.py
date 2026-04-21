@@ -75,14 +75,16 @@ class OllamaAdapter(ProviderAdapter):
         options: dict[str, Any] = {"temperature": request.temperature}
         if request.max_tokens is not None:
             options["num_predict"] = request.max_tokens
+        # Request GPU offloading per-request — Ollama honours this even when
+        # OLLAMA_NUM_GPU is not set in the environment. 99 = offload as many
+        # layers as fit in VRAM (same effect as OLLAMA_NUM_GPU=99).
+        options["num_gpu"] = 99
 
         response = await client.chat(
             model=request.model,
             messages=messages,
             options=options,
         )
-
-        prompt_tokens = response.get("prompt_eval_count", 0)
         completion_tokens = response.get("eval_count", 0)
 
         return CompletionResponse(
@@ -114,6 +116,7 @@ class OllamaAdapter(ProviderAdapter):
         options: dict[str, Any] = {"temperature": request.temperature}
         if request.max_tokens is not None:
             options["num_predict"] = request.max_tokens
+        options["num_gpu"] = 99  # GPU offloading for streaming too
 
         stream = await client.chat(
             model=request.model,

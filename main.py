@@ -27,6 +27,25 @@ except ImportError:
     pass  # dotenv not installed — env vars must be set manually
 
 # ---------------------------------------------------------------------------
+# GPU / Ollama environment — set BEFORE any imports that touch CUDA or Ollama.
+# OLLAMA_NO_CUDA=1 and OLLAMA_LLM_LIBRARY=cpu are sometimes set at the system
+# level (e.g. during initial Ollama install on Windows). Override them here so
+# the running process always uses GPU when CUDA is available.
+# ---------------------------------------------------------------------------
+import os as _os_startup
+_os_startup.environ.pop("OLLAMA_NO_CUDA", None)
+_os_startup.environ.pop("OLLAMA_LLM_LIBRARY", None)
+# num_gpu=99 tells Ollama to offload as many layers as fit in VRAM.
+# This is also passed per-request in the Ollama adapter options.
+if not _os_startup.environ.get("OLLAMA_NUM_GPU"):
+    _os_startup.environ["OLLAMA_NUM_GPU"] = "99"
+# Ensure CUDA device 0 is visible (not masked by CUDA_VISIBLE_DEVICES=-1)
+cuda_dev = _os_startup.environ.get("CUDA_VISIBLE_DEVICES", "")
+if cuda_dev in ("-1", ""):
+    _os_startup.environ["CUDA_VISIBLE_DEVICES"] = "0"
+del _os_startup
+
+# ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
 logging.basicConfig(
