@@ -311,343 +311,69 @@ class VoiceCloner:
         self,
         text: str,
         voice_id: str,
-        emotion: str | None = None
+        emotion: str | None = None,
+        personality: "PersonalityType | None" = None,
+        lang: str = "en-us",
     ) -> np.ndarray:
-        """
-        Synthesize speech using cloned voice with REAL neural TTS.
+        """Synthesize speech using the Kokoro TTS engine.
 
-        PRODUCTION IMPLEMENTATION - ZERO COMPROMISE:
-        Uses state-of-the-art neural voice cloning with:
-        - Multi-speaker TTS model (Coqui TTS / XTTS)
-        - Voice embedding from enrolled samples
-        - Emotion-aware synthesis
-        - High-quality 22kHz output
+        Voice cloning (conditioning on a specific enrolled voice) requires
+        XTTS v2 or a similar model that accepts a reference audio embedding.
+        Until that model is integrated, this method uses the Kokoro engine
+        with the personality-matched voice (Guru = male, Maya = female),
+        which already sounds human-quality.
 
         Args:
-            text: Text to synthesize
-            voice_id: ID of cloned voice to use
-            emotion: Optional emotion for synthesis
+            text: Text to synthesize.
+            voice_id: Enrolled voice ID (used to look up personality hint).
+            emotion: Optional emotion string (``"happy"``, ``"sad"``, etc.).
+            personality: Override personality. If ``None``, defaults to GURU.
+            lang: BCP-47 language code (default ``"en-us"``).
 
         Returns:
-            Audio array with synthesized speech
+            Float32 numpy array in [-1, 1] at 24 kHz.
 
         Raises:
-            VoiceCloningError: If voice not found or synthesis fails
+            VoiceCloningError: If synthesis fails.
         """
         try:
             if voice_id not in self._voice_profiles:
                 raise VoiceCloningError(f"Voice '{voice_id}' not found")
 
-            profile = self._voice_profiles[voice_id]
+            from Agent_Guru.speech.models import EmotionType, PersonalityType
+            from Agent_Guru.speech.tts.tts_engine import CoquiTTSEngine
 
-            logger.info("Synthesizing with cloned voice '%s': %s...", voice_id, text[:50])
+            # Resolve personality
+            if personality is None:
+                personality = PersonalityType.GURU
 
-            # PRODUCTION IMPLEMENTATION - ZERO COMPROMISE
-            # Use neural TTS with voice embedding
+            # Map emotion string to EmotionType
+            emotion_enum: EmotionType | None = None
+            if emotion:
+                try:
+                    emotion_enum = EmotionType(emotion.lower())
+                except ValueError:
+                    pass
 
-            # For MAXIMUM QUALITY, we use a multi-stage approach:
-            # 1. Extract voice embedding from profile features
-            # 2. Use neural TTS model with embedding conditioning
-            # 3. Apply emotion modulation if specified
-            # 4. Post-process for quality enhancement
-
-            # Stage 1: Voice Embedding
-            # Convert profile features to voice embedding space
-            voice_embedding = self._compute_voice_embedding(profile.features)
-
-            # Stage 2: Neural TTS Synthesis
-            # In production, this would use Coqui TTS, XTTS, or similar
-            # For now, we use advanced signal processing to simulate neural TTS
-            synthesized_audio = self._neural_tts_synthesis(
-                text=text,
-                voice_embedding=voice_embedding,
-                emotion=emotion,
-                sample_rate=22050  # High quality output
-            )
-
-            # Stage 3: Quality Enhancement
-            # Apply post-processing for production quality
-            enhanced_audio = self._enhance_audio_quality(
-                synthesized_audio,
-                target_quality=profile.quality_score
+            engine = CoquiTTSEngine()
+            audio, _sr = engine.synthesize_to_array(
+                text,
+                personality=personality,
+                emotion=emotion_enum,
+                lang=lang,
             )
 
             logger.info(
-                f"Synthesized {len(enhanced_audio)/22050:.1f}s of audio "
-                f"with voice '{voice_id}' (quality: {profile.quality_score:.2f})"
+                "Synthesized %.1fs of audio for voice '%s'",
+                len(audio) / _sr,
+                voice_id,
             )
+            return audio
 
-            return enhanced_audio
-
-        except Exception as e:
-            if isinstance(e, VoiceCloningError):
-                raise
-            raise VoiceCloningError(f"Voice synthesis failed: {e}") from e
-
-    def _compute_voice_embedding(self, features: np.ndarray) -> np.ndarray:
-        """
-        Compute voice embedding from profile features.
-
-        PRODUCTION-GRADE: Transforms acoustic features into a dense
-        voice embedding suitable for neural TTS conditioning.
-
-        Args:
-            features: Voice profile features
-
-        Returns:
-            Voice embedding vector (256-dimensional)
-        """
-        # Use PCA-like dimensionality reduction to 256D embedding
-        # In production, this would be learned by the TTS model
-
-        # Normalize features
-        features_norm = (features - np.mean(features)) / (np.std(features) + 1e-8)
-
-        # Project to 256D space using random projection (simulates learned projection)
-        # In production, this would be a trained neural network layer
-        embedding_dim = 256
-
-        # Use deterministic projection based on feature statistics
-        # This ensures consistency across calls
-        seed = int(np.sum(features) * 1000) % (2**32)
-        np.random.seed(seed)
-        projection_matrix = np.random.randn(len(features), embedding_dim).astype(np.float32)
-
-        # Project features
-        embedding = np.dot(features_norm, projection_matrix)
-
-        # Normalize embedding
-        embedding = embedding / (np.linalg.norm(embedding) + 1e-8)
-
-        result: np.ndarray = embedding.astype(np.float32)
-        return result
-
-    def _neural_tts_synthesis(
-        self,
-        text: str,
-        voice_embedding: np.ndarray,
-        emotion: str | None,
-        sample_rate: int
-    ) -> np.ndarray:
-        """
-        Neural TTS synthesis with voice embedding conditioning.
-
-        PRODUCTION-GRADE: Simulates state-of-the-art neural TTS
-        with voice cloning capabilities.
-
-        Args:
-            text: Text to synthesize
-            voice_embedding: Voice embedding vector
-            emotion: Optional emotion
-            sample_rate: Target sample rate
-
-        Returns:
-            Synthesized audio
-        """
-        # Estimate duration based on text length
-        # Average speaking rate: ~150 words per minute = 2.5 words per second
-        word_count = len(text.split())
-        duration = max(1.0, word_count / 2.5)  # At least 1 second
-
-        # Add pauses for punctuation
-        pause_chars = text.count('.') + text.count(',') + text.count('!')
-        duration += pause_chars * 0.3  # 300ms per pause
-
-        num_samples = int(duration * sample_rate)
-
-        # Extract voice characteristics from embedding
-        # Use embedding to modulate synthesis parameters
-        embedding_stats = {
-            'pitch_base': 100 + np.mean(voice_embedding[:64]) * 100,
-            'pitch_variance': 10 + np.std(voice_embedding[:64]) * 30,
-            'energy_level': 0.5 + np.mean(voice_embedding[64:128]) * 0.3,
-            'formant_shift': np.mean(voice_embedding[128:192]),
-            'breathiness': np.clip(np.mean(voice_embedding[192:]), 0.0, 0.3)
-        }
-
-        # Ensure valid ranges
-        embedding_stats['pitch_base'] = np.clip(embedding_stats['pitch_base'], 80, 300)
-        embedding_stats['pitch_variance'] = np.clip(embedding_stats['pitch_variance'], 5, 50)
-        embedding_stats['energy_level'] = np.clip(embedding_stats['energy_level'], 0.3, 0.9)
-
-        # Apply emotion modulation
-        if emotion:
-            embedding_stats = self._apply_emotion_modulation(embedding_stats, emotion)
-
-        # Generate high-quality speech-like audio
-        t = np.linspace(0, duration, num_samples)
-
-        # Generate fundamental frequency (F0) with natural variation
-        f0_base = embedding_stats['pitch_base']
-        f0_variance = embedding_stats['pitch_variance']
-
-        # Add prosodic variation (intonation)
-        prosody = np.sin(2 * np.pi * 0.5 * t) * f0_variance * 0.3  # Slow variation
-        prosody += np.sin(2 * np.pi * 2.0 * t) * f0_variance * 0.1  # Fast variation
-
-        # Add micro-variations (jitter)
-        jitter = np.random.randn(num_samples) * f0_variance * 0.05
-
-        f0 = f0_base + prosody + jitter
-
-        # Generate harmonic series (voice quality)
-        audio = np.zeros(num_samples, dtype=np.float32)
-
-        # Fundamental
-        audio += np.sin(2 * np.pi * f0 * t / sample_rate)
-
-        # Harmonics (formants)
-        for harmonic in range(2, 8):
-            amplitude = 1.0 / harmonic  # Natural harmonic decay
-            # Add formant shift
-            freq = f0 * harmonic * (1.0 + embedding_stats['formant_shift'] * 0.1)
-            audio += amplitude * np.sin(2 * np.pi * freq * t / sample_rate)
-
-        # Add breathiness (noise component)
-        breathiness = embedding_stats['breathiness']
-        noise = np.random.randn(num_samples) * breathiness
-        audio += noise
-
-        # Apply amplitude envelope (natural speech envelope)
-        # Create syllable-like envelope
-        syllable_rate = 4.0  # syllables per second
-        envelope = np.abs(np.sin(2 * np.pi * syllable_rate * t))
-        envelope = envelope ** 0.5  # Soften envelope
-
-        # Add overall amplitude envelope
-        fade_in = np.linspace(0, 1, int(0.05 * sample_rate))
-        fade_out = np.linspace(1, 0, int(0.1 * sample_rate))
-        envelope[:len(fade_in)] *= fade_in
-        envelope[-len(fade_out):] *= fade_out
-
-        audio *= envelope
-
-        # Apply energy level
-        audio *= embedding_stats['energy_level']
-
-        # Normalize to prevent clipping
-        if np.max(np.abs(audio)) > 0:
-            audio = audio / np.max(np.abs(audio)) * 0.85
-
-        return audio.astype(np.float32)
-
-    def _apply_emotion_modulation(
-        self,
-        params: dict[str, float],
-        emotion: str
-    ) -> dict[str, float]:
-        """
-        Apply emotion-specific modulation to synthesis parameters.
-
-        PRODUCTION-GRADE: Emotion-aware voice synthesis.
-
-        Args:
-            params: Synthesis parameters
-            emotion: Emotion type
-
-        Returns:
-            Modulated parameters
-        """
-        emotion_lower = emotion.lower() if emotion else "neutral"
-
-        # Emotion-specific modulations
-        modulations = {
-            'happy': {
-                'pitch_base': 1.15,  # Higher pitch
-                'pitch_variance': 1.3,  # More variation
-                'energy_level': 1.2,  # More energy
-            },
-            'sad': {
-                'pitch_base': 0.85,  # Lower pitch
-                'pitch_variance': 0.7,  # Less variation
-                'energy_level': 0.7,  # Less energy
-            },
-            'angry': {
-                'pitch_base': 1.1,  # Slightly higher
-                'pitch_variance': 1.5,  # Much more variation
-                'energy_level': 1.4,  # Much more energy
-            },
-            'fearful': {
-                'pitch_base': 1.2,  # Higher pitch
-                'pitch_variance': 1.4,  # More variation
-                'energy_level': 0.9,  # Slightly less energy
-            },
-            'surprised': {
-                'pitch_base': 1.25,  # Much higher pitch
-                'pitch_variance': 1.6,  # Much more variation
-                'energy_level': 1.1,  # More energy
-            },
-            'disgusted': {
-                'pitch_base': 0.9,  # Lower pitch
-                'pitch_variance': 0.8,  # Less variation
-                'energy_level': 0.8,  # Less energy
-            }
-        }
-
-        if emotion_lower in modulations:
-            mods = modulations[emotion_lower]
-            params['pitch_base'] *= mods.get('pitch_base', 1.0)
-            params['pitch_variance'] *= mods.get('pitch_variance', 1.0)
-            params['energy_level'] *= mods.get('energy_level', 1.0)
-
-            # Ensure valid ranges after modulation
-            params['pitch_base'] = np.clip(params['pitch_base'], 80, 300)
-            params['pitch_variance'] = np.clip(params['pitch_variance'], 5, 50)
-            params['energy_level'] = np.clip(params['energy_level'], 0.3, 0.9)
-
-        return params
-
-    def _enhance_audio_quality(
-        self,
-        audio: np.ndarray,
-        target_quality: float
-    ) -> np.ndarray:
-        """
-        Enhance audio quality with post-processing.
-
-        PRODUCTION-GRADE: Professional audio enhancement.
-
-        Args:
-            audio: Input audio
-            target_quality: Target quality score
-
-        Returns:
-            Enhanced audio
-        """
-        # Apply quality-dependent enhancement
-        enhanced = audio.copy()
-
-        # 1. Dynamic range compression (make it sound more professional)
-        # Soft compression
-        threshold = 0.5
-        ratio = 3.0
-
-        # Apply compression
-        mask = np.abs(enhanced) > threshold
-        compressed = enhanced.copy()
-        compressed[mask] = np.sign(enhanced[mask]) * (
-            threshold + (np.abs(enhanced[mask]) - threshold) / ratio
-        )
-
-        # Mix compressed with original based on target quality
-        compression_amount = 0.3 + (1.0 - target_quality) * 0.4
-        enhanced = (1 - compression_amount) * enhanced + compression_amount * compressed
-
-        # 2. Add subtle warmth (low-frequency enhancement)
-        # Simple low-pass filtering effect
-        warmth_amount = 0.1
-        if len(enhanced) > 100:
-            # Moving average for warmth
-            window = 5
-            kernel = np.ones(window) / window
-            warm = np.convolve(enhanced, kernel, mode='same')
-            enhanced = (1 - warmth_amount) * enhanced + warmth_amount * warm
-
-        # 3. Final normalization
-        if np.max(np.abs(enhanced)) > 0:
-            enhanced = enhanced / np.max(np.abs(enhanced)) * 0.85
-
-        return enhanced.astype(np.float32)
+        except VoiceCloningError:
+            raise
+        except Exception as exc:
+            raise VoiceCloningError(f"Voice synthesis failed: {exc}") from exc
 
     def compute_similarity(
         self,

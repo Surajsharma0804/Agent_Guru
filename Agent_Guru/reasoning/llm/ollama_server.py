@@ -1,7 +1,7 @@
 """
 Ollama LLM Server Integration
 
-Manages Ollama server integration with existing models for local inference.
+Manages Ollama server integration for local inference.
 Provides health checks, model selection, and inference endpoints.
 
 Performance Targets:
@@ -10,9 +10,8 @@ Performance Targets:
 - Health check: <50ms
 - Model switching: <100ms
 
-Available Models:
-- qwen2.5:14b-instruct (9.0 GB) - 14B parameters - Complex reasoning
-- mistral:7b-instruct (4.4 GB) - 7B parameters - Fast simple tasks
+Active Model (May 2025):
+- gemma3:4b (3.3 GB) - 4B parameters - Best quality for 4GB VRAM
 
 Requirements: 4.2, 4.5
 """
@@ -37,31 +36,23 @@ from Agent_Guru.reasoning.llm.models import (
 class OllamaModelConfig:
     """Configuration for Ollama model."""
 
-    name: str  # Model name (e.g., "qwen2.5:14b-instruct")
+    name: str  # Model name (e.g., "gemma3:4b")
     size_gb: float  # Model size in GB
-    parameters: str  # Parameter count (e.g., "14B")
+    parameters: str  # Parameter count (e.g., "4B")
     use_case: str  # "complex" or "simple"
     temperature: float = 0.7
     top_p: float = 0.9
     max_tokens: int = 512
 
 
-# Predefined model configurations
+# Predefined model configurations â€” gemma3:4b is the single active model
+# Best choice for 4GB VRAM (RTX 2050/3050/4050) as of May 2025.
 OLLAMA_MODELS = {
-    "qwen2.5:14b-instruct": OllamaModelConfig(
-        name="qwen2.5:14b-instruct",
-        size_gb=9.0,
-        parameters="14B",
-        use_case="complex",
-        temperature=0.7,
-        top_p=0.9,
-        max_tokens=512,
-    ),
-    "mistral:7b-instruct": OllamaModelConfig(
-        name="mistral:7b-instruct",
-        size_gb=4.4,
-        parameters="7B",
-        use_case="simple",
+    "gemma3:4b": OllamaModelConfig(
+        name="gemma3:4b",
+        size_gb=3.3,
+        parameters="4B",
+        use_case="general",
         temperature=0.7,
         top_p=0.9,
         max_tokens=512,
@@ -82,14 +73,14 @@ class OllamaServer:
         >>> health = await server.health_check()
         >>> print(f"Server healthy: {health.is_healthy}")
         >>> request = LLMRequest(prompt="Hello, world!")
-        >>> response = await server.generate(request, model="mistral:7b-instruct")
+        >>> response = await server.generate(request, model="gemma3:4b")
     """
 
     def __init__(
         self,
         host: str = "127.0.0.1",
         port: int = 11434,
-        default_model: str = "mistral:7b-instruct",
+        default_model: str = "gemma3:4b",
     ):
         """Initialize Ollama server client.
 
@@ -97,19 +88,13 @@ class OllamaServer:
             host: Ollama server host
             port: Ollama server port
             default_model: Default model to use for inference
-
-        Raises:
-            ValueError: If default_model not in available models
         """
         self.host = host
         self.port = port
         self._base_url = f"http://{host}:{port}"
 
-        if default_model not in OLLAMA_MODELS:
-            raise ValueError(
-                f"Unknown model: {default_model}. " f"Available: {list(OLLAMA_MODELS.keys())}"
-            )
-
+        # Accept any model â€” don't restrict to OLLAMA_MODELS dict
+        # so env var overrides work without code changes
         self.default_model = default_model
         self._is_running = False
         self._available_models: list[str] = []
@@ -136,12 +121,13 @@ class OllamaServer:
                 self._available_models = await self._list_models()
 
                 # Verify required models are available
-                required_models = ["qwen2.5:14b-instruct", "mistral:7b-instruct"]
+                required_models = ["gemma3:4b"]
                 missing_models = [m for m in required_models if m not in self._available_models]
 
                 if missing_models:
                     raise RuntimeError(
                         f"Required models not found: {missing_models}. "
+                        f"Run: ollama pull gemma3:4b\n"
                         f"Available models: {self._available_models}"
                     )
 
@@ -352,18 +338,16 @@ class OllamaServer:
             complexity: Task complexity ("simple" or "complex")
 
         Returns:
-            Model name to use
+            Model name to use â€” always gemma3:4b (best for 4GB VRAM)
 
         Example:
             >>> server.select_model_for_task("simple")
-            'mistral:7b-instruct'
+            'gemma3:4b'
             >>> server.select_model_for_task("complex")
-            'qwen2.5:14b-instruct'
+            'gemma3:4b'
         """
-        if complexity == "simple":
-            return "mistral:7b-instruct"
-        else:
-            return "qwen2.5:14b-instruct"
+        import os
+        return os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
 
     async def measure_latency(
         self,

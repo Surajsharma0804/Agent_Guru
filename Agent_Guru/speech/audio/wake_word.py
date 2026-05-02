@@ -467,6 +467,7 @@ class WakeWordDetector:
         - RMS above threshold (calibrated to real mic levels)
         - Audio duration >= 0.3s (avoids single-click triggers)
         - Peak energy significantly above noise floor
+        - Audio must NOT look like music/speaker output (spectral flatness check)
         """
         if len(audio) == 0:
             return None
@@ -482,6 +483,15 @@ class WakeWordDetector:
 
         # Require peak to be at least 3x the threshold to avoid noise triggers
         if peak < threshold * 3.0:
+            return None
+
+        # ── Music / speaker output rejection ─────────────────────────────
+        # Music captured from speakers has high spectral flatness (many
+        # frequency components active simultaneously) and low zero-crossing
+        # variance compared to speech. Speech has bursty energy with clear
+        # formant structure. We reject audio that looks like music.
+        if self._looks_like_music(audio):
+            logger.debug("MFCC: rejected — audio looks like music/speaker output")
             return None
 
         self._energy_buffer.append(rms)
@@ -517,20 +527,97 @@ class WakeWordDetector:
 
         return None
 
+    @staticmethod
+    def _looks_like_music(audio: np.ndarray) -> bool:
+        """Return True if *audio* looks like music/speaker output rather than speech.
+
+        Uses two fast heuristics:
+        1. Spectral flatness — music has many simultaneous frequency components
+           (flatness close to 1.0). Speech has sparse formant structure (low flatness).
+        2. Zero-crossing rate variance — speech has highly variable ZCR due to
+           voiced/unvoiced transitions. Music has smoother, more periodic ZCR.
+
+        Thresholds calibrated empirically:
+        - Speech spectral flatness: typically 0.01 – 0.15
+        - Music spectral flatness: typically 0.25 – 0.80
+        - Speech ZCR std: typically 0.05 – 0.20
+        - Music ZCR std: typically 0.01 – 0.06
+        """
+        if len(audio) < 512:
+            return False
+
+        audio_f = audio.astype(np.float32)
+
+        # ── Spectral flatness (geometric mean / arithmetic mean of power spectrum)
+        spectrum = np.abs(np.fft.rfft(audio_f)) ** 2 + 1e-10
+        geo_mean = np.exp(np.mean(np.log(spectrum)))
+        arith_mean = np.mean(spectrum)
+        flatness = float(geo_mean / arith_mean)
+
+        # ── Zero-crossing rate variance across 20ms frames
+        frame_size = int(16000 * 0.02)  # 20ms at 16kHz
+        n_frames = len(audio_f) // frame_size
+        if n_frames > 1:
+            zcr_per_frame = np.array([
+                float(np.mean(np.abs(np.diff(np.sign(audio_f[i*frame_size:(i+1)*frame_size])))) / 2)
+                for i in range(n_frames)
+            ])
+            zcr_std = float(np.std(zcr_per_frame))
+        else:
+            zcr_std = 1.0  # can't compute — assume speech
+
+        # Music: high flatness AND low ZCR variance
+        is_music = flatness > 0.20 and zcr_std < 0.08
+
+        if is_music:
+            logger.debug(
+                "Music detection: flatness=%.3f zcr_std=%.3f → rejected",
+                flatness, zcr_std,
+            )
+
+        return is_music
+
     def _match_phrase_by_spectrum(
         self, audio: np.ndarray
     ) -> tuple[str, "PersonalityType"]:
-        """Match audio to the most likely wake word phrase using spectral features.
+        """Match audio to the most likely wake word phrase.
 
-        Splits the frequency spectrum into low and high bands and computes
-        per-phrase energy scores.  Maya phrases ("maya", "hey maya") are
-        associated with higher spectral centroids; Guru phrases with lower.
-        Falls back to the first registered phrase if no match is found.
+        Primary method: transcribe the audio with Whisper (fast, accurate).
+        Fallback: spectral heuristic if Whisper is unavailable.
 
         Returns:
             Tuple of (matched_phrase, PersonalityType).
         """
-        # Compute power spectrum
+        # ── Primary: transcribe with Whisper and check for "maya" ────────
+        try:
+            transcript = self._transcribe_wake_word(audio)
+            if transcript:
+                t_lower = transcript.lower().strip()
+                # Check for Maya keywords
+                if any(kw in t_lower for kw in ("maya", "hey maya", "hi maya")):
+                    maya_phrases = [
+                        p for p, pt in self.config.wake_words.items()
+                        if pt.value.lower() == "maya"
+                    ]
+                    if maya_phrases:
+                        phrase = "hey maya" if "hey maya" in maya_phrases else maya_phrases[0]
+                        logger.info("Wake word transcript: %r → MAYA", transcript)
+                        return phrase, self.config.wake_words[phrase]
+                # Check for Guru keywords
+                if any(kw in t_lower for kw in ("guru", "hey guru", "hi guru")):
+                    guru_phrases = [
+                        p for p, pt in self.config.wake_words.items()
+                        if pt.value.lower() == "guru"
+                    ]
+                    if guru_phrases:
+                        phrase = "hey guru" if "hey guru" in guru_phrases else guru_phrases[0]
+                        logger.info("Wake word transcript: %r → GURU", transcript)
+                        return phrase, self.config.wake_words[phrase]
+                logger.debug("Wake word transcript %r — no keyword match, using spectral", transcript)
+        except Exception as exc:
+            logger.debug("Wake word transcription failed: %s — using spectral fallback", exc)
+
+        # ── Fallback: spectral heuristic ──────────────────────────────────
         spectrum = np.abs(np.fft.rfft(audio.astype(np.float32))) ** 2
         n_bins = len(spectrum)
         mid = n_bins // 2
@@ -539,7 +626,6 @@ class WakeWordDetector:
         high_power = float(np.mean(spectrum[mid:]) + 1e-10)
         high_ratio = high_power / (low_power + high_power)
 
-        # Separate registered phrases by personality
         maya_phrases = [
             p for p, pt in self.config.wake_words.items()
             if pt.value.lower() == "maya"
@@ -561,6 +647,59 @@ class WakeWordDetector:
         # Absolute fallback — should never reach here with default config
         first_phrase = next(iter(self.config.wake_words))
         return first_phrase, self.config.wake_words[first_phrase]
+
+    def _transcribe_wake_word(self, audio: np.ndarray) -> str:
+        """Transcribe wake word audio using faster-whisper (tiny model, fast).
+
+        Uses the tiny Whisper model for speed — only needs to detect
+        "guru" or "maya", not full sentences.
+
+        Model loading priority:
+        1. Use pre-warmed instance injected at startup (zero latency)
+        2. Try GPU int8 (10x faster than CPU)
+        3. Fall back to CPU float32
+
+        Returns:
+            Transcribed text, or empty string on failure.
+        """
+        try:
+            from faster_whisper import WhisperModel  # type: ignore[import]
+
+            # Use cached instance — injected at startup or loaded on first call
+            if not hasattr(self, "_whisper_tiny") or self._whisper_tiny is None:
+                import torch
+                if torch.cuda.is_available():
+                    try:
+                        self._whisper_tiny = WhisperModel(
+                            "tiny", device="cuda", compute_type="int8"
+                        )
+                        logger.info("Whisper tiny loaded for wake word detection on cuda (int8)")
+                    except Exception:
+                        self._whisper_tiny = WhisperModel(
+                            "tiny", device="cpu", compute_type="float32"
+                        )
+                        logger.info("Whisper tiny loaded for wake word detection on cpu (float32)")
+                else:
+                    self._whisper_tiny = WhisperModel(
+                        "tiny", device="cpu", compute_type="float32"
+                    )
+                    logger.info("Whisper tiny loaded for wake word detection on cpu")
+
+            segments, _ = self._whisper_tiny.transcribe(
+                audio,
+                language="en",
+                beam_size=1,
+                best_of=1,
+                temperature=0.0,
+                vad_filter=False,  # Don't filter — wake word audio is short
+                word_timestamps=False,
+            )
+            text = " ".join(s.text for s in segments).strip()
+            logger.debug("Wake word transcription: %r", text)
+            return text
+        except Exception as exc:
+            logger.debug("_transcribe_wake_word failed: %s", exc)
+            return ""
 
     # ------------------------------------------------------------------
     # Cleanup

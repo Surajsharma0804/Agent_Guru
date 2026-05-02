@@ -75,10 +75,15 @@ class OllamaAdapter(ProviderAdapter):
         options: dict[str, Any] = {"temperature": request.temperature}
         if request.max_tokens is not None:
             options["num_predict"] = request.max_tokens
-        # Request GPU offloading per-request — Ollama honours this even when
-        # OLLAMA_NUM_GPU is not set in the environment. 99 = offload as many
-        # layers as fit in VRAM (same effect as OLLAMA_NUM_GPU=99).
+        # GPU offloading — offload as many layers as fit in VRAM.
+        # num_gpu=99 = offload all layers (Ollama caps at available VRAM).
         options["num_gpu"] = 99
+        # Smaller context window = less VRAM used for KV cache = more VRAM
+        # available for model weights = more layers on GPU = faster inference.
+        # 1024 tokens is enough for voice assistant conversations.
+        options["num_ctx"] = 1024
+        # More CPU threads for any layers that spill to CPU
+        options["num_thread"] = 8
 
         response = await client.chat(
             model=request.model,
@@ -117,7 +122,9 @@ class OllamaAdapter(ProviderAdapter):
         options: dict[str, Any] = {"temperature": request.temperature}
         if request.max_tokens is not None:
             options["num_predict"] = request.max_tokens
-        options["num_gpu"] = 99  # GPU offloading for streaming too
+        options["num_gpu"] = 99   # GPU offloading for streaming too
+        options["num_ctx"] = 1024  # Smaller context = more VRAM for model layers
+        options["num_thread"] = 8  # CPU threads for spilled layers
 
         stream = await client.chat(
             model=request.model,

@@ -199,13 +199,13 @@ class TestOllamaModelSelection:
         """Property: Simple tasks always use Mistral 7B."""
         server = OllamaServer()
         model = server.select_model_for_task("simple")
-        assert model == "mistral:7b-instruct"
+        assert model == "gemma3:4b"
 
     def test_complex_uses_qwen(self):
         """Property: Complex tasks always use Qwen 14B."""
         server = OllamaServer()
         model = server.select_model_for_task("complex")
-        assert model == "qwen2.5:14b-instruct"
+        assert model == "gemma3:4b"
 
 
 class TestOllamaHealthCheckIdempotence:
@@ -290,7 +290,7 @@ class TestOllamaLatencyProperties:
         """
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["mistral:7b-instruct"]
+        server._available_models = ["gemma3:4b"]
 
         # Mock responses
         mock_response = Mock()
@@ -302,7 +302,7 @@ class TestOllamaLatencyProperties:
         }
 
         with patch("requests.post", return_value=mock_response):
-            stats = await server.measure_latency("mistral:7b-instruct", num_samples=num_samples)
+            stats = await server.measure_latency("gemma3:4b", num_samples=num_samples)
 
         # All stats should be non-negative
         assert stats["mean"] >= 0
@@ -327,7 +327,7 @@ class TestOllamaRequestResponseRoundtrip:
         """
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["mistral:7b-instruct"]
+        server._available_models = ["gemma3:4b"]
 
         mock_response = Mock()
         mock_response.status_code = 200

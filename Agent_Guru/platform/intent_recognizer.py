@@ -18,12 +18,12 @@ Platform Behaviour:
 Performance Requirements:
     - Intent recognition latency: <500ms (95th percentile)
     - Accuracy: >90% on standard command set
-    - Confidence scoring: 0.0–1.0
+    - Confidence scoring: 0.0â€“1.0
 
 Architecture:
     IntentRecognizer
-    ├── LLMManager  — primary structured intent extraction
-    └── _RuleEngine — regex fallback when LLM unavailable
+    â”œâ”€â”€ LLMManager  â€” primary structured intent extraction
+    â””â”€â”€ _RuleEngine â€” regex fallback when LLM unavailable
 
 Author: Agent Guru Team
 Date: 2026-03-20
@@ -114,7 +114,7 @@ class IntentResult:
         confidence: Confidence score in [0.0, 1.0].
         raw_text: Original input text.
         platform: Platform the recognition ran on.
-        method: ``"llm"`` or ``"rule_based"`` — which engine produced this.
+        method: ``"llm"`` or ``"rule_based"`` â€” which engine produced this.
     """
 
     intent_type: str
@@ -169,13 +169,77 @@ _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(airplane mode|do not disturb|dnd)\b", re.I), "settings"),
 ]
 
-# Web / browser patterns — matched before information to catch "open youtube", "play X on youtube"
+# Known desktop application names â€” these should NEVER be treated as websites.
+# When "open X" matches one of these, it's an app launch, not a URL open.
+_KNOWN_DESKTOP_APPS: frozenset[str] = frozenset({
+    # Windows built-ins
+    "notepad", "notepad++", "wordpad", "paint", "calculator", "calc",
+    "cmd", "command prompt", "powershell", "terminal", "task manager",
+    "file explorer", "explorer", "control panel", "settings",
+    "snipping tool", "snip", "magnifier", "narrator", "on-screen keyboard",
+    "registry editor", "regedit", "device manager", "disk management",
+    "event viewer", "services", "task scheduler",
+    # Browsers (open as apps, not URLs)
+    "chrome", "google chrome", "firefox", "mozilla firefox",
+    "edge", "microsoft edge", "msedge", "opera", "brave", "safari",
+    "internet explorer", "ie",
+    # Office / productivity
+    "word", "excel", "powerpoint", "outlook", "onenote", "access",
+    "teams", "skype", "onedrive",
+    "libreoffice", "openoffice", "writer", "calc", "impress",
+    # Dev tools
+    "vscode", "visual studio code", "visual studio", "vs code",
+    "pycharm", "intellij", "eclipse", "netbeans", "android studio",
+    "sublime text", "sublime", "atom", "vim", "emacs", "nano",
+    "git", "github desktop", "sourcetree", "gitkraken",
+    "postman", "insomnia", "docker", "virtualbox", "vmware",
+    "wsl", "ubuntu", "kali",
+    # Media
+    "vlc", "media player", "windows media player", "itunes",
+    "spotify", "audacity", "obs", "obs studio", "handbrake",
+    "photoshop", "illustrator", "premiere", "after effects",
+    "gimp", "inkscape", "blender", "figma",
+    # Communication
+    "discord", "slack", "zoom", "telegram", "whatsapp",
+    # System tools
+    "antivirus", "malwarebytes", "ccleaner", "7zip", "winrar",
+    "steam", "epic games", "origin", "battle.net",
+    "notepad", "textedit",
+})
+
+# Web / browser patterns â€” matched before information to catch "open youtube", "play X on youtube"
+# The catch-all at the end handles ANY "open X" where X looks like a website.
 _WEB_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\b(open|go to|navigate to|visit)\b.*(youtube|google|gmail|github|reddit|twitter|facebook|instagram|linkedin|amazon|netflix|spotify|wikipedia|stackoverflow)\b", re.I), "open_url"),
+    # Explicit URL
     (re.compile(r"\b(open|go to|visit)\s+(https?://\S+)", re.I), "open_url"),
+    # Known popular sites
+    (re.compile(
+        r"\b(open|go to|navigate to|visit)\b.*(youtube|google|gmail|github|reddit|twitter|"
+        r"facebook|instagram|linkedin|amazon|netflix|spotify|wikipedia|stackoverflow|"
+        r"leetcode|hackerrank|codechef|codeforces|geeksforgeeks|w3schools|mdn|"
+        r"udemy|coursera|edx|khan\s*academy|medium|dev\.to|hashnode|"
+        r"whatsapp|telegram|discord|slack|zoom|teams|meet|"
+        r"flipkart|myntra|snapdeal|paytm|phonepe|gpay|"
+        r"hotstar|primevideo|jiocinema|zee5|sonyliv|"
+        r"irctc|makemytrip|goibibo|booking|airbnb|"
+        r"naukri|linkedin|indeed|glassdoor|"
+        r"openai|anthropic|huggingface|kaggle|"
+        r"twitch|tiktok|pinterest|tumblr|quora|"
+        r"maps|translate|drive|docs|sheets|slides|calendar|keep)\b",
+        re.I,
+    ), "open_url"),
+    # Play X on youtube/spotify
     (re.compile(r"\bplay\b.+\bon\s+(youtube|spotify)\b", re.I), "web_search"),
+    # "play X" without engine â€” default to youtube search
+    (re.compile(r"^\s*play\s+\S", re.I), "web_search"),
+    # Search X on engine
     (re.compile(r"\b(search|look up|find)\b.+\bon\s+(youtube|google|bing)\b", re.I), "web_search"),
     (re.compile(r"\b(youtube|google)\b.*(search|find|look up)\b.+", re.I), "web_search"),
+    # "open X.com" / "open X.org" / "open X.io" / "open X.net" â€” any domain
+    (re.compile(r"\b(open|go to|visit|navigate to)\s+\S+\.(com|org|io|net|in|co|edu|gov|app|dev)\b", re.I), "open_url"),
+    # Catch-all: "open X" where X is NOT a known desktop app
+    # This is the last resort â€” matches anything after "open" that wasn't caught above
+    (re.compile(r"\b(open|go to|visit|navigate to)\s+(\w[\w\s]{1,40})\s*$", re.I), "open_url"),
 ]
 
 _INFORMATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -186,7 +250,9 @@ _INFORMATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(calculate|compute|math|how much)\b.+", re.I), "calculation"),
     (re.compile(r"\b(translate|translation)\b.+", re.I), "translation"),
     (re.compile(r"\b(define|definition|meaning of)\b.+", re.I), "definition"),
-    (re.compile(r"\b(what|who|where|when|why|how)\b.+\??\s*$", re.I), "question"),
+    (re.compile(r"\b(what|who|where|when|why|how|which)\b.+\??\s*$", re.I), "question"),
+    (re.compile(r"\b(best|top|recommend|suggest)\b.+\b(language|framework|tool|library|app|software)\b", re.I), "question"),
+    (re.compile(r"\b(prime minister|president|capital|population|currency|founder|ceo|owner)\b", re.I), "question"),
 ]
 
 _COMMUNICATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -220,27 +286,60 @@ _CONVERSATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 def _extract_web_query(text: str) -> dict[str, str]:
     """Extract URL/query and engine from a web command.
 
+    Handles:
+    - "play despacito on youtube" â†’ query="despacito", engine="youtube"
+    - "play chak de india" â†’ query="chak de india", engine="youtube" (default for play)
+    - "open leetcode" â†’ query="leetcode", engine="direct" (will be resolved to URL)
+    - "open leetcode.com" â†’ query="leetcode.com", engine="direct"
+    - "search python on google" â†’ query="python", engine="google"
+    - "open X" (any unknown name) â†’ query="X", engine="google" (will search)
+
     Returns:
         dict with keys 'query' and 'engine'
     """
-    # "play despacito on youtube" → query="despacito", engine="youtube"
+    # "play despacito on youtube" â†’ query="despacito", engine="youtube"
     m = re.search(r"\bplay\s+(.+?)\s+on\s+(youtube|spotify)\b", text, re.I)
     if m:
         return {"query": m.group(1).strip(), "engine": m.group(2).lower()}
 
-    # "search python tutorials on google"
+    # "play X" without "on youtube" â†’ default to youtube search
+    m = re.search(r"^\s*play\s+(.+?)(?:\s+(?:on|in)\s+\w+)?$", text, re.I)
+    if m:
+        query = m.group(1).strip().rstrip(".,!?")
+        return {"query": query, "engine": "youtube"}
+
+    # "search python tutorials on google/youtube/bing"
     m = re.search(r"\b(?:search|look up|find)\s+(.+?)\s+on\s+(youtube|google|bing)\b", text, re.I)
     if m:
         return {"query": m.group(1).strip(), "engine": m.group(2).lower()}
 
-    # "open youtube" / "go to github"
+    # "open X.com" / "go to X.org" â€” explicit domain
+    m = re.search(r"\b(?:open|go to|navigate to|visit)\s+(\S+\.(com|org|io|net|in|co|edu|gov|app|dev)\S*)", text, re.I)
+    if m:
+        domain = m.group(1).strip()
+        return {"query": domain, "engine": "direct"}
+
+    # "open youtube" / "go to github" â€” known site names
     m = re.search(
-        r"\b(?:open|go to|navigate to|visit)\s+(youtube|google|gmail|github|reddit|twitter|"
-        r"facebook|instagram|linkedin|amazon|netflix|spotify|wikipedia|stackoverflow|https?://\S+)",
+        r"\b(?:open|go to|navigate to|visit)\s+"
+        r"(youtube|google|gmail|github|reddit|twitter|facebook|instagram|linkedin|"
+        r"amazon|netflix|spotify|wikipedia|stackoverflow|leetcode|hackerrank|"
+        r"codechef|codeforces|geeksforgeeks|w3schools|udemy|coursera|edx|"
+        r"whatsapp|telegram|discord|slack|zoom|teams|meet|flipkart|myntra|"
+        r"hotstar|primevideo|irctc|makemytrip|openai|huggingface|kaggle|"
+        r"twitch|tiktok|pinterest|quora|maps|translate|drive|docs|sheets|"
+        r"slides|calendar|keep|medium|hashnode|naukri|indeed|glassdoor|"
+        r"paytm|phonepe|gpay|jiocinema|zee5|sonyliv|airbnb|booking)\b",
         text, re.I
     )
     if m:
         return {"query": m.group(1).strip(), "engine": "direct"}
+
+    # "open X" â€” any unknown name â†’ treat as web search on Google
+    m = re.search(r"\b(?:open|go to|visit|navigate to)\s+(.+?)(?:\s+(?:and|then|in|on)\b.*)?$", text, re.I)
+    if m:
+        query = m.group(1).strip().rstrip(".,!?")
+        return {"query": query, "engine": "direct"}
 
     # Fallback: everything after the action verb
     cleaned = re.sub(r"^\s*(open|go to|visit|search|look up|find|play)\s+", "", text, flags=re.I).strip()
@@ -248,7 +347,14 @@ def _extract_web_query(text: str) -> dict[str, str]:
 
 
 def _extract_app_name(text: str) -> str:
-    """Extract application name from a command string."""
+    """Extract application name from a command string.
+
+    Handles:
+    - "open notepad" â†’ "notepad"
+    - "open google chrome" â†’ "google chrome"
+    - "open notepad and write something" â†’ "notepad" (stops at "and")
+    - "Open Notepad. Himaya Open Notepad." â†’ "notepad" (stops at punctuation)
+    """
     # Remove leading action words
     cleaned = re.sub(
         r"^\s*(open|launch|start|run|close|quit|exit|kill)\s+",
@@ -256,10 +362,15 @@ def _extract_app_name(text: str) -> str:
         text,
         flags=re.I,
     ).strip()
+    # Stop at sentence boundaries (period, comma, exclamation)
+    cleaned = re.split(r"[.,!?;]", cleaned)[0].strip()
     # Stop at conjunctions/prepositions that indicate a second action
-    cleaned = re.split(r"\s+(?:and|then|after|&)\s+", cleaned, maxsplit=1)[0].strip()
+    cleaned = re.split(r"\s+(?:and|then|after|&|in|on|with)\s+", cleaned, maxsplit=1)[0].strip()
     # Take first meaningful word(s) up to 3 words
     words = cleaned.split()
+    # Filter out wake word fragments that Whisper might include
+    wake_fragments = {"hey", "hi", "guru", "maya", "himaya"}
+    words = [w for w in words if w.lower() not in wake_fragments]
     return " ".join(words[:3]) if words else ""
 
 
@@ -347,9 +458,20 @@ class _RuleEngine:
     # ------------------------------------------------------------------
 
     def _try_web(self, text: str, plat: str) -> Optional[IntentResult]:
+        """Try to match a web/URL intent.
+
+        The catch-all pattern at the end of _WEB_PATTERNS would match
+        "open notepad" as a web URL. We skip it for known desktop apps.
+        """
         for pattern, action in _WEB_PATTERNS:
             if pattern.search(text):
                 web_params = _extract_web_query(text)
+                query = web_params.get("query", "").lower().strip()
+
+                # Skip the catch-all if the target is a known desktop app
+                if query and query in _KNOWN_DESKTOP_APPS:
+                    continue
+
                 params: dict[str, Any] = {"action": action, **web_params}
                 return IntentResult(
                     intent_type="system_control",
@@ -400,7 +522,7 @@ class _RuleEngine:
                     else:
                         params["app"] = _extract_app_name(text)
                 elif action == "type_text":
-                    # Extract the text to type — everything after the verb and optional target
+                    # Extract the text to type â€” everything after the verb and optional target
                     m = re.search(
                         r'\b(?:type|write|input)\b\s+["\']?(.+?)["\']?\s*(?:\b(?:in|into|on)\b.+)?$',
                         text, re.I
@@ -607,7 +729,7 @@ class IntentRecognizer:
         self._llm_available: bool = False
 
         logger.info(
-            "IntentRecognizer created — platform=%s", self._platform
+            "IntentRecognizer created â€” platform=%s", self._platform
         )
 
     # ------------------------------------------------------------------
@@ -637,18 +759,18 @@ class IntentRecognizer:
                 logger.info("IntentRecognizer: LLM initialized successfully")
             except Exception as exc:
                 logger.warning(
-                    "IntentRecognizer: LLM unavailable (%s) — using rule-based fallback",
+                    "IntentRecognizer: LLM unavailable (%s) â€” using rule-based fallback",
                     exc,
                 )
                 self._llm_manager = None
                 self._llm_available = False
         else:
-            # Caller provided a manager — assume it's ready
+            # Caller provided a manager â€” assume it's ready
             self._llm_available = True
 
         self._initialized = True
         logger.info(
-            "IntentRecognizer initialized — platform=%s, llm_available=%s",
+            "IntentRecognizer initialized â€” platform=%s, llm_available=%s",
             self._platform,
             self._llm_available,
         )
@@ -690,7 +812,7 @@ class IntentRecognizer:
         """
         effective_platform = platform or self._platform
 
-        # Empty / whitespace-only input → conversation with low confidence
+        # Empty / whitespace-only input â†’ conversation with low confidence
         if not text or not text.strip():
             return IntentResult(
                 intent_type="conversation",
@@ -749,7 +871,7 @@ class IntentRecognizer:
             elif hasattr(self._llm_manager, "complete"):
                 from Agent_Guru.llm.models import CompletionRequest, Message
                 request = CompletionRequest(
-                    model="mistral:7b-instruct",
+                    model="gemma3:4b",
                     messages=[Message(role="user", content=prompt)],
                     max_tokens=200,
                     temperature=0.0,

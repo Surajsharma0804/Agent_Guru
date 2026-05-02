@@ -44,13 +44,18 @@ _pyautogui = None
 _pyperclip = None
 
 
-def _get_pyautogui():
-    """Lazy import pyautogui to avoid cv2 issues during testing."""
+def _get_pyautogui(fail_safe: bool = True):
+    """Lazy import pyautogui to avoid cv2 issues during testing.
+
+    Args:
+        fail_safe: Whether to enable the fail-safe (move mouse to corner to abort).
+                   Pass False for automated demos where mouse movement is expected.
+    """
     global _pyautogui
     if _pyautogui is None:
         try:
             import pyautogui as pg
-            pg.FAILSAFE = True
+            pg.FAILSAFE = fail_safe
             pg.PAUSE = 0.01
             _pyautogui = pg
         except ImportError as e:
@@ -58,6 +63,9 @@ def _get_pyautogui():
                 "pyautogui is required for text input control. "
                 "Install with: pip install pyautogui"
             ) from e
+    else:
+        # Update fail-safe setting on each call so callers can override it
+        _pyautogui.FAILSAFE = fail_safe
     return _pyautogui
 
 
@@ -174,7 +182,7 @@ class TextInputController:
                 self.type_text_via_clipboard(text)
             else:
                 interval = self._calculate_interval(wpm)
-                pyautogui = _get_pyautogui()
+                pyautogui = _get_pyautogui(self.config.fail_safe)
 
                 if parse_special:
                     self._type_with_special_keys(text, interval)
@@ -246,7 +254,7 @@ class TextInputController:
         logger.debug("Typing special key: key=%s, modifiers=%s", key, modifiers)
 
         try:
-            pyautogui = _get_pyautogui()
+            pyautogui = _get_pyautogui(self.config.fail_safe)
             if modifiers:
                 pyautogui.hotkey(*modifiers, key)
             else:
@@ -317,7 +325,7 @@ class TextInputController:
         logger.debug("Clearing %s characters", num_chars)
 
         try:
-            pyautogui = _get_pyautogui()
+            pyautogui = _get_pyautogui(self.config.fail_safe)
             for _ in range(num_chars):
                 pyautogui.press('backspace')
 
@@ -355,7 +363,7 @@ class TextInputController:
             text: Text with special key combinations
             interval: Interval between keystrokes
         """
-        pyautogui = _get_pyautogui()
+        pyautogui = _get_pyautogui(self.config.fail_safe)
         parts = text.split()
 
         for part in parts:
@@ -407,7 +415,7 @@ class TextInputController:
         Time Complexity: O(1)
         Space Complexity: O(1)
         """
-        pyautogui = _get_pyautogui()
+        pyautogui = _get_pyautogui(self.config.fail_safe)
         if self.platform == 'darwin':
             pyautogui.hotkey('command', 'v')
         else:

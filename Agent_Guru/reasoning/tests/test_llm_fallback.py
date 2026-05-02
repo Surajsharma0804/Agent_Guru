@@ -37,7 +37,7 @@ class TestLLMFallbackConfig:
         config = LLMFallbackConfig()
 
         assert config.provider == "ollama"
-        assert config.model == "qwen2.5:14b-instruct"
+        assert config.model == "gemma3:4b"
         assert config.api_key is None
         assert config.timeout_ms == 1000.0
         assert config.max_retries == 3

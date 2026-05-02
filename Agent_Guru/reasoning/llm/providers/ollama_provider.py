@@ -34,7 +34,7 @@ class OllamaProviderConfig(ProviderConfig):
         self,
         host: str = "127.0.0.1",
         port: int = 11434,
-        model: str = "mistral:7b-instruct",
+        model: str = "gemma3:4b",
         **kwargs: Any,
     ) -> None:
         """Initialize Ollama config.
@@ -57,13 +57,11 @@ class OllamaProvider(BaseLLMProvider):
     """
     Ollama LLM provider for local inference.
 
-    Supports models:
-    - mistral:7b-instruct (fast, simple tasks)
-    - qwen2.5:14b-instruct (complex reasoning)
-    - llama3:8b-instruct (balanced)
+    Active model (May 2025, best for 4GB VRAM):
+    - gemma3:4b — Google Gemma 3, 3.3GB, best quality at this size
 
     Example:
-        >>> config = OllamaProviderConfig(model="mistral:7b-instruct")
+        >>> config = OllamaProviderConfig(model="gemma3:4b")
         >>> provider = OllamaProvider(config)
         >>> request = LLMRequest(prompt="What is the time?")
         >>> response = await provider.generate(request)

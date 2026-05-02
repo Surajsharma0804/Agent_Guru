@@ -166,9 +166,9 @@ class SynthesisEngine:
             from Agent_Guru.speech.tts.tts_engine import CoquiTTSEngine
             self._coqui_engine = CoquiTTSEngine(use_gpu=self._config.use_gpu)
             self._initialized = True
-            logger.info("SynthesisEngine: CoquiTTS model loaded")
+            logger.info("SynthesisEngine: Kokoro TTS engine loaded")
         except Exception as e:
-            logger.warning("CoquiTTS not available: %s. Using fallback synthesis.", e)
+            logger.warning("TTS engine unavailable: %s. Using silence fallback.", e)
             self._initialized = True  # Mark as initialized even without model
 
     def synthesize(self, text: str) -> SynthesisResult:

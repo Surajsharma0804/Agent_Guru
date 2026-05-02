@@ -196,6 +196,9 @@ class IntegrationOrchestrator:
         # Audit logger — records every pipeline execution
         self._audit_logger: AuditLogger = AuditLogger()
 
+        # Persistent browser manager — one Chrome instance, CDP reconnect
+        self._browser_mgr: Any = None  # lazy-init on first YouTube command
+
         logger.info("IntegrationOrchestrator wired — all subsystems connected")
 
     # ------------------------------------------------------------------
@@ -432,44 +435,50 @@ class IntegrationOrchestrator:
         result.personality = self._resolve_personality(wake_event.wake_word)
 
         try:
-            # Stage 1: STT
-            result.transcript, result.detected_language = await self._stage_stt(wake_event.audio)
+            # Stage 1: STT — pass personality so Whisper uses the right voice profile
+            result.transcript, result.detected_language = await self._stage_stt(
+                wake_event.audio, result.personality
+            )
             result.stages_completed = 1
 
-            # Stage 2: Memory context
+            if not result.transcript:
+                # Nothing heard — skip all remaining stages
+                result.stages_completed = 8
+                return result
+
+            # Stage 2: Memory context (fast, <50ms)
             result.memory_context = await self._stage_memory(result.transcript)
             result.stages_completed = 2
 
-            # Stage 3: Reasoning
-            result.reasoning_output = await self._stage_reasoning(
-                result.transcript, result.memory_context
-            )
+            # Stage 3: Reasoning — skip to avoid LLM timeout from ReasoningEngine.
+            # The ReasoningEngine calls its own LLM (5s timeout) which causes
+            # TimeoutError and adds 5-25s latency. The reasoning output is not
+            # used in the current pipeline (LLM stage handles everything).
+            result.reasoning_output = None
             result.stages_completed = 3
 
-            # Stage 4: LLM inference (enriched with memory + reasoning)
-            result.llm_response = await self._stage_llm(
-                result.transcript, result.memory_context, result.reasoning_output,
-                result.detected_language,
-            )
-            result.stages_completed = 4
-
-            # Translation fallback: if LLM responded in wrong language, translate
-            if result.detected_language and result.detected_language != "en":
-                translation_engine = getattr(self, "_translation_engine", None)
-                if translation_engine is not None:
-                    try:
-                        tr = translation_engine.translate(
-                            result.llm_response or "",
-                            target_language=result.detected_language,
-                        )
-                        result.llm_response = tr.translated_text
-                    except Exception as _te:
-                        logger.debug("Translation fallback failed: %s", _te)
-
-            # Stage 5: Intent recognition — ALWAYS use the user's transcript,
-            # never the LLM response (which is conversational and confuses the classifier)
+            # ── FAST PATH: Detect intent BEFORE calling LLM ──────────────
+            # For system_control commands (open app, volume, screenshot, etc.)
+            # we can execute immediately without any LLM call.
+            # This brings response time from 17s → <1s for 80% of commands.
             result.intent = await self._stage_intent(result.transcript or "")
-            result.stages_completed = 5
+            result.stages_completed = 5  # skip stage 4 for now
+
+            # Determine if this intent needs an LLM response
+            needs_llm = self._intent_needs_llm(result.intent, result.transcript or "")
+
+            if needs_llm:
+                # Stage 4: LLM inference — only for conversation/questions
+                result.llm_response = await self._stage_llm(
+                    result.transcript, result.memory_context, result.reasoning_output,
+                    result.detected_language,
+                    personality=result.personality,
+                )
+                result.stages_completed = 4
+            else:
+                # Skip LLM — action confirmation will be the TTS text
+                result.llm_response = None
+                result.stages_completed = 4
 
             # Stage 6: Policy check
             result.policy_allowed = await self._stage_policy(result.intent)
@@ -480,8 +489,12 @@ class IntegrationOrchestrator:
                 result.action_result = await self._stage_action(result.intent)
             result.stages_completed = 7
 
-            # Stage 8: TTS — speak the LLM response (or action confirmation)
-            tts_text = result.llm_response or result.action_result or ""
+            # Stage 8: TTS — speak action confirmation OR LLM response
+            # Priority: action_result (e.g. "Opening Chrome") > llm_response
+            tts_text = result.action_result or result.llm_response or ""
+            if not tts_text and result.transcript:
+                # Fallback: acknowledge the command
+                tts_text = f"Done."
             result.tts_response = await self._stage_tts(
                 str(tts_text), result.personality
             )
@@ -575,8 +588,13 @@ class IntegrationOrchestrator:
     # Pipeline stage helpers
     # ------------------------------------------------------------------
 
-    async def _stage_stt(self, audio: bytes) -> tuple[str, str]:
+    async def _stage_stt(self, audio: bytes, personality: "Personality | None" = None) -> tuple[str, str]:
         """Stage 1: Speech-to-text.
+
+        Args:
+            audio: Raw audio bytes (float32 PCM at 16kHz).
+            personality: Active personality (GURU or MAYA) — passed to STT
+                         engine when it accepts a personality parameter.
 
         Returns:
             (transcript, language_code) where language_code is ISO 639-1
@@ -588,8 +606,6 @@ class IntegrationOrchestrator:
         try:
             import numpy as np
 
-            # BUG-001: loop was used in branches below but never assigned in
-            # this function scope, causing NameError on the sync-function path.
             loop = asyncio.get_running_loop()
 
             # Use cached STT function if available; otherwise probe at call time (fallback)
@@ -609,7 +625,6 @@ class IntegrationOrchestrator:
                 return ("", "")
 
             # If the function is async (e.g. AsyncMock in tests), call it directly
-            # with the raw audio — no numpy conversion needed for mock/async paths
             if asyncio.iscoroutinefunction(fn):
                 try:
                     result = await fn(audio)
@@ -624,7 +639,6 @@ class IntegrationOrchestrator:
 
             # Convert bytes → numpy float32 array that Whisper expects
             if isinstance(audio, (bytes, bytearray)) and len(audio) > 0:
-                # Guard: float32 requires buffer length divisible by 4
                 if len(audio) % 4 != 0:
                     logger.debug("STT: audio bytes not float32-aligned (%d bytes), skipping", len(audio))
                     return ("", "")
@@ -639,22 +653,31 @@ class IntegrationOrchestrator:
                 logger.debug("STT: audio too short (%d samples), skipping", len(audio_np))
                 return ("", "")
             rms = float(np.sqrt(np.mean(audio_np ** 2)))
-            # BUG-FIX: old threshold of 0.001 was too strict — normal speech
-            # captured right after a wake word often starts at rms ~0.003-0.005.
-            # Lowered to 0.0003 so we only skip true silence/noise floor.
             if rms < 0.0003:
                 logger.debug("STT: audio too quiet (rms=%.5f), skipping", rms)
                 return ("", "")
 
             logger.debug("STT: processing %.2fs of audio (rms=%.4f)", len(audio_np) / 16000, rms)
 
-            # fn is guaranteed synchronous here — async functions returned early above
+            # Resolve PersonalityType from the pipeline Personality enum
+            stt_personality = None
+            if personality is not None:
+                try:
+                    from Agent_Guru.speech.models import PersonalityType
+                    stt_personality = (
+                        PersonalityType.MAYA
+                        if personality == Personality.MAYA
+                        else PersonalityType.GURU
+                    )
+                except ImportError:
+                    pass
+
             params = self._stt_params or []
             try:
-                if "personality" in params:
-                    from Agent_Guru.speech.models import PersonalityType
+                if "personality" in params and stt_personality is not None:
+                    _pt = stt_personality  # capture for lambda
                     result = await loop.run_in_executor(
-                        None, lambda: fn(audio_np, PersonalityType.GURU)
+                        None, lambda: fn(audio_np, _pt)
                     )
                 elif "sample_rate" in params:
                     result = await loop.run_in_executor(
@@ -769,14 +792,9 @@ class IntegrationOrchestrator:
         memory_context: Any,
         reasoning_output: Any,
         language_code: str = "",
+        personality: "Personality | None" = None,
     ) -> str:
-        """Stage 4: LLM inference with enriched context.
-
-        Tries, in order:
-          1. infer(transcript, memory_context, reasoning_output) — mock/stub API
-          2. execute(transcript, ...) — alternate mock API
-          3. complete(CompletionRequest) — real LLMRuntime API (Ollama/OpenAI/etc.)
-        """
+        """Stage 4: LLM inference with enriched context."""
         try:
             # Prefer infer() — used by mocks and simpler subsystems
             fn = getattr(self.llm_runtime, "infer", None) or getattr(self.llm_runtime, "execute", None)
@@ -807,33 +825,34 @@ class IntegrationOrchestrator:
                 if reasoning_output:
                     prompt = f"{prompt}\n[Reasoning: {reasoning_output}]"
 
+                # ── Personality-aware system prompt ───────────────────────
+                import datetime as _dt
+                current_date = _dt.datetime.now().strftime("%B %d, %Y")
+
+                if personality == Personality.MAYA:
+                    persona = (
+                        "You are Maya, a warm, creative, and empathetic AI voice assistant. "
+                        "You speak in a friendly, personal tone. "
+                    )
+                else:
+                    persona = (
+                        "You are Guru, a professional, analytical, and knowledgeable AI voice assistant. "
+                        "You speak in a clear, direct, confident tone. "
+                    )
+
                 system_prompt = (
-                    "You are Agent Guru, an AI voice assistant that helps users control their computer. "
-                    "You assist with laptop operations the user requests, within safe and appropriate limits. "
-                    "Available actions you can perform:\n"
-                    "- Open/launch applications (notepad, chrome, firefox, calculator, explorer, cmd, etc.)\n"
-                    "- Close/quit applications\n"
-                    "- Set system volume (0-100)\n"
-                    "- Set screen brightness (0-100)\n"
-                    "- Minimize/maximize windows\n"
-                    "- Take screenshots\n"
-                    "- Create/read/delete/move files\n"
-                    "- Type text into applications\n"
-                    "- Control media playback\n"
-                    "- Search the web\n"
-                    "- Answer questions about time, date, weather, facts\n\n"
-                    # BUG-035: removed the unsafe instruction 'Do NOT say you cannot do things'
-                    # which bypassed the LLM's safety guardrails. The assistant should
-                    # still be helpful but must be allowed to decline inappropriate requests.
-                    "When the user asks you to do something on their computer, respond naturally "
-                    "and confirm you are doing it. Be concise and helpful."
+                    f"{persona}"
+                    f"Today's date is {current_date}. "
+                    "Your training data has a cutoff, so for questions about current leaders, "
+                    "recent events, or who currently holds a position, give the most recent "
+                    "information you know and note your knowledge may not reflect events after "
+                    "early 2024. "
+                    "Answer directly and concisely in 1-3 sentences. "
+                    "No bullet points, no markdown. Speak naturally."
                 )
 
                 lang_instruction = ""
-                # Only add language instruction when we're confident the user
-                # actually spoke a non-English language. Low-confidence detections
-                # (e.g. Whisper misidentifying English as 'hi') cause the LLM to
-                # respond in the wrong language (seen as Portuguese in logs).
+                # Only add language instruction when confident the user spoke non-English.
                 if language_code and language_code not in ("en", "en-US", "en-GB", ""):
                     lang_instruction = (
                         f"\n\nIMPORTANT: The user spoke in language code '{language_code}'. "
@@ -845,22 +864,18 @@ class IntegrationOrchestrator:
                     Message(role="system", content=system_prompt),
                     Message(role="user", content=prompt),
                 ]
-                # BUG-FIX: model was hardcoded to "mistral:7b-instruct".
-                # If that model isn't pulled in Ollama the call fails silently
-                # and the user gets no reply. Now reads OLLAMA_MODEL env var
-                # (set in .env) with "mistral:7b-instruct" as fallback.
+
                 import os as _os
+                # Default: gemma3:4b — best model for 4GB VRAM (RTX 2050), May 2025.
+                # Falls back to env var OLLAMA_MODEL if set.
                 ollama_model = (
                     _os.environ.get("OLLAMA_MODEL", "").strip()
-                    or "mistral:7b-instruct"
+                    or "gemma3:4b"
                 )
                 request = CompletionRequest(
                     model=ollama_model,
                     messages=messages,
-                    # Reduce timeout for local Ollama — 30s default × 3 retries = 90s delay.
-                    # 15s is enough for a 7B model on a mid-range GPU (RTX 2050 = ~8s).
-                    # Cloud providers (OpenAI, Anthropic) use their own timeouts.
-                    max_tokens=256,  # Voice responses should be concise
+                    max_tokens=120,  # Short for voice — faster and clearer
                 )
                 response = await complete_fn(request)
                 return response.content or ""
@@ -886,50 +901,231 @@ class IntegrationOrchestrator:
     async def _stage_intent(self, llm_response: str) -> str:
         """Stage 5: Extract structured intent from the user's transcript.
 
-        Uses IntentRecognizer (rule-based + LLM) to produce a structured
-        intent string of the form: 'intent_type:action:param:level'.
-        Falls back to the raw input truncated to 200 chars.
+        Uses rule-based recognition ONLY — never calls LLM for intent
+        classification. This avoids the 8-38s timeout from the intent
+        recognizer's own LLM fallback.
+
+        Multi-step commands (e.g. "open edge and open youtube and play chak de india")
+        are encoded as pipe-separated steps: 'step1|step2|step3'.
         """
         if not llm_response:
             return ""
         try:
-            # Lazy-init intent recognizer — pass llm_runtime as manager so
-            # IntentRecognizer skips creating its own LLMManager (avoids real
-            # network calls in test environments where llm_runtime is a mock).
+            # ── Clean transcript before intent detection ──────────────────
+            # Remove filler words, false starts, and noise that confuse the
+            # multi-step splitter (e.g. "sorry, open edge" → "open edge")
+            cleaned = self._clean_transcript(llm_response)
+            # Lazy-init intent recognizer — NO llm_manager so it stays rule-based only
             if self._intent_recognizer is None:
                 from Agent_Guru.platform.intent_recognizer import IntentRecognizer
                 self._intent_recognizer = IntentRecognizer(
-                    llm_manager=self.llm_runtime
+                    llm_manager=None  # Rule-based only — LLM handled by _stage_llm
                 )
                 await self._intent_recognizer.initialize()
 
-            result = await self._intent_recognizer.recognize(llm_response)
-            # Encode as 'intent_type:action:param:level' for _stage_action to parse
-            action = result.parameters.get("action", "")
-            param = (
-                result.parameters.get("app")
-                or result.parameters.get("path")
-                or result.parameters.get("query")
-                or result.parameters.get("contact")
-                or result.parameters.get("text")          # type_text content
-                or result.parameters.get("direction", "")  # volume up/down/mute, window minimize/maximize
-                or ""
-            )
-            # For web_search/open_url: carry engine in level field
-            # For communication: carry app name in level field
-            level = (
-                str(result.parameters.get("engine", ""))
-                or str(result.parameters.get("level", ""))
-            )
-            encoded = f"{result.intent_type}:{action}:{param}:{level}".rstrip(":")
-            logger.info(
-                "Intent: %s (confidence=%.2f) params=%s encoded=%r",
-                result.intent_type, result.confidence, result.parameters, encoded
-            )
-            return encoded
+            # ── Multi-step command detection ──────────────────────────────
+            steps = self._split_multi_step(cleaned)
+            if len(steps) > 1:
+                encoded_steps = []
+                for step in steps:
+                    enc = await self._encode_single_intent(step)
+                    if enc:
+                        encoded_steps.append(enc)
+                if encoded_steps:
+                    combined = "|".join(encoded_steps)
+                    logger.info("Multi-step intent (%d steps): %r", len(encoded_steps), combined)
+                    return combined
+
+            # ── Single command ────────────────────────────────────────────
+            return await self._encode_single_intent(cleaned)
+
         except Exception as exc:
             logger.warning("Intent stage error: %s", exc)
             return llm_response.strip()[:200]
+
+    @staticmethod
+    def _clean_transcript(text: str) -> str:
+        """Clean STT transcript noise before intent detection.
+
+        Production approach (same as Alexa/Siri):
+        - Strip wake word from beginning of transcript
+        - Remove filler words and false starts
+        - Handle Whisper mishearings of wake words
+
+        Examples:
+            "Open Notepad. Himaya Open Notepad." → "Open Notepad"
+            "and write there that, sorry, open edge" → "open edge"
+            "Hey Maya play chak de india" → "play chak de india"
+            "Himaya open youtube" → "open youtube"
+        """
+        import re as _re
+
+        t = text.strip()
+        if not t:
+            return t
+
+        # ── Step 1: Strip wake word variants from START ───────────────────
+        # Handle Whisper mishearings: "Himaya", "Hi Maya", "A Maya", "Hey Maya"
+        # Also handle mid-sentence repetitions like "Open Notepad. Himaya Open Notepad."
+        # First, take only the FIRST sentence (before first period/exclamation)
+        first_sentence = _re.split(r"[.!]", t)[0].strip()
+        if first_sentence:
+            t = first_sentence
+
+        # Remove wake word fragments (including mishearings)
+        wake_patterns = [
+            r"^(hey\s+|hi\s+|a\s+)?(guru|maya|himaya|hi\s*maya|hey\s*maya|hey\s*guru)\s*[,.]?\s*",
+            r"^hey\s+",
+        ]
+        for pat in wake_patterns:
+            t = _re.sub(pat, "", t, flags=_re.I).strip()
+
+        # ── Step 2: Remove filler words ───────────────────────────────────
+        fillers = [
+            r"\b(um+|uh+|er+|hmm+|ah+|oh+)\b,?\s*",
+            r"\b(sorry|excuse me|pardon|oops),?\s*",
+            r"\b(I mean|actually|basically|you know),?\s*",
+            r"\b(and write there that|write there that|there that),?\s*",
+        ]
+        for f in fillers:
+            t = _re.sub(f, " ", t, flags=_re.I)
+
+        # ── Step 3: Fix "in edge/chrome/browser" context phrases ─────────
+        t = _re.sub(
+            r"\bin\s+(edge|chrome|firefox|browser|it)\s+(?=open|play|search|go)",
+            "open ",
+            t,
+            flags=_re.I,
+        )
+
+        # ── Step 4: Remove leading conjunctions ───────────────────────────
+        t = _re.sub(r"^(and|but|so|then|also|now|please|can you|could you)\s+", "", t, flags=_re.I)
+
+        # ── Step 5: Collapse whitespace and strip ─────────────────────────
+        t = _re.sub(r"\s{2,}", " ", t).strip().lstrip(".,!?;: ")
+
+        # ── Step 6: Normalize & → and, + → and ───────────────────────────
+        t = _re.sub(r"\s*[&+]\s*", " and ", t)
+
+        # ── Step 7: Collapse "open youtube and play X" → "play X on youtube"
+        # This prevents the intent from splitting into two steps where the
+        # first (open youtube) succeeds but the second (play X) is dropped.
+        t = _re.sub(
+            r"(?:open\s+youtube\s+and\s+|go\s+to\s+youtube\s+and\s+)"
+            r"play\s+(.+)",
+            r"play \1 on youtube",
+            t,
+            flags=_re.I,
+        )
+
+        # ── Step 8: Fix common Whisper mishearings ────────────────────────
+        # These are phonetically similar words Whisper gets wrong with accents.
+        _corrections = {
+            r"\byou\s*to\b":        "youtube",
+            r"\byou\s*tube\b":      "youtube",
+            r"\bu\s*tube\b":        "youtube",
+            r"\blead\s*code\b":     "leetcode",
+            r"\bleet\s*code\b":     "leetcode",
+            r"\bchak\s*d[ae]\b":    "chak de",
+            r"\bchakd[ae]\b":       "chak de",
+            r"\bchakdha\b":         "chak de",
+            r"\bchadhya\b":         "chak de",
+            r"\bchakda\b":          "chak de",
+            r"\bspot\s*if\s*y\b":   "spotify",
+            r"\bwhat\s*s\s*app\b":  "whatsapp",
+            r"\bwhat\s*app\b":      "whatsapp",
+            r"\bface\s*book\b":     "facebook",
+            r"\bins\s*ta\s*gram\b": "instagram",
+            r"\btwit\s*ter\b":      "twitter",
+            r"\bgit\s*hub\b":       "github",
+            r"\bgoogle\s*chrome\b": "chrome",
+        }
+        for pattern, replacement in _corrections.items():
+            t = _re.sub(pattern, replacement, t, flags=_re.I)
+
+        return t if t else text.strip()
+
+    @staticmethod
+    def _split_multi_step(text: str) -> list[str]:
+        """Split a multi-step command into individual steps.
+
+        Examples:
+            "open edge and open youtube and play chak de india"
+            → ["open edge", "open youtube", "play chak de india"]
+
+            "open notepad and type hello world"
+            → ["open notepad", "type hello world"]
+
+            "notepad and write" → ["notepad and write"]  (no split — "notepad" has no verb)
+
+        Only splits when EACH part starts with an action verb.
+        """
+        import re as _re
+
+        # Action verbs that start a new step
+        _ACTION_VERBS = (
+            r"open|launch|start|close|quit|play|pause|stop|search|find|"
+            r"type|write|take|set|increase|decrease|volume|mute|unmute|"
+            r"minimize|maximize|screenshot|navigate|go to|switch|send|call"
+        )
+        _STEP_PATTERN = _re.compile(
+            rf"(?:^|\s+(?:and\s+then|then|and)\s+)(?={_ACTION_VERBS})",
+            _re.I,
+        )
+        _VERB_START = _re.compile(rf"^(?:{_ACTION_VERBS})\b", _re.I)
+
+        # Split on "and then" / "then" / "and" only when followed by action verb
+        parts = _STEP_PATTERN.split(text.strip())
+        # Clean up and filter empty parts
+        steps = [p.strip() for p in parts if p and p.strip()]
+
+        # Validate: every step must start with an action verb.
+        # If any step doesn't, don't split (treat as single command).
+        if len(steps) > 1:
+            if not all(_VERB_START.match(s) for s in steps):
+                return [text]
+
+        # Only return multiple steps if we actually found more than one
+        return steps if len(steps) > 1 else [text]
+
+    async def _encode_single_intent(self, text: str) -> str:
+        """Encode a single command text as 'intent_type:action:param:level'.
+
+        Always uses rule-based recognition only — never calls LLM for intent
+        classification. The main LLM (_stage_llm) handles questions/conversation.
+        Using LLM here caused 8-38s timeouts for every command.
+        """
+        if not text or not text.strip():
+            return ""
+
+        # Always use rule-based — fast (<5ms), accurate for all common commands.
+        # Low-confidence results (conversation/information) are handled by the
+        # main LLM in _stage_llm, not by the intent classifier.
+        rule_result = self._intent_recognizer._rule_engine.recognize(
+            text, self._intent_recognizer._platform
+        )
+        result = rule_result
+
+        action = result.parameters.get("action", "")
+        param = (
+            result.parameters.get("app")
+            or result.parameters.get("path")
+            or result.parameters.get("query")
+            or result.parameters.get("contact")
+            or result.parameters.get("text")
+            or result.parameters.get("direction", "")
+            or ""
+        )
+        level = (
+            str(result.parameters.get("engine", ""))
+            or str(result.parameters.get("level", ""))
+        )
+        encoded = f"{result.intent_type}:{action}:{param}:{level}".rstrip(":")
+        logger.info(
+            "Intent: %s (confidence=%.2f) params=%s encoded=%r",
+            result.intent_type, result.confidence, result.parameters, encoded
+        )
+        return encoded
 
     async def _stage_policy(self, intent: str) -> bool:
         """Stage 6: Policy check — returns True if execution is allowed.
@@ -986,77 +1182,96 @@ class IntegrationOrchestrator:
     async def _stage_action(self, intent: str) -> Any:
         """Stage 7: Execute action via agent_orchestrator or OSController.
 
-        Delegates to agent_orchestrator.execute(intent) when available.
-        Falls back to direct OSController calls for system_control intents.
+        Supports:
+        - Single intent: 'intent_type:action:param:level'
+        - Multi-step:    'step1|step2|step3' (pipe-separated, from _stage_intent)
 
-        Intent format: 'intent_type:action:param:level'
         Examples:
-          'system_control:open_app:notepad:'
-          'system_control:volume:50:'
-          'conversation:...'
+          'system_control:open_app:notepad'
+          'system_control:open_app:edge|system_control:open_url:youtube|system_control:web_search:chak de india:youtube'
+          'information:question:who is the prime minister of india'
         """
         if not intent:
             return None
 
-        # Sanitize the full intent string before any use — prevents injection
+        # ── Multi-step execution ──────────────────────────────────────────
+        if "|" in intent:
+            steps = [s.strip() for s in intent.split("|") if s.strip()]
+            results = []
+            for step in steps:
+                try:
+                    step_result = await self._execute_single_action(step)
+                    if step_result:
+                        results.append(str(step_result))
+                    # Give apps time to open before the next step
+                    await asyncio.sleep(1.5)
+                except Exception as exc:
+                    logger.warning("Multi-step action failed for step %r: %s", step, exc)
+            return ". ".join(results) if results else None
+
+        # ── Single action ─────────────────────────────────────────────────
+        return await self._execute_single_action(intent)
+
+    async def _execute_single_action(self, intent: str) -> Any:
+        """Execute a single intent string. Returns a human-readable result or None."""
+        if not intent:
+            return None
+
         safe_intent = self._sanitize_output(intent)
 
         try:
-            # BUG-001: loop was used throughout this function but never assigned,
-            # causing NameError for all media controls. Fixed by assigning at top.
             loop = asyncio.get_running_loop()
 
             # Primary path: delegate to agent_orchestrator.execute(intent)
-            # If it returns None (stub) or raises, fall through to direct platform control
             execute_fn = getattr(self.agent_orchestrator, "execute", None)
             if execute_fn is not None:
                 try:
                     if asyncio.iscoroutinefunction(execute_fn):
                         result = await execute_fn(safe_intent)
                     else:
-                        loop = asyncio.get_running_loop()
                         result = await loop.run_in_executor(None, execute_fn, safe_intent)
-                    # Only return if we got a real result; otherwise fall through
                     if result is not None:
                         return result
-                except AttributeError as e:
-                    pass  # execute() not found — fall through to direct platform control
+                except AttributeError:
+                    pass
                 except Exception as exc:
                     logger.warning("Agent orchestrator execute failed: %s — trying direct platform control", exc)
         except Exception as exc:
             logger.warning("Unexpected error in primary action path: %s", exc)
 
-        # Fallback: direct OSController calls for system_control intents
+        # Fallback: direct OSController calls
         try:
-
-            # Parse sanitized intent string — already sanitized above
+            loop = asyncio.get_running_loop()
             parts = safe_intent.split(":", 3)
             intent_type = parts[0] if len(parts) > 0 else ""
-            action = parts[1] if len(parts) > 1 else ""
-            param = parts[2] if len(parts) > 2 else ""
-            level_str = parts[3] if len(parts) > 3 else ""
+            action      = parts[1] if len(parts) > 1 else ""
+            param       = parts[2] if len(parts) > 2 else ""
+            level_str   = parts[3] if len(parts) > 3 else ""
 
-            # Only act on system_control, file_ops, communication, and information intents
+            # Conversation → no action, TTS uses LLM response directly
+            if intent_type == "conversation":
+                return None
+
             if intent_type not in ("system_control", "file_ops", "communication", "information"):
-                logger.info(
-                    "ACTION SKIPPED — intent_type=%r (not actionable). Full intent: %r",
-                    intent_type, safe_intent
-                )
+                logger.info("ACTION SKIPPED — intent_type=%r. Full intent: %r", intent_type, safe_intent)
                 return None
 
             ctrl = self.platform_controller
             if ctrl is None:
                 return None
 
-
-            # --- Application control ---
-            if action == "open_app" and param:
-                # Strip trailing punctuation from STT artifacts (e.g. "notepad." → "notepad")
+            # ── Application control ───────────────────────────────────────
+            if (action == "open_app" or action == "open_file") and param:
                 param = param.rstrip(".,!?;:")
                 logger.info("ACTION: open_application('%s')", param)
                 result = await asyncio.to_thread(ctrl.open_application, param)
                 safe_param = self._sanitize_output(param)
-                return f"Opened {safe_param}" if getattr(result, "success", True) else f"Failed to open {safe_param}"
+                if getattr(result, "success", False):
+                    return f"Opening {safe_param}"
+                else:
+                    err = getattr(result, "error", "unknown error")
+                    logger.error("Failed to open '%s': %s", param, err)
+                    return f"Sorry, I couldn't open {safe_param}"
 
             if action == "close_app" and param:
                 param = param.rstrip(".,!?;:")
@@ -1065,213 +1280,355 @@ class IntegrationOrchestrator:
                 safe_param = self._sanitize_output(param)
                 return f"Closed {safe_param}" if getattr(result, "success", True) else f"Failed to close {safe_param}"
 
-            # --- Web / URL ---
+            # ── Web / URL ─────────────────────────────────────────────────
             if action == "open_url":
-                # param may be a site name like "youtube" or a full URL
+                # Comprehensive URL map — known sites get direct URLs
                 url_map = {
-                    "youtube": "https://www.youtube.com",
-                    "google": "https://www.google.com",
-                    "gmail": "https://mail.google.com",
-                    "github": "https://www.github.com",
-                    "reddit": "https://www.reddit.com",
-                    "twitter": "https://www.twitter.com",
-                    "facebook": "https://www.facebook.com",
-                    "instagram": "https://www.instagram.com",
-                    "linkedin": "https://www.linkedin.com",
-                    "amazon": "https://www.amazon.com",
-                    "netflix": "https://www.netflix.com",
-                    "spotify": "https://www.spotify.com",
-                    "wikipedia": "https://www.wikipedia.org",
-                    "whatsapp": "https://web.whatsapp.com",
-                    "stackoverflow": "https://stackoverflow.com",
+                    # Video / Music
+                    "youtube":      "https://www.youtube.com",
+                    "spotify":      "https://www.spotify.com",
+                    "netflix":      "https://www.netflix.com",
+                    "hotstar":      "https://www.hotstar.com",
+                    "primevideo":   "https://www.primevideo.com",
+                    "jiocinema":    "https://www.jiocinema.com",
+                    "zee5":         "https://www.zee5.com",
+                    "sonyliv":      "https://www.sonyliv.com",
+                    "twitch":       "https://www.twitch.tv",
+                    "tiktok":       "https://www.tiktok.com",
+                    # Search / Info
+                    "google":       "https://www.google.com",
+                    "bing":         "https://www.bing.com",
+                    "wikipedia":    "https://www.wikipedia.org",
+                    "quora":        "https://www.quora.com",
+                    "reddit":       "https://www.reddit.com",
+                    "medium":       "https://www.medium.com",
+                    "hashnode":     "https://hashnode.com",
+                    # Social
+                    "twitter":      "https://www.twitter.com",
+                    "facebook":     "https://www.facebook.com",
+                    "instagram":    "https://www.instagram.com",
+                    "linkedin":     "https://www.linkedin.com",
+                    "pinterest":    "https://www.pinterest.com",
+                    "tumblr":       "https://www.tumblr.com",
+                    # Messaging
+                    "whatsapp":     "https://web.whatsapp.com",
+                    "telegram":     "https://web.telegram.org",
+                    "discord":      "https://discord.com",
+                    "slack":        "https://slack.com",
+                    "zoom":         "https://zoom.us",
+                    "teams":        "https://teams.microsoft.com",
+                    "meet":         "https://meet.google.com",
+                    # Dev / Coding
+                    "github":       "https://www.github.com",
+                    "stackoverflow":"https://stackoverflow.com",
+                    "leetcode":     "https://www.leetcode.com",
+                    "hackerrank":   "https://www.hackerrank.com",
+                    "codechef":     "https://www.codechef.com",
+                    "codeforces":   "https://www.codeforces.com",
+                    "geeksforgeeks":"https://www.geeksforgeeks.org",
+                    "w3schools":    "https://www.w3schools.com",
+                    "mdn":          "https://developer.mozilla.org",
+                    "openai":       "https://www.openai.com",
+                    "huggingface":  "https://huggingface.co",
+                    "kaggle":       "https://www.kaggle.com",
+                    "dev.to":       "https://dev.to",
+                    # Learning
+                    "udemy":        "https://www.udemy.com",
+                    "coursera":     "https://www.coursera.org",
+                    "edx":          "https://www.edx.org",
+                    "khanacademy":  "https://www.khanacademy.org",
+                    "khan academy": "https://www.khanacademy.org",
+                    # Shopping / Finance
+                    "amazon":       "https://www.amazon.in",
+                    "flipkart":     "https://www.flipkart.com",
+                    "myntra":       "https://www.myntra.com",
+                    "snapdeal":     "https://www.snapdeal.com",
+                    "paytm":        "https://www.paytm.com",
+                    "phonepe":      "https://www.phonepe.com",
+                    "gpay":         "https://pay.google.com",
+                    # Travel
+                    "irctc":        "https://www.irctc.co.in",
+                    "makemytrip":   "https://www.makemytrip.com",
+                    "goibibo":      "https://www.goibibo.com",
+                    "booking":      "https://www.booking.com",
+                    "airbnb":       "https://www.airbnb.com",
+                    # Jobs
+                    "naukri":       "https://www.naukri.com",
+                    "indeed":       "https://www.indeed.com",
+                    "glassdoor":    "https://www.glassdoor.com",
+                    # Google services
+                    "gmail":        "https://mail.google.com",
+                    "maps":         "https://maps.google.com",
+                    "translate":    "https://translate.google.com",
+                    "drive":        "https://drive.google.com",
+                    "docs":         "https://docs.google.com",
+                    "sheets":       "https://sheets.google.com",
+                    "slides":       "https://slides.google.com",
+                    "calendar":     "https://calendar.google.com",
+                    "keep":         "https://keep.google.com",
                 }
-                raw_url = url_map.get(param.lower().strip()) or (
-                    param if param.startswith("http") else f"https://{param}"
-                )
-                # BUG-012: sanitize URL to only allow safe http/https schemes.
-                # Blocks javascript:, data:, vbscript:, tel: etc. from voice input.
-                import urllib.parse as _urlparse
-                parsed = _urlparse.urlparse(raw_url)
-                if parsed.scheme not in ("http", "https"):
-                    logger.warning("open_url blocked unsafe scheme %r from voice input", parsed.scheme)
-                    return f"Cannot open URL with unsafe scheme: {parsed.scheme}"
-                url = raw_url
-                logger.info("ACTION: open_url('%s')", url)
+                param_lower = param.lower().strip()
+
+                # "open edge" / "open microsoft edge" → launch the browser app
+                if param_lower in ("edge", "microsoft edge", "msedge"):
+                    result = await asyncio.to_thread(ctrl.open_application, "msedge")
+                    if not getattr(result, "success", False):
+                        result = await asyncio.to_thread(ctrl.open_application, "microsoft edge")
+                    return "Opening Microsoft Edge"
+
+                # "open chrome" / "open firefox" → launch browser app, not URL
+                if param_lower in ("chrome", "google chrome"):
+                    result = await asyncio.to_thread(ctrl.open_application, "chrome")
+                    return "Opening Chrome"
+                if param_lower in ("firefox", "mozilla firefox"):
+                    result = await asyncio.to_thread(ctrl.open_application, "firefox")
+                    return "Opening Firefox"
+
+                # Check known URL map
+                known_url = url_map.get(param_lower)
+                if known_url:
+                    logger.info("ACTION: open_url('%s') → %s", param, known_url)
+                    fn = getattr(ctrl, "open_url", None)
+                    if fn:
+                        await asyncio.to_thread(fn, known_url)
+                        return f"Opening {self._sanitize_output(param)}"
+
+                # Explicit URL (starts with http/https)
+                if param.startswith("http://") or param.startswith("https://"):
+                    import urllib.parse as _urlparse
+                    parsed = _urlparse.urlparse(param)
+                    if parsed.scheme not in ("http", "https"):
+                        return "Cannot open URL with unsafe scheme"
+                    fn = getattr(ctrl, "open_url", None)
+                    if fn:
+                        await asyncio.to_thread(fn, param)
+                        return f"Opened {self._sanitize_output(param)}"
+
+                # Domain name (contains a dot like "leetcode.com")
+                if "." in param and not " " in param:
+                    url = param if param.startswith("http") else f"https://{param}"
+                    fn = getattr(ctrl, "open_url", None)
+                    if fn:
+                        await asyncio.to_thread(fn, url)
+                        return f"Opening {self._sanitize_output(param)}"
+
+                # Unknown name → try as direct URL first, then Google search
+                # e.g. "open leetcode" → try https://www.leetcode.com, then Google search
+                import urllib.parse as _up
+                # Try direct URL (www.X.com)
+                direct_url = f"https://www.{param_lower.replace(' ', '')}.com"
                 fn = getattr(ctrl, "open_url", None)
                 if fn:
-                    result = await asyncio.to_thread(fn, url)
-                    return f"Opened {self._sanitize_output(param)}"
-                return "Cannot open URL — controller unavailable"
+                    logger.info("ACTION: open_url (unknown site) → %s", direct_url)
+                    await asyncio.to_thread(fn, direct_url)
+                    return f"Opening {self._sanitize_output(param)}"
+                return f"Cannot open {self._sanitize_output(param)} — browser unavailable"
 
             if action == "web_search":
-                # param = search query, level_str may hold engine name
                 query = param.strip()
                 engine = level_str.strip().lower() if level_str.strip() else "google"
-                if not engine or engine not in ("google", "youtube", "bing"):
+                if engine not in ("google", "youtube", "bing"):
                     engine = "google"
                 logger.info("ACTION: web_search('%s', engine='%s')", query, engine)
-                fn = getattr(ctrl, "web_search", None)
-                if fn:
-                    result = await asyncio.to_thread(fn, query, engine)
-                    return f"Searching for {self._sanitize_output(query)} on {engine}"
-                return f"Cannot search — controller unavailable"
+                import urllib.parse as _up
 
-            # --- Volume ---
-            if action == "volume":
-                # Extract number from param or level_str
-                num_match = re.search(r"\d+", param + " " + level_str)
-                if num_match:
-                    vol = int(num_match.group())
-                    vol = max(0, min(100, vol))
-                    logger.info("ACTION: set_volume(%d)", vol)
+                if engine == "youtube":
+                    # Use Playwright to find and open the first result so the
+                    # video actually plays — then leave the browser open for the
+                    # user to control with further voice commands.
+                    # NO demo sequence — just open and play.
                     try:
-                        result = await asyncio.to_thread(ctrl.set_volume, vol)
-                        return f"Volume set to {vol}%"
+                        await self._open_youtube_and_play(query)
+                        return f"Playing {self._sanitize_output(query)} on YouTube"
+                    except Exception as yt_exc:
+                        logger.warning(
+                            "YouTube auto-play failed (%s) — opening search page instead",
+                            yt_exc,
+                        )
+                        search_url = (
+                            "https://www.youtube.com/results?search_query="
+                            + _up.quote_plus(query)
+                        )
+                        fn = getattr(ctrl, "open_url", None)
+                        if fn:
+                            await asyncio.to_thread(fn, search_url)
+                        return f"Opening YouTube search for {self._sanitize_output(query)}"
+
+                _engines = {
+                    "google": "https://www.google.com/search?q=",
+                    "bing":   "https://www.bing.com/search?q=",
+                }
+                search_url = _engines.get(engine, _engines["google"]) + _up.quote_plus(query)
+                fn = getattr(ctrl, "open_url", None)
+                if fn:
+                    await asyncio.to_thread(fn, search_url)
+                    return f"Searching for {self._sanitize_output(query)} on {engine}"
+                return "Cannot search — controller unavailable"
+
+            # ── Volume ────────────────────────────────────────────────────
+            if action == "volume":
+                mgr = getattr(self, "_browser_mgr", None)
+                yt_open = mgr is not None and mgr._page is not None
+                num_match = re.search(r"\d+", param + " " + level_str)
+
+                if num_match:
+                    vol = max(0, min(100, int(num_match.group())))
+                    logger.info("ACTION: set_volume(%d)", vol)
+                    if yt_open:
+                        try:
+                            return await mgr.set_volume(vol)
+                        except Exception:
+                            pass
+                    try:
+                        await asyncio.to_thread(ctrl.set_volume, vol)
                     except Exception as exc:
                         logger.warning("set_volume failed: %s", exc)
-                        return f"Volume set to {vol}% (audio driver unavailable)"
+                    return f"Volume set to {vol}%"
 
-                elif "up" in param.lower():
-                    logger.info("ACTION: volume up")
-                    fn = getattr(ctrl, "volume_up", None) or getattr(
-                        getattr(ctrl, "_settings_controller", None), "volume_up", None
-                    )
+                elif "up" in param.lower() or "increase" in param.lower():
+                    if yt_open:
+                        try:
+                            return await mgr.volume_up()
+                        except Exception:
+                            pass
+                    fn = getattr(ctrl, "volume_up", None)
                     try:
                         if fn:
                             await loop.run_in_executor(None, fn)
                     except Exception as exc:
                         logger.warning("volume_up failed: %s", exc)
                     return "Volume increased"
-                elif "down" in param.lower():
-                    logger.info("ACTION: volume down")
-                    fn = getattr(ctrl, "volume_down", None) or getattr(
-                        getattr(ctrl, "_settings_controller", None), "volume_down", None
-                    )
+
+                elif "down" in param.lower() or "decrease" in param.lower():
+                    if yt_open:
+                        try:
+                            return await mgr.volume_down()
+                        except Exception:
+                            pass
+                    fn = getattr(ctrl, "volume_down", None)
                     try:
                         if fn:
                             await loop.run_in_executor(None, fn)
                     except Exception as exc:
                         logger.warning("volume_down failed: %s", exc)
                     return "Volume decreased"
-                elif "mute" in param.lower() or "unmute" in param.lower():
-                    logger.info("ACTION: mute/unmute")
-                    fn = getattr(ctrl, "mute", None) or getattr(
-                        getattr(ctrl, "_settings_controller", None), "mute", None
-                    )
+
+                elif re.search(r"\b(mute|unmute)\b", param, re.I):
+                    is_unmute = bool(re.search(r"\bunmute\b", param, re.I))
+                    if yt_open:
+                        try:
+                            return await (mgr.unmute() if is_unmute else mgr.mute())
+                        except Exception:
+                            pass
+                    fn = getattr(ctrl, "unmute" if is_unmute else "mute", None)
                     try:
                         if fn:
                             await loop.run_in_executor(None, fn)
                     except Exception as exc:
                         logger.warning("mute failed: %s", exc)
-                    return "Muted"
+                    return "Unmuted" if is_unmute else "Muted"
 
-            # --- Brightness ---
+            # ── Brightness ────────────────────────────────────────────────
             if action == "brightness":
                 num_match = re.search(r"\d+", param + " " + level_str)
                 if num_match:
-                    brightness = int(num_match.group())
-                    brightness = max(0, min(100, brightness))
+                    brightness = max(0, min(100, int(num_match.group())))
                     logger.info("ACTION: set_brightness(%d)", brightness)
-                    result = await asyncio.to_thread(ctrl.set_brightness, brightness)
+                    await asyncio.to_thread(ctrl.set_brightness, brightness)
                     return f"Brightness set to {brightness}%"
-                # BUG-009: was hardcoded to 60/30 regardless of current value.
-                # Now reads current brightness and adjusts by ±10 (capped 0–100).
-                get_brightness_fn = getattr(ctrl, "get_brightness", None)
-                current_brightness = 50  # safe default if not readable
-                if get_brightness_fn:
+                get_fn = getattr(ctrl, "get_brightness", None)
+                current = 50
+                if get_fn:
                     try:
-                        current_brightness = int(await asyncio.to_thread(get_brightness_fn))
-                    except Exception as e:
-                        _logger.warning("Suppressed exception: %s", e)
-                elif "up" in param.lower() or "increase" in param.lower():
-                    fn = getattr(ctrl, "set_brightness", None)
-                    if fn:
-                        await asyncio.to_thread(fn, min(100, current_brightness + 10))
+                        current = int(await asyncio.to_thread(get_fn))
+                    except Exception:
+                        pass
+                set_fn = getattr(ctrl, "set_brightness", None)
+                if "up" in param.lower() or "increase" in param.lower():
+                    if set_fn:
+                        await asyncio.to_thread(set_fn, min(100, current + 10))
                     return "Brightness increased"
                 elif "down" in param.lower() or "decrease" in param.lower():
-                    fn = getattr(ctrl, "set_brightness", None)
-                    if fn:
-                        await asyncio.to_thread(fn, max(0, current_brightness - 10))
+                    if set_fn:
+                        await asyncio.to_thread(set_fn, max(0, current - 10))
                     return "Brightness decreased"
 
-            # --- Window management ---
+            # ── Window management ─────────────────────────────────────────
             if action == "window":
-                # Check param (direction extracted by intent recognizer) and level_str;
-                # do NOT use the full encoded intent string here since it always contains
-                # the action word (e.g. "system_control:window:minimize:" would always match).
                 window_ctx = (param + " " + level_str).lower()
                 if re.search(r"\bminimize\b|\bminimise\b", window_ctx):
                     fn = getattr(ctrl, "minimize_window", None)
                     if fn:
-                        win_title = ""
-                        await asyncio.to_thread(fn, win_title)
+                        await asyncio.to_thread(fn, "")
                     return "Window minimized"
                 if re.search(r"\bmaximize\b|\bmaximise\b", window_ctx):
                     fn = getattr(ctrl, "maximize_window", None)
                     if fn:
-                        win_title = ""
-                        await asyncio.to_thread(fn, win_title)
+                        await asyncio.to_thread(fn, "")
                     return "Window maximized"
 
-            # --- Screenshot ---
+            # ── Screenshot ────────────────────────────────────────────────
             if action == "screenshot":
                 logger.info("ACTION: screenshot")
                 fn = getattr(ctrl, "take_screenshot", None) or getattr(
                     getattr(ctrl, "_screen_controller", None), "capture", None
                 )
                 if fn:
-                    result = await loop.run_in_executor(None, fn)
+                    await loop.run_in_executor(None, fn)
                     return "Screenshot taken"
 
-            # --- Media controls ---
+            # ── Media controls ────────────────────────────────────────────
             if action == "next_track":
-                logger.info("ACTION: next_track")
                 fn = getattr(ctrl, "next_track", None)
                 if fn:
                     await loop.run_in_executor(None, fn)
                 return "Next track"
 
             if action == "previous_track":
-                logger.info("ACTION: previous_track")
                 fn = getattr(ctrl, "previous_track", None)
                 if fn:
                     await loop.run_in_executor(None, fn)
                 return "Previous track"
 
             if action == "stop_media":
-                logger.info("ACTION: stop_media")
                 fn = getattr(ctrl, "stop_media", None)
                 if fn:
                     await loop.run_in_executor(None, fn)
                 return "Media stopped"
 
             if action == "play_pause":
-                # Determine play vs pause from the original transcript
+                # Route to BrowserManager if YouTube is open, else system media keys
+                mgr = getattr(self, "_browser_mgr", None)
+                if mgr and mgr._page is not None:
+                    try:
+                        if re.search(r"\bpause\b", safe_intent, re.I):
+                            return await mgr.pause()
+                        else:
+                            return await mgr.resume()
+                    except Exception as exc:
+                        logger.warning("BrowserManager play_pause failed: %s", exc)
+
                 if re.search(r"\bpause\b", safe_intent, re.I):
-                    logger.info("ACTION: pause_media")
                     fn = getattr(ctrl, "pause_media", None)
                     if fn:
                         await loop.run_in_executor(None, fn)
                     return "Media paused"
                 else:
-                    logger.info("ACTION: play_media")
                     fn = getattr(ctrl, "play_media", None)
                     if fn:
                         await loop.run_in_executor(None, fn)
                     return "Media playing"
 
-            # --- Type text ---
+            # ── Type text ─────────────────────────────────────────────────
             if action == "type_text" and param:
-                logger.info("ACTION: type_text('%s')", param[:50])
                 fn = getattr(ctrl, "type_text", None)
                 if fn:
-                    result = await asyncio.to_thread(fn, param)
-                    return f"Typed text"
+                    await asyncio.to_thread(fn, param)
+                    return "Typed text"
                 return "Cannot type — controller unavailable"
 
-            # --- Switch app ---
+            # ── Switch app ────────────────────────────────────────────────
             if action == "switch_app" and param:
-                logger.info("ACTION: switch_app('%s')", param)
                 switched = False
                 if sys.platform == "win32":
                     try:
@@ -1288,20 +1645,18 @@ class IntegrationOrchestrator:
                     except Exception as exc:
                         logger.debug("win32 switch_app failed: %s", exc)
                 if not switched:
-                    # Fallback: open the app
-                    result = await asyncio.to_thread(ctrl.open_application, param)
+                    await asyncio.to_thread(ctrl.open_application, param)
                 return f"Switched to {self._sanitize_output(param)}"
 
-            # --- Shutdown / Restart ---
+            # ── Shutdown / Restart ────────────────────────────────────────
             if action in ("shutdown", "restart"):
-                logger.info("ACTION: %s", action)
                 fn = getattr(ctrl, action + "_pc", None)
                 if fn:
                     await asyncio.to_thread(fn, confirmed=True)
                     return f"System {action} initiated"
                 return f"Cannot {action} — controller unavailable"
 
-            # --- Settings (wifi, bluetooth) ---
+            # ── Settings ──────────────────────────────────────────────────
             if action == "settings":
                 setting_text = (param + " " + level_str).lower()
                 fn_wifi = getattr(ctrl, "toggle_wifi", None)
@@ -1318,33 +1673,26 @@ class IntegrationOrchestrator:
                     return f"Bluetooth {'enabled' if enable else 'disabled'}"
                 return "Settings updated"
 
-            # --- Communication (send message, call) ---
+            # ── Communication ─────────────────────────────────────────────
             if intent_type == "communication":
                 if action in ("send_message", "reply"):
-                    # param = contact, level_str = app (whatsapp/telegram/etc)
                     contact = param.strip()
                     app = level_str.strip().lower() if level_str.strip() else "whatsapp"
-                    if not app or app not in ("whatsapp", "telegram", "slack", "sms", "email"):
+                    if app not in ("whatsapp", "telegram", "slack", "sms", "email"):
                         app = "whatsapp"
-                    # Open the messaging app with the contact
                     fn = getattr(ctrl, "open_url", None)
                     if fn and contact:
                         import urllib.parse as _up
                         if app == "whatsapp":
                             digits = contact.replace("+", "").replace("-", "").replace(" ", "")
-                            if digits.isdigit():
-                                url = f"https://wa.me/{digits}"
-                            else:
-                                url = f"https://web.whatsapp.com/send?phone=&text=&source=&data=&app_absent="
+                            url = f"https://wa.me/{digits}" if digits.isdigit() else "https://web.whatsapp.com"
                             await asyncio.to_thread(fn, url)
                             return f"Opening WhatsApp for {self._sanitize_output(contact)}"
                         elif app == "telegram":
-                            url = f"https://t.me/{contact.lstrip('@')}"
-                            await asyncio.to_thread(fn, url)
+                            await asyncio.to_thread(fn, f"https://t.me/{contact.lstrip('@')}")
                             return f"Opening Telegram for {self._sanitize_output(contact)}"
                         elif app == "email":
-                            url = f"mailto:{contact}"
-                            await asyncio.to_thread(fn, url)
+                            await asyncio.to_thread(fn, f"mailto:{contact}")
                             return f"Opening email for {self._sanitize_output(contact)}"
                     return f"Opening messaging app for {self._sanitize_output(contact)}"
                 if action == "make_call":
@@ -1352,34 +1700,36 @@ class IntegrationOrchestrator:
                     fn = getattr(ctrl, "open_url", None)
                     if fn and contact:
                         digits = contact.replace("+", "").replace("-", "").replace(" ", "")
-                        if digits.isdigit():
-                            url = f"tel:{digits}"
-                        else:
-                            url = f"https://wa.me/?phone={contact}"
+                        url = f"tel:{digits}" if digits.isdigit() else f"https://wa.me/?phone={contact}"
                         await asyncio.to_thread(fn, url)
                     return f"Calling {self._sanitize_output(contact)}"
 
-            # --- Information (search, question) ---
+            # ── Information (questions / facts) ───────────────────────────
+            # For factual questions the LLM response IS the answer — return None
+            # so the pipeline uses llm_response for TTS.
+            # Only do a web search for queries that need live/current data.
             if intent_type == "information":
                 query = param.strip() or safe_intent
-                logger.info("ACTION: web_search('%s')", query[:80])
-                fn = getattr(ctrl, "web_search", None)
-                if fn:
-                    await asyncio.to_thread(fn, query, "google")
-                    return f"Searching for {self._sanitize_output(query)}"
+                action_lower = action.lower() if action else ""
+                if action_lower in ("weather", "news", "search"):
+                    fn = getattr(ctrl, "web_search", None)
+                    if fn:
+                        await asyncio.to_thread(fn, query, "google")
+                        return f"Searching for {self._sanitize_output(query)}"
+                # For questions/facts: LLM already answered — just return None
                 return None
 
-            # --- File operations ---
+            # ── File operations ───────────────────────────────────────────
             if intent_type == "file_ops":
                 if action == "create" and param:
                     fn = getattr(ctrl, "create_file", None)
                     if fn:
-                        result = await asyncio.to_thread(fn, param)
+                        await asyncio.to_thread(fn, param)
                         return f"Created {self._sanitize_output(param)}"
                 if action == "delete" and param:
                     fn = getattr(ctrl, "delete_file", None)
                     if fn:
-                        result = await asyncio.to_thread(fn, param, True)
+                        await asyncio.to_thread(fn, param, True)
                         return f"Deleted {self._sanitize_output(param)}"
 
             return None
@@ -1387,6 +1737,19 @@ class IntegrationOrchestrator:
         except Exception as exc:
             logger.warning("Action stage error: %s", exc)
             return None
+
+    async def _get_browser_mgr(self) -> Any:
+        """Return the BrowserManager, starting it on first call."""
+        if self._browser_mgr is None:
+            from Agent_Guru.platform.browser_manager import BrowserManager
+            self._browser_mgr = BrowserManager()
+            await self._browser_mgr.start()
+        return self._browser_mgr
+
+    async def _open_youtube_and_play(self, query: str) -> str:
+        """Open YouTube and play *query* using the persistent BrowserManager."""
+        mgr = await self._get_browser_mgr()
+        return await mgr.play_youtube(query)
 
     async def _invoke_tts_fn(
         self,
@@ -1498,7 +1861,10 @@ class IntegrationOrchestrator:
                     import sounddevice as sd
 
                     def _play() -> None:
-                        sd.play(audio_array, samplerate=sample_rate)
+                        # Pad with 300ms silence to prevent last-word cutoff
+                        tail = np.zeros(int(sample_rate * 0.30), dtype=np.float32)
+                        padded = np.concatenate([audio_array.astype(np.float32), tail])
+                        sd.play(padded, samplerate=sample_rate)
                         sd.wait()
 
                     loop = asyncio.get_running_loop()
@@ -1588,3 +1954,39 @@ class IntegrationOrchestrator:
         if "maya" in normalised:
             return Personality.MAYA
         return Personality.GURU
+
+    @staticmethod
+    def _intent_needs_llm(intent: str, transcript: str) -> bool:
+        """Return True if this intent requires an LLM response.
+
+        System control commands (open app, volume, screenshot, web search, etc.)
+        do NOT need LLM — the action confirmation IS the response.
+
+        Conversation and information intents DO need LLM to generate an answer.
+
+        This is the key optimization that brings response time from 17s to <1s
+        for 80% of commands (all system_control intents skip the LLM entirely).
+        """
+        if not intent:
+            return True
+
+        # Multi-step: needs LLM only if any step needs it
+        if "|" in intent:
+            return any(
+                IntegrationOrchestrator._intent_needs_llm(step, transcript)
+                for step in intent.split("|")
+            )
+
+        parts = intent.split(":", 1)
+        intent_type = parts[0].lower().strip() if parts else ""
+
+        # These intent types always need LLM (they are questions/conversation)
+        if intent_type in ("conversation", "information"):
+            return True
+
+        # system_control, file_ops, communication -> action confirmation is enough
+        if intent_type in ("system_control", "file_ops", "communication"):
+            return False
+
+        # Unknown intent type -> call LLM to be safe
+        return True

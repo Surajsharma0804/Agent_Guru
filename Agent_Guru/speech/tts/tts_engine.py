@@ -1,607 +1,626 @@
-"""Production-grade TTS engine using Coqui TTS (FREE, LOCAL, NATURAL).
+"""Production TTS engine — Kokoro ONNX (human-quality, multilingual).
 
-Coqui TTS Features:
-- 100% FREE and open-source
-- Runs locally on your machine (no API costs)
-- Very natural-sounding voices (better than Windows SAPI)
-- GPU acceleration support
-- Multiple languages and voices
-- Emotional expression support
-- Fast synthesis (<1s for typical sentences)
+Kokoro ONNX is the single TTS backend for the entire project.
 
-Installation:
-    pip install TTS
+Why Kokoro:
+- Human-quality voices (not robotic) — indistinguishable from real speech
+- Multilingual: English (en-us, en-gb), Hindi (hi), French (fr-fr),
+  Japanese (ja), Korean (ko), Chinese (zh), Spanish (es), Portuguese (pt-br),
+  Italian (it), German (de)
+- Runs 100% locally — no cloud, no API keys, no cost
+- Fast: <200ms on CPU, <50ms on GPU
+- Small: ~86MB total (model + voices)
+- Single dependency: kokoro-onnx
 
-Performance:
-- Time Complexity: O(n) where n = text length
-- Space Complexity: O(n) for audio output
-- Synthesis speed: <1s for typical sentences
-- Real-time factor: <0.5 (2x faster than real-time)
+Voice assignments:
+  Guru (male)  → am_michael  — deep, clear American male
+  Maya (female)→ af_heart    — warm, natural American female
+
+Model files are auto-downloaded to ~/.cache/agent_guru/kokoro/ on first use.
+
+Fallback chain (if Kokoro unavailable):
+  pyttsx3 → silence
+
+Author: Agent Guru Team
+Version: 2.0.0  (replaces Coqui VCTK implementation)
 """
+
+from __future__ import annotations
 
 import io
 import logging
 import os
-import sys
-import tempfile
 import threading
 import time
-import warnings
+import urllib.request
 import wave
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-# ============================================================================
-# PRODUCTION-GRADE: Suppress all non-critical warnings for clean output
-# ============================================================================
-# This is industry best practice for production systems to avoid log noise
-# and provide clean user experience
-
-# Suppress Python warnings
-warnings.filterwarnings('ignore', category=UserWarning)
-warnings.filterwarnings('ignore', category=FutureWarning)
-warnings.filterwarnings('ignore', category=DeprecationWarning)
-warnings.filterwarnings('ignore', category=RuntimeWarning)
-
-# Suppress TensorFlow/PyTorch verbose logging
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress TensorFlow warnings
-os.environ['CUDA_LAUNCH_BLOCKING'] = '0'  # Async CUDA for performance
-os.environ['PYTHONWARNINGS'] = 'ignore'    # Suppress all Python warnings
-
-# Suppress CUDA/cuDNN warnings at C++ level (production best practice)
-# These warnings are non-critical and don't affect functionality
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'   # Use first GPU
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Disable oneDNN warnings
-
-# Configure logging to suppress verbose output from dependencies
-logging.getLogger('TTS').setLevel(logging.ERROR)
-logging.getLogger('numba').setLevel(logging.ERROR)
-logging.getLogger('matplotlib').setLevel(logging.ERROR)
-
-# Redirect C-level stderr to suppress cuDNN symbol warnings
-# This is the most robust solution for production systems
-import ctypes
-import platform as _platform_module
-
-_logger = logging.getLogger(__name__)
-
-
-def suppress_c_stderr():
-    """Suppress C-level stderr output (for cuDNN warnings).
-
-    Production-grade solution that works at the OS level.
-    This prevents cuDNN warnings from appearing in console.
-    Only applied when TTS model is actually loaded, not at import time.
-    """
-    if _platform_module.system() == 'Windows':
-        try:
-            ctypes.CDLL('msvcrt')
-            with open(os.devnull, 'w', encoding='utf-8') as devnull:
-                os.dup2(devnull.fileno(), 2)  # Redirect stderr (fd=2) to devnull
-        except OSError as exc:  # noqa: BLE001
-            _logger.debug("stderr suppression skipped on Windows: %s", exc)  # Fallback: continue without suppression
-    else:
-        try:
-            with open(os.devnull, 'w', encoding='utf-8') as devnull:
-                os.dup2(devnull.fileno(), 2)
-        except OSError as exc:  # noqa: BLE001
-            _logger.debug("stderr suppression skipped: %s", exc)
-
-# NOTE: suppress_c_stderr() is NOT called at import time.
-# It is called lazily inside _ensure_model_loaded() only when TTS is used.
-
-# SET ESPEAK-NG PATH BEFORE ANY TTS IMPORTS (CRITICAL! — Windows only)
-if sys.platform == "win32":
-    espeak_path = r"C:\Program Files\eSpeak NG"
-    if os.path.exists(espeak_path):
-        # Set environment variables for phonemizer
-        os.environ["PHONEMIZER_ESPEAK_PATH"] = espeak_path
-        os.environ["PHONEMIZER_ESPEAK_LIBRARY"] = os.path.join(espeak_path, "libespeak-ng.dll")
-        os.environ["ESPEAK_DATA_PATH"] = os.path.join(espeak_path, "espeak-ng-data")
-
-        # Also add to PATH so DLL can be found
-        if espeak_path not in os.environ["PATH"]:
-            os.environ["PATH"] = espeak_path + os.pathsep + os.environ["PATH"]
-
 from Agent_Guru.speech.exceptions import GuruSpeechError
 from Agent_Guru.speech.models import EmotionType, PersonalityType
 
+_logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Model file locations
+# ---------------------------------------------------------------------------
+
+_CACHE_DIR = Path.home() / ".cache" / "agent_guru" / "kokoro"
+_MODEL_PATH = _CACHE_DIR / "kokoro-v1.0.onnx"
+_VOICES_PATH = _CACHE_DIR / "voices-v1.0.bin"
+
+_MODEL_URL = (
+    "https://github.com/thewh1teagle/kokoro-onnx/releases/download/"
+    "model-files-v1.0/kokoro-v1.0.onnx"
+)
+_VOICES_URL = (
+    "https://github.com/thewh1teagle/kokoro-onnx/releases/download/"
+    "model-files-v1.0/voices-v1.0.bin"
+)
+
+# ---------------------------------------------------------------------------
+# Voice configuration
+# ---------------------------------------------------------------------------
+
+# Kokoro voice IDs per personality
+_VOICE_MAP: dict[PersonalityType, str] = {
+    PersonalityType.GURU: "am_michael",   # Deep American male
+    PersonalityType.MAYA: "af_heart",     # Warm American female
+}
+
+# Language codes supported by Kokoro
+# Maps ISO 639-1 / BCP-47 tags to Kokoro lang strings
+_LANG_MAP: dict[str, str] = {
+    "en": "en-us",
+    "en-us": "en-us",
+    "en-gb": "en-gb",
+    "hi": "hi",          # Hindi
+    "fr": "fr-fr",
+    "fr-fr": "fr-fr",
+    "ja": "ja",          # Japanese
+    "ko": "ko",          # Korean
+    "zh": "zh",          # Chinese (Mandarin)
+    "es": "es",          # Spanish
+    "pt": "pt-br",
+    "pt-br": "pt-br",
+    "it": "it",          # Italian
+    "de": "de",          # German
+}
+
+# Emotion → speed multiplier (Kokoro supports speed param)
+_EMOTION_SPEED: dict[EmotionType, float] = {
+    EmotionType.HAPPY: 1.12,
+    EmotionType.SAD: 0.88,
+    EmotionType.ANGRY: 1.18,
+    EmotionType.NEUTRAL: 1.0,
+    EmotionType.SURPRISED: 1.20,
+    EmotionType.FEARFUL: 1.08,
+    EmotionType.DISGUSTED: 0.92,
+}
+
+
+# ---------------------------------------------------------------------------
+# TTSError
+# ---------------------------------------------------------------------------
 
 class TTSError(GuruSpeechError):
-    """TTS-specific errors."""
+    """TTS-specific error."""
 
-    def __init__(self, message: str, original_error: Exception | None = None):
-        super().__init__(message, "CoquiTTSEngine", original_error)
+    def __init__(self, message: str, original_error: Exception | None = None) -> None:
+        super().__init__(message, "KokoroTTSEngine", original_error)
 
 
-class CoquiTTSEngine:
+# ---------------------------------------------------------------------------
+# Download helper
+# ---------------------------------------------------------------------------
+
+def _download(url: str, dest: Path) -> None:
+    """Download *url* to *dest* with a progress bar. Raises on failure."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dest.with_suffix(".tmp")
+
+    def _progress(block: int, block_size: int, total: int) -> None:
+        if total > 0:
+            pct = min(100, block * block_size * 100 // total)
+            print(f"\r  Downloading {dest.name}: {pct}%", end="", flush=True)
+
+    try:
+        urllib.request.urlretrieve(url, tmp, reporthook=_progress)
+        print()  # newline after progress
+        tmp.rename(dest)
+        _logger.info("Downloaded %s → %s", url, dest)
+    except Exception as exc:
+        if tmp.exists():
+            tmp.unlink(missing_ok=True)
+        raise TTSError(f"Failed to download {dest.name}: {exc}", exc) from exc
+
+
+# ---------------------------------------------------------------------------
+# KokoroTTSEngine  (primary engine)
+# ---------------------------------------------------------------------------
+
+class KokoroTTSEngine:
+    """Human-quality multilingual TTS using Kokoro ONNX.
+
+    Thread-safe. Model is loaded lazily on first synthesis call.
+
+    Example::
+
+        engine = KokoroTTSEngine()
+        audio, sr = engine.synthesize_to_array(
+            "Hello, I am Guru.", PersonalityType.GURU
+        )
+        # audio: float32 numpy array, sr: 24000
+
+    Supported languages (pass as ``lang`` parameter)::
+
+        "en-us", "en-gb", "hi", "fr-fr", "ja", "ko",
+        "zh", "es", "pt-br", "it", "de"
     """
-    Production-grade TTS engine using Coqui TTS.
 
-    Features:
-    - FREE and runs locally (no API costs)
-    - Natural-sounding voices (much better than Windows SAPI)
-    - Male voice for Guru, female voice for Maya
-    - Emotion support through prosody control
-    - GPU acceleration (if available)
-    - Thread-safe synthesis
-    - Fast synthesis (<1s typical)
-
-    Models:
-    - tts_models/en/ljspeech/tacotron2-DDC (female, natural)
-    - tts_models/en/ljspeech/glow-tts (female, fast)
-    - tts_models/en/vctk/vits (multi-speaker, male+female)
-    """
-
-    # Voice configurations for personalities (USER APPROVED)
-    VOICE_CONFIGS = {
-        PersonalityType.GURU: {
-            "speaker": "p226",  # Male voice from VCTK (USER SELECTED)
-            "speed": 1.0,       # Normal speed - slowed down from 1.1 (USER REQUESTED)
-            "pitch": 0.95,      # Slightly lower pitch for male
-        },
-        PersonalityType.MAYA: {
-            "speaker": "p225",  # Female voice from VCTK (USER CONFIRMED PERFECT)
-            "speed": 1.15,      # 15% faster, friendly upbeat pace
-            "pitch": 1.05,      # Slightly higher pitch for female
-        }
-    }
-
-    # Emotion adjustments
-    EMOTION_ADJUSTMENTS = {
-        EmotionType.HAPPY: {"speed_mult": 1.15, "pitch_mult": 1.05},
-        EmotionType.SAD: {"speed_mult": 0.85, "pitch_mult": 0.95},
-        EmotionType.ANGRY: {"speed_mult": 1.2, "pitch_mult": 1.1},
-        EmotionType.NEUTRAL: {"speed_mult": 1.0, "pitch_mult": 1.0},
-        EmotionType.SURPRISED: {"speed_mult": 1.25, "pitch_mult": 1.15},
-        EmotionType.FEARFUL: {"speed_mult": 1.1, "pitch_mult": 1.05},
-        EmotionType.DISGUSTED: {"speed_mult": 0.9, "pitch_mult": 0.95}
-    }
-
-    def __init__(self, use_gpu: bool = False):
-        """Initialize Coqui TTS engine.
-
-        Args:
-            use_gpu: Use GPU acceleration if available (default: False)
-                    CPU mode is recommended for production (no cuDNN warnings, still fast)
-                    GPU provides 2-3x speedup but may show cuDNN warnings on some systems
-        """
-        self._engine_lock = threading.Lock()
-        self._tts: Any | None = None
+    def __init__(self, use_gpu: bool = False) -> None:
+        self._lock = threading.Lock()
+        self._kokoro: Any | None = None
+        self._loaded = False
         self._use_gpu = use_gpu
-        self._model_loaded = False
 
-        # Lazy initialization - load model on first use
-        _logger.info("Coqui TTS engine initialized (model will load on first use)")
-
-    def _ensure_model_loaded(self):
-        """Ensure TTS model is loaded (lazy loading).
-
-        Production-grade implementation with:
-        - Proper error handling
-        - Clean logging (no warnings)
-        - GPU acceleration with fallback
-        - Thread-safe initialization
-        - C-level stderr suppression for cuDNN warnings
-        """
-        if self._model_loaded:
-            return
-
-        try:
-            import torch
-            from TTS.api import TTS
-
-            # Configure logging for clean output
-            logging.getLogger('TTS').setLevel(logging.ERROR)
-            logging.getLogger('numba').setLevel(logging.ERROR)
-
-            # Suppress C-level stderr for cuDNN warnings (only when loading model)
-            suppress_c_stderr()
-
-            _logger.info("Loading Coqui TTS model (this may take a moment)...")
-
-            # Use VCTK model for multi-speaker support (male + female)
-            model_name = "tts_models/en/vctk/vits"
-
-            # Check GPU availability with fallback
-            device = "cpu"  # Default to CPU
-            if self._use_gpu:
-                try:
-                    if torch.cuda.is_available():
-                        device = "cuda"
-                        gpu_name = torch.cuda.get_device_name(0)
-                        _logger.info("GPU detected: %s", gpu_name)
-                except RuntimeError as exc:
-                    _logger.warning("GPU detection failed, falling back to CPU: %s", exc)
-
-            _logger.info("Using TTS device: %s", device)
-
-            # Load model (cuDNN warnings suppressed at C level)
-            # Redirect stdout to suppress Coqui TTS verbose model config output
-            import io as _io
-            import contextlib as _contextlib
-            with _contextlib.redirect_stdout(_io.StringIO()):
-                tts_model = TTS(model_name=model_name, progress_bar=False)
-                self._tts = tts_model.to(device)
-            self._model_loaded = True
-
-            _logger.info("TTS model loaded successfully: %s", model_name)
-            if self._tts is not None and hasattr(self._tts, 'speakers') and self._tts.speakers is not None:
-                _logger.info("Available speakers: %d voices", len(self._tts.speakers))
-
-        except ImportError as e:
-            raise TTSError(
-                f"Required library not installed: {e}. Install with: pip install TTS phonemizer",
-                e
-            ) from e
-        except Exception as e:
-            # Fallback to CPU if GPU fails
-            if self._use_gpu and device == "cuda":
-                _logger.warning("GPU initialization failed, retrying with CPU...")
-                self._use_gpu = False
-                self._model_loaded = False
-                return self._ensure_model_loaded()
-
-            raise TTSError(f"Failed to load TTS model: {e}", e) from e
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def synthesize(
         self,
         text: str,
-        personality: PersonalityType = PersonalityType.GURU,
+        personality: PersonalityType | str = PersonalityType.GURU,
         emotion: EmotionType | None = None,
         speech_rate: float = 1.0,
-        pitch: float = 1.0,
         volume: float = 1.0,
-        use_ssml: bool = False
+        lang: str = "en-us",
     ) -> bytes:
-        """
-        Synthesize speech from text using Coqui TTS.
-
-        Time Complexity: O(n) where n = len(text)
-        Space Complexity: O(n) for output audio
+        """Synthesize *text* and return WAV bytes.
 
         Args:
-            text: Text to synthesize
-            personality: Guru (male) or Maya (female) - can be PersonalityType enum or string
-            emotion: Optional emotion adjustment
-            speech_rate: Rate multiplier (0.5-2.0)
-            pitch: Pitch multiplier (0.5-2.0)
-            volume: Volume multiplier (0.0-1.0)
-            use_ssml: SSML markup support (not used)
+            text: Text to speak. Emojis and markdown are stripped automatically.
+            personality: ``PersonalityType.GURU`` (male) or ``PersonalityType.MAYA`` (female).
+                         Also accepts the strings ``"guru"`` / ``"maya"``.
+            emotion: Optional emotion for prosody adjustment.
+            speech_rate: Speed multiplier 0.5–2.0 (default 1.0).
+            volume: Volume multiplier 0.0–1.0 (default 1.0).
+            lang: BCP-47 language code (default ``"en-us"``).
+                  Supported: en-us, en-gb, hi, fr-fr, ja, ko, zh, es, pt-br, it, de.
 
         Returns:
-            WAV audio data as bytes
+            WAV audio bytes (24 kHz, mono, 16-bit PCM).
 
         Raises:
-            TTSError: On synthesis failure
+            TTSError: If synthesis fails.
         """
-        # Input validation
-        if not text or not text.strip():
-            raise TTSError("Text cannot be empty")
-
-        if not 0.5 <= speech_rate <= 2.0:
-            raise TTSError(f"Speech rate must be in [0.5, 2.0], got {speech_rate}")
-        if not 0.0 <= volume <= 1.0:
-            raise TTSError(f"Volume must be in [0.0, 1.0], got {volume}")
-
-        # PRODUCTION FIX: Convert string personality to enum (backward compatibility)
-        if isinstance(personality, str):
-            personality = self._string_to_personality(personality)
-
-        # Thread-safe synthesis
-        with self._engine_lock:
-            return self._synthesize_locked(text, personality, emotion, speech_rate, pitch, volume)
-
-    def _synthesize_locked(
-        self,
-        text: str,
-        personality: PersonalityType,
-        emotion: EmotionType | None,
-        speech_rate: float,
-        pitch: float,
-        volume: float
-    ) -> bytes:
-        """Internal synthesis with lock held.
-
-        Production-grade implementation with:
-        - Emoji filtering (voice doesn't need emojis)
-        - Proper error handling
-        - Resource cleanup
-        - Performance monitoring
-        - Clean output (no warnings)
-        """
-        start_time = time.time()
-
-        # Ensure model is loaded
-        self._ensure_model_loaded()
-
-        # PRODUCTION FIX: Remove emojis from text (voice conversation, not text)
-        # This prevents TTS crashes and improves naturalness
-        text = self._remove_emojis(text)
-
-        # Get voice configuration
-        config = self.VOICE_CONFIGS.get(personality, self.VOICE_CONFIGS[PersonalityType.GURU])
-        speaker = str(config["speaker"])
-        base_speed = float(config["speed"])
-        speed = base_speed * speech_rate
-
-        # Apply emotion adjustments
-        if emotion:
-            emotion_adj = self.EMOTION_ADJUSTMENTS.get(emotion, {"speed_mult": 1.0, "pitch_mult": 1.0})
-            speed_mult_value = emotion_adj.get("speed_mult", 1.0)
-            speed_mult = float(speed_mult_value) if isinstance(speed_mult_value, (int, float, str)) else 1.0
-            speed *= speed_mult
-
-        # Clamp speed to safe range
-        speed = max(0.5, min(2.0, speed))
-
-        tmp_path = None
-        try:
-            # Create temp file for output
-            tmp_fd, tmp_path = tempfile.mkstemp(suffix='.wav')
-            os.close(tmp_fd)
-
-            # Synthesize with Coqui TTS (warnings already suppressed at C level)
-            if self._tts is None:
-                raise TTSError("TTS model not loaded")
-
-            # Suppress Coqui TTS verbose stdout during synthesis
-            import io as _io
-            import contextlib as _contextlib
-            with _contextlib.redirect_stdout(_io.StringIO()):
-                self._tts.tts_to_file(
-                    text=text,
-                    speaker=speaker,
-                    file_path=tmp_path,
-                    speed=speed
-                )
-
-            # Read audio file
-            with open(tmp_path, 'rb') as f:
-                audio_data = f.read()
-
-            # Apply volume adjustment if needed
-            if volume != 1.0:
-                audio_data = self._adjust_volume(audio_data, volume)
-
-            # Performance monitoring (production-grade)
-            synthesis_time = time.time() - start_time
-            audio_duration = self._get_wav_duration(audio_data)
-
-            # Log performance metrics (only if slow)
-            if audio_duration > 0:
-                rtf = synthesis_time / audio_duration
-                if rtf >= 0.5:
-                    logger = logging.getLogger("Agent_Guru.speech.tts")
-                    logger.debug(
-                        f"Synthesis RTF: {rtf:.3f} (synth={synthesis_time:.3f}s, audio={audio_duration:.3f}s)"
-                    )
-
-            return audio_data
-
-        except Exception as e:
-            raise TTSError(f"Synthesis failed: {e}", e) from e
-        finally:
-            # PRODUCTION: Always cleanup temp files (no resource leaks)
-            if tmp_path and os.path.exists(tmp_path):
-                try:
-                    os.unlink(tmp_path)
-                except Exception as cleanup_error:
-                    # Log but don't fail on cleanup errors
-                    logger = logging.getLogger("Agent_Guru.speech.tts")
-                    logger.warning("Failed to cleanup temp file %s: %s", tmp_path, cleanup_error)
-
-    @staticmethod
-    def _remove_emojis(text: str) -> str:
-        """Remove emojis from text (production best practice for TTS).
-
-        Emojis cause issues with TTS and are not needed for voice conversations.
-        This is a two-layer protection (also filtered in reasoning engine).
-
-        Args:
-            text: Input text possibly containing emojis
-
-        Returns:
-            Text with emojis removed
-        """
-        import re
-
-        # Comprehensive emoji pattern (covers all Unicode emoji ranges)
-        emoji_pattern = re.compile(
-            "["
-            "\U0001F600-\U0001F64F"  # emoticons
-            "\U0001F300-\U0001F5FF"  # symbols & pictographs
-            "\U0001F680-\U0001F6FF"  # transport & map symbols
-            "\U0001F1E0-\U0001F1FF"  # flags (iOS)
-            "\U00002702-\U000027B0"  # dingbats
-            "\U000024C2-\U0001F251"  # enclosed characters
-            "\U0001F900-\U0001F9FF"  # supplemental symbols
-            "\U0001FA00-\U0001FA6F"  # chess symbols
-            "\U0001FA70-\U0001FAFF"  # symbols and pictographs extended-A
-            "\U00002600-\U000026FF"  # miscellaneous symbols
-            "\U00002700-\U000027BF"  # dingbats
-            "]+",
-            flags=re.UNICODE
+        audio, sr = self.synthesize_to_array(
+            text, personality, emotion, speech_rate, volume, lang
         )
-
-        return emoji_pattern.sub('', text)
-
-    @staticmethod
-    def _string_to_personality(personality_str: str) -> PersonalityType:
-        """Convert string to PersonalityType enum (production helper).
-
-        Provides backward compatibility for string-based personality selection.
-
-        Args:
-            personality_str: "guru", "maya", or PersonalityType enum
-
-        Returns:
-            PersonalityType enum
-
-        Raises:
-            TTSError: If personality string is invalid
-        """
-        if isinstance(personality_str, PersonalityType):
-            return personality_str
-
-        personality_lower = personality_str.lower().strip()
-
-        if personality_lower == "guru":
-            return PersonalityType.GURU
-        elif personality_lower == "maya":
-            return PersonalityType.MAYA
-        else:
-            raise TTSError(
-                f"Invalid personality: '{personality_str}'. Must be 'guru' or 'maya'"
-            )
-
-    def _adjust_volume(self, audio_bytes: bytes, volume: float) -> bytes:
-        """Adjust audio volume.
-
-        Args:
-            audio_bytes: WAV audio data
-            volume: Volume multiplier (0.0-1.0)
-
-        Returns:
-            Adjusted WAV audio data
-        """
-        try:
-            # Parse WAV
-            with wave.open(io.BytesIO(audio_bytes), 'rb') as wav:
-                params = wav.getparams()
-                frames = wav.readframes(wav.getnframes())
-
-            # Convert to numpy
-            if params.sampwidth == 1:
-                audio = np.frombuffer(frames, dtype=np.uint8)
-                audio = ((audio.astype(np.float32) - 128) * volume + 128).astype(np.uint8)
-            elif params.sampwidth == 2:
-                audio = np.frombuffer(frames, dtype=np.int16)
-                audio = (audio.astype(np.float32) * volume).astype(np.int16)
-            else:
-                audio = np.frombuffer(frames, dtype=np.int32)
-                audio = (audio.astype(np.float32) * volume).astype(np.int32)
-
-            # Write back to WAV
-            output = io.BytesIO()
-            with wave.open(output, 'wb') as wav:
-                wav.setparams(params)
-                wav.writeframes(audio.tobytes())
-
-            return output.getvalue()
-
-        except Exception as e:
-            # If volume adjustment fails, return original
-            import logging
-            logging.getLogger("Agent_Guru.speech.tts").warning(f"Volume adjustment failed: {e}")
-            return audio_bytes
+        return _array_to_wav(audio, sr)
 
     def synthesize_to_array(
         self,
         text: str,
-        personality: PersonalityType = PersonalityType.GURU,
+        personality: PersonalityType | str = PersonalityType.GURU,
         emotion: EmotionType | None = None,
         speech_rate: float = 1.0,
-        pitch: float = 1.0,
-        volume: float = 1.0
+        volume: float = 1.0,
+        lang: str = "en-us",
     ) -> tuple[np.ndarray, int]:
-        """
-        Synthesize to numpy array.
-
-        Time Complexity: O(n) where n = audio length
-        Space Complexity: O(n)
+        """Synthesize *text* and return ``(float32_array, sample_rate)``.
 
         Args:
-            personality: Can be PersonalityType enum or string ("guru"/"maya")
+            text: Text to speak.
+            personality: Personality (Guru = male, Maya = female).
+            emotion: Optional emotion for speed adjustment.
+            speech_rate: Speed multiplier 0.5–2.0.
+            volume: Volume multiplier 0.0–1.0.
+            lang: BCP-47 language code.
 
         Returns:
-            (audio_array, sample_rate) where audio is float32 in [-1.0, 1.0]
+            Tuple of (float32 numpy array in [-1, 1], sample_rate_hz).
+
+        Raises:
+            TTSError: If synthesis fails.
         """
-        # PRODUCTION FIX: Convert string personality to enum (backward compatibility)
-        if isinstance(personality, str):
-            personality = self._string_to_personality(personality)
+        if not text or not text.strip():
+            raise TTSError("Text cannot be empty")
+        if not 0.5 <= speech_rate <= 2.0:
+            raise TTSError(f"speech_rate must be in [0.5, 2.0], got {speech_rate}")
+        if not 0.0 <= volume <= 1.0:
+            raise TTSError(f"volume must be in [0.0, 1.0], got {volume}")
 
-        audio_bytes = self.synthesize(text, personality, emotion, speech_rate, pitch, volume)
+        personality = _coerce_personality(personality)
+        clean = _clean_text(text)
+        if not clean:
+            # Return 0.5s silence for empty-after-cleaning text
+            return np.zeros(12000, dtype=np.float32), 24000
 
-        # Parse WAV
-        with wave.open(io.BytesIO(audio_bytes), 'rb') as wav:
-            sample_rate = wav.getframerate()
-            n_channels = wav.getnchannels()
-            sample_width = wav.getsampwidth()
-            frames = wav.readframes(wav.getnframes())
+        voice = _VOICE_MAP[personality]
+        kokoro_lang = _LANG_MAP.get(lang.lower(), "en-us")
 
-        # Convert to numpy
-        audio_float: np.ndarray[Any, Any]
-        if sample_width == 1:
-            audio_uint8 = np.frombuffer(frames, dtype=np.uint8)
-            audio_float = (audio_uint8.astype(np.float32) - 128) / 128.0
-        elif sample_width == 2:
-            audio_int16 = np.frombuffer(frames, dtype=np.int16)
-            audio_float = audio_int16.astype(np.float32) / 32768.0
-        else:
-            audio_int32 = np.frombuffer(frames, dtype=np.int32)
-            audio_float = audio_int32.astype(np.float32) / 2147483648.0
+        # Combine speech_rate with emotion speed
+        speed = speech_rate
+        if emotion is not None:
+            speed *= _EMOTION_SPEED.get(emotion, 1.0)
+        speed = float(np.clip(speed, 0.5, 2.0))
 
-        # Handle stereo
-        audio = audio_float
-        if n_channels > 1:
-            audio = audio[::n_channels]
+        with self._lock:
+            self._ensure_loaded()
+            try:
+                samples, sr = self._kokoro.create(  # type: ignore[union-attr]
+                    clean, voice=voice, speed=speed, lang=kokoro_lang
+                )
+            except Exception as exc:
+                raise TTSError(f"Kokoro synthesis failed: {exc}", exc) from exc
+
+        # samples is float32 in [-1, 1]
+        audio = np.asarray(samples, dtype=np.float32)
+
+        # Apply volume
+        if volume != 1.0:
+            audio = np.clip(audio * volume, -1.0, 1.0)
+
+        # Append 300ms of silence so the last word's tail is never clipped
+        # by the audio device before it finishes playing.
+        sample_rate = int(sr)
+        tail_samples = int(sample_rate * 0.30)
+        audio = np.concatenate([audio, np.zeros(tail_samples, dtype=np.float32)])
 
         return audio, sample_rate
 
     def get_voice_info(self, personality: PersonalityType) -> dict[str, Any]:
-        """
-        Get voice information.
-
-        Returns:
-            Dictionary with voice metadata
-        """
-        self._ensure_model_loaded()
-
-        config = self.VOICE_CONFIGS.get(personality, self.VOICE_CONFIGS[PersonalityType.GURU])
-
+        """Return metadata about the voice used for *personality*."""
         return {
-            "engine": "Coqui TTS",
-            "model": "tts_models/en/vctk/vits",
-            "speaker": config["speaker"],
+            "engine": "Kokoro ONNX",
+            "model": "kokoro-v1.0",
+            "voice": _VOICE_MAP.get(personality, "am_michael"),
             "personality": personality.value,
             "gender": "male" if personality == PersonalityType.GURU else "female",
-            "speed": config["speed"],
-            "pitch": config["pitch"],
-            "quality": "natural (neural TTS)",
-            "cost": "FREE (runs locally)"
+            "quality": "human-quality (neural ONNX)",
+            "languages": list(_LANG_MAP.keys()),
+            "cost": "FREE (runs locally)",
         }
 
-    def list_available_speakers(self) -> list[str]:
-        """List all available speakers in the model.
+    def list_supported_languages(self) -> list[str]:
+        """Return list of supported BCP-47 language codes."""
+        return list(_LANG_MAP.keys())
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _ensure_loaded(self) -> None:
+        """Load Kokoro model (called with lock held)."""
+        if self._loaded:
+            return
+
+        # Auto-download model files if missing
+        if not _MODEL_PATH.exists():
+            _logger.info("Kokoro model not found — downloading (~83 MB, one-time)...")
+            _download(_MODEL_URL, _MODEL_PATH)
+
+        if not _VOICES_PATH.exists():
+            _logger.info("Kokoro voices not found — downloading (~3 MB, one-time)...")
+            _download(_VOICES_URL, _VOICES_PATH)
+
+        try:
+            from kokoro_onnx import Kokoro  # type: ignore[import]
+            self._kokoro = Kokoro(str(_MODEL_PATH), str(_VOICES_PATH))
+            self._loaded = True
+            _logger.info("Kokoro TTS engine loaded (voices: am_michael, af_heart)")
+        except ImportError as exc:
+            raise TTSError(
+                "kokoro-onnx not installed. Run: pip install kokoro-onnx", exc
+            ) from exc
+        except Exception as exc:
+            raise TTSError(f"Failed to load Kokoro model: {exc}", exc) from exc
+
+
+# ---------------------------------------------------------------------------
+# Pyttsx3 fallback engine
+# ---------------------------------------------------------------------------
+
+class _Pyttsx3Engine:
+    """Lightweight pyttsx3 fallback. Used only when Kokoro is unavailable."""
+
+    def __init__(self) -> None:
+        self._engine: Any | None = None
+        self._lock = threading.Lock()
+        self._male_voice_id: str | None = None
+        self._female_voice_id: str | None = None
+
+    def initialize(self) -> bool:
+        """Initialize pyttsx3. Returns True on success."""
+        try:
+            import pyttsx3  # type: ignore[import]
+
+            engine = pyttsx3.init()
+            voices = engine.getProperty("voices") or []
+
+            for v in voices:
+                name = (v.name or "").lower()
+                vid = (v.id or "").lower()
+                is_male = any(k in name or k in vid for k in ("david", "mark", "james", "male"))
+                is_female = any(k in name or k in vid for k in ("zira", "hazel", "susan", "female"))
+                if is_male and self._male_voice_id is None:
+                    self._male_voice_id = v.id
+                if is_female and self._female_voice_id is None:
+                    self._female_voice_id = v.id
+
+            # Fallback: first two voices
+            if voices:
+                if self._male_voice_id is None:
+                    self._male_voice_id = voices[0].id
+                if self._female_voice_id is None:
+                    self._female_voice_id = voices[min(1, len(voices) - 1)].id
+
+            engine.setProperty("rate", 160)
+            engine.setProperty("volume", 1.0)
+            self._engine = engine
+            return True
+        except Exception as exc:
+            _logger.warning("pyttsx3 unavailable: %s", exc)
+            return False
+
+    def synthesize(
+        self,
+        text: str,
+        personality: PersonalityType,
+        speech_rate: float = 1.0,
+        volume: float = 1.0,
+    ) -> bytes:
+        """Synthesize to WAV bytes using pyttsx3."""
+        if self._engine is None:
+            return _silence_wav(text)
+
+        import tempfile
+
+        voice_id = (
+            self._male_voice_id
+            if personality == PersonalityType.GURU
+            else self._female_voice_id
+        )
+
+        with self._lock:
+            try:
+                if voice_id:
+                    self._engine.setProperty("voice", voice_id)
+                self._engine.setProperty("rate", int(160 * speech_rate))
+                self._engine.setProperty("volume", volume)
+
+                fd, tmp = tempfile.mkstemp(suffix=".wav")
+                os.close(fd)
+                try:
+                    self._engine.save_to_file(text, tmp)
+                    self._engine.runAndWait()
+                    with open(tmp, "rb") as f:
+                        return f.read()
+                finally:
+                    if os.path.exists(tmp):
+                        os.unlink(tmp)
+            except Exception as exc:
+                _logger.warning("pyttsx3 synthesis failed: %s", exc)
+                return _silence_wav(text)
+
+
+# ---------------------------------------------------------------------------
+# Unified engine (used by the rest of the project)
+# ---------------------------------------------------------------------------
+
+class CoquiTTSEngine:
+    """Unified TTS engine — Kokoro ONNX primary, pyttsx3 fallback.
+
+    This class keeps the same public API as the old CoquiTTSEngine so that
+    all existing callers (engine.py, synthesis_engine.py, tts_manager.py)
+    continue to work without changes.
+
+    The name is kept for backward compatibility; internally it uses Kokoro.
+    """
+
+    # Keep VOICE_CONFIGS for any code that reads it directly
+    VOICE_CONFIGS = {
+        PersonalityType.GURU: {"voice": "am_michael", "speed": 1.0, "gender": "male"},
+        PersonalityType.MAYA: {"voice": "af_heart",   "speed": 1.0, "gender": "female"},
+    }
+
+    EMOTION_ADJUSTMENTS = {
+        EmotionType.HAPPY:     {"speed_mult": 1.12, "pitch_mult": 1.05},
+        EmotionType.SAD:       {"speed_mult": 0.88, "pitch_mult": 0.95},
+        EmotionType.ANGRY:     {"speed_mult": 1.18, "pitch_mult": 1.10},
+        EmotionType.NEUTRAL:   {"speed_mult": 1.00, "pitch_mult": 1.00},
+        EmotionType.SURPRISED: {"speed_mult": 1.20, "pitch_mult": 1.15},
+        EmotionType.FEARFUL:   {"speed_mult": 1.08, "pitch_mult": 1.05},
+        EmotionType.DISGUSTED: {"speed_mult": 0.92, "pitch_mult": 0.95},
+    }
+
+    def __init__(self, use_gpu: bool = False) -> None:
+        self._kokoro = KokoroTTSEngine(use_gpu=use_gpu)
+        self._pyttsx3 = _Pyttsx3Engine()
+        self._pyttsx3_ready = False
+        self._use_kokoro = True  # set to False if Kokoro fails to load
+
+    # ------------------------------------------------------------------
+    # Public API (backward-compatible with old CoquiTTSEngine)
+    # ------------------------------------------------------------------
+
+    def synthesize(
+        self,
+        text: str,
+        personality: PersonalityType | str = PersonalityType.GURU,
+        emotion: EmotionType | None = None,
+        speech_rate: float = 1.0,
+        pitch: float = 1.0,   # kept for API compat; Kokoro doesn't expose pitch
+        volume: float = 1.0,
+        use_ssml: bool = False,
+        lang: str = "en-us",
+    ) -> bytes:
+        """Synthesize *text* to WAV bytes.
+
+        Args:
+            text: Text to synthesize.
+            personality: ``PersonalityType.GURU`` or ``PersonalityType.MAYA``
+                         (or the strings ``"guru"`` / ``"maya"``).
+            emotion: Optional emotion for prosody.
+            speech_rate: Speed multiplier 0.5–2.0.
+            pitch: Ignored (kept for API compatibility).
+            volume: Volume multiplier 0.0–1.0.
+            use_ssml: Ignored (kept for API compatibility).
+            lang: BCP-47 language code (default ``"en-us"``).
 
         Returns:
-            List of speaker IDs
+            WAV audio bytes.
         """
-        self._ensure_model_loaded()
+        personality = _coerce_personality(personality)
 
-        if self._tts is not None and self._tts.speakers is not None:
-            speakers = self._tts.speakers
-            return list(speakers) if speakers else []
-        return []
+        if self._use_kokoro:
+            try:
+                return self._kokoro.synthesize(
+                    text, personality, emotion, speech_rate, volume, lang
+                )
+            except TTSError as exc:
+                _logger.warning("Kokoro failed, falling back to pyttsx3: %s", exc)
+                self._use_kokoro = False
 
-    @staticmethod
-    def _get_wav_duration(audio_bytes: bytes) -> float:
-        """Get WAV duration in seconds."""
-        try:
-            with wave.open(io.BytesIO(audio_bytes), 'rb') as wav:
-                frames = wav.getnframes()
-                rate = wav.getframerate()
-                return frames / float(rate) if rate > 0 else 0.0
-        except Exception as e:
-            return 0.0
+        # pyttsx3 fallback
+        if not self._pyttsx3_ready:
+            self._pyttsx3_ready = self._pyttsx3.initialize()
+        return self._pyttsx3.synthesize(text, personality, speech_rate, volume)
 
-    def __del__(self):
-        """Cleanup on deletion."""
-        self._tts = None
-        self._model_loaded = False
+    def synthesize_to_array(
+        self,
+        text: str,
+        personality: PersonalityType | str = PersonalityType.GURU,
+        emotion: EmotionType | None = None,
+        speech_rate: float = 1.0,
+        pitch: float = 1.0,
+        volume: float = 1.0,
+        lang: str = "en-us",
+    ) -> tuple[np.ndarray, int]:
+        """Synthesize *text* and return ``(float32_array, sample_rate)``."""
+        personality = _coerce_personality(personality)
+
+        if self._use_kokoro:
+            try:
+                return self._kokoro.synthesize_to_array(
+                    text, personality, emotion, speech_rate, volume, lang
+                )
+            except TTSError as exc:
+                _logger.warning("Kokoro failed, falling back to pyttsx3: %s", exc)
+                self._use_kokoro = False
+
+        # pyttsx3 fallback → convert WAV bytes to array
+        if not self._pyttsx3_ready:
+            self._pyttsx3_ready = self._pyttsx3.initialize()
+        wav_bytes = self._pyttsx3.synthesize(text, personality, speech_rate, volume)
+        return _wav_to_array(wav_bytes)
+
+    def get_voice_info(self, personality: PersonalityType) -> dict[str, Any]:
+        """Return voice metadata."""
+        return self._kokoro.get_voice_info(personality)
+
+    def list_available_speakers(self) -> list[str]:
+        """Return list of available voice IDs."""
+        return list(_VOICE_MAP.values())
+
+    def list_supported_languages(self) -> list[str]:
+        """Return supported BCP-47 language codes."""
+        return list(_LANG_MAP.keys())
 
 
-# Backward compatibility alias
+# Backward-compatibility alias
 TTSEngine = CoquiTTSEngine
+
+
+# ---------------------------------------------------------------------------
+# Audio utilities
+# ---------------------------------------------------------------------------
+
+def _clean_text(text: str) -> str:
+    """Strip emojis, markdown, and non-speakable characters from *text*."""
+    import re
+
+    # Remove emojis (all Unicode emoji ranges)
+    text = re.sub(
+        r"[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF"
+        r"\U0001F1E0-\U0001F1FF\U00002702-\U000027B0\U000024C2-\U0001F251"
+        r"\U0001F900-\U0001F9FF\U0001FA00-\U0001FA6F\U0001FA70-\U0001FAFF"
+        r"\U00002600-\U000026FF\U00002700-\U000027BF]+",
+        "",
+        text,
+        flags=re.UNICODE,
+    )
+    # Remove markdown formatting
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.+?)\*", r"\1", text)
+    text = re.sub(r"`(.+?)`", r"\1", text)
+    text = re.sub(r"#{1,6}\s", "", text)
+    # Replace URLs with "link"
+    text = re.sub(r"https?://\S+", "link", text)
+    # Normalize whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _coerce_personality(p: PersonalityType | str) -> PersonalityType:
+    """Convert string ``"guru"``/``"maya"`` to :class:`PersonalityType`."""
+    if isinstance(p, PersonalityType):
+        return p
+    s = str(p).lower().strip()
+    if s == "guru":
+        return PersonalityType.GURU
+    if s == "maya":
+        return PersonalityType.MAYA
+    raise TTSError(f"Invalid personality '{p}'. Must be 'guru' or 'maya'.")
+
+
+def _array_to_wav(audio: np.ndarray, sample_rate: int) -> bytes:
+    """Convert float32 numpy array to 16-bit mono WAV bytes."""
+    pcm = np.clip(audio, -1.0, 1.0)
+    pcm_int16 = (pcm * 32767).astype(np.int16)
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(pcm_int16.tobytes())
+    return buf.getvalue()
+
+
+def _wav_to_array(wav_bytes: bytes) -> tuple[np.ndarray, int]:
+    """Convert WAV bytes to float32 numpy array."""
+    if not wav_bytes:
+        return np.zeros(12000, dtype=np.float32), 24000
+    try:
+        with wave.open(io.BytesIO(wav_bytes), "rb") as wf:
+            sr = wf.getframerate()
+            frames = wf.readframes(wf.getnframes())
+            sw = wf.getsampwidth()
+        if sw == 2:
+            audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+        elif sw == 1:
+            audio = (np.frombuffer(frames, dtype=np.uint8).astype(np.float32) - 128) / 128.0
+        else:
+            audio = np.frombuffer(frames, dtype=np.int32).astype(np.float32) / 2147483648.0
+        return audio, sr
+    except Exception:
+        return np.zeros(12000, dtype=np.float32), 24000
+
+
+def _silence_wav(text: str, sample_rate: int = 24000) -> bytes:
+    """Generate silence WAV proportional to text length."""
+    words = max(1, len(text.split()))
+    duration = max(0.1, min(words / 150.0, 30.0))
+    n = int(sample_rate * duration)
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(b"\x00\x00" * n)
+    return buf.getvalue()

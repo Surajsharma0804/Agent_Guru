@@ -1260,7 +1260,10 @@ class OSController:
             )
 
     def web_search(self, query: str, engine: str = "google") -> OperationResult:
-        """Perform a web search by opening the browser with a search URL.
+        """Perform a web search by opening the real system browser.
+
+        Opens the search URL in the user's default browser (Chrome/Edge/Firefox).
+        No automation — the user controls playback themselves.
 
         Args:
             query: Search query
@@ -1269,15 +1272,325 @@ class OSController:
         Returns:
             OperationResult with operation status
         """
-        _engines = {
-            "google": "https://www.google.com/search?q=",
-            "youtube": "https://www.youtube.com/results?search_query=",
-            "bing": "https://www.bing.com/search?q=",
-        }
-        base = _engines.get(engine.lower(), _engines["google"])
         import urllib.parse
+
+        engine = engine.lower().strip()
+
+        _engines = {
+            "google":  "https://www.google.com/search?q=",
+            "youtube": "https://www.youtube.com/results?search_query=",
+            "bing":    "https://www.bing.com/search?q=",
+        }
+        base = _engines.get(engine, _engines["google"])
         url = base + urllib.parse.quote_plus(query)
         return self.open_url(url)
+
+    # ── YouTube Playwright helpers (used by web_search + orchestrator + demo) ──
+
+    async def play_youtube_with_controls(
+        self,
+        query: str,
+        screenshot_path: Optional[str] = None,
+        headless: bool = False,
+        play_duration_s: float = 5.0,
+        max_ad_wait_s: int = 30,
+        on_status: Optional[Any] = None,
+        pre_close_callback: Optional[Any] = None,
+    ) -> dict[str, bool]:
+        """Open YouTube, search *query*, skip any ad, play the song, then
+        demonstrate pause / resume / mute / unmute / volume-up / volume-down.
+
+        Args:
+            query:               YouTube search query.
+            screenshot_path:     Optional path to save a proof screenshot.
+            headless:            Run browser headlessly (default False for demo).
+            play_duration_s:     Seconds to let the song play before controls demo.
+            max_ad_wait_s:       Max seconds to wait for a skippable ad.
+            on_status:           Optional callable(str) for status messages.
+            pre_close_callback:  Optional callable() called BEFORE browser.close()
+                                 — use this to flush any pending TTS/speak tasks
+                                 so they finish before the browser window disappears.
+
+        Returns:
+            Dict of step → bool indicating which steps succeeded.
+        """
+        from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+        from playwright.async_api import async_playwright
+        import urllib.parse as _up
+
+        def _log(msg: str) -> None:
+            logger.info(msg)
+            if on_status:
+                on_status(msg)
+
+        search_url = (
+            "https://www.youtube.com/results?search_query="
+            + _up.quote_plus(query)
+        )
+
+        results: dict[str, bool] = {
+            "browser_launched": False,
+            "page_loaded":      False,
+            "video_found":      False,
+            "ad_handled":       False,
+            "video_played":     False,
+            "paused":           False,
+            "resumed":          False,
+            "muted":            False,
+            "unmuted":          False,
+            "volume_up":        False,
+            "volume_down":      False,
+            "screenshot_saved": False,
+            "browser_closed":   False,
+        }
+
+        async with async_playwright() as p:
+            # Use real installed Chrome/Edge — not Playwright's bundled Chromium.
+            # channel="chrome" uses the system Google Chrome (with all codecs,
+            # user profile, saved passwords, YouTube login etc.)
+            # Fallback chain: chrome → msedge → bundled chromium
+            browser = None
+            browser_channel = os.environ.get("AGENT_GURU_BROWSER_CHANNEL", "").strip()
+            _channels_to_try = (
+                [browser_channel] if browser_channel
+                else ["chrome", "msedge"]
+            )
+            for _ch in _channels_to_try:
+                try:
+                    browser = await p.chromium.launch(
+                        channel=_ch,
+                        headless=headless,
+                        args=["--disable-background-timer-throttling"],
+                    )
+                    _log(f"Browser launched (real {_ch}).")
+                    break
+                except Exception as _ch_err:
+                    logger.warning("Channel '%s' unavailable: %s", _ch, _ch_err)
+
+            if browser is None:
+                # Final fallback: bundled Playwright Chromium
+                browser = await p.chromium.launch(headless=headless)
+                _log("Browser launched (Playwright bundled Chromium — install Chrome for best experience).")
+
+            results["browser_launched"] = True
+            try:
+                context = await browser.new_context(
+                    viewport={"width": 1440, "height": 900}
+                )
+                page = await context.new_page()
+
+                # Navigate to YouTube search
+                _log(f"Navigating to YouTube search: {query}")
+                await page.goto(
+                    search_url, wait_until="domcontentloaded", timeout=60000
+                )
+
+                # Dismiss cookie / consent dialogs
+                for selector in (
+                    "button:has-text('Accept all')",
+                    "button:has-text('I agree')",
+                    "button:has-text('Reject all')",
+                ):
+                    try:
+                        btn = page.locator(selector).first
+                        if await btn.is_visible(timeout=1200):
+                            await btn.click()
+                            _log("Dismissed consent dialog.")
+                            break
+                    except Exception:
+                        pass
+
+                # Click first video result
+                _log("Waiting for first video result…")
+                first_video = page.locator(
+                    "ytd-video-renderer a#video-title"
+                ).first
+                await first_video.wait_for(state="visible", timeout=45000)
+                await first_video.click(timeout=20000)
+                results["video_found"] = True
+                _log("First video clicked.")
+
+                try:
+                    await page.wait_for_url("**/watch**", timeout=30000)
+                    results["page_loaded"] = True
+                    _log("Watch page loaded.")
+                except PlaywrightTimeoutError:
+                    _log("Watch URL timeout — continuing anyway.")
+
+                # Give the player time to initialise
+                await page.wait_for_timeout(2500)
+
+                # ── Step 1: Handle ad ─────────────────────────────────
+                _log("Checking for ads…")
+                await self._wait_for_ad_and_skip(
+                    page, max_wait_s=max_ad_wait_s, on_status=on_status
+                )
+                results["ad_handled"] = True
+
+                # ── Step 2: Start playback ────────────────────────────
+                video = page.locator(
+                    "#movie_player video.html5-main-video"
+                ).first
+                await video.wait_for(state="attached", timeout=20000)
+                await video.evaluate(
+                    "async v => { v.muted = false; v.volume = 0.8; await v.play(); }"
+                )
+                results["video_played"] = True
+                _log("Song is playing.")
+
+                # ── Step 3: Skip 20 seconds into the song ────────────
+                _log("Skipping 20 seconds into the song.")
+                await video.evaluate(
+                    "v => { v.currentTime = Math.min((v.duration || v.currentTime + 20), v.currentTime + 20); }"
+                )
+                # Wait for playback to stabilise after seek
+                await page.wait_for_timeout(1500)
+
+                # ── Step 4: Let song play for 10-15 seconds ───────────
+                _log("Letting song play for 12s…")
+                await page.wait_for_timeout(12000)
+
+                # ── Step 5: Pause ─────────────────────────────────────
+                _log("Pausing the video.")
+                await video.evaluate("v => v.pause()")
+                results["paused"] = True
+                # Wait for TTS "Pausing the video." to finish (~2s) before next action
+                await page.wait_for_timeout(3000)
+
+                # ── Step 6: Resume ────────────────────────────────────
+                _log("Resuming playback.")
+                await video.evaluate("async v => { await v.play(); }")
+                results["resumed"] = True
+                # Wait for TTS "Resuming playback." to finish, then let song play a bit
+                await page.wait_for_timeout(4000)
+
+                # ── Step 7: Mute ──────────────────────────────────────
+                _log("Muting the video.")
+                await video.evaluate("v => { v.muted = true; }")
+                results["muted"] = True
+                await page.wait_for_timeout(3000)
+
+                # ── Step 8: Unmute ────────────────────────────────────
+                _log("Unmuting the video.")
+                await video.evaluate("v => { v.muted = false; }")
+                results["unmuted"] = True
+                await page.wait_for_timeout(3000)
+
+                # ── Step 9: Volume up ─────────────────────────────────
+                _log("Increasing volume.")
+                await video.evaluate(
+                    "v => { v.volume = Math.min(1.0, v.volume + 0.2); }"
+                )
+                results["volume_up"] = True
+                await page.wait_for_timeout(3000)
+
+                # ── Step 10: Volume down ──────────────────────────────
+                _log("Decreasing volume.")
+                await video.evaluate(
+                    "v => { v.volume = Math.max(0.0, v.volume - 0.2); }"
+                )
+                results["volume_down"] = True
+                await page.wait_for_timeout(3000)
+
+                # ── Step 11: Screenshot ───────────────────────────────
+                if screenshot_path:
+                    snap = Path(screenshot_path)
+                    snap.parent.mkdir(parents=True, exist_ok=True)
+                    await page.screenshot(path=str(snap), full_page=False)
+                    results["screenshot_saved"] = True
+                    _log(f"Screenshot saved: {snap.name}")
+
+                # ── Step 12: Flush all pending TTS BEFORE closing ─────
+                # This ensures "I am now closing YouTube" is spoken while
+                # the browser is still open — not after it's already gone.
+                _log("Closing YouTube now.")
+                if pre_close_callback is not None:
+                    try:
+                        if asyncio.iscoroutinefunction(pre_close_callback):
+                            await pre_close_callback()
+                        else:
+                            await asyncio.get_running_loop().run_in_executor(
+                                None, pre_close_callback
+                            )
+                    except Exception as _cb_err:
+                        logger.warning("pre_close_callback error: %s", _cb_err)
+
+                # Small pause after TTS finishes so user hears it before close
+                await page.wait_for_timeout(500)
+                await page.close()
+                await context.close()
+
+            finally:
+                await browser.close()
+                results["browser_closed"] = True
+                _log("Browser closed.")
+
+        return results
+
+    async def _skip_ad_if_present(self, page: Any) -> bool:
+        """Click the YouTube Skip-Ad button if visible. Returns True if clicked."""
+        skip_selectors = [
+            ".ytp-skip-ad-button",
+            ".ytp-ad-skip-button",
+            "button.ytp-skip-ad-button",
+            "button.ytp-ad-skip-button",
+            "[class*='skip-ad']",
+            "[class*='skip_ad']",
+        ]
+        for selector in skip_selectors:
+            try:
+                btn = page.locator(selector).first
+                if await btn.is_visible(timeout=800):
+                    await btn.click()
+                    logger.info("Ad skip button clicked: %s", selector)
+                    return True
+            except Exception:
+                pass
+        return False
+
+    async def _wait_for_ad_and_skip(
+        self,
+        page: Any,
+        max_wait_s: int = 30,
+        on_status: Optional[Any] = None,
+    ) -> bool:
+        """Poll for a skippable ad for up to max_wait_s seconds.
+
+        Returns True if an ad was skipped, False if no ad was found.
+        """
+        def _log(msg: str) -> None:
+            logger.info(msg)
+            if on_status:
+                on_status(msg)
+
+        loop = asyncio.get_event_loop()
+        deadline = loop.time() + max_wait_s
+        skipped = False
+
+        while loop.time() < deadline:
+            try:
+                ad_showing = await page.evaluate(
+                    "() => {"
+                    "  const p = document.querySelector('#movie_player');"
+                    "  return p ? p.classList.contains('ad-showing') : false;"
+                    "}"
+                )
+            except Exception:
+                break
+
+            if ad_showing:
+                _log("Ad detected — waiting for skip button…")
+                skipped = await self._skip_ad_if_present(page)
+                if skipped:
+                    _log("Ad skipped.")
+                    await page.wait_for_timeout(1000)
+                    break
+                await page.wait_for_timeout(1000)
+            else:
+                _log("No ad detected — proceeding.")
+                break
+
+        return skipped
 
     @staticmethod
     def _resolve_url(raw: str) -> str:

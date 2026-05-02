@@ -25,9 +25,6 @@ class ModelProvider(Enum):
     """Supported model providers."""
 
     OLLAMA = "ollama"
-    OPENAI = "openai"
-    ANTHROPIC = "anthropic"
-    GOOGLE = "google"
 
 
 # ---------------------------------------------------------------------------
@@ -118,46 +115,10 @@ class OllamaConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
 
-class OpenAIConfig(BaseModel):
-    """Configuration for OpenAI API."""
-
-    api_key: str = ""
-    base_url: str = "https://api.openai.com/v1"
-    timeout_s: float = 60.0
-    max_retries: int = 3
-    organization: Optional[str] = None
-
-    model_config = {"extra": "forbid"}
-
-
-class AnthropicConfig(BaseModel):
-    """Configuration for Anthropic Claude API."""
-
-    api_key: str = ""
-    base_url: str = "https://api.anthropic.com"
-    timeout_s: float = 60.0
-    max_retries: int = 3
-
-    model_config = {"extra": "forbid"}
-
-
-class GoogleConfig(BaseModel):
-    """Configuration for Google Gemini API."""
-
-    api_key: str = ""
-    timeout_s: float = 60.0
-    max_retries: int = 3
-
-    model_config = {"extra": "forbid"}
-
-
 class RuntimeConfig(BaseModel):
     """Top-level runtime configuration."""
 
     ollama_config: OllamaConfig = Field(default_factory=OllamaConfig)
-    openai_config: OpenAIConfig = Field(default_factory=OpenAIConfig)
-    anthropic_config: AnthropicConfig = Field(default_factory=AnthropicConfig)
-    google_config: GoogleConfig = Field(default_factory=GoogleConfig)
 
     # Context management
     compression_threshold: float = 0.8

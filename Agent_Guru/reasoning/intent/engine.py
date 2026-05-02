@@ -201,7 +201,7 @@ class IntentDetectionEngine:
                     len(self.fast_router._patterns),
                 )
             else:
-                _logger.warning("Patterns file not found: %s — Fast-Path Router disabled",
+                _logger.warning("Patterns file not found: %s â€” Fast-Path Router disabled",
                                 self.config.patterns_file)
                 self.fast_router = None
 
@@ -213,7 +213,7 @@ class IntentDetectionEngine:
                 self.neural_classifier.load_model()
                 _logger.info("Neural Classifier initialized")
             except Exception as e:
-                _logger.warning("Neural Classifier initialization failed: %s — disabled", e)
+                _logger.warning("Neural Classifier initialization failed: %s â€” disabled", e)
                 self.neural_classifier = None
 
         # Initialize NER Extractor
@@ -224,7 +224,7 @@ class IntentDetectionEngine:
                 self.ner_extractor.load_model()
                 _logger.info("NER Extractor initialized")
             except Exception as e:
-                _logger.warning("NER Extractor initialization failed: %s — disabled", e)
+                _logger.warning("NER Extractor initialization failed: %s â€” disabled", e)
                 self.ner_extractor = None
 
         # Initialize LLM Fallback (prefer cloud APIs for speed, fallback to Ollama)
@@ -235,7 +235,7 @@ class IntentDetectionEngine:
                 # Try cloud APIs first (MUCH faster: 200-500ms vs Ollama 15-30s)
                 # Priority: DeepSeek (cheapest, fastest) > Gemini (smart) > OpenAI (expensive)
 
-                # Check which APIs are available — only use a key if it's
+                # Check which APIs are available â€” only use a key if it's
                 # non-empty and not a placeholder value
                 def _valid_key(k: str | None) -> bool:
                     return bool(k and k.strip() and "your-" not in k.lower() and len(k) > 8)
@@ -259,7 +259,7 @@ class IntentDetectionEngine:
                     else:
                         _logger.info("LLM Fallback: DeepSeek API (FAST)")
 
-                # Use OpenAI as fallback (only if key is valid — not Gemini key)
+                # Use OpenAI as fallback (only if key is valid â€” not Gemini key)
                 elif openai_key:
                     llm_config = LLMFallbackConfig(
                         provider="openai",
@@ -274,25 +274,25 @@ class IntentDetectionEngine:
                 else:
                     llm_config = LLMFallbackConfig(
                         provider="ollama",
-                        model=os.environ.get("OLLAMA_MODEL", "mistral:7b-instruct"),
+                        model=os.environ.get("OLLAMA_MODEL", "gemma3:4b"),
                         timeout_ms=45000.0,  # 45s for CPU Ollama inference
                     )
                     self.llm_fallback = LLMFallbackClassifier(llm_config)
                     if gemini_key:
                         _logger.info(
                             "LLM Fallback: Ollama (GEMINI_API_KEY set but Gemini provider "
-                            "not supported in this classifier — using Ollama). "
+                            "not supported in this classifier â€” using Ollama). "
                             "Set DEEPSEEK_API_KEY for fast cloud intent classification."
                         )
                     else:
                         _logger.warning(
-                            "LLM Fallback: Ollama (%s) — may be slow on CPU. "
+                            "LLM Fallback: Ollama (%s) â€” may be slow on CPU. "
                             "Set DEEPSEEK_API_KEY for fast cloud responses.",
                             llm_config.model,
                         )
 
             except Exception as e:
-                _logger.warning("LLM Fallback initialization failed: %s — disabled", e)
+                _logger.warning("LLM Fallback initialization failed: %s â€” disabled", e)
                 self.llm_fallback = None
 
         # Initialize Online Learning
@@ -305,7 +305,7 @@ class IntentDetectionEngine:
                 )
                 _logger.info("Online Learning initialized")
             except Exception as e:
-                _logger.warning("Online Learning initialization failed: %s — disabled", e)
+                _logger.warning("Online Learning initialization failed: %s â€” disabled", e)
                 self.feedback_store = None
                 self.online_learner = None
 
@@ -486,7 +486,7 @@ class IntentDetectionEngine:
         # Run async method in event loop
         try:
             asyncio.get_running_loop()
-            # Already inside a running loop — cannot call run_until_complete.
+            # Already inside a running loop â€” cannot call run_until_complete.
             # Callers inside async code should use detect_intent_async() directly.
             raise RuntimeError(
                 "detect_intent() called from inside a running event loop. "
@@ -495,10 +495,10 @@ class IntentDetectionEngine:
         except RuntimeError as exc:
             if "running event loop" in str(exc):
                 raise
-            # No running loop — safe to use asyncio.run()
+            # No running loop â€” safe to use asyncio.run()
             return asyncio.run(self.detect_intent_async(text, context, user_id))
 
-    # Mapping from pattern-file intent strings → valid IntentType enum values.
+    # Mapping from pattern-file intent strings â†’ valid IntentType enum values.
     # Pattern files may use fine-grained labels (e.g. "device_off") that don't
     # exist in the IntentType enum.  We normalise them here so Pydantic never
     # sees an invalid value.
@@ -540,7 +540,7 @@ class IntentDetectionEngine:
         Returns:
             Intent object
         """
-        # Normalise pattern intent string → valid IntentType value
+        # Normalise pattern intent string â†’ valid IntentType value
         intent_type_str = self._PATTERN_INTENT_MAP.get(
             match.intent_type, match.intent_type
         )
@@ -788,9 +788,9 @@ class IntentDetectionEngine:
             "target_fast_path_percent": target_percent,
             "actual_fast_path_percent": fast_path_percent,
             "performance_vs_target": (
-                "✓ Meeting target"
+                "âœ“ Meeting target"
                 if fast_path_percent >= target_percent
-                else f"⚠ Below target ({fast_path_percent:.1f}% vs {target_percent}%)"
+                else f"âš  Below target ({fast_path_percent:.1f}% vs {target_percent}%)"
             ),
         }
 

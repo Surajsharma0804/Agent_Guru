@@ -38,13 +38,12 @@ class WakeWordConfig:
 @dataclass
 class STTConfig:
     """Speech-to-text configuration."""
-    model_size: str = "base"  # tiny, base, small, medium, large
+    model_size: str = "small"  # tiny, base, small, medium, large — small gives best accuracy/speed on GPU
     model_path: Optional[str] = None
-    compute_type: str = "float32"
+    compute_type: str = "float16"  # float16 on GPU = 2x faster, same accuracy
     beam_size: int = 5
-    device: str = "cpu"  # cpu, cuda
-    language: Optional[str] = None
-    enable_diarization: bool = False
+    device: str = "cuda"   # use GPU — RTX 2050 has 4GB, small model fits easily
+    language: Optional[str] = "en"  # force English — stops Whisper misidentifying as Hindi
 
 
 @dataclass

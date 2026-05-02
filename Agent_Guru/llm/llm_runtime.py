@@ -30,15 +30,13 @@ from Agent_Guru.llm.models import (
     ContextWindowExceededError,
     Message,
     ModelProvider,
+    ProviderNotSupportedError,
     RuntimeConfig,
     StreamChunk,
 )
 from Agent_Guru.llm.performance_monitor import PerformanceMonitor
-from Agent_Guru.llm.providers.anthropic_adapter import AnthropicAdapter
 from Agent_Guru.llm.providers.base import ProviderAdapter
-from Agent_Guru.llm.providers.google_adapter import GoogleAdapter
 from Agent_Guru.llm.providers.ollama_adapter import OllamaAdapter
-from Agent_Guru.llm.providers.openai_adapter import OpenAIAdapter
 from Agent_Guru.llm.token_counter import TokenCounter
 
 logger = logging.getLogger(__name__)
@@ -47,31 +45,25 @@ logger = logging.getLogger(__name__)
 # Canonical definition lives in context_manager.py; imported here to remove duplication.
 from Agent_Guru.llm.context_manager import CONTEXT_LIMITS as _CONTEXT_LIMITS
 
-# Pricing per 1K tokens for cost estimation
-_PRICING: dict[str, float] = {
-    "gpt-4": 0.03,
-    "gpt-3.5-turbo": 0.002,
-    "claude-3-opus": 0.015,
-    "claude-3-sonnet": 0.003,
-}
+# Pricing per 1K tokens for cost estimation (local Ollama models are free)
+_PRICING: dict[str, float] = {}
 
 
 class LLMRuntime:
     """
     Unified interface for all LLM operations.
 
-    Provides a single API for Ollama, OpenAI, Anthropic, and Google models
-    with streaming, function calling, context management, and performance
-    monitoring built in.
+    Provides a single API for Ollama models with streaming, function calling,
+    context management, and performance monitoring built in.
 
     Example:
         >>> config = RuntimeConfig(
-        ...     openai_config=OpenAIConfig(api_key="sk-..."),
+        ...     ollama_config=OllamaConfig(host="http://localhost:11434"),
         ... )
         >>> runtime = LLMRuntime.from_config(config)
         >>> response = await runtime.complete(
         ...     CompletionRequest(
-        ...         model="gpt-3.5-turbo",
+        ...         model="llama3",
         ...         messages=[Message(role="user", content="Hello!")],
         ...     )
         ... )
@@ -94,9 +86,6 @@ class LLMRuntime:
 
         self.adapters: dict[ModelProvider, ProviderAdapter] = {
             ModelProvider.OLLAMA: OllamaAdapter(config.ollama_config),
-            ModelProvider.OPENAI: OpenAIAdapter(config.openai_config),
-            ModelProvider.ANTHROPIC: AnthropicAdapter(config.anthropic_config),
-            ModelProvider.GOOGLE: GoogleAdapter(config.google_config),
         }
 
     @classmethod
@@ -170,15 +159,12 @@ class LLMRuntime:
                 f"{context_limit} for model '{request.model}'."
             )
 
-        # Resolve per-request timeout (config.timeout → 15s for local Ollama,
-        # 30s for cloud providers). Local 7B models on a mid-range GPU take ~8s;
-        # 15s gives headroom without causing 90s delays on 3 retries.
-        timeout: float = getattr(self.config, "timeout", None) or 30.0
-        # Use a shorter timeout for local Ollama to avoid 90s retry storms.
-        # CPU inference for 7B model takes 30-60s; GPU takes ~8s.
-        # We use 45s to cover CPU mode while still failing fast if Ollama is down.
+        # Resolve per-request timeout.
+        # mistral:7b on RTX 2050 (4GB VRAM, model barely fits) runs at ~6-8 tok/s.
+        # A 150-token response takes ~20-25s. Use 120s to cover worst case.
+        timeout: float = getattr(self.config, "timeout", None) or 120.0
         if self._get_provider(request.model) == ModelProvider.OLLAMA:
-            timeout = min(timeout, 45.0)
+            timeout = min(timeout, 120.0)  # 120s for local Ollama
 
         # Execute with retry, enforcing timeout on each adapter call
         response = await self.error_handler.execute_with_retry(
@@ -318,13 +304,26 @@ class LLMRuntime:
 
     @staticmethod
     def _get_provider(model: str) -> ModelProvider:
-        """Determine provider from model name prefix."""
+        """Determine provider from model name.
+
+        All models route to Ollama. Recognized cloud prefixes raise
+        ProviderNotSupportedError to give a clear error message.
+        """
         if model.startswith(("gpt-", "text-embedding", "o1-", "o3-")):
-            return ModelProvider.OPENAI
+            raise ProviderNotSupportedError(
+                f"Model '{model}' is an OpenAI cloud model and is not supported. "
+                "Use a local Ollama model instead."
+            )
         if model.startswith("claude-"):
-            return ModelProvider.ANTHROPIC
+            raise ProviderNotSupportedError(
+                f"Model '{model}' is an Anthropic cloud model and is not supported. "
+                "Use a local Ollama model instead."
+            )
         if model.startswith("gemini-"):
-            return ModelProvider.GOOGLE
+            raise ProviderNotSupportedError(
+                f"Model '{model}' is a Google cloud model and is not supported. "
+                "Use a local Ollama model instead."
+            )
         return ModelProvider.OLLAMA
 
     @staticmethod

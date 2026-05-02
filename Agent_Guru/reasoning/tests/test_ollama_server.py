@@ -34,15 +34,15 @@ class TestOllamaModelConfig:
 
     def test_predefined_models_exist(self):
         """Test that predefined models are configured."""
-        assert "qwen2.5:14b-instruct" in OLLAMA_MODELS
-        assert "mistral:7b-instruct" in OLLAMA_MODELS
+        assert "gemma3:4b" in OLLAMA_MODELS
+        assert "gemma3:4b" in OLLAMA_MODELS
 
     def test_qwen_model_config(self):
         """Test Qwen model configuration."""
-        config = OLLAMA_MODELS["qwen2.5:14b-instruct"]
-        assert config.name == "qwen2.5:14b-instruct"
-        assert config.size_gb == 9.0
-        assert config.parameters == "14B"
+        config = OLLAMA_MODELS["gemma3:4b"]
+        assert config.name == "gemma3:4b"
+        assert config.size_gb == 3.3
+        assert config.parameters == "4B"
         assert config.use_case == "complex"
         assert config.temperature == 0.7
         assert config.top_p == 0.9
@@ -50,9 +50,9 @@ class TestOllamaModelConfig:
 
     def test_mistral_model_config(self):
         """Test Mistral model configuration."""
-        config = OLLAMA_MODELS["mistral:7b-instruct"]
-        assert config.name == "mistral:7b-instruct"
-        assert config.size_gb == 4.4
+        config = OLLAMA_MODELS["gemma3:4b"]
+        assert config.name == "gemma3:4b"
+        assert config.size_gb == 3.3
         assert config.parameters == "7B"
         assert config.use_case == "simple"
         assert config.temperature == 0.7
@@ -68,7 +68,7 @@ class TestOllamaServerInitialization:
         server = OllamaServer()
         assert server.host == "127.0.0.1"
         assert server.port == 11434
-        assert server.default_model == "mistral:7b-instruct"
+        assert server.default_model == "gemma3:4b"
         assert not server.is_running()
 
     def test_init_with_custom_params(self):
@@ -76,11 +76,11 @@ class TestOllamaServerInitialization:
         server = OllamaServer(
             host="localhost",
             port=8080,
-            default_model="qwen2.5:14b-instruct",
+            default_model="gemma3:4b",
         )
         assert server.host == "localhost"
         assert server.port == 8080
-        assert server.default_model == "qwen2.5:14b-instruct"
+        assert server.default_model == "gemma3:4b"
 
     def test_init_with_invalid_model(self):
         """Test initialization with invalid model raises error."""
@@ -176,8 +176,8 @@ class TestOllamaServerStart:
         mock_list_response.status_code = 200
         mock_list_response.json.return_value = {
             "models": [
-                {"name": "qwen2.5:14b-instruct"},
-                {"name": "mistral:7b-instruct"},
+                {"name": "gemma3:4b"},
+                {"name": "gemma3:4b"},
             ]
         }
 
@@ -185,8 +185,8 @@ class TestOllamaServerStart:
             await server.start()
 
         assert server.is_running()
-        assert "qwen2.5:14b-instruct" in server.get_available_models()
-        assert "mistral:7b-instruct" in server.get_available_models()
+        assert "gemma3:4b" in server.get_available_models()
+        assert "gemma3:4b" in server.get_available_models()
 
     @pytest.mark.asyncio
     async def test_start_missing_models(self):
@@ -221,7 +221,7 @@ class TestOllamaServerGeneration:
         """Test successful text generation."""
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["mistral:7b-instruct"]
+        server._available_models = ["gemma3:4b"]
 
         request = LLMRequest(
             prompt="Hello, world!",
@@ -259,7 +259,7 @@ class TestOllamaServerGeneration:
         """Test generation with specific model."""
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["qwen2.5:14b-instruct"]
+        server._available_models = ["gemma3:4b"]
 
         request = LLMRequest(prompt="Test prompt")
 
@@ -272,12 +272,12 @@ class TestOllamaServerGeneration:
         }
 
         with patch("requests.post", return_value=mock_response) as mock_post:
-            response = await server.generate(request, model="qwen2.5:14b-instruct")
+            response = await server.generate(request, model="gemma3:4b")
 
         # Verify correct model was used
         call_args = mock_post.call_args
-        assert call_args[1]["json"]["model"] == "qwen2.5:14b-instruct"
-        assert response.metadata["model"] == "qwen2.5:14b-instruct"
+        assert call_args[1]["json"]["model"] == "gemma3:4b"
+        assert response.metadata["model"] == "gemma3:4b"
 
     @pytest.mark.asyncio
     async def test_generate_server_not_running(self):
@@ -293,7 +293,7 @@ class TestOllamaServerGeneration:
         """Test generation fails with unavailable model."""
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["mistral:7b-instruct"]
+        server._available_models = ["gemma3:4b"]
 
         request = LLMRequest(prompt="Test")
 
@@ -305,7 +305,7 @@ class TestOllamaServerGeneration:
         """Test generation handles API errors."""
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["mistral:7b-instruct"]
+        server._available_models = ["gemma3:4b"]
 
         request = LLMRequest(prompt="Test")
 
@@ -323,7 +323,7 @@ class TestOllamaServerGeneration:
         """Test generation with stop sequences."""
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["mistral:7b-instruct"]
+        server._available_models = ["gemma3:4b"]
 
         request = LLMRequest(
             prompt="Count to 5:",
@@ -353,24 +353,24 @@ class TestOllamaServerModelSelection:
         """Test model selection for simple tasks."""
         server = OllamaServer()
         model = server.select_model_for_task("simple")
-        assert model == "mistral:7b-instruct"
+        assert model == "gemma3:4b"
 
     def test_select_model_complex_task(self):
         """Test model selection for complex tasks."""
         server = OllamaServer()
         model = server.select_model_for_task("complex")
-        assert model == "qwen2.5:14b-instruct"
+        assert model == "gemma3:4b"
 
     def test_get_model_config(self):
         """Test getting model configuration."""
         server = OllamaServer()
 
-        config = server.get_model_config("mistral:7b-instruct")
+        config = server.get_model_config("gemma3:4b")
         assert config is not None
-        assert config.name == "mistral:7b-instruct"
+        assert config.name == "gemma3:4b"
         assert config.use_case == "simple"
 
-        config = server.get_model_config("qwen2.5:14b-instruct")
+        config = server.get_model_config("gemma3:4b")
         assert config is not None
         assert config.use_case == "complex"
 
@@ -386,7 +386,7 @@ class TestOllamaServerLatencyMeasurement:
         """Test successful latency measurement."""
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["mistral:7b-instruct"]
+        server._available_models = ["gemma3:4b"]
 
         # Mock responses with varying latencies
         mock_response = Mock()
@@ -398,7 +398,7 @@ class TestOllamaServerLatencyMeasurement:
         }
 
         with patch("requests.post", return_value=mock_response):
-            stats = await server.measure_latency("mistral:7b-instruct", num_samples=5)
+            stats = await server.measure_latency("gemma3:4b", num_samples=5)
 
         assert "mean" in stats
         assert "p50" in stats
@@ -414,11 +414,11 @@ class TestOllamaServerLatencyMeasurement:
         """Test latency measurement when all requests fail."""
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["mistral:7b-instruct"]
+        server._available_models = ["gemma3:4b"]
 
         # Mock failures
         with patch("requests.post", side_effect=requests.RequestException()):
-            stats = await server.measure_latency("mistral:7b-instruct", num_samples=3)
+            stats = await server.measure_latency("gemma3:4b", num_samples=3)
 
         # Should return zeros when all fail
         assert stats["mean"] == 0.0
@@ -451,7 +451,7 @@ class TestOllamaServerEdgeCases:
         """Test generation with length finish reason."""
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["mistral:7b-instruct"]
+        server._available_models = ["gemma3:4b"]
 
         request = LLMRequest(prompt="Test", max_tokens=10)
 
@@ -474,7 +474,7 @@ class TestOllamaServerEdgeCases:
         """Test generation with incomplete response."""
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["mistral:7b-instruct"]
+        server._available_models = ["gemma3:4b"]
 
         request = LLMRequest(prompt="Test")
 

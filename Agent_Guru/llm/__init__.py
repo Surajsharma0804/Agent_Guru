@@ -1,8 +1,7 @@
 """
 Agent Guru LLM Runtime Package.
 
-Provides a unified interface for running language models across
-Ollama, OpenAI, Anthropic, and Google providers.
+Provides a unified interface for running language models through Ollama.
 
 Public API:
     LLMRuntime: Main runtime interface
@@ -18,17 +17,14 @@ from Agent_Guru.llm.context_manager import ContextManager
 from Agent_Guru.llm.error_handler import ErrorHandler
 from Agent_Guru.llm.llm_runtime import LLMRuntime
 from Agent_Guru.llm.models import (
-    AnthropicConfig,
     CircuitBreakerOpenError,
     CompletionRequest,
     CompletionResponse,
     ContextWindowExceededError,
     FunctionDefinition,
-    GoogleConfig,
     Message,
     ModelProvider,
     OllamaConfig,
-    OpenAIConfig,
     ProviderNotSupportedError,
     RuntimeConfig,
     StreamChunk,
@@ -48,9 +44,6 @@ __all__ = [
     "FunctionDefinition",
     "ModelProvider",
     "OllamaConfig",
-    "OpenAIConfig",
-    "AnthropicConfig",
-    "GoogleConfig",
     "ContextWindowExceededError",
     "CircuitBreakerOpenError",
     "ProviderNotSupportedError",

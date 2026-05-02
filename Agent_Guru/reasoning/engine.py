@@ -76,7 +76,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 # Sentinel used to distinguish "llm_reasoning not provided" from "llm_reasoning=None".
-# Passing None explicitly disables LLM (no Ollama/API calls — useful in tests).
+# Passing None explicitly disables LLM (no Ollama/API calls â€” useful in tests).
 # Omitting the argument (default=_UNSET) triggers auto-initialisation from env.
 _UNSET: Any = object()
 
@@ -285,7 +285,7 @@ class ReasoningEngine:
 
         # Initialize LLM reasoning:
         #   - _UNSET (default): auto-initialise from environment (tries Ollama/API keys)
-        #   - None (explicit): disable LLM entirely — no network calls, tests stay fast
+        #   - None (explicit): disable LLM entirely â€” no network calls, tests stay fast
         #   - ReasoningPlanGenerator instance: use as-is
         if llm_reasoning is _UNSET:
             llm_provider = self._initialize_llm_provider()
@@ -329,10 +329,10 @@ class ReasoningEngine:
 
         Priority order (first available wins):
         1. Skip entirely in test mode (AGENT_GURU_TEST_MODE=1 or PYTEST_CURRENT_TEST set)
-        2. Gemini  — if GEMINI_API_KEY is set  (best reasoning, low latency)
-        3. DeepSeek — if DEEPSEEK_API_KEY is set (fast and cheap)
-        4. OpenAI  — if OPENAI_API_KEY is set  (reliable)
-        5. Ollama  — local fallback (free, offline, unlimited)
+        2. Gemini  â€” if GEMINI_API_KEY is set  (best reasoning, low latency)
+        3. DeepSeek â€” if DEEPSEEK_API_KEY is set (fast and cheap)
+        4. OpenAI  â€” if OPENAI_API_KEY is set  (reliable)
+        5. Ollama  â€” local fallback (free, offline, unlimited)
            Uses OLLAMA_TIMEOUT_SECONDS env var (default 8s dev / 120s prod).
 
         Returns:
@@ -341,7 +341,7 @@ class ReasoningEngine:
         import os
 
         # ------------------------------------------------------------------ #
-        # Test-mode guard — skip ALL network calls during pytest runs.        #
+        # Test-mode guard â€” skip ALL network calls during pytest runs.        #
         # Set AGENT_GURU_REAL_OLLAMA=1 to override and test with real Ollama. #
         # ------------------------------------------------------------------ #
         in_test = (
@@ -349,11 +349,11 @@ class ReasoningEngine:
             or "PYTEST_CURRENT_TEST" in os.environ
         )
         if in_test and os.environ.get("AGENT_GURU_REAL_OLLAMA") != "1":
-            logger.debug("Test mode detected — LLM provider disabled (no network calls)")
+            logger.debug("Test mode detected â€” LLM provider disabled (no network calls)")
             return None
 
         # ------------------------------------------------------------------ #
-        # 1. Gemini — best for reasoning, lowest latency on cloud             #
+        # 1. Gemini â€” best for reasoning, lowest latency on cloud             #
         # ------------------------------------------------------------------ #
         gemini_key = os.environ.get("GEMINI_API_KEY")
         if gemini_key:
@@ -373,7 +373,7 @@ class ReasoningEngine:
                 logger.warning("Gemini provider failed: %s", e)
 
         # ------------------------------------------------------------------ #
-        # 2. DeepSeek — fast and cost-effective                               #
+        # 2. DeepSeek â€” fast and cost-effective                               #
         # ------------------------------------------------------------------ #
         deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
         if deepseek_key:
@@ -393,7 +393,7 @@ class ReasoningEngine:
                 logger.warning("DeepSeek provider failed: %s", e)
 
         # ------------------------------------------------------------------ #
-        # 3. OpenAI — reliable, widely supported                              #
+        # 3. OpenAI â€” reliable, widely supported                              #
         # ------------------------------------------------------------------ #
         openai_key = os.environ.get("OPENAI_API_KEY")
         if openai_key:
@@ -413,7 +413,7 @@ class ReasoningEngine:
                 logger.warning("OpenAI provider failed: %s", e)
 
         # ------------------------------------------------------------------ #
-        # 4. Ollama — local fallback (desktop / self-hosted production)       #
+        # 4. Ollama â€” local fallback (desktop / self-hosted production)       #
         #    OLLAMA_TIMEOUT_SECONDS: 8s default (dev), set 120s for prod.     #
         # ------------------------------------------------------------------ #
         try:
@@ -424,9 +424,9 @@ class ReasoningEngine:
 
             ollama_timeout = float(os.environ.get("OLLAMA_TIMEOUT_SECONDS", "8.0"))
             config = OllamaProviderConfig(
-                model="mistral:7b-instruct",
+                model="gemma3:4b",
                 timeout_seconds=ollama_timeout,
-                max_retries=1,  # No retries on local — fail fast, let caller handle
+                max_retries=1,  # No retries on local â€” fail fast, let caller handle
             )
             provider = OllamaProvider(config)
             logger.info(
@@ -962,7 +962,7 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
                     )
 
             except asyncio.CancelledError as e:
-                # Re-raise CancelledError — it must not be swallowed; it signals
+                # Re-raise CancelledError â€” it must not be swallowed; it signals
                 # task cancellation and must propagate to the event loop.
                 raise
             except (Exception, asyncio.TimeoutError) as reasoning_error:

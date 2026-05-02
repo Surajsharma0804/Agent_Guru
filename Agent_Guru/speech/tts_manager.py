@@ -66,7 +66,7 @@ def _detect_platform() -> str:
 class TTSBackend(Enum):
     """Available TTS backend implementations."""
 
-    COQUI = "coqui"              # CoquiTTS (desktop, high quality)
+    KOKORO = "kokoro"            # Kokoro ONNX (primary — human-quality, multilingual)
     PYTTSX3 = "pyttsx3"          # pyttsx3 (desktop, lightweight fallback)
     ANDROID_TTS = "android_tts"  # Android TextToSpeech API
     IOS_TTS = "ios_tts"          # iOS AVSpeechSynthesizer
@@ -481,8 +481,8 @@ class TTSManager:
         )
 
     async def _init_desktop(self) -> None:
-        """Initialize desktop TTS: CoquiTTS primary, pyttsx3 fallback."""
-        # Try CoquiTTS first (high quality)
+        """Initialize desktop TTS: Kokoro ONNX primary, pyttsx3 fallback."""
+        # Try Kokoro ONNX first (human-quality, multilingual)
         try:
             synthesis_config = SynthesisConfig(
                 voice_profile=VoiceProfile.GURU,
@@ -497,10 +497,10 @@ class TTSManager:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, engine.initialize)
             self._synthesis_engine = engine
-            self._active_backend = TTSBackend.COQUI
-            logger.debug("Desktop CoquiTTS backend initialized")
+            self._active_backend = TTSBackend.KOKORO
+            logger.debug("Desktop Kokoro TTS backend initialized")
         except Exception as exc:
-            logger.warning("CoquiTTS init failed: %s — trying pyttsx3", exc)
+            logger.warning("Kokoro TTS init failed: %s — trying pyttsx3", exc)
             await self._init_pyttsx3_fallback()
 
     async def _init_pyttsx3_fallback(self) -> None:
@@ -643,7 +643,7 @@ class TTSManager:
         """
         voice_profile = self._personality_to_voice_profile(personality)
 
-        if self._active_backend == TTSBackend.COQUI and self._synthesis_engine is not None:
+        if self._active_backend == TTSBackend.KOKORO and self._synthesis_engine is not None:
             return await self._synthesize_coqui(
                 text, voice_profile, emotion, speech_rate, volume
             )

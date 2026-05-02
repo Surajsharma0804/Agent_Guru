@@ -4,7 +4,7 @@ Higher-level manager over the existing LLM runtime infrastructure with:
 - Platform-specific LLM support (Desktop: Ollama + Cloud, Mobile: Cloud only)
 - Personality-specific system prompts (Guru vs Maya)
 - Conversation context management per personality/session
-- Fallback mechanism: cloud → local Ollama (desktop only)
+- Fallback mechanism: cloud â†’ local Ollama (desktop only)
 - API key validation and secure storage via keyring
 - <2 second response latency target
 
@@ -17,10 +17,10 @@ Performance Requirements:
 
 Architecture:
     LLMManager
-    ├── LLMRuntime (llm_runtime.py) — unified provider interface
-    ├── FailoverRouter (failover_router.py) — provider failover chain
-    ├── ContextManager (context_manager.py) — conversation history
-    └── keyring — secure API key storage
+    â”œâ”€â”€ LLMRuntime (llm_runtime.py) â€” unified provider interface
+    â”œâ”€â”€ FailoverRouter (failover_router.py) â€” provider failover chain
+    â”œâ”€â”€ ContextManager (context_manager.py) â€” conversation history
+    â””â”€â”€ keyring â€” secure API key storage
 
 Author: Agent Guru Team
 Date: 2026-03-20
@@ -173,13 +173,13 @@ class LLMConfig:
         max_latency_ms: Target maximum response latency in ms.
         temperature: LLM sampling temperature.
         max_tokens: Maximum tokens per response.
-        enable_fallback: Whether to fall back cloud→local on desktop.
+        enable_fallback: Whether to fall back cloudâ†’local on desktop.
     """
 
     mode: str = "cloud"  # "local" or "cloud"
     provider: LLMProvider = LLMProvider.OPENAI
     ollama_host: str = "http://localhost:11434"
-    ollama_model: str = "mistral:7b-instruct"  # default to what's installed
+    ollama_model: str = "gemma3:4b"  # default to what's installed
     cloud_model: Optional[str] = None
     api_key: str = ""
     max_context_messages: int = 20
@@ -228,7 +228,7 @@ class LLMManager:
     Provides a unified high-level API for LLM generation across platforms:
 
     - **Desktop** (Windows / macOS / Linux): Ollama (local) + Cloud APIs
-      with automatic fallback (cloud → local when cloud fails)
+      with automatic fallback (cloud â†’ local when cloud fails)
     - **Mobile** (Android / iOS): Cloud APIs only (no local LLM support)
 
     Dual personality system prompts:
@@ -250,7 +250,7 @@ class LLMManager:
     Performance:
         - Response latency: <2 seconds (95th percentile)
         - Context management: per-personality conversation history
-        - Fallback: cloud → local Ollama (desktop only)
+        - Fallback: cloud â†’ local Ollama (desktop only)
     """
 
     def __init__(
@@ -282,7 +282,7 @@ class LLMManager:
         self._initialized: bool = False
 
         logger.info(
-            "LLMManager created — platform=%s, is_desktop=%s, mode=%s",
+            "LLMManager created â€” platform=%s, is_desktop=%s, mode=%s",
             self._platform,
             self._is_desktop,
             self._config.mode,
@@ -297,7 +297,7 @@ class LLMManager:
 
         Loads API keys from keyring if not provided in config.
         Sets up platform-appropriate provider chain:
-        - Desktop: Ollama → Cloud APIs (with fallback)
+        - Desktop: Ollama â†’ Cloud APIs (with fallback)
         - Mobile: Cloud APIs only
 
         Auto-fallback: if no cloud API key is found anywhere and we're on
@@ -320,7 +320,7 @@ class LLMManager:
         # Auto-detect: if no cloud key is set anywhere, fall back to local Ollama.
         # This lets the assistant work out of the box without any API key.
         if self._is_desktop and self._config.mode == "cloud":
-            # BUG-019: old logic was mutually exclusive — only the single
+            # BUG-019: old logic was mutually exclusive â€” only the single
             # configured provider's has_* flag could be True (the others were
             # always False because they checked the same api_key+provider pair).
             # Now each flag checks its own env var independently so any provider
@@ -349,7 +349,7 @@ class LLMManager:
             )
             if not has_any_cloud_key:
                 logger.info(
-                    "No cloud API key found — switching to local Ollama mode "
+                    "No cloud API key found â€” switching to local Ollama mode "
                     "(model: %s at %s)",
                     self._config.ollama_model,
                     self._config.ollama_host,
@@ -370,12 +370,12 @@ class LLMManager:
             adapters=adapters,
         )
 
-        # Build LLM runtime for direct calls — context management is owned by LLMRuntime
+        # Build LLM runtime for direct calls â€” context management is owned by LLMRuntime
         self._runtime = LLMRuntime.from_config(runtime_config)
 
         self._initialized = True
         logger.info(
-            "LLMManager initialized — platform=%s, provider=%s, mode=%s",
+            "LLMManager initialized â€” platform=%s, provider=%s, mode=%s",
             self._platform,
             self._config.provider.value,
             self._config.mode,
@@ -462,7 +462,7 @@ class LLMManager:
 
         # Execute with failover
         if self._failover_router is None:
-            raise RuntimeError("LLMManager not initialized — call initialize() first")
+            raise RuntimeError("LLMManager not initialized â€” call initialize() first")
         result: FailoverResult = await self._failover_router.complete_with_failover(
             request=request,
             inject_system_prompt=False,  # We inject personality prompt ourselves
@@ -485,7 +485,7 @@ class LLMManager:
         )
 
         logger.info(
-            "LLM response generated — personality=%s, provider=%s, "
+            "LLM response generated â€” personality=%s, provider=%s, "
             "latency=%.1fms, fallback=%s",
             personality,
             provider_name,
@@ -520,7 +520,7 @@ class LLMManager:
         Returns:
             ``True`` if the key passes format validation, ``False`` otherwise.
         """
-        # Ollama is local — no API key needed, always valid
+        # Ollama is local â€” no API key needed, always valid
         if provider == LLMProvider.OLLAMA:
             return True
 
@@ -737,12 +737,12 @@ class LLMManager:
         """Build provider adapters based on platform constraints."""
         adapters: dict[ModelProvider, Any] = {}
 
-        # Cloud adapters — available on all platforms
+        # Cloud adapters â€” available on all platforms
         adapters[ModelProvider.OPENAI] = OpenAIAdapter(runtime_config.openai_config)
         adapters[ModelProvider.ANTHROPIC] = AnthropicAdapter(runtime_config.anthropic_config)
         adapters[ModelProvider.GOOGLE] = GoogleAdapter(runtime_config.google_config)
 
-        # Ollama — desktop only
+        # Ollama â€” desktop only
         if self._is_desktop:
             adapters[ModelProvider.OLLAMA] = OllamaAdapter(runtime_config.ollama_config)
 

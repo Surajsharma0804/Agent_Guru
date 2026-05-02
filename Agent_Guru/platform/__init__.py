@@ -33,26 +33,4 @@ Architecture:
 
 __version__ = "1.0.0"
 
-# Import platform detector for easy access
-# Import integration clients
-from Agent_Guru.platform.integration import (
-    GoalManagerClient,
-    NotificationStatus,
-    OperationResult,
-    TaskCompletionNotification,
-)
-from Agent_Guru.platform.platform_detector import (
-    PlatformDetector,
-    PlatformInfo,
-    UnsupportedPlatformError,
-)
-
-__all__ = [
-    "PlatformDetector",
-    "PlatformInfo",
-    "UnsupportedPlatformError",
-    "GoalManagerClient",
-    "TaskCompletionNotification",
-    "OperationResult",
-    "NotificationStatus",
-]
+__all__: list[str] = []

@@ -399,7 +399,8 @@ class SpeechEngine:
         # Transcribe with automatic language detection (Whisper handles this)
         result = self.stt_transcriber.transcribe(
             audio,
-            self.config.audio.sample_rate
+            self.config.audio.sample_rate,
+            language=self.config.stt.language,  # force "en" to stop Hindi misdetection
         )
 
         self.logger.info(

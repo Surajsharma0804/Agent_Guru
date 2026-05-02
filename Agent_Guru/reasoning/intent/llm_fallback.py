@@ -70,7 +70,7 @@ class LLMFallbackConfig:
 
     Attributes:
         provider: LLM provider ("ollama", "openai", or "anthropic")
-        model: Model name (e.g., "qwen2.5:14b-instruct", "gpt-4-turbo-preview", "claude-3-5-sonnet-20241022")
+        model: Model name (e.g., "gemma3:4b", "gpt-4-turbo-preview", "claude-3-5-sonnet-20241022")
         api_key: API key for LLM provider (not needed for Ollama)
         ollama_host: Ollama server host (default: "127.0.0.1")
         ollama_port: Ollama server port (default: 11434)
@@ -81,7 +81,7 @@ class LLMFallbackConfig:
     """
 
     provider: str = "ollama"  # Default to local Ollama
-    model: str = "qwen2.5:14b-instruct"  # Default to Qwen for complex reasoning
+    model: str = "gemma3:4b"  # Default to Qwen for complex reasoning
     api_key: Optional[str] = None
     ollama_host: str = "127.0.0.1"
     ollama_port: int = 11434
@@ -378,7 +378,7 @@ Classify the following input:"""
             "format": "json",
         }
 
-        # asyncio.to_thread() propagates contextvars — preferred over run_in_executor
+        # asyncio.to_thread() propagates contextvars â€” preferred over run_in_executor
         _post = functools.partial(
             requests.post,  # nosec B113
             f"{base_url}/api/generate",
@@ -406,7 +406,7 @@ Classify the following input:"""
         if self.client is None:
             raise RuntimeError("OpenAI client not initialized")
 
-        # asyncio.to_thread() propagates contextvars — preferred over run_in_executor
+        # asyncio.to_thread() propagates contextvars â€” preferred over run_in_executor
         _create = functools.partial(
             self.client.chat.completions.create,  # type: ignore[union-attr]
             model=self.config.model,
@@ -434,7 +434,7 @@ Classify the following input:"""
         if self.client is None:
             raise RuntimeError("Anthropic client not initialized")
 
-        # asyncio.to_thread() propagates contextvars — preferred over run_in_executor
+        # asyncio.to_thread() propagates contextvars â€” preferred over run_in_executor
         _create = functools.partial(
             self.client.messages.create,  # type: ignore[union-attr]
             model=self.config.model,
@@ -469,11 +469,11 @@ Classify the following input:"""
             text = text[:-3]
         text = text.strip()
 
-        # Parse JSON — raise ValueError on failure so caller can retry
+        # Parse JSON â€” raise ValueError on failure so caller can retry
         try:
             response_data = json.loads(text)
         except json.JSONDecodeError as exc:
-            raise ValueError(f"LLM returned invalid JSON: {exc} — raw: {text[:200]}") from exc
+            raise ValueError(f"LLM returned invalid JSON: {exc} â€” raw: {text[:200]}") from exc
 
         # Validate with Pydantic
         try:

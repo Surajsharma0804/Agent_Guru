@@ -17,7 +17,7 @@ import logging
 _logger = logging.getLogger(__name__)
 import signal
 import sys
-from typing import Optional
+from typing import Any, Optional
 
 # Load .env before anything else so OLLAMA_MODEL, API keys, etc. are available
 try:
@@ -217,6 +217,141 @@ def _load_gpu_pool():
 
 
 # ---------------------------------------------------------------------------
+# Silero VAD — production-grade end-of-speech detection (same as Alexa/Siri)
+# ---------------------------------------------------------------------------
+
+_silero_vad_model: Any = None
+_silero_get_speech_ts: Any = None
+
+
+def _load_silero_vad() -> bool:
+    """Load Silero VAD model once. Returns True on success."""
+    global _silero_vad_model, _silero_get_speech_ts
+    if _silero_vad_model is not None:
+        return True
+    try:
+        from silero_vad import load_silero_vad, get_speech_timestamps  # type: ignore[import]
+        _silero_vad_model = load_silero_vad()
+        _silero_get_speech_ts = get_speech_timestamps
+        logger.info("Silero VAD loaded — production-grade end-of-speech detection active")
+        return True
+    except Exception as exc:
+        logger.warning("Silero VAD unavailable (%s) — using energy fallback", exc)
+        return False
+
+
+async def _capture_command_with_vad(
+    wake_manager: Any,
+    max_duration_s: float = 15.0,
+    silence_duration_s: float = 1.5,
+    silence_rms_threshold: float = 0.003,
+) -> bytes:
+    """Capture command audio using Silero VAD — same approach as Alexa/Siri.
+
+    How Alexa/Siri do it:
+    1. Start recording immediately after wake word fires
+    2. Use neural VAD (Silero) to detect speech vs silence in real-time
+    3. Stop recording ~1 second after the last speech segment ends
+    4. Hard cap at 15s to prevent infinite recording
+
+    Silero VAD is a neural network trained on millions of hours of speech.
+    It correctly handles natural pauses, background noise, soft speech,
+    and accented speech — far more reliable than energy thresholds.
+
+    Args:
+        wake_manager: WakeWordManager with capture_command_audio().
+        max_duration_s: Hard cap on recording duration (default 15s).
+        silence_duration_s: Stop after this many seconds of silence post-speech.
+            1.0s matches Alexa/Siri standard (700ms-1000ms).
+        silence_rms_threshold: Energy fallback threshold if Silero unavailable.
+
+    Returns:
+        Concatenated audio bytes (float32 PCM at 16kHz).
+    """
+    import numpy as np
+    import torch
+
+    # Load Silero VAD (cached after first call)
+    use_silero = _load_silero_vad()
+
+    # Each capture_command_audio(chunks=1) returns chunk_duration_s of audio
+    chunk_duration_s: float = getattr(
+        getattr(wake_manager, "_config", None), "audio_capture_duration", 1.5
+    )
+    if chunk_duration_s <= 0:
+        chunk_duration_s = 1.5
+
+    max_chunks = max(1, int(max_duration_s / chunk_duration_s))
+
+    all_audio: list[np.ndarray] = []
+    silence_after_speech_s = 0.0
+    speech_ever_detected = False
+
+    for i in range(max_chunks):
+        try:
+            chunk_bytes = await wake_manager.capture_command_audio(chunks=1)
+        except Exception as exc:
+            logger.warning("VAD capture chunk %d failed: %s", i, exc)
+            break
+
+        if not chunk_bytes:
+            silence_after_speech_s += chunk_duration_s
+        else:
+            chunk_np = np.frombuffer(chunk_bytes, dtype=np.float32).copy()
+            all_audio.append(chunk_np)
+
+            # ── Silero VAD: neural speech detection ──────────────────────
+            has_speech = False
+            if use_silero and _silero_vad_model is not None:
+                try:
+                    audio_tensor = torch.from_numpy(chunk_np)
+                    speech_ts = _silero_get_speech_ts(
+                        audio_tensor,
+                        _silero_vad_model,
+                        sampling_rate=16000,
+                        threshold=0.6,           # Higher threshold = less false positives
+                        min_speech_duration_ms=200,  # Ignore very short sounds
+                        min_silence_duration_ms=200,
+                    )
+                    has_speech = len(speech_ts) > 0
+                except Exception:
+                    rms = float(np.sqrt(np.mean(chunk_np ** 2)))
+                    has_speech = rms >= silence_rms_threshold
+            else:
+                # Energy fallback
+                rms = float(np.sqrt(np.mean(chunk_np ** 2)))
+                has_speech = rms >= silence_rms_threshold
+
+            if has_speech:
+                speech_ever_detected = True
+                silence_after_speech_s = 0.0
+                logger.debug("VAD chunk %d: SPEECH", i)
+            else:
+                silence_after_speech_s += chunk_duration_s
+                logger.debug("VAD chunk %d: silence (%.1fs after speech)", i, silence_after_speech_s)
+
+        # Stop when silence_duration_s of silence detected AFTER speech
+        if speech_ever_detected and silence_after_speech_s >= silence_duration_s:
+            logger.info(
+                "VAD: end-of-speech after %d chunks (%.1fs total, %.1fs silence)",
+                i + 1, len(all_audio) * chunk_duration_s, silence_after_speech_s
+            )
+            break
+        # Also stop if we've captured enough audio and there's been no speech at all
+        # (prevents recording forever when user doesn't speak)
+        if not speech_ever_detected and len(all_audio) * chunk_duration_s >= 6.0:
+            logger.info("VAD: no speech detected after 6s — stopping")
+            break
+
+    if not all_audio:
+        return b""
+
+    combined = np.concatenate(all_audio).astype(np.float32)
+    logger.info("VAD: captured %.1fs of audio", len(combined) / 16000)
+    return combined.tobytes()
+
+
+# ---------------------------------------------------------------------------
 # Main async startup
 # ---------------------------------------------------------------------------
 
@@ -269,6 +404,48 @@ async def run() -> None:
     await orch.startup()
     logger.info("All subsystems ready.")
 
+    # --- Pre-warm Whisper tiny for wake word personality detection ---
+    # This ensures Maya is detected correctly on the FIRST call.
+    # Without pre-warming, the first detection always falls back to the
+    # spectral heuristic (which always picks Guru).
+    # --- Pre-warm Silero VAD and Whisper tiny at startup ---
+    logger.info("Pre-loading Silero VAD...")
+    await asyncio.get_running_loop().run_in_executor(None, _load_silero_vad)
+
+    logger.info("Pre-warming Whisper tiny for wake word detection...")
+    _whisper_tiny_global: Any = None
+    try:
+        import numpy as np
+        from faster_whisper import WhisperModel
+        import torch
+
+        # Try GPU (int8) first — 10x faster than CPU, safe on Windows with CTranslate2
+        # Fall back to CPU float32 if CUDA is unavailable or has DLL issues
+        _ww_device = "cpu"
+        _ww_compute = "float32"
+        if torch.cuda.is_available():
+            try:
+                _test = WhisperModel("tiny", device="cuda", compute_type="int8")
+                _dummy = np.zeros(16000, dtype=np.float32)
+                list(_test.transcribe(_dummy, language="en", beam_size=1)[0])
+                _ww_device = "cuda"
+                _ww_compute = "int8"
+                _whisper_tiny_global = _test
+                logger.info("Whisper tiny pre-warmed on GPU (int8) — fast Maya detection ready")
+            except Exception as _gpu_err:
+                logger.warning("Whisper tiny GPU failed (%s) — using CPU", _gpu_err)
+                _whisper_tiny_global = None
+
+        if _whisper_tiny_global is None:
+            _whisper_tiny_global = WhisperModel("tiny", device="cpu", compute_type="float32")
+            _dummy = np.zeros(16000, dtype=np.float32)
+            list(_whisper_tiny_global.transcribe(_dummy, language="en", beam_size=1)[0])
+            logger.info("Whisper tiny pre-warmed on CPU — Maya detection ready")
+
+    except Exception as _e:
+        logger.warning("Whisper tiny pre-warm failed (%s) — Maya detection uses spectral fallback", _e)
+        _whisper_tiny_global = None
+
     # --- Define pipeline callback BEFORE starting the listener ---
     async def _on_wake_word(detection) -> None:
         """Called by WakeWordManager when a real wake word is detected."""
@@ -276,12 +453,24 @@ async def run() -> None:
         logger.info("Wake word: '%s' → %s", detection.wake_word, personality_name)
         _logger.info("[%s] Listening for your command...", personality_name)
 
-        # Capture ~6 seconds of command audio after the wake word.
-        # BUG-FIX: was chunks=2 (3s) — too short for a full sentence.
-        # Increased to chunks=4 (6s) so the user has time to finish speaking.
+        # Wait 0.5s after wake word fires before starting capture.
+        # This gives the user time to finish saying the wake word and
+        # take a natural breath before speaking the command.
+        await asyncio.sleep(0.5)
+
+        # Capture command audio using Silero VAD (same as Alexa/Siri).
+        # Stops ~1s after the user stops speaking. Hard cap: 15s.
         import numpy as np
         try:
-            audio_bytes = await wake_manager.capture_command_audio(chunks=4)
+            audio_bytes = await _capture_command_with_vad(wake_manager)
+
+            # Prepend wake word audio so STT sees the full utterance
+            # e.g. "Hey Maya play chak de india" → full sentence captured
+            wake_audio = getattr(detection, "audio_chunk", None)
+            if wake_audio is not None and len(wake_audio) > 0:
+                wake_bytes = wake_audio.astype(np.float32).tobytes()
+                audio_bytes = wake_bytes + audio_bytes
+
             if audio_bytes:
                 command_audio = np.frombuffer(audio_bytes, dtype=np.float32)
                 rms = float(np.sqrt(np.mean(command_audio ** 2)))
@@ -316,8 +505,8 @@ async def run() -> None:
             "hey maya": PersonalityType.MAYA,
             "maya":     PersonalityType.MAYA,
         },
-        energy_threshold=0.015,  # calibrated: silence ~0.0001, speech ~0.018-0.038
-        cooldown_seconds=2.0,     # 2s between detections
+        energy_threshold=0.025,  # raised from 0.015 — music/speaker output won't trigger
+        cooldown_seconds=3.0,    # 3s cooldown — stops rapid re-triggers from music
     )
     mgr_cfg = WakeWordManagerConfig(
         wake_word_config=wake_cfg,
@@ -330,9 +519,23 @@ async def run() -> None:
     wake_manager = WakeWordManager(mgr_cfg)
 
     await wake_manager.initialize()
-    # Brief warmup — lets the energy buffer stabilise so the first few
-    # noise frames don't immediately trigger a false detection
-    await asyncio.sleep(1.5)
+
+    # Inject the pre-warmed Whisper tiny model into the detector so it never
+    # reloads from disk on the first detection — zero latency on first Maya call.
+    if _whisper_tiny_global is not None:
+        try:
+            detector = getattr(wake_manager, "_detector", None) or getattr(wake_manager, "_wake_word_detector", None)
+            if detector is not None:
+                detector._whisper_tiny = _whisper_tiny_global
+                logger.info("Pre-warmed Whisper tiny injected into WakeWordDetector")
+        except Exception as _inj_err:
+            logger.warning("Could not inject pre-warmed Whisper: %s", _inj_err)
+
+    # Extended warmup — lets the mic AGC stabilise and energy buffer fill
+    # with real ambient noise levels so the first detection isn't a false positive.
+    # 3s matches Alexa/Google's standard mic calibration window.
+    logger.info("Calibrating microphone (3s)...")
+    await asyncio.sleep(3.0)
     await wake_manager.start_listening()
     logger.info("Microphone open — listening for wake words.")
 
@@ -386,4 +589,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         _logger.info("Interrupted.")
         sys.exit(0)
-        raise
