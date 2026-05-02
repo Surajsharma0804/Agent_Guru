@@ -48,12 +48,36 @@ del _os_startup
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
+
+# Set Windows console to UTF-8 so log messages with special chars display correctly
+import os as _os_enc
+if _os_enc.name == 'nt':
+    _os_enc.system('chcp 65001 >nul 2>&1')  # UTF-8 code page
+
+# Fix Python stdout/stderr encoding
+import sys as _sys, io as _io
+if hasattr(_sys.stdout, 'buffer'):
+    try:
+        _sys.stdout = _io.TextIOWrapper(_sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+        _sys.stderr = _io.TextIOWrapper(_sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+    except Exception:
+        pass
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
+    format="%(asctime)s  %(levelname)-8s  %(name)s - %(message)s",
     datefmt="%H:%M:%S",
+    stream=_sys.stdout,
+    force=True,
 )
 logger = logging.getLogger("guru.main")
+
+# Suppress noisy warnings that fire constantly on a dev machine.
+# None of these affect functionality — they're just informational thresholds.
+logging.getLogger("guruvision.avatar.performance").setLevel(logging.ERROR)
+logging.getLogger("guruvision.avatar").setLevel(logging.WARNING)
+logging.getLogger("phonemizer").setLevel(logging.ERROR)
+logging.getLogger("faster_whisper").setLevel(logging.WARNING)
 
 
 # ---------------------------------------------------------------------------
@@ -347,6 +371,25 @@ async def _capture_command_with_vad(
         return b""
 
     combined = np.concatenate(all_audio).astype(np.float32)
+
+    # ── Background audio rejection ────────────────────────────────────────
+    # If the captured audio looks like music/TV (high spectral flatness,
+    # low zero-crossing variance), it's probably background noise that
+    # leaked through after the wake word fired. Discard it.
+    # This is the same check used in wake word detection.
+    try:
+        from Agent_Guru.speech.audio.wake_word import WakeWordDetector
+        if WakeWordDetector._looks_like_music(combined):
+            logger.info(
+                "VAD: captured audio looks like background music — discarding "
+                "(%.1fs, rms=%.4f). Speak closer to the mic.",
+                len(combined) / 16000,
+                float(np.sqrt(np.mean(combined ** 2))),
+            )
+            return b""
+    except Exception:
+        pass  # If check fails, proceed with the audio
+
     logger.info("VAD: captured %.1fs of audio", len(combined) / 16000)
     return combined.tobytes()
 

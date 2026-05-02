@@ -437,7 +437,7 @@ class IntegrationOrchestrator:
         """
         result = PipelineResult()
 
-        # Personality routing
+        # Personality routing — initial assignment from wake word
         result.personality = self._resolve_personality(wake_event.wake_word)
 
         try:
@@ -448,6 +448,29 @@ class IntegrationOrchestrator:
             result.stages_completed = 1
 
             if not result.transcript:
+                result.stages_completed = 8
+                return result
+
+            # ── Re-check personality from transcript ──────────────────────
+            # Wake word detection can misidentify "Hey Maya" as "Hey Guru"
+            # (spectral heuristic is unreliable). If the transcript itself
+            # contains "Maya" at the start, trust the transcript over the
+            # wake word detector and switch personality.
+            transcript_lower = result.transcript.lower().strip()
+            if any(kw in transcript_lower[:30] for kw in ("maya", "hey maya", "hi maya")):
+                if result.personality != Personality.MAYA:
+                    logger.info(
+                        "Personality corrected: transcript starts with 'Maya' — "
+                        "switching from GURU to MAYA"
+                    )
+                    result.personality = Personality.MAYA
+            elif any(kw in transcript_lower[:30] for kw in ("guru", "hey guru", "hi guru")):
+                if result.personality != Personality.GURU:
+                    logger.info(
+                        "Personality corrected: transcript starts with 'Guru' — "
+                        "switching from MAYA to GURU"
+                    )
+                    result.personality = Personality.GURU
                 # Nothing heard — skip all remaining stages
                 result.stages_completed = 8
                 return result
@@ -1040,8 +1063,9 @@ class IntegrationOrchestrator:
 
         # Remove wake word fragments (including mishearings)
         wake_patterns = [
-            r"^(hey\s+|hi\s+|a\s+)?(guru|maya|himaya|hi\s*maya|hey\s*maya|hey\s*guru)\s*[,.]?\s*",
+            r"^(hey\s+|hi\s+|a\s+|he\s+)?(guru|maya|himaya|hi\s*maya|hey\s*maya|hey\s*guru|he\s*maya|he\s*guru)\s*[,.]?\s*",
             r"^hey\s+",
+            r"^he\s*,?\s*",  # Whisper mishears "Hey" as "He" — strip it
         ]
         for pat in wake_patterns:
             t = _re.sub(pat, "", t, flags=_re.I).strip()

@@ -24,10 +24,15 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 # Budget fractions — must sum to 1.0
+# On a 4GB VRAM device (RTX 2050):
+#   - Whisper small needs ~500MB → give it 40% (1.6GB headroom)
+#   - ONNX (vision) runs headless, minimal usage → 20%
+#   - Torch (avatar/emotion) → 40%
+# Ollama (LLM) manages its own VRAM separately — not tracked here.
 _BUDGETS: dict[str, float] = {
-    "whisper": 0.30,
-    "onnx": 0.30,
-    "torch": 0.40,
+    "whisper": 0.40,
+    "onnx":    0.20,
+    "torch":   0.40,
 }
 
 

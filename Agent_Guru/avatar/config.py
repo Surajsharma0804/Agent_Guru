@@ -57,9 +57,12 @@ try:
         display_height: int = Field(default=480, ge=120)
         transition_duration_ms: float = Field(default=350.0, ge=100.0, le=1000.0)
 
-        # Performance
-        max_cpu_percent: float = Field(default=80.0, gt=0.0, le=100.0)
-        max_memory_mb: float = Field(default=2048.0, gt=0.0)
+        # Performance — realistic limits for a voice assistant on a dev machine.
+        # CPU% is reported as sum across all cores (8 cores = 800% max).
+        # Memory includes Whisper + LLM + avatar + all subsystems.
+        # These are informational only — the assistant keeps working when exceeded.
+        max_cpu_percent: float = Field(default=800.0, gt=0.0, le=10000.0)  # sum across all cores
+        max_memory_mb: float = Field(default=6144.0, gt=0.0)  # 6GB covers everything
         enable_gpu: bool = Field(default=True)
 
         # Paths
@@ -148,8 +151,8 @@ except ImportError:
         display_width: int = 640
         display_height: int = 480
         transition_duration_ms: float = 350.0
-        max_cpu_percent: float = 80.0
-        max_memory_mb: float = 2048.0
+        max_cpu_percent: float = 800.0   # sum across all cores — 8 cores × 100% = 800% max
+        max_memory_mb: float = 6144.0   # 6GB — covers Whisper + LLM + avatar
         enable_gpu: bool = True
         avatar_model_path: Optional[str] = None
 
