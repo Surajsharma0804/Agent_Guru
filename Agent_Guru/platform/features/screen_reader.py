@@ -168,8 +168,10 @@ def is_screen_read_command(transcript: str) -> bool:
     """Return True if the user is asking about screen content."""
     import re
     return bool(re.search(
-        r"\b(what.s on my screen|read my screen|what do you see|"
-        r"what.s on the screen|summarize my screen|what.s open|"
+        r"\b(what.?s on my screen|what is on my screen|"
+        r"read my screen|what do you see|"
+        r"what.?s on the screen|what is on the screen|"
+        r"summarize my screen|what.?s open|what is open|"
         r"what am i looking at|describe my screen|read this|"
         r"what does this say|translate this|explain this)\b",
         transcript, re.I,

@@ -206,7 +206,7 @@ def parse_reminder_from_transcript(transcript: str) -> Optional[dict]:
     """
     t = transcript.strip()
 
-    # Normalize "half an hour" → "30 minutes", "an hour" → "60 minutes"
+    # Normalize natural time expressions FIRST before pattern matching
     t = re.sub(r"\bhalf\s+an?\s+hour\b", "30 minutes", t, flags=re.I)
     t = re.sub(r"\ban?\s+hour\b", "60 minutes", t, flags=re.I)
     t = re.sub(r"\ba\s+minute\b", "1 minute", t, flags=re.I)
@@ -214,14 +214,17 @@ def parse_reminder_from_transcript(transcript: str) -> Optional[dict]:
     t = re.sub(r"\ba\s+few\s+minutes\b", "3 minutes", t, flags=re.I)
     t = re.sub(r"\ba\s+couple\s+(?:of\s+)?minutes\b", "2 minutes", t, flags=re.I)
 
-    # Pattern 1: "remind me in X minutes to Y" or "remind me to Y in X minutes"
+    # Pattern 1: "remind me in X minutes to Y" or just "remind me in X minutes"
     m = re.search(
-        r"remind\s+me\s+in\s+(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?\s+(?:to\s+)?(.+)",
+        r"remind\s+me\s+in\s+(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?(?:\s+(?:to\s+)?(.+))?",
         t, re.I,
     )
     if m:
-        amount, unit, message = float(m.group(1)), m.group(2).lower(), m.group(3).strip().rstrip(".,!?")
-        return {"message": message, "seconds" if "sec" in unit else "minutes": amount}
+        amount = float(m.group(1))
+        unit = m.group(2).lower()
+        message = (m.group(3) or "reminder").strip().rstrip(".,!?")
+        key = "seconds" if "sec" in unit else "minutes"
+        return {"message": message, key: amount}
 
     # Pattern 2: "remind me to Y in X minutes" (reversed order)
     m = re.search(
