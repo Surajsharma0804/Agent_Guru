@@ -1,15 +1,16 @@
 """Real-time web search for Agent Guru.
 
 When the user asks about current events, recent news, or who currently holds
-a position, the LLM's training data is stale. This module fetches a live
-web snippet and injects it into the LLM prompt so the answer is accurate.
+a position, the LLM's training data is stale. This module fetches live web
+results and injects them into the LLM prompt so the answer is accurate.
 
-We use DuckDuckGo's instant answer API — no API key needed, no rate limits
-for reasonable usage, and it respects privacy (no tracking).
+We use two approaches in priority order:
+1. duckduckgo-search (ddgs) — real search results, no API key, best quality
+2. DuckDuckGo instant answer API — fallback, shallower but always works
 
-Usage:
-    result = await search_web("who is the current president of America")
-    # Returns a short snippet like "Donald Trump is the 47th president..."
+Both are free, no API key needed, privacy-respecting.
+
+Install: pip install duckduckgo-search
 """
 from __future__ import annotations
 
@@ -37,27 +38,67 @@ def needs_web_search(query: str) -> bool:
     return bool(_CURRENT_EVENT_KEYWORDS.search(query))
 
 
-async def search_web(query: str, max_chars: int = 400) -> Optional[str]:
-    """Search DuckDuckGo and return a short answer snippet.
+async def search_web(query: str, max_chars: int = 500) -> Optional[str]:
+    """Search the web and return a short answer snippet.
 
-    Uses DuckDuckGo's instant answer API (no key needed). Falls back to
-    a regular search snippet if no instant answer is available.
+    Tries duckduckgo-search (ddgs) first for real results, falls back to
+    DuckDuckGo instant answer API.
 
     Args:
         query: The search query.
-        max_chars: Maximum characters to return (keeps LLM prompt short).
+        max_chars: Maximum characters to return.
 
     Returns:
         A short text snippet, or None if search failed.
     """
+    # Try ddgs first — real search results, much better quality
+    result = await _search_ddgs(query, max_chars)
+    if result:
+        return result
+
+    # Fallback: DuckDuckGo instant answer API
+    return await _search_ddg_instant(query, max_chars)
+
+
+async def _search_ddgs(query: str, max_chars: int) -> Optional[str]:
+    """Search using duckduckgo-search library (real results, no API key)."""
     try:
-        import aiohttp
+        from duckduckgo_search import DDGS  # type: ignore[import]
+
+        def _sync_search() -> Optional[str]:
+            with DDGS() as ddgs:
+                results = list(ddgs.text(query, max_results=3))
+            if not results:
+                return None
+            # Combine top 3 snippets
+            parts = []
+            for r in results[:3]:
+                body = r.get("body", "").strip()
+                if body and len(body) > 20:
+                    parts.append(body)
+            combined = " ".join(parts)
+            return combined[:max_chars] if combined else None
+
+        loop = asyncio.get_running_loop()
+        return await asyncio.wait_for(
+            loop.run_in_executor(None, _sync_search),
+            timeout=5.0,
+        )
     except ImportError:
-        logger.debug("aiohttp not available — web search disabled")
+        logger.debug("duckduckgo-search not installed — run: pip install duckduckgo-search")
+        return None
+    except asyncio.TimeoutError:
+        logger.debug("ddgs search timed out")
+        return None
+    except Exception as exc:
+        logger.debug("ddgs search failed: %s", exc)
         return None
 
-    # Try DuckDuckGo instant answer API first
+
+async def _search_ddg_instant(query: str, max_chars: int) -> Optional[str]:
+    """Fallback: DuckDuckGo instant answer API (shallow but always works)."""
     try:
+        import aiohttp
         encoded = urllib.parse.quote_plus(query)
         url = f"https://api.duckduckgo.com/?q={encoded}&format=json&no_html=1&skip_disambig=1"
 
@@ -71,17 +112,14 @@ async def search_web(query: str, max_chars: int = 400) -> Optional[str]:
                     return None
                 data = await resp.json(content_type=None)
 
-        # Try abstract (Wikipedia-style answer)
         abstract = (data.get("AbstractText") or "").strip()
         if abstract:
             return abstract[:max_chars]
 
-        # Try answer (direct factual answer)
         answer = (data.get("Answer") or "").strip()
         if answer:
             return answer[:max_chars]
 
-        # Try related topics
         topics = data.get("RelatedTopics", [])
         for topic in topics[:3]:
             text = topic.get("Text", "").strip() if isinstance(topic, dict) else ""
@@ -89,10 +127,9 @@ async def search_web(query: str, max_chars: int = 400) -> Optional[str]:
                 return text[:max_chars]
 
         return None
-
     except asyncio.TimeoutError:
-        logger.debug("Web search timed out for: %r", query)
+        logger.debug("DDG instant answer timed out")
         return None
     except Exception as exc:
-        logger.debug("Web search failed: %s", exc)
+        logger.debug("DDG instant answer failed: %s", exc)
         return None

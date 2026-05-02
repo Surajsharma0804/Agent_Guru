@@ -82,17 +82,48 @@ $texts | Select-Object -First 100 | Out-String
 
 
 def _read_via_ocr(max_chars: int) -> Optional[str]:
-    """Take a screenshot and extract text via OCR."""
+    """Take a screenshot and extract text via OCR.
+
+    Tries in order:
+    1. Windows built-in OCR (WinRT) — no install needed, works on Win10/11
+    2. pytesseract — needs Tesseract installed, auto-detects path
+    3. easyocr — GPU-accelerated, no install needed beyond pip
+    """
     try:
         import pyautogui
         import io
 
-        # Take screenshot
         screenshot = pyautogui.screenshot()
 
-        # Try pytesseract first (best quality)
+        # 1. Windows built-in OCR (WinRT) — best option, no extra install
+        try:
+            import asyncio as _asyncio
+            buf = io.BytesIO()
+            screenshot.save(buf, format="PNG")
+            text = _asyncio.run(_winrt_ocr(buf.getvalue()))
+            if text and len(text) > 10:
+                logger.debug("WinRT OCR: %d chars", len(text))
+                return text[:max_chars]
+        except Exception:
+            pass
+
+        # 2. pytesseract — auto-detect Tesseract path on Windows
         try:
             import pytesseract  # type: ignore[import]
+
+            # Auto-detect Tesseract on Windows (common install locations)
+            import os
+            tesseract_paths = [
+                r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+                r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+                os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Tesseract-OCR", "tesseract.exe"),
+                os.path.join(os.environ.get("PROGRAMFILES", ""), "Tesseract-OCR", "tesseract.exe"),
+            ]
+            for tp in tesseract_paths:
+                if os.path.exists(tp):
+                    pytesseract.pytesseract.tesseract_cmd = tp
+                    break
+
             text = pytesseract.image_to_string(screenshot, lang="eng")
             text = text.strip()
             if text and len(text) > 10:
@@ -100,8 +131,10 @@ def _read_via_ocr(max_chars: int) -> Optional[str]:
                 return text[:max_chars]
         except ImportError:
             pass
+        except Exception as exc:
+            logger.debug("Tesseract OCR failed: %s", exc)
 
-        # Try easyocr as fallback
+        # 3. easyocr — works without any system install
         try:
             import easyocr  # type: ignore[import]
             import numpy as np
@@ -113,23 +146,6 @@ def _read_via_ocr(max_chars: int) -> Optional[str]:
                 logger.debug("EasyOCR: %d chars", len(text))
                 return text[:max_chars]
         except ImportError:
-            pass
-
-        # Try Windows built-in OCR via WinRT
-        try:
-            import asyncio
-            import winrt.windows.media.ocr as ocr  # type: ignore[import]
-            import winrt.windows.graphics.imaging as imaging  # type: ignore[import]
-            import winrt.windows.storage.streams as streams  # type: ignore[import]
-
-            buf = io.BytesIO()
-            screenshot.save(buf, format="PNG")
-            buf.seek(0)
-            # WinRT OCR is async — run in a new event loop
-            text = asyncio.run(_winrt_ocr(buf.read()))
-            if text:
-                return text[:max_chars]
-        except Exception:
             pass
 
     except Exception as exc:

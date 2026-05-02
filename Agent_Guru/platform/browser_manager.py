@@ -502,29 +502,61 @@ class BrowserManager:
 
     @staticmethod
     def _find_chrome() -> Optional[str]:
-        """Find the system Chrome/Edge executable."""
+        """Find any Chromium-based browser executable on the system.
+
+        Priority: Chrome → Edge → Brave → Opera → Vivaldi → Chromium
+        Falls back to PATH search for any of these.
+        """
         candidates = [
-            # Windows
+            # Windows — Chrome
             r"C:\Program Files\Google\Chrome\Application\chrome.exe",
             r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            # Windows — Edge
             r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
             r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-            # macOS
+            # Windows — Brave
+            r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
+            r"C:\Program Files (x86)\BraveSoftware\Brave-Browser\Application\brave.exe",
+            # Windows — Opera
+            r"C:\Users\{user}\AppData\Local\Programs\Opera\opera.exe",
+            r"C:\Program Files\Opera\opera.exe",
+            # Windows — Vivaldi
+            r"C:\Users\{user}\AppData\Local\Vivaldi\Application\vivaldi.exe",
+            # macOS — Chrome
             "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
             "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+            "/Applications/Opera.app/Contents/MacOS/Opera",
+            "/Applications/Vivaldi.app/Contents/MacOS/Vivaldi",
             # Linux
             "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
             "/usr/bin/chromium-browser",
             "/usr/bin/chromium",
             "/usr/bin/microsoft-edge",
+            "/usr/bin/brave-browser",
+            "/usr/bin/opera",
+            "/snap/bin/chromium",
         ]
+
+        import os as _os
+        username = _os.environ.get("USERNAME") or _os.environ.get("USER") or ""
         for c in candidates:
+            c = c.replace("{user}", username)
             if Path(c).exists():
                 return c
-        # Try PATH
+
+        # Try PATH for any Chromium-based browser
         import shutil
-        for name in ("google-chrome", "chromium", "chromium-browser", "msedge"):
+        for name in (
+            "google-chrome", "google-chrome-stable",
+            "chromium", "chromium-browser",
+            "msedge", "microsoft-edge",
+            "brave", "brave-browser",
+            "opera", "vivaldi",
+        ):
             found = shutil.which(name)
             if found:
                 return found
+
         return None

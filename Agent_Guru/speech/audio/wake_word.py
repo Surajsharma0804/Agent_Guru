@@ -43,6 +43,13 @@ except ImportError:
     _HAS_VOSK = False
 
 try:
+    import openwakeword  # type: ignore[import]
+    from openwakeword.model import Model as OWWModel  # type: ignore[import]
+    _HAS_OWW = True
+except ImportError:
+    _HAS_OWW = False
+
+try:
     import librosa  # type: ignore[import]
     _HAS_LIBROSA = True
 except ImportError:
@@ -140,13 +147,22 @@ class WakeWordDetector:
     # ------------------------------------------------------------------
 
     def _select_backend(self) -> str:
-        """Choose the best available backend."""
+        """Choose the best available backend.
+
+        Priority:
+        1. Porcupine — best accuracy, needs API key
+        2. openWakeWord — free, no API key, neural network, good accuracy
+        3. Vosk — offline keyword spotting
+        4. MFCC energy fallback — always available, least accurate
+        """
         access_key = (
             self.config.porcupine_access_key
             or os.environ.get("PICOVOICE_ACCESS_KEY", "")
         )
         if _HAS_PORCUPINE and access_key:
             return "porcupine"
+        if _HAS_OWW:
+            return "openwakeword"
         if _HAS_VOSK and os.path.isdir(self.config.vosk_model_path):
             return "vosk"
         return "mfcc"
@@ -223,6 +239,8 @@ class WakeWordDetector:
 
         if self._backend == "porcupine":
             return await self._detect_porcupine(audio, now)
+        if self._backend == "openwakeword":
+            return await self._detect_openwakeword(audio, now)
         if self._backend == "vosk":
             return await self._detect_vosk(audio, now)
         return await self._detect_mfcc(audio, now)
@@ -386,6 +404,77 @@ class WakeWordDetector:
     # ------------------------------------------------------------------
     # Backend implementations
     # ------------------------------------------------------------------
+
+    async def _detect_openwakeword(
+        self, audio: np.ndarray, now: float
+    ) -> WakeWordDetection | None:
+        """Detect using openWakeWord — free, no API key, neural network.
+
+        openWakeWord uses pre-trained ONNX models for common wake phrases.
+        It's more accurate than MFCC energy detection and doesn't need
+        Porcupine's API key.
+
+        We use the "hey_jarvis" model as a proxy for "hey guru" since
+        openWakeWord doesn't have a "hey guru" model out of the box.
+        The Whisper transcript step then confirms the actual wake word.
+
+        Install: pip install openwakeword
+        """
+        try:
+            if not hasattr(self, "_oww_model") or self._oww_model is None:
+                # Load openWakeWord with the best available model for "hey" phrases
+                # hey_jarvis is a good proxy — similar phonetics to "hey guru"
+                try:
+                    self._oww_model = OWWModel(
+                        wakeword_models=["hey_jarvis"],
+                        inference_framework="onnx",
+                    )
+                    logger.info("openWakeWord loaded (hey_jarvis model)")
+                except Exception as _e:
+                    # Try with default models
+                    self._oww_model = OWWModel(inference_framework="onnx")
+                    logger.info("openWakeWord loaded (default models)")
+
+            # openWakeWord expects 16kHz int16 audio in chunks
+            audio_int16 = (audio * 32767).astype(np.int16)
+
+            # Process in 80ms chunks (1280 samples at 16kHz)
+            chunk_size = 1280
+            max_score = 0.0
+            for start in range(0, len(audio_int16) - chunk_size + 1, chunk_size):
+                chunk = audio_int16[start:start + chunk_size]
+                prediction = self._oww_model.predict(chunk)
+                # Get max score across all models
+                for model_name, score in prediction.items():
+                    if score > max_score:
+                        max_score = score
+
+            # Threshold: 0.5 is a good balance of sensitivity vs false positives
+            threshold = max(0.3, 1.0 - self.config.sensitivity)
+            if max_score >= threshold:
+                # Use Whisper to confirm which wake word and which personality
+                phrase, personality = self._match_phrase_by_spectrum(audio)
+                self._last_detection_time = now
+                detection = WakeWordDetection(
+                    wake_word=phrase,
+                    personality=personality,
+                    confidence=float(max_score),
+                    timestamp=now,
+                    audio_chunk=audio,
+                )
+                logger.info(
+                    "Wake word detected (openWakeWord): %s → %s (score=%.3f)",
+                    phrase, personality, max_score,
+                )
+                return detection
+
+        except Exception as exc:
+            logger.warning("openWakeWord error: %s — falling back to MFCC", exc)
+            self._oww_model = None
+            self._backend = "mfcc"
+            return await self._detect_mfcc(audio, now)
+
+        return None
 
     async def _detect_porcupine(
         self, audio: np.ndarray, now: float

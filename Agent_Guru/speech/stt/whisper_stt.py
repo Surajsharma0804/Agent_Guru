@@ -114,7 +114,16 @@ class WhisperTranscriber:
                 language=language,
                 beam_size=self.beam_size,
                 word_timestamps=True,
-                vad_filter=True
+                vad_filter=True,
+                # initial_prompt helps Whisper with Indian names, songs, and
+                # mixed Hindi-English speech. It primes the model vocabulary
+                # without forcing a specific transcription.
+                initial_prompt=(
+                    "Guru, Maya, chak de India, Bollywood, namaste, "
+                    "YouTube, LeetCode, VS Code, GitHub, WhatsApp, "
+                    "rupees, crore, lakh, Mumbai, Delhi, Bangalore, "
+                    "Suraj, Priya, Rahul, Sharma, Kumar, Singh, Patel"
+                ) if language in (None, "en", "hi") else None,
             )
 
             # Convert generator to list

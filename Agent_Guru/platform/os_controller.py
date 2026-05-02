@@ -1353,7 +1353,7 @@ class OSController:
             browser_channel = os.environ.get("AGENT_GURU_BROWSER_CHANNEL", "").strip()
             _channels_to_try = (
                 [browser_channel] if browser_channel
-                else ["chrome", "msedge"]
+                else ["chrome", "msedge", "chrome-beta", "msedge-beta"]
             )
             for _ch in _channels_to_try:
                 try:
@@ -1368,9 +1368,14 @@ class OSController:
                     logger.warning("Channel '%s' unavailable: %s", _ch, _ch_err)
 
             if browser is None:
-                # Final fallback: bundled Playwright Chromium
-                browser = await p.chromium.launch(headless=headless)
-                _log("Browser launched (Playwright bundled Chromium — install Chrome for best experience).")
+                # Try Firefox as last resort before bundled Chromium
+                try:
+                    browser = await p.firefox.launch(headless=headless)
+                    _log("Browser launched (Firefox).")
+                except Exception:
+                    # Final fallback: bundled Playwright Chromium
+                    browser = await p.chromium.launch(headless=headless)
+                    _log("Browser launched (Playwright bundled Chromium — install Chrome for best experience).")
 
             results["browser_launched"] = True
             try:
