@@ -167,6 +167,13 @@ _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(wifi|wi-fi|wireless)\b", re.I), "settings"),
     (re.compile(r"\b(bluetooth)\b", re.I), "settings"),
     (re.compile(r"\b(airplane mode|do not disturb|dnd)\b", re.I), "settings"),
+    # Reminders and timers
+    (re.compile(r"\b(remind me|set a reminder|reminder)\b", re.I), "reminder"),
+    (re.compile(r"\b(set a timer|timer for|countdown)\b", re.I), "reminder"),
+    # Voice dictation
+    (re.compile(r"^(dictate|type this|write this|paste this)[:\s]", re.I), "dictate"),
+    # Clipboard
+    (re.compile(r"\b(clipboard|what.s in my clipboard|read my clipboard|summarize my clipboard|fix my clipboard)\b", re.I), "clipboard"),
 ]
 
 # Known desktop application names â€” these should NEVER be treated as websites.

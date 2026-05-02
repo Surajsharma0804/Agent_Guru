@@ -199,6 +199,12 @@ class IntegrationOrchestrator:
         # Persistent browser manager — one Chrome instance, CDP reconnect
         self._browser_mgr: Any = None  # lazy-init on first YouTube command
 
+        # Reminder manager — handles "remind me in X minutes" commands
+        self._reminder_mgr: Any = None  # lazy-init on first reminder command
+
+        # User memory — persistent facts about the user (name, preferences, etc.)
+        self._user_memory: Any = None  # lazy-init on first use
+
         logger.info("IntegrationOrchestrator wired — all subsystems connected")
 
     # ------------------------------------------------------------------
@@ -825,9 +831,26 @@ class IntegrationOrchestrator:
                 if reasoning_output:
                     prompt = f"{prompt}\n[Reasoning: {reasoning_output}]"
 
+                # Inject clipboard content if the user is asking about it
+                from Agent_Guru.platform.features.dictation import (
+                    is_clipboard_command, get_clipboard_text, get_clipboard_action,
+                )
+                if is_clipboard_command(prompt):
+                    clip_text = get_clipboard_text()
+                    if clip_text:
+                        clip_action = get_clipboard_action(prompt)
+                        if clip_action == "summarize":
+                            prompt = f"Summarize this text in 2-3 sentences:\n\n{clip_text[:1000]}"
+                        elif clip_action == "fix":
+                            prompt = f"Fix the grammar and spelling of this text, return only the corrected version:\n\n{clip_text[:1000]}"
+
                 # ── Personality-aware system prompt ───────────────────────
                 import datetime as _dt
                 current_date = _dt.datetime.now().strftime("%B %d, %Y")
+
+                # Inject persistent user memory so the assistant knows who it's talking to
+                from Agent_Guru.platform.features.user_memory import get_user_memory
+                user_facts = get_user_memory().get_summary()
 
                 if personality == Personality.MAYA:
                     persona = (
@@ -840,16 +863,29 @@ class IntegrationOrchestrator:
                         "You speak in a clear, direct, confident tone. "
                     )
 
+                # Real-time web search for current events questions
+                web_context = ""
+                from Agent_Guru.platform.features.web_search import needs_web_search, search_web
+                if needs_web_search(prompt):
+                    web_snippet = await search_web(prompt)
+                    if web_snippet:
+                        web_context = f"\n\nLive web search result: {web_snippet}"
+                        logger.info("Web search injected for: %r", prompt[:60])
+
                 system_prompt = (
                     f"{persona}"
                     f"Today's date is {current_date}. "
-                    "Your training data has a cutoff, so for questions about current leaders, "
+                    + (f"{user_facts} " if user_facts else "")
+                    + "Your training data has a cutoff, so for questions about current leaders, "
                     "recent events, or who currently holds a position, give the most recent "
                     "information you know and note your knowledge may not reflect events after "
                     "early 2024. "
                     "Answer directly and concisely in 1-3 sentences. "
                     "No bullet points, no markdown. Speak naturally."
                 )
+
+                if web_context:
+                    prompt = prompt + web_context
 
                 lang_instruction = ""
                 # Only add language instruction when confident the user spoke non-English.
@@ -1251,6 +1287,85 @@ class IntegrationOrchestrator:
             # Conversation → no action, TTS uses LLM response directly
             if intent_type == "conversation":
                 return None
+
+            # ── Reminder / Timer ──────────────────────────────────────────
+            # Handle before the intent_type check so "remind me" works
+            if intent_type in ("system_control", "conversation", "information"):
+                from Agent_Guru.platform.features.reminders import parse_reminder_from_transcript
+                reminder_params = parse_reminder_from_transcript(param or safe_intent)
+                if reminder_params:
+                    if self._reminder_mgr is None:
+                        from Agent_Guru.platform.features.reminders import ReminderManager
+                        self._reminder_mgr = ReminderManager()
+                        # Wire TTS so reminders speak when they fire
+                        tts_eng = getattr(self.speech_engine, "tts_engine", None)
+                        if tts_eng:
+                            import sounddevice as _sd
+                            import numpy as _np
+                            def _speak_reminder(text: str) -> None:
+                                try:
+                                    audio, sr = tts_eng.synthesize_to_array(text)
+                                    tail = _np.zeros(int(sr * 0.30), dtype=_np.float32)
+                                    padded = _np.concatenate([audio.astype(_np.float32), tail])
+                                    _sd.play(padded, samplerate=sr)
+                                    _sd.wait()
+                                except Exception as _e:
+                                    logger.warning("Reminder TTS failed: %s", _e)
+                            self._reminder_mgr.set_speak_callback(_speak_reminder)
+                    msg = reminder_params.get("message", "reminder")
+                    mins = reminder_params.get("minutes")
+                    secs = reminder_params.get("seconds")
+                    at_t = reminder_params.get("at_time")
+                    confirmation = await self._reminder_mgr.set_reminder(
+                        msg, minutes=mins, seconds=secs, at_time=at_t
+                    )
+                    return confirmation
+
+            # ── Voice dictation ───────────────────────────────────────────
+            if intent_type == "system_control" and action in ("type_text", "dictate"):
+                from Agent_Guru.platform.features.dictation import (
+                    is_dictation_command, extract_dictation_text,
+                )
+                raw_transcript = param or safe_intent
+                if is_dictation_command(raw_transcript):
+                    text_to_type = extract_dictation_text(raw_transcript)
+                    if text_to_type:
+                        fn = getattr(ctrl, "type_text", None)
+                        if fn:
+                            await asyncio.to_thread(fn, text_to_type)
+                            return f"Typed: {self._sanitize_output(text_to_type[:50])}"
+
+            # ── Clipboard operations ──────────────────────────────────────
+            if intent_type in ("system_control", "information"):
+                from Agent_Guru.platform.features.dictation import (
+                    is_clipboard_command, get_clipboard_text, get_clipboard_action,
+                )
+                raw = param or safe_intent
+                if is_clipboard_command(raw):
+                    clip_text = get_clipboard_text()
+                    if not clip_text:
+                        return "Your clipboard is empty."
+                    clip_action = get_clipboard_action(raw)
+                    if clip_action == "read":
+                        short = clip_text[:200]
+                        return f"Your clipboard contains: {short}"
+                    # summarize/fix — let LLM handle it by returning None
+                    # (the transcript will be passed to LLM with clipboard context)
+                    return None
+
+            # ── User memory extraction ────────────────────────────────────
+            # "my name is X", "I live in Y" etc — store silently
+            if intent_type in ("conversation", "information"):
+                from Agent_Guru.platform.features.user_memory import (
+                    get_user_memory, extract_user_fact,
+                )
+                fact = extract_user_fact(param or safe_intent)
+                if fact:
+                    key, value = fact
+                    get_user_memory().set(key, value)
+                    if key == "name":
+                        return f"Got it, I'll remember your name is {self._sanitize_output(value)}."
+                    return f"Got it, I'll remember that."
 
             if intent_type not in ("system_control", "file_ops", "communication", "information"):
                 logger.info("ACTION SKIPPED — intent_type=%r. Full intent: %r", intent_type, safe_intent)
