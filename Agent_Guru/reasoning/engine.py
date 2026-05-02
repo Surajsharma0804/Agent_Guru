@@ -370,7 +370,7 @@ class ReasoningEngine:
                 logger.info("LLM provider: Gemini")
                 return provider
             except Exception as e:
-                logger.warning("Gemini provider failed: %s", e)
+                logger.debug("Gemini provider not available (module not installed): %s", e)
 
         # ------------------------------------------------------------------ #
         # 2. DeepSeek â€” fast and cost-effective                               #
@@ -390,7 +390,7 @@ class ReasoningEngine:
                 logger.info("LLM provider: DeepSeek")
                 return provider
             except Exception as e:
-                logger.warning("DeepSeek provider failed: %s", e)
+                logger.debug("DeepSeek provider not available (module not installed): %s", e)
 
         # ------------------------------------------------------------------ #
         # 3. OpenAI â€” reliable, widely supported                              #
@@ -410,7 +410,7 @@ class ReasoningEngine:
                 logger.info("LLM provider: OpenAI")
                 return provider
             except Exception as e:
-                logger.warning("OpenAI provider failed: %s", e)
+                logger.debug("OpenAI provider not available (module not installed): %s", e)
 
         # ------------------------------------------------------------------ #
         # 4. Ollama â€” local fallback (desktop / self-hosted production)       #

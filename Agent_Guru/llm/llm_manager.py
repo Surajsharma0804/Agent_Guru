@@ -1,30 +1,15 @@
-"""Multi-platform LLM Manager for Agent Guru.
+"""LLM Manager for Agent Guru.
 
-Higher-level manager over the existing LLM runtime infrastructure with:
-- Platform-specific LLM support (Desktop: Ollama + Cloud, Mobile: Cloud only)
-- Personality-specific system prompts (Guru vs Maya)
-- Conversation context management per personality/session
-- Fallback mechanism: cloud â†’ local Ollama (desktop only)
-- API key validation and secure storage via keyring
-- <2 second response latency target
+This is the high-level wrapper over the LLM runtime. It handles:
+- Personality-specific system prompts (Guru = professional, Maya = warm)
+- Conversation context per session
+- Provider selection with graceful fallback to Ollama
 
-Performance Requirements:
-    - LLM response latency: <2 seconds (95th percentile)
-    - Guru personality: Professional, confident, analytical
-    - Maya personality: Warm, empathetic, creative
-    - Desktop: Ollama (local) + Cloud APIs with fallback
-    - Mobile: Cloud APIs only
+Cloud providers (OpenAI, Anthropic, Google) are supported if their adapter
+files exist and an API key is configured. If not, we fall back to Ollama
+without crashing. The assistant should always work out of the box.
 
-Architecture:
-    LLMManager
-    â”œâ”€â”€ LLMRuntime (llm_runtime.py) â€” unified provider interface
-    â”œâ”€â”€ FailoverRouter (failover_router.py) â€” provider failover chain
-    â”œâ”€â”€ ContextManager (context_manager.py) â€” conversation history
-    â””â”€â”€ keyring â€” secure API key storage
-
-Author: Agent Guru Team
-Date: 2026-03-20
-Version: 1.0.0
+Currently active: gemma3:4b via Ollama (best for 4GB VRAM).
 """
 from __future__ import annotations
 
@@ -40,19 +25,36 @@ from typing import Any, Optional
 from Agent_Guru.llm.failover_router import FailoverConfig, FailoverResult, ProviderFailoverRouter
 from Agent_Guru.llm.llm_runtime import LLMRuntime
 from Agent_Guru.llm.models import (
-    AnthropicConfig,
     CompletionRequest,
-    GoogleConfig,
     Message,
     ModelProvider,
     OllamaConfig,
-    OpenAIConfig,
     RuntimeConfig,
 )
-from Agent_Guru.llm.providers.anthropic_adapter import AnthropicAdapter
-from Agent_Guru.llm.providers.google_adapter import GoogleAdapter
 from Agent_Guru.llm.providers.ollama_adapter import OllamaAdapter
-from Agent_Guru.llm.providers.openai_adapter import OpenAIAdapter
+
+# Cloud adapters are optional — only available if the adapter files exist.
+# We import them lazily so a missing file doesn't crash the whole module.
+try:
+    from Agent_Guru.llm.providers.openai_adapter import OpenAIAdapter as _OpenAIAdapter  # type: ignore[import]
+    _HAS_OPENAI = True
+except ImportError:
+    _OpenAIAdapter = None  # type: ignore[assignment,misc]
+    _HAS_OPENAI = False
+
+try:
+    from Agent_Guru.llm.providers.anthropic_adapter import AnthropicAdapter as _AnthropicAdapter  # type: ignore[import]
+    _HAS_ANTHROPIC = True
+except ImportError:
+    _AnthropicAdapter = None  # type: ignore[assignment,misc]
+    _HAS_ANTHROPIC = False
+
+try:
+    from Agent_Guru.llm.providers.google_adapter import GoogleAdapter as _GoogleAdapter  # type: ignore[import]
+    _HAS_GOOGLE = True
+except ImportError:
+    _GoogleAdapter = None  # type: ignore[assignment,misc]
+    _HAS_GOOGLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -61,21 +63,19 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 GURU_SYSTEM_PROMPT = (
-    "You are Guru, a professional AI companion and voice assistant. "
+    "You are Guru, a professional AI voice assistant. "
     "You are confident, analytical, and knowledgeable. "
-    "You speak clearly and directly, like a trusted advisor. "
+    "Speak clearly and directly, like a trusted advisor. "
     "Keep responses concise and natural for voice output. "
-    "Avoid markdown, bullet points, or formatting. "
-    "You are professional, precise, and solution-oriented."
+    "No markdown, no bullet points, no formatting."
 )
 
 MAYA_SYSTEM_PROMPT = (
-    "You are Maya, a warm AI companion and voice assistant. "
+    "You are Maya, a warm AI voice assistant. "
     "You are empathetic, creative, and supportive. "
-    "You speak naturally and friendly, like a close friend. "
+    "Speak naturally and friendly, like a close friend. "
     "Keep responses concise and natural for voice output. "
-    "Avoid markdown, bullet points, or formatting. "
-    "You are warm, encouraging, and emotionally intelligent."
+    "No markdown, no bullet points, no formatting."
 )
 
 PERSONALITY_PROMPTS: dict[str, str] = {
@@ -83,28 +83,21 @@ PERSONALITY_PROMPTS: dict[str, str] = {
     "maya": MAYA_SYSTEM_PROMPT,
 }
 
-# Default models per provider
-_DEFAULT_MODELS: dict[ModelProvider, str] = {
-    ModelProvider.OLLAMA: "llama3.2",
-    ModelProvider.OPENAI: "gpt-4o-mini",
-    ModelProvider.ANTHROPIC: "claude-3-haiku-20240307",
-    ModelProvider.GOOGLE: "gemini-1.5-flash",
+# Default model names per provider (used for API key testing)
+_DEFAULT_MODELS: dict[str, str] = {
+    "openai": "gpt-4o-mini",
+    "anthropic": "claude-3-haiku-20240307",
+    "google": "gemini-1.5-flash",
+    "ollama": "gemma3:4b",
 }
+
 
 # ---------------------------------------------------------------------------
 # Platform detection
 # ---------------------------------------------------------------------------
 
-
 def _detect_platform() -> str:
-    """Return a normalised platform identifier.
-
-    Returns:
-        One of ``"windows"``, ``"macos"``, ``"linux"``, ``"android"``,
-        ``"ios"``, or ``"unknown"``.
-    """
-    import os
-
+    """Return a normalised platform identifier."""
     system = platform.system().lower()
     if system == "windows":
         return "windows"
@@ -117,12 +110,7 @@ def _detect_platform() -> str:
     if system == "java":
         return "android"
     try:
-        import objc_util  # type: ignore[import]  # Pythonista
-        return "ios"
-    except ImportError:
-        pass
-    try:
-        import Foundation  # type: ignore[import]  # pyobjc
+        import objc_util  # type: ignore[import]
         return "ios"
     except ImportError:
         pass
@@ -130,7 +118,7 @@ def _detect_platform() -> str:
 
 
 def _is_desktop_platform(plat: str) -> bool:
-    """Return True if the platform supports local Ollama LLM."""
+    """Return True if the platform supports local Ollama."""
     return plat in ("windows", "macos", "linux", "unknown")
 
 
@@ -140,46 +128,24 @@ def _is_mobile_platform(plat: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# LLM provider enum
+# Enums and dataclasses
 # ---------------------------------------------------------------------------
-
 
 class LLMProvider(Enum):
     """Supported LLM providers."""
-
     OLLAMA = "ollama"
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
 
 
-# ---------------------------------------------------------------------------
-# LLM configuration
-# ---------------------------------------------------------------------------
-
-
 @dataclass
 class LLMConfig:
-    """Configuration for the LLM Manager.
-
-    Attributes:
-        mode: ``"local"`` for Ollama, ``"cloud"`` for cloud APIs.
-        provider: Active cloud provider (used when mode is ``"cloud"``).
-        ollama_host: Ollama server URL (desktop only).
-        ollama_model: Default Ollama model name.
-        cloud_model: Default cloud model name (overrides provider default).
-        api_key: Cloud API key (stored securely via keyring when empty).
-        max_context_messages: Maximum conversation history messages.
-        max_latency_ms: Target maximum response latency in ms.
-        temperature: LLM sampling temperature.
-        max_tokens: Maximum tokens per response.
-        enable_fallback: Whether to fall back cloudâ†’local on desktop.
-    """
-
-    mode: str = "cloud"  # "local" or "cloud"
-    provider: LLMProvider = LLMProvider.OPENAI
+    """Configuration for the LLM Manager."""
+    mode: str = "local"  # "local" or "cloud"
+    provider: LLMProvider = LLMProvider.OLLAMA
     ollama_host: str = "http://localhost:11434"
-    ollama_model: str = "gemma3:4b"  # default to what's installed
+    ollama_model: str = "gemma3:4b"
     cloud_model: Optional[str] = None
     api_key: str = ""
     max_context_messages: int = 20
@@ -189,25 +155,9 @@ class LLMConfig:
     enable_fallback: bool = True
 
 
-# ---------------------------------------------------------------------------
-# LLM response
-# ---------------------------------------------------------------------------
-
-
 @dataclass
 class LLMResponse:
-    """Response from the LLM Manager.
-
-    Attributes:
-        content: Generated text response.
-        personality: Personality used (``"guru"`` or ``"maya"``).
-        provider_used: Which LLM provider generated the response.
-        latency_ms: Total response latency in milliseconds.
-        model: Model name used.
-        used_fallback: Whether a fallback provider was used.
-        session_id: Session identifier for context tracking.
-    """
-
+    """Response from the LLM Manager."""
     content: str
     personality: str
     provider_used: str
@@ -221,36 +171,23 @@ class LLMResponse:
 # LLMManager
 # ---------------------------------------------------------------------------
 
-
 class LLMManager:
-    """Multi-platform LLM Manager with personality context and fallback.
+    """High-level LLM manager with personality context and provider fallback.
 
-    Provides a unified high-level API for LLM generation across platforms:
+    Desktop: Ollama (local) is the primary provider. Cloud APIs are used
+    if an API key is set and the adapter is installed.
 
-    - **Desktop** (Windows / macOS / Linux): Ollama (local) + Cloud APIs
-      with automatic fallback (cloud â†’ local when cloud fails)
-    - **Mobile** (Android / iOS): Cloud APIs only (no local LLM support)
-
-    Dual personality system prompts:
-    - **Guru**: Professional, confident, analytical
-    - **Maya**: Warm, empathetic, creative
+    Mobile: Cloud APIs only (no local LLM support).
 
     Example::
 
         manager = LLMManager()
         await manager.initialize()
-
         response = await manager.generate_response(
             query="What is the weather like today?",
             personality="guru",
-            session_id="user_session_1",
         )
         print(response.content)
-
-    Performance:
-        - Response latency: <2 seconds (95th percentile)
-        - Context management: per-personality conversation history
-        - Fallback: cloud â†’ local Ollama (desktop only)
     """
 
     def __init__(
@@ -258,12 +195,6 @@ class LLMManager:
         config: Optional[LLMConfig] = None,
         platform_override: Optional[str] = None,
     ) -> None:
-        """Initialise the LLM manager.
-
-        Args:
-            config: LLM configuration. Defaults to :class:`LLMConfig`.
-            platform_override: Override platform detection (for testing).
-        """
         self._config = config or LLMConfig()
         self._platform = platform_override or _detect_platform()
         self._is_desktop = _is_desktop_platform(self._platform)
@@ -282,10 +213,8 @@ class LLMManager:
         self._initialized: bool = False
 
         logger.info(
-            "LLMManager created â€” platform=%s, is_desktop=%s, mode=%s",
-            self._platform,
-            self._is_desktop,
-            self._config.mode,
+            "LLMManager created — platform=%s, is_desktop=%s, mode=%s",
+            self._platform, self._is_desktop, self._config.mode,
         )
 
     # ------------------------------------------------------------------
@@ -293,19 +222,10 @@ class LLMManager:
     # ------------------------------------------------------------------
 
     async def initialize(self) -> None:
-        """Initialize LLM runtime, providers, and context manager.
+        """Initialize LLM runtime and provider chain.
 
-        Loads API keys from keyring if not provided in config.
-        Sets up platform-appropriate provider chain:
-        - Desktop: Ollama â†’ Cloud APIs (with fallback)
-        - Mobile: Cloud APIs only
-
-        Auto-fallback: if no cloud API key is found anywhere and we're on
-        desktop, silently switch to local Ollama mode so the assistant still
-        works without any API key configured.
-
-        Raises:
-            RuntimeError: If already initialized.
+        Auto-detects available providers. If no cloud API key is found
+        and we're on desktop, silently switches to local Ollama mode.
         """
         if self._initialized:
             logger.warning("LLMManager already initialized")
@@ -317,68 +237,45 @@ class LLMManager:
                 self._config.provider
             )
 
-        # Auto-detect: if no cloud key is set anywhere, fall back to local Ollama.
-        # This lets the assistant work out of the box without any API key.
+        # Auto-detect: if no cloud key is set anywhere, use local Ollama.
         if self._is_desktop and self._config.mode == "cloud":
-            # BUG-019: old logic was mutually exclusive â€” only the single
-            # configured provider's has_* flag could be True (the others were
-            # always False because they checked the same api_key+provider pair).
-            # Now each flag checks its own env var independently so any provider
-            # key in the environment is correctly detected.
-            cfg_key = (self._config.api_key or "").strip()
-            has_openai = bool(
-                (cfg_key and self._config.provider == LLMProvider.OPENAI)
-                or os.environ.get("OPENAI_API_KEY", "").strip()
-            )
-            has_anthropic = bool(
-                (cfg_key and self._config.provider == LLMProvider.ANTHROPIC)
-                or os.environ.get("ANTHROPIC_API_KEY", "").strip()
-            )
-            has_google = bool(
-                (cfg_key and self._config.provider == LLMProvider.GOOGLE)
-                or os.environ.get("GOOGLE_API_KEY", "").strip()
-                or (
-                    os.environ.get("GEMINI_API_KEY", "").strip()
-                    and os.environ.get("GEMINI_API_KEY", "") != "your-gemini-api-key-here"
-                )
-            )
-            # also check env vars directly for any provider
-            has_any_cloud_key = (
-                has_openai or has_anthropic or has_google
-                or bool(os.environ.get("DEEPSEEK_API_KEY", "").strip())
-            )
+            has_any_cloud_key = any([
+                os.environ.get("OPENAI_API_KEY", "").strip(),
+                os.environ.get("ANTHROPIC_API_KEY", "").strip(),
+                os.environ.get("GOOGLE_API_KEY", "").strip(),
+                os.environ.get("GEMINI_API_KEY", "").strip(),
+                os.environ.get("DEEPSEEK_API_KEY", "").strip(),
+                (self._config.api_key and self._config.provider != LLMProvider.OLLAMA),
+            ])
             if not has_any_cloud_key:
                 logger.info(
-                    "No cloud API key found â€” switching to local Ollama mode "
+                    "No cloud API key found — switching to local Ollama mode "
                     "(model: %s at %s)",
-                    self._config.ollama_model,
-                    self._config.ollama_host,
+                    self._config.ollama_model, self._config.ollama_host,
                 )
                 self._config.mode = "local"
                 self._config.provider = LLMProvider.OLLAMA
 
-        # Build runtime config
+        # Build runtime config (Ollama only — cloud configs added if adapters exist)
         runtime_config = self._build_runtime_config()
 
         # Build provider adapters
-        adapters = self._build_adapters(runtime_config)
+        adapters = self._build_adapters()
 
-        # Build failover chain based on platform
+        # Build failover chain
         failover_config = self._build_failover_config()
         self._failover_router = ProviderFailoverRouter(
             config=failover_config,
             adapters=adapters,
         )
 
-        # Build LLM runtime for direct calls â€” context management is owned by LLMRuntime
+        # Build LLM runtime for direct calls
         self._runtime = LLMRuntime.from_config(runtime_config)
 
         self._initialized = True
         logger.info(
-            "LLMManager initialized â€” platform=%s, provider=%s, mode=%s",
-            self._platform,
-            self._config.provider.value,
-            self._config.mode,
+            "LLMManager initialized — platform=%s, provider=%s, mode=%s",
+            self._platform, self._config.provider.value, self._config.mode,
         )
 
     async def shutdown(self) -> None:
@@ -403,28 +300,16 @@ class LLMManager:
     ) -> LLMResponse:
         """Generate an LLM response with personality context.
 
-        Injects the personality-specific system prompt, retrieves
-        conversation history for the session, and generates a response
-        using the configured provider chain.
-
-        On desktop, falls back from cloud to local Ollama if cloud fails.
-        On mobile, only cloud APIs are used.
-
         Args:
             query: User query or command text.
-            personality: Personality to use (``"guru"`` or ``"maya"``).
+            personality: "guru" or "maya".
             session_id: Session ID for conversation context tracking.
-                Defaults to ``"{personality}_default"`` when ``None``.
-            context_messages: Optional additional context messages to inject.
+            context_messages: Optional additional context messages.
             temperature: Override sampling temperature.
             max_tokens: Override maximum response tokens.
 
         Returns:
-            :class:`LLMResponse` with generated content and metadata.
-
-        Raises:
-            RuntimeError: If :meth:`initialize` has not been called.
-            ValueError: If personality is not ``"guru"`` or ``"maya"``.
+            LLMResponse with generated content and metadata.
         """
         if not self._initialized:
             raise RuntimeError("Call initialize() before generate_response()")
@@ -440,7 +325,6 @@ class LLMManager:
         effective_temp = temperature if temperature is not None else self._config.temperature
         effective_max_tokens = max_tokens if max_tokens is not None else self._config.max_tokens
 
-        # Build messages with personality system prompt
         messages = self._build_messages(
             query=query,
             personality=personality,
@@ -448,7 +332,6 @@ class LLMManager:
             extra_context=context_messages,
         )
 
-        # Build completion request
         model = self._get_active_model()
         request = CompletionRequest(
             model=model,
@@ -460,17 +343,17 @@ class LLMManager:
 
         t_start = time.perf_counter()
 
-        # Execute with failover
         if self._failover_router is None:
-            raise RuntimeError("LLMManager not initialized â€” call initialize() first")
+            raise RuntimeError("LLMManager not initialized — call initialize() first")
+
         result: FailoverResult = await self._failover_router.complete_with_failover(
             request=request,
-            inject_system_prompt=False,  # We inject personality prompt ourselves
+            inject_system_prompt=False,
         )
 
         latency_ms = (time.perf_counter() - t_start) * 1000
 
-        # Update conversation context via LLMRuntime's context manager
+        # Update conversation context
         if self._runtime is not None and self._runtime.context_manager is not None:
             user_msg = Message(role="user", content=query)
             assistant_msg = Message(role="assistant", content=result.response.content)
@@ -485,12 +368,8 @@ class LLMManager:
         )
 
         logger.info(
-            "LLM response generated â€” personality=%s, provider=%s, "
-            "latency=%.1fms, fallback=%s",
-            personality,
-            provider_name,
-            latency_ms,
-            result.used_fallback,
+            "LLM response — personality=%s, provider=%s, latency=%.1fms, fallback=%s",
+            personality, provider_name, latency_ms, result.used_fallback,
         )
 
         return LLMResponse(
@@ -508,49 +387,22 @@ class LLMManager:
     # ------------------------------------------------------------------
 
     def validate_api_key(self, provider: LLMProvider, api_key: str) -> bool:
-        """Validate an API key format for the given provider.
-
-        Performs basic format validation (prefix checks) without making
-        network calls.  For full validation, use :meth:`test_api_key`.
-
-        Args:
-            provider: LLM provider to validate for.
-            api_key: API key string to validate.
-
-        Returns:
-            ``True`` if the key passes format validation, ``False`` otherwise.
-        """
-        # Ollama is local â€” no API key needed, always valid
+        """Validate an API key format for the given provider (no network call)."""
         if provider == LLMProvider.OLLAMA:
-            return True
-
+            return True  # Ollama is local — no key needed
         if not api_key or not api_key.strip():
             return False
-
         key = api_key.strip()
-
         if provider == LLMProvider.OPENAI:
             return key.startswith("sk-") and len(key) > 20
-
         if provider == LLMProvider.ANTHROPIC:
             return key.startswith("sk-ant-") and len(key) > 20
-
         if provider == LLMProvider.GOOGLE:
-            # Google API keys are typically 39 chars
             return len(key) >= 20
-
         return len(key) >= 10
 
     def store_api_key(self, provider: LLMProvider, api_key: str) -> bool:
-        """Store an API key securely in the OS keychain via keyring.
-
-        Args:
-            provider: LLM provider the key belongs to.
-            api_key: API key to store.
-
-        Returns:
-            ``True`` if stored successfully, ``False`` on error.
-        """
+        """Store an API key securely in the OS keychain."""
         try:
             import keyring  # type: ignore[import]
             keyring.set_password("agent_guru", provider.value, api_key)
@@ -561,42 +413,22 @@ class LLMManager:
             return False
 
     def get_api_key(self, provider: LLMProvider) -> Optional[str]:
-        """Retrieve an API key from the OS keychain.
-
-        Args:
-            provider: LLM provider to retrieve the key for.
-
-        Returns:
-            API key string or ``None`` if not found.
-        """
+        """Retrieve an API key from the OS keychain."""
         try:
             import keyring  # type: ignore[import]
-            key = keyring.get_password("agent_guru", provider.value)
-            return key
+            return keyring.get_password("agent_guru", provider.value)
         except Exception as exc:
             logger.warning("Failed to retrieve API key for %s: %s", provider.value, exc)
             return None
 
-    async def test_api_key(
-        self, provider: LLMProvider, api_key: str
-    ) -> bool:
-        """Test an API key by making a minimal request to the provider.
-
-        Args:
-            provider: LLM provider to test against.
-            api_key: API key to test.
-
-        Returns:
-            ``True`` if the key is valid and the provider responds,
-            ``False`` otherwise.
-        """
+    async def test_api_key(self, provider: LLMProvider, api_key: str) -> bool:
+        """Test an API key by making a minimal request to the provider."""
         if not self.validate_api_key(provider, api_key):
             return False
-
         try:
             adapter = self._create_adapter_for_provider(provider, api_key)
             test_request = CompletionRequest(
-                model=_DEFAULT_MODELS[self._provider_to_model_provider(provider)],
+                model=_DEFAULT_MODELS.get(provider.value, "gpt-4o-mini"),
                 messages=[Message(role="user", content="Hi")],
                 max_tokens=1,
                 temperature=0.0,
@@ -612,99 +444,57 @@ class LLMManager:
     # ------------------------------------------------------------------
 
     def get_conversation_history(self, session_id: str) -> list[Message]:
-        """Return conversation history for a session.
-
-        Args:
-            session_id: Session identifier.
-
-        Returns:
-            List of :class:`~Agent_Guru.llm.models.Message` objects.
-        """
+        """Return conversation history for a session."""
         if self._runtime is None or self._runtime.context_manager is None:
             return []
         ctx = self._runtime.context_manager.sessions.get(session_id)
         return list(ctx.messages) if ctx else []
 
     def clear_conversation_history(self, session_id: str) -> None:
-        """Clear conversation history for a session.
-
-        Args:
-            session_id: Session identifier to clear.
-        """
+        """Clear conversation history for a session."""
         if self._runtime is not None and self._runtime.context_manager is not None:
             self._runtime.context_manager.clear_context(session_id)
             logger.debug("Cleared conversation history for session: %s", session_id)
 
     def get_context_usage(self, session_id: str, model: str = "gpt-4o-mini") -> dict[str, Any]:
-        """Return context window usage statistics for a session.
-
-        Args:
-            session_id: Session identifier.
-            model: Model name for context limit lookup.
-
-        Returns:
-            Dict with ``token_count``, ``message_count``, ``context_limit``,
-            ``usage_percentage``.
-        """
+        """Return context window usage statistics for a session."""
         if self._runtime is None or self._runtime.context_manager is None:
             return {"token_count": 0, "message_count": 0, "context_limit": 4096, "usage_percentage": 0.0}
         return self._runtime.context_manager.get_context_usage(session_id, model)
 
     # ------------------------------------------------------------------
-    # Platform and provider info
+    # Properties
     # ------------------------------------------------------------------
 
     @property
     def platform(self) -> str:
-        """Detected platform name."""
         return self._platform
 
     @property
     def is_desktop(self) -> bool:
-        """True when running on a desktop platform (Ollama supported)."""
         return self._is_desktop
 
     @property
     def is_mobile(self) -> bool:
-        """True when running on a mobile platform (cloud API only)."""
         return self._is_mobile
 
     @property
     def is_initialized(self) -> bool:
-        """True when the manager has been successfully initialized."""
         return self._initialized
 
     @property
     def config(self) -> LLMConfig:
-        """Current LLM configuration."""
         return self._config
 
     def get_personality_prompt(self, personality: str) -> str:
-        """Return the system prompt for a personality.
-
-        Args:
-            personality: Personality name (``"guru"`` or ``"maya"``).
-
-        Returns:
-            System prompt string.
-
-        Raises:
-            ValueError: If personality is unknown.
-        """
+        """Return the system prompt for a personality."""
         key = personality.lower().strip()
         if key not in PERSONALITY_PROMPTS:
-            raise ValueError(
-                f"Unknown personality '{personality}'. "
-                f"Must be one of: {list(PERSONALITY_PROMPTS.keys())}"
-            )
+            raise ValueError(f"Unknown personality '{personality}'.")
         return PERSONALITY_PROMPTS[key]
 
     def get_supported_providers(self) -> list[str]:
-        """Return list of supported provider names for the current platform.
-
-        Returns:
-            List of provider name strings. Desktop includes ``"ollama"``.
-        """
+        """Return list of supported provider names for the current platform."""
         providers = [p.value for p in LLMProvider if p != LLMProvider.OLLAMA]
         if self._is_desktop:
             providers = [LLMProvider.OLLAMA.value] + providers
@@ -715,76 +505,65 @@ class LLMManager:
     # ------------------------------------------------------------------
 
     def _build_runtime_config(self) -> RuntimeConfig:
-        """Build RuntimeConfig from LLMConfig."""
-        api_key = self._config.api_key or ""
-        provider = self._config.provider
-
-        openai_key = api_key if provider == LLMProvider.OPENAI else ""
-        anthropic_key = api_key if provider == LLMProvider.ANTHROPIC else ""
-        google_key = api_key if provider == LLMProvider.GOOGLE else ""
-
+        """Build RuntimeConfig — only Ollama config needed right now."""
         return RuntimeConfig(
-            openai_config=OpenAIConfig(api_key=openai_key),
-            anthropic_config=AnthropicConfig(api_key=anthropic_key),
-            google_config=GoogleConfig(api_key=google_key),
             ollama_config=OllamaConfig(host=self._config.ollama_host),
             max_history_messages=self._config.max_context_messages,
         )
 
-    def _build_adapters(
-        self, runtime_config: RuntimeConfig
-    ) -> dict[ModelProvider, Any]:
-        """Build provider adapters based on platform constraints."""
+    def _build_adapters(self) -> dict[ModelProvider, Any]:
+        """Build provider adapters based on what's actually installed."""
         adapters: dict[ModelProvider, Any] = {}
 
-        # Cloud adapters â€” available on all platforms
-        adapters[ModelProvider.OPENAI] = OpenAIAdapter(runtime_config.openai_config)
-        adapters[ModelProvider.ANTHROPIC] = AnthropicAdapter(runtime_config.anthropic_config)
-        adapters[ModelProvider.GOOGLE] = GoogleAdapter(runtime_config.google_config)
-
-        # Ollama â€” desktop only
+        # Ollama is always available on desktop
         if self._is_desktop:
-            adapters[ModelProvider.OLLAMA] = OllamaAdapter(runtime_config.ollama_config)
+            adapters[ModelProvider.OLLAMA] = OllamaAdapter(
+                OllamaConfig(host=self._config.ollama_host)
+            )
+
+        # Cloud adapters — only add if the adapter file exists
+        if _HAS_OPENAI and _OpenAIAdapter is not None:
+            try:
+                adapters[ModelProvider.OPENAI] = _OpenAIAdapter(
+                    type("OpenAIConfig", (), {"api_key": os.environ.get("OPENAI_API_KEY", "")})()
+                )
+            except Exception as exc:
+                logger.debug("OpenAI adapter skipped: %s", exc)
+
+        if _HAS_ANTHROPIC and _AnthropicAdapter is not None:
+            try:
+                adapters[ModelProvider.ANTHROPIC] = _AnthropicAdapter(
+                    type("AnthropicConfig", (), {"api_key": os.environ.get("ANTHROPIC_API_KEY", "")})()
+                )
+            except Exception as exc:
+                logger.debug("Anthropic adapter skipped: %s", exc)
+
+        if _HAS_GOOGLE and _GoogleAdapter is not None:
+            try:
+                adapters[ModelProvider.GOOGLE] = _GoogleAdapter(
+                    type("GoogleConfig", (), {"api_key": os.environ.get("GOOGLE_API_KEY", os.environ.get("GEMINI_API_KEY", ""))})()
+                )
+            except Exception as exc:
+                logger.debug("Google adapter skipped: %s", exc)
 
         return adapters
 
     def _build_failover_config(self) -> FailoverConfig:
         """Build failover chain based on platform and config."""
         if self._is_mobile:
-            # Mobile: cloud APIs only, no Ollama
-            provider_chain = [
-                ModelProvider.OPENAI,
-                ModelProvider.GOOGLE,
-                ModelProvider.ANTHROPIC,
-            ]
+            provider_chain = [ModelProvider.OPENAI, ModelProvider.GOOGLE, ModelProvider.ANTHROPIC]
         elif self._config.mode == "local":
-            # Desktop local mode: Ollama first, cloud as fallback
-            provider_chain = [
-                ModelProvider.OLLAMA,
-                ModelProvider.OPENAI,
-                ModelProvider.GOOGLE,
-                ModelProvider.ANTHROPIC,
-            ]
+            provider_chain = [ModelProvider.OLLAMA, ModelProvider.OPENAI, ModelProvider.GOOGLE, ModelProvider.ANTHROPIC]
         else:
-            # Desktop cloud mode: cloud first, Ollama as fallback
             if self._config.enable_fallback:
-                provider_chain = [
-                    ModelProvider.OPENAI,
-                    ModelProvider.GOOGLE,
-                    ModelProvider.ANTHROPIC,
-                    ModelProvider.OLLAMA,
-                ]
+                provider_chain = [ModelProvider.OPENAI, ModelProvider.GOOGLE, ModelProvider.ANTHROPIC, ModelProvider.OLLAMA]
             else:
-                provider_chain = [
-                    ModelProvider.OPENAI,
-                    ModelProvider.GOOGLE,
-                    ModelProvider.ANTHROPIC,
-                ]
+                provider_chain = [ModelProvider.OPENAI, ModelProvider.GOOGLE, ModelProvider.ANTHROPIC]
 
         return FailoverConfig(
             provider_chain=provider_chain,
             enable_rule_based_fallback=True,
-            voice_system_prompt="",  # We inject personality prompts ourselves
+            voice_system_prompt="",
         )
 
     def _build_messages(
@@ -794,85 +573,57 @@ class LLMManager:
         session_id: str,
         extra_context: Optional[list[Message]] = None,
     ) -> list[Message]:
-        """Build message list with personality prompt and conversation history.
-
-        Args:
-            query: Current user query.
-            personality: Personality name for system prompt selection.
-            session_id: Session ID for history retrieval.
-            extra_context: Optional additional context messages.
-
-        Returns:
-            List of :class:`~Agent_Guru.llm.models.Message` objects.
-        """
+        """Build message list with personality prompt and conversation history."""
         system_prompt = PERSONALITY_PROMPTS[personality]
         messages: list[Message] = [Message(role="system", content=system_prompt)]
 
-        # Inject conversation history via LLMRuntime's context manager
         if self._runtime is not None and self._runtime.context_manager is not None:
             history = self._runtime.context_manager.inject_context(session_id, [])
             messages.extend(history)
 
-        # Inject extra context if provided
         if extra_context:
             messages.extend(extra_context)
 
-        # Add current user query
         messages.append(Message(role="user", content=query))
-
         return messages
 
     def _get_active_model(self) -> str:
         """Return the active model name based on config and platform."""
         if self._config.cloud_model:
             return self._config.cloud_model
-
         if self._config.mode == "local" and self._is_desktop:
             return self._config.ollama_model
-
         provider_map = {
             LLMProvider.OPENAI: "gpt-4o-mini",
             LLMProvider.ANTHROPIC: "claude-3-haiku-20240307",
             LLMProvider.GOOGLE: "gemini-1.5-flash",
             LLMProvider.OLLAMA: self._config.ollama_model,
         }
-        return provider_map.get(self._config.provider, "gpt-4o-mini")
+        return provider_map.get(self._config.provider, self._config.ollama_model)
 
     def _load_api_key_from_keyring(self, provider: LLMProvider) -> str:
-        """Load API key from OS keychain.
-
-        Args:
-            provider: Provider to load key for.
-
-        Returns:
-            API key string or empty string if not found.
-        """
+        """Load API key from OS keychain."""
         try:
             import keyring  # type: ignore[import]
-            key = keyring.get_password("agent_guru", provider.value)
-            return key or ""
+            return keyring.get_password("agent_guru", provider.value) or ""
         except Exception as exc:
             logger.debug("Keyring unavailable: %s", exc)
             return ""
 
-    def _create_adapter_for_provider(
-        self, provider: LLMProvider, api_key: str
-    ) -> Any:
-        """Create a provider adapter for API key testing.
-
-        Args:
-            provider: Provider to create adapter for.
-            api_key: API key to use.
-
-        Returns:
-            Provider adapter instance.
-        """
+    def _create_adapter_for_provider(self, provider: LLMProvider, api_key: str) -> Any:
+        """Create a provider adapter for API key testing."""
         if provider == LLMProvider.OPENAI:
-            return OpenAIAdapter(OpenAIConfig(api_key=api_key))
+            if not _HAS_OPENAI or _OpenAIAdapter is None:
+                raise ValueError("OpenAI adapter not installed")
+            return _OpenAIAdapter(type("OpenAIConfig", (), {"api_key": api_key})())
         if provider == LLMProvider.ANTHROPIC:
-            return AnthropicAdapter(AnthropicConfig(api_key=api_key))
+            if not _HAS_ANTHROPIC or _AnthropicAdapter is None:
+                raise ValueError("Anthropic adapter not installed")
+            return _AnthropicAdapter(type("AnthropicConfig", (), {"api_key": api_key})())
         if provider == LLMProvider.GOOGLE:
-            return GoogleAdapter(GoogleConfig(api_key=api_key))
+            if not _HAS_GOOGLE or _GoogleAdapter is None:
+                raise ValueError("Google adapter not installed")
+            return _GoogleAdapter(type("GoogleConfig", (), {"api_key": api_key})())
         if provider == LLMProvider.OLLAMA:
             return OllamaAdapter(OllamaConfig(host=self._config.ollama_host))
         raise ValueError(f"Unknown provider: {provider}")
