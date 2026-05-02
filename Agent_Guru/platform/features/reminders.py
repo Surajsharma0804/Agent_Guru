@@ -191,51 +191,80 @@ class ReminderManager:
 def parse_reminder_from_transcript(transcript: str) -> Optional[dict]:
     """Extract reminder parameters from a voice transcript.
 
-    Examples:
+    Handles many natural speech variations:
         "remind me in 10 minutes to take my medicine"
-        → {"message": "take your medicine", "minutes": 10}
-
+        "remind me to take medicine in 10 minutes"  ← reversed order
+        "in 10 minutes remind me to call John"       ← time first
         "set a timer for 5 minutes"
-        → {"message": "5-minute timer is done", "minutes": 5}
-
         "remind me at 3pm to call John"
-        → {"message": "call John", "at_time": "3pm"}
+        "remind me in half an hour"
+        "remind me in an hour"
+        "don't let me forget to call John in 30 minutes"
 
     Returns:
         Dict with keys: message, minutes/seconds/at_time, or None if no match.
     """
-    t = transcript.strip().lower()
+    t = transcript.strip()
 
-    # "remind me in X minutes/seconds to ..."
+    # Normalize "half an hour" → "30 minutes", "an hour" → "60 minutes"
+    t = re.sub(r"\bhalf\s+an?\s+hour\b", "30 minutes", t, flags=re.I)
+    t = re.sub(r"\ban?\s+hour\b", "60 minutes", t, flags=re.I)
+    t = re.sub(r"\ba\s+minute\b", "1 minute", t, flags=re.I)
+    t = re.sub(r"\ba\s+second\b", "1 second", t, flags=re.I)
+    t = re.sub(r"\ba\s+few\s+minutes\b", "3 minutes", t, flags=re.I)
+    t = re.sub(r"\ba\s+couple\s+(?:of\s+)?minutes\b", "2 minutes", t, flags=re.I)
+
+    # Pattern 1: "remind me in X minutes to Y" or "remind me to Y in X minutes"
     m = re.search(
         r"remind\s+me\s+in\s+(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?\s+(?:to\s+)?(.+)",
         t, re.I,
     )
     if m:
-        amount = float(m.group(1))
-        unit = m.group(2).lower()
-        message = m.group(3).strip().rstrip(".,!?")
-        if "sec" in unit:
-            return {"message": message, "seconds": amount}
-        return {"message": message, "minutes": amount}
+        amount, unit, message = float(m.group(1)), m.group(2).lower(), m.group(3).strip().rstrip(".,!?")
+        return {"message": message, "seconds" if "sec" in unit else "minutes": amount}
 
-    # "set a timer for X minutes"
+    # Pattern 2: "remind me to Y in X minutes" (reversed order)
+    m = re.search(
+        r"remind\s+me\s+(?:to\s+)?(.+?)\s+in\s+(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?",
+        t, re.I,
+    )
+    if m:
+        message, amount, unit = m.group(1).strip().rstrip(".,!?"), float(m.group(2)), m.group(3).lower()
+        return {"message": message, "seconds" if "sec" in unit else "minutes": amount}
+
+    # Pattern 3: "in X minutes remind me to Y" (time first)
+    m = re.search(
+        r"in\s+(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?\s+remind\s+me\s+(?:to\s+)?(.+)",
+        t, re.I,
+    )
+    if m:
+        amount, unit, message = float(m.group(1)), m.group(2).lower(), m.group(3).strip().rstrip(".,!?")
+        return {"message": message, "seconds" if "sec" in unit else "minutes": amount}
+
+    # Pattern 4: "set a timer for X minutes"
     m = re.search(r"(?:set\s+a?\s*)?timer\s+(?:for\s+)?(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?", t, re.I)
     if m:
-        amount = float(m.group(1))
-        unit = m.group(2).lower()
+        amount, unit = float(m.group(1)), m.group(2).lower()
         if "sec" in unit:
             return {"message": f"Your {int(amount)}-second timer is done.", "seconds": amount}
         return {"message": f"Your {int(amount)}-minute timer is done.", "minutes": amount}
 
-    # "remind me at 3pm to ..."
+    # Pattern 5: "remind me at 3pm to Y"
     m = re.search(
         r"remind\s+me\s+at\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(?:to\s+)?(.+)",
         t, re.I,
     )
     if m:
-        at_time = m.group(1).strip()
-        message = m.group(2).strip().rstrip(".,!?")
+        at_time, message = m.group(1).strip(), m.group(2).strip().rstrip(".,!?")
         return {"message": message, "at_time": at_time}
+
+    # Pattern 6: "don't let me forget to Y in X minutes"
+    m = re.search(
+        r"(?:don.t\s+let\s+me\s+forget|don.t\s+forget)\s+(?:to\s+)?(.+?)\s+in\s+(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?",
+        t, re.I,
+    )
+    if m:
+        message, amount, unit = m.group(1).strip().rstrip(".,!?"), float(m.group(2)), m.group(3).lower()
+        return {"message": message, "seconds" if "sec" in unit else "minutes": amount}
 
     return None

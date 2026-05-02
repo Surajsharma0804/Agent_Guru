@@ -499,8 +499,20 @@ class IntegrationOrchestrator:
             # Priority: action_result (e.g. "Opening Chrome") > llm_response
             tts_text = result.action_result or result.llm_response or ""
             if not tts_text and result.transcript:
-                # Fallback: acknowledge the command
-                tts_text = f"Done."
+                tts_text = "Done."
+
+            # Clipboard write-back: if user asked to fix/improve clipboard,
+            # write the LLM's corrected text back to clipboard automatically
+            if result.llm_response and result.transcript:
+                from Agent_Guru.platform.features.dictation import (
+                    is_clipboard_command, get_clipboard_action, set_clipboard_text,
+                )
+                if is_clipboard_command(result.transcript):
+                    action = get_clipboard_action(result.transcript)
+                    if action in ("fix", "summarize"):
+                        set_clipboard_text(result.llm_response)
+                        tts_text = result.llm_response + " I've updated your clipboard with the result."
+
             result.tts_response = await self._stage_tts(
                 str(tts_text), result.personality
             )
@@ -870,14 +882,25 @@ class IntegrationOrchestrator:
                         "You speak in a clear, direct, confident tone. "
                     )
 
-                # Real-time web search for current events questions
-                web_context = ""
+                # ── Real-time web search ──────────────────────────────────
+                # Trigger for ANY question that might need current data,
+                # not just specific keywords. If it's an information intent
+                # or a question, try web search first.
                 from Agent_Guru.platform.features.web_search import needs_web_search, search_web
-                if needs_web_search(prompt):
+                is_question = (
+                    needs_web_search(prompt)
+                    or prompt.strip().endswith("?")
+                    or re.search(r"^(who|what|when|where|why|how|is|are|was|were|will|can|does|did)\b", prompt.strip(), re.I)
+                )
+                if is_question:
                     web_snippet = await search_web(prompt)
                     if web_snippet:
                         web_context = f"\n\nLive web search result: {web_snippet}"
                         logger.info("Web search injected for: %r", prompt[:60])
+                    else:
+                        web_context = ""
+                else:
+                    web_context = ""
 
                 system_prompt = (
                     f"{persona}"
@@ -1041,18 +1064,24 @@ class IntegrationOrchestrator:
             flags=_re.I,
         )
 
-        # ── Step 4: Remove leading conjunctions ───────────────────────────
-        t = _re.sub(r"^(and|but|so|then|also|now|please|can you|could you)\s+", "", t, flags=_re.I)
+        # ── Step 4: Remove leading conjunctions and politeness markers ──────
+        t = _re.sub(r"^(and|but|so|then|also|now|please|can you|could you|would you|will you|i want you to|i need you to|i'd like you to)\s+", "", t, flags=_re.I)
 
-        # ── Step 5: Collapse whitespace and strip ─────────────────────────
+        # ── Step 5: Remove trailing politeness markers ────────────────────
+        t = _re.sub(r",?\s*(please|for me|right now|now|immediately|quickly)\s*$", "", t, flags=_re.I)
+
+        # ── Step 6: Remove articles before app/site names ────────────────
+        # "open the notepad" → "open notepad"
+        # "open a new tab" → keep (meaningful)
+        t = _re.sub(r"\b(open|launch|start|close|quit)\s+the\s+", r"\1 ", t, flags=_re.I)
+
+        # ── Step 7: Collapse whitespace and strip ─────────────────────────
         t = _re.sub(r"\s{2,}", " ", t).strip().lstrip(".,!?;: ")
 
-        # ── Step 6: Normalize & → and, + → and ───────────────────────────
+        # ── Step 8: Normalize & → and, + → and ───────────────────────────
         t = _re.sub(r"\s*[&+]\s*", " and ", t)
 
-        # ── Step 7: Collapse "open youtube and play X" → "play X on youtube"
-        # This prevents the intent from splitting into two steps where the
-        # first (open youtube) succeeds but the second (play X) is dropped.
+        # ── Step 9: Collapse "open youtube and play X" → "play X on youtube"
         t = _re.sub(
             r"(?:open\s+youtube\s+and\s+|go\s+to\s+youtube\s+and\s+)"
             r"play\s+(.+)",
@@ -1061,8 +1090,7 @@ class IntegrationOrchestrator:
             flags=_re.I,
         )
 
-        # ── Step 8: Fix common Whisper mishearings ────────────────────────
-        # These are phonetically similar words Whisper gets wrong with accents.
+        # ── Step 10: Fix common Whisper mishearings ───────────────────────
         _corrections = {
             r"\byou\s*to\b":        "youtube",
             r"\byou\s*tube\b":      "youtube",
@@ -1082,6 +1110,10 @@ class IntegrationOrchestrator:
             r"\btwit\s*ter\b":      "twitter",
             r"\bgit\s*hub\b":       "github",
             r"\bgoogle\s*chrome\b": "chrome",
+            r"\bvs\s*code\b":       "vscode",
+            r"\bvisual\s*studio\s*code\b": "vscode",
+            r"\bms\s*edge\b":       "edge",
+            r"\bmicrosoft\s*edge\b": "edge",
         }
         for pattern, replacement in _corrections.items():
             t = _re.sub(pattern, replacement, t, flags=_re.I)
@@ -1291,111 +1323,105 @@ class IntegrationOrchestrator:
             param       = parts[2] if len(parts) > 2 else ""
             level_str   = parts[3] if len(parts) > 3 else ""
 
-            # Conversation → no action, TTS uses LLM response directly
-            if intent_type == "conversation":
-                return None
+            # The raw text the user actually said — used for feature detection
+            # param holds the extracted parameter, safe_intent holds the full encoded intent
+            raw_text = param or safe_intent
 
-            # ── Reminder / Timer ──────────────────────────────────────────
-            # Handle before the intent_type check so "remind me" works
-            if intent_type in ("system_control", "conversation", "information"):
-                from Agent_Guru.platform.features.reminders import parse_reminder_from_transcript
-                reminder_params = parse_reminder_from_transcript(param or safe_intent)
-                if reminder_params:
-                    if self._reminder_mgr is None:
-                        from Agent_Guru.platform.features.reminders import ReminderManager
-                        self._reminder_mgr = ReminderManager()
-                        # Wire TTS so reminders speak when they fire
-                        tts_eng = getattr(self.speech_engine, "tts_engine", None)
-                        if tts_eng:
-                            import sounddevice as _sd
-                            import numpy as _np
-                            def _speak_reminder(text: str) -> None:
-                                try:
-                                    audio, sr = tts_eng.synthesize_to_array(text)
-                                    tail = _np.zeros(int(sr * 0.30), dtype=_np.float32)
-                                    padded = _np.concatenate([audio.astype(_np.float32), tail])
-                                    _sd.play(padded, samplerate=sr)
-                                    _sd.wait()
-                                except Exception as _e:
-                                    logger.warning("Reminder TTS failed: %s", _e)
-                            self._reminder_mgr.set_speak_callback(_speak_reminder)
-                    msg = reminder_params.get("message", "reminder")
-                    mins = reminder_params.get("minutes")
-                    secs = reminder_params.get("seconds")
-                    at_t = reminder_params.get("at_time")
-                    confirmation = await self._reminder_mgr.set_reminder(
-                        msg, minutes=mins, seconds=secs, at_time=at_t
-                    )
-                    return confirmation
+            # ── Universal feature detection (runs for ALL intent types) ──
+            # These checks run before intent_type filtering so natural speech
+            # variations always work regardless of how the intent was classified.
 
-            # ── Voice dictation ───────────────────────────────────────────
-            if intent_type == "system_control" and action in ("type_text", "dictate"):
-                from Agent_Guru.platform.features.dictation import (
-                    is_dictation_command, extract_dictation_text,
-                )
-                raw_transcript = param or safe_intent
-                if is_dictation_command(raw_transcript):
-                    text_to_type = extract_dictation_text(raw_transcript)
-                    if text_to_type:
-                        fn = getattr(ctrl, "type_text", None)
-                        if fn:
-                            await asyncio.to_thread(fn, text_to_type)
-                            return f"Typed: {self._sanitize_output(text_to_type[:50])}"
-
-            # ── Clipboard operations ──────────────────────────────────────
-            if intent_type in ("system_control", "information"):
-                from Agent_Guru.platform.features.dictation import (
-                    is_clipboard_command, get_clipboard_text, get_clipboard_action,
-                )
-                raw = param or safe_intent
-                if is_clipboard_command(raw):
-                    clip_text = get_clipboard_text()
-                    if not clip_text:
-                        return "Your clipboard is empty."
-                    clip_action = get_clipboard_action(raw)
-                    if clip_action == "read":
-                        short = clip_text[:200]
-                        return f"Your clipboard contains: {short}"
-                    # summarize/fix — let LLM handle it by returning None
-                    # (the transcript will be passed to LLM with clipboard context)
-                    return None
-
-            # ── User memory extraction ────────────────────────────────────
-            # "my name is X", "I live in Y" etc — store silently
-            if intent_type in ("conversation", "information"):
-                from Agent_Guru.platform.features.user_memory import (
-                    get_user_memory, extract_user_fact,
-                )
-                fact = extract_user_fact(param or safe_intent)
-                if fact:
-                    key, value = fact
-                    get_user_memory().set(key, value)
-                    if key == "name":
-                        return f"Got it, I'll remember your name is {self._sanitize_output(value)}."
-                    return f"Got it, I'll remember that."
-
-            # ── Morning briefing ──────────────────────────────────────────
+            # Morning briefing — "good morning", "brief me", "what's my day"
             from Agent_Guru.platform.features.briefing import is_briefing_command, get_morning_briefing
-            if is_briefing_command(param or safe_intent):
+            if is_briefing_command(raw_text):
                 from Agent_Guru.platform.features.user_memory import get_user_memory
                 location = get_user_memory().get("location")
-                briefing = await get_morning_briefing(location=location)
-                return briefing
+                return await get_morning_briefing(location=location)
 
-            # ── Screen reading ────────────────────────────────────────────
+            # System status — "what's my CPU", "how much RAM", "battery level"
+            from Agent_Guru.platform.features.system_status import is_system_status_command, get_system_status
+            if is_system_status_command(raw_text):
+                return get_system_status(raw_text)
+
+            # Reminder / Timer — "remind me in 10 minutes", "set a timer for 5 min"
+            from Agent_Guru.platform.features.reminders import parse_reminder_from_transcript
+            reminder_params = parse_reminder_from_transcript(raw_text)
+            if reminder_params:
+                if self._reminder_mgr is None:
+                    from Agent_Guru.platform.features.reminders import ReminderManager
+                    self._reminder_mgr = ReminderManager()
+                    # Wire TTS so reminders speak when they fire
+                    tts_eng = getattr(self.speech_engine, "tts_engine", None)
+                    if tts_eng:
+                        import sounddevice as _sd
+                        import numpy as _np
+                        def _speak_reminder(text: str) -> None:
+                            try:
+                                audio, sr = tts_eng.synthesize_to_array(text)
+                                tail = _np.zeros(int(sr * 0.30), dtype=_np.float32)
+                                padded = _np.concatenate([audio.astype(_np.float32), tail])
+                                _sd.play(padded, samplerate=sr)
+                                _sd.wait()
+                            except Exception as _e:
+                                logger.warning("Reminder TTS failed: %s", _e)
+                        self._reminder_mgr.set_speak_callback(_speak_reminder)
+                msg = reminder_params.get("message", "reminder")
+                mins = reminder_params.get("minutes")
+                secs = reminder_params.get("seconds")
+                at_t = reminder_params.get("at_time")
+                return await self._reminder_mgr.set_reminder(
+                    msg, minutes=mins, seconds=secs, at_time=at_t
+                )
+
+            # Voice dictation — "dictate: hello world", "type this: ..."
+            from Agent_Guru.platform.features.dictation import (
+                is_dictation_command, extract_dictation_text,
+                is_clipboard_command, get_clipboard_text, get_clipboard_action,
+            )
+            if is_dictation_command(raw_text):
+                text_to_type = extract_dictation_text(raw_text)
+                if text_to_type:
+                    ctrl = self.platform_controller
+                    fn = getattr(ctrl, "type_text", None) if ctrl else None
+                    if fn:
+                        await asyncio.to_thread(fn, text_to_type)
+                        return f"Typed: {self._sanitize_output(text_to_type[:60])}"
+                    return "Typing is not available on this platform."
+
+            # Clipboard read — "read my clipboard", "what's in my clipboard"
+            if is_clipboard_command(raw_text):
+                clip_text = get_clipboard_text()
+                if not clip_text:
+                    return "Your clipboard is empty."
+                clip_action = get_clipboard_action(raw_text)
+                if clip_action == "read":
+                    short = clip_text[:300]
+                    return f"Your clipboard contains: {short}"
+                # summarize/fix — return None so LLM handles it
+                # (clipboard text gets injected into LLM prompt in _stage_llm)
+                return None
+
+            # Screen reading — "what's on my screen", "read my screen"
             from Agent_Guru.platform.features.screen_reader import is_screen_read_command, read_screen_text
-            if is_screen_read_command(param or safe_intent):
+            if is_screen_read_command(raw_text):
                 screen_text = read_screen_text()
                 if screen_text:
-                    # Return None so LLM answers the question using screen context
-                    # (screen text gets injected in _stage_llm)
-                    return None
-                return "I couldn't read the screen content."
+                    return None  # LLM answers using screen context injected in _stage_llm
+                return "I couldn't read the screen content right now."
 
-            # ── System status ─────────────────────────────────────────────
-            from Agent_Guru.platform.features.system_status import is_system_status_command, get_system_status
-            if is_system_status_command(param or safe_intent):
-                return get_system_status(param or safe_intent)
+            # User memory extraction — "my name is X", "I live in Y"
+            from Agent_Guru.platform.features.user_memory import get_user_memory, extract_user_fact
+            fact = extract_user_fact(raw_text)
+            if fact:
+                key, value = fact
+                get_user_memory().set(key, value)
+                if key == "name":
+                    return f"Got it, I'll remember your name is {self._sanitize_output(value)}."
+                return "Got it, I'll remember that."
+
+            # ── Conversation → no action, TTS uses LLM response ──────────
+            if intent_type == "conversation":
+                return None
 
             if intent_type not in ("system_control", "file_ops", "communication", "information"):
                 logger.info("ACTION SKIPPED — intent_type=%r. Full intent: %r", intent_type, safe_intent)

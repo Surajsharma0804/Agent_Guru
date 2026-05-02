@@ -144,42 +144,58 @@ class IntentResult:
 # param_extractor_fn receives the re.Match and returns a dict of parameters.
 
 _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\b(open|launch|start|run)\b.+", re.I), "open_app"),
-    (re.compile(r"\b(close|quit|exit|kill)\b.+", re.I), "close_app"),
+    # App control — handles "open", "launch", "can you open", "I want to open", "open up"
+    (re.compile(r"\b(open|launch|start|run|open up|fire up)\b.+", re.I), "open_app"),
+    (re.compile(r"\b(close|quit|exit|kill|shut down|terminate)\b.+", re.I), "close_app"),
     (re.compile(r"\b(uninstall|remove app|delete app)\b.+", re.I), "uninstall_app"),
+    # Volume — handles "louder", "quieter", "make it louder", "turn up", "turn down"
     (re.compile(r"\b(volume|sound)\b.*(up|down|mute|unmute|\d+)", re.I), "volume"),
-    (re.compile(r"\b(mute|unmute)\b", re.I), "volume"),
+    (re.compile(r"\b(mute|unmute|silence)\b", re.I), "volume"),
+    (re.compile(r"\b(louder|turn up|increase volume|raise volume|volume up)\b", re.I), "volume"),
+    (re.compile(r"\b(quieter|softer|turn down|lower volume|decrease volume|volume down)\b", re.I), "volume"),
+    (re.compile(r"\b(make it louder|make it quieter|make it softer)\b", re.I), "volume"),
+    # Brightness — handles "brighter", "dimmer", "make it brighter"
     (re.compile(r"\b(brightness)\b.*(up|down|\d+)", re.I), "brightness"),
+    (re.compile(r"\b(brighter|increase brightness|brightness up)\b", re.I), "brightness"),
+    (re.compile(r"\b(dimmer|dim|darker|decrease brightness|brightness down)\b", re.I), "brightness"),
     (re.compile(r"\bset\s+brightness\s+to\s+\d+", re.I), "brightness"),
+    # Power
     (re.compile(r"\b(shutdown|turn off|power off)\b.*\b(pc|computer|laptop|system)\b", re.I), "shutdown"),
     (re.compile(r"\b(restart|reboot|reset)\b.*\b(pc|computer|laptop|system)\b", re.I), "restart"),
     (re.compile(r"\b(sleep|hibernate)\b", re.I), "power"),
+    # Window management
     (re.compile(r"\b(minimize|minimise|maximize|maximise|restore|fullscreen)\b", re.I), "window"),
-    (re.compile(r"\b(screenshot|screen shot|capture screen|take screenshot)\b", re.I), "screenshot"),
+    # Screenshot — handles "take a screenshot", "snap a screenshot", "grab a screenshot"
+    (re.compile(r"\b(screenshot|screen shot|capture screen|take screenshot|snap screenshot|grab screenshot)\b", re.I), "screenshot"),
+    (re.compile(r"\b(take a screenshot|take screenshot|snap a screenshot|grab a screenshot)\b", re.I), "screenshot"),
+    # App switching
     (re.compile(r"\b(switch to|switch app|alt.?tab|go to app)\b.+", re.I), "switch_app"),
+    # Media controls
     (re.compile(r"\b(next track|skip track|next song|skip song)\b", re.I), "next_track"),
     (re.compile(r"\b(previous track|prev track|previous song|last song|go back)\b", re.I), "previous_track"),
     (re.compile(r"\b(stop music|stop media|stop playing|stop song)\b", re.I), "stop_media"),
     (re.compile(r"\b(play|resume)\b.*(music|song|media|video|audio|track)\b", re.I), "play_pause"),
     (re.compile(r"\b(pause)\b.*(music|song|media|video|audio|track|playing)\b", re.I), "play_pause"),
+    # Text input / dictation
     (re.compile(r"\b(type|write|input)\b.+\b(in|into|on)\b.+", re.I), "type_text"),
     (re.compile(r"\b(type|write|input)\b\s+[\"']?.+[\"']?", re.I), "type_text"),
+    # Settings
     (re.compile(r"\b(wifi|wi-fi|wireless)\b", re.I), "settings"),
     (re.compile(r"\b(bluetooth)\b", re.I), "settings"),
     (re.compile(r"\b(airplane mode|do not disturb|dnd)\b", re.I), "settings"),
     # Reminders and timers
-    (re.compile(r"\b(remind me|set a reminder|reminder)\b", re.I), "reminder"),
-    (re.compile(r"\b(set a timer|timer for|countdown)\b", re.I), "reminder"),
+    (re.compile(r"\b(remind me|set a reminder|reminder|don.t let me forget)\b", re.I), "reminder"),
+    (re.compile(r"\b(set a timer|timer for|countdown|in \d+ minutes? remind)\b", re.I), "reminder"),
     # Voice dictation
     (re.compile(r"^(dictate|type this|write this|paste this)[:\s]", re.I), "dictate"),
     # Clipboard
-    (re.compile(r"\b(clipboard|what.s in my clipboard|read my clipboard|summarize my clipboard|fix my clipboard)\b", re.I), "clipboard"),
+    (re.compile(r"\b(clipboard|what.s in my clipboard|read my clipboard|summarize my clipboard|fix my clipboard|correct my clipboard)\b", re.I), "clipboard"),
     # Screen reading
-    (re.compile(r"\b(what.s on my screen|read my screen|what do you see|summarize my screen|what am i looking at)\b", re.I), "screen_read"),
+    (re.compile(r"\b(what.s on my screen|read my screen|what do you see|summarize my screen|what am i looking at|describe my screen)\b", re.I), "screen_read"),
     # System status
-    (re.compile(r"\b(cpu usage|ram usage|memory usage|battery|disk space|ip address|system status)\b", re.I), "system_status"),
+    (re.compile(r"\b(cpu usage|processor usage|ram usage|memory usage|battery|battery level|disk space|storage space|ip address|system status|how much ram|how much memory|how much storage)\b", re.I), "system_status"),
     # Morning briefing
-    (re.compile(r"\b(good morning|morning briefing|daily briefing|brief me|start my day)\b", re.I), "briefing"),
+    (re.compile(r"\b(good morning|morning briefing|daily briefing|brief me|start my day|what.s my day|today.s summary)\b", re.I), "briefing"),
 ]
 
 # Known desktop application names â€” these should NEVER be treated as websites.
