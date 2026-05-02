@@ -844,6 +844,13 @@ class IntegrationOrchestrator:
                         elif clip_action == "fix":
                             prompt = f"Fix the grammar and spelling of this text, return only the corrected version:\n\n{clip_text[:1000]}"
 
+                # Inject screen content if the user is asking about the screen
+                from Agent_Guru.platform.features.screen_reader import is_screen_read_command, read_screen_text
+                if is_screen_read_command(prompt):
+                    screen_text = read_screen_text()
+                    if screen_text:
+                        prompt = f"{prompt}\n\nCurrent screen content:\n{screen_text[:1500]}"
+
                 # ── Personality-aware system prompt ───────────────────────
                 import datetime as _dt
                 current_date = _dt.datetime.now().strftime("%B %d, %Y")
@@ -1366,6 +1373,29 @@ class IntegrationOrchestrator:
                     if key == "name":
                         return f"Got it, I'll remember your name is {self._sanitize_output(value)}."
                     return f"Got it, I'll remember that."
+
+            # ── Morning briefing ──────────────────────────────────────────
+            from Agent_Guru.platform.features.briefing import is_briefing_command, get_morning_briefing
+            if is_briefing_command(param or safe_intent):
+                from Agent_Guru.platform.features.user_memory import get_user_memory
+                location = get_user_memory().get("location")
+                briefing = await get_morning_briefing(location=location)
+                return briefing
+
+            # ── Screen reading ────────────────────────────────────────────
+            from Agent_Guru.platform.features.screen_reader import is_screen_read_command, read_screen_text
+            if is_screen_read_command(param or safe_intent):
+                screen_text = read_screen_text()
+                if screen_text:
+                    # Return None so LLM answers the question using screen context
+                    # (screen text gets injected in _stage_llm)
+                    return None
+                return "I couldn't read the screen content."
+
+            # ── System status ─────────────────────────────────────────────
+            from Agent_Guru.platform.features.system_status import is_system_status_command, get_system_status
+            if is_system_status_command(param or safe_intent):
+                return get_system_status(param or safe_intent)
 
             if intent_type not in ("system_control", "file_ops", "communication", "information"):
                 logger.info("ACTION SKIPPED — intent_type=%r. Full intent: %r", intent_type, safe_intent)

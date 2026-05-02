@@ -174,6 +174,12 @@ _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^(dictate|type this|write this|paste this)[:\s]", re.I), "dictate"),
     # Clipboard
     (re.compile(r"\b(clipboard|what.s in my clipboard|read my clipboard|summarize my clipboard|fix my clipboard)\b", re.I), "clipboard"),
+    # Screen reading
+    (re.compile(r"\b(what.s on my screen|read my screen|what do you see|summarize my screen|what am i looking at)\b", re.I), "screen_read"),
+    # System status
+    (re.compile(r"\b(cpu usage|ram usage|memory usage|battery|disk space|ip address|system status)\b", re.I), "system_status"),
+    # Morning briefing
+    (re.compile(r"\b(good morning|morning briefing|daily briefing|brief me|start my day)\b", re.I), "briefing"),
 ]
 
 # Known desktop application names â€” these should NEVER be treated as websites.
