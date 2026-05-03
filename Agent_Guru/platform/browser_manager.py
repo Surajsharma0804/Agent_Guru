@@ -416,23 +416,39 @@ class BrowserManager:
         return page
 
     async def _skip_ad(self, page: Any) -> None:
-        """Poll for a skippable ad and click skip when available (up to 30s)."""
+        """Poll for skippable ads and click skip when available (up to 60s).
+
+        Handles:
+        - Single skippable ads (5s countdown then skip button appears)
+        - Multiple consecutive ads
+        - Non-skippable bumper ads (wait them out, max 6s each)
+        """
         loop = asyncio.get_event_loop()
-        deadline = loop.time() + 30
+        deadline = loop.time() + 60  # extended to 60s for multiple ads
+        ads_skipped = 0
 
         while loop.time() < deadline:
             try:
-                ad = await page.evaluate(
-                    "() => { const p = document.querySelector('#movie_player');"
-                    " return p ? p.classList.contains('ad-showing') : false; }"
+                # Check if ad is showing
+                ad_info = await page.evaluate(
+                    "() => {"
+                    "  const p = document.querySelector('#movie_player');"
+                    "  if (!p) return {ad: false, skippable: false};"
+                    "  const ad = p.classList.contains('ad-showing');"
+                    "  const skipBtn = document.querySelector('.ytp-skip-ad-button, .ytp-ad-skip-button, [class*=\"skip-ad\"]');"
+                    "  const skippable = skipBtn ? skipBtn.offsetParent !== null : false;"
+                    "  return {ad, skippable};"
+                    "}"
                 )
             except Exception:
                 return
 
-            if not ad:
+            if not ad_info.get("ad", False):
+                if ads_skipped > 0:
+                    logger.info("YouTube: all ads handled (%d skipped)", ads_skipped)
                 return  # No ad — done
 
-            # Try all known skip selectors
+            # Try to click skip button
             skipped = False
             for sel in (
                 ".ytp-skip-ad-button",
@@ -444,19 +460,19 @@ class BrowserManager:
             ):
                 try:
                     btn = page.locator(sel).first
-                    if await btn.is_visible(timeout=600):
+                    if await btn.is_visible(timeout=500):
                         await btn.click()
                         logger.info("YouTube: ad skipped (%s)", sel)
-                        await page.wait_for_timeout(800)
+                        await page.wait_for_timeout(1000)
+                        ads_skipped += 1
                         skipped = True
                         break
                 except Exception:
                     pass
 
-            if skipped:
-                return
-            # Ad showing but not yet skippable — wait 1s and retry
-            await page.wait_for_timeout(1000)
+            if not skipped:
+                # Ad showing but not yet skippable — wait 1s and retry
+                await page.wait_for_timeout(1000)
 
     async def _active_page(self) -> Any:
         """Return the current YouTube page, reconnecting via CDP if needed."""

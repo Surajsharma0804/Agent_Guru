@@ -1061,11 +1061,17 @@ class IntegrationOrchestrator:
         if first_sentence:
             t = first_sentence
 
-        # Remove wake word fragments (including mishearings)
+        # Remove wake word fragments (including all Whisper mishearings of "Hey Guru/Maya")
+        # Order matters — most specific patterns first
         wake_patterns = [
-            r"^(hey\s+|hi\s+|a\s+|he\s+)?(guru|maya|himaya|hi\s*maya|hey\s*maya|hey\s*guru|he\s*maya|he\s*guru)\s*[,.]?\s*",
-            r"^hey\s+",
-            r"^he\s*,?\s*",  # Whisper mishears "Hey" as "He" — strip it
+            # Full wake word variants (most specific)
+            r"^(hey\s+|hi\s+|a\s+)?(guru|maya|himaya|hemaaya|hi\s*maya|hey\s*maya|hey\s*guru|he\s*maya|he\s*guru|give\s*maya|give\s*guru)\s*[,.]?\s*",
+            # "This is Maya" / "This is Guru" — Whisper adds "This is" prefix
+            r"^this\s+is\s+(maya|guru)\s*[,.]?\s*",
+            # Standalone "He," or "Hey " at start (Whisper mishearing of "Hey")
+            # Only strip if followed by nothing or a comma — NOT if it's part of a word
+            r"^he\s*,\s*",   # "He, open notepad" → "open notepad"
+            r"^hey\s+",      # "Hey open" → "open"
         ]
         for pat in wake_patterns:
             t = _re.sub(pat, "", t, flags=_re.I).strip()

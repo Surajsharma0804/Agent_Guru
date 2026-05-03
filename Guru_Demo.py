@@ -1058,12 +1058,17 @@ async def _section_browser_playwright() -> None:
         info(msg)
 
     # Speak the key demo moments as they happen.
-    # speak() is synchronous (sounddevice.wait) — run it in a thread pool
-    # so it doesn't block the executor thread that runs play_youtube_with_controls.
+    # IMPORTANT: speak() must COMPLETE before the next browser action runs.
+    # We use a threading.Event to block the on_status callback until TTS finishes.
     import concurrent.futures as _cf
+    import threading as _threading
     _speak_executor = _cf.ThreadPoolExecutor(max_workers=1, thread_name_prefix="demo_speak")
-    _speak_futures: list[_cf.Future] = []  # track all submitted futures
+    _speak_futures: list[_cf.Future] = []
     _spoken: set[str] = set()
+
+    def _speak_and_wait(phrase: str) -> None:
+        """Speak phrase and BLOCK until audio finishes playing."""
+        speak(phrase)  # speak() already blocks via sd.wait()
 
     def _on_status_with_speak(msg: str) -> None:
         info(msg)
@@ -1075,9 +1080,6 @@ async def _section_browser_playwright() -> None:
         elif "ad skipped" in m and "skipped" not in _spoken:
             _spoken.add("skipped")
             phrase = "Ad skipped. Now skipping 20 seconds into the song."
-        elif "skipping 20 seconds" in m and "skip20" not in _spoken:
-            _spoken.add("skip20")
-            # Already announced above — no duplicate
         elif "song is playing" in m and "playing" not in _spoken:
             _spoken.add("playing")
             phrase = "The song is now playing."
@@ -1106,9 +1108,11 @@ async def _section_browser_playwright() -> None:
             _spoken.add("closing")
             phrase = "Browser and media control demonstration complete. I am now closing YouTube."
         if phrase:
-            # Track the future so we can wait for ALL TTS to finish before closing
-            fut = _speak_executor.submit(speak, phrase)
+            # Submit and WAIT for TTS to finish before returning
+            # This ensures speak happens BEFORE the next browser action
+            fut = _speak_executor.submit(_speak_and_wait, phrase)
             _speak_futures.append(fut)
+            fut.result(timeout=15)  # block until TTS finishes
 
     from Agent_Guru.platform.os_controller import OSController
     ctrl = OSController()

@@ -1459,27 +1459,25 @@ class OSController:
                 _log("Pausing the video.")
                 await video.evaluate("v => v.pause()")
                 results["paused"] = True
-                # Wait for TTS "Pausing the video." to finish (~2s) before next action
-                await page.wait_for_timeout(3000)
+                await page.wait_for_timeout(500)
 
                 # ── Step 6: Resume ────────────────────────────────────
                 _log("Resuming playback.")
                 await video.evaluate("async v => { await v.play(); }")
                 results["resumed"] = True
-                # Wait for TTS "Resuming playback." to finish, then let song play a bit
-                await page.wait_for_timeout(4000)
+                await page.wait_for_timeout(3000)  # let song play a bit
 
                 # ── Step 7: Mute ──────────────────────────────────────
                 _log("Muting the video.")
                 await video.evaluate("v => { v.muted = true; }")
                 results["muted"] = True
-                await page.wait_for_timeout(3000)
+                await page.wait_for_timeout(500)
 
                 # ── Step 8: Unmute ────────────────────────────────────
                 _log("Unmuting the video.")
                 await video.evaluate("v => { v.muted = false; }")
                 results["unmuted"] = True
-                await page.wait_for_timeout(3000)
+                await page.wait_for_timeout(500)
 
                 # ── Step 9: Volume up ─────────────────────────────────
                 _log("Increasing volume.")
@@ -1487,7 +1485,7 @@ class OSController:
                     "v => { v.volume = Math.min(1.0, v.volume + 0.2); }"
                 )
                 results["volume_up"] = True
-                await page.wait_for_timeout(3000)
+                await page.wait_for_timeout(500)
 
                 # ── Step 10: Volume down ──────────────────────────────
                 _log("Decreasing volume.")
@@ -1495,7 +1493,7 @@ class OSController:
                     "v => { v.volume = Math.max(0.0, v.volume - 0.2); }"
                 )
                 results["volume_down"] = True
-                await page.wait_for_timeout(3000)
+                await page.wait_for_timeout(500)
 
                 # ── Step 11: Screenshot ───────────────────────────────
                 if screenshot_path:

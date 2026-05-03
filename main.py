@@ -266,39 +266,31 @@ def _load_silero_vad() -> bool:
 
 async def _capture_command_with_vad(
     wake_manager: Any,
-    max_duration_s: float = 15.0,
-    silence_duration_s: float = 1.5,
-    silence_rms_threshold: float = 0.003,
+    max_duration_s: float = 12.0,
+    silence_duration_s: float = 1.2,
+    silence_rms_threshold: float = 0.008,
 ) -> bytes:
-    """Capture command audio using Silero VAD — same approach as Alexa/Siri.
+    """Capture command audio after wake word fires.
 
-    How Alexa/Siri do it:
-    1. Start recording immediately after wake word fires
-    2. Use neural VAD (Silero) to detect speech vs silence in real-time
-    3. Stop recording ~1 second after the last speech segment ends
-    4. Hard cap at 15s to prevent infinite recording
+    Uses Silero VAD with the correct two-threshold hysteresis approach
+    (same as production voice assistants):
+    - positive_threshold=0.5: frame is speech if probability > 0.5
+    - negative_threshold=0.15: frame is silence if probability < 0.15
+    - Frames between 0.15-0.5 are ignored (hysteresis zone)
 
-    Silero VAD is a neural network trained on millions of hours of speech.
-    It correctly handles natural pauses, background noise, soft speech,
-    and accented speech — far more reliable than energy thresholds.
+    This prevents both false positives (background noise triggering speech)
+    and false negatives (soft speech being missed).
 
-    Args:
-        wake_manager: WakeWordManager with capture_command_audio().
-        max_duration_s: Hard cap on recording duration (default 15s).
-        silence_duration_s: Stop after this many seconds of silence post-speech.
-            1.0s matches Alexa/Siri standard (700ms-1000ms).
-        silence_rms_threshold: Energy fallback threshold if Silero unavailable.
-
-    Returns:
-        Concatenated audio bytes (float32 PCM at 16kHz).
+    Standard settings from Silero VAD docs:
+    - threshold: 0.5 (standard), lower = more sensitive
+    - min_speech_duration_ms: 250ms (filters clicks/pops)
+    - min_silence_duration_ms: 100ms (allows natural pauses)
     """
     import numpy as np
     import torch
 
-    # Load Silero VAD (cached after first call)
     use_silero = _load_silero_vad()
 
-    # Each capture_command_audio(chunks=1) returns chunk_duration_s of audio
     chunk_duration_s: float = getattr(
         getattr(wake_manager, "_config", None), "audio_capture_duration", 1.5
     )
@@ -306,7 +298,6 @@ async def _capture_command_with_vad(
         chunk_duration_s = 1.5
 
     max_chunks = max(1, int(max_duration_s / chunk_duration_s))
-
     all_audio: list[np.ndarray] = []
     silence_after_speech_s = 0.0
     speech_ever_detected = False
@@ -324,73 +315,67 @@ async def _capture_command_with_vad(
             chunk_np = np.frombuffer(chunk_bytes, dtype=np.float32).copy()
             all_audio.append(chunk_np)
 
-            # ── Silero VAD: neural speech detection ──────────────────────
             has_speech = False
             if use_silero and _silero_vad_model is not None:
                 try:
                     audio_tensor = torch.from_numpy(chunk_np)
+                    # Standard Silero VAD settings from official docs
                     speech_ts = _silero_get_speech_ts(
                         audio_tensor,
                         _silero_vad_model,
                         sampling_rate=16000,
-                        threshold=0.6,           # Higher threshold = less false positives
-                        min_speech_duration_ms=200,  # Ignore very short sounds
-                        min_silence_duration_ms=200,
+                        threshold=0.5,               # standard — balanced sensitivity
+                        min_speech_duration_ms=250,  # filter clicks/pops
+                        min_silence_duration_ms=100, # allow natural pauses
+                        speech_pad_ms=30,            # pad speech segments slightly
                     )
                     has_speech = len(speech_ts) > 0
                 except Exception:
                     rms = float(np.sqrt(np.mean(chunk_np ** 2)))
                     has_speech = rms >= silence_rms_threshold
             else:
-                # Energy fallback
                 rms = float(np.sqrt(np.mean(chunk_np ** 2)))
                 has_speech = rms >= silence_rms_threshold
 
             if has_speech:
                 speech_ever_detected = True
                 silence_after_speech_s = 0.0
-                logger.debug("VAD chunk %d: SPEECH", i)
             else:
                 silence_after_speech_s += chunk_duration_s
-                logger.debug("VAD chunk %d: silence (%.1fs after speech)", i, silence_after_speech_s)
 
-        # Stop when silence_duration_s of silence detected AFTER speech
         if speech_ever_detected and silence_after_speech_s >= silence_duration_s:
             logger.info(
                 "VAD: end-of-speech after %d chunks (%.1fs total, %.1fs silence)",
-                i + 1, len(all_audio) * chunk_duration_s, silence_after_speech_s
+                i + 1, len(all_audio) * chunk_duration_s, silence_after_speech_s,
             )
             break
-        # Also stop if we've captured enough audio and there's been no speech at all
-        # (prevents recording forever when user doesn't speak)
-        if not speech_ever_detected and len(all_audio) * chunk_duration_s >= 6.0:
-            logger.info("VAD: no speech detected after 6s — stopping")
+
+        if not speech_ever_detected and len(all_audio) * chunk_duration_s >= 8.0:
+            logger.info("VAD: no speech detected after 8s — stopping")
             break
 
     if not all_audio:
         return b""
 
     combined = np.concatenate(all_audio).astype(np.float32)
+    combined_rms = float(np.sqrt(np.mean(combined ** 2)))
 
-    # ── Background audio rejection ────────────────────────────────────────
-    # If the captured audio looks like music/TV (high spectral flatness,
-    # low zero-crossing variance), it's probably background noise that
-    # leaked through after the wake word fired. Discard it.
-    # This is the same check used in wake word detection.
-    try:
-        from Agent_Guru.speech.audio.wake_word import WakeWordDetector
-        if WakeWordDetector._looks_like_music(combined):
-            logger.info(
-                "VAD: captured audio looks like background music — discarding "
-                "(%.1fs, rms=%.4f). Speak closer to the mic.",
-                len(combined) / 16000,
-                float(np.sqrt(np.mean(combined ** 2))),
-            )
-            return b""
-    except Exception:
-        pass  # If check fails, proceed with the audio
+    # Gate: if overall RMS is near silence, don't waste time on STT
+    if combined_rms < 0.005:
+        logger.info("VAD: audio is near-silence (rms=%.4f) — discarding", combined_rms)
+        return b""
 
-    logger.info("VAD: captured %.1fs of audio", len(combined) / 16000)
+    # Only reject background audio if NO speech was detected at all
+    if not speech_ever_detected:
+        try:
+            from Agent_Guru.speech.audio.wake_word import WakeWordDetector
+            if WakeWordDetector._looks_like_music(combined):
+                logger.info("VAD: no speech + music detected — discarding")
+                return b""
+        except Exception:
+            pass
+
+    logger.info("VAD: captured %.1fs of audio (rms=%.4f)", len(combined) / 16000, combined_rms)
     return combined.tobytes()
 
 
@@ -496,19 +481,12 @@ async def run() -> None:
         logger.info("Wake word: '%s' → %s", detection.wake_word, personality_name)
         _logger.info("[%s] Listening for your command...", personality_name)
 
-        # Wait 0.5s after wake word fires before starting capture.
-        # This gives the user time to finish saying the wake word and
-        # take a natural breath before speaking the command.
         await asyncio.sleep(0.5)
 
-        # Capture command audio using Silero VAD (same as Alexa/Siri).
-        # Stops ~1s after the user stops speaking. Hard cap: 15s.
         import numpy as np
         try:
             audio_bytes = await _capture_command_with_vad(wake_manager)
 
-            # Prepend wake word audio so STT sees the full utterance
-            # e.g. "Hey Maya play chak de india" → full sentence captured
             wake_audio = getattr(detection, "audio_chunk", None)
             if wake_audio is not None and len(wake_audio) > 0:
                 wake_bytes = wake_audio.astype(np.float32).tobytes()
@@ -517,28 +495,28 @@ async def run() -> None:
             if audio_bytes:
                 command_audio = np.frombuffer(audio_bytes, dtype=np.float32)
                 rms = float(np.sqrt(np.mean(command_audio ** 2)))
-                logger.info(
-                    "Command audio captured: %.2fs, rms=%.4f",
-                    len(command_audio) / 16000, rms
-                )
+                logger.info("Command audio captured: %.2fs, rms=%.4f", len(command_audio) / 16000, rms)
         except Exception as exc:
             logger.warning("Command audio capture failed: %s", exc)
             audio_bytes = b""
 
-        event = WakeWordEvent(
-            wake_word=detection.wake_word,
-            audio=audio_bytes,
-        )
-        result = await orch.run_pipeline(event)
-        logger.info(
-            "Pipeline complete — stages: %d/8, personality: %s, transcript: %r",
-            result.stages_completed,
-            result.personality.value,
-            result.transcript,
-        )
-        if result.error:
-            logger.warning("Pipeline error: %s", result.error)
-        print(f"  [{personality_name}] Ready — say 'Hey Guru' or 'Hey Maya' again.\n")
+        try:
+            event = WakeWordEvent(wake_word=detection.wake_word, audio=audio_bytes)
+            result = await orch.run_pipeline(event)
+
+            actual_personality = result.personality.value.upper()
+            logger.info(
+                "Pipeline complete — stages: %d/8, personality: %s, transcript: %r",
+                result.stages_completed, result.personality.value, result.transcript,
+            )
+            if result.error:
+                logger.warning("Pipeline error: %s", result.error)
+            print(f"  [{actual_personality}] Ready — say 'Hey Guru' or 'Hey Maya' again.\n")
+
+        except Exception as exc:
+            # Never let a pipeline crash kill the whole process
+            logger.error("Pipeline crashed (will keep listening): %s", exc, exc_info=True)
+            print(f"  [{personality_name}] Error — still listening. Say 'Hey Guru' or 'Hey Maya'.\n")
 
     # --- Initialise wake word manager and open microphone ---
     wake_cfg = WakeWordConfig(
@@ -623,12 +601,25 @@ async def run() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Entry point
+# Entry point — with auto-restart on crash
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(run())
-    except KeyboardInterrupt:
-        _logger.info("Interrupted.")
-        sys.exit(0)
+    import time as _time
+
+    while True:
+        try:
+            asyncio.run(run())
+            # run() only returns on clean shutdown (Ctrl+C / SIGTERM)
+            break
+        except KeyboardInterrupt:
+            _logger.info("Interrupted by user.")
+            break
+        except Exception as _crash:
+            _logger.error(
+                "Agent Guru crashed: %s — restarting in 3 seconds...",
+                _crash, exc_info=True,
+            )
+            _time.sleep(3)
+            _logger.info("Restarting Agent Guru...")
+            continue
