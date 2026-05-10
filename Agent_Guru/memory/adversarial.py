@@ -16,7 +16,7 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -34,7 +34,7 @@ class ConflictRecord:
     version_b: dict[str, Any] = field(default_factory=dict)
     confidence_a: float = 1.0
     confidence_b: float = 1.0
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     resolved: bool = False
 
 
@@ -44,7 +44,7 @@ class PoisoningFlag:
     item_id: UUID = field(default_factory=uuid4)
     source: str = ""
     reason: str = ""
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 @dataclass
@@ -53,14 +53,14 @@ class IntegrityViolation:
     structure_id: str = ""
     expected_checksum: str = ""
     actual_checksum: str = ""
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     quarantined: bool = False
 
 
 @dataclass
 class MemorySnapshot:
     snapshot_id: UUID = field(default_factory=uuid4)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     data: dict[str, Any] = field(default_factory=dict)
 
 
@@ -139,8 +139,8 @@ class AdversarialRobustnessEngine:
             return False  # Existing knowledge not high-confidence; no poisoning concern
 
         contradictions = 0
-        for key in new_data:
-            if key in existing_data and existing_data[key] != new_data[key]:
+        for key, new_val in new_data.items():
+            if key in existing_data and existing_data[key] != new_val:
                 contradictions += 1
 
         if contradictions == 0:
@@ -175,7 +175,7 @@ class AdversarialRobustnessEngine:
             self._source_suspicious_count[source] += 1
             count = self._source_suspicious_count[source]
             # Reduce trust: each suspicion halves remaining trust
-            self._source_trust[source] = max(0.0, 1.0 / (2 ** count))
+            self._source_trust[source] = max(0.0, 1.0 / (2**count))
         else:
             # Slightly restore trust on clean submission
             self._source_trust[source] = min(1.0, self._source_trust[source] + 0.05)
