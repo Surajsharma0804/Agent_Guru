@@ -1,5 +1,4 @@
-"""
-Strategy Optimizer for Self-Improvement Engine.
+"""Strategy Optimizer for Self-Improvement Engine.
 
 Tracks strategy performance and selects optimal strategies for tasks.
 Implements exploration-exploitation tradeoff for continuous learning.
@@ -18,9 +17,9 @@ Date: 2026-02-27
 
 import json
 import math
-import random
+import secrets
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -48,8 +47,7 @@ class Strategy:
 
 
 class StrategyOptimizer:
-    """
-    Optimizes strategy selection based on performance tracking.
+    """Optimizes strategy selection based on performance tracking.
 
     Uses epsilon-greedy exploration to balance exploitation of known
     good strategies with exploration of potentially better strategies.
@@ -68,6 +66,7 @@ class StrategyOptimizer:
         ... )
         >>> optimizer.update_strategy_performance("reasoning_chain", True, 150.0)
         >>> best = optimizer.get_best_strategy("analysis")
+
     """
 
     def __init__(
@@ -76,10 +75,9 @@ class StrategyOptimizer:
         epsilon: float = 0.1,
         min_executions_for_confidence: int = 10,
         stability_monitor: "StabilityMonitor | None" = None,
-        enable_dampening: bool = True
+        enable_dampening: bool = True,
     ) -> None:
-        """
-        Initialize strategy optimizer.
+        """Initialize strategy optimizer.
 
         Args:
             pool: ConnectionPool for database access
@@ -90,9 +88,11 @@ class StrategyOptimizer:
 
         Raises:
             ValueError: If epsilon not in [0.0, 1.0]
+
         """
         if not 0.0 <= epsilon <= 1.0:
-            raise ValueError(f"Epsilon must be in [0.0, 1.0], got {epsilon}")
+            msg = f"Epsilon must be in [0.0, 1.0], got {epsilon}"
+            raise ValueError(msg)
 
         self.pool = pool
         self.epsilon = epsilon
@@ -106,8 +106,7 @@ class StrategyOptimizer:
         self._init_database()
 
     def _init_database(self) -> None:
-        """
-        Initialize database schema for strategies.
+        """Initialize database schema for strategies.
 
         Note: DatabaseSchema.create_schema() should be called first.
         This method only verifies the table exists.
@@ -120,12 +119,13 @@ class StrategyOptimizer:
                 """
                 SELECT name FROM sqlite_master
                 WHERE type='table' AND name='strategies'
-            """
+            """,
             )
 
             if not cursor.fetchone():
+                msg = "Strategies table not found. Call DatabaseSchema.create_schema() first."
                 raise RuntimeError(
-                    "Strategies table not found. " "Call DatabaseSchema.create_schema() first."
+                    msg,
                 )
 
     def register_strategy(
@@ -136,8 +136,7 @@ class StrategyOptimizer:
         task_types: list[str],
         parameters: dict[str, Any],
     ) -> None:
-        """
-        Register a new strategy.
+        """Register a new strategy.
 
         Args:
             strategy_id: Unique strategy identifier
@@ -148,18 +147,21 @@ class StrategyOptimizer:
 
         Raises:
             ValueError: If strategy_id already exists
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
 
             # Check if strategy already exists
             cursor.execute(
-                "SELECT strategy_id FROM strategies WHERE strategy_id = ?", (strategy_id,)
+                "SELECT strategy_id FROM strategies WHERE strategy_id = ?",
+                (strategy_id,),
             )
             if cursor.fetchone():
-                raise ValueError(f"Strategy '{strategy_id}' already exists")
+                msg = f"Strategy '{strategy_id}' already exists"
+                raise ValueError(msg)
 
-            now = datetime.now(tz=timezone.utc).isoformat()
+            now = datetime.now(tz=UTC).isoformat()
 
             cursor.execute(
                 """
@@ -189,10 +191,12 @@ class StrategyOptimizer:
             conn.commit()
 
     def update_strategy_performance(
-        self, strategy_id: str, success: bool, execution_time_ms: float
+        self,
+        strategy_id: str,
+        success: bool,
+        execution_time_ms: float,
     ) -> None:
-        """
-        Update strategy performance after execution.
+        """Update strategy performance after execution.
 
         Time Complexity: O(1) - single database update
 
@@ -203,6 +207,7 @@ class StrategyOptimizer:
 
         Raises:
             ValueError: If strategy_id doesn't exist
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -220,7 +225,8 @@ class StrategyOptimizer:
 
             row = cursor.fetchone()
             if not row:
-                raise ValueError(f"Strategy '{strategy_id}' not found")
+                msg = f"Strategy '{strategy_id}' not found"
+                raise ValueError(msg)
 
             total, success_count, failure_count, avg_time = row
 
@@ -237,7 +243,7 @@ class StrategyOptimizer:
                 else execution_time_ms
             )
 
-            now = datetime.now(tz=timezone.utc).isoformat()
+            now = datetime.now(tz=UTC).isoformat()
 
             cursor.execute(
                 """
@@ -266,8 +272,7 @@ class StrategyOptimizer:
             conn.commit()
 
     def get_best_strategy(self, task_type: str, min_success_rate: float = 0.0) -> Strategy | None:
-        """
-        Get the best performing strategy for a task type.
+        """Get the best performing strategy for a task type.
 
         Time Complexity: O(n) where n is strategies for task_type
 
@@ -277,6 +282,7 @@ class StrategyOptimizer:
 
         Returns:
             Best strategy or None if no strategies available
+
         """
         strategies = self.get_strategies_for_task_type(task_type)
 
@@ -295,8 +301,7 @@ class StrategyOptimizer:
         return candidates[0]
 
     def select_strategy_with_exploration(self, task_type: str) -> Strategy | None:
-        """
-        Select strategy using epsilon-greedy exploration with dampening.
+        """Select strategy using epsilon-greedy exploration with dampening.
 
         With probability epsilon, selects random strategy (exploration).
         With probability 1-epsilon, selects best strategy (exploitation).
@@ -311,6 +316,7 @@ class StrategyOptimizer:
 
         Returns:
             Selected strategy or None if no strategies available
+
         """
         strategies = self.get_strategies_for_task_type(task_type)
 
@@ -318,8 +324,8 @@ class StrategyOptimizer:
             return None
 
         # Exploration: select random strategy
-        if random.random() < self.epsilon:
-            selected = random.choice(strategies)
+        if secrets.SystemRandom().random() < self.epsilon:
+            selected = secrets.choice(strategies)
         else:
             # Exploitation: select best strategy
             selected = self.get_best_strategy(task_type)
@@ -341,7 +347,7 @@ class StrategyOptimizer:
             self.stability_monitor.record_change(
                 "strategy_selection",
                 task_type,
-                float(strategy_index)
+                float(strategy_index),
             )
 
         return selected
@@ -350,10 +356,9 @@ class StrategyOptimizer:
         self,
         task_type: str,
         proposed_strategy: Strategy,
-        available_strategies: list[Strategy]
+        available_strategies: list[Strategy],
     ) -> Strategy:
-        """
-        Apply dampening to prevent rapid strategy flip-flopping.
+        """Apply dampening to prevent rapid strategy flip-flopping.
 
         Uses StabilityMonitor to detect oscillations and applies
         dampening by preferring the last selected strategy if
@@ -369,15 +374,13 @@ class StrategyOptimizer:
 
         Returns:
             Dampened strategy selection (may be same as proposed)
+
         """
         if not self.stability_monitor:
             return proposed_strategy
 
         # Check if strategy selection is stable
-        is_stable, metrics = self.stability_monitor.check_stability(
-            "strategy_selection",
-            task_type
-        )
+        is_stable, metrics = self.stability_monitor.check_stability("strategy_selection", task_type)
 
         # If unstable, apply dampening
         if not is_stable and metrics:
@@ -388,7 +391,7 @@ class StrategyOptimizer:
                 # Find last selected strategy in available strategies
                 last_strategy = next(
                     (s for s in available_strategies if s.strategy_id == last_strategy_id),
-                    None
+                    None,
                 )
 
                 if last_strategy:
@@ -398,15 +401,14 @@ class StrategyOptimizer:
                         # Higher stability score = more likely to allow switch
                         switch_probability = metrics.stability_score
 
-                        if random.random() > switch_probability:
+                        if secrets.SystemRandom().random() > switch_probability:
                             # Don't switch - stick with last strategy
                             return last_strategy
 
         return proposed_strategy
 
     def get_strategies_for_task_type(self, task_type: str) -> list[Strategy]:
-        """
-        Get all strategies applicable to a task type.
+        """Get all strategies applicable to a task type.
 
         Time Complexity: O(n) where n is total strategies
 
@@ -415,6 +417,7 @@ class StrategyOptimizer:
 
         Returns:
             List of applicable strategies
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -426,7 +429,7 @@ class StrategyOptimizer:
                        failure_count, avg_execution_time_ms,
                        created_at, last_updated, last_used
                 FROM strategies
-            """
+            """,
             )
 
             strategies = []
@@ -450,14 +453,13 @@ class StrategyOptimizer:
                             created_at=datetime.fromisoformat(row[10]),
                             last_updated=datetime.fromisoformat(row[11]),
                             last_used=datetime.fromisoformat(row[12]) if row[12] else None,
-                        )
+                        ),
                     )
 
             return strategies
 
     def get_strategy(self, strategy_id: str) -> Strategy | None:
-        """
-        Get a specific strategy by ID.
+        """Get a specific strategy by ID.
 
         Time Complexity: O(1) - indexed lookup
 
@@ -466,6 +468,7 @@ class StrategyOptimizer:
 
         Returns:
             Strategy or None if not found
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -503,10 +506,11 @@ class StrategyOptimizer:
             )
 
     def rank_strategies(
-        self, task_type: str, strategy_ids: list[str] | None = None
+        self,
+        task_type: str,
+        strategy_ids: list[str] | None = None,
     ) -> list[Strategy]:
-        """
-        Rank strategies by performance for a task type.
+        """Rank strategies by performance for a task type.
 
         Uses Upper Confidence Bound (UCB) for ranking to balance
         exploitation and exploration.
@@ -519,6 +523,7 @@ class StrategyOptimizer:
 
         Returns:
             List of strategies ranked by UCB score (descending)
+
         """
         if strategy_ids:
             strategies = [
@@ -544,7 +549,7 @@ class StrategyOptimizer:
             else:
                 # UCB1 formula: mean + sqrt(2 * ln(total) / executions)
                 exploration_bonus = math.sqrt(
-                    2 * math.log(total_executions + 1) / strategy.total_executions
+                    2 * math.log(total_executions + 1) / strategy.total_executions,
                 )
                 ucb_score = strategy.success_rate + exploration_bonus
 
@@ -556,13 +561,13 @@ class StrategyOptimizer:
         return [s for s, _ in scored_strategies]
 
     def get_strategy_count(self) -> int:
-        """
-        Get total number of registered strategies.
+        """Get total number of registered strategies.
 
         Time Complexity: O(1)
 
         Returns:
             Number of strategies
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -571,13 +576,13 @@ class StrategyOptimizer:
             return int(result[0]) if result else 0
 
     def get_all_strategies(self) -> list[Strategy]:
-        """
-        Get all registered strategies.
+        """Get all registered strategies.
 
         Time Complexity: O(n) where n is number of strategies
 
         Returns:
             List of all strategies
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -590,7 +595,7 @@ class StrategyOptimizer:
                        created_at, last_updated, last_used
                 FROM strategies
                 ORDER BY success_rate DESC, total_executions DESC
-            """
+            """,
             )
 
             strategies = []
@@ -610,7 +615,7 @@ class StrategyOptimizer:
                         created_at=datetime.fromisoformat(row[10]),
                         last_updated=datetime.fromisoformat(row[11]),
                         last_used=datetime.fromisoformat(row[12]) if row[12] else None,
-                    )
+                    ),
                 )
 
             return strategies
@@ -626,8 +631,7 @@ class StrategyOptimizer:
         success: bool,
         execution_time_ms: float,
     ) -> str | None:
-        """
-        Discover new strategy from successful execution.
+        """Discover new strategy from successful execution.
 
         Analyzes successful task executions to extract reusable strategies.
         If a novel approach is detected, registers it as a new strategy.
@@ -653,6 +657,7 @@ class StrategyOptimizer:
             >>> strategy_id = optimizer.discover_strategy_from_execution(
             ...     "analysis", context, True, 150.0
             ... )
+
         """
         # Only discover from successful executions
         if not success:
@@ -672,7 +677,7 @@ class StrategyOptimizer:
                 return None
 
         # New strategy discovered - register it
-        strategy_id = f"discovered_{approach}_{task_type}_{datetime.now(tz=timezone.utc).timestamp()}"
+        strategy_id = f"discovered_{approach}_{task_type}_{datetime.now(tz=UTC).timestamp()}"
         strategy_name = f"Discovered: {approach.replace('_', ' ').title()}"
         strategy_description = (
             f"Automatically discovered strategy from successful {task_type} execution"
@@ -704,10 +709,11 @@ class StrategyOptimizer:
             return None
 
     def validate_strategy(
-        self, strategy_id: str, validation_tasks: list[tuple[str, bool, float]]
+        self,
+        strategy_id: str,
+        validation_tasks: list[tuple[str, bool, float]],
     ) -> bool:
-        """
-        Validate strategy against held-out test set.
+        """Validate strategy against held-out test set.
 
         Tests strategy performance on validation tasks to ensure it generalizes.
         Strategy is considered valid if it achieves >50% success rate on validation.
@@ -732,10 +738,12 @@ class StrategyOptimizer:
             ...     ("analysis", False, 200.0),
             ... ]
             >>> is_valid = optimizer.validate_strategy("strategy1", validation_data)
+
         """
         strategy = self.get_strategy(strategy_id)
         if not strategy:
-            raise ValueError(f"Strategy '{strategy_id}' not found")
+            msg = f"Strategy '{strategy_id}' not found"
+            raise ValueError(msg)
 
         if not validation_tasks:
             return False
@@ -745,13 +753,15 @@ class StrategyOptimizer:
         validation_success_rate = successes / len(validation_tasks)
 
         # Strategy is valid if it achieves >50% success rate
-        return validation_success_rate > 0.5
+        return validation_success_rate > 0.5  # noqa: PLR2004 - Threshold value
+
 
     def merge_similar_strategies(
-        self, strategy_ids: list[str], similarity_threshold: float = 0.8
+        self,
+        strategy_ids: list[str],
+        similarity_threshold: float = 0.8,
     ) -> str | None:
-        """
-        Merge similar strategies into a single strategy.
+        """Merge similar strategies into a single strategy.
 
         Combines strategies with similar parameters and performance into one.
         The merged strategy inherits the best characteristics of both.
@@ -774,8 +784,10 @@ class StrategyOptimizer:
             ...     ["strategy1", "strategy2"],
             ...     similarity_threshold=0.8
             ... )
+
         """
-        if len(strategy_ids) < 2:
+        if len(strategy_ids) < 2:  # noqa: PLR2004 - Small integer threshold
+
             return None
 
         # Get all strategies
@@ -783,7 +795,8 @@ class StrategyOptimizer:
         for strategy_id in strategy_ids:
             strategy = self.get_strategy(strategy_id)
             if not strategy:
-                raise ValueError(f"Strategy '{strategy_id}' not found")
+                msg = f"Strategy '{strategy_id}' not found"
+                raise ValueError(msg)
             strategies.append(strategy)
 
         # Check if strategies are similar enough to merge
@@ -791,7 +804,7 @@ class StrategyOptimizer:
             return None
 
         # Create merged strategy
-        merged_id = f"merged_{datetime.now(tz=timezone.utc).timestamp()}"
+        merged_id = f"merged_{datetime.now(tz=UTC).timestamp()}"
         merged_name = f"Merged: {' + '.join(s.name for s in strategies[:2])}"
         merged_description = (
             f"Merged from {len(strategies)} similar strategies: "
@@ -830,7 +843,7 @@ class StrategyOptimizer:
             total_time = sum(s.avg_execution_time_ms * s.total_executions for s in strategies)
             avg_time = total_time / total_executions if total_executions > 0 else 0.0
 
-            now = datetime.now(tz=timezone.utc).isoformat()
+            now = datetime.now(tz=UTC).isoformat()
 
             cursor.execute(
                 """
@@ -863,8 +876,7 @@ class StrategyOptimizer:
         min_executions: int = 20,
         max_failure_rate: float = 0.8,
     ) -> list[str]:
-        """
-        Remove strategies that consistently perform poorly.
+        """Remove strategies that consistently perform poorly.
 
         Identifies and removes strategies with high failure rates after
         sufficient trials. This prevents the system from wasting time
@@ -886,6 +898,7 @@ class StrategyOptimizer:
             ...     max_failure_rate=0.8
             ... )
             >>> print(f"Pruned {len(pruned)} poor performers")
+
         """
         pruned_ids = []
 
@@ -915,8 +928,7 @@ class StrategyOptimizer:
         return pruned_ids
 
     def _are_strategies_similar(self, strategies: list[Strategy], threshold: float) -> bool:
-        """
-        Check if strategies are similar enough to merge.
+        """Check if strategies are similar enough to merge.
 
         Compares strategies based on:
         - Task types overlap
@@ -929,8 +941,10 @@ class StrategyOptimizer:
 
         Returns:
             True if strategies are similar above threshold
+
         """
-        if len(strategies) < 2:
+        if len(strategies) < 2:  # noqa: PLR2004 - Small integer threshold
+
             return False
 
         # Compare first strategy with all others
@@ -964,8 +978,7 @@ class StrategyOptimizer:
         return True
 
     def get_dampening_metrics(self, task_type: str | None = None) -> dict[str, Any]:
-        """
-        Get dampening metrics for strategy selection.
+        """Get dampening metrics for strategy selection.
 
         Args:
             task_type: Optional task type to filter (None = all task types)
@@ -981,6 +994,7 @@ class StrategyOptimizer:
             >>> metrics = optimizer.get_dampening_metrics("analysis")
             >>> if metrics['oscillation_detected']:
             ...     print("Strategy selection is oscillating!")
+
         """
         if not self.stability_monitor:
             return {
@@ -988,7 +1002,7 @@ class StrategyOptimizer:
                 "oscillation_detected": False,
                 "last_selected": self._last_selected.copy(),
                 "recommendations": [],
-                "dampening_enabled": self.enable_dampening
+                "dampening_enabled": self.enable_dampening,
             }
 
         # Get stability report from monitor
@@ -996,14 +1010,8 @@ class StrategyOptimizer:
 
         # Filter by task type if specified
         if task_type:
-            metrics_list = [
-                m for m in report["metrics"]
-                if m.metric_name == task_type
-            ]
-            unstable_metrics = [
-                m for m in report["unstable_metrics"]
-                if m.metric_name == task_type
-            ]
+            metrics_list = [m for m in report["metrics"] if m.metric_name == task_type]
+            unstable_metrics = [m for m in report["unstable_metrics"] if m.metric_name == task_type]
         else:
             metrics_list = report["metrics"]
             unstable_metrics = report["unstable_metrics"]
@@ -1019,15 +1027,11 @@ class StrategyOptimizer:
         # Generate recommendations
         recommendations = []
         if oscillation_detected:
+            recommendations.append("Strategy selection is oscillating - dampening is being applied")
             recommendations.append(
-                "Strategy selection is oscillating - dampening is being applied"
+                "Consider increasing min_executions_for_confidence to gather more data",
             )
-            recommendations.append(
-                "Consider increasing min_executions_for_confidence to gather more data"
-            )
-            recommendations.append(
-                "Review strategy performance metrics for conflicting signals"
-            )
+            recommendations.append("Review strategy performance metrics for conflicting signals")
 
         return {
             "stability_score": stability_score,
@@ -1041,15 +1045,14 @@ class StrategyOptimizer:
                     "task_type": m.metric_name,
                     "variance": m.variance,
                     "change_frequency": m.change_frequency,
-                    "stability_score": m.stability_score
+                    "stability_score": m.stability_score,
                 }
                 for m in metrics_list
-            ]
+            ],
         }
 
     def reset_dampening_history(self, task_type: str | None = None) -> None:
-        """
-        Reset dampening history for strategy selection.
+        """Reset dampening history for strategy selection.
 
         Clears the last selected strategy tracking and stability history.
         Useful after major system changes or for testing.
@@ -1063,6 +1066,7 @@ class StrategyOptimizer:
             >>>
             >>> # Reset all task types
             >>> optimizer.reset_dampening_history()
+
         """
         if task_type:
             # Reset specific task type

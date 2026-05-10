@@ -1,3 +1,1 @@
-"""
-Agent Guru shared utilities package.
-"""
+"""Agent Guru shared utilities package."""

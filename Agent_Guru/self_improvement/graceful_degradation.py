@@ -1,5 +1,4 @@
-"""
-Graceful degradation for self-improvement engine.
+"""Graceful degradation for self-improvement engine.
 
 Ensures system continues functioning even if self-improvement engine fails.
 """
@@ -7,13 +6,14 @@ Ensures system continues functioning even if self-improvement engine fails.
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class DegradationMode(Enum):
     """Degradation modes."""
+
     NORMAL = "normal"  # Full functionality
     DEGRADED = "degraded"  # Limited functionality
     FALLBACK = "fallback"  # Minimal functionality
@@ -22,6 +22,7 @@ class DegradationMode(Enum):
 @dataclass
 class FallbackStrategy:
     """Fallback strategy when engine fails."""
+
     strategy_id: str = "default"
     name: str = "Default Strategy"
     description: str = "Basic fallback strategy"
@@ -33,8 +34,7 @@ class FallbackStrategy:
 
 
 class GracefulDegradationHandler:
-    """
-    Handles graceful degradation when self-improvement engine fails.
+    """Handles graceful degradation when self-improvement engine fails.
 
     Ensures Agent Guru continues functioning with baseline capabilities
     even if learning system is unavailable.
@@ -42,31 +42,30 @@ class GracefulDegradationHandler:
 
     def __init__(
         self,
-        fallback_strategy: Optional[FallbackStrategy] = None,
-        error_callback: Optional[Callable[[Exception], None]] = None
-    ):
-        """
-        Initialize graceful degradation handler.
+        fallback_strategy: FallbackStrategy | None = None,
+        error_callback: Callable[[Exception], None] | None = None,
+    ) -> None:
+        """Initialize graceful degradation handler.
 
         Args:
             fallback_strategy: Strategy to use when engine fails
             error_callback: Optional callback for error notifications
+
         """
         self.fallback_strategy = fallback_strategy or FallbackStrategy()
         self.error_callback = error_callback
         self.mode = DegradationMode.NORMAL
         self.failure_count = 0
-        self.last_failure: Optional[datetime] = None
+        self.last_failure: datetime | None = None
         self.logger = logging.getLogger(__name__)
 
     def wrap_operation(
         self,
         operation: Callable[[], Any],
-        fallback_value: Any = None,
-        operation_name: str = "operation"
-    ) -> Any:
-        """
-        Wrap an operation with graceful degradation.
+        fallback_value: Any = None,  # noqa: ANN401
+        operation_name: str = "operation",
+    ) -> Any:  # noqa: ANN401
+        """Wrap an operation with graceful degradation.
 
         If operation fails, logs error and returns fallback value.
 
@@ -77,13 +76,18 @@ class GracefulDegradationHandler:
 
         Returns:
             Operation result or fallback value
+
         """
         try:
             result = operation()
 
             # Reset failure count on success
             if self.failure_count > 0:
-                self.logger.info("%s recovered after %d failures", operation_name, self.failure_count)
+                self.logger.info(
+                    "%s recovered after %d failures",
+                    operation_name,
+                    self.failure_count,
+                )
                 self.failure_count = 0
                 self.mode = DegradationMode.NORMAL
 
@@ -91,35 +95,36 @@ class GracefulDegradationHandler:
 
         except Exception as e:
             self.failure_count += 1
-            self.last_failure = datetime.now(tz=timezone.utc)
+            self.last_failure = datetime.now(tz=UTC)
 
             # Update degradation mode based on failure count
-            if self.failure_count >= 10:
+            if self.failure_count >= 10:  # noqa: PLR2004 - Threshold
+
                 self.mode = DegradationMode.FALLBACK
-            elif self.failure_count >= 3:
+            elif self.failure_count >= 3:  # noqa: PLR2004 - Small integer threshold
+
                 self.mode = DegradationMode.DEGRADED
 
-            self.logger.error(
+            self.logger.exception(
                 f"{operation_name} failed (count: {self.failure_count}): {e}",
-                exc_info=True
+                exc_info=True,
             )
 
             # Notify error callback
             if self.error_callback:
                 try:
                     self.error_callback(e)
-                except Exception as callback_error:
-                    self.logger.error("Error callback failed: %s", callback_error)
+                except Exception:
+                    self.logger.exception("Error callback failed")
 
             return fallback_value
 
     def get_strategy_with_fallback(
         self,
         get_strategy_func: Callable[[], Any],
-        task_type: str
-    ) -> Any:
-        """
-        Get optimal strategy with fallback.
+        task_type: str,
+    ) -> Any:  # noqa: ANN401
+        """Get optimal strategy with fallback.
 
         Args:
             get_strategy_func: Function to get optimal strategy
@@ -127,20 +132,16 @@ class GracefulDegradationHandler:
 
         Returns:
             Strategy or fallback strategy
+
         """
         return self.wrap_operation(
             operation=get_strategy_func,
             fallback_value=self.fallback_strategy,
-            operation_name=f"get_strategy({task_type})"
+            operation_name=f"get_strategy({task_type})",
         )
 
-    def record_execution_with_fallback(
-        self,
-        record_func: Callable[[], None],
-        task_id: str
-    ) -> bool:
-        """
-        Record task execution with fallback.
+    def record_execution_with_fallback(self, record_func: Callable[[], None], task_id: str) -> bool:
+        """Record task execution with fallback.
 
         Args:
             record_func: Function to record execution
@@ -148,27 +149,28 @@ class GracefulDegradationHandler:
 
         Returns:
             True if recorded successfully, False otherwise
+
         """
         result = self.wrap_operation(
             operation=record_func,
             fallback_value=False,
-            operation_name=f"record_execution({task_id})"
+            operation_name=f"record_execution({task_id})",
         )
 
         return result is not False
 
     def get_metrics_with_fallback(
         self,
-        get_metrics_func: Callable[[], dict[str, Any]]
+        get_metrics_func: Callable[[], dict[str, Any]],
     ) -> dict[str, Any]:
-        """
-        Get metrics with fallback.
+        """Get metrics with fallback.
 
         Args:
             get_metrics_func: Function to get metrics
 
         Returns:
             Metrics dictionary or empty dict
+
         """
         return self.wrap_operation(
             operation=get_metrics_func,
@@ -176,17 +178,17 @@ class GracefulDegradationHandler:
                 "mode": self.mode.value,
                 "failure_count": self.failure_count,
                 "last_failure": self.last_failure.isoformat() if self.last_failure else None,
-                "message": "Self-improvement engine unavailable, using fallback"
+                "message": "Self-improvement engine unavailable, using fallback",
             },
-            operation_name="get_metrics"
+            operation_name="get_metrics",
         )
 
     def get_status(self) -> dict[str, Any]:
-        """
-        Get degradation handler status.
+        """Get degradation handler status.
 
         Returns:
             Status dictionary
+
         """
         return {
             "mode": self.mode.value,
@@ -195,9 +197,9 @@ class GracefulDegradationHandler:
             "fallback_strategy": {
                 "id": self.fallback_strategy.strategy_id,
                 "name": self.fallback_strategy.name,
-                "description": self.fallback_strategy.description
+                "description": self.fallback_strategy.description,
             },
-            "timestamp": datetime.now(tz=timezone.utc).isoformat()
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
 
     def reset(self) -> None:
@@ -209,23 +211,20 @@ class GracefulDegradationHandler:
 
 
 class SelfImprovementEngineWrapper:
-    """
-    Wrapper for self-improvement engine with graceful degradation.
+    """Wrapper for self-improvement engine with graceful degradation.
 
     Provides same interface as SelfImprovementEngine but with fallback behavior.
     """
 
     def __init__(
-        self,
-        engine: Any,
-        degradation_handler: Optional[GracefulDegradationHandler] = None
-    ):
-        """
-        Initialize wrapper.
+        self, engine: Any, degradation_handler: GracefulDegradationHandler | None = None,  # noqa: ANN401
+    ) -> None:
+        """Initialize wrapper.
 
         Args:
             engine: SelfImprovementEngine instance
             degradation_handler: Optional degradation handler
+
         """
         self.engine = engine
         self.degradation_handler = degradation_handler or GracefulDegradationHandler()
@@ -238,11 +237,12 @@ class SelfImprovementEngineWrapper:
         strategy_used: str,
         success: bool,
         execution_time_ms: float,
-        error_details: Optional[dict] = None,
-        context: Optional[dict] = None
+        error_details: dict | None = None,
+        context: dict | None = None,
     ) -> None:
         """Record task execution with fallback."""
-        def record():
+
+        def record() -> None:
             self.engine.record_task_execution(
                 task_id=task_id,
                 task_type=task_type,
@@ -250,50 +250,40 @@ class SelfImprovementEngineWrapper:
                 success=success,
                 execution_time_ms=execution_time_ms,
                 error_details=error_details,
-                context=context
+                context=context,
             )
 
-        self.degradation_handler.record_execution_with_fallback(
-            record_func=record,
-            task_id=task_id
-        )
+        self.degradation_handler.record_execution_with_fallback(record_func=record, task_id=task_id)
 
-    def get_optimal_strategy(
-        self,
-        task_type: str,
-        context: Optional[dict] = None
-    ) -> Any:
+    def get_optimal_strategy(self, task_type: str, context: dict | None = None) -> Any:  # noqa: ANN401
         """Get optimal strategy with fallback."""
+
         def get_strategy():
             return self.engine.get_optimal_strategy(task_type, context)
 
         return self.degradation_handler.get_strategy_with_fallback(
             get_strategy_func=get_strategy,
-            task_type=task_type
+            task_type=task_type,
         )
 
     def get_improvement_metrics(self) -> dict[str, Any]:
         """Get improvement metrics with fallback."""
+
         def get_metrics():
             return self.engine.get_improvement_metrics()
 
-        return self.degradation_handler.get_metrics_with_fallback(
-            get_metrics_func=get_metrics
-        )
+        return self.degradation_handler.get_metrics_with_fallback(get_metrics_func=get_metrics)
 
-    def get_evolved_prompt(
-        self,
-        prompt_type: str,
-        context: dict[str, Any]
-    ) -> str:
+    def get_evolved_prompt(self, prompt_type: str, context: dict[str, Any]) -> str:
         """Get evolved prompt with fallback."""
+
         def get_prompt():
             return self.engine.get_evolved_prompt(prompt_type, context)
 
         return self.degradation_handler.wrap_operation(
             operation=get_prompt,
             fallback_value=f"Default prompt for {prompt_type}",
-            operation_name=f"get_evolved_prompt({prompt_type})"
+            operation_name=f"get_evolved_prompt({prompt_type})",
         )
 
     def get_status(self) -> dict[str, Any]:
@@ -302,8 +292,8 @@ class SelfImprovementEngineWrapper:
             "engine_status": self.degradation_handler.wrap_operation(
                 operation=lambda: {"available": True},
                 fallback_value={"available": False},
-                operation_name="engine_status"
+                operation_name="engine_status",
             ),
             "degradation": self.degradation_handler.get_status(),
-            "timestamp": datetime.now(tz=timezone.utc).isoformat()
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }

@@ -1,5 +1,4 @@
-"""
-Conflict Resolution System for Self-Improvement Engine.
+"""Conflict Resolution System for Self-Improvement Engine.
 
 World-class production-grade implementation using state-of-the-art algorithms:
 - Isolation Forest for anomaly detection (best-in-class outlier detection)
@@ -32,23 +31,25 @@ Date: 2026-02-28
 """
 
 import logging
+
 _logger = logging.getLogger(__name__)
 
-import json
-import time
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from enum import Enum
-from typing import Any, Optional
+import json  # noqa: E402
+import time  # noqa: E402
+from dataclasses import dataclass  # noqa: E402
+from datetime import UTC, datetime, timedelta  # noqa: E402
+from enum import Enum  # noqa: E402
+from typing import Any  # noqa: E402
 
-import numpy as np
-from sklearn.ensemble import IsolationForest
+import numpy as np  # noqa: E402
+from sklearn.ensemble import IsolationForest  # noqa: E402
 
-from Agent_Guru.self_improvement.connection_pool import ConnectionPool
+from Agent_Guru.self_improvement.connection_pool import ConnectionPool  # noqa: E402
 
 
 class ConflictType(Enum):
     """Types of conflicts that can be detected."""
+
     CONTRADICTORY_FEEDBACK = "contradictory_feedback"
     DATA_POISONING = "data_poisoning"
     PERFORMANCE_DEGRADATION = "performance_degradation"
@@ -57,6 +58,7 @@ class ConflictType(Enum):
 
 class QuarantineReason(Enum):
     """Reasons for quarantining data."""
+
     CONTRADICTORY_FEEDBACK = "contradictory_feedback"
     POISONING_DETECTED = "poisoning_detected"
     HIGH_CONFLICT_SCORE = "high_conflict_score"
@@ -67,20 +69,22 @@ class QuarantineReason(Enum):
 @dataclass
 class TaskExecutionData:
     """Data for a single task execution (passed as parameter)."""
+
     task_id: str
     task_type: str
     strategy_id: str
     success: bool
     execution_time_ms: float
     timestamp: datetime
-    reasoning_quality: Optional[float] = None
-    tool_selection_correct: Optional[bool] = None
+    reasoning_quality: float | None = None
+    tool_selection_correct: bool | None = None
     hallucination_detected: bool = False
 
 
 @dataclass
 class ConflictDetection:
     """Result of conflict detection analysis."""
+
     has_conflict: bool
     conflict_type: ConflictType
     confidence: float  # 0.0-1.0
@@ -92,6 +96,7 @@ class ConflictDetection:
 @dataclass
 class QuarantinedData:
     """Data that has been quarantined."""
+
     data_id: str
     data_type: str  # "execution", "strategy", "prompt"
     reason: QuarantineReason
@@ -103,8 +108,7 @@ class QuarantinedData:
 
 
 class ConflictResolver:
-    """
-    World-class production-grade conflict resolution system.
+    """World-class production-grade conflict resolution system.
 
     Uses state-of-the-art algorithms for conflict and anomaly detection:
     - Isolation Forest: Best-in-class for outlier detection
@@ -129,6 +133,7 @@ class ConflictResolver:
         >>> conflict = resolver.detect_contradictory_feedback(executions)
         >>> if conflict.has_conflict:
         ...     resolution = resolver.resolve_conflict(conflict, executions)
+
     """
 
     def __init__(
@@ -136,10 +141,9 @@ class ConflictResolver:
         pool: ConnectionPool,
         conflict_threshold: float = 0.7,
         poisoning_threshold: float = 0.75,
-        quarantine_duration_hours: int = 24
-    ):
-        """
-        Initialize conflict resolver.
+        quarantine_duration_hours: int = 24,
+    ) -> None:
+        """Initialize conflict resolver.
 
         Args:
             pool: Database connection pool
@@ -149,11 +153,16 @@ class ConflictResolver:
 
         Raises:
             ValueError: If thresholds not in [0.0, 1.0]
+
         """
         if not 0.0 <= conflict_threshold <= 1.0:
-            raise ValueError(f"Conflict threshold must be in [0.0, 1.0], got {conflict_threshold}")
+            msg = f"Conflict threshold must be in [0.0, 1.0], got {conflict_threshold}"
+            raise ValueError(msg)
         if not 0.0 <= poisoning_threshold <= 1.0:
-            raise ValueError(f"Poisoning threshold must be in [0.0, 1.0], got {poisoning_threshold}")
+            msg = f"Poisoning threshold must be in [0.0, 1.0], got {poisoning_threshold}"
+            raise ValueError(
+                msg,
+            )
 
         self.pool = pool
         self.conflict_threshold = conflict_threshold
@@ -196,10 +205,9 @@ class ConflictResolver:
     def detect_contradictory_feedback(
         self,
         executions: list[TaskExecutionData],
-        min_executions: int = 5
+        min_executions: int = 5,
     ) -> ConflictDetection:
-        """
-        Detect contradictory feedback using Wald-Wolfowitz Runs Test.
+        """Detect contradictory feedback using Wald-Wolfowitz Runs Test.
 
         The runs test detects non-random patterns in binary sequences.
         A "run" is a sequence of consecutive identical outcomes.
@@ -216,6 +224,7 @@ class ConflictResolver:
         Performance Target: <20ms
 
         Validates: Requirements 9.1
+
         """
         start_time = time.time()
 
@@ -227,7 +236,7 @@ class ConflictResolver:
                 confidence=0.0,
                 conflicting_executions=[],
                 details={"reason": "insufficient_data", "count": len(executions)},
-                detected_at=datetime.now(tz=timezone.utc)
+                detected_at=datetime.now(tz=UTC),
             )
 
         # Extract success outcomes
@@ -251,15 +260,15 @@ class ConflictResolver:
                     "reason": "consistent_outcomes",
                     "success_rate": float(n1 / n),
                     "all_success": n1 == n,
-                    "all_failure": n0 == n
+                    "all_failure": n0 == n,
                 },
-                detected_at=datetime.now(tz=timezone.utc)
+                detected_at=datetime.now(tz=UTC),
             )
 
         # Count runs (sequences of consecutive same outcomes)
         runs = 1
         for i in range(1, n):
-            if outcomes[i] != outcomes[i-1]:
+            if outcomes[i] != outcomes[i - 1]:
                 runs += 1
 
         # Wald-Wolfowitz Runs Test
@@ -267,18 +276,16 @@ class ConflictResolver:
         expected_runs = (2 * n1 * n0) / n + 1
 
         # Variance of runs
-        runs_variance = (2 * n1 * n0 * (2 * n1 * n0 - n)) / (n ** 2 * (n - 1))
+        runs_variance = (2 * n1 * n0 * (2 * n1 * n0 - n)) / (n**2 * (n - 1))
 
         # Z-score (standardized test statistic)
-        if runs_variance > 0:
-            z_score = abs((runs - expected_runs) / np.sqrt(runs_variance))
-        else:
-            z_score = 0.0
+        z_score = abs((runs - expected_runs) / np.sqrt(runs_variance)) if runs_variance > 0 else 0.0
 
         # Detect oscillation: too few runs indicates alternating pattern
         # Critical value for 95% confidence: z > 1.96
         # Critical value for 90% confidence: z > 1.645
-        oscillation_detected = runs < expected_runs * 0.8 and z_score > 1.645
+        oscillation_detected = runs < expected_runs * 0.8 and z_score > 1.645  # noqa: PLR2004 - Threshold
+
 
         # Calculate variance-based confidence
         success_rate = n1 / n
@@ -297,7 +304,8 @@ class ConflictResolver:
         if oscillation_detected:
             # Strong signal: oscillation detected
             confidence = min(0.95, 0.6 + (z_score - 1.645) * 0.1 + variance_score * 0.2)
-        elif variance_score > 0.7 and abs(success_rate - 0.5) < 0.2:
+        elif variance_score > 0.7 and abs(success_rate - 0.5) < 0.2:  # noqa: PLR2004 - Threshold value
+
             # Moderate signal: high variance near 50% success rate
             confidence = min(0.85, variance_score * 0.8)
         elif z_score > 1.0:
@@ -310,14 +318,15 @@ class ConflictResolver:
         conflicting_ids = []
         if has_conflict:
             # Identify minority outcome
-            minority_outcome = 0 if success_rate > 0.5 else 1
+            minority_outcome = 0 if success_rate > 0.5 else 1  # noqa: PLR2004 - Threshold value
+
             conflicting_ids = [
-                task_ids[i] for i, outcome in enumerate(outcomes)
-                if outcome == minority_outcome
+                task_ids[i] for i, outcome in enumerate(outcomes) if outcome == minority_outcome
             ]
 
         elapsed_ms = (time.time() - start_time) * 1000
-        if elapsed_ms > 20:
+        if elapsed_ms > 20:  # noqa: PLR2004 - Threshold
+
             _logger.warning("WARNING: Conflict detection took %.2fms (target: <20ms)", elapsed_ms)
 
         return ConflictDetection(
@@ -332,9 +341,9 @@ class ConflictResolver:
                 "expected_runs": round(expected_runs, 2),
                 "z_score": round(z_score, 4),
                 "oscillation_detected": oscillation_detected,
-                "variance_score": round(variance_score, 4)
+                "variance_score": round(variance_score, 4),
             },
-            detected_at=datetime.now(tz=timezone.utc)
+            detected_at=datetime.now(tz=UTC),
         )
 
     def detect_data_poisoning(
@@ -342,10 +351,9 @@ class ConflictResolver:
         executions: list[TaskExecutionData],
         anomaly_threshold: float = 3.0,
         min_executions: int = 20,
-        contamination: float = 0.1
+        contamination: float = 0.1,
     ) -> ConflictDetection:
-        """
-        Detect data poisoning using ensemble anomaly detection with robust statistics.
+        """Detect data poisoning using ensemble anomaly detection with robust statistics.
 
         World-class production-grade implementation combining:
         1. Isolation Forest: Best-in-class for outlier detection
@@ -374,6 +382,7 @@ class ConflictResolver:
         Performance Target: <50ms
 
         Validates: Requirements 9.3
+
         """
         start_time = time.time()
 
@@ -385,7 +394,7 @@ class ConflictResolver:
                 confidence=0.0,
                 conflicting_executions=[],
                 details={"reason": "insufficient_data", "count": len(executions)},
-                detected_at=datetime.now(tz=timezone.utc)
+                detected_at=datetime.now(tz=UTC),
             )
 
         # Extract features with better discriminative power
@@ -411,7 +420,9 @@ class ConflictResolver:
             # 6. Hallucination indicator
             # 7. Execution time ratio (vs median)
 
-            modified_zscore = (ex.execution_time_ms - median_time) / mad_scaled if mad_scaled > 0 else 0.0
+            modified_zscore = (
+                (ex.execution_time_ms - median_time) / mad_scaled if mad_scaled > 0 else 0.0
+            )
             time_ratio = ex.execution_time_ms / median_time if median_time > 0 else 1.0
 
             feature_vec = [
@@ -419,9 +430,13 @@ class ConflictResolver:
                 modified_zscore,  # Robust normalized time (MAD-based)
                 1.0 if ex.success else 0.0,  # Success
                 ex.reasoning_quality if ex.reasoning_quality is not None else 0.5,  # Reasoning
-                1.0 if ex.tool_selection_correct else 0.0 if ex.tool_selection_correct is not None else 0.5,  # Tool
+                1.0
+                if ex.tool_selection_correct
+                else 0.0
+                if ex.tool_selection_correct is not None
+                else 0.5,  # Tool
                 1.0 if ex.hallucination_detected else 0.0,  # Hallucination
-                time_ratio  # Time ratio (vs median)
+                time_ratio,  # Time ratio (vs median)
             ]
             features.append(feature_vec)
             task_ids.append(ex.task_id)
@@ -430,6 +445,7 @@ class ConflictResolver:
 
         # Feature scaling using StandardScaler (research-backed best practice)
         from sklearn.preprocessing import StandardScaler
+
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)  # noqa: N806
 
@@ -441,7 +457,7 @@ class ConflictResolver:
                 n_estimators=200,  # Increased for better accuracy
                 max_samples=min(256, len(executions)),  # Optimal subsample size
                 bootstrap=False,
-                n_jobs=-1  # Use all CPU cores
+                n_jobs=-1,  # Use all CPU cores
             )
 
             iso_predictions = iso_forest.fit_predict(X_scaled)
@@ -450,11 +466,12 @@ class ConflictResolver:
 
             # Method 2: Local Outlier Factor (local density-based detection)
             from sklearn.neighbors import LocalOutlierFactor
+
             lof = LocalOutlierFactor(
                 contamination=contamination,
                 n_neighbors=min(20, len(executions) // 2),
                 novelty=False,
-                n_jobs=-1
+                n_jobs=-1,
             )
 
             lof_predictions = lof.fit_predict(X_scaled)
@@ -464,7 +481,8 @@ class ConflictResolver:
             # This is the KEY fix - using robust statistics
             # Research-backed: Modified Z-score with threshold 3.5 for MAD
             modified_zscores = np.abs((np.array(execution_times) - median_time) / mad_scaled)
-            z_anomalies = set(np.where(modified_zscores > 3.5)[0])
+            z_anomalies = set(np.where(modified_zscores > 3.5)[0])  # noqa: PLR2004 - Threshold
+
 
             # Additional check: Success rate anomalies (for cases where execution time is uniform)
             # If execution times are all similar, check for success rate anomalies
@@ -472,13 +490,15 @@ class ConflictResolver:
             success_rate = np.mean(success_values)
 
             # If success rate is far from 50/50 and we have mixed outcomes, flag minority
-            if 0.2 < success_rate < 0.8:  # Mixed outcomes
+            if 0.2 < success_rate < 0.8:  # Mixed outcomes  # noqa: PLR2004 (Threshold value)
+
                 # Identify minority outcome as potential poisoning
-                minority_is_failure = success_rate > 0.5
+                minority_is_failure = success_rate > 0.5  # noqa: PLR2004 - Threshold value
+
                 for i, ex in enumerate(executions):
-                    if minority_is_failure and not ex.success:
-                        z_anomalies.add(i)
-                    elif not minority_is_failure and ex.success:
+                    if (minority_is_failure and not ex.success) or (
+                        not minority_is_failure and ex.success
+                    ):
                         z_anomalies.add(i)
 
             # Ensemble voting with smart fallback:
@@ -490,13 +510,12 @@ class ConflictResolver:
 
             for idx in all_indices:
                 vote_counts[idx] = (
-                    (idx in iso_anomalies) +
-                    (idx in lof_anomalies) +
-                    (idx in z_anomalies)
+                    (idx in iso_anomalies) + (idx in lof_anomalies) + (idx in z_anomalies)
                 )
 
             # Primary: Anomalies detected by at least 2 methods
-            anomaly_indices = [idx for idx, votes in vote_counts.items() if votes >= 2]
+            anomaly_indices = [idx for idx, votes in vote_counts.items() if votes >= 2]  # noqa: PLR2004 - Small integer threshold
+
 
             # Fallback: If MAD detects many anomalies but ML methods don't,
             # trust MAD (it's robust to outliers, ML methods may be confused by high contamination)
@@ -554,8 +573,12 @@ class ConflictResolver:
             has_conflict = confidence >= self.poisoning_threshold
 
             elapsed_ms = (time.time() - start_time) * 1000
-            if elapsed_ms > 50:
-                _logger.warning("WARNING: Poisoning detection took %.2fms (target: <50ms)", elapsed_ms)
+            if elapsed_ms > 50:  # noqa: PLR2004 - Threshold
+
+                _logger.warning(
+                    "WARNING: Poisoning detection took %.2fms (target: <50ms)",
+                    elapsed_ms,
+                )
 
             return ConflictDetection(
                 has_conflict=has_conflict,
@@ -571,25 +594,22 @@ class ConflictResolver:
                     "algorithm": "ensemble_iso_lof_mad",
                     "iso_anomalies": len(iso_anomalies),
                     "lof_anomalies": len(lof_anomalies),
-                    "mad_anomalies": len(z_anomalies)
+                    "mad_anomalies": len(z_anomalies),
                 },
-                detected_at=datetime.now(tz=timezone.utc)
+                detected_at=datetime.now(tz=UTC),
             )
 
-        except Exception as e:
+        except Exception:
             # Fallback to statistical method if ensemble fails
-            return self._detect_poisoning_statistical(
-                executions, anomaly_threshold, min_executions
-            )
+            return self._detect_poisoning_statistical(executions, anomaly_threshold, min_executions)
 
     def _detect_poisoning_statistical(
         self,
         executions: list[TaskExecutionData],
         anomaly_threshold: float,
-        min_executions: int
+        min_executions: int,
     ) -> ConflictDetection:
-        """
-        Fallback statistical method for poisoning detection.
+        """Fallback statistical method for poisoning detection.
 
         Uses z-score based anomaly detection on execution times.
         """
@@ -609,7 +629,7 @@ class ConflictResolver:
                 confidence=0.0,
                 conflicting_executions=[],
                 details={"reason": "no_variance", "algorithm": "z_score_fallback"},
-                detected_at=datetime.now(tz=timezone.utc)
+                detected_at=datetime.now(tz=UTC),
             )
 
         z_scores = np.abs((execution_times - mean_time) / std_time)
@@ -634,19 +654,18 @@ class ConflictResolver:
                 "mean_time": round(mean_time, 2),
                 "std_time": round(std_time, 2),
                 "anomaly_threshold": anomaly_threshold,
-                "algorithm": "z_score_fallback"
+                "algorithm": "z_score_fallback",
             },
-            detected_at=datetime.now(tz=timezone.utc)
+            detected_at=datetime.now(tz=UTC),
         )
 
     def resolve_conflict(
         self,
         conflict: ConflictDetection,
         executions: list[TaskExecutionData],
-        use_majority_vote: bool = True
+        use_majority_vote: bool = True,
     ) -> dict[str, Any]:
-        """
-        Resolve detected conflict using statistical methods.
+        """Resolve detected conflict using statistical methods.
 
         For contradictory feedback: Uses majority vote to determine correct outcome
         For data poisoning: Quarantines all anomalous data
@@ -667,20 +686,22 @@ class ConflictResolver:
         Time Complexity: O(n) where n is len(executions)
 
         Validates: Requirements 9.2
+
         """
         if not conflict.has_conflict:
             return {
                 "resolved": False,
                 "method": "none",
                 "reason": "no_conflict_detected",
-                "actions": []
+                "actions": [],
             }
 
         if conflict.conflict_type == ConflictType.CONTRADICTORY_FEEDBACK:
             # Use majority vote
             if use_majority_vote:
                 outcomes = [1 if ex.success else 0 for ex in executions]
-                majority_outcome = np.mean(outcomes) > 0.5
+                majority_outcome = np.mean(outcomes) > 0.5  # noqa: PLR2004 - Threshold value
+
 
                 # Quarantine minority outcomes
                 quarantined_count = 0
@@ -696,8 +717,8 @@ class ConflictResolver:
                             data={
                                 "task_id": exec_data.task_id,
                                 "success": exec_data.success,
-                                "execution_time_ms": exec_data.execution_time_ms
-                            }
+                                "execution_time_ms": exec_data.execution_time_ms,
+                            },
                         )
                         quarantined_count += 1
 
@@ -708,8 +729,8 @@ class ConflictResolver:
                     "quarantined_count": quarantined_count,
                     "actions": [
                         f"Quarantined {quarantined_count} minority outcomes",
-                        f"Majority outcome: {'success' if majority_outcome else 'failure'}"
-                    ]
+                        f"Majority outcome: {'success' if majority_outcome else 'failure'}",
+                    ],
                 }
 
         elif conflict.conflict_type == ConflictType.DATA_POISONING:
@@ -726,8 +747,8 @@ class ConflictResolver:
                         data={
                             "task_id": exec_data.task_id,
                             "success": exec_data.success,
-                            "execution_time_ms": exec_data.execution_time_ms
-                        }
+                            "execution_time_ms": exec_data.execution_time_ms,
+                        },
                     )
                     quarantined_count += 1
 
@@ -737,15 +758,15 @@ class ConflictResolver:
                 "quarantined_count": quarantined_count,
                 "actions": [
                     f"Quarantined {quarantined_count} anomalous executions",
-                    "Poisoned data removed from learning"
-                ]
+                    "Poisoned data removed from learning",
+                ],
             }
 
         return {
             "resolved": False,
             "method": "unknown",
             "reason": "unsupported_conflict_type",
-            "actions": []
+            "actions": [],
         }
 
     def quarantine_data(
@@ -755,10 +776,9 @@ class ConflictResolver:
         reason: QuarantineReason,
         confidence: float,
         data: dict[str, Any],
-        duration_hours: Optional[int] = None
+        duration_hours: int | None = None,
     ) -> None:
-        """
-        Quarantine suspicious data.
+        """Quarantine suspicious data.
 
         Args:
             data_id: Unique identifier for the data
@@ -772,34 +792,37 @@ class ConflictResolver:
         Performance Target: <1ms
 
         Validates: Requirements 9.4
+
         """
         duration = duration_hours if duration_hours is not None else self.quarantine_duration_hours
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         expires_at = now + timedelta(hours=duration)
 
         with self.pool.transaction() as conn:
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR REPLACE INTO quarantine (
                     data_id, data_type, reason, confidence, data,
                     quarantined_at, expires_at, released
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                data_id,
-                data_type,
-                reason.value,
-                confidence,
-                json.dumps(data),
-                now.isoformat(),
-                expires_at.isoformat(),
-                0
-            ))
+            """,
+                (
+                    data_id,
+                    data_type,
+                    reason.value,
+                    confidence,
+                    json.dumps(data),
+                    now.isoformat(),
+                    expires_at.isoformat(),
+                    0,
+                ),
+            )
 
     def is_quarantined(self, data_id: str) -> bool:
-        """
-        Check if data is currently quarantined.
+        """Check if data is currently quarantined.
 
         Args:
             data_id: Data identifier
@@ -808,27 +831,30 @@ class ConflictResolver:
             True if quarantined and not expired, False otherwise
 
         Time Complexity: O(1)
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
 
-            now = datetime.now(tz=timezone.utc).isoformat()
+            now = datetime.now(tz=UTC).isoformat()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*) FROM quarantine
                 WHERE data_id = ? AND released = 0 AND expires_at > ?
-            """, (data_id, now))
+            """,
+                (data_id, now),
+            )
 
             result = cursor.fetchone()
             return result[0] > 0 if result else False
 
     def get_quarantined_data(
         self,
-        data_type: Optional[str] = None,
-        include_expired: bool = False
+        data_type: str | None = None,
+        include_expired: bool = False,
     ) -> list[QuarantinedData]:
-        """
-        Get quarantined data.
+        """Get quarantined data.
 
         Args:
             data_type: Optional filter by data type
@@ -838,6 +864,7 @@ class ConflictResolver:
             List of quarantined data
 
         Time Complexity: O(n) where n is number of quarantined items
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -851,7 +878,7 @@ class ConflictResolver:
 
             if not include_expired:
                 query += " AND (released = 0 AND expires_at > ?)"
-                params.append(datetime.now(tz=timezone.utc).isoformat())
+                params.append(datetime.now(tz=UTC).isoformat())
 
             query += " ORDER BY quarantined_at DESC"
 
@@ -859,37 +886,42 @@ class ConflictResolver:
 
             results = []
             for row in cursor.fetchall():
-                results.append(QuarantinedData(
-                    data_id=row[0],
-                    data_type=row[1],
-                    reason=QuarantineReason(row[2]),
-                    confidence=row[3],
-                    data=json.loads(row[4]),
-                    quarantined_at=datetime.fromisoformat(row[5]),
-                    expires_at=datetime.fromisoformat(row[6]),
-                    released=bool(row[7])
-                ))
+                results.append(
+                    QuarantinedData(
+                        data_id=row[0],
+                        data_type=row[1],
+                        reason=QuarantineReason(row[2]),
+                        confidence=row[3],
+                        data=json.loads(row[4]),
+                        quarantined_at=datetime.fromisoformat(row[5]),
+                        expires_at=datetime.fromisoformat(row[6]),
+                        released=bool(row[7]),
+                    ),
+                )
 
             return results
 
     def release_expired_quarantines(self) -> int:
-        """
-        Release expired quarantines.
+        """Release expired quarantines.
 
         Returns:
             Number of quarantines released
 
         Time Complexity: O(n) where n is number of expired quarantines
+
         """
         with self.pool.transaction() as conn:
             cursor = conn.cursor()
 
-            now = datetime.now(tz=timezone.utc).isoformat()
+            now = datetime.now(tz=UTC).isoformat()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE quarantine
                 SET released = 1
                 WHERE released = 0 AND expires_at <= ?
-            """, (now,))
+            """,
+                (now,),
+            )
 
             return cursor.rowcount

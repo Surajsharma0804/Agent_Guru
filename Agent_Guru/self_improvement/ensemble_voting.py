@@ -1,5 +1,4 @@
-"""
-Ensemble Voting System for Critical Tasks.
+"""Ensemble Voting System for Critical Tasks.
 
 Uses multiple strategies to execute critical tasks and votes on the best result.
 Improves reliability by reducing the impact of any single strategy failure.
@@ -28,7 +27,7 @@ import sqlite3
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -88,8 +87,7 @@ class EnsemblePerformanceMetrics:
 
 
 class EnsembleVotingSystem:
-    """
-    Manages ensemble voting for critical tasks.
+    """Manages ensemble voting for critical tasks.
 
     Executes tasks with multiple strategies and votes on the best result.
     Tracks performance to demonstrate reliability improvement.
@@ -115,17 +113,17 @@ class EnsembleVotingSystem:
         >>> # Get performance metrics
         >>> metrics = system.get_performance_metrics()
         >>> print(f"Ensemble improvement: {metrics.improvement_over_single:.1%}")
+
     """
 
     def __init__(
         self,
         pool: "ConnectionPool",
-        strategy_optimizer: Any,  # StrategyOptimizer
+        strategy_optimizer: Any,  # StrategyOptimizer  # noqa: ANN401
         default_voting_method: VotingMethod = VotingMethod.WEIGHTED,
         min_agreement_threshold: float = 0.6,
     ) -> None:
-        """
-        Initialize ensemble voting system.
+        """Initialize ensemble voting system.
 
         Args:
             pool: ConnectionPool for database access
@@ -135,10 +133,12 @@ class EnsembleVotingSystem:
 
         Raises:
             ValueError: If min_agreement_threshold not in [0.0, 1.0]
+
         """
         if not 0.0 <= min_agreement_threshold <= 1.0:
+            msg = f"min_agreement_threshold must be in [0.0, 1.0], got {min_agreement_threshold}"
             raise ValueError(
-                f"min_agreement_threshold must be in [0.0, 1.0], got {min_agreement_threshold}"
+                msg,
             )
 
         self.pool = pool
@@ -169,28 +169,28 @@ class EnsembleVotingSystem:
                     success INTEGER NOT NULL,
                     confidence REAL NOT NULL
                 )
-            """
+            """,
             )
 
             cursor.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_ensemble_timestamp
                 ON ensemble_executions(timestamp)
-            """
+            """,
             )
 
             cursor.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_ensemble_task_type
                 ON ensemble_executions(task_type)
-            """
+            """,
             )
 
             cursor.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_ensemble_criticality
                 ON ensemble_executions(criticality)
-            """
+            """,
             )
 
             conn.commit()
@@ -204,8 +204,7 @@ class EnsembleVotingSystem:
         voting_method: VotingMethod | None = None,
         task_context: dict[str, Any] | None = None,
     ) -> EnsembleResult:
-        """
-        Execute task with ensemble of strategies.
+        """Execute task with ensemble of strategies.
 
         Time Complexity: O(k * n) where k is ensemble size, n is task complexity
         Performance Target: <50ms voting overhead
@@ -232,8 +231,9 @@ class EnsembleVotingSystem:
             ...     task_executor=execute_task,
             ...     criticality=TaskCriticality.HIGH
             ... )
+
         """
-        start_time = datetime.now(tz=timezone.utc)
+        start_time = datetime.now(tz=UTC)
         voting_method = voting_method or self.default_voting_method
         task_context = task_context or {}
 
@@ -244,23 +244,26 @@ class EnsembleVotingSystem:
         strategies = self._get_top_strategies(task_type, ensemble_size)
 
         if not strategies:
-            raise ValueError(f"No strategies available for task type: {task_type}")
+            msg = f"No strategies available for task type: {task_type}"
+            raise ValueError(msg)
 
         # Execute task with each strategy in parallel
-        individual_results = await self._execute_parallel(
-            strategies, task_executor, task_context
-        )
+        individual_results = await self._execute_parallel(strategies, task_executor, task_context)
 
         # Vote on best result
         voted_result, agreement_score, confidence = self._vote_on_results(
-            individual_results, strategies, voting_method
+            individual_results,
+            strategies,
+            voting_method,
         )
 
         # Calculate execution time
-        execution_time_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
+        execution_time_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
 
         # Determine success
-        success = voted_result.get("success", False) and agreement_score >= self.min_agreement_threshold
+        success = (
+            voted_result.get("success", False) and agreement_score >= self.min_agreement_threshold
+        )
 
         # Create result
         result = EnsembleResult(
@@ -273,7 +276,7 @@ class EnsembleVotingSystem:
             voting_method=voting_method,
             agreement_score=agreement_score,
             execution_time_ms=execution_time_ms,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
             success=success,
             confidence=confidence,
         )
@@ -284,14 +287,14 @@ class EnsembleVotingSystem:
         return result
 
     def _get_ensemble_size(self, criticality: TaskCriticality) -> int:
-        """
-        Get ensemble size based on task criticality.
+        """Get ensemble size based on task criticality.
 
         Args:
             criticality: Task criticality level
 
         Returns:
             Number of strategies to use in ensemble
+
         """
         size_map = {
             TaskCriticality.LOW: 1,  # Single strategy
@@ -302,8 +305,7 @@ class EnsembleVotingSystem:
         return size_map[criticality]
 
     def _get_top_strategies(self, task_type: str, count: int) -> list["Strategy"]:
-        """
-        Get top N strategies for task type.
+        """Get top N strategies for task type.
 
         Args:
             task_type: Type of task
@@ -311,6 +313,7 @@ class EnsembleVotingSystem:
 
         Returns:
             List of top strategies sorted by success rate
+
         """
         strategies = self.strategy_optimizer.get_strategies_for_task_type(task_type)
 
@@ -329,8 +332,7 @@ class EnsembleVotingSystem:
         task_executor: Callable[[str, dict[str, Any]], Any],
         task_context: dict[str, Any],
     ) -> list[dict[str, Any]]:
-        """
-        Execute task with multiple strategies in parallel.
+        """Execute task with multiple strategies in parallel.
 
         Time Complexity: O(k * n) where k is number of strategies
 
@@ -341,6 +343,7 @@ class EnsembleVotingSystem:
 
         Returns:
             List of results from each strategy
+
         """
         tasks = []
         for strategy in strategies:
@@ -361,7 +364,7 @@ class EnsembleVotingSystem:
                         "success": False,
                         "error": str(result),
                         "confidence": 0.0,
-                    }
+                    },
                 )
             else:
                 processed_results.append(result)
@@ -374,8 +377,7 @@ class EnsembleVotingSystem:
         task_executor: Callable[[str, dict[str, Any]], Any],
         task_context: dict[str, Any],
     ) -> dict[str, Any]:
-        """
-        Execute task with a single strategy.
+        """Execute task with a single strategy.
 
         Args:
             strategy: Strategy to use
@@ -384,6 +386,7 @@ class EnsembleVotingSystem:
 
         Returns:
             Result dictionary with strategy_id, success, and result data
+
         """
         try:
             # Execute task with strategy parameters
@@ -416,8 +419,7 @@ class EnsembleVotingSystem:
         strategies: list["Strategy"],
         voting_method: VotingMethod,
     ) -> tuple[dict[str, Any], float, float]:
-        """
-        Vote on best result from ensemble.
+        """Vote on best result from ensemble.
 
         Time Complexity: O(k) where k is number of results
         Performance Target: <50ms
@@ -429,29 +431,28 @@ class EnsembleVotingSystem:
 
         Returns:
             Tuple of (voted_result, agreement_score, confidence)
+
         """
         if voting_method == VotingMethod.MAJORITY:
             return self._majority_vote(results)
-        elif voting_method == VotingMethod.WEIGHTED:
+        if voting_method == VotingMethod.WEIGHTED:
             return self._weighted_vote(results, strategies)
-        elif voting_method == VotingMethod.CONFIDENCE:
+        if voting_method == VotingMethod.CONFIDENCE:
             return self._confidence_vote(results)
-        elif voting_method == VotingMethod.UNANIMOUS:
+        if voting_method == VotingMethod.UNANIMOUS:
             return self._unanimous_vote(results)
-        else:
-            raise ValueError(f"Unknown voting method: {voting_method}")
+        msg = f"Unknown voting method: {voting_method}"
+        raise ValueError(msg)
 
-    def _majority_vote(
-        self, results: list[dict[str, Any]]
-    ) -> tuple[dict[str, Any], float, float]:
-        """
-        Simple majority vote on results.
+    def _majority_vote(self, results: list[dict[str, Any]]) -> tuple[dict[str, Any], float, float]:
+        """Simple majority vote on results.
 
         Args:
             results: List of results
 
         Returns:
             Tuple of (voted_result, agreement_score, confidence)
+
         """
         # Count successful results
         successful_results = [r for r in results if r.get("success", False)]
@@ -487,16 +488,17 @@ class EnsembleVotingSystem:
 
         # Calculate average confidence
         confidence = sum(r.get("confidence", 0.5) for r in successful_results) / len(
-            successful_results
+            successful_results,
         )
 
         return voted_result, agreement_score, confidence
 
     def _weighted_vote(
-        self, results: list[dict[str, Any]], strategies: list["Strategy"]
+        self,
+        results: list[dict[str, Any]],
+        strategies: list["Strategy"],
     ) -> tuple[dict[str, Any], float, float]:
-        """
-        Weighted vote based on strategy success rates.
+        """Weighted vote based on strategy success rates.
 
         Args:
             results: List of results
@@ -504,6 +506,7 @@ class EnsembleVotingSystem:
 
         Returns:
             Tuple of (voted_result, agreement_score, confidence)
+
         """
         # Create strategy_id to success_rate mapping
         strategy_weights = {s.strategy_id: s.success_rate for s in strategies}
@@ -548,16 +551,17 @@ class EnsembleVotingSystem:
         return voted_result, agreement_score, confidence
 
     def _confidence_vote(
-        self, results: list[dict[str, Any]]
+        self,
+        results: list[dict[str, Any]],
     ) -> tuple[dict[str, Any], float, float]:
-        """
-        Vote based on result confidence scores.
+        """Vote based on result confidence scores.
 
         Args:
             results: List of results
 
         Returns:
             Tuple of (voted_result, agreement_score, confidence)
+
         """
         # Filter successful results
         successful_results = [r for r in results if r.get("success", False)]
@@ -580,17 +584,15 @@ class EnsembleVotingSystem:
 
         return voted_result, agreement_score, confidence
 
-    def _unanimous_vote(
-        self, results: list[dict[str, Any]]
-    ) -> tuple[dict[str, Any], float, float]:
-        """
-        Require unanimous agreement on result.
+    def _unanimous_vote(self, results: list[dict[str, Any]]) -> tuple[dict[str, Any], float, float]:
+        """Require unanimous agreement on result.
 
         Args:
             results: List of results
 
         Returns:
             Tuple of (voted_result, agreement_score, confidence)
+
         """
         # Check if all results are successful
         all_successful = all(r.get("success", False) for r in results)
@@ -612,16 +614,15 @@ class EnsembleVotingSystem:
             agreement_score = 1.0
             confidence = sum(r.get("confidence", 0.5) for r in results) / len(results)
             return voted_result, agreement_score, confidence
-        else:
-            # No unanimous agreement, return most common
-            return self._majority_vote(results)
+        # No unanimous agreement, return most common
+        return self._majority_vote(results)
 
     def _store_ensemble_result(self, result: EnsembleResult) -> None:
-        """
-        Store ensemble result in database.
+        """Store ensemble result in database.
 
         Args:
             result: EnsembleResult to store
+
         """
         execution_id = f"ensemble_{result.task_id}_{result.timestamp.timestamp()}"
 
@@ -657,10 +658,11 @@ class EnsembleVotingSystem:
             conn.commit()
 
     def get_performance_metrics(
-        self, task_type: str | None = None, hours: int = 168
+        self,
+        task_type: str | None = None,
+        hours: int = 168,
     ) -> EnsemblePerformanceMetrics:
-        """
-        Get performance metrics comparing ensemble vs single-strategy.
+        """Get performance metrics comparing ensemble vs single-strategy.
 
         Time Complexity: O(n) where n is executions in window
 
@@ -676,10 +678,11 @@ class EnsembleVotingSystem:
             >>> print(f"Ensemble success rate: {metrics.ensemble_success_rate:.1%}")
             >>> print(f"Single success rate: {metrics.single_success_rate:.1%}")
             >>> print(f"Improvement: {metrics.improvement_over_single:.1%}")
+
         """
         from datetime import timedelta
 
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(hours=hours)
+        cutoff = datetime.now(tz=UTC) - timedelta(hours=hours)
         cutoff_iso = cutoff.isoformat()
 
         with self.pool.connection() as conn:
@@ -716,7 +719,7 @@ class EnsembleVotingSystem:
                     """
                     SELECT name FROM sqlite_master
                     WHERE type='table' AND name='task_executions'
-                """
+                """,
                 )
 
                 if cursor.fetchone():
@@ -759,10 +762,11 @@ class EnsembleVotingSystem:
         )
 
     def should_use_ensemble(
-        self, task_type: str, task_context: dict[str, Any] | None = None
+        self,
+        task_type: str,
+        task_context: dict[str, Any] | None = None,
     ) -> tuple[bool, TaskCriticality]:
-        """
-        Determine if ensemble should be used for a task.
+        """Determine if ensemble should be used for a task.
 
         Uses heuristics to determine task criticality and whether
         ensemble voting would be beneficial.
@@ -781,6 +785,7 @@ class EnsembleVotingSystem:
             ... )
             >>> if use_ensemble:
             ...     result = await system.execute_with_ensemble(...)
+
         """
         task_context = task_context or {}
 

@@ -1,5 +1,4 @@
-"""
-Automatic Rollback Manager for Self-Improvement Engine.
+"""Automatic Rollback Manager for Self-Improvement Engine.
 
 Automatically reverts recent changes when performance degradation is detected.
 Maintains version history and ensures data integrity during rollback operations.
@@ -23,7 +22,7 @@ Date: 2026-02-28
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -70,8 +69,7 @@ class RollbackResult:
 
 
 class RollbackManager:
-    """
-    Manages automatic rollback of recent changes.
+    """Manages automatic rollback of recent changes.
 
     Tracks all changes to strategies, prompts, and patterns with version
     history. Automatically rolls back changes when performance degradation
@@ -92,6 +90,7 @@ class RollbackManager:
         >>> # Rollback recent changes
         >>> result = manager.rollback_recent_changes(hours=24)
         >>> print(f"Rolled back {result.changes_rolled_back} changes")
+
     """
 
     def __init__(
@@ -99,8 +98,7 @@ class RollbackManager:
         pool: "ConnectionPool",
         max_rollback_window_hours: int = 168,  # 7 days
     ) -> None:
-        """
-        Initialize rollback manager.
+        """Initialize rollback manager.
 
         Args:
             pool: ConnectionPool for database access
@@ -108,17 +106,18 @@ class RollbackManager:
 
         Raises:
             ValueError: If max_rollback_window_hours is not positive
+
         """
         if max_rollback_window_hours <= 0:
-            raise ValueError("max_rollback_window_hours must be positive")
+            msg = "max_rollback_window_hours must be positive"
+            raise ValueError(msg)
 
         self.pool = pool
         self.max_rollback_window_hours = max_rollback_window_hours
         self._init_database()
 
     def _init_database(self) -> None:
-        """
-        Initialize database schema for change tracking.
+        """Initialize database schema for change tracking.
 
         Creates change_history table if it doesn't exist.
         """
@@ -139,28 +138,28 @@ class RollbackManager:
                     rolled_back INTEGER NOT NULL DEFAULT 0,
                     rollback_timestamp TEXT
                 )
-            """
+            """,
             )
 
             cursor.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_change_history_timestamp
                 ON change_history(timestamp)
-            """
+            """,
             )
 
             cursor.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_change_history_component
                 ON change_history(component_id)
-            """
+            """,
             )
 
             cursor.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_change_history_type
                 ON change_history(change_type)
-            """
+            """,
             )
 
             conn.commit()
@@ -174,8 +173,7 @@ class RollbackManager:
         performance_before: dict[str, float],
         performance_after: dict[str, float] | None = None,
     ) -> str:
-        """
-        Record a change for potential rollback.
+        """Record a change for potential rollback.
 
         Time Complexity: O(1) - single database insert
 
@@ -199,11 +197,12 @@ class RollbackManager:
             ...     performance_before={"success_rate": 0.8},
             ...     performance_after={"success_rate": 0.85}
             ... )
+
         """
         import json
 
-        change_id = f"change_{datetime.now(tz=timezone.utc).timestamp()}_{component_id}"
-        now = datetime.now(tz=timezone.utc).isoformat()
+        change_id = f"change_{datetime.now(tz=UTC).timestamp()}_{component_id}"
+        now = datetime.now(tz=UTC).isoformat()
 
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -239,8 +238,7 @@ class RollbackManager:
         change_types: list[ChangeType] | None = None,
         component_ids: list[str] | None = None,
     ) -> RollbackResult:
-        """
-        Rollback all changes within the specified time window.
+        """Rollback all changes within the specified time window.
 
         Time Complexity: O(n) where n is changes to rollback
         Performance Target: <100ms for typical rollback
@@ -268,6 +266,7 @@ class RollbackManager:
             ...     hours=24,
             ...     component_ids=["strategy_1", "prompt_v2"]
             ... )
+
         """
         import json
 
@@ -276,13 +275,13 @@ class RollbackManager:
                 success=False,
                 changes_rolled_back=0,
                 components_affected=[],
-                rollback_timestamp=datetime.now(tz=timezone.utc),
+                rollback_timestamp=datetime.now(tz=UTC),
                 error_message=f"Rollback window exceeds maximum ({self.max_rollback_window_hours} hours)",
                 performance_restored=None,
             )
 
         # Calculate cutoff time
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(hours=hours)
+        cutoff = datetime.now(tz=UTC) - timedelta(hours=hours)
         cutoff_iso = cutoff.isoformat()
 
         # Build query
@@ -318,7 +317,7 @@ class RollbackManager:
                 success=True,
                 changes_rolled_back=0,
                 components_affected=[],
-                rollback_timestamp=datetime.now(tz=timezone.utc),
+                rollback_timestamp=datetime.now(tz=UTC),
                 error_message=None,
                 performance_restored=None,
             )
@@ -375,7 +374,7 @@ class RollbackManager:
             success=len(errors) == 0,
             changes_rolled_back=rolled_back_count,
             components_affected=list(components_affected),
-            rollback_timestamp=datetime.now(tz=timezone.utc),
+            rollback_timestamp=datetime.now(tz=UTC),
             error_message="; ".join(errors) if errors else None,
             performance_restored=performance_restored,
         )
@@ -385,8 +384,7 @@ class RollbackManager:
         target_timestamp: datetime,
         change_types: list[ChangeType] | None = None,
     ) -> RollbackResult:
-        """
-        Rollback all changes after a specific timestamp.
+        """Rollback all changes after a specific timestamp.
 
         Time Complexity: O(n) where n is changes to rollback
 
@@ -401,9 +399,10 @@ class RollbackManager:
             >>> # Rollback to a known good state
             >>> good_state_time = datetime(2026, 2, 28, 10, 0, 0)
             >>> result = manager.rollback_to_timestamp(good_state_time)
+
         """
         # Calculate hours difference
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         hours_diff = (now - target_timestamp).total_seconds() / 3600
 
         if hours_diff < 0:
@@ -433,8 +432,7 @@ class RollbackManager:
         degradation_alert: "DegradationAlert",
         investigate_root_cause: bool = True,
     ) -> tuple[RollbackResult, Any]:
-        """
-        Automatically rollback changes based on degradation alert.
+        """Automatically rollback changes based on degradation alert.
 
         Determines appropriate rollback window based on degradation severity
         and affected metrics. Optionally investigates root cause before rollback.
@@ -458,6 +456,7 @@ class RollbackManager:
             ...     result, investigation = manager.rollback_on_degradation(alert)
             ...     if investigation:
             ...         print(f"Root cause: {investigation.diagnostic_summary}")
+
         """
         from Agent_Guru.self_improvement.degradation_detector import DegradationSeverity
 
@@ -471,11 +470,13 @@ class RollbackManager:
 
                 investigator = RootCauseInvestigator(self.pool)
                 investigation_report = investigator.investigate_degradation(
-                    degradation_alert, analysis_window_hours=72
+                    degradation_alert,
+                    analysis_window_hours=72,
                 )
             except Exception as e:
                 # Log error but continue with rollback
                 import logging as _log
+
                 _log.getLogger(__name__).warning("Root cause investigation failed: %s", e)
 
         # Determine rollback window based on severity
@@ -514,7 +515,8 @@ class RollbackManager:
             change_types_to_rollback = None
 
         rollback_result = self.rollback_recent_changes(
-            hours=rollback_hours, change_types=change_types_to_rollback
+            hours=rollback_hours,
+            change_types=change_types_to_rollback,
         )
 
         return rollback_result, investigation_report
@@ -526,8 +528,7 @@ class RollbackManager:
         component_ids: list[str] | None = None,
         include_rolled_back: bool = True,
     ) -> list[ChangeRecord]:
-        """
-        Get change history for analysis.
+        """Get change history for analysis.
 
         Time Complexity: O(n) where n is changes in window
 
@@ -550,10 +551,11 @@ class RollbackManager:
             ...     change_types=[ChangeType.STRATEGY_UPDATE],
             ...     include_rolled_back=False
             ... )
+
         """
         import json
 
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(hours=hours)
+        cutoff = datetime.now(tz=UTC) - timedelta(hours=hours)
         cutoff_iso = cutoff.isoformat()
 
         query = """
@@ -599,18 +601,18 @@ class RollbackManager:
                     performance_after=json.loads(row[7]) if row[7] else None,
                     rolled_back=bool(row[8]),
                     rollback_timestamp=datetime.fromisoformat(row[9]) if row[9] else None,
-                )
+                ),
             )
 
         return records
 
     def _rollback_strategy(self, strategy_id: str, previous_state: dict[str, Any]) -> None:
-        """
-        Rollback a strategy to previous state.
+        """Rollback a strategy to previous state.
 
         Args:
             strategy_id: Strategy ID to rollback
             previous_state: Previous state to restore
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -633,7 +635,7 @@ class RollbackManager:
                     previous_state.get("success_count", 0),
                     previous_state.get("failure_count", 0),
                     previous_state.get("avg_execution_time_ms", 0.0),
-                    datetime.now(tz=timezone.utc).isoformat(),
+                    datetime.now(tz=UTC).isoformat(),
                     strategy_id,
                 ),
             )
@@ -641,12 +643,12 @@ class RollbackManager:
             conn.commit()
 
     def _rollback_prompt(self, prompt_id: str, previous_state: dict[str, Any]) -> None:
-        """
-        Rollback a prompt to previous state.
+        """Rollback a prompt to previous state.
 
         Args:
             prompt_id: Prompt ID to rollback
             previous_state: Previous state to restore
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -677,33 +679,33 @@ class RollbackManager:
             conn.commit()
 
     def _rollback_pattern(self, pattern_id: str, previous_state: dict[str, Any]) -> None:
-        """
-        Rollback a pattern to previous state.
+        """Rollback a pattern to previous state.
 
         Args:
             pattern_id: Pattern ID to rollback
             previous_state: Previous state to restore
+
         """
         # Pattern rollback would be implemented here
         # For now, this is a placeholder
 
     def _rollback_configuration(self, config_id: str, previous_state: dict[str, Any]) -> None:
-        """
-        Rollback a configuration to previous state.
+        """Rollback a configuration to previous state.
 
         Args:
             config_id: Configuration ID to rollback
             previous_state: Previous state to restore
+
         """
         # Configuration rollback would be implemented here
         # For now, this is a placeholder
 
     def _mark_rolled_back(self, change_id: str) -> None:
-        """
-        Mark a change as rolled back.
+        """Mark a change as rolled back.
 
         Args:
             change_id: Change ID to mark
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -715,14 +717,13 @@ class RollbackManager:
                     rollback_timestamp = ?
                 WHERE change_id = ?
             """,
-                (datetime.now(tz=timezone.utc).isoformat(), change_id),
+                (datetime.now(tz=UTC).isoformat(), change_id),
             )
 
             conn.commit()
 
     def get_rollback_statistics(self, hours: int = 168) -> dict[str, Any]:
-        """
-        Get statistics about rollback operations.
+        """Get statistics about rollback operations.
 
         Time Complexity: O(n) where n is changes in window
 
@@ -740,8 +741,9 @@ class RollbackManager:
         Example:
             >>> stats = manager.get_rollback_statistics(hours=168)
             >>> print(f"Rollback rate: {stats['rollback_rate']:.1%}")
+
         """
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(hours=hours)
+        cutoff = datetime.now(tz=UTC) - timedelta(hours=hours)
         cutoff_iso = cutoff.isoformat()
 
         with self.pool.connection() as conn:
@@ -793,7 +795,9 @@ class RollbackManager:
             """,
                 (cutoff_iso,),
             )
-            most_rolled_back = [{"component_id": row[0], "count": row[1]} for row in cursor.fetchall()]
+            most_rolled_back = [
+                {"component_id": row[0], "count": row[1]} for row in cursor.fetchall()
+            ]
 
         rollback_rate = rolled_back_changes / total_changes if total_changes > 0 else 0.0
 

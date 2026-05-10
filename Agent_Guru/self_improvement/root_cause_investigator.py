@@ -1,5 +1,4 @@
-"""
-Root Cause Investigator for Self-Improvement Engine.
+"""Root Cause Investigator for Self-Improvement Engine.
 
 Analyzes correlations between changes and performance degradation to identify
 root causes. Provides diagnostic information to help prevent similar issues.
@@ -23,7 +22,7 @@ Date: 2026-02-28
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -71,8 +70,7 @@ class RootCauseReport:
 
 
 class RootCauseInvestigator:
-    """
-    Investigates root causes of performance degradation.
+    """Investigates root causes of performance degradation.
 
     Analyzes correlations between changes and performance metrics to identify
     which changes likely caused degradation. Provides diagnostic information
@@ -91,6 +89,7 @@ class RootCauseInvestigator:
         >>> print(f"Found {len(report.likely_root_causes)} likely causes")
         >>> for cause in report.likely_root_causes:
         ...     print(f"  - {cause.component_id}: {cause.confidence.value}")
+
     """
 
     def __init__(
@@ -99,8 +98,7 @@ class RootCauseInvestigator:
         min_correlation_threshold: float = 0.5,
         max_time_to_degradation_hours: int = 72,
     ) -> None:
-        """
-        Initialize root cause investigator.
+        """Initialize root cause investigator.
 
         Args:
             pool: ConnectionPool for database access
@@ -109,11 +107,14 @@ class RootCauseInvestigator:
 
         Raises:
             ValueError: If thresholds are invalid
+
         """
         if not 0.0 <= min_correlation_threshold <= 1.0:
-            raise ValueError("min_correlation_threshold must be between 0 and 1")
+            msg = "min_correlation_threshold must be between 0 and 1"
+            raise ValueError(msg)
         if max_time_to_degradation_hours <= 0:
-            raise ValueError("max_time_to_degradation_hours must be positive")
+            msg = "max_time_to_degradation_hours must be positive"
+            raise ValueError(msg)
 
         self.pool = pool
         self.min_correlation_threshold = min_correlation_threshold
@@ -124,8 +125,7 @@ class RootCauseInvestigator:
         degradation_alert: "DegradationAlert",
         analysis_window_hours: int = 48,
     ) -> RootCauseReport:
-        """
-        Investigate root causes of performance degradation.
+        """Investigate root causes of performance degradation.
 
         Analyzes changes within the analysis window and correlates them with
         performance metrics to identify likely root causes.
@@ -149,15 +149,17 @@ class RootCauseInvestigator:
             >>> if alert:
             ...     report = investigator.investigate_degradation(alert)
             ...     print(report.diagnostic_summary)
+
         """
         # Get changes within analysis window
         changes = self._get_changes_in_window(
-            degradation_alert.detection_timestamp, analysis_window_hours
+            degradation_alert.detection_timestamp,
+            analysis_window_hours,
         )
 
         if not changes:
             return RootCauseReport(
-                investigation_timestamp=datetime.now(tz=timezone.utc),
+                investigation_timestamp=datetime.now(tz=UTC),
                 degradation_alert_id=None,
                 analysis_window_hours=analysis_window_hours,
                 total_changes_analyzed=0,
@@ -181,7 +183,10 @@ class RootCauseInvestigator:
                 root_causes.append(root_cause)
 
         # Rank by confidence and correlation
-        root_causes.sort(key=lambda rc: (rc.confidence.value, abs(rc.correlation_score)), reverse=True)
+        root_causes.sort(
+            key=lambda rc: (rc.confidence.value, abs(rc.correlation_score)),
+            reverse=True,
+        )
 
         # Identify contributing factors
         contributing_factors = self._identify_contributing_factors(changes, degradation_alert)
@@ -191,11 +196,12 @@ class RootCauseInvestigator:
 
         # Generate prevention recommendations
         prevention_recommendations = self._generate_prevention_recommendations(
-            root_causes, contributing_factors
+            root_causes,
+            contributing_factors,
         )
 
         return RootCauseReport(
-            investigation_timestamp=datetime.now(tz=timezone.utc),
+            investigation_timestamp=datetime.now(tz=UTC),
             degradation_alert_id=None,  # Could be added if alerts have IDs
             analysis_window_hours=analysis_window_hours,
             total_changes_analyzed=len(changes),
@@ -210,8 +216,7 @@ class RootCauseInvestigator:
         hours: int = 24,
         performance_metrics: dict[str, float] | None = None,
     ) -> RootCauseReport:
-        """
-        Investigate recent changes without a specific degradation alert.
+        """Investigate recent changes without a specific degradation alert.
 
         Useful for proactive analysis or when degradation is suspected but
         not yet confirmed by detector.
@@ -231,12 +236,13 @@ class RootCauseInvestigator:
             ...     hours=24,
             ...     performance_metrics={"success_rate": 0.75}
             ... )
+
         """
-        changes = self._get_changes_in_window(datetime.now(tz=timezone.utc), hours)
+        changes = self._get_changes_in_window(datetime.now(tz=UTC), hours)
 
         if not changes:
             return RootCauseReport(
-                investigation_timestamp=datetime.now(tz=timezone.utc),
+                investigation_timestamp=datetime.now(tz=UTC),
                 degradation_alert_id=None,
                 analysis_window_hours=hours,
                 total_changes_analyzed=0,
@@ -251,12 +257,17 @@ class RootCauseInvestigator:
         for change in changes:
             suspicion_score = self._calculate_suspicion_score(change, performance_metrics)
 
-            if suspicion_score > 0.5:
+            if suspicion_score > 0.5:  # noqa: PLR2004 - Threshold value
+
                 # Create root cause with suspicion-based confidence
                 confidence = (
                     RootCauseConfidence.HIGH
-                    if suspicion_score > 0.8
-                    else RootCauseConfidence.MEDIUM if suspicion_score > 0.6 else RootCauseConfidence.LOW
+                    if suspicion_score > 0.8  # noqa: PLR2004 - Threshold value
+
+                    else RootCauseConfidence.MEDIUM
+                    if suspicion_score > 0.6  # noqa: PLR2004 - Threshold value
+
+                    else RootCauseConfidence.LOW
                 )
 
                 root_cause = RootCause(
@@ -276,14 +287,17 @@ class RootCauseInvestigator:
         suspicious_changes.sort(key=lambda rc: rc.correlation_score, reverse=True)
 
         return RootCauseReport(
-            investigation_timestamp=datetime.now(tz=timezone.utc),
+            investigation_timestamp=datetime.now(tz=UTC),
             degradation_alert_id=None,
             analysis_window_hours=hours,
             total_changes_analyzed=len(changes),
             likely_root_causes=suspicious_changes,
             contributing_factors=[],
             diagnostic_summary=f"Analyzed {len(changes)} recent changes. Found {len(suspicious_changes)} potentially risky changes.",
-            prevention_recommendations=["Continue monitoring performance metrics", "Consider A/B testing for high-risk changes"],
+            prevention_recommendations=[
+                "Continue monitoring performance metrics",
+                "Consider A/B testing for high-risk changes",
+            ],
         )
 
     def _get_changes_in_window(
@@ -291,8 +305,7 @@ class RootCauseInvestigator:
         end_time: datetime,
         hours: int,
     ) -> list[dict[str, Any]]:
-        """
-        Get all changes within time window.
+        """Get all changes within time window.
 
         Time Complexity: O(n) where n is changes in window
 
@@ -302,6 +315,7 @@ class RootCauseInvestigator:
 
         Returns:
             List of change records
+
         """
         import json
 
@@ -337,7 +351,7 @@ class RootCauseInvestigator:
                         "performance_before": json.loads(row[6]),
                         "performance_after": json.loads(row[7]) if row[7] else None,
                         "rolled_back": bool(row[8]),
-                    }
+                    },
                 )
 
             return changes
@@ -347,8 +361,7 @@ class RootCauseInvestigator:
         change: dict[str, Any],
         degradation_alert: "DegradationAlert",
     ) -> float:
-        """
-        Calculate correlation between change and degradation.
+        """Calculate correlation between change and degradation.
 
         Uses temporal proximity and metric changes to estimate correlation.
 
@@ -360,10 +373,13 @@ class RootCauseInvestigator:
 
         Returns:
             Correlation score (-1.0 to 1.0)
+
         """
         # Calculate temporal proximity score
         change_time = datetime.fromisoformat(change["timestamp"])
-        time_diff_hours = (degradation_alert.detection_timestamp - change_time).total_seconds() / 3600
+        time_diff_hours = (
+            degradation_alert.detection_timestamp - change_time
+        ).total_seconds() / 3600
 
         if time_diff_hours < 0 or time_diff_hours > self.max_time_to_degradation_hours:
             return 0.0  # Change is too far from degradation
@@ -406,8 +422,7 @@ class RootCauseInvestigator:
         degradation_alert: "DegradationAlert",
         correlation: float,
     ) -> RootCause:
-        """
-        Create root cause record from change and correlation.
+        """Create root cause record from change and correlation.
 
         Time Complexity: O(1)
 
@@ -418,11 +433,14 @@ class RootCauseInvestigator:
 
         Returns:
             RootCause object
+
         """
         # Determine confidence based on correlation strength
-        if abs(correlation) > 0.8:
+        if abs(correlation) > 0.8:  # noqa: PLR2004 - Threshold value
+
             confidence = RootCauseConfidence.HIGH
-        elif abs(correlation) > 0.6:
+        elif abs(correlation) > 0.6:  # noqa: PLR2004 - Threshold value
+
             confidence = RootCauseConfidence.MEDIUM
         else:
             confidence = RootCauseConfidence.LOW
@@ -436,9 +454,11 @@ class RootCauseInvestigator:
         # Calculate performance impact
         performance_impact = {}
         if change["performance_after"]:
-            for metric in degradation_alert.metric_changes.keys():
+            for metric in degradation_alert.metric_changes:
                 if metric in change["performance_before"] and metric in change["performance_after"]:
-                    impact = change["performance_after"][metric] - change["performance_before"][metric]
+                    impact = (
+                        change["performance_after"][metric] - change["performance_before"][metric]
+                    )
                     performance_impact[metric] = impact
 
         # Generate evidence
@@ -457,9 +477,13 @@ class RootCauseInvestigator:
         if confidence == RootCauseConfidence.HIGH:
             recommendation = f"High confidence this change caused degradation. Review {change['component_id']} implementation."
         elif confidence == RootCauseConfidence.MEDIUM:
-            recommendation = f"Moderate confidence. Investigate {change['component_id']} for potential issues."
+            recommendation = (
+                f"Moderate confidence. Investigate {change['component_id']} for potential issues."
+            )
         else:
-            recommendation = f"Low confidence. Monitor {change['component_id']} but may not be root cause."
+            recommendation = (
+                f"Low confidence. Monitor {change['component_id']} but may not be root cause."
+            )
 
         return RootCause(
             change_id=change["change_id"],
@@ -479,8 +503,7 @@ class RootCauseInvestigator:
         changes: list[dict[str, Any]],
         degradation_alert: "DegradationAlert",
     ) -> list[str]:
-        """
-        Identify contributing factors beyond individual changes.
+        """Identify contributing factors beyond individual changes.
 
         Time Complexity: O(n) where n is number of changes
 
@@ -490,11 +513,13 @@ class RootCauseInvestigator:
 
         Returns:
             List of contributing factor descriptions
+
         """
         factors = []
 
         # Check for rapid change rate
-        if len(changes) > 10:
+        if len(changes) > 10:  # noqa: PLR2004 - Threshold
+
             factors.append(f"High change rate: {len(changes)} changes in analysis window")
 
         # Check for multiple changes to same component
@@ -504,7 +529,8 @@ class RootCauseInvestigator:
             component_counts[component_id] = component_counts.get(component_id, 0) + 1
 
         for component_id, count in component_counts.items():
-            if count > 3:
+            if count > 3:  # noqa: PLR2004 - Small integer threshold
+
                 factors.append(f"Multiple changes to {component_id}: {count} changes")
 
         # Check for changes without performance_after (untested changes)
@@ -524,8 +550,7 @@ class RootCauseInvestigator:
         root_causes: list[RootCause],
         contributing_factors: list[str],
     ) -> str:
-        """
-        Generate human-readable diagnostic summary.
+        """Generate human-readable diagnostic summary.
 
         Time Complexity: O(n) where n is root causes
 
@@ -535,12 +560,15 @@ class RootCauseInvestigator:
 
         Returns:
             Diagnostic summary text
+
         """
         if not root_causes:
             return "No clear root cause identified. Degradation may be due to external factors or data quality issues."
 
         high_confidence = [rc for rc in root_causes if rc.confidence == RootCauseConfidence.HIGH]
-        medium_confidence = [rc for rc in root_causes if rc.confidence == RootCauseConfidence.MEDIUM]
+        medium_confidence = [
+            rc for rc in root_causes if rc.confidence == RootCauseConfidence.MEDIUM
+        ]
 
         summary_parts = []
 
@@ -548,13 +576,14 @@ class RootCauseInvestigator:
             components = ", ".join(rc.component_id for rc in high_confidence[:3])
             summary_parts.append(
                 f"High confidence root cause(s) identified: {components}. "
-                f"These changes show strong correlation with performance degradation."
+                f"These changes show strong correlation with performance degradation.",
             )
 
         if medium_confidence:
             components = ", ".join(rc.component_id for rc in medium_confidence[:3])
             summary_parts.append(
-                f"Moderate confidence causes: {components}. " f"These changes may have contributed to degradation."
+                f"Moderate confidence causes: {components}. "
+                f"These changes may have contributed to degradation.",
             )
 
         if contributing_factors:
@@ -567,8 +596,7 @@ class RootCauseInvestigator:
         root_causes: list[RootCause],
         contributing_factors: list[str],
     ) -> list[str]:
-        """
-        Generate recommendations to prevent similar issues.
+        """Generate recommendations to prevent similar issues.
 
         Time Complexity: O(n) where n is root causes
 
@@ -578,6 +606,7 @@ class RootCauseInvestigator:
 
         Returns:
             List of prevention recommendations
+
         """
         recommendations = []
 
@@ -586,7 +615,9 @@ class RootCauseInvestigator:
             change_types = {rc.change_type for rc in root_causes}
 
             if "strategy_update" in change_types:
-                recommendations.append("Implement A/B testing for strategy changes before full deployment")
+                recommendations.append(
+                    "Implement A/B testing for strategy changes before full deployment",
+                )
                 recommendations.append("Increase validation window for strategy updates")
 
             if "prompt_update" in change_types:
@@ -596,16 +627,22 @@ class RootCauseInvestigator:
         # Recommendations based on contributing factors
         for factor in contributing_factors:
             if "High change rate" in factor:
-                recommendations.append("Implement rate limiting on changes to prevent rapid deployments")
+                recommendations.append(
+                    "Implement rate limiting on changes to prevent rapid deployments",
+                )
 
             if "Multiple changes to" in factor:
-                recommendations.append("Avoid multiple changes to same component in short time window")
+                recommendations.append(
+                    "Avoid multiple changes to same component in short time window",
+                )
 
             if "without performance validation" in factor:
                 recommendations.append("Require performance validation before deploying changes")
 
             if "previously rolled back" in factor:
-                recommendations.append("Implement stricter validation for components with rollback history")
+                recommendations.append(
+                    "Implement stricter validation for components with rollback history",
+                )
 
         # General recommendations
         if not recommendations:
@@ -619,8 +656,7 @@ class RootCauseInvestigator:
         change: dict[str, Any],
         performance_metrics: dict[str, float] | None,
     ) -> float:
-        """
-        Calculate suspicion score for a change without confirmed degradation.
+        """Calculate suspicion score for a change without confirmed degradation.
 
         Time Complexity: O(1)
 
@@ -630,6 +666,7 @@ class RootCauseInvestigator:
 
         Returns:
             Suspicion score (0.0 to 1.0)
+
         """
         score = 0.0
 
@@ -654,11 +691,13 @@ class RootCauseInvestigator:
 
         # Check recency (more recent = more suspicious)
         change_time = datetime.fromisoformat(change["timestamp"])
-        hours_ago = (datetime.now(tz=timezone.utc) - change_time).total_seconds() / 3600
+        hours_ago = (datetime.now(tz=UTC) - change_time).total_seconds() / 3600
 
-        if hours_ago < 6:
+        if hours_ago < 6:  # noqa: PLR2004 - Threshold
+
             score += 0.2
-        elif hours_ago < 12:
+        elif hours_ago < 12:  # noqa: PLR2004 - Threshold
+
             score += 0.1
 
         return min(1.0, score)
@@ -667,8 +706,7 @@ class RootCauseInvestigator:
         self,
         hours: int = 168,  # 7 days
     ) -> list[dict[str, Any]]:
-        """
-        Get history of root cause investigations.
+        """Get history of root cause investigations.
 
         This would be implemented if we store investigation results.
         For now, returns empty list as investigations are not persisted.
@@ -680,6 +718,7 @@ class RootCauseInvestigator:
 
         Returns:
             List of investigation records
+
         """
         # TODO: Implement investigation history storage
         return []

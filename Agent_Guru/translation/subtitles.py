@@ -1,4 +1,5 @@
 """Subtitle generation synchronized with translated audio."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -7,6 +8,7 @@ from dataclasses import dataclass
 @dataclass
 class SubtitleEntry:
     """A single subtitle entry."""
+
     text: str
     start_ms: float
     end_ms: float
@@ -33,13 +35,15 @@ class SubtitleGenerator:
         chunk_size = 8  # words per subtitle
 
         for i in range(0, len(words), chunk_size):
-            chunk = words[i:i + chunk_size]
+            chunk = words[i : i + chunk_size]
             start = audio_start_ms + i * ms_per_word
             end = start + len(chunk) * ms_per_word
-            entries.append(SubtitleEntry(
-                text=" ".join(chunk),
-                start_ms=start,
-                end_ms=end,
-                language=language,
-            ))
+            entries.append(
+                SubtitleEntry(
+                    text=" ".join(chunk),
+                    start_ms=start,
+                    end_ms=end,
+                    language=language,
+                ),
+            )
         return entries

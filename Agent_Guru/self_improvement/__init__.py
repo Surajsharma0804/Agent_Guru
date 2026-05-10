@@ -1,5 +1,4 @@
-"""
-Self-Improvement Engine for Agent Guru.
+"""Self-Improvement Engine for Agent Guru.
 
 This module implements autonomous learning and continuous optimization,
 enabling the agent to learn from failures, optimize strategies, evolve prompts,
@@ -24,31 +23,31 @@ Performance Characteristics:
 
 __version__ = "1.0.0"
 __all__ = [
-    "database_schema",
-    "migrations",
+    "AuthMethod",
+    "ChangeRecord",
+    "ChangeType",
+    "CommitData",
+    "ConfidenceMetrics",
+    "DegradationAlert",
+    "DegradationDetector",
+    "DegradationMetric",
+    "DegradationSeverity",
+    "EdgeCaseHandler",
+    "FailureAnalyzer",
+    "FailurePattern",
+    "FailureType",
+    "GitIntegration",
+    "RollbackManager",
+    "RollbackResult",
+    "TaskExecution",
     "connection_pool",
+    "database_schema",
+    "degradation_detector",
+    "edge_case_handler",
     "failure_analyzer",
     "git_integration",
-    "degradation_detector",
+    "migrations",
     "rollback_manager",
-    "edge_case_handler",
-    "FailureAnalyzer",
-    "FailureType",
-    "TaskExecution",
-    "FailurePattern",
-    "GitIntegration",
-    "AuthMethod",
-    "CommitData",
-    "DegradationDetector",
-    "DegradationSeverity",
-    "DegradationMetric",
-    "DegradationAlert",
-    "RollbackManager",
-    "ChangeType",
-    "ChangeRecord",
-    "RollbackResult",
-    "EdgeCaseHandler",
-    "ConfidenceMetrics",
 ]
 
 # Import key classes for convenience

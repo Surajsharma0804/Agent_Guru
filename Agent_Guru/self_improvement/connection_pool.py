@@ -1,5 +1,4 @@
-"""
-Database connection pooling and transaction management.
+"""Database connection pooling and transaction management.
 
 This module provides efficient connection pooling for SQLite with:
 - Thread-safe connection management
@@ -36,7 +35,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty, Full, Queue
-from typing import Optional
 
 _logger = logging.getLogger(__name__)
 
@@ -44,6 +42,7 @@ _logger = logging.getLogger(__name__)
 @dataclass
 class ConnectionStats:
     """Statistics for connection pool monitoring."""
+
     total_connections: int
     active_connections: int
     idle_connections: int
@@ -56,19 +55,18 @@ class ConnectionStats:
 
 
 class PooledConnection:
-    """
-    Wrapper for SQLite connection with metadata.
+    """Wrapper for SQLite connection with metadata.
 
     Tracks connection usage and health for pool management.
     """
 
-    def __init__(self, connection: sqlite3.Connection, pool: 'ConnectionPool'):
-        """
-        Initialize pooled connection.
+    def __init__(self, connection: sqlite3.Connection, pool: "ConnectionPool") -> None:
+        """Initialize pooled connection.
 
         Args:
             connection: SQLite connection
             pool: Parent connection pool
+
         """
         self.connection = connection
         self.pool = pool
@@ -89,11 +87,11 @@ class PooledConnection:
         self.in_use = False
 
     def is_healthy(self) -> bool:
-        """
-        Check if connection is healthy.
+        """Check if connection is healthy.
 
         Returns:
             True if connection is healthy, False otherwise
+
         """
         if not self.healthy:
             return False
@@ -105,14 +103,11 @@ class PooledConnection:
                 cursor.execute("SELECT 1")
                 cursor.fetchone()
             return True
-        except Exception as e:
+        except Exception:
             self.healthy = False
             return False
-
-
 class ConnectionPool:
-    """
-    Thread-safe connection pool for SQLite.
+    """Thread-safe connection pool for SQLite.
 
     Manages a pool of database connections with:
     - Automatic connection creation up to max_size
@@ -135,10 +130,9 @@ class ConnectionPool:
         min_size: int = 5,
         max_size: int = 100,
         timeout: float = 5.0,
-        check_same_thread: bool = False
-    ):
-        """
-        Initialize connection pool.
+        check_same_thread: bool = False,
+    ) -> None:
+        """Initialize connection pool.
 
         Args:
             db_path: Path to SQLite database
@@ -149,11 +143,14 @@ class ConnectionPool:
 
         Raises:
             ValueError: If min_size > max_size or sizes are invalid
+
         """
         if min_size < 0 or max_size < 1:
-            raise ValueError("Invalid pool sizes")
+            msg = "Invalid pool sizes"
+            raise ValueError(msg)
         if min_size > max_size:
-            raise ValueError("min_size cannot exceed max_size")
+            msg = "min_size cannot exceed max_size"
+            raise ValueError(msg)
 
         self.db_path = db_path
         self.min_size = min_size
@@ -188,22 +185,21 @@ class ConnectionPool:
             self._pool.put(conn)
 
     def _create_connection(self) -> PooledConnection:
-        """
-        Create new database connection.
+        """Create new database connection.
 
         Returns:
             New pooled connection
 
         Time Complexity: O(1)
+
         """
         with self._lock:
             self._total_connections += 1
 
         return self._create_connection_unlocked()
 
-    def acquire(self, timeout: Optional[float] = None) -> PooledConnection:
-        """
-        Acquire connection from pool.
+    def acquire(self, timeout: float | None = None) -> PooledConnection:
+        """Acquire connection from pool.
 
         Gets connection from pool or creates new one if pool not full.
         Blocks until connection available or timeout.
@@ -219,6 +215,7 @@ class ConnectionPool:
 
         Time Complexity: O(1) average
         Performance Target: <1ms
+
         """
         start_time = time.time()
         timeout = timeout or self.timeout
@@ -234,7 +231,6 @@ class ConnectionPool:
                     if self._total_connections < self.max_size:
                         self._total_connections += 1  # Reserve slot
                         can_create = True
-
                 if can_create:
                     # Create connection outside lock
                     conn = self._create_connection_unlocked()
@@ -242,10 +238,8 @@ class ConnectionPool:
                     # Pool exhausted
                     with self._lock:
                         self._failed_acquisitions += 1
-                    raise TimeoutError(
-                        f"Connection pool exhausted (max_size={self.max_size})"
-                    )
-
+                    msg = f"Connection pool exhausted (max_size={self.max_size})"
+                    raise TimeoutError(msg) from None
             # Check connection health
             if not conn.is_healthy():
                 # Replace unhealthy connection
@@ -264,28 +258,26 @@ class ConnectionPool:
 
             return conn
 
-        except TimeoutError as e:
+        except TimeoutError:
             with self._lock:
                 self._failed_acquisitions += 1
             raise
-        except Exception as e:
             with self._lock:
                 self._failed_acquisitions += 1
             raise
-
     def _create_connection_unlocked(self) -> PooledConnection:
-        """
-        Create new database connection without locking.
+        """Create new database connection without locking.
 
         Returns:
             New pooled connection
 
         Time Complexity: O(1)
+
         """
         conn = sqlite3.connect(
             self.db_path,
             check_same_thread=self.check_same_thread,
-            timeout=self.timeout
+            timeout=self.timeout,
         )
 
         try:
@@ -297,20 +289,19 @@ class ConnectionPool:
 
             # Set busy timeout
             conn.execute(f"PRAGMA busy_timeout={int(self.timeout * 1000)}")  # nosec B608 — integer value, no injection risk
-        except Exception as e:
+        except Exception:
             conn.close()
             raise
-
         return PooledConnection(conn, self)
 
     def release(self, conn: PooledConnection) -> None:
-        """
-        Release connection back to pool.
+        """Release connection back to pool.
 
         Args:
             conn: Connection to release
 
         Time Complexity: O(1)
+
         """
         if not conn.in_use:
             return  # Already released
@@ -323,7 +314,6 @@ class ConnectionPool:
             conn.connection.rollback()
         except sqlite3.Error as exc:
             _logger.warning("Rollback on release failed: %s", exc)
-
         # Return to pool
         try:
             self._pool.put_nowait(conn)
@@ -334,7 +324,6 @@ class ConnectionPool:
             conn.connection.close()
             with self._lock:
                 self._total_connections -= 1
-
     def close_all(self) -> None:
         """Close all connections in pool."""
         while not self._pool.empty():
@@ -343,16 +332,15 @@ class ConnectionPool:
                 conn.connection.close()
             except Empty:
                 break
-
         with self._lock:
             self._total_connections = 0
 
     def get_stats(self) -> ConnectionStats:
-        """
-        Get connection pool statistics.
+        """Get connection pool statistics.
 
         Returns:
             Connection pool statistics
+
         """
         with self._lock:
             active = self._total_connections - self._pool.qsize()
@@ -360,12 +348,14 @@ class ConnectionPool:
 
             avg_acquisition = (
                 sum(self._acquisition_times) / len(self._acquisition_times)
-                if self._acquisition_times else 0.0
+                if self._acquisition_times
+                else 0.0
             )
 
             avg_transaction = (
                 sum(self._transaction_times) / len(self._transaction_times)
-                if self._transaction_times else 0.0
+                if self._transaction_times
+                else 0.0
             )
 
             return ConnectionStats(
@@ -377,13 +367,12 @@ class ConnectionPool:
                 avg_acquisition_time_ms=avg_acquisition,
                 avg_transaction_time_ms=avg_transaction,
                 failed_acquisitions=self._failed_acquisitions,
-                failed_transactions=self._failed_transactions
+                failed_transactions=self._failed_transactions,
             )
 
     @contextmanager
     def connection(self) -> Generator[sqlite3.Connection, None, None]:
-        """
-        Context manager for connection acquisition.
+        """Context manager for connection acquisition.
 
         Automatically acquires and releases connection.
 
@@ -395,6 +384,7 @@ class ConnectionPool:
             >>> with pool.connection() as conn:
             ...     cursor = conn.cursor()
             ...     cursor.execute("SELECT 1")
+
         """
         conn = self.acquire()
         try:
@@ -405,10 +395,9 @@ class ConnectionPool:
     @contextmanager
     def transaction(
         self,
-        isolation_level: Optional[str] = None
+        isolation_level: str | None = None,
     ) -> Generator[sqlite3.Connection, None, None]:
-        """
-        Context manager for transaction handling.
+        """Context manager for transaction handling.
 
         Automatically commits on success, rolls back on error.
 
@@ -427,6 +416,7 @@ class ConnectionPool:
             ...     cursor = conn.cursor()
             ...     cursor.execute("INSERT INTO table VALUES (?)", (1,))
             ...     # Automatically commits on success
+
         """
         start_time = time.time()
         conn = self.acquire()
@@ -437,9 +427,12 @@ class ConnectionPool:
             if isolation_level:
                 level_upper = isolation_level.upper()
                 if level_upper not in _VALID_ISOLATION_LEVELS:
-                    raise ValueError(
+                    msg = (
                         f"Invalid isolation_level {isolation_level!r}. "
                         f"Must be one of: {sorted(_VALID_ISOLATION_LEVELS)}"
+                    )
+                    raise ValueError(
+                        msg,
                     )
                 conn.connection.execute(f"BEGIN {level_upper}")  # nosec B608 — allowlist validated
             else:
@@ -456,28 +449,21 @@ class ConnectionPool:
                 self._transaction_times.append(transaction_time)
                 # deque(maxlen=1000) auto-evicts oldest — no manual pop needed
 
-        except Exception as e:
+        except Exception:
             # Rollback on error
             try:
                 conn.connection.rollback()
             except sqlite3.Error as exc:
                 _logger.warning("Transaction rollback failed: %s", exc)
-
             with self._lock:
                 self._failed_transactions += 1
-
             raise
         finally:
             self.release(conn)
 
     @contextmanager
-    def savepoint(
-        self,
-        conn: sqlite3.Connection,
-        name: str = "sp"
-    ) -> Generator[None, None, None]:
-        """
-        Context manager for nested transactions using savepoints.
+    def savepoint(self, conn: sqlite3.Connection, name: str = "sp") -> Generator[None, None, None]:
+        """Context manager for nested transactions using savepoints.
 
         Allows nested transaction-like behavior in SQLite.
 
@@ -495,31 +481,28 @@ class ConnectionPool:
             ...     with pool.savepoint(conn, "nested"):
             ...         cursor.execute("INSERT INTO table VALUES (2)")
             ...         # Can rollback to savepoint without affecting outer transaction
+
         """
         # Validate savepoint name is a safe SQL identifier (alphanumeric + underscore)
         import re as _re
-        if not _re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', name):
-            raise ValueError(f"Invalid savepoint name {name!r}: must be a valid SQL identifier")
+
+        if not _re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", name):
+            msg = f"Invalid savepoint name {name!r}: must be a valid SQL identifier"
+            raise ValueError(msg)
         try:
             conn.execute(f"SAVEPOINT {name}")  # nosec B608 — identifier validated above
             yield
             conn.execute(f"RELEASE SAVEPOINT {name}")  # nosec B608
-        except Exception as e:
+        except Exception:
             conn.execute(f"ROLLBACK TO SAVEPOINT {name}")  # nosec B608
             raise
-
-
 # Global connection pool instance
-_global_pool: Optional[ConnectionPool] = None
+_global_pool: ConnectionPool | None = None
 _pool_lock = threading.Lock()
 
 
-def get_connection_pool(
-    db_path: Optional[str] = None,
-    **kwargs
-) -> ConnectionPool:
-    """
-    Get global connection pool instance.
+def get_connection_pool(db_path: str | None = None, **kwargs) -> ConnectionPool:
+    """Get global connection pool instance.
 
     Creates pool on first call, returns existing pool on subsequent calls.
 
@@ -532,13 +515,15 @@ def get_connection_pool(
 
     Raises:
         ValueError: If db_path not provided on first call
+
     """
     global _global_pool
 
     with _pool_lock:
         if _global_pool is None:
             if db_path is None:
-                raise ValueError("db_path required for first call")
+                msg = "db_path required for first call"
+                raise ValueError(msg)
             _global_pool = ConnectionPool(db_path, **kwargs)
 
         return _global_pool

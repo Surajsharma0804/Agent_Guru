@@ -1,5 +1,4 @@
-"""
-Deployment configuration for self-improvement engine.
+"""Deployment configuration for self-improvement engine.
 
 This module provides configuration management for deploying the self-improvement
 engine in production environments.
@@ -8,7 +7,7 @@ engine in production environments.
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -59,13 +58,17 @@ class DeploymentConfig:
     def __post_init__(self):
         """Validate configuration after initialization."""
         if self.improvement_threshold < 0 or self.improvement_threshold > 1:
-            raise ValueError("improvement_threshold must be between 0 and 1")
+            msg = "improvement_threshold must be between 0 and 1"
+            raise ValueError(msg)
 
-        if self.measurement_window < 10:
-            raise ValueError("measurement_window must be at least 10")
+        if self.measurement_window < 10:  # noqa: PLR2004 - Threshold
+
+            msg = "measurement_window must be at least 10"
+            raise ValueError(msg)
 
         if self.exploration_rate < 0 or self.exploration_rate > 1:
-            raise ValueError("exploration_rate must be between 0 and 1")
+            msg = "exploration_rate must be between 0 and 1"
+            raise ValueError(msg)
 
         # Create directories if they don't exist
         Path(self.storage_path).parent.mkdir(parents=True, exist_ok=True)
@@ -77,12 +80,9 @@ class DeploymentConfig:
         return cls(
             storage_path=os.getenv(
                 "SELF_IMPROVEMENT_STORAGE_PATH",
-                "data/self_improvement/learning.db"
+                "data/self_improvement/learning.db",
             ),
-            backup_path=os.getenv(
-                "SELF_IMPROVEMENT_BACKUP_PATH",
-                "data/self_improvement/backups"
-            ),
+            backup_path=os.getenv("SELF_IMPROVEMENT_BACKUP_PATH", "data/self_improvement/backups"),
             git_enabled=os.getenv("SELF_IMPROVEMENT_GIT_ENABLED", "true").lower() == "true",
             git_repo_path=os.getenv("SELF_IMPROVEMENT_GIT_REPO", "."),
             improvement_threshold=float(os.getenv("SELF_IMPROVEMENT_THRESHOLD", "0.15")),
@@ -169,9 +169,8 @@ STAGING_CONFIG = DeploymentConfig.for_staging()
 DEVELOPMENT_CONFIG = DeploymentConfig.for_development()
 
 
-def get_config(environment: Optional[str] = None) -> DeploymentConfig:
-    """
-    Get deployment configuration for specified environment.
+def get_config(environment: str | None = None) -> DeploymentConfig:
+    """Get deployment configuration for specified environment.
 
     Args:
         environment: Environment name (production, staging, development)
@@ -179,6 +178,7 @@ def get_config(environment: Optional[str] = None) -> DeploymentConfig:
 
     Returns:
         DeploymentConfig instance
+
     """
     if environment is None:
         environment = os.getenv("ENVIRONMENT", "production")
@@ -187,10 +187,9 @@ def get_config(environment: Optional[str] = None) -> DeploymentConfig:
 
     if environment == "production":
         return PRODUCTION_CONFIG
-    elif environment == "staging":
+    if environment == "staging":
         return STAGING_CONFIG
-    elif environment == "development":
+    if environment == "development":
         return DEVELOPMENT_CONFIG
-    else:
-        # Try to load from environment variables
-        return DeploymentConfig.from_environment()
+    # Try to load from environment variables
+    return DeploymentConfig.from_environment()

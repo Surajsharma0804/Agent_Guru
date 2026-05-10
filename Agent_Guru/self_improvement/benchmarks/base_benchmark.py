@@ -1,5 +1,4 @@
-"""
-Base benchmark framework for comparing agent frameworks.
+"""Base benchmark framework for comparing agent frameworks.
 
 Provides common infrastructure for measuring and comparing performance
 across different agent implementations.
@@ -11,9 +10,9 @@ import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import psutil
 
@@ -22,6 +21,7 @@ _logger = logging.getLogger(__name__)
 
 class ScenarioType(Enum):
     """Types of test scenarios."""
+
     SIMPLE = "simple"
     COMPLEX = "complex"
     TOOL_USAGE = "tool_usage"
@@ -32,27 +32,29 @@ class ScenarioType(Enum):
 @dataclass
 class TestScenario:
     """A test scenario for benchmarking."""
+
     scenario_id: str
     name: str
     description: str
     scenario_type: ScenarioType
     input_data: dict[str, Any]
-    expected_output: Optional[Any] = None
-    success_criteria: Optional[Callable[[Any], bool]] = None
+    expected_output: Any | None = None
+    success_criteria: Callable[[Any], bool] | None = None
     difficulty: int = 1  # 1-5 scale
 
 
 @dataclass
 class BenchmarkMetrics:
     """Metrics collected during benchmark execution."""
+
     success_rate: float  # Percentage of successful tasks
     avg_execution_time_ms: float  # Average time per task
     total_api_calls: int  # Total API calls made
     total_tokens: int  # Total tokens used
     avg_memory_mb: float  # Average memory usage
     avg_cpu_percent: float  # Average CPU usage
-    improvement_rate: Optional[float] = None  # Improvement over time (Agent Guru only)
-    recovery_rate: Optional[float] = None  # Recovery from failures
+    improvement_rate: float | None = None  # Improvement over time (Agent Guru only)
+    recovery_rate: float | None = None  # Recovery from failures
 
     def to_dict(self) -> dict[str, Any]:
         """Convert metrics to dictionary."""
@@ -71,6 +73,7 @@ class BenchmarkMetrics:
 @dataclass
 class BenchmarkResult:
     """Result of a benchmark run."""
+
     framework_name: str
     timestamp: datetime
     scenarios_run: int
@@ -91,24 +94,23 @@ class BenchmarkResult:
 
     def to_json(self, filepath: str) -> None:
         """Save result to JSON file."""
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:  # noqa: PTH123
             json.dump(self.to_dict(), f, indent=2)
 
 
 class BaseBenchmark:
-    """
-    Base class for agent framework benchmarks.
+    """Base class for agent framework benchmarks.
 
     Provides common infrastructure for measuring performance metrics
     across different agent implementations.
     """
 
-    def __init__(self, framework_name: str):
-        """
-        Initialize benchmark.
+    def __init__(self, framework_name: str) -> None:
+        """Initialize benchmark.
 
         Args:
             framework_name: Name of the framework being benchmarked
+
         """
         self.framework_name = framework_name
         self.process = psutil.Process(os.getpid())
@@ -126,13 +128,8 @@ class BaseBenchmark:
         self.scenario_results: list[dict[str, Any]] = []
         self.errors: list[str] = []
 
-    def run_benchmark(
-        self,
-        scenarios: list[TestScenario],
-        warmup_runs: int = 0
-    ) -> BenchmarkResult:
-        """
-        Run benchmark on provided scenarios.
+    def run_benchmark(self, scenarios: list[TestScenario], warmup_runs: int = 0) -> BenchmarkResult:
+        """Run benchmark on provided scenarios.
 
         Args:
             scenarios: List of test scenarios to run
@@ -140,12 +137,12 @@ class BaseBenchmark:
 
         Returns:
             BenchmarkResult with collected metrics
+
         """
         self._reset_metrics()
 
         # Warmup runs (not measured)
         if warmup_runs > 0:
-            print(f"Running {warmup_runs} warmup iterations...")
             for i in range(warmup_runs):
                 scenario = scenarios[i % len(scenarios)]
                 try:
@@ -154,10 +151,7 @@ class BaseBenchmark:
                     _logger.debug("Warmup iteration %d skipped: %s", i, exc)  # Ignore warmup errors
 
         # Actual benchmark runs
-        print(f"Running benchmark on {len(scenarios)} scenarios...")
-        for i, scenario in enumerate(scenarios):
-            print(f"  Scenario {i+1}/{len(scenarios)}: {scenario.name}")
-
+        for _i, scenario in enumerate(scenarios):
             try:
                 # Measure resources before
                 mem_before = self.process.memory_info().rss / 1024 / 1024  # MB
@@ -186,32 +180,39 @@ class BaseBenchmark:
                     self.failures += 1
 
                 # Record scenario result
-                self.scenario_results.append({
-                    "scenario_id": scenario.scenario_id,
-                    "name": scenario.name,
-                    "success": success,
-                    "execution_time_ms": execution_time_ms,
-                    "result": str(result)[:200],  # Truncate long results
-                })
+                self.scenario_results.append(
+                    {
+                        "scenario_id": scenario.scenario_id,
+                        "name": scenario.name,
+                        "success": success,
+                        "execution_time_ms": execution_time_ms,
+                        "result": str(result)[:200],  # Truncate long results
+                    },
+                )
 
             except Exception as e:
                 self.failures += 1
-                error_msg = f"Scenario {scenario.name} failed: {str(e)}"
+                error_msg = f"Scenario {scenario.name} failed: {e!s}"
                 self.errors.append(error_msg)
-                print(f"    ERROR: {error_msg}")
 
-                self.scenario_results.append({
-                    "scenario_id": scenario.scenario_id,
-                    "name": scenario.name,
-                    "success": False,
-                    "error": str(e),
-                })
+                self.scenario_results.append(
+                    {
+                        "scenario_id": scenario.scenario_id,
+                        "name": scenario.name,
+                        "success": False,
+                        "error": str(e),
+                    },
+                )
 
         # Calculate final metrics
         total_tasks = self.successes + self.failures
         success_rate = (self.successes / total_tasks * 100) if total_tasks > 0 else 0.0
-        avg_time = sum(self.execution_times) / len(self.execution_times) if self.execution_times else 0.0
-        avg_memory = sum(self.memory_samples) / len(self.memory_samples) if self.memory_samples else 0.0
+        avg_time = (
+            sum(self.execution_times) / len(self.execution_times) if self.execution_times else 0.0
+        )
+        avg_memory = (
+            sum(self.memory_samples) / len(self.memory_samples) if self.memory_samples else 0.0
+        )
         avg_cpu = sum(self.cpu_samples) / len(self.cpu_samples) if self.cpu_samples else 0.0
 
         metrics = BenchmarkMetrics(
@@ -225,16 +226,15 @@ class BaseBenchmark:
 
         return BenchmarkResult(
             framework_name=self.framework_name,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
             scenarios_run=len(scenarios),
             metrics=metrics,
             scenario_results=self.scenario_results,
             errors=self.errors,
         )
 
-    def execute_scenario(self, scenario: TestScenario) -> Any:
-        """
-        Execute a single test scenario.
+    def execute_scenario(self, scenario: TestScenario) -> Any:  # noqa: ANN401
+        """Execute a single test scenario.
 
         Must be implemented by subclasses.
 
@@ -243,12 +243,13 @@ class BaseBenchmark:
 
         Returns:
             Result of scenario execution
-        """
-        raise NotImplementedError("Subclasses must implement execute_scenario")
 
-    def _check_success(self, scenario: TestScenario, result: Any) -> bool:
         """
-        Check if scenario execution was successful.
+        msg = "Subclasses must implement execute_scenario"
+        raise NotImplementedError(msg)
+
+    def _check_success(self, scenario: TestScenario, result: Any) -> bool:  # noqa: ANN401
+        """Check if scenario execution was successful.
 
         Args:
             scenario: Test scenario
@@ -256,12 +257,13 @@ class BaseBenchmark:
 
         Returns:
             True if successful, False otherwise
+
         """
         # Use custom success criteria if provided
         if scenario.success_criteria:
             try:
                 return scenario.success_criteria(result)
-            except Exception as e:
+            except Exception:
                 return False
 
         # Use expected output if provided
@@ -272,40 +274,42 @@ class BaseBenchmark:
         return result is not None
 
     def track_api_call(self, tokens: int = 0) -> None:
-        """
-        Track an API call.
+        """Track an API call.
 
         Args:
             tokens: Number of tokens used in the call
+
         """
         self.api_calls += 1
         self.tokens_used += tokens
 
-    def generate_markdown_report(
-        self,
-        results: list[BenchmarkResult],
-        output_path: str
-    ) -> None:
-        """
-        Generate markdown comparison report.
+    def generate_markdown_report(self, results: list[BenchmarkResult], output_path: str) -> None:
+        """Generate markdown comparison report.
 
         Args:
             results: List of benchmark results to compare
             output_path: Path to save markdown report
+
         """
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:  # noqa: PTH123
             f.write("# Agent Framework Benchmark Results\n\n")
-            f.write(f"Generated: {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            f.write(f"Generated: {datetime.now(tz=UTC).strftime('%Y-%m-%d %H:%M:%S')}\n\n")
 
             # Summary table
             f.write("## Summary\n\n")
-            f.write("| Framework | Success Rate | Avg Time (ms) | API Calls | Tokens | Memory (MB) | CPU (%) |\n")
-            f.write("|-----------|--------------|---------------|-----------|--------|-------------|----------|\n")
+            f.write(
+                "| Framework | Success Rate | Avg Time (ms) | API Calls | Tokens | Memory (MB) | CPU (%) |\n",
+            )
+            f.write(
+                "|-----------|--------------|---------------|-----------|--------|-------------|----------|\n",
+            )
 
             for result in results:
                 m = result.metrics
-                f.write(f"| {result.framework_name} | {m.success_rate:.1f}% | {m.avg_execution_time_ms:.1f} | "
-                       f"{m.total_api_calls} | {m.total_tokens} | {m.avg_memory_mb:.1f} | {m.avg_cpu_percent:.1f} |\n")
+                f.write(
+                    f"| {result.framework_name} | {m.success_rate:.1f}% | {m.avg_execution_time_ms:.1f} | "
+                    f"{m.total_api_calls} | {m.total_tokens} | {m.avg_memory_mb:.1f} | {m.avg_cpu_percent:.1f} |\n",
+                )
 
             f.write("\n")
 
@@ -315,7 +319,9 @@ class BaseBenchmark:
                 f.write(f"### {result.framework_name}\n\n")
                 f.write(f"- **Scenarios Run**: {result.scenarios_run}\n")
                 f.write(f"- **Success Rate**: {result.metrics.success_rate:.1f}%\n")
-                f.write(f"- **Average Execution Time**: {result.metrics.avg_execution_time_ms:.1f} ms\n")
+                f.write(
+                    f"- **Average Execution Time**: {result.metrics.avg_execution_time_ms:.1f} ms\n",
+                )
                 f.write(f"- **Total API Calls**: {result.metrics.total_api_calls}\n")
                 f.write(f"- **Total Tokens**: {result.metrics.total_tokens}\n")
                 f.write(f"- **Average Memory**: {result.metrics.avg_memory_mb:.1f} MB\n")
@@ -328,8 +334,7 @@ class BaseBenchmark:
 
                 if result.errors:
                     f.write(f"\n**Errors**: {len(result.errors)}\n")
-                    for error in result.errors[:5]:  # Show first 5 errors
-                        f.write(f"- {error}\n")
+                    f.writelines(f"- {error}\n" for error in result.errors[:5])
 
                 f.write("\n")
 
@@ -341,11 +346,19 @@ class BaseBenchmark:
             best_speed = min(results, key=lambda r: r.metrics.avg_execution_time_ms)
             best_cost = min(results, key=lambda r: r.metrics.total_tokens)
 
-            f.write(f"- **Best Success Rate**: {best_success.framework_name} ({best_success.metrics.success_rate:.1f}%)\n")
-            f.write(f"- **Fastest**: {best_speed.framework_name} ({best_speed.metrics.avg_execution_time_ms:.1f} ms)\n")
-            f.write(f"- **Most Cost-Effective**: {best_cost.framework_name} ({best_cost.metrics.total_tokens} tokens)\n")
+            f.write(
+                f"- **Best Success Rate**: {best_success.framework_name} ({best_success.metrics.success_rate:.1f}%)\n",
+            )
+            f.write(
+                f"- **Fastest**: {best_speed.framework_name} ({best_speed.metrics.avg_execution_time_ms:.1f} ms)\n",
+            )
+            f.write(
+                f"- **Most Cost-Effective**: {best_cost.framework_name} ({best_cost.metrics.total_tokens} tokens)\n",
+            )
 
             # Check for Agent Guru improvement
             agent_guru_result = next((r for r in results if "Agent Guru" in r.framework_name), None)
             if agent_guru_result and agent_guru_result.metrics.improvement_rate:
-                f.write(f"\n**Agent Guru Unique Feature**: {agent_guru_result.metrics.improvement_rate:.1f}% improvement over time\n")
+                f.write(
+                    f"\n**Agent Guru Unique Feature**: {agent_guru_result.metrics.improvement_rate:.1f}% improvement over time\n",
+                )

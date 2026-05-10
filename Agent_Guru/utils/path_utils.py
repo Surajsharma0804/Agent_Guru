@@ -1,5 +1,4 @@
-"""
-Shared path utilities for Agent Guru.
+"""Shared path utilities for Agent Guru.
 
 Provides safe path construction that prevents path traversal attacks (CWE-22)
 by resolving and validating that any constructed path remains within a
@@ -19,7 +18,10 @@ Requirements: 2.2
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def safe_path(base: Path, untrusted: str) -> Path:
@@ -49,14 +51,18 @@ def safe_path(base: Path, untrusted: str) -> Path:
         >>> safe_path(Path("/data"), "user/file.txt")
         PosixPath('/data/user/file.txt')
         >>> safe_path(Path("/data"), "../../etc/passwd")  # raises ValueError
+
     """
     base_resolved = base.resolve()
     resolved = (base / untrusted).resolve()
 
     if not resolved.is_relative_to(base_resolved):
-        raise ValueError(
+        msg = (
             f"Path traversal detected: '{untrusted}' resolves to '{resolved}' "
             f"which is outside base directory '{base_resolved}'"
+        )
+        raise ValueError(
+            msg,
         )
 
     return resolved

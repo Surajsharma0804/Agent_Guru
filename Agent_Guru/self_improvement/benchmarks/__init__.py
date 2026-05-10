@@ -1,5 +1,4 @@
-"""
-Benchmark suite for comparing Agent Guru self-improvement engine to other frameworks.
+"""Benchmark suite for comparing Agent Guru self-improvement engine to other frameworks.
 
 This module provides comprehensive benchmarking capabilities to compare Agent Guru's
 self-improvement engine against LangChain, CrewAI, AutoGen, and AutoGPT.
@@ -31,13 +30,13 @@ from Agent_Guru.self_improvement.benchmarks.test_scenarios import (
 
 __all__ = [
     "BaseBenchmark",
-    "BenchmarkResult",
     "BenchmarkMetrics",
+    "BenchmarkResult",
     "TestScenario",
     "get_all_scenarios",
-    "get_simple_scenarios",
     "get_complex_scenarios",
-    "get_tool_usage_scenarios",
     "get_error_recovery_scenarios",
     "get_learning_scenarios",
+    "get_simple_scenarios",
+    "get_tool_usage_scenarios",
 ]

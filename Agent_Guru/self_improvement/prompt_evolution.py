@@ -1,5 +1,4 @@
-"""
-Prompt Evolution System for Self-Improvement Engine.
+"""Prompt Evolution System for Self-Improvement Engine.
 
 Automatically refines prompts based on outcomes and validates improvements.
 Implements version management and performance tracking for prompt evolution.
@@ -17,7 +16,7 @@ Date: 2026-02-28
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -43,8 +42,7 @@ class PromptVersion:
 
 
 class PromptEvolutionSystem:
-    """
-    Evolves prompts based on performance tracking.
+    """Evolves prompts based on performance tracking.
 
     Automatically identifies prompt weaknesses, generates improvements,
     validates them, and manages version history.
@@ -60,6 +58,7 @@ class PromptEvolutionSystem:
         ... )
         >>> system.record_prompt_outcome("prompt_v1", True, False, 150.0)
         >>> best = system.get_active_prompt("task_analysis")
+
     """
 
     def __init__(
@@ -69,8 +68,7 @@ class PromptEvolutionSystem:
         rollback_cooldown_seconds: float = 7200.0,  # 2 hours default
         oscillation_window_seconds: float = 86400.0,  # 24 hours default
     ) -> None:
-        """
-        Initialize prompt evolution system.
+        """Initialize prompt evolution system.
 
         Args:
             pool: ConnectionPool for database access
@@ -80,6 +78,7 @@ class PromptEvolutionSystem:
 
         Raises:
             RuntimeError: If prompts table doesn't exist
+
         """
         self.pool = pool
         self.min_update_interval = min_update_interval_seconds
@@ -87,11 +86,8 @@ class PromptEvolutionSystem:
         self.oscillation_window = oscillation_window_seconds
         self._init_database()
 
-
-
     def _init_database(self) -> None:
-        """
-        Initialize database schema for prompts.
+        """Initialize database schema for prompts.
 
         Note: DatabaseSchema.create_schema() should be called first.
         This method only verifies the table exists.
@@ -104,12 +100,13 @@ class PromptEvolutionSystem:
                 """
                 SELECT name FROM sqlite_master
                 WHERE type='table' AND name='prompts'
-            """
+            """,
             )
 
             if not cursor.fetchone():
+                msg = "Prompts table not found. Call DatabaseSchema.create_schema() first."
                 raise RuntimeError(
-                    "Prompts table not found. " "Call DatabaseSchema.create_schema() first."
+                    msg,
                 )
 
     def register_prompt(
@@ -119,8 +116,7 @@ class PromptEvolutionSystem:
         version: int = 1,
         force: bool = False,
     ) -> str:
-        """
-        Register a new prompt version.
+        """Register a new prompt version.
 
         Args:
             prompt_type: Type of prompt (e.g., "task_analysis", "tool_selection")
@@ -134,17 +130,21 @@ class PromptEvolutionSystem:
         Raises:
             ValueError: If prompt_type is empty or content is empty
             RuntimeError: If rate limit prevents update (unless force=True)
+
         """
         if not prompt_type:
-            raise ValueError("prompt_type cannot be empty")
+            msg = "prompt_type cannot be empty"
+            raise ValueError(msg)
         if not content:
-            raise ValueError("content cannot be empty")
+            msg = "content cannot be empty"
+            raise ValueError(msg)
 
         # Check rate limiting (unless forced)
         if not force:
             can_update, reason = self.can_update_prompt(prompt_type, "register")
             if not can_update:
-                raise RuntimeError(f"Rate limit prevents update: {reason}")
+                msg = f"Rate limit prevents update: {reason}"
+                raise RuntimeError(msg)
 
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -162,8 +162,8 @@ class PromptEvolutionSystem:
             previous_version = prev_row[0] if prev_row else None
 
             # Generate prompt ID
-            prompt_id = f"{prompt_type}_v{version}_{datetime.now(tz=timezone.utc).timestamp()}"
-            now = datetime.now(tz=timezone.utc).isoformat()
+            prompt_id = f"{prompt_type}_v{version}_{datetime.now(tz=UTC).timestamp()}"
+            now = datetime.now(tz=UTC).isoformat()
 
             # Deactivate previous versions of this prompt type
             cursor.execute(
@@ -212,8 +212,7 @@ class PromptEvolutionSystem:
         success: bool,
         hallucination_detected: bool,
     ) -> None:
-        """
-        Record outcome of using a prompt.
+        """Record outcome of using a prompt.
 
         Time Complexity: O(1) - single database update
 
@@ -224,6 +223,7 @@ class PromptEvolutionSystem:
 
         Raises:
             ValueError: If prompt_id doesn't exist
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -241,7 +241,8 @@ class PromptEvolutionSystem:
 
             row = cursor.fetchone()
             if not row:
-                raise ValueError(f"Prompt '{prompt_id}' not found")
+                msg = f"Prompt '{prompt_id}' not found"
+                raise ValueError(msg)
 
             total, success_count, failure_count, halluc_count = row
 
@@ -252,7 +253,7 @@ class PromptEvolutionSystem:
             new_halluc_count = halluc_count + (1 if hallucination_detected else 0)
             new_success_rate = new_success_count / new_total if new_total > 0 else 0.0
 
-            now = datetime.now(tz=timezone.utc).isoformat()
+            now = datetime.now(tz=UTC).isoformat()
 
             cursor.execute(
                 """
@@ -279,8 +280,7 @@ class PromptEvolutionSystem:
             conn.commit()
 
     def get_active_prompt(self, prompt_type: str) -> PromptVersion | None:
-        """
-        Get the currently active prompt for a type.
+        """Get the currently active prompt for a type.
 
         Time Complexity: O(1) - indexed lookup
 
@@ -289,6 +289,7 @@ class PromptEvolutionSystem:
 
         Returns:
             Active prompt version or None if not found
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -324,8 +325,7 @@ class PromptEvolutionSystem:
             )
 
     def get_prompt_version(self, prompt_id: str) -> PromptVersion | None:
-        """
-        Get a specific prompt version by ID.
+        """Get a specific prompt version by ID.
 
         Time Complexity: O(1) - indexed lookup
 
@@ -334,6 +334,7 @@ class PromptEvolutionSystem:
 
         Returns:
             Prompt version or None if not found
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -369,8 +370,7 @@ class PromptEvolutionSystem:
             )
 
     def get_prompt_history(self, prompt_type: str, limit: int = 10) -> list[PromptVersion]:
-        """
-        Get version history for a prompt type.
+        """Get version history for a prompt type.
 
         Time Complexity: O(n) where n is number of versions (limited)
 
@@ -380,6 +380,7 @@ class PromptEvolutionSystem:
 
         Returns:
             List of prompt versions, newest first
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -413,19 +414,19 @@ class PromptEvolutionSystem:
                         created_at=datetime.fromisoformat(row[9]),
                         last_used=datetime.fromisoformat(row[10]) if row[10] else None,
                         is_active=bool(row[11]),
-                    )
+                    ),
                 )
 
             return versions
 
     def get_prompt_count(self) -> int:
-        """
-        Get total number of prompt versions.
+        """Get total number of prompt versions.
 
         Time Complexity: O(1)
 
         Returns:
             Number of prompt versions
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -434,13 +435,13 @@ class PromptEvolutionSystem:
             return int(result[0]) if result else 0
 
     def get_all_prompt_types(self) -> list[str]:
-        """
-        Get all registered prompt types.
+        """Get all registered prompt types.
 
         Time Complexity: O(n) where n is number of unique types
 
         Returns:
             List of prompt types
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -450,16 +451,17 @@ class PromptEvolutionSystem:
                 SELECT DISTINCT prompt_type
                 FROM prompts
                 ORDER BY prompt_type
-            """
+            """,
             )
 
             return [row[0] for row in cursor.fetchall()]
 
     def identify_weak_prompts(
-        self, min_uses: int = 10, max_success_rate: float = 0.7
+        self,
+        min_uses: int = 10,
+        max_success_rate: float = 0.7,
     ) -> list[PromptVersion]:
-        """
-        Identify prompts with poor performance.
+        """Identify prompts with poor performance.
 
         Time Complexity: O(n) where n is number of prompts
 
@@ -469,6 +471,7 @@ class PromptEvolutionSystem:
 
         Returns:
             List of weak prompt versions sorted by success rate (worst first)
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -501,14 +504,13 @@ class PromptEvolutionSystem:
                         created_at=datetime.fromisoformat(row[9]),
                         last_used=datetime.fromisoformat(row[10]) if row[10] else None,
                         is_active=bool(row[11]),
-                    )
+                    ),
                 )
 
             return weak_prompts
 
     def get_prompt_weaknesses(self, prompt_id: str) -> dict[str, float]:
-        """
-        Analyze specific weaknesses of a prompt.
+        """Analyze specific weaknesses of a prompt.
 
         Time Complexity: O(1) - single database query
 
@@ -526,10 +528,12 @@ class PromptEvolutionSystem:
 
         Raises:
             ValueError: If prompt_id doesn't exist
+
         """
         prompt = self.get_prompt_version(prompt_id)
         if not prompt:
-            raise ValueError(f"Prompt '{prompt_id}' not found")
+            msg = f"Prompt '{prompt_id}' not found"
+            raise ValueError(msg)
 
         failure_rate = prompt.failure_count / prompt.total_uses if prompt.total_uses > 0 else 0.0
 
@@ -547,10 +551,12 @@ class PromptEvolutionSystem:
         }
 
     def compare_prompt_versions(
-        self, prompt_type: str, version1: int, version2: int
+        self,
+        prompt_type: str,
+        version1: int,
+        version2: int,
     ) -> dict[str, float]:
-        """
-        Compare performance between two prompt versions.
+        """Compare performance between two prompt versions.
 
         Time Complexity: O(1) - two database queries
 
@@ -571,6 +577,7 @@ class PromptEvolutionSystem:
 
         Raises:
             ValueError: If either version doesn't exist
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -586,7 +593,8 @@ class PromptEvolutionSystem:
             )
             row1 = cursor.fetchone()
             if not row1:
-                raise ValueError(f"Version {version1} of prompt type '{prompt_type}' not found")
+                msg = f"Version {version1} of prompt type '{prompt_type}' not found"
+                raise ValueError(msg)
 
             # Get version 2
             cursor.execute(
@@ -599,7 +607,8 @@ class PromptEvolutionSystem:
             )
             row2 = cursor.fetchone()
             if not row2:
-                raise ValueError(f"Version {version2} of prompt type '{prompt_type}' not found")
+                msg = f"Version {version2} of prompt type '{prompt_type}' not found"
+                raise ValueError(msg)
 
             success_rate1, total_uses1, halluc_count1 = row1
             success_rate2, total_uses2, halluc_count2 = row2
@@ -625,10 +634,12 @@ class PromptEvolutionSystem:
             }
 
     def should_replace_prompt(
-        self, prompt_id: str, min_uses: int = 20, min_failure_rate: float = 0.3
+        self,
+        prompt_id: str,
+        min_uses: int = 20,
+        min_failure_rate: float = 0.3,
     ) -> bool:
-        """
-        Determine if a prompt should be replaced due to poor performance.
+        """Determine if a prompt should be replaced due to poor performance.
 
         Time Complexity: O(1) - single database query
 
@@ -639,6 +650,7 @@ class PromptEvolutionSystem:
 
         Returns:
             True if prompt should be replaced, False otherwise
+
         """
         prompt = self.get_prompt_version(prompt_id)
         if not prompt:
@@ -655,13 +667,15 @@ class PromptEvolutionSystem:
             prompt.hallucination_count / prompt.total_uses if prompt.total_uses > 0 else 0.0
         )
 
-        return failure_rate >= min_failure_rate or hallucination_rate >= 0.2
+        return failure_rate >= min_failure_rate or hallucination_rate >= 0.2  # noqa: PLR2004 - Threshold value
+
 
     def generate_improved_prompt(
-        self, prompt_id: str, llm_callable: Callable[[str], str] | None = None
+        self,
+        prompt_id: str,
+        llm_callable: Callable[[str], str] | None = None,
     ) -> str:
-        """
-        Generate improved prompt using LLM meta-prompting.
+        """Generate improved prompt using LLM meta-prompting.
 
         Uses weakness analysis to create a meta-prompt that asks an LLM
         to improve the original prompt based on identified issues.
@@ -692,11 +706,13 @@ class PromptEvolutionSystem:
             >>> # Manual improvement (get meta-prompt)
             >>> meta_prompt = system.generate_improved_prompt("prompt_v1")
             >>> # Use meta_prompt with your LLM manually
+
         """
         # Get original prompt
         prompt = self.get_prompt_version(prompt_id)
         if not prompt:
-            raise ValueError(f"Prompt '{prompt_id}' not found")
+            msg = f"Prompt '{prompt_id}' not found"
+            raise ValueError(msg)
 
         # Get weakness analysis
         weaknesses = self.get_prompt_weaknesses(prompt_id)
@@ -710,14 +726,14 @@ class PromptEvolutionSystem:
                 improved_prompt = llm_callable(meta_prompt)
                 return improved_prompt.strip()
             except Exception as e:
-                raise RuntimeError(f"LLM generation failed: {e}") from e
+                msg = f"LLM generation failed: {e}"
+                raise RuntimeError(msg) from e
 
         # Otherwise return meta-prompt for manual use
         return meta_prompt
 
     def _build_meta_prompt(self, prompt: PromptVersion, weaknesses: dict[str, float]) -> str:
-        """
-        Build meta-prompt for LLM to improve original prompt.
+        """Build meta-prompt for LLM to improve original prompt.
 
         Args:
             prompt: Original prompt version
@@ -725,6 +741,7 @@ class PromptEvolutionSystem:
 
         Returns:
             Meta-prompt text for LLM
+
         """
         failure_rate = weaknesses["failure_rate"]
         hallucination_rate = weaknesses["hallucination_rate"]
@@ -733,14 +750,17 @@ class PromptEvolutionSystem:
 
         # Identify primary weakness
         primary_issue = "general performance"
-        if hallucination_rate > 0.15:
+        if hallucination_rate > 0.15:  # noqa: PLR2004 - Threshold value
+
             primary_issue = "hallucinations (fabricated information)"
-        elif failure_rate > 0.4:
+        elif failure_rate > 0.4:  # noqa: PLR2004 - Threshold value
+
             primary_issue = "task failures"
-        elif success_rate < 0.6:
+        elif success_rate < 0.6:  # noqa: PLR2004 - Threshold value
+
             primary_issue = "low success rate"
 
-        meta_prompt = f"""You are a prompt engineering expert. Your task is to improve the following prompt based on performance analysis.
+        return f"""You are a prompt engineering expert. Your task is to improve the following prompt based on performance analysis.
 
 ORIGINAL PROMPT:
 ```
@@ -789,8 +809,6 @@ The improved prompt should be ready to use directly.
 
 IMPROVED PROMPT:"""
 
-        return meta_prompt
-
     def validate_improved_prompt(
         self,
         original_prompt_id: str,
@@ -798,8 +816,7 @@ IMPROVED PROMPT:"""
         validation_callable: Callable[[str, str], tuple[bool, bool]],
         min_validation_tasks: int = 5,
     ) -> tuple[bool, dict[str, float]]:
-        """
-        Validate improved prompt on similar tasks before adoption.
+        """Validate improved prompt on similar tasks before adoption.
 
         Tests the improved prompt against similar tasks to ensure it performs
         better than the original before registering it as a new version.
@@ -843,11 +860,13 @@ IMPROVED PROMPT:"""
             ...         content="Improved prompt text",
             ...         version=2
             ...     )
+
         """
         # Get original prompt
         original = self.get_prompt_version(original_prompt_id)
         if not original:
-            raise ValueError(f"Prompt '{original_prompt_id}' not found")
+            msg = f"Prompt '{original_prompt_id}' not found"
+            raise ValueError(msg)
 
         # Run validation tasks
         improved_successes = 0
@@ -862,7 +881,8 @@ IMPROVED PROMPT:"""
             try:
                 # Test improved prompt
                 success, hallucination = validation_callable(
-                    improved_prompt_text, validation_context
+                    improved_prompt_text,
+                    validation_context,
                 )
                 if success:
                     improved_successes += 1
@@ -877,7 +897,8 @@ IMPROVED PROMPT:"""
                     original_hallucinations += 1
 
             except Exception as e:
-                raise RuntimeError(f"Validation failed on task {i}: {e}") from e
+                msg = f"Validation failed on task {i}: {e}"
+                raise RuntimeError(msg) from e
 
         # Calculate metrics
         improved_success_rate = improved_successes / min_validation_tasks
@@ -910,8 +931,7 @@ IMPROVED PROMPT:"""
         target_version: int | None = None,
         force: bool = False,
     ) -> str:
-        """
-        Rollback to a previous prompt version due to degraded performance.
+        """Rollback to a previous prompt version due to degraded performance.
 
         Deactivates the current active prompt and activates a previous version.
         If target_version is not specified, rolls back to the previous version.
@@ -936,6 +956,7 @@ IMPROVED PROMPT:"""
             >>> prompt_id = system.rollback_prompt("task_analysis", target_version=2)
             >>> active = system.get_active_prompt("task_analysis")
             >>> assert active.version == 2
+
         """
         conn = self.pool.acquire()
         cursor = conn.connection.cursor()
@@ -953,7 +974,8 @@ IMPROVED PROMPT:"""
             current = cursor.fetchone()
 
             if not current:
-                raise ValueError(f"No active prompt found for type '{prompt_type}'")
+                msg = f"No active prompt found for type '{prompt_type}'"
+                raise ValueError(msg)
 
             current_id, current_version = current
 
@@ -963,17 +985,15 @@ IMPROVED PROMPT:"""
                 target_version = current_version - 1
 
             if target_version < 1:
-                raise ValueError(
-                    f"Cannot rollback to version {target_version} (minimum is 1)"
-                )
+                msg = f"Cannot rollback to version {target_version} (minimum is 1)"
+                raise ValueError(msg)
 
             # Check oscillation (unless forced)
             if not force:
-                can_switch, reason = self.can_switch_to_version(
-                    prompt_type, target_version
-                )
+                can_switch, reason = self.can_switch_to_version(prompt_type, target_version)
                 if not can_switch:
-                    raise RuntimeError(f"Oscillation prevention: {reason}")
+                    msg = f"Oscillation prevention: {reason}"
+                    raise RuntimeError(msg)
 
             # Get target version
             cursor.execute(
@@ -987,8 +1007,9 @@ IMPROVED PROMPT:"""
             target = cursor.fetchone()
 
             if not target:
+                msg = f"Version {target_version} not found for prompt type '{prompt_type}'"
                 raise ValueError(
-                    f"Version {target_version} not found for prompt type '{prompt_type}'"
+                    msg,
                 )
 
             target_id = target[0]
@@ -1016,9 +1037,7 @@ IMPROVED PROMPT:"""
             conn.connection.commit()
 
             # Record rollback for rate limiting
-            self._record_prompt_update(
-                prompt_type, "rollback", current_version, target_version
-            )
+            self._record_prompt_update(prompt_type, "rollback", current_version, target_version)
 
             return target_id
 
@@ -1030,8 +1049,7 @@ IMPROVED PROMPT:"""
         prompt_type: str,
         degradation_threshold: float = 0.15,
     ) -> tuple[bool, dict[str, float]]:
-        """
-        Detect if prompt performance has degraded significantly.
+        """Detect if prompt performance has degraded significantly.
 
         Compares current active prompt performance to previous version performance.
         Used to trigger automatic rollback when performance drops.
@@ -1058,30 +1076,32 @@ IMPROVED PROMPT:"""
             >>> if is_degraded:
             ...     # Automatic rollback
             ...     system.rollback_prompt("task_analysis")
+
         """
         # Get current active prompt
         current = self.get_active_prompt(prompt_type)
-        if not current or current.total_uses < 10:
+        if not current or current.total_uses < 10:  # noqa: PLR2004 - Threshold
+
             # Not enough data
             return False, {}
 
         # Get previous version
         history = self.get_prompt_history(prompt_type, limit=2)
-        if len(history) < 2:
+        if len(history) < 2:  # noqa: PLR2004 - Small integer threshold
+
             # No previous version to compare
             return False, {}
 
         previous = history[1]  # Second in history (first is current)
-        if previous.total_uses < 10:
+        if previous.total_uses < 10:  # noqa: PLR2004 - Threshold
+
             # Not enough data in previous version
             return False, {}
 
         # Calculate degradation
         degradation = previous.success_rate - current.success_rate
         current_hallucination_rate = (
-            current.hallucination_count / current.total_uses
-            if current.total_uses > 0
-            else 0.0
+            current.hallucination_count / current.total_uses if current.total_uses > 0 else 0.0
         )
 
         metrics = {
@@ -1103,8 +1123,7 @@ IMPROVED PROMPT:"""
         num_tests: int = 20,
         traffic_split: float = 0.5,
     ) -> dict[str, Any]:
-        """
-        A/B test a candidate prompt against the current active prompt.
+        """A/B test a candidate prompt against the current active prompt.
 
         Runs parallel testing of candidate vs active prompt to determine
         which performs better before full adoption.
@@ -1148,10 +1167,12 @@ IMPROVED PROMPT:"""
             ... )
             >>> if results["recommendation"] == "adopt":
             ...     system.register_prompt("task_analysis", "Candidate prompt text")
+
         """
         active = self.get_active_prompt(prompt_type)
         if not active:
-            raise ValueError(f"No active prompt found for type '{prompt_type}'")
+            msg = f"No active prompt found for type '{prompt_type}'"
+            raise ValueError(msg)
 
         # Determine test allocation
         candidate_tests = int(num_tests * traffic_split)
@@ -1183,15 +1204,14 @@ IMPROVED PROMPT:"""
                     active_hallucinations += 1
 
         except Exception as e:
-            raise RuntimeError(f"A/B test failed: {e}") from e
+            msg = f"A/B test failed: {e}"
+            raise RuntimeError(msg) from e
 
         # Calculate metrics
         candidate_success_rate = (
             candidate_successes / candidate_tests if candidate_tests > 0 else 0.0
         )
-        active_success_rate = (
-            active_successes / active_tests if active_tests > 0 else 0.0
-        )
+        active_success_rate = active_successes / active_tests if active_tests > 0 else 0.0
         candidate_hallucination_rate = (
             candidate_hallucinations / candidate_tests if candidate_tests > 0 else 0.0
         )
@@ -1203,16 +1223,11 @@ IMPROVED PROMPT:"""
 
         # Simple statistical significance test (chi-square would be better)
         # For now, require at least 10% improvement with sufficient sample size
-        statistical_significance = (
-            abs(improvement) >= 0.10 and num_tests >= 20
-        )
+        statistical_significance = abs(improvement) >= 0.10 and num_tests >= 20  # noqa: PLR2004 - Threshold
+
 
         # Recommendation
-        recommendation = (
-            "adopt"
-            if improvement > 0 and statistical_significance
-            else "reject"
-        )
+        recommendation = "adopt" if improvement > 0 and statistical_significance else "reject"
 
         return {
             "candidate_success_rate": round(candidate_success_rate, 2),
@@ -1234,20 +1249,20 @@ IMPROVED PROMPT:"""
         previous_version: int | None,
         new_version: int,
     ) -> None:
-        """
-        Record a prompt update for rate limiting tracking.
+        """Record a prompt update for rate limiting tracking.
 
         Args:
             prompt_type: Type of prompt updated
             update_type: Type of update ('register', 'rollback', 'replace')
             previous_version: Previous version number (None for first registration)
             new_version: New version number
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
 
-            update_id = f"update_{prompt_type}_{datetime.now(tz=timezone.utc).timestamp()}"
-            now = datetime.now(tz=timezone.utc).isoformat()
+            update_id = f"update_{prompt_type}_{datetime.now(tz=UTC).timestamp()}"
+            now = datetime.now(tz=UTC).isoformat()
 
             cursor.execute(
                 """
@@ -1269,14 +1284,14 @@ IMPROVED PROMPT:"""
             conn.commit()
 
     def _get_last_update_time(self, prompt_type: str) -> datetime | None:
-        """
-        Get timestamp of last update for a prompt type.
+        """Get timestamp of last update for a prompt type.
 
         Args:
             prompt_type: Type of prompt to check
 
         Returns:
             Datetime of last update or None if never updated
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -1299,14 +1314,14 @@ IMPROVED PROMPT:"""
             return datetime.fromisoformat(row[0])
 
     def _get_last_rollback_time(self, prompt_type: str) -> datetime | None:
-        """
-        Get timestamp of last rollback for a prompt type.
+        """Get timestamp of last rollback for a prompt type.
 
         Args:
             prompt_type: Type of prompt to check
 
         Returns:
             Datetime of last rollback or None if never rolled back
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -1328,11 +1343,8 @@ IMPROVED PROMPT:"""
 
             return datetime.fromisoformat(row[0])
 
-    def _check_oscillation(
-        self, prompt_type: str, target_version: int
-    ) -> tuple[bool, list[int]]:
-        """
-        Check if switching to target version would cause oscillation.
+    def _check_oscillation(self, prompt_type: str, target_version: int) -> tuple[bool, list[int]]:
+        """Check if switching to target version would cause oscillation.
 
         Detects rapid back-and-forth changes between versions within
         the oscillation window. Oscillation is defined as switching
@@ -1347,12 +1359,13 @@ IMPROVED PROMPT:"""
             Tuple of (is_oscillating, recent_versions) where:
             - is_oscillating: True if oscillation detected
             - recent_versions: List of recent version numbers
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
 
             # Get recent updates within oscillation window
-            cutoff_time = datetime.now(tz=timezone.utc).timestamp() - self.oscillation_window
+            cutoff_time = datetime.now(tz=UTC).timestamp() - self.oscillation_window
             cutoff_iso = datetime.fromtimestamp(cutoff_time).isoformat()
 
             cursor.execute(
@@ -1368,21 +1381,20 @@ IMPROVED PROMPT:"""
             recent_versions = [row[0] for row in cursor.fetchall()]
 
             # No oscillation if not enough history
-            if len(recent_versions) < 2:
+            if len(recent_versions) < 2:  # noqa: PLR2004 - Small integer threshold
+
                 return False, recent_versions
 
             # Oscillation detected if:
             # 1. Target version appears in recent history (last 4 updates)
             # 2. The target version appears at least twice in recent history
             # This catches back-and-forth switching patterns
-            last_four = recent_versions[:4] if len(recent_versions) >= 4 else recent_versions
+            last_four = recent_versions[:4] if len(recent_versions) >= 4 else recent_versions  # noqa: PLR2004 - Small integer threshold
+
             target_count_in_recent = recent_versions.count(target_version)
 
             # True oscillation: switching back to a recently used version
-            is_oscillating = (
-                target_version in last_four
-                and target_count_in_recent >= 1
-            )
+            is_oscillating = target_version in last_four and target_count_in_recent >= 1
 
             return is_oscillating, recent_versions
 
@@ -1391,8 +1403,7 @@ IMPROVED PROMPT:"""
         prompt_type: str,
         update_type: str = "register",
     ) -> tuple[bool, str]:
-        """
-        Check if a prompt can be updated based on rate limiting rules.
+        """Check if a prompt can be updated based on rate limiting rules.
 
         Enforces:
         1. Cooldown period after rollback (rollback_cooldown) - checked first
@@ -1417,8 +1428,9 @@ IMPROVED PROMPT:"""
             ...     print(f"Update blocked: {reason}")
             >>> else:
             ...     system.register_prompt("task_analysis", "New prompt text")
+
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         # Check rollback cooldown FIRST (highest priority)
         if update_type != "rollback":
@@ -1445,11 +1457,8 @@ IMPROVED PROMPT:"""
 
         return True, "Update allowed"
 
-    def can_switch_to_version(
-        self, prompt_type: str, target_version: int
-    ) -> tuple[bool, str]:
-        """
-        Check if switching to a specific version would cause oscillation.
+    def can_switch_to_version(self, prompt_type: str, target_version: int) -> tuple[bool, str]:
+        """Check if switching to a specific version would cause oscillation.
 
         Args:
             prompt_type: Type of prompt
@@ -1462,10 +1471,9 @@ IMPROVED PROMPT:"""
             >>> can_switch, reason = system.can_switch_to_version("task_analysis", 2)
             >>> if not can_switch:
             ...     print(f"Switch blocked: {reason}")
+
         """
-        is_oscillating, recent_versions = self._check_oscillation(
-            prompt_type, target_version
-        )
+        is_oscillating, recent_versions = self._check_oscillation(prompt_type, target_version)
 
         if is_oscillating:
             return (
@@ -1477,8 +1485,7 @@ IMPROVED PROMPT:"""
         return True, "Switch allowed"
 
     def get_rate_limit_status(self, prompt_type: str) -> dict[str, Any]:
-        """
-        Get current rate limiting status for a prompt type.
+        """Get current rate limiting status for a prompt type.
 
         Args:
             prompt_type: Type of prompt to check
@@ -1498,30 +1505,23 @@ IMPROVED PROMPT:"""
             >>> status = system.get_rate_limit_status("task_analysis")
             >>> print(f"Can update: {status['can_update']}")
             >>> print(f"Time until next update: {status['time_until_next_update']}s")
+
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         last_update = self._get_last_update_time(prompt_type)
         last_rollback = self._get_last_rollback_time(prompt_type)
 
-        time_since_update = (
-            (now - last_update).total_seconds() if last_update else None
-        )
-        time_since_rollback = (
-            (now - last_rollback).total_seconds() if last_rollback else None
-        )
+        time_since_update = (now - last_update).total_seconds() if last_update else None
+        time_since_rollback = (now - last_rollback).total_seconds() if last_rollback else None
 
         time_until_next_update = 0.0
         if time_since_update is not None:
-            time_until_next_update = max(
-                0.0, self.min_update_interval - time_since_update
-            )
+            time_until_next_update = max(0.0, self.min_update_interval - time_since_update)
 
         rollback_cooldown_remaining = 0.0
         if time_since_rollback is not None:
-            rollback_cooldown_remaining = max(
-                0.0, self.rollback_cooldown - time_since_rollback
-            )
+            rollback_cooldown_remaining = max(0.0, self.rollback_cooldown - time_since_rollback)
 
         can_update, _ = self.can_update_prompt(prompt_type)
 

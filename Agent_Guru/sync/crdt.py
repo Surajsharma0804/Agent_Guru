@@ -1,13 +1,15 @@
 """CRDT-based conflict resolution for cross-device sync."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
 class CRDTEntry:
     """A single CRDT entry with vector clock."""
+
     key: str
     value: Any
     device_id: str
@@ -26,10 +28,10 @@ class LWWRegister:
         if existing is None or entry.timestamp > existing.timestamp:
             self._entries[entry.key] = entry
 
-    def get(self, key: str) -> Optional[CRDTEntry]:
+    def get(self, key: str) -> CRDTEntry | None:
         return self._entries.get(key)
 
-    def merge(self, other: "LWWRegister") -> "LWWRegister":
+    def merge(self, other: LWWRegister) -> LWWRegister:
         """Merge two LWW registers."""
         merged = LWWRegister()
         all_keys = set(self._entries) | set(other._entries)

@@ -1,5 +1,4 @@
-"""
-Deterministic seed utilities for reproducible training runs.
+"""Deterministic seed utilities for reproducible training runs.
 
 Setting all random-number-generator seeds before training ensures that
 experiments are reproducible across runs and machines, which is required
@@ -39,6 +38,7 @@ def set_deterministic_seeds(seed: int = 42) -> None:
 
         set_deterministic_seeds(42)
         model = train_model(data)
+
     """
     logger.info("Setting deterministic seeds: seed=%d", seed)
 
@@ -51,8 +51,8 @@ def set_deterministic_seeds(seed: int = 42) -> None:
 
         np.random.seed(seed)
         logger.debug("NumPy seed set to %d", seed)
-    except ImportError as e:
-        logger.warning("NumPy not available — skipping np.random.seed(%d)", seed)
+    except ImportError:
+        logger.exception("NumPy not available — skipping np.random.seed(%d)")
 
     # PyTorch CPU + CUDA (optional dependency)
     try:
@@ -61,5 +61,5 @@ def set_deterministic_seeds(seed: int = 42) -> None:
         torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
         logger.debug("PyTorch CPU and CUDA seeds set to %d", seed)
-    except ImportError as e:
-        logger.warning("PyTorch not available — skipping torch seed calls for seed=%d", seed)
+    except ImportError:
+        logger.exception("PyTorch not available — skipping torch seed calls for seed=%d")

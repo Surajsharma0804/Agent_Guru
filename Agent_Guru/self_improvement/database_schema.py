@@ -1,5 +1,4 @@
-"""
-Database schema for Self-Improvement Engine.
+"""Database schema for Self-Improvement Engine.
 
 This module defines the SQLite database schema for storing:
 - Failures: Complete execution context and categorization
@@ -22,20 +21,19 @@ Design Decisions:
 """
 
 import logging
+
 _logger = logging.getLogger(__name__)
 
-import sqlite3
-from pathlib import Path
-from typing import Optional
+import sqlite3  # noqa: E402
+from pathlib import Path  # noqa: E402
 
-from Agent_Guru.utils.path_utils import safe_path
+from Agent_Guru.utils.path_utils import safe_path  # noqa: E402
 
 BASE_DIR = Path(__file__).parent.resolve()
 
 
 class DatabaseSchema:
-    """
-    Database schema manager for Self-Improvement Engine.
+    """Database schema manager for Self-Improvement Engine.
 
     Creates and manages SQLite database schema with tables for:
     - failures: Failed task executions with full context
@@ -53,8 +51,7 @@ class DatabaseSchema:
 
     @staticmethod
     def create_schema(db_path: str) -> None:
-        """
-        Create complete database schema.
+        """Create complete database schema.
 
         Creates all tables, indexes, and constraints needed for
         the self-improvement engine.
@@ -64,16 +61,28 @@ class DatabaseSchema:
 
         Time Complexity: O(1) - fixed number of tables
         Space Complexity: O(1) - schema definition only
+
         """
         # Validate db_path: must be a plain filename or relative path with no traversal
         # sequences. safe_path enforces BASE_DIR containment, but we also reject
         # any path that contains ".." segments before it reaches safe_path.
         db_path_clean = str(db_path).strip()
-        if ".." in db_path_clean.replace("\\", "/").split("/"):
-            raise ValueError(f"Invalid db_path — path traversal sequences are not allowed: {db_path!r}")
+
+        # Handle absolute paths (e.g., from temp files in tests) directly
+        db_file = Path(db_path_clean)
+        if db_file.is_absolute():
+            # Absolute path - use directly (for temp files in tests)
+            db_file = db_file.resolve()
+        else:
+            # Relative path - validate no traversal and use safe_path
+            if ".." in db_path_clean.replace("\\", "/").split("/"):
+                msg = f"Invalid db_path — path traversal sequences are not allowed: {db_path!r}"
+                raise ValueError(
+                    msg,
+                )
+            db_file = safe_path(BASE_DIR, db_path_clean)
 
         # Ensure directory exists
-        db_file = safe_path(BASE_DIR, db_path_clean)
         db_file.parent.mkdir(parents=True, exist_ok=True)
 
         with sqlite3.connect(str(db_file)) as conn:
@@ -101,7 +110,7 @@ class DatabaseSchema:
             # Set schema version
             cursor.execute(
                 "INSERT OR REPLACE INTO schema_version (version) VALUES (?)",
-                (DatabaseSchema.SCHEMA_VERSION,)
+                (DatabaseSchema.SCHEMA_VERSION,),
             )
 
             conn.commit()
@@ -118,8 +127,7 @@ class DatabaseSchema:
 
     @staticmethod
     def _create_failures_table(cursor: sqlite3.Cursor) -> None:
-        """
-        Create failures table.
+        """Create failures table.
 
         Stores complete failure information including:
         - Task identification and type
@@ -158,8 +166,7 @@ class DatabaseSchema:
 
     @staticmethod
     def _create_strategies_table(cursor: sqlite3.Cursor) -> None:
-        """
-        Create strategies table.
+        """Create strategies table.
 
         Stores strategy definitions and performance tracking:
         - Strategy identification and description
@@ -195,8 +202,7 @@ class DatabaseSchema:
 
     @staticmethod
     def _create_prompts_table(cursor: sqlite3.Cursor) -> None:
-        """
-        Create prompts table.
+        """Create prompts table.
 
         Stores prompt versions and performance:
         - Prompt identification and type
@@ -236,8 +242,7 @@ class DatabaseSchema:
 
     @staticmethod
     def _create_prompt_updates_table(cursor: sqlite3.Cursor) -> None:
-        """
-        Create prompt_updates table for rate limiting.
+        """Create prompt_updates table for rate limiting.
 
         Tracks prompt update history to enforce rate limits and prevent oscillations:
         - Update timestamps per prompt type
@@ -263,8 +268,7 @@ class DatabaseSchema:
 
     @staticmethod
     def _create_metrics_table(cursor: sqlite3.Cursor) -> None:
-        """
-        Create metrics table.
+        """Create metrics table.
 
         Stores performance metrics over time:
         - Task execution outcomes
@@ -303,8 +307,7 @@ class DatabaseSchema:
 
     @staticmethod
     def _create_failure_patterns_table(cursor: sqlite3.Cursor) -> None:
-        """
-        Create failure_patterns table.
+        """Create failure_patterns table.
 
         Stores identified patterns across multiple failures:
         - Pattern identification
@@ -339,8 +342,7 @@ class DatabaseSchema:
 
     @staticmethod
     def _create_stability_metrics_table(cursor: sqlite3.Cursor) -> None:
-        """
-        Create stability_metrics table.
+        """Create stability_metrics table.
 
         Stores stability tracking for oscillation detection:
         - Component and metric identification
@@ -371,8 +373,7 @@ class DatabaseSchema:
 
     @staticmethod
     def _create_edge_case_metrics_table(cursor: sqlite3.Cursor) -> None:
-        """
-        Create edge_case_metrics table.
+        """Create edge_case_metrics table.
 
         Stores confidence metrics for patterns to prevent overgeneralization:
         - Pattern identification
@@ -413,8 +414,7 @@ class DatabaseSchema:
 
     @staticmethod
     def _create_indexes(cursor: sqlite3.Cursor) -> None:
-        """
-        Create indexes for query performance.
+        """Create indexes for query performance.
 
         Indexes on frequently queried columns:
         - failure_type for failure analysis
@@ -561,15 +561,15 @@ class DatabaseSchema:
         """)
 
     @staticmethod
-    def get_schema_version(db_path: str) -> Optional[int]:
-        """
-        Get current schema version.
+    def get_schema_version(db_path: str) -> int | None:
+        """Get current schema version.
 
         Args:
             db_path: Path to SQLite database file
 
         Returns:
             Schema version number or None if not set
+
         """
         try:
             with sqlite3.connect(db_path) as conn:
@@ -582,8 +582,7 @@ class DatabaseSchema:
 
     @staticmethod
     def verify_schema(db_path: str) -> bool:
-        """
-        Verify database schema is complete and valid.
+        """Verify database schema is complete and valid.
 
         Checks that all required tables and indexes exist.
 
@@ -592,6 +591,7 @@ class DatabaseSchema:
 
         Returns:
             True if schema is valid, False otherwise
+
         """
         try:
             with sqlite3.connect(db_path) as conn:
@@ -599,19 +599,19 @@ class DatabaseSchema:
 
                 # Check all required tables exist
                 required_tables = [
-                    'schema_version',
-                    'failures',
-                    'strategies',
-                    'prompts',
-                    'metrics',
-                    'failure_patterns',
-                    'stability_metrics'
+                    "schema_version",
+                    "failures",
+                    "strategies",
+                    "prompts",
+                    "metrics",
+                    "failure_patterns",
+                    "stability_metrics",
                 ]
 
                 # Use parameterized placeholders — table names are hardcoded, only values are parameterized
                 placeholders = ",".join("?" * len(required_tables))
                 cursor.execute(
-                    "SELECT name FROM sqlite_master "
+                    "SELECT name FROM sqlite_master "  # noqa: S608 - SQL parameterization reviewed
                     "WHERE type='table' AND name IN (" + placeholders + ")",  # nosec B608
                     required_tables,
                 )
@@ -620,13 +620,12 @@ class DatabaseSchema:
 
             return existing_tables == set(required_tables)
 
-        except Exception as e:
+        except Exception:
             return False
 
 
 def initialize_database(db_path: str) -> None:
-    """
-    Initialize database with schema.
+    """Initialize database with schema.
 
     Convenience function to create database schema.
 
@@ -635,6 +634,7 @@ def initialize_database(db_path: str) -> None:
 
     Example:
         >>> initialize_database("data/self_improvement.db")
+
     """
     DatabaseSchema.create_schema(db_path)
 
@@ -643,10 +643,7 @@ if __name__ == "__main__":
     # Example usage
     import sys
 
-    if len(sys.argv) > 1:
-        db_path = sys.argv[1]
-    else:
-        db_path = "data/self_improvement.db"
+    db_path = sys.argv[1] if len(sys.argv) > 1 else "data/self_improvement.db"
 
     _logger.info("Creating database schema at: %s", db_path)
     initialize_database(db_path)

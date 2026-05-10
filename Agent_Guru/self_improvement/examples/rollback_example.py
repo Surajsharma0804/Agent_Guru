@@ -1,5 +1,4 @@
-"""
-Example: Automatic Rollback System
+"""Example: Automatic Rollback System.
 
 Demonstrates how the rollback manager automatically reverts changes
 when performance degradation is detected.
@@ -17,7 +16,7 @@ Date: 2026-02-28
 
 import os
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema
@@ -32,10 +31,8 @@ from Agent_Guru.self_improvement.rollback_manager import (
 )
 
 
-def example_basic_rollback():
+def example_basic_rollback() -> None:
     """Example 1: Basic rollback of recent changes."""
-    print("\n=== Example 1: Basic Rollback ===\n")
-
     # Create temporary database
     fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
@@ -47,9 +44,8 @@ def example_basic_rollback():
         manager = RollbackManager(pool)
 
         # Record some strategy changes
-        print("Recording strategy changes...")
         for i in range(3):
-            change_id = manager.record_change(
+            manager.record_change(
                 change_type=ChangeType.STRATEGY_UPDATE,
                 component_id=f"strategy_{i}",
                 previous_state={
@@ -63,28 +59,21 @@ def example_basic_rollback():
                 performance_before={"success_rate": 0.80},
                 performance_after={"success_rate": 0.85},
             )
-            print(f"  ✓ Recorded change: {change_id}")
 
         # Rollback recent changes
-        print("\nRolling back changes from last 24 hours...")
         result = manager.rollback_recent_changes(hours=24)
 
-        print(f"  ✓ Success: {result.success}")
-        print(f"  ✓ Changes rolled back: {result.changes_rolled_back}")
-        print(f"  ✓ Components affected: {result.components_affected}")
         if result.performance_restored:
-            print(f"  ✓ Performance restored: {result.performance_restored}")
+            pass
 
         pool.close_all()
 
     finally:
-        os.unlink(db_path)
+        os.unlink(db_path)  # noqa: PTH108
 
 
-def example_degradation_triggered_rollback():
+def example_degradation_triggered_rollback() -> None:
     """Example 2: Rollback triggered by performance degradation."""
-    print("\n=== Example 2: Degradation-Triggered Rollback ===\n")
-
     # Create temporary database
     fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
@@ -96,7 +85,6 @@ def example_degradation_triggered_rollback():
         manager = RollbackManager(pool)
 
         # Record changes that caused degradation
-        print("Recording changes...")
         manager.record_change(
             change_type=ChangeType.STRATEGY_UPDATE,
             component_id="strategy_bad",
@@ -115,21 +103,18 @@ def example_degradation_triggered_rollback():
             performance_after={"success_rate": 0.65},
         )
 
-        print("  ✓ Recorded 2 changes that caused degradation")
-
         # Create degradation alert
-        print("\nDetecting performance degradation...")
         alert = DegradationAlert(
             severity=DegradationSeverity.SEVERE,
             degraded_metrics=[
                 DegradationMetric.SUCCESS_RATE,
                 DegradationMetric.HALLUCINATION_RATE,
             ],
-            detection_timestamp=datetime.now(tz=timezone.utc),
-            recent_window_start=datetime.now(tz=timezone.utc) - timedelta(hours=1),
-            recent_window_end=datetime.now(tz=timezone.utc),
-            historical_window_start=datetime.now(tz=timezone.utc) - timedelta(hours=100),
-            historical_window_end=datetime.now(tz=timezone.utc) - timedelta(hours=1),
+            detection_timestamp=datetime.now(tz=UTC),
+            recent_window_start=datetime.now(tz=UTC) - timedelta(hours=1),
+            recent_window_end=datetime.now(tz=UTC),
+            historical_window_start=datetime.now(tz=UTC) - timedelta(hours=100),
+            historical_window_end=datetime.now(tz=UTC) - timedelta(hours=1),
             metric_changes={
                 "success_rate": -0.25,
                 "hallucination_rate": 0.15,
@@ -143,32 +128,21 @@ def example_degradation_triggered_rollback():
             diagnostic_info={},
         )
 
-        print(f"  ✓ Severity: {alert.severity.value}")
-        print(f"  ✓ Degraded metrics: {[m.value for m in alert.degraded_metrics]}")
-        print(f"  ✓ Recommendation: {alert.recommended_action}")
-
         # Automatic rollback based on degradation
-        print("\nTriggering automatic rollback...")
         result = manager.rollback_on_degradation(alert)
 
-        print(f"  ✓ Success: {result.success}")
-        print(f"  ✓ Changes rolled back: {result.changes_rolled_back}")
-        print(f"  ✓ Components affected: {result.components_affected}")
         if result.performance_restored:
-            print("  ✓ Performance restored:")
-            for metric, value in result.performance_restored.items():
-                print(f"      - {metric}: {value:.2f}")
+            for _metric, _value in result.performance_restored.items():
+                pass
 
         pool.close_all()
 
     finally:
-        os.unlink(db_path)
+        os.unlink(db_path)  # noqa: PTH108
 
 
-def example_selective_rollback():
+def example_selective_rollback() -> None:
     """Example 3: Selective rollback by component type."""
-    print("\n=== Example 3: Selective Rollback ===\n")
-
     # Create temporary database
     fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
@@ -180,7 +154,6 @@ def example_selective_rollback():
         manager = RollbackManager(pool)
 
         # Record different types of changes
-        print("Recording mixed changes...")
         manager.record_change(
             change_type=ChangeType.STRATEGY_UPDATE,
             component_id="strategy_1",
@@ -205,35 +178,24 @@ def example_selective_rollback():
             performance_before={"success_rate": 0.78},
         )
 
-        print("  ✓ Recorded 2 strategy changes and 1 prompt change")
-
         # Rollback only strategy changes
-        print("\nRolling back only strategy changes...")
-        result = manager.rollback_recent_changes(
-            hours=24, change_types=[ChangeType.STRATEGY_UPDATE]
+        manager.rollback_recent_changes(
+            hours=24,
+            change_types=[ChangeType.STRATEGY_UPDATE],
         )
-
-        print(f"  ✓ Success: {result.success}")
-        print(f"  ✓ Changes rolled back: {result.changes_rolled_back}")
-        print(f"  ✓ Components affected: {result.components_affected}")
 
         # Verify prompt change was not rolled back
         history = manager.get_change_history(hours=24, include_rolled_back=False)
-        prompt_changes = [
-            h for h in history if h.change_type == ChangeType.PROMPT_UPDATE
-        ]
-        print(f"  ✓ Prompt changes still active: {len(prompt_changes)}")
+        [h for h in history if h.change_type == ChangeType.PROMPT_UPDATE]
 
         pool.close_all()
 
     finally:
-        os.unlink(db_path)
+        os.unlink(db_path)  # noqa: PTH108
 
 
-def example_rollback_statistics():
+def example_rollback_statistics() -> None:
     """Example 4: Analyzing rollback statistics."""
-    print("\n=== Example 4: Rollback Statistics ===\n")
-
     # Create temporary database
     fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
@@ -245,7 +207,6 @@ def example_rollback_statistics():
         manager = RollbackManager(pool)
 
         # Record and rollback some changes
-        print("Recording changes...")
         for i in range(10):
             manager.record_change(
                 change_type=ChangeType.STRATEGY_UPDATE,
@@ -255,45 +216,31 @@ def example_rollback_statistics():
                 performance_before={"success_rate": 0.80},
             )
 
-        print("  ✓ Recorded 10 strategy changes")
-
         # Rollback half of them
-        print("\nRolling back 5 changes...")
         manager.rollback_recent_changes(
             hours=24,
             component_ids=[f"strategy_{i}" for i in range(5)],
         )
 
         # Get statistics
-        print("\nRollback Statistics:")
         stats = manager.get_rollback_statistics(hours=24)
 
-        print(f"  ✓ Total changes: {stats['total_changes']}")
-        print(f"  ✓ Rolled back: {stats['rolled_back_changes']}")
-        print(f"  ✓ Rollback rate: {stats['rollback_rate']:.1%}")
-
         if stats["changes_by_type"]:
-            print("\n  Changes by type:")
-            for change_type, counts in stats["changes_by_type"].items():
-                print(f"    - {change_type}:")
-                print(f"        Total: {counts['total']}")
-                print(f"        Rolled back: {counts['rolled_back']}")
+            for _counts in stats["changes_by_type"].values():
+                pass
 
         if stats["most_rolled_back_components"]:
-            print("\n  Most rolled back components:")
-            for component in stats["most_rolled_back_components"][:5]:
-                print(f"    - {component['component_id']}: {component['count']} rollbacks")
+            for _component in stats["most_rolled_back_components"][:5]:
+                pass
 
         pool.close_all()
 
     finally:
-        os.unlink(db_path)
+        os.unlink(db_path)  # noqa: PTH108
 
 
-def example_change_history():
+def example_change_history() -> None:
     """Example 5: Viewing change history."""
-    print("\n=== Example 5: Change History ===\n")
-
     # Create temporary database
     fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
@@ -305,7 +252,6 @@ def example_change_history():
         manager = RollbackManager(pool)
 
         # Record some changes
-        print("Recording changes...")
         for i in range(5):
             manager.record_change(
                 change_type=ChangeType.STRATEGY_UPDATE,
@@ -316,47 +262,30 @@ def example_change_history():
                 performance_after={"success_rate": 0.85 + i * 0.01},
             )
 
-        print("  ✓ Recorded 5 changes")
-
         # Rollback some
-        manager.rollback_recent_changes(
-            hours=24, component_ids=["strategy_0", "strategy_2"]
-        )
+        manager.rollback_recent_changes(hours=24, component_ids=["strategy_0", "strategy_2"])
 
         # View history
-        print("\nChange History (all changes):")
         history = manager.get_change_history(hours=24, include_rolled_back=True)
 
         for record in history:
-            status = "ROLLED BACK" if record.rolled_back else "ACTIVE"
-            print(f"  - {record.component_id}: {status}")
-            print(f"      Type: {record.change_type.value}")
-            print(f"      Timestamp: {record.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
             if record.performance_before:
-                print(f"      Performance before: {record.performance_before}")
+                pass
             if record.performance_after:
-                print(f"      Performance after: {record.performance_after}")
+                pass
 
         # View only active changes
-        print("\nActive Changes (not rolled back):")
-        active_history = manager.get_change_history(
-            hours=24, include_rolled_back=False
-        )
-        print(f"  ✓ {len(active_history)} active changes")
-        for record in active_history:
-            print(f"    - {record.component_id}")
+        active_history = manager.get_change_history(hours=24, include_rolled_back=False)
+        for _record in active_history:
+            pass
 
         pool.close_all()
 
     finally:
-        os.unlink(db_path)
+        os.unlink(db_path)  # noqa: PTH108
 
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("Automatic Rollback System Examples")
-    print("=" * 60)
-
     try:
         example_basic_rollback()
         example_degradation_triggered_rollback()
@@ -364,12 +293,7 @@ if __name__ == "__main__":
         example_rollback_statistics()
         example_change_history()
 
-        print("\n" + "=" * 60)
-        print("All examples completed successfully!")
-        print("=" * 60)
-
-    except Exception as e:
-        print(f"\n❌ Error: {e}")
+    except Exception:
         import traceback
 
         traceback.print_exc()

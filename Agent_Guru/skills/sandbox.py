@@ -1,18 +1,22 @@
 """Skill sandbox with subprocess isolation and resource enforcement."""
+
 from __future__ import annotations
 
 import logging
 import multiprocessing
 import time
-from collections.abc import Callable
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from Agent_Guru.skills.manifest import ResourceLimits, ResourceUsage, SkillResult
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
 try:
     import psutil
+
     _PSUTIL_AVAILABLE = True
 except ImportError:
     _PSUTIL_AVAILABLE = False
@@ -22,7 +26,7 @@ def _worker(
     func_module: str,
     func_name: str,
     kwargs: dict[str, Any],
-    result_queue: "multiprocessing.Queue[Any]",
+    result_queue: multiprocessing.Queue[Any],
 ) -> None:
     """Worker function executed in subprocess.
 
@@ -31,6 +35,7 @@ def _worker(
     """
     try:
         import importlib
+
         mod = importlib.import_module(func_module)  # nosec B302,B307 — trusted internal use only
         func = getattr(mod, func_name)  # nosec B307 — trusted internal use only
         result = func(**kwargs)
@@ -42,14 +47,14 @@ def _worker(
 class SkillSandbox:
     """Executes skills in isolated subprocesses with resource limits."""
 
-    def __init__(self, limits: Optional[ResourceLimits] = None) -> None:
+    def __init__(self, limits: ResourceLimits | None = None) -> None:
         self.limits = limits or ResourceLimits()
 
     def execute(
         self,
         skill_id: str,
         func: Callable[..., Any],
-        kwargs: Optional[dict[str, Any]] = None,
+        kwargs: dict[str, Any] | None = None,
     ) -> SkillResult:
         """Execute a callable in a sandboxed subprocess."""
         kwargs = kwargs or {}
@@ -73,12 +78,14 @@ class SkillSandbox:
         if _PSUTIL_AVAILABLE and proc.pid:
             try:
                 ps_proc = psutil.Process(proc.pid)
-            except Exception as e:
+            except Exception:
                 ps_proc = None
         else:
             ps_proc = None
 
-        proc.join(timeout=timeout_s)  # Process.join(timeout=...) is correct API; not a deadlock risk
+        proc.join(
+            timeout=timeout_s,
+        )  # Process.join(timeout=...) is correct API; not a deadlock risk
         wall_ms = (time.perf_counter() - start) * 1000
 
         if ps_proc is not None:
@@ -119,7 +126,7 @@ class SkillSandbox:
 
         try:
             status, value = result_queue.get_nowait()
-        except Exception as e:
+        except Exception:
             return SkillResult(
                 success=False,
                 skill_id=skill_id,
@@ -149,7 +156,7 @@ class SkillSandbox:
 def _sandbox_target(
     func: Callable[..., Any],
     kwargs: dict[str, Any],
-    result_queue: "multiprocessing.Queue[Any]",
+    result_queue: multiprocessing.Queue[Any],
 ) -> None:
     try:
         result = func(**kwargs)

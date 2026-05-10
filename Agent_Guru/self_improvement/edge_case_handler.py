@@ -1,5 +1,4 @@
-"""
-Edge Case Handler for Self-Improvement Engine.
+"""Edge Case Handler for Self-Improvement Engine.
 
 Prevents overgeneralization from rare events and edge cases by implementing
 statistical confidence measures, sample size requirements, and event frequency
@@ -24,7 +23,7 @@ Date: 2026-02-28
 
 import math
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -49,8 +48,7 @@ class ConfidenceMetrics:
 
 
 class EdgeCaseHandler:
-    """
-    Handles edge cases and prevents overgeneralization from rare events.
+    """Handles edge cases and prevents overgeneralization from rare events.
 
     Uses statistical confidence measures to weight rare vs common events
     appropriately. Implements minimum sample size requirements and
@@ -71,6 +69,7 @@ class EdgeCaseHandler:
         ...     print("Not enough data to trust this pattern")
         >>> if metrics.is_edge_case:
         ...     print(f"Rare event: frequency={metrics.event_frequency:.3f}")
+
     """
 
     def __init__(
@@ -82,8 +81,7 @@ class EdgeCaseHandler:
         bayesian_prior_successes: int = 1,
         bayesian_prior_failures: int = 1,
     ) -> None:
-        """
-        Initialize edge case handler.
+        """Initialize edge case handler.
 
         Args:
             pool: ConnectionPool for database access
@@ -95,17 +93,19 @@ class EdgeCaseHandler:
 
         Raises:
             ValueError: If parameters are invalid
+
         """
         if min_sample_size < 1:
-            raise ValueError(f"min_sample_size must be >= 1, got {min_sample_size}")
+            msg = f"min_sample_size must be >= 1, got {min_sample_size}"
+            raise ValueError(msg)
         if not 0.0 < edge_case_threshold < 1.0:
+            msg = f"edge_case_threshold must be in (0.0, 1.0), got {edge_case_threshold}"
             raise ValueError(
-                f"edge_case_threshold must be in (0.0, 1.0), got {edge_case_threshold}"
+                msg,
             )
         if not 0.0 < confidence_level < 1.0:
-            raise ValueError(
-                f"confidence_level must be in (0.0, 1.0), got {confidence_level}"
-            )
+            msg = f"confidence_level must be in (0.0, 1.0), got {confidence_level}"
+            raise ValueError(msg)
 
         self.pool = pool
         self.min_sample_size = min_sample_size
@@ -120,8 +120,7 @@ class EdgeCaseHandler:
         self._init_database()
 
     def _init_database(self) -> None:
-        """
-        Initialize database schema for edge case tracking.
+        """Initialize database schema for edge case tracking.
 
         Note: DatabaseSchema.create_schema() should be called first.
         This method only verifies the table exists.
@@ -134,13 +133,15 @@ class EdgeCaseHandler:
                 """
                 SELECT name FROM sqlite_master
                 WHERE type='table' AND name='edge_case_metrics'
-            """
+            """,
             )
 
             if not cursor.fetchone():
+                msg = (
+                    "edge_case_metrics table not found. Call DatabaseSchema.create_schema() first."
+                )
                 raise RuntimeError(
-                    "edge_case_metrics table not found. "
-                    "Call DatabaseSchema.create_schema() first."
+                    msg,
                 )
 
     def calculate_confidence(
@@ -150,8 +151,7 @@ class EdgeCaseHandler:
         failures: int,
         total_events: int,
     ) -> ConfidenceMetrics:
-        """
-        Calculate confidence metrics for a pattern.
+        """Calculate confidence metrics for a pattern.
 
         Uses Wilson score interval for confidence bounds and Bayesian
         smoothing to prevent overfitting to small samples.
@@ -178,6 +178,7 @@ class EdgeCaseHandler:
             >>> metrics = handler.calculate_confidence("rare", 2, 0, 1000)
             >>> assert not metrics.meets_threshold
             >>> assert metrics.is_edge_case
+
         """
         sample_size = successes + failures
 
@@ -191,14 +192,10 @@ class EdgeCaseHandler:
         smoothed_success_rate = smoothed_successes / smoothed_sample_size
 
         # Calculate Wilson score confidence interval
-        lower_bound, upper_bound = self._wilson_score_interval(
-            successes, sample_size, self.z_score
-        )
+        lower_bound, upper_bound = self._wilson_score_interval(successes, sample_size, self.z_score)
 
         # Calculate confidence score based on sample size and interval width
-        confidence_score = self._calculate_confidence_score(
-            sample_size, lower_bound, upper_bound
-        )
+        confidence_score = self._calculate_confidence_score(sample_size, lower_bound, upper_bound)
 
         # Calculate event frequency (how common is this pattern)
         event_frequency = sample_size / total_events if total_events > 0 else 0.0
@@ -208,7 +205,9 @@ class EdgeCaseHandler:
 
         # Calculate weighted score (downweight rare events)
         weighted_score = self._calculate_weighted_score(
-            smoothed_success_rate, event_frequency, is_edge_case
+            smoothed_success_rate,
+            event_frequency,
+            is_edge_case,
         )
 
         # Check if meets minimum sample size threshold
@@ -225,7 +224,7 @@ class EdgeCaseHandler:
             event_frequency=event_frequency,
             weighted_score=weighted_score,
             meets_threshold=meets_threshold,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
         )
 
         # Persist metrics
@@ -234,10 +233,12 @@ class EdgeCaseHandler:
         return metrics
 
     def _wilson_score_interval(
-        self, successes: int, sample_size: int, z: float
+        self,
+        successes: int,
+        sample_size: int,
+        z: float,
     ) -> tuple[float, float]:
-        """
-        Calculate Wilson score confidence interval.
+        """Calculate Wilson score confidence interval.
 
         The Wilson score interval is more accurate than normal approximation
         for small sample sizes and extreme probabilities.
@@ -249,6 +250,7 @@ class EdgeCaseHandler:
 
         Returns:
             Tuple of (lower_bound, upper_bound)
+
         """
         if sample_size == 0:
             return 0.0, 0.0
@@ -259,7 +261,7 @@ class EdgeCaseHandler:
         center = (p + z**2 / (2 * sample_size)) / denominator
 
         margin = (z / denominator) * math.sqrt(
-            p * (1 - p) / sample_size + z**2 / (4 * sample_size**2)
+            p * (1 - p) / sample_size + z**2 / (4 * sample_size**2),
         )
 
         lower = max(0.0, center - margin)
@@ -268,10 +270,12 @@ class EdgeCaseHandler:
         return lower, upper
 
     def _calculate_confidence_score(
-        self, sample_size: int, lower_bound: float, upper_bound: float
+        self,
+        sample_size: int,
+        lower_bound: float,
+        upper_bound: float,
     ) -> float:
-        """
-        Calculate confidence score from sample size and interval width.
+        """Calculate confidence score from sample size and interval width.
 
         Higher sample size and narrower interval = higher confidence.
 
@@ -282,6 +286,7 @@ class EdgeCaseHandler:
 
         Returns:
             Confidence score 0.0-1.0
+
         """
         # Sample size component (sigmoid function)
         # Reaches 0.5 at min_sample_size, approaches 1.0 for large samples
@@ -293,15 +298,15 @@ class EdgeCaseHandler:
         width_score = max(0.0, 1.0 - interval_width)
 
         # Combine scores (weighted average)
-        confidence_score = 0.6 * size_score + 0.4 * width_score
-
-        return confidence_score
+        return 0.6 * size_score + 0.4 * width_score
 
     def _calculate_weighted_score(
-        self, success_rate: float, event_frequency: float, is_edge_case: bool
+        self,
+        success_rate: float,
+        event_frequency: float,
+        is_edge_case: bool,
     ) -> float:
-        """
-        Calculate weighted score that downweights rare events.
+        """Calculate weighted score that downweights rare events.
 
         Rare events (edge cases) are weighted less to prevent them from
         dominating learning. Common events are weighted more heavily.
@@ -313,6 +318,7 @@ class EdgeCaseHandler:
 
         Returns:
             Weighted score 0.0-1.0
+
         """
         if is_edge_case:
             # Downweight rare events using square root of frequency
@@ -323,19 +329,17 @@ class EdgeCaseHandler:
             # Common events get full weight
             weight = 1.0
 
-        weighted_score = success_rate * weight
-
-        return weighted_score
+        return success_rate * weight
 
     def _calculate_z_score(self, confidence_level: float) -> float:
-        """
-        Calculate z-score for confidence level.
+        """Calculate z-score for confidence level.
 
         Args:
             confidence_level: Confidence level (e.g., 0.95 for 95%)
 
         Returns:
             Z-score (e.g., 1.96 for 95% confidence)
+
         """
         # Common confidence levels
         z_scores = {
@@ -347,10 +351,13 @@ class EdgeCaseHandler:
         return z_scores.get(confidence_level, 1.960)
 
     def should_trust_pattern(
-        self, pattern_id: str, successes: int, failures: int, total_events: int
+        self,
+        pattern_id: str,
+        successes: int,
+        failures: int,
+        total_events: int,
     ) -> tuple[bool, str]:
-        """
-        Determine if a pattern should be trusted for learning.
+        """Determine if a pattern should be trusted for learning.
 
         Checks sample size, confidence, and edge case status.
 
@@ -370,6 +377,7 @@ class EdgeCaseHandler:
             >>> trust, reason = handler.should_trust_pattern("rare", 1, 0, 1000)
             >>> if not trust:
             ...     print(f"Don't trust: {reason}")
+
         """
         metrics = self.calculate_confidence(pattern_id, successes, failures, total_events)
 
@@ -382,7 +390,8 @@ class EdgeCaseHandler:
             )
 
         # Check confidence score
-        if metrics.confidence_score < 0.5:
+        if metrics.confidence_score < 0.5:  # noqa: PLR2004 - Threshold value
+
             return (
                 False,
                 f"Low confidence: {metrics.confidence_score:.3f} "
@@ -400,10 +409,13 @@ class EdgeCaseHandler:
         return True, "Pattern trusted"
 
     def get_weighted_success_rate(
-        self, pattern_id: str, successes: int, failures: int, total_events: int
+        self,
+        pattern_id: str,
+        successes: int,
+        failures: int,
+        total_events: int,
     ) -> float:
-        """
-        Get weighted success rate that accounts for sample size and frequency.
+        """Get weighted success rate that accounts for sample size and frequency.
 
         Use this instead of raw success rate to prevent overgeneralization
         from rare events.
@@ -428,15 +440,19 @@ class EdgeCaseHandler:
             >>> # Common event with 90% success (90/100) gets full weight
             >>> rate = handler.get_weighted_success_rate("common", 90, 10, 1000)
             >>> assert rate > 0.85  # Close to raw success rate
+
         """
         metrics = self.calculate_confidence(pattern_id, successes, failures, total_events)
         return metrics.weighted_score
 
     def get_confidence_report(
-        self, pattern_id: str, successes: int, failures: int, total_events: int
+        self,
+        pattern_id: str,
+        successes: int,
+        failures: int,
+        total_events: int,
     ) -> dict[str, Any]:
-        """
-        Get comprehensive confidence report for a pattern.
+        """Get comprehensive confidence report for a pattern.
 
         Args:
             pattern_id: Pattern identifier
@@ -451,10 +467,14 @@ class EdgeCaseHandler:
             >>> report = handler.get_confidence_report("pattern_1", 5, 2, 100)
             >>> print(f"Confidence: {report['confidence_score']:.2f}")
             >>> print(f"Recommendations: {report['recommendations']}")
+
         """
         metrics = self.calculate_confidence(pattern_id, successes, failures, total_events)
         should_trust, reason = self.should_trust_pattern(
-            pattern_id, successes, failures, total_events
+            pattern_id,
+            successes,
+            failures,
+            total_events,
         )
 
         recommendations = []
@@ -462,20 +482,22 @@ class EdgeCaseHandler:
         if not metrics.meets_threshold:
             recommendations.append(
                 f"Collect at least {self.min_sample_size - metrics.sample_size} "
-                f"more samples before trusting this pattern"
+                f"more samples before trusting this pattern",
             )
 
         if metrics.is_edge_case:
             recommendations.append(
-                "This is a rare event - use weighted score to prevent overgeneralization"
+                "This is a rare event - use weighted score to prevent overgeneralization",
             )
 
-        if metrics.confidence_score < 0.5:
+        if metrics.confidence_score < 0.5:  # noqa: PLR2004 - Threshold value
+
             recommendations.append(
-                "Low confidence - collect more data or use conservative estimates"
+                "Low confidence - collect more data or use conservative estimates",
             )
 
-        if metrics.confidence_score >= 0.8 and metrics.meets_threshold:
+        if metrics.confidence_score >= 0.8 and metrics.meets_threshold:  # noqa: PLR2004 - Threshold value
+
             recommendations.append("High confidence - safe to use for learning")
 
         return {
@@ -495,11 +517,11 @@ class EdgeCaseHandler:
         }
 
     def _persist_metrics(self, metrics: ConfidenceMetrics) -> None:
-        """
-        Persist confidence metrics to database.
+        """Persist confidence metrics to database.
 
         Args:
             metrics: ConfidenceMetrics to persist
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -531,11 +553,8 @@ class EdgeCaseHandler:
 
             conn.commit()
 
-    def get_recent_edge_cases(
-        self, limit: int = 10, days: int = 7
-    ) -> list[ConfidenceMetrics]:
-        """
-        Get recent edge cases detected.
+    def get_recent_edge_cases(self, limit: int = 10, days: int = 7) -> list[ConfidenceMetrics]:
+        """Get recent edge cases detected.
 
         Args:
             limit: Maximum number of edge cases to return
@@ -548,8 +567,9 @@ class EdgeCaseHandler:
             >>> edge_cases = handler.get_recent_edge_cases(limit=5, days=7)
             >>> for case in edge_cases:
             ...     print(f"Edge case: {case.pattern_id}, frequency={case.event_frequency:.3f}")
+
         """
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(days=days)
+        cutoff = datetime.now(tz=UTC) - timedelta(days=days)
 
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -583,7 +603,7 @@ class EdgeCaseHandler:
                         weighted_score=row[9],
                         meets_threshold=bool(row[10]),
                         timestamp=datetime.fromisoformat(row[11]),
-                    )
+                    ),
                 )
 
             return edge_cases
