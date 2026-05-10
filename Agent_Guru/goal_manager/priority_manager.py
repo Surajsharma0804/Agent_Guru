@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.goal_manager.priority_manager
-Purpose: Manages goal priorities and selection logic
+"""Module: agent_guru.goal_manager.priority_manager
+Purpose: Manages goal priorities and selection logic.
 
 This module implements priority management for the Goal Manager system,
 handling priority updates and intelligent goal selection for execution.
@@ -33,15 +32,12 @@ Date: 2024-01-15
 Version: 1.0.0
 """
 
-from typing import Optional
-
 from .goal_storage import GoalStorage
 from .models import Goal, GoalStatus, Priority
 
 
 class PriorityManager:
-    """
-    Manages goal priorities and selection logic.
+    """Manages goal priorities and selection logic.
 
     Handles priority assignment, updates, and intelligent selection
     of the next goal for execution based on priority and age.
@@ -63,20 +59,20 @@ class PriorityManager:
         >>> next_goal = await manager.select_next_goal()
         >>> if next_goal:
         ...     print(f"Executing: {next_goal.description}")
+
     """
 
-    def __init__(self, storage: GoalStorage):
-        """
-        Initialize with storage.
+    def __init__(self, storage: GoalStorage) -> None:
+        """Initialize with storage.
 
         Args:
             storage: GoalStorage instance for persistence
+
         """
         self.storage = storage
 
     async def update_priority(self, goal_id: str, priority: Priority) -> None:
-        """
-        Update goal priority with immediate persistence.
+        """Update goal priority with immediate persistence.
 
         Retrieves goal, updates priority field, and persists immediately.
 
@@ -90,17 +86,18 @@ class PriorityManager:
         Raises:
             ValueError: If goal not found
             StorageError: If persistence fails
+
         """
         goal = await self.storage.get_goal(goal_id)
         if not goal:
-            raise ValueError(f"Goal {goal_id} not found")
+            msg = f"Goal {goal_id} not found"
+            raise ValueError(msg)
 
         goal.priority = priority
         await self.storage.update_goal(goal)
 
-    async def select_next_goal(self) -> Optional[Goal]:
-        """
-        Select next goal for execution.
+    async def select_next_goal(self) -> Goal | None:
+        """Select next goal for execution.
 
         Selection criteria (in order):
         1. Status must be READY
@@ -115,6 +112,7 @@ class PriorityManager:
 
         Raises:
             StorageError: If query fails
+
         """
         ready_goals = await self.storage.query_goals(status=GoalStatus.READY)
 
@@ -127,12 +125,9 @@ class PriorityManager:
             Priority.CRITICAL: 0,
             Priority.HIGH: 1,
             Priority.MEDIUM: 2,
-            Priority.LOW: 3
+            Priority.LOW: 3,
         }
 
-        sorted_goals = sorted(
-            ready_goals,
-            key=lambda g: (priority_order[g.priority], g.created_at)
-        )
+        sorted_goals = sorted(ready_goals, key=lambda g: (priority_order[g.priority], g.created_at))
 
         return sorted_goals[0]

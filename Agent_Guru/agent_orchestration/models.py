@@ -1,5 +1,4 @@
-"""
-Core data models for Agent Orchestration System.
+"""Core data models for Agent Orchestration System.
 
 Defines agents, tasks, performance records, and evolution events using Pydantic
 for validation and type safety.
@@ -16,9 +15,9 @@ Design Decisions:
 - Enums for status fields (type safety)
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -33,6 +32,7 @@ class AgentStatus(str, Enum):
                       -> SPLITTING -> SPLIT
                       -> RETIRING -> RETIRED
     """
+
     CREATED = "created"
     ACTIVE = "active"
     SPECIALIZING = "specializing"
@@ -41,7 +41,7 @@ class AgentStatus(str, Enum):
     RETIRING = "retiring"
     RETIRED = "retired"
     MERGED = "merged"  # Terminal state after merge
-    SPLIT = "split"    # Terminal state after split
+    SPLIT = "split"  # Terminal state after split
 
 
 class TaskType(str, Enum):
@@ -51,6 +51,7 @@ class TaskType(str, Enum):
     not the agent performing it. Agents dynamically specialize in task types
     based on performance patterns.
     """
+
     # Analysis and understanding
     ANALYSIS = "analysis"
     RESEARCH = "research"
@@ -93,6 +94,7 @@ class PerformanceRecord(BaseModel):
     Tracks success/failure, timing, and resource usage for performance analysis
     and specialization scoring.
     """
+
     model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
 
     task_id: str = Field(..., description="Unique task identifier")
@@ -101,20 +103,17 @@ class PerformanceRecord(BaseModel):
     completion_time_ms: float = Field(
         ...,
         ge=0.0,
-        description="Task completion time in milliseconds"
+        description="Task completion time in milliseconds",
     )
     resource_usage: dict[str, float] = Field(
         default_factory=dict,
-        description="Resource usage metrics (cpu_ms, memory_mb, api_calls)"
+        description="Resource usage metrics (cpu_ms, memory_mb, api_calls)",
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When task was completed"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When task was completed",
     )
-    error_message: Optional[str] = Field(
-        None,
-        description="Error message if task failed"
-    )
+    error_message: str | None = Field(None, description="Error message if task failed")
 
 
 class Agent(BaseModel):
@@ -134,49 +133,39 @@ class Agent(BaseModel):
     - Creation: O(1)
     - Serialization: O(n) where n = history size
     """
+
     model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
 
     id: str = Field(
         default_factory=lambda: str(uuid4()),
-        description="Unique agent identifier (UUID)"
+        description="Unique agent identifier (UUID)",
     )
-    status: AgentStatus = Field(
-        default=AgentStatus.CREATED,
-        description="Current lifecycle status"
-    )
+    status: AgentStatus = Field(default=AgentStatus.CREATED, description="Current lifecycle status")
     capabilities: dict[str, float] = Field(
         default_factory=dict,
-        description="Capability name -> proficiency (0.0-1.0)"
+        description="Capability name -> proficiency (0.0-1.0)",
     )
     specializations: dict[str, float] = Field(
         default_factory=dict,
-        description="Task type -> specialization score (0.0-1.0)"
+        description="Task type -> specialization score (0.0-1.0)",
     )
     performance_history: list[PerformanceRecord] = Field(
         default_factory=list,
-        description="Historical performance records"
+        description="Historical performance records",
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When agent was created"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When agent was created",
     )
     last_active: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="Last activity timestamp"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="Last activity timestamp",
     )
-    total_tasks: int = Field(
-        default=0,
-        ge=0,
-        description="Total tasks attempted"
-    )
-    successful_tasks: int = Field(
-        default=0,
-        ge=0,
-        description="Successfully completed tasks"
-    )
+    total_tasks: int = Field(default=0, ge=0, description="Total tasks attempted")
+    successful_tasks: int = Field(default=0, ge=0, description="Successfully completed tasks")
     metadata: dict[str, Any] = Field(
         default_factory=dict,
-        description="Additional metadata (creation reason, merge history, etc.)"
+        description="Additional metadata (creation reason, merge history, etc.)",
     )
 
     @field_validator("capabilities", "specializations")
@@ -185,21 +174,19 @@ class Agent(BaseModel):
         """Validate that all scores are in range [0.0, 1.0]."""
         for key, value in v.items():
             if not 0.0 <= value <= 1.0:
-                raise ValueError(
-                    f"Score for '{key}' must be between 0.0 and 1.0, got {value}"
-                )
+                msg = f"Score for '{key}' must be between 0.0 and 1.0, got {value}"
+                raise ValueError(msg)
         return v
 
     @field_validator("successful_tasks")
     @classmethod
-    def validate_successful_tasks(cls, v: int, info) -> int:
+    def validate_successful_tasks(cls, v: int, info) -> int:  # noqa: ANN001
         """Validate that successful_tasks <= total_tasks."""
         # Note: info.data contains already-validated fields
         total = info.data.get("total_tasks", 0)
         if v > total:
-            raise ValueError(
-                f"successful_tasks ({v}) cannot exceed total_tasks ({total})"
-            )
+            msg = f"successful_tasks ({v}) cannot exceed total_tasks ({total})"
+            raise ValueError(msg)
         return v
 
     @property
@@ -216,67 +203,46 @@ class Task(BaseModel):
     Tasks are units of work with requirements, dependencies, and success criteria.
     They can be decomposed into sub-tasks for parallel execution.
     """
+
     model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
 
     id: str = Field(
         default_factory=lambda: str(uuid4()),
-        description="Unique task identifier (UUID)"
+        description="Unique task identifier (UUID)",
     )
-    description: str = Field(
-        ...,
-        min_length=1,
-        description="Human-readable task description"
-    )
-    task_type: TaskType = Field(
-        ...,
-        description="Type of task"
-    )
+    description: str = Field(..., min_length=1, description="Human-readable task description")
+    task_type: TaskType = Field(..., description="Type of task")
     requirements: dict[str, Any] = Field(
         default_factory=dict,
-        description="Task requirements and constraints"
+        description="Task requirements and constraints",
     )
     success_criteria: list[str] = Field(
         default_factory=list,
-        description="Criteria for task success"
+        description="Criteria for task success",
     )
     priority: int = Field(
         default=5,
         ge=1,
         le=10,
-        description="Task priority (1=lowest, 10=highest)"
+        description="Task priority (1=lowest, 10=highest)",
     )
     dependencies: list[str] = Field(
         default_factory=list,
-        description="Task IDs this task depends on"
+        description="Task IDs this task depends on",
     )
-    parent_task_id: Optional[str] = Field(
-        None,
-        description="Parent task ID if this is a sub-task"
-    )
-    assigned_agent_id: Optional[str] = Field(
-        None,
-        description="Agent ID assigned to this task"
-    )
+    parent_task_id: str | None = Field(None, description="Parent task ID if this is a sub-task")
+    assigned_agent_id: str | None = Field(None, description="Agent ID assigned to this task")
     status: str = Field(
         default="pending",
-        description="Task status (pending, assigned, in_progress, completed, failed)"
+        description="Task status (pending, assigned, in_progress, completed, failed)",
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When task was created"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When task was created",
     )
-    completed_at: Optional[datetime] = Field(
-        None,
-        description="When task was completed"
-    )
-    result: Optional[Any] = Field(
-        None,
-        description="Task result if completed"
-    )
-    metadata: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional metadata"
-    )
+    completed_at: datetime | None = Field(None, description="When task was completed")
+    result: Any | None = Field(None, description="Task result if completed")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
 
 class EvolutionEvent(BaseModel):
@@ -285,33 +251,22 @@ class EvolutionEvent(BaseModel):
     Tracks agent creation, merging, splitting, and retirement for GitHub sync
     and system-wide learning.
     """
+
     model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
 
     id: str = Field(
         default_factory=lambda: str(uuid4()),
-        description="Unique event identifier (UUID)"
+        description="Unique event identifier (UUID)",
     )
-    event_type: str = Field(
-        ...,
-        description="Event type (creation, merge, split, retirement)"
-    )
-    agent_ids: list[str] = Field(
-        ...,
-        description="Agent IDs involved in event"
-    )
-    reason: str = Field(
-        ...,
-        description="Reason for evolution event"
-    )
-    details: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional event details"
-    )
+    event_type: str = Field(..., description="Event type (creation, merge, split, retirement)")
+    agent_ids: list[str] = Field(..., description="Agent IDs involved in event")
+    reason: str = Field(..., description="Reason for evolution event")
+    details: dict[str, Any] = Field(default_factory=dict, description="Additional event details")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When event occurred"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When event occurred",
     )
     synced_to_github: bool = Field(
         default=False,
-        description="Whether event has been synced to GitHub"
+        description="Whether event has been synced to GitHub",
     )

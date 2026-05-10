@@ -1,4 +1,5 @@
 """Real-Time Ambient Context Engine."""
+
 from __future__ import annotations
 
 import asyncio
@@ -8,7 +9,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.context.activity import ActivityClassifier
 from Agent_Guru.utils.path_utils import safe_path
@@ -22,6 +23,7 @@ LOW_CONFIDENCE_THRESHOLD = 0.60
 
 try:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
     _CRYPTO_AVAILABLE = True
 except ImportError:
     _CRYPTO_AVAILABLE = False
@@ -30,10 +32,11 @@ except ImportError:
 @dataclass
 class SensorSignals:
     """Raw sensor signals for context inference."""
+
     hour: int = 12
     motion_level: float = 0.0
     location_type: str = "home"  # home/work/public/transit
-    calendar_event: Optional[str] = None
+    calendar_event: str | None = None
     battery_level: float = 1.0
     ambient_noise_db: float = 40.0
 
@@ -41,6 +44,7 @@ class SensorSignals:
 @dataclass
 class ContextSnapshot:
     """Current ambient context snapshot."""
+
     activity: str = "idle"
     activity_confidence: float = 0.5
     location_type: str = "home"
@@ -67,7 +71,7 @@ class ContextEngine:
         self._snapshot: ContextSnapshot = ContextSnapshot()
         self._ambient_mode = ambient_mode
         self._running = False
-        self._prev_activity: Optional[str] = None
+        self._prev_activity: str | None = None
 
     def get_snapshot(self) -> ContextSnapshot:
         """Return current context snapshot in ≤10ms."""
@@ -75,11 +79,13 @@ class ContextEngine:
 
     def update(self, signals: SensorSignals) -> ContextSnapshot:
         """Update context from new sensor signals."""
-        activity, confidence = self._classifier.classify({
-            "hour": signals.hour,
-            "motion_level": signals.motion_level,
-            "calendar_event": signals.calendar_event,
-        })
+        activity, confidence = self._classifier.classify(
+            {
+                "hour": signals.hour,
+                "motion_level": signals.motion_level,
+                "calendar_event": signals.calendar_event,
+            },
+        )
 
         # Retain previous activity when confidence < 60%
         if confidence < LOW_CONFIDENCE_THRESHOLD and self._prev_activity:
@@ -122,11 +128,14 @@ class ContextEngine:
             aesgcm = AESGCM(key)
             ct = aesgcm.encrypt(nonce, data, None)
             import base64
-            payload = json.dumps({
-                "key": base64.b64encode(key).decode(),
-                "nonce": base64.b64encode(nonce).decode(),
-                "ct": base64.b64encode(ct).decode(),
-            })
+
+            payload = json.dumps(
+                {
+                    "key": base64.b64encode(key).decode(),
+                    "nonce": base64.b64encode(nonce).decode(),
+                    "ct": base64.b64encode(ct).decode(),
+                },
+            )
             p.write_text(payload)
         else:
             p.write_bytes(data)
@@ -142,6 +151,7 @@ class ContextEngine:
             raw = p.read_text()
             if _CRYPTO_AVAILABLE:
                 import base64
+
                 obj = json.loads(raw)
                 key = base64.b64decode(obj["key"])
                 nonce = base64.b64decode(obj["nonce"])
@@ -154,6 +164,6 @@ class ContextEngine:
             self._snapshot.activity = d.get("activity", "idle")
             self._snapshot.activity_confidence = d.get("activity_confidence", 0.5)
             return True
-        except Exception as e:
-            logger.warning("Failed to restore context: %s", e)
+        except Exception:
+            logger.exception("Failed to restore context")
             return False

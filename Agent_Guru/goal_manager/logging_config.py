@@ -1,5 +1,4 @@
-"""
-Structured logging configuration for Goal Manager.
+"""Structured logging configuration for Goal Manager.
 
 This module sets up structlog for structured logging throughout the Goal Manager
 system. All log entries include structured context (goal_id, operation, timestamp,
@@ -19,8 +18,7 @@ import structlog
 
 
 def configure_logging() -> None:
-    """
-    Configure structlog for Goal Manager.
+    """Configure structlog for Goal Manager.
 
     Sets up structured logging with:
     - Timestamp processor (ISO 8601 format)
@@ -38,7 +36,7 @@ def configure_logging() -> None:
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ],
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -46,9 +44,8 @@ def configure_logging() -> None:
     )
 
 
-def get_logger(name: str) -> Any:
-    """
-    Get a structured logger instance.
+def get_logger(name: str) -> Any:  # noqa: ANN401
+    """Get a structured logger instance.
 
     Args:
         name: Logger name (typically __name__ of the module)
@@ -59,6 +56,7 @@ def get_logger(name: str) -> Any:
     Example:
         logger = get_logger(__name__)
         logger.info("operation_started", goal_id="123", operation="store")
+
     """
     return structlog.get_logger(name)
 

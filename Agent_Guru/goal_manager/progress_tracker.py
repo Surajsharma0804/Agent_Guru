@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.goal_manager.progress_tracker
-Purpose: Track goal progress and propagate status changes
+"""Module: agent_guru.goal_manager.progress_tracker
+Purpose: Track goal progress and propagate status changes.
 
 This module implements progress tracking for the Goal Manager system,
 calculating completion percentages and updating parent goals recursively.
@@ -27,15 +26,14 @@ Date: 2024-01-15
 Version: 1.0.0
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .goal_storage import GoalStorage
 from .models import GoalStatus
 
 
 class ProgressTracker:
-    """
-    Tracks goal progress and propagates status changes.
+    """Tracks goal progress and propagates status changes.
 
     Calculates completion percentages and updates parent goals recursively
     up the hierarchy.
@@ -52,20 +50,20 @@ class ProgressTracker:
         >>> tracker = ProgressTracker(storage)
         >>> await tracker.mark_complete(sub_goal_id)
         >>> # Parent progress automatically updated
+
     """
 
-    def __init__(self, storage: GoalStorage):
-        """
-        Initialize with storage.
+    def __init__(self, storage: GoalStorage) -> None:
+        """Initialize with storage.
 
         Args:
             storage: GoalStorage instance for persistence
+
         """
         self.storage = storage
 
     async def mark_complete(self, goal_id: str) -> None:
-        """
-        Mark goal as complete and update parent.
+        """Mark goal as complete and update parent.
 
         Sets status to COMPLETE, progress to 1.0, and completion timestamp.
         Recursively updates parent progress up the hierarchy.
@@ -75,6 +73,7 @@ class ProgressTracker:
 
         Args:
             goal_id: Goal to mark as complete
+
         """
         goal = await self.storage.get_goal(goal_id)
         if not goal:
@@ -83,7 +82,7 @@ class ProgressTracker:
         # Update goal
         goal.status = GoalStatus.COMPLETE
         goal.progress = 1.0
-        goal.completed_at = datetime.now(tz=timezone.utc)
+        goal.completed_at = datetime.now(tz=UTC)
         await self.storage.update_goal(goal)
 
         # Update parent if exists
@@ -91,8 +90,7 @@ class ProgressTracker:
             await self._update_parent_progress(goal.parent_id)
 
     async def mark_failed(self, goal_id: str, error_message: str) -> None:
-        """
-        Mark goal as failed with error message.
+        """Mark goal as failed with error message.
 
         Sets status to FAILED, records error message, and sets completion timestamp.
         Updates parent progress to reflect the failure.
@@ -103,6 +101,7 @@ class ProgressTracker:
         Args:
             goal_id: Goal to mark as failed
             error_message: Error description
+
         """
         goal = await self.storage.get_goal(goal_id)
         if not goal:
@@ -111,7 +110,7 @@ class ProgressTracker:
         # Update goal
         goal.status = GoalStatus.FAILED
         goal.error_message = error_message
-        goal.completed_at = datetime.now(tz=timezone.utc)
+        goal.completed_at = datetime.now(tz=UTC)
         await self.storage.update_goal(goal)
 
         # Update parent
@@ -119,8 +118,7 @@ class ProgressTracker:
             await self._update_parent_progress(goal.parent_id)
 
     async def mark_in_progress(self, goal_id: str) -> None:
-        """
-        Mark goal as in progress.
+        """Mark goal as in progress.
 
         Sets status to IN_PROGRESS and records start timestamp if not already set.
 
@@ -129,6 +127,7 @@ class ProgressTracker:
 
         Args:
             goal_id: Goal to mark as in progress
+
         """
         goal = await self.storage.get_goal(goal_id)
         if not goal:
@@ -137,12 +136,11 @@ class ProgressTracker:
         # Update goal
         goal.status = GoalStatus.IN_PROGRESS
         if not goal.started_at:
-            goal.started_at = datetime.now(tz=timezone.utc)
+            goal.started_at = datetime.now(tz=UTC)
         await self.storage.update_goal(goal)
 
     async def _update_parent_progress(self, parent_id: str) -> None:
-        """
-        Update parent goal's progress based on sub-goals.
+        """Update parent goal's progress based on sub-goals.
 
         Calculates progress as average of sub-goal progress.
         Marks parent as complete if all sub-goals are complete.
@@ -153,6 +151,7 @@ class ProgressTracker:
 
         Args:
             parent_id: Parent goal to update
+
         """
         parent = await self.storage.get_goal(parent_id)
         if not parent:
@@ -176,7 +175,7 @@ class ProgressTracker:
         all_complete = all(g.status == GoalStatus.COMPLETE for g in sub_goals)
         if all_complete:
             parent.status = GoalStatus.COMPLETE
-            parent.completed_at = datetime.now(tz=timezone.utc)
+            parent.completed_at = datetime.now(tz=UTC)
 
         await self.storage.update_goal(parent)
 

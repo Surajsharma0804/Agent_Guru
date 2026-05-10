@@ -1,5 +1,4 @@
-"""
-Specialization Tracker for Agent Orchestration System.
+"""Specialization Tracker for Agent Orchestration System.
 
 Tracks and updates agent specialization based on task success patterns using
 exponential moving average for specialization scores.
@@ -14,14 +13,12 @@ Date: 2024
 Version: 1.0.0
 """
 
-
 from Agent_Guru.agent_orchestration.models import Agent
 from Agent_Guru.agent_orchestration.storage import AgentStorage
 
 
 class SpecializationTracker:
-    """
-    Tracks and updates agent specialization based on performance.
+    """Tracks and updates agent specialization based on performance.
 
     Uses exponential moving average (EMA) for specialization scores to:
     - Emphasize recent performance over historical
@@ -46,9 +43,8 @@ class SpecializationTracker:
         learning_rate: float = 0.1,
         min_specialization_threshold: float = 0.3,
         high_specialization_threshold: float = 0.8,
-    ):
-        """
-        Initialize specialization tracker.
+    ) -> None:
+        """Initialize specialization tracker.
 
         Args:
             storage: Agent storage backend for persistence
@@ -64,30 +60,39 @@ class SpecializationTracker:
             ValueError: If parameters are out of valid ranges
 
         Time Complexity: O(1)
+
         """
         # Validate parameters
         if not 0.0 < learning_rate <= 1.0:
-            raise ValueError(
-                f"learning_rate must be in (0.0, 1.0], got {learning_rate}"
-            )
+            msg = f"learning_rate must be in (0.0, 1.0], got {learning_rate}"
+            raise ValueError(msg)
 
         if not 0.0 <= min_specialization_threshold <= 1.0:
-            raise ValueError(
+            msg = (
                 f"min_specialization_threshold must be in [0.0, 1.0], "
                 f"got {min_specialization_threshold}"
             )
+            raise ValueError(
+                msg,
+            )
 
         if not 0.0 <= high_specialization_threshold <= 1.0:
-            raise ValueError(
+            msg = (
                 f"high_specialization_threshold must be in [0.0, 1.0], "
                 f"got {high_specialization_threshold}"
             )
+            raise ValueError(
+                msg,
+            )
 
         if min_specialization_threshold >= high_specialization_threshold:
-            raise ValueError(
+            msg = (
                 f"min_specialization_threshold ({min_specialization_threshold}) "
                 f"must be less than high_specialization_threshold "
                 f"({high_specialization_threshold})"
+            )
+            raise ValueError(
+                msg,
             )
 
         self.storage = storage
@@ -101,8 +106,7 @@ class SpecializationTracker:
         task_type: str,
         success: bool,
     ) -> dict[str, float]:
-        """
-        Update agent specialization based on task outcome.
+        """Update agent specialization based on task outcome.
 
         Uses exponential moving average to update specialization score:
         - Success: Increases score toward 1.0
@@ -121,6 +125,7 @@ class SpecializationTracker:
         Performance Target: <1ms
 
         Validates: Requirements 2.1, 2.2, 2.3
+
         """
         # Get agent
         agent = await self.storage.get_agent(agent_id)
@@ -134,16 +139,14 @@ class SpecializationTracker:
         reward = 1.0 if success else 0.0
 
         # Update score using exponential moving average
-        # new_score = (1 - α) * old_score + α * reward
         new_score = (1 - self.learning_rate) * current_score + self.learning_rate * reward
 
         # Update or remove specialization based on threshold
         if new_score >= self.min_threshold:
             agent.specializations[task_type] = new_score
-        else:
-            # Remove specialization if below threshold
-            if task_type in agent.specializations:
-                del agent.specializations[task_type]
+        # Remove specialization if below threshold
+        elif task_type in agent.specializations:
+            del agent.specializations[task_type]
 
         # Store updated agent
         await self.storage.update_agent(agent)
@@ -155,8 +158,7 @@ class SpecializationTracker:
         agent_id: str,
         task_type: str,
     ) -> float:
-        """
-        Get agent's specialization score for task type.
+        """Get agent's specialization score for task type.
 
         Args:
             agent_id: Agent identifier
@@ -169,6 +171,7 @@ class SpecializationTracker:
         Performance Target: <1ms
 
         Validates: Requirement 2.5
+
         """
         agent = await self.storage.get_agent(agent_id)
         if not agent:
@@ -181,8 +184,7 @@ class SpecializationTracker:
         agent_id: str,
         task_type: str,
     ) -> bool:
-        """
-        Check if agent is highly specialized in task type.
+        """Check if agent is highly specialized in task type.
 
         An agent is considered highly specialized if their score exceeds
         the high specialization threshold, indicating consistent success
@@ -199,6 +201,7 @@ class SpecializationTracker:
         Performance Target: <1ms
 
         Validates: Requirement 2.4
+
         """
         score = await self.get_specialization_score(agent_id, task_type)
         return score >= self.high_threshold
@@ -208,8 +211,7 @@ class SpecializationTracker:
         task_type: str,
         limit: int = 5,
     ) -> list[Agent]:
-        """
-        Get top specialist agents for task type.
+        """Get top specialist agents for task type.
 
         Returns agents sorted by specialization score in descending order.
         Only includes agents with active specialization in the task type.
@@ -225,6 +227,7 @@ class SpecializationTracker:
         Performance Target: <10ms for 1000 agents
 
         Validates: Requirement 2.5
+
         """
         # Get all active agents
         all_agents = await self.storage.get_active_agents()
@@ -246,8 +249,7 @@ class SpecializationTracker:
         self,
         agent_id: str,
     ) -> dict[str, float]:
-        """
-        Get all specializations for an agent.
+        """Get all specializations for an agent.
 
         Args:
             agent_id: Agent identifier
@@ -256,6 +258,7 @@ class SpecializationTracker:
             Dictionary mapping task types to specialization scores
 
         Time Complexity: O(1)
+
         """
         agent = await self.storage.get_agent(agent_id)
         if not agent:
@@ -267,8 +270,7 @@ class SpecializationTracker:
         self,
         agent_id: str,
     ) -> int:
-        """
-        Get number of specializations for an agent.
+        """Get number of specializations for an agent.
 
         Args:
             agent_id: Agent identifier
@@ -277,6 +279,7 @@ class SpecializationTracker:
             Number of task types agent is specialized in
 
         Time Complexity: O(1)
+
         """
         agent = await self.storage.get_agent(agent_id)
         if not agent:
@@ -289,8 +292,7 @@ class SpecializationTracker:
         agent_id: str,
         task_type: str,
     ) -> bool:
-        """
-        Manually remove a specialization from an agent.
+        """Manually remove a specialization from an agent.
 
         Useful for forcing re-learning or handling edge cases.
 
@@ -302,6 +304,7 @@ class SpecializationTracker:
             True if specialization was removed, False if it didn't exist
 
         Time Complexity: O(1)
+
         """
         agent = await self.storage.get_agent(agent_id)
         if not agent:

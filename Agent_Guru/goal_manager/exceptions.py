@@ -1,5 +1,4 @@
-"""
-Exception hierarchy for Goal Manager.
+"""Exception hierarchy for Goal Manager.
 
 Defines all custom exceptions used throughout the Goal Manager system.
 This module provides a comprehensive exception hierarchy for error handling
@@ -24,13 +23,12 @@ Usage:
     try:
         await storage.store_goal(goal)
     except StorageError as e:
-        logger.error("Storage operation failed: %s", e)
+        logger.exception("Storage operation failed")
 """
 
 
 class GoalManagerError(Exception):
-    """
-    Base exception for all Goal Manager errors.
+    """Base exception for all Goal Manager errors.
 
     This is the root exception class for the Goal Manager system. All other
     Goal Manager exceptions inherit from this class, allowing callers to catch
@@ -45,20 +43,21 @@ class GoalManagerError(Exception):
             await goal_manager.create_goal("Test goal")
         except GoalManagerError as e:
             # Catches all Goal Manager errors
-            logger.error("Goal Manager error: %s", e)
+            logger.exception("Goal Manager error")
 
     Note:
         This exception should not be raised directly. Use one of the specific
         subclasses (StorageError, DecompositionError, etc.) instead.
+
     """
 
-    def __init__(self, message: str, context: dict = None):
-        """
-        Initialize GoalManagerError.
+    def __init__(self, message: str, context: dict | None = None) -> None:
+        """Initialize GoalManagerError.
 
         Args:
             message: Human-readable error message
             context: Optional dictionary with error context
+
         """
         super().__init__(message)
         self.message = message
@@ -66,8 +65,7 @@ class GoalManagerError(Exception):
 
 
 class StorageError(GoalManagerError):
-    """
-    Raised when storage operations fail.
+    """Raised when storage operations fail.
 
     This exception is raised when any storage operation (store, update, retrieve,
     query) fails due to database errors, file system errors, or data corruption.
@@ -89,20 +87,19 @@ class StorageError(GoalManagerError):
         try:
             await storage.store_goal(goal)
         except StorageError as e:
-            logger.error("Failed to store goal %s: %s", goal.id, e")
+            logger.exception("Failed to store goal %s: %s", goal.id, e")
 
             # Retry with backoff or notify user
 
     Attributes:
         message: Human-readable error message
         context: Dictionary with error context (goal_id, operation, error_details)
-    """
 
+    """
 
 
 class DecompositionError(GoalManagerError):
-    """
-    Raised when goal decomposition fails.
+    """Raised when goal decomposition fails.
 
     This exception is raised when the LLM-powered goal decomposition process
     fails due to LLM Runtime errors, invalid responses, or validation failures.
@@ -124,7 +121,7 @@ class DecompositionError(GoalManagerError):
         try:
             sub_goals = await decomposer.decompose(goal)
         except DecompositionError as e:
-            logger.error("Failed to decompose goal %s: %s", goal.id, e")
+            logger.exception("Failed to decompose goal %s: %s", goal.id, e")
 
             goal.status = GoalStatus.FAILED
             goal.error_message = str(e)
@@ -132,13 +129,12 @@ class DecompositionError(GoalManagerError):
     Attributes:
         message: Human-readable error message
         context: Dictionary with error context (goal_id, llm_response, validation_errors)
-    """
 
+    """
 
 
 class ValidationError(GoalManagerError):
-    """
-    Raised when validation fails.
+    """Raised when validation fails.
 
     This exception is raised when data validation fails, including circular
     dependency detection, invalid goal data, schema validation failures, and
@@ -162,20 +158,19 @@ class ValidationError(GoalManagerError):
         try:
             dependency_resolver.validate_dependencies(goal)
         except ValidationError as e:
-            logger.error("Validation failed for goal %s: %s", goal.id, e")
+            logger.exception("Validation failed for goal %s: %s", goal.id, e")
 
             # Return error to user with suggested fix
 
     Attributes:
         message: Human-readable error message
         context: Dictionary with error context (goal_id, validation_type, details)
-    """
 
+    """
 
 
 class ExecutionError(GoalManagerError):
-    """
-    Raised when goal execution fails.
+    """Raised when goal execution fails.
 
     This exception is raised when goal execution fails due to Agent Orchestration
     errors, task failures, GitHub commit failures, or other execution-related issues.
@@ -199,15 +194,15 @@ class ExecutionError(GoalManagerError):
         try:
             await executor.execute_goal(goal_id)
         except ExecutionError as e:
-            logger.error("Failed to execute goal %s: %s", goal_id, e)
+            logger.exception("Failed to execute goal %s: %s")
             goal.status = GoalStatus.FAILED
             goal.error_message = str(e)
 
     Attributes:
         message: Human-readable error message
         context: Dictionary with error context (goal_id, task_id, error_details)
-    """
 
+    """
 
 
 # Aliases for backward compatibility with tests
