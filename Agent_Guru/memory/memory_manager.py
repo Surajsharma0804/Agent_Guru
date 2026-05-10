@@ -48,7 +48,6 @@ except ImportError:
 if TYPE_CHECKING:
     from Agent_Guru.memory.config import MemoryConfig
 
-from Agent_Guru.platform.platform_detector import PlatformDetector
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +63,15 @@ PERSONALITIES = ("GURU", "MAYA")
 
 
 def _detect_platform() -> str:
-    """Thin wrapper — delegates to canonical PlatformDetector."""
+    """Thin wrapper — delegates to canonical PlatformDetector.
+
+    Lazy-imports PlatformDetector to keep the memory layer free of a
+    module-level dependency on the platform layer (avoids layer violation
+    and circular import risks).
+    """
+    # Lazy import: platform layer is only needed at runtime, not import time.
+    # This keeps memory/ independent of platform/ at the module boundary.
+    from Agent_Guru.platform.platform_detector import PlatformDetector  # noqa: PLC0415
     return PlatformDetector.detect().os_name.lower()
 
 

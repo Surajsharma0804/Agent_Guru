@@ -8,7 +8,7 @@ import platform
 import subprocess
 from typing import Any
 
-from Agent_Guru.platform.subprocess_utils import run_cmd
+
 from Agent_Guru.reasoning.tools.base import (
     Tool,
     ToolParameter,
@@ -44,6 +44,8 @@ class PlatformAppController:
 
         try:
             if system == "windows":
+                # Lazy import: keeps reasoning/ free of module-level platform/ dependency
+                from Agent_Guru.platform.subprocess_utils import run_cmd  # noqa: PLC0415
                 # Windows: use cmd /c start to launch via App Paths registry
                 run_cmd(["cmd", "/c", "start", "", app_name], check=False)  # nosec B603 B607
             elif system == "darwin":
