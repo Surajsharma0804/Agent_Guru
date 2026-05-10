@@ -1,0 +1,106 @@
+{
+  "competitors": [
+    {
+      "name": "Amazon Alexa",
+      "wake_word_p95_ms": 250,
+      "stt_wer_percent": 5.0,
+      "e2e_p95_ms": 5000,
+      "idle_cpu_percent": 15,
+      "idle_ram_mb": 400,
+      "offline_capable": false,
+      "multi_platform": true,
+      "open_api": true
+    },
+    {
+      "name": "Apple Siri",
+      "wake_word_p95_ms": 300,
+      "stt_wer_percent": 6.0,
+      "e2e_p95_ms": 6000,
+      "idle_cpu_percent": 12,
+      "idle_ram_mb": 350,
+      "offline_capable": false,
+      "multi_platform": true,
+      "open_api": false
+    },
+    {
+      "name": "Google Assistant",
+      "wake_word_p95_ms": 220,
+      "stt_wer_percent": 4.0,
+      "e2e_p95_ms": 4500,
+      "idle_cpu_percent": 18,
+      "idle_ram_mb": 450,
+      "offline_capable": false,
+      "multi_platform": true,
+      "open_api": true
+    },
+    {
+      "name": "ChatGPT Desktop",
+      "wake_word_p95_ms": null,
+      "stt_wer_percent": 3.0,
+      "e2e_p95_ms": 3500,
+      "idle_cpu_percent": 5,
+      "idle_ram_mb": 300,
+      "offline_capable": false,
+      "multi_platform": true,
+      "open_api": true
+    },
+    {
+      "name": "Claude Desktop",
+      "wake_word_p95_ms": null,
+      "stt_wer_percent": 3.5,
+      "e2e_p95_ms": 4000,
+      "idle_cpu_percent": 6,
+      "idle_ram_mb": 320,
+      "offline_capable": false,
+      "multi_platform": true,
+      "open_api": true
+    },
+    {
+      "name": "Open Interpreter",
+      "wake_word_p95_ms": null,
+      "stt_wer_percent": 4.5,
+      "e2e_p95_ms": 5500,
+      "idle_cpu_percent": 10,
+      "idle_ram_mb": 500,
+      "offline_capable": true,
+      "multi_platform": true,
+      "open_api": true
+    },
+    {
+      "name": "OpenVoiceOS",
+      "wake_word_p95_ms": 280,
+      "stt_wer_percent": 7.0,
+      "e2e_p95_ms": 7000,
+      "idle_cpu_percent": 20,
+      "idle_ram_mb": 600,
+      "offline_capable": true,
+      "multi_platform": true,
+      "open_api": true
+    }
+  ],
+  "agent_guru_targets": {
+    "wake_word_p95_ms": 200,
+    "stt_wer_percent": 2.0,
+    "e2e_p95_ms": 2500,
+    "idle_cpu_percent": 15,
+    "idle_ram_mb": 500,
+    "offline_capable": true,
+    "multi_platform": true,
+    "open_api": true
+  },
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "2025-01-01",
+    "sources": [
+      "Published benchmarks from vendor documentation",
+      "Third-party performance studies",
+      "Agent Guru quality.md targets"
+    ],
+    "notes": [
+      "wake_word_p95_ms: null indicates no always-on wake word capability",
+      "All latency values are 95th percentile measurements",
+      "WER (Word Error Rate) measured on standard test sets",
+      "Idle metrics measured during wake word monitoring state"
+    ]
+  }
+}
