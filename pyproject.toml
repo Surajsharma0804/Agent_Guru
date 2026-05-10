@@ -52,18 +52,104 @@ include = '\.pyi?$'
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
 select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "UP",  # pyupgrade
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "TRY",    # tryceratops — better try/except structure
+    "BLE",    # flake8-blind-except — no bare except
+    "FBT",    # flake8-boolean-trap — no bool positional args
+    "D",      # pydocstyle — enforce docstrings
+    "PLC",    # pylint convention rules (includes PLC0415)
 ]
 ignore = [
-    "E501",  # line too long (handled by black)
+    # ── Formatting ─────────────────────────────────────────────────────────
+    "E501",    # line too long — handled by black (line-length = 100)
+
+    # ── PLC0415: Import not at top-level (ARCHITECTURAL DECISION) ──────────
+    # Agent_Guru uses intentional lazy imports for optional ML dependencies:
+    # torch, faster-whisper, sounddevice, jnius, pyttsx3, insightface, vosk.
+    # These are imported inside functions so the package loads cleanly on
+    # machines missing optional deps. This is the standard Python pattern
+    # for optional dependencies and is NOT a bug.
+    # Violation count at baseline: 680 — all intentional.
+    "PLC0415", # import-outside-toplevel
+
+    # ── D: Docstrings (INCREMENTAL ENFORCEMENT) ─────────────────────────────
+    # D107 suppressed globally — class docstrings cover __init__ semantics.
+    # D102 (missing public method docstring): 231 violations — tracked backlog.
+    # D101 (missing public class docstring): 82 violations — tracked backlog.
+    # D104 (missing package docstring): 15 violations — tracked backlog.
+    # D105 (missing magic method docstring): 45 violations — tracked backlog.
+    # New code MUST have docstrings — these are legacy gaps.
+    "D107",    # missing __init__ docstring — class docstring is sufficient
+    "D101",    # missing public class docstring — legacy gap (82 violations)
+    "D102",    # missing public method docstring — legacy gap (231 violations)
+    "D103",    # missing public function docstring — legacy gap
+    "D104",    # missing package docstring — legacy gap (15 violations)
+    "D105",    # missing magic method docstring — legacy gap (45 violations)
+    "D106",    # missing nested class docstring — legacy gap
+    "D203",    # one-blank-line-before-class — conflicts with D211 (Google style)
+    "D213",    # multi-line-summary-second-line — conflicts with D212
+    "D205",    # 1 blank line required between summary and description — style
+    "D401",    # first line imperative mood — too strict for this codebase
+    "D415",    # first line should end with period — too strict
+    "D417",    # missing argument descriptions in docstring — 40 violations
+
+    # ── TRY: try/except structure (INCREMENTAL ENFORCEMENT) ────────────────
+    # TRY300 (consider else): 340 violations — legacy pattern, fix incrementally
+    # TRY301 (raise within try): 88 violations — legacy pattern
+    # TRY401 (useless-try-except): 54 violations — legacy pattern
+    # TRY203 (useless-try-except): 22 violations — legacy pattern
+    # TRY004 (prefer-type-error): 11 violations — legacy pattern
+    # TRY003/002/400: small counts — fix when touching those files
+    # New code MUST use correct try/except/else structure.
+    "TRY300",  # consider-else — legacy gap (340 violations)
+    "TRY301",  # raise-within-try — legacy gap (88 violations)
+    "TRY401",  # useless-try-except — legacy gap (54 violations)
+    "TRY203",  # useless-try-except — legacy gap (22 violations)
+    "TRY004",  # prefer-type-error — legacy gap (11 violations)
+    "TRY003",  # raise-vanilla-args — legacy gap (2 violations)
+    "TRY002",  # raise-vanilla-class — legacy gap (1 violation)
+    "TRY400",  # error-instead-of-exception — legacy gap (1 violation)
+
+    # ── BLE001: Blind except (INCREMENTAL ENFORCEMENT) ─────────────────────
+    # 310 violations of `except Exception` without re-raise in callbacks/guards.
+    # These are legitimate guard clauses that must not propagate exceptions
+    # (e.g. alert callbacks, cleanup handlers, optional-dep fallbacks).
+    # TRUE blind excepts (bare `except:`) are still forbidden.
+    # Fix: narrow to specific exception types or add explicit logger.exception.
+    "BLE001",  # blind-except — legacy gap (310 violations, fix incrementally)
+
+    # ── FBT: Boolean traps (INCREMENTAL ENFORCEMENT) ─────────────────────
+    # FBT001: 295 violations — public API methods with bool positional args
+    # FBT002: 195 violations — bool default values
+    # FBT003: 96 violations — bool literal in function call
+    # Fix: use keyword-only args (*) or named constants (e.g. dry_run: bool = True)
+    "FBT001",  # boolean positional arg — legacy gap (295 violations)
+    "FBT002",  # boolean default value — legacy gap (195 violations)
+    "FBT003",  # boolean literal in call — legacy gap (96 violations)
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# Test files — relax strictness for helpers and fixtures
+"**/tests/**" = ["D", "BLE001", "FBT001", "FBT002", "FBT003"]
+"**/test_*.py" = ["D", "BLE001", "FBT001", "FBT002", "FBT003"]
+# Scripts — standalone profiling/cleanup tools
+"**/scripts/**" = ["D102", "D103", "FBT001", "FBT002"]
+# Examples — demonstration code, not production API
+"**/examples/**" = ["D102", "D103", "FBT001", "FBT002", "FBT003"]
+# Benchmarks — boolean flags are common and expected
+"**/benchmarks/**" = ["FBT001", "FBT002", "FBT003"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.mypy]
 python_version = "3.11"
