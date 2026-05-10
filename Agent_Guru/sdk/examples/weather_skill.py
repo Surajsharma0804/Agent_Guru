@@ -1,5 +1,4 @@
-"""
-Example weather skill for Agent Guru.
+"""Example weather skill for Agent Guru.
 
 This skill demonstrates how to create a simple skill that provides
 weather information.
@@ -13,7 +12,7 @@ from Agent_Guru.sdk import Skill, skill_capability
 class WeatherSkill(Skill):
     """Weather information skill."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize weather skill."""
         super().__init__()
 
@@ -26,6 +25,7 @@ class WeatherSkill(Skill):
 
         Returns:
             Weather information dictionary
+
         """
         # In a real implementation, this would call a weather API
         # For demo purposes, return mock data
@@ -40,9 +40,7 @@ class WeatherSkill(Skill):
         }
 
     @skill_capability("get_forecast", "Get weather forecast for a location")
-    async def get_forecast(
-        self, location: str, days: int = 3
-    ) -> dict[str, Any]:
+    async def get_forecast(self, location: str, days: int = 3) -> dict[str, Any]:
         """Get weather forecast for a location.
 
         Args:
@@ -51,6 +49,7 @@ class WeatherSkill(Skill):
 
         Returns:
             Forecast information dictionary
+
         """
         # Mock forecast data
         forecast = []
@@ -61,7 +60,7 @@ class WeatherSkill(Skill):
                     "temperature_high": 75 + day,
                     "temperature_low": 55 + day,
                     "condition": "partly cloudy" if day % 2 == 0 else "sunny",
-                }
+                },
             )
 
         return {
@@ -91,9 +90,6 @@ if __name__ == "__main__":
             "allowed_endpoints": [
                 "api.openweathermap.org",
                 "api.weatherapi.com",
-            ]
+            ],
         },
     )
-
-    print("Manifest generated successfully!")
-    print(f"Capabilities: {manifest['capabilities']}")

@@ -55,7 +55,7 @@ class DeviceState:
                 "online": self.online,
                 "attributes": self.attributes,
                 "last_updated": self.last_updated,
-            }
+            },
         )
 
     @classmethod
@@ -130,8 +130,8 @@ class MatterController:
                 device.attributes.update(command.params)
                 device.last_updated = time.time()
             return result
-        except (RuntimeError, OSError) as e:
-            logger.error("Device %s failed after all retries", command.device_id)
+        except (RuntimeError, OSError):
+            logger.exception("Device %s failed after all retries", command.device_id)
             return False
 
     async def _send_command(self, command: DeviceCommand) -> bool:
@@ -139,7 +139,8 @@ class MatterController:
         await asyncio.sleep(0)
         device = self._devices.get(command.device_id)
         if device is None or not device.online:
-            raise RuntimeError(f"Device {command.device_id} not available")
+            msg = f"Device {command.device_id} not available"
+            raise RuntimeError(msg)
         return True
 
     async def get_state(self, device_id: str) -> DeviceState | None:

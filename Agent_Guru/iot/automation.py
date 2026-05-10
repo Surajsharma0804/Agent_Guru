@@ -54,7 +54,7 @@ class AutomationEngine:
         with self._conn:
             self._conn.execute(
                 "CREATE TABLE IF NOT EXISTS scenes "
-                "(scene_id TEXT PRIMARY KEY, name TEXT, actions TEXT, created_at REAL)"
+                "(scene_id TEXT PRIMARY KEY, name TEXT, actions TEXT, created_at REAL)",
             )
 
     # ------------------------------------------------------------------
@@ -73,27 +73,26 @@ class AutomationEngine:
         logger.info("Created scene '%s' (%s)", name, scene_id)
         return scene
 
-    async def activate_scene(self, scene_id: str, controller: Any) -> bool:
+    async def activate_scene(self, scene_id: str, controller: Any) -> bool:  # noqa: ANN401
         """Activate a scene by executing all its device commands."""
         try:
             with self._conn:
                 row = self._conn.execute(
-                    "SELECT actions FROM scenes WHERE scene_id = ?", (scene_id,)
+                    "SELECT actions FROM scenes WHERE scene_id = ?",
+                    (scene_id,),
                 ).fetchone()
-        except sqlite3.Error as exc:
-            logger.error("DB error fetching scene %s: %s", scene_id, exc)
+        except sqlite3.Error:
+            logger.exception("DB error fetching scene %s: %s")
             return False
-
         if not row:
             logger.warning("Scene %s not found", scene_id)
             return False
 
         try:
             actions: list[dict[str, Any]] = json.loads(row[0])
-        except json.JSONDecodeError as exc:
-            logger.error("Invalid JSON in scene %s: %s", scene_id, exc)
+        except json.JSONDecodeError:
+            logger.exception("Invalid JSON in scene %s: %s")
             return False
-
         from Agent_Guru.iot.matter import DeviceCommand
 
         for action in actions:
@@ -104,11 +103,9 @@ class AutomationEngine:
                     params=action.get("params", {}),
                 )
                 await controller.control(cmd)
-            except KeyError as exc:
-                logger.error("Scene %s action missing field %s — skipping", scene_id, exc)
-            except Exception as exc:  # noqa: BLE001
-                logger.error("Scene %s action failed: %s — continuing", scene_id, exc)
-
+            except KeyError:
+                logger.exception("Scene %s action missing field %s — skipping")
+                logger.exception("Scene %s action failed: %s — continuing")
         logger.info("Activated scene %s", scene_id)
         return True
 
@@ -120,10 +117,9 @@ class AutomationEngine:
                     "SELECT scene_id, name, actions, created_at FROM scenes WHERE scene_id = ?",
                     (scene_id,),
                 ).fetchone()
-        except sqlite3.Error as exc:
-            logger.error("DB error fetching scene %s: %s", scene_id, exc)
+        except sqlite3.Error:
+            logger.exception("DB error fetching scene %s: %s")
             return None
-
         if not row:
             return None
         try:
@@ -133,10 +129,9 @@ class AutomationEngine:
                 actions=json.loads(row[2]),
                 created_at=row[3],
             )
-        except (json.JSONDecodeError, TypeError) as exc:
-            logger.error("Failed to deserialize scene %s: %s", scene_id, exc)
+        except (json.JSONDecodeError, TypeError):
+            logger.exception("Failed to deserialize scene %s: %s")
             return None
-
     # ------------------------------------------------------------------
     # Natural language automation parsing
     # ------------------------------------------------------------------

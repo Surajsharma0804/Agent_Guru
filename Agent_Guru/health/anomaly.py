@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import time
+from typing import TYPE_CHECKING
 
-from Agent_Guru.health.engine import BiometricSnapshot, HealthAlert, HealthEngine
+if TYPE_CHECKING:
+    from Agent_Guru.health.engine import BiometricSnapshot, HealthAlert, HealthEngine
 
 
 class AnomalyDetector:

@@ -1,15 +1,17 @@
 """Mock server for SDK testing using aiohttp."""
+
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 try:
     from aiohttp import web
+
     _AIOHTTP_AVAILABLE = True
 except ImportError:
     _AIOHTTP_AVAILABLE = False
@@ -18,14 +20,14 @@ except ImportError:
 class MockServer:
     """Configurable mock server for SDK testing."""
 
-    def __init__(self, fixtures: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, fixtures: dict[str, Any] | None = None) -> None:
         self.fixtures = fixtures or {}
         self._webhook_deliveries: list[dict[str, Any]] = []
-        self._app: Optional[Any] = None
-        self._runner: Optional[Any] = None
+        self._app: Any | None = None
+        self._runner: Any | None = None
         self._port = 0
 
-    def set_fixture(self, path: str, response: Any) -> None:
+    def set_fixture(self, path: str, response: Any) -> None:  # noqa: ANN401
         self.fixtures[path] = response
 
     async def start(self, port: int = 0) -> int:
@@ -48,7 +50,7 @@ class MockServer:
         if self._runner:
             await self._runner.cleanup()
 
-    async def _handle(self, request: Any) -> Any:
+    async def _handle(self, request: Any) -> Any:  # noqa: ANN401
         path = "/" + request.match_info.get("path_info", "")
         fixture = self.fixtures.get(path, {"status": "ok"})
         return web.Response(
@@ -73,13 +75,16 @@ class MockServer:
             try:
                 async with httpx.AsyncClient(timeout=2.0) as client:
                     resp = await client.post(url, json=payload)
-                    if resp.status_code < 500:
-                        self._webhook_deliveries.append({"url": url, "payload": payload, "delivered": True})
+                    if resp.status_code < 500:  # noqa: PLR2004 - Percentage/large threshold
+
+                        self._webhook_deliveries.append(
+                            {"url": url, "payload": payload, "delivered": True},
+                        )
                         return True
-            except Exception as e:
-                logger.warning("Webhook attempt %d failed: %s", attempt + 1, e)
+            except Exception:
+                logger.exception("Webhook attempt %d failed", attempt + 1)
             if attempt < max_attempts - 1:
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
 
         self._webhook_deliveries.append({"url": url, "payload": payload, "delivered": False})
         return False

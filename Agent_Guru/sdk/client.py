@@ -34,7 +34,8 @@ try:
         @classmethod
         def _check_audio(cls, v: str) -> str:
             if not v:
-                raise ValueError("audio_b64 must not be empty")
+                msg = "audio_b64 must not be empty"
+                raise ValueError(msg)
             return v
 
     class SynthesizeRequest(BaseModel):
@@ -45,7 +46,8 @@ try:
         @classmethod
         def _check_text(cls, v: str) -> str:
             if not v:
-                raise ValueError("text must not be empty")
+                msg = "text must not be empty"
+                raise ValueError(msg)
             return v
 
     class QueryLLMRequest(BaseModel):
@@ -57,30 +59,34 @@ try:
         @classmethod
         def _check_prompt(cls, v: str) -> str:
             if not v:
-                raise ValueError("prompt must not be empty")
+                msg = "prompt must not be empty"
+                raise ValueError(msg)
             return v
 
-except ImportError as e:
-    logger.warning("pydantic not installed — using lightweight request validation fallback: %s", e)
+except ImportError:
+    logger.exception("pydantic not installed — using lightweight request validation fallback")
 
     class TranscribeRequest:  # type: ignore[no-redef]
         def __init__(self, audio_b64: str, language: str | None = None) -> None:
             if not audio_b64:
-                raise InvalidParameterError("audio_b64", "must not be empty") from e
+                msg = "audio_b64"
+                raise InvalidParameterError(msg, "must not be empty")
             self.audio_b64 = audio_b64
             self.language = language
 
     class SynthesizeRequest:  # type: ignore[no-redef]
         def __init__(self, text: str, voice: str = "guru") -> None:
             if not text:
-                raise InvalidParameterError("text", "must not be empty")
+                msg = "text"
+                raise InvalidParameterError(msg, "must not be empty")
             self.text = text
             self.voice = voice
 
     class QueryLLMRequest:  # type: ignore[no-redef]
         def __init__(self, prompt: str, model: str = "default", max_tokens: int = 512) -> None:
             if not prompt:
-                raise InvalidParameterError("prompt", "must not be empty")
+                msg = "prompt"
+                raise InvalidParameterError(msg, "must not be empty")
             self.prompt = prompt
             self.model = model
             self.max_tokens = max_tokens
@@ -156,7 +162,8 @@ class AgentGuruClient:
     async def classify_intent(self, text: str) -> dict[str, Any]:
         """Classify intent from text."""
         if not text:
-            raise InvalidParameterError("text", "must not be empty")
+            msg = "text"
+            raise InvalidParameterError(msg, "must not be empty")
         return self._response({"intent": "general_query", "confidence": 0.9})
 
     async def query_llm(self, request: QueryLLMRequest) -> dict[str, Any]:
@@ -166,17 +173,21 @@ class AgentGuruClient:
     async def search_memory(self, query: str, limit: int = 10) -> dict[str, Any]:
         """Search semantic memory."""
         if not query:
-            raise InvalidParameterError("query", "must not be empty")
+            msg = "query"
+            raise InvalidParameterError(msg, "must not be empty")
         return self._response({"results": [], "limit": limit})
 
     async def execute_skill(self, skill_id: str, params: dict[str, Any]) -> dict[str, Any]:
         """Execute a registered skill."""
         if not skill_id:
-            raise InvalidParameterError("skill_id", "must not be empty")
+            msg = "skill_id"
+            raise InvalidParameterError(msg, "must not be empty")
         return self._response({"result": None, "skill_id": skill_id})
 
     async def register_webhook(self, url: str, events: list[str]) -> dict[str, Any]:
         """Register a webhook for event delivery."""
         if not url:
-            raise InvalidParameterError("url", "must not be empty")
+            msg = "url"
+            raise InvalidParameterError(msg, "must not be empty")
         return self._response({"webhook_id": f"wh_{int(time.time())}", "events": events})
+
