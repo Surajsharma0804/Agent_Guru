@@ -26,36 +26,32 @@ try:
 except ImportError:
     pass  # dotenv not installed — env vars must be set manually
 
+# MED-001 fix: consolidate all os usage under a single import — no more
+# temporary aliases (_os_startup deleted, _os_enc deleted).
+import os
+
 # ---------------------------------------------------------------------------
 # GPU / Ollama environment — set BEFORE any imports that touch CUDA or Ollama.
-# OLLAMA_NO_CUDA=1 and OLLAMA_LLM_LIBRARY=cpu are sometimes set at the system
-# level (e.g. during initial Ollama install on Windows). Override them here so
-# the running process always uses GPU when CUDA is available.
 # ---------------------------------------------------------------------------
-import os as _os_startup
-_os_startup.environ.pop("OLLAMA_NO_CUDA", None)
-_os_startup.environ.pop("OLLAMA_LLM_LIBRARY", None)
+os.environ.pop("OLLAMA_NO_CUDA", None)
+os.environ.pop("OLLAMA_LLM_LIBRARY", None)
 # num_gpu=99 tells Ollama to offload as many layers as fit in VRAM.
-# This is also passed per-request in the Ollama adapter options.
-if not _os_startup.environ.get("OLLAMA_NUM_GPU"):
-    _os_startup.environ["OLLAMA_NUM_GPU"] = "99"
+if not os.environ.get("OLLAMA_NUM_GPU"):
+    os.environ["OLLAMA_NUM_GPU"] = "99"
 # Ensure CUDA device 0 is visible (not masked by CUDA_VISIBLE_DEVICES=-1)
-cuda_dev = _os_startup.environ.get("CUDA_VISIBLE_DEVICES", "")
-if cuda_dev in ("-1", ""):
-    _os_startup.environ["CUDA_VISIBLE_DEVICES"] = "0"
-del _os_startup
+_cuda_dev = os.environ.get("CUDA_VISIBLE_DEVICES", "")
+if _cuda_dev in ("-1", ""):
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # ---------------------------------------------------------------------------
-# Logging
+# Console encoding — Windows UTF-8 setup
 # ---------------------------------------------------------------------------
-
-# Set Windows console to UTF-8 so log messages with special chars display correctly
-import os as _os_enc
-if _os_enc.name == 'nt':
-    _os_enc.system('chcp 65001 >nul 2>&1')  # UTF-8 code page
+if os.name == 'nt':
+    os.system('chcp 65001 >nul 2>&1')  # UTF-8 code page
 
 # Fix Python stdout/stderr encoding
-import sys as _sys, io as _io
+import sys as _sys
+import io as _io
 if hasattr(_sys.stdout, 'buffer'):
     try:
         _sys.stdout = _io.TextIOWrapper(_sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
@@ -73,7 +69,6 @@ logging.basicConfig(
 logger = logging.getLogger("guru.main")
 
 # Suppress noisy warnings that fire constantly on a dev machine.
-# None of these affect functionality — they're just informational thresholds.
 logging.getLogger("guruvision.avatar.performance").setLevel(logging.ERROR)
 logging.getLogger("guruvision.avatar").setLevel(logging.WARNING)
 logging.getLogger("phonemizer").setLevel(logging.ERROR)
@@ -215,7 +210,6 @@ def _stub(name: str, critical: bool = False):
 # ---------------------------------------------------------------------------
 
 def _load_gpu_pool():
-    import asyncio
     try:
         from Agent_Guru.integration.gpu_pool import GPUResourcePool
         return GPUResourcePool()
@@ -223,18 +217,20 @@ def _load_gpu_pool():
         logger.warning(
             "GPUResourcePool unavailable (%s) — falling back to CPU-only pool", e
         )
-        # Return a minimal CPU-only pool so startup continues
-        # BUG-006 fix: include asyncio.Lock so concurrent startup coroutines
-        # don't race on _allocations (previously missing from manual __new__ path).
-        from Agent_Guru.integration.gpu_pool import GPUResourcePool, DeviceConfig
+        # MED-003 fix: previous __new__ path omitted whisper_budget/onnx_budget/torch_budget.
+        # Now all attributes that GPUResourcePool.allocate() touches are initialised so
+        # the fallback object behaves identically to a real CPU pool (no AttributeError).
+        from Agent_Guru.integration.gpu_pool import GPUResourcePool, DeviceConfig  # noqa: F811
         pool = GPUResourcePool.__new__(GPUResourcePool)
         pool.device = "cpu"
         pool.total_vram = 0
+        pool.whisper_budget = 0
+        pool.onnx_budget = 0
+        pool.torch_budget = 0
         pool._allocations: dict = {}
-        pool._lock = asyncio.Lock()  # BUG-006: was missing — race condition fixed
 
         def _cpu_allocate(name: str) -> DeviceConfig:
-            return DeviceConfig(device="cpu", vram_limit_gb=0.0)
+            return DeviceConfig(device="cpu", memory_limit=0)
 
         pool.allocate = _cpu_allocate
         return pool
@@ -526,12 +522,15 @@ async def run() -> None:
             )
             if result.error:
                 logger.warning("Pipeline error: %s", result.error)
-            print(f"  [{actual_personality}] Ready — say 'Hey Guru' or 'Hey Maya' again.\n")
+            logger.info(
+                "[%s] Ready — say 'Hey Guru' or 'Hey Maya' again.",
+                actual_personality,
+            )
 
         except Exception as exc:
             # Never let a pipeline crash kill the whole process
             logger.error("Pipeline crashed (will keep listening): %s", exc, exc_info=True)
-            print(f"  [{personality_name}] Error — still listening. Say 'Hey Guru' or 'Hey Maya'.\n")
+            logger.warning("[%s] Error — still listening.", personality_name)
 
     # --- Initialise wake word manager and open microphone ---
     wake_cfg = WakeWordConfig(
