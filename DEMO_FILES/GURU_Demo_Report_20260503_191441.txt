@@ -1,0 +1,13 @@
+Agent Guru Demo Report
+Generated: 2026-05-03 19:14:41.095292
+
+Sections completed:
+  1. Introduction & system overview
+  2. Voice pipeline (STT ? LLM ? TTS)
+  3. System control (Notepad, screenshot, calculator)
+  4. Browser & media control
+  5. Dual personality (Guru + Maya)
+  6. Summary & competitive analysis
+
+Files saved to : F:\MY PROJECTS\Agent_Guru\DEMO_FILES
+Screenshots in : F:\MY PROJECTS\Agent_Guru\DEMO_FILES\SCREENSHOOT
