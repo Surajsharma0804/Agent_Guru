@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.avatar.lip_sync.controller
+"""Module: Agent_Guru.avatar.lip_sync.controller
 Purpose: Production lip sync with MediaPipe Face Mesh + phoneme-to-viseme mapping.
 
 Architecture:
@@ -23,8 +22,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import deque
-from collections.abc import Callable, Iterator
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -35,12 +33,16 @@ from Agent_Guru.avatar.models import (
     _build_neutral_landmarks,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
 logger = logging.getLogger("guruvision.avatar.lip_sync")
 
 
 # ---------------------------------------------------------------------------
 # Audio feature extraction
 # ---------------------------------------------------------------------------
+
 
 class AudioFeatureExtractor:
     """Extract phoneme-relevant features from audio.
@@ -56,6 +58,7 @@ class AudioFeatureExtractor:
         n_mfcc: Number of MFCC coefficients.
         hop_length: Hop length for STFT.
         n_fft: FFT window size.
+
     """
 
     def __init__(
@@ -79,6 +82,7 @@ class AudioFeatureExtractor:
         Returns:
             Feature array of shape (n_features, n_frames).
             n_features = n_mfcc + 3 (energy, zcr, centroid).
+
         """
         if audio is None or audio.size == 0:
             return np.zeros((self._n_mfcc + 3, 1), dtype=np.float32)
@@ -96,7 +100,8 @@ class AudioFeatureExtractor:
 
             # MFCCs
             mfcc = librosa.feature.mfcc(
-                y=audio, sr=sample_rate,
+                y=audio,
+                sr=sample_rate,
                 n_mfcc=self._n_mfcc,
                 hop_length=self._hop_length,
                 n_fft=self._n_fft,
@@ -107,7 +112,9 @@ class AudioFeatureExtractor:
             zcr = librosa.feature.zero_crossing_rate(audio, hop_length=self._hop_length)
             # Spectral centroid (normalized)
             centroid = librosa.feature.spectral_centroid(
-                y=audio, sr=sample_rate, hop_length=self._hop_length
+                y=audio,
+                sr=sample_rate,
+                hop_length=self._hop_length,
             ) / (sample_rate / 2.0)
 
             # Align frame counts
@@ -116,11 +123,10 @@ class AudioFeatureExtractor:
             zcr = self._pad_or_trim(zcr, n_frames)
             centroid = self._pad_or_trim(centroid, n_frames)
 
-            features = np.vstack([mfcc, rms, zcr, centroid]).astype(np.float32)
-            return features
+            return np.vstack([mfcc, rms, zcr, centroid]).astype(np.float32)
 
-        except Exception as exc:
-            logger.warning("librosa feature extraction failed: %s", exc)
+        except Exception:
+            logger.exception("librosa feature extraction failed")
             return self._extract_fallback(audio, sample_rate)
 
     def _extract_fallback(self, audio: np.ndarray, sample_rate: int) -> np.ndarray:
@@ -130,11 +136,11 @@ class AudioFeatureExtractor:
         features = np.zeros((self._n_mfcc + 3, n_frames), dtype=np.float32)
 
         for i in range(n_frames):
-            chunk = audio[i * frame_size: (i + 1) * frame_size]
+            chunk = audio[i * frame_size : (i + 1) * frame_size]
             if chunk.size == 0:
                 continue
             # Energy
-            features[0, i] = float(np.sqrt(np.mean(chunk ** 2)))
+            features[0, i] = float(np.sqrt(np.mean(chunk**2)))
             # ZCR
             zcr = float(np.mean(np.abs(np.diff(np.sign(chunk)))) / 2.0)
             features[1, i] = zcr
@@ -153,6 +159,7 @@ class AudioFeatureExtractor:
     def _check_librosa() -> bool:
         try:
             import librosa  # noqa: F401
+
             return True
         except ImportError as e:
             logger.debug("librosa not available — using energy fallback: %s", e)
@@ -162,6 +169,7 @@ class AudioFeatureExtractor:
 # ---------------------------------------------------------------------------
 # Phoneme estimator
 # ---------------------------------------------------------------------------
+
 
 class PhonemeEstimator:
     """Estimate phoneme from audio features using energy-band analysis.
@@ -190,6 +198,7 @@ class PhonemeEstimator:
 
         Returns:
             Phoneme string (e.g., "ah", "s", "m", "").
+
         """
         if features.size == 0:
             return ""
@@ -197,7 +206,8 @@ class PhonemeEstimator:
         # Average across frames
         energy = float(np.mean(np.abs(features[0])))
         zcr = float(np.mean(np.abs(features[1]))) if features.shape[0] > 1 else 0.0
-        centroid = float(np.mean(features[2])) if features.shape[0] > 2 else 0.5
+        centroid = float(np.mean(features[2])) if features.shape[0] > 2 else 0.5  # noqa: PLR2004 - Small integer threshold
+
 
         # Silence
         if energy < self._SILENCE_THRESHOLD:
@@ -205,24 +215,27 @@ class PhonemeEstimator:
 
         # Fricatives: high ZCR
         if zcr > self._FRICATIVE_ZCR_THRESHOLD:
-            if centroid > 0.6:
-                return "s"   # S, Z
-            return "sh"      # SH, ZH
+            if centroid > 0.6:  # noqa: PLR2004 - Threshold value
+
+                return "s"  # S, Z
+            return "sh"  # SH, ZH
 
         # Plosives: energy burst
         if energy > self._PLOSIVE_ENERGY_THRESHOLD:
-            if zcr < 0.05:
-                return "p"   # P, B, M
-            return "t"       # T, D
+            if zcr < 0.05:  # noqa: PLR2004 - Threshold value
+
+                return "p"  # P, B, M
+            return "t"  # T, D
 
         # Vowels: moderate energy, low ZCR
         if energy > self._VOWEL_ENERGY_THRESHOLD:
-            if centroid > 0.5:
+            if centroid > 0.5:  # noqa: PLR2004 - Threshold value
+
                 return "ih"  # IH, IY (bright vowels)
-            elif centroid > 0.3:
+            if centroid > 0.3:  # noqa: PLR2004 - Threshold value
+
                 return "eh"  # EH, EY (mid vowels)
-            else:
-                return "ah"  # AH, AA (open vowels)
+            return "ah"  # AH, AA (open vowels)
 
         # Nasals / approximants
         return "m"
@@ -231,6 +244,7 @@ class PhonemeEstimator:
 # ---------------------------------------------------------------------------
 # Landmark generator
 # ---------------------------------------------------------------------------
+
 
 class LandmarkGenerator:
     """Generate mouth landmarks from viseme parameters.
@@ -258,6 +272,7 @@ class LandmarkGenerator:
 
         Returns:
             List of 40 (x, y) normalized landmark coordinates.
+
         """
         landmarks = list(self._neutral_landmarks)
         n = len(landmarks)
@@ -271,8 +286,7 @@ class LandmarkGenerator:
             dx = (x - cx) * (1.0 + lip_spread * 0.1)
             # Open vertically
             dy = -mouth_open * 0.03
-            landmarks[i] = (float(np.clip(cx + dx, 0.0, 1.0)),
-                             float(np.clip(y + dy, 0.0, 1.0)))
+            landmarks[i] = (float(np.clip(cx + dx, 0.0, 1.0)), float(np.clip(y + dy, 0.0, 1.0)))
 
         # Lower lip: move down when mouth opens
         for i in range(half, n):
@@ -280,14 +294,11 @@ class LandmarkGenerator:
             cx = 0.50
             dx = (x - cx) * (1.0 + lip_spread * 0.1)
             dy = mouth_open * 0.04
-            landmarks[i] = (float(np.clip(cx + dx, 0.0, 1.0)),
-                             float(np.clip(y + dy, 0.0, 1.0)))
+            landmarks[i] = (float(np.clip(cx + dx, 0.0, 1.0)), float(np.clip(y + dy, 0.0, 1.0)))
 
         return landmarks
 
-    def extract_from_frame(
-        self, frame: np.ndarray
-    ) -> Optional[list[tuple[float, float]]]:
+    def extract_from_frame(self, frame: np.ndarray) -> list[tuple[float, float]] | None:
         """Extract mouth landmarks from a video frame using MediaPipe.
 
         Args:
@@ -295,6 +306,7 @@ class LandmarkGenerator:
 
         Returns:
             List of mouth landmark coordinates, or None if no face detected.
+
         """
         if not self._mediapipe_available:
             return None
@@ -311,6 +323,7 @@ class LandmarkGenerator:
                 min_detection_confidence=0.5,
             ) as face_mesh:
                 import cv2  # type: ignore[import]
+
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 results = face_mesh.process(rgb)
 
@@ -318,7 +331,7 @@ class LandmarkGenerator:
                     return None
 
                 face_landmarks = results.multi_face_landmarks[0]
-                h, w = frame.shape[:2]
+                _h, _w = frame.shape[:2]
                 mouth_landmarks = []
                 for idx in MOUTH_LANDMARK_INDICES:
                     lm = face_landmarks.landmark[idx]
@@ -333,6 +346,7 @@ class LandmarkGenerator:
     def _check_mediapipe() -> bool:
         try:
             import mediapipe  # noqa: F401
+
             return True
         except ImportError as e:
             logger.debug("MediaPipe not available — using parametric landmarks: %s", e)
@@ -342,6 +356,7 @@ class LandmarkGenerator:
 # ---------------------------------------------------------------------------
 # Main controller
 # ---------------------------------------------------------------------------
+
 
 class LipSyncController:
     """Production lip sync controller.
@@ -354,11 +369,12 @@ class LipSyncController:
         model_path: Optional path to a Wav2Lip model checkpoint.
         sync_threshold_ms: Maximum allowed audio-visual offset in ms.
         buffer_size: Ring buffer size in samples.
+
     """
 
     def __init__(
         self,
-        model_path: Optional[str] = None,
+        model_path: str | None = None,
         sync_threshold_ms: float = 50.0,
         buffer_size: int = 4096,
     ) -> None:
@@ -381,16 +397,15 @@ class LipSyncController:
 
         logger.info(
             "LipSyncController initialized: sync_threshold=%.1fms buffer=%d",
-            sync_threshold_ms, buffer_size,
+            sync_threshold_ms,
+            buffer_size,
         )
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def extract_audio_features(
-        self, audio: np.ndarray, sample_rate: int
-    ) -> np.ndarray:
+    def extract_audio_features(self, audio: np.ndarray, sample_rate: int) -> np.ndarray:
         """Extract audio features for lip movement generation.
 
         Args:
@@ -399,12 +414,11 @@ class LipSyncController:
 
         Returns:
             Feature array of shape (n_features, n_frames).
+
         """
         return self._feature_extractor.extract(audio, sample_rate)
 
-    def generate_landmarks(
-        self, audio_features: np.ndarray, timestamp: float
-    ) -> LipSyncState:
+    def generate_landmarks(self, audio_features: np.ndarray, timestamp: float) -> LipSyncState:
         """Generate mouth landmarks from audio features.
 
         Args:
@@ -413,6 +427,7 @@ class LipSyncController:
 
         Returns:
             :class:`LipSyncState` with mouth landmarks and viseme info.
+
         """
         if audio_features.size == 0:
             return LipSyncState.neutral()
@@ -459,6 +474,7 @@ class LipSyncController:
             audio_stream: Iterator yielding float32 audio chunks.
             sample_rate: Sample rate in Hz.
             callback: Called with each :class:`LipSyncState`.
+
         """
         audio_position = 0.0
         for chunk in audio_stream:
@@ -482,12 +498,11 @@ class LipSyncController:
             if processing_ms > self._sync_threshold_ms:
                 logger.warning(
                     "Lip sync processing %.1fms exceeds threshold %.1fms",
-                    processing_ms, self._sync_threshold_ms,
+                    processing_ms,
+                    self._sync_threshold_ms,
                 )
 
-    def process_audio_chunk(
-        self, audio: np.ndarray, sample_rate: int
-    ) -> LipSyncState:
+    def process_audio_chunk(self, audio: np.ndarray, sample_rate: int) -> LipSyncState:
         """Process a single audio chunk and return lip sync state.
 
         Args:
@@ -496,6 +511,7 @@ class LipSyncController:
 
         Returns:
             :class:`LipSyncState` for this chunk.
+
         """
         if audio is None or audio.size == 0:
             return LipSyncState.neutral()

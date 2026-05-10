@@ -14,11 +14,13 @@ from __future__ import annotations
 
 import platform
 import time
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import structlog
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = structlog.get_logger(__name__)
 
@@ -55,12 +57,13 @@ class MonitoringManager:
         >>> mon.record_event("voice_command", {"command": "open_app"})
         >>> mon.record_error("STT timeout", {"latency_ms": 5000})
         >>> mon.record_performance("stt", latency_ms=850.0)
+
     """
 
     def __init__(
         self,
         analytics_consent: bool = False,
-        sentry_dsn: Optional[str] = None,
+        sentry_dsn: str | None = None,
         prometheus_port: int = 9090,
     ) -> None:
         self.analytics_consent = analytics_consent
@@ -77,9 +80,11 @@ class MonitoringManager:
         self._init_crash_reporting()
         self._init_prometheus()
         self._initialized = True
-        logger.info("monitoring_initialized",
-                    platform=_PLATFORM,
-                    analytics_consent=self.analytics_consent)
+        logger.info(
+            "monitoring_initialized",
+            platform=_PLATFORM,
+            analytics_consent=self.analytics_consent,
+        )
 
     # ------------------------------------------------------------------
     # Crash reporting (always on, no PII)
@@ -88,7 +93,7 @@ class MonitoringManager:
     def record_error(
         self,
         error_message: str,
-        context: Optional[dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> None:
         """Record an error for crash reporting.
 
@@ -97,20 +102,18 @@ class MonitoringManager:
         Args:
             error_message: Error description (no PII).
             context: Optional context dict (no PII).
+
         """
         self._error_count += 1
         sanitized = self._sanitize(error_message)
-        logger.error("crash_report",
-                     error=sanitized,
-                     context=context or {},
-                     platform=_PLATFORM)
+        logger.error("crash_report", error=sanitized, context=context or {}, platform=_PLATFORM)
 
         # Forward to Sentry if configured
         if self._sentry_dsn:
             try:
                 import sentry_sdk
-                sentry_sdk.capture_message(sanitized, level="error",
-                                           extras=context or {})
+
+                sentry_sdk.capture_message(sanitized, level="error", extras=context or {})
             except ImportError:
                 pass
 
@@ -124,6 +127,7 @@ class MonitoringManager:
         Args:
             stage: Pipeline stage name (e.g., "stt", "llm").
             latency_ms: Measured latency in milliseconds.
+
         """
         if stage not in self._performance_samples:
             self._performance_samples[stage] = []
@@ -153,13 +157,14 @@ class MonitoringManager:
     def record_event(
         self,
         event_type: str,
-        properties: Optional[dict[str, Any]] = None,
+        properties: dict[str, Any] | None = None,
     ) -> None:
         """Record a usage analytics event (only if user consented).
 
         Args:
             event_type: Event name (e.g., "voice_command", "onboarding_complete").
             properties: Optional event properties (no PII).
+
         """
         if not self.analytics_consent:
             return
@@ -175,7 +180,7 @@ class MonitoringManager:
             try:
                 listener(event)
             except Exception as exc:
-                logger.warning("analytics_listener_error", error=str(exc))
+                logger.exception("analytics_listener_error", error=str(exc))
 
         logger.debug("analytics_event", event_type=event_type)
 
@@ -192,6 +197,7 @@ class MonitoringManager:
 
         Args:
             consent: True to enable analytics, False to disable and clear data.
+
         """
         self.analytics_consent = consent
         if not consent:
@@ -223,32 +229,34 @@ class MonitoringManager:
             return
         try:
             import sentry_sdk
+
             sentry_sdk.init(
                 dsn=self._sentry_dsn,
                 traces_sample_rate=0.1,
                 send_default_pii=False,  # Never send PII
             )
             logger.info("sentry_initialized")
-        except ImportError as e:
-            logger.warning("sentry_sdk_not_installed: %s", e)
+        except ImportError:
+            logger.exception("sentry_sdk_not_installed")
 
     def _init_prometheus(self) -> None:
         try:
             from prometheus_client import start_http_server
+
             start_http_server(self._prometheus_port)
             logger.info("prometheus_started", port=self._prometheus_port)
         except Exception as exc:
-            logger.warning("prometheus_unavailable", error=str(exc))
+            logger.exception("prometheus_unavailable", error=str(exc))
 
     @staticmethod
     def _sanitize(text: str) -> str:
         """Remove potential PII patterns from error messages."""
         import re
+
         # Remove email addresses
         text = re.sub(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", "[EMAIL]", text)
         # Remove phone numbers
-        text = re.sub(r"\b\d{10,}\b", "[PHONE]", text)
-        return text
+        return re.sub(r"\b\d{10,}\b", "[PHONE]", text)
 
     @staticmethod
     def _sanitize_dict(d: dict[str, Any]) -> dict[str, Any]:

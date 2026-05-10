@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.avatar.performance
+"""Module: Agent_Guru.avatar.performance
 Purpose: Real-time performance monitoring for the avatar system.
 
 Tracks CPU, memory, FPS, and latency metrics using psutil.
@@ -14,7 +13,6 @@ import logging
 import threading
 import time
 from collections import deque
-from typing import Optional
 
 logger = logging.getLogger("guruvision.avatar.performance")
 
@@ -27,6 +25,7 @@ class PerformanceMonitor:
         max_memory_mb: Memory usage limit in MB.
         sample_interval: Sampling interval in seconds.
         history_size: Number of samples to keep in history.
+
     """
 
     def __init__(
@@ -47,12 +46,13 @@ class PerformanceMonitor:
 
         self._running = False
         self._stop_event = threading.Event()
-        self._monitor_thread: Optional[threading.Thread] = None
+        self._monitor_thread: threading.Thread | None = None
         self._psutil_available = self._check_psutil()
         self._process = None
 
         if self._psutil_available:
             import psutil  # type: ignore[import]
+
             self._process = psutil.Process()
 
     # ------------------------------------------------------------------
@@ -103,6 +103,7 @@ class PerformanceMonitor:
         Returns:
             Dict with keys: cpu_percent, memory_mb, fps, latency_ms,
             cpu_limit_exceeded, memory_limit_exceeded.
+
         """
         cpu = self._get_cpu()
         memory = self._get_memory()
@@ -123,10 +124,7 @@ class PerformanceMonitor:
 
     def is_resource_constrained(self) -> bool:
         """Return True if CPU or memory limits are exceeded."""
-        return (
-            self._get_cpu() > self._max_cpu
-            or self._get_memory() > self._max_memory
-        )
+        return self._get_cpu() > self._max_cpu or self._get_memory() > self._max_memory
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -160,7 +158,7 @@ class PerformanceMonitor:
             return 0.0
         try:
             return float(self._process.cpu_percent(interval=None))
-        except Exception as e:
+        except Exception:
             return 0.0
 
     def _get_memory(self) -> float:
@@ -169,7 +167,7 @@ class PerformanceMonitor:
         try:
             info = self._process.memory_info()
             return float(info.rss / (1024 * 1024))  # bytes → MB
-        except Exception as e:
+        except Exception:
             return 0.0
 
     @staticmethod
@@ -183,12 +181,14 @@ class PerformanceMonitor:
         if not history:
             return 0.0
         import numpy as np
+
         return float(np.percentile(list(history), p))
 
     @staticmethod
     def _check_psutil() -> bool:
         try:
             import psutil  # noqa: F401
+
             return True
         except ImportError as e:
             logger.debug("psutil not available — performance monitoring limited: %s", e)

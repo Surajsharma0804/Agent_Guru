@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import structlog
 
@@ -36,10 +35,10 @@ class DeploymentConfig:
     support_email: str = "support@agentguru.ai"
     community_url: str = "https://community.agentguru.ai"
     docs_url: str = "https://docs.agentguru.ai"
-    sentry_dsn: Optional[str] = None
+    sentry_dsn: str | None = None
     analytics_enabled: bool = False
     platforms: list[str] = field(
-        default_factory=lambda: ["windows", "macos", "linux", "android", "ios"]
+        default_factory=lambda: ["windows", "macos", "linux", "android", "ios"],
     )
 
 
@@ -81,9 +80,10 @@ class ProductionDeployment:
         >>> report = deploy.run_preflight_checks()
         >>> if report.all_preflight_passed:
         ...     deploy.deploy()
+
     """
 
-    def __init__(self, config: Optional[DeploymentConfig] = None) -> None:
+    def __init__(self, config: DeploymentConfig | None = None) -> None:
         self._config = config or DeploymentConfig(version="1.0.0")
         self._report = DeploymentReport(version=self._config.version)
 
@@ -96,6 +96,7 @@ class ProductionDeployment:
 
         Returns:
             DeploymentReport with pass/fail for each check.
+
         """
         checks = [
             self._check_dist_artifacts,
@@ -107,10 +108,12 @@ class ProductionDeployment:
         for check in checks:
             result = check()
             self._report.preflight_results.append(result)
-            logger.info("preflight_check",
-                        check=result.check_name,
-                        passed=result.passed,
-                        message=result.message)
+            logger.info(
+                "preflight_check",
+                check=result.check_name,
+                passed=result.passed,
+                message=result.message,
+            )
 
         return self._report
 
@@ -119,34 +122,47 @@ class ProductionDeployment:
         dist = self._config.dist_dir
         if not dist.exists():
             return PreflightResult(
-                "dist_artifacts", False,
-                f"dist/ directory not found at {dist}. Run build_installers.py first."
+                "dist_artifacts",
+                False,
+                f"dist/ directory not found at {dist}. Run build_installers.py first.",
             )
         return PreflightResult("dist_artifacts", True, f"dist/ found at {dist}")
 
     def _check_version_format(self) -> PreflightResult:
         """Verify version follows semver (X.Y.Z)."""
         import re
+
         if re.match(r"^\d+\.\d+\.\d+$", self._config.version):
-            return PreflightResult("version_format", True,
-                                   f"Version {self._config.version} is valid semver")
-        return PreflightResult("version_format", False,
-                               f"Version {self._config.version} is not valid semver (X.Y.Z)")
+            return PreflightResult(
+                "version_format",
+                True,
+                f"Version {self._config.version} is valid semver",
+            )
+        return PreflightResult(
+            "version_format",
+            False,
+            f"Version {self._config.version} is not valid semver (X.Y.Z)",
+        )
 
     def _check_support_channels(self) -> PreflightResult:
         """Verify support channel configuration."""
         if self._config.support_email and self._config.community_url:
-            return PreflightResult("support_channels", True,
-                                   "Support email and community URL configured")
-        return PreflightResult("support_channels", False,
-                               "Missing support_email or community_url")
+            return PreflightResult(
+                "support_channels",
+                True,
+                "Support email and community URL configured",
+            )
+        return PreflightResult("support_channels", False, "Missing support_email or community_url")
 
     def _check_monitoring_config(self) -> PreflightResult:
         """Verify monitoring is configured."""
         if self._config.sentry_dsn:
             return PreflightResult("monitoring", True, "Sentry DSN configured")
-        return PreflightResult("monitoring", True,
-                               "Sentry DSN not set — crash reporting disabled (acceptable)")
+        return PreflightResult(
+            "monitoring",
+            True,
+            "Sentry DSN not set — crash reporting disabled (acceptable)",
+        )
 
     def _check_docs_present(self) -> PreflightResult:
         """Verify documentation files exist."""
@@ -168,6 +184,7 @@ class ProductionDeployment:
 
         Returns:
             Updated DeploymentReport.
+
         """
         if not self._report.all_preflight_passed:
             logger.error("deployment_blocked_preflight_failed")
@@ -179,9 +196,11 @@ class ProductionDeployment:
         self._log_release_announcement()
 
         self._report.deployed_platforms = list(self._config.platforms)
-        logger.info("deployment_complete",
-                    version=self._config.version,
-                    platforms=self._config.platforms)
+        logger.info(
+            "deployment_complete",
+            version=self._config.version,
+            platforms=self._config.platforms,
+        )
         return self._report
 
     def _generate_download_page(self) -> None:
@@ -217,6 +236,7 @@ class ProductionDeployment:
         """Activate monitoring and analytics."""
         try:
             from Agent_Guru.deployment.monitoring import MonitoringManager
+
             mon = MonitoringManager(
                 analytics_consent=self._config.analytics_enabled,
                 sentry_dsn=self._config.sentry_dsn,
@@ -224,7 +244,7 @@ class ProductionDeployment:
             mon.initialize()
             logger.info("monitoring_activated")
         except Exception as exc:
-            logger.warning("monitoring_activation_failed", error=str(exc))
+            logger.exception("monitoring_activation_failed", error=str(exc))
 
     def _log_release_announcement(self) -> None:
         """Log release announcement."""

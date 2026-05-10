@@ -1,12 +1,11 @@
-"""
-Convergence Analyzer - Tracks specialization convergence and system improvement.
+"""Convergence Analyzer - Tracks specialization convergence and system improvement.
 
 Validates: Requirements 21.1, 21.2, 21.3, 21.4
 """
 
 import statistics
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -26,8 +25,7 @@ class ConvergenceMetrics:
 
 
 class ConvergenceAnalyzer:
-    """
-    Analyzes whether agent specializations are converging toward optimal assignment.
+    """Analyzes whether agent specializations are converging toward optimal assignment.
 
     Tracks success rates over time, specialization variance, and reassignment
     frequency to determine if the system is improving.
@@ -41,6 +39,7 @@ class ConvergenceAnalyzer:
         >>> stable = await analyzer.detect_population_stability()
 
     Validates: Requirements 21.1, 21.2, 21.3, 21.4
+
     """
 
     def __init__(
@@ -58,10 +57,11 @@ class ConvergenceAnalyzer:
         self._reassignment_counts: dict[str, int] = {}
 
     async def track_success_rates_over_time(
-        self, task_type: str, current_success_rate: float
+        self,
+        task_type: str,
+        current_success_rate: float,
     ) -> None:
-        """
-        Record a success rate snapshot for a task type.
+        """Record a success rate snapshot for a task type.
 
         Validates: Requirement 21.1
         """
@@ -69,7 +69,7 @@ class ConvergenceAnalyzer:
         variance = self.calculate_specialization_variance(agents, task_type)
 
         snapshot = ConvergenceMetrics(
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
             task_type=task_type,
             success_rate=current_success_rate,
             specialization_variance=variance,
@@ -78,25 +78,22 @@ class ConvergenceAnalyzer:
         self._history.setdefault(task_type, []).append(snapshot)
 
     def calculate_specialization_variance(self, agents: list, task_type: str) -> float:
-        """
-        Calculate variance of specialization scores across agents for a task type.
+        """Calculate variance of specialization scores across agents for a task type.
 
         Returns 0.0 if fewer than 2 agents have a score for this task type.
 
         Validates: Requirement 21.2
         """
         scores = [
-            a.specializations.get(task_type, 0.0)
-            for a in agents
-            if task_type in a.specializations
+            a.specializations.get(task_type, 0.0) for a in agents if task_type in a.specializations
         ]
-        if len(scores) < 2:
+        if len(scores) < 2:  # noqa: PLR2004 - Small integer threshold
+
             return 0.0
         return statistics.variance(scores)
 
     def measure_reassignment_frequency(self, task_type: str) -> int:
-        """
-        Return the recorded reassignment count for a task type.
+        """Return the recorded reassignment count for a task type.
 
         Validates: Requirement 21.3
         """
@@ -107,8 +104,7 @@ class ConvergenceAnalyzer:
         self._reassignment_counts[task_type] = self._reassignment_counts.get(task_type, 0) + 1
 
     async def detect_population_stability(self) -> bool:
-        """
-        Detect if the system has reached a stable convergence state.
+        """Detect if the system has reached a stable convergence state.
 
         Stability is defined as: for all tracked task types with enough history,
         the variance of recent success rates is below stability_threshold.
@@ -118,7 +114,7 @@ class ConvergenceAnalyzer:
         if not self._history:
             return False
 
-        for _task_type, snapshots in self._history.items():
+        for snapshots in self._history.values():
             if len(snapshots) < self.stability_window:
                 return False
             recent_rates = [s.success_rate for s in snapshots[-self.stability_window :]]
@@ -128,8 +124,7 @@ class ConvergenceAnalyzer:
         return True
 
     def get_convergence_report(self) -> dict[str, Any]:
-        """
-        Return convergence metrics for reporting to Self-Improvement Engine.
+        """Return convergence metrics for reporting to Self-Improvement Engine.
 
         Validates: Requirement 21.5
         """
@@ -141,7 +136,8 @@ class ConvergenceAnalyzer:
             report[task_type] = {
                 "snapshots": len(snapshots),
                 "latest_success_rate": rates[-1],
-                "improving": len(rates) >= 2 and rates[-1] > rates[0],
+                "improving": len(rates) >= 2 and rates[-1] > rates[0],  # noqa: PLR2004 - Small integer threshold
+
                 "latest_variance": snapshots[-1].specialization_variance,
                 "reassignments": self._reassignment_counts.get(task_type, 0),
             }

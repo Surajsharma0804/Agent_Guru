@@ -17,7 +17,6 @@ from __future__ import annotations
 import argparse
 import logging
 from pathlib import Path
-from typing import Optional
 
 from Agent_Guru.deployment.installer_builder import (
     AndroidBuildConfig,
@@ -58,7 +57,7 @@ _IOS_PERMISSIONS = {
 }
 
 
-def build_windows(output_dir: Path) -> Optional[Path]:
+def build_windows(output_dir: Path) -> Path | None:
     """Task 22: Build Windows MSI installer."""
     logger.info("Building Windows installer...")
     builder = InstallerBuilder(output_dir / "windows")

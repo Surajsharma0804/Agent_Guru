@@ -1,12 +1,11 @@
-"""
-Performance Tracker - Tracks agent performance metrics using sliding window.
+"""Performance Tracker - Tracks agent performance metrics using sliding window.
 
 Validates: Requirements 12.1, 12.2, 12.3, 12.4, 12.5
 """
 
 import statistics
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from .agent_lifecycle import PerformanceRecord
@@ -29,8 +28,7 @@ class PerformanceMetrics:
 
 
 class PerformanceTracker:
-    """
-    Tracks agent performance metrics using a sliding window.
+    """Tracks agent performance metrics using a sliding window.
 
     Uses the most recent `window_size` records to compute metrics,
     emphasizing recent performance over historical data.
@@ -45,6 +43,7 @@ class PerformanceTracker:
         >>> print(metrics.success_rate)
 
     Validates: Requirements 12.1, 12.2, 12.3, 12.4, 12.5
+
     """
 
     def __init__(self, storage: "AgentStorage", window_size: int = 100) -> None:
@@ -60,8 +59,7 @@ class PerformanceTracker:
         completion_time_ms: float,
         resource_usage: dict[str, float],
     ) -> None:
-        """
-        Record agent performance on a task.
+        """Record agent performance on a task.
 
         Persists the record and updates agent task statistics.
 
@@ -74,7 +72,7 @@ class PerformanceTracker:
             success=success,
             completion_time_ms=completion_time_ms,
             resource_usage=resource_usage,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
         )
         await self.storage.store_performance_record(agent_id, record)
 
@@ -84,12 +82,11 @@ class PerformanceTracker:
             agent.total_tasks += 1
             if success:
                 agent.successful_tasks += 1
-            agent.last_active = datetime.now(tz=timezone.utc)
+            agent.last_active = datetime.now(tz=UTC)
             await self.storage.update_agent(agent)
 
     async def get_metrics(self, agent_id: str, task_type: str) -> PerformanceMetrics:
-        """
-        Get performance metrics for an agent on a task type.
+        """Get performance metrics for an agent on a task type.
 
         Uses the most recent `window_size` records (sliding window).
 
@@ -110,7 +107,7 @@ class PerformanceTracker:
                 average_completion_time_ms=0.0,
                 average_resource_usage={},
                 sample_size=0,
-                last_updated=datetime.now(tz=timezone.utc),
+                last_updated=datetime.now(tz=UTC),
             )
 
         success_rate = sum(1 for r in records if r.success) / len(records)
@@ -130,14 +127,15 @@ class PerformanceTracker:
             average_completion_time_ms=avg_time,
             average_resource_usage=avg_resources,
             sample_size=len(records),
-            last_updated=datetime.now(tz=timezone.utc),
+            last_updated=datetime.now(tz=UTC),
         )
 
     async def compare_agents(
-        self, agent_ids: list[str], task_type: str
+        self,
+        agent_ids: list[str],
+        task_type: str,
     ) -> list[PerformanceMetrics]:
-        """
-        Compare multiple agents on a task type, sorted by success rate descending.
+        """Compare multiple agents on a task type, sorted by success rate descending.
 
         Time Complexity: O(n * w) where n = agents, w = window_size
         Validates: Requirement 12.4
@@ -147,10 +145,12 @@ class PerformanceTracker:
         return metrics
 
     async def detect_performance_degradation(
-        self, agent_id: str, task_type: str, threshold: float = 0.2
+        self,
+        agent_id: str,
+        task_type: str,
+        threshold: float = 0.2,
     ) -> bool:
-        """
-        Detect if an agent's performance has degraded significantly.
+        """Detect if an agent's performance has degraded significantly.
 
         Splits the last 2*window_size records into old and recent halves
         and compares success rates. Returns True if the drop >= threshold.

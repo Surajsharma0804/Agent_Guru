@@ -1,5 +1,4 @@
-"""
-Agent Storage - SQLite-based storage for agent data and performance history.
+"""Agent Storage - SQLite-based storage for agent data and performance history.
 
 This module provides persistent storage for agents, performance records,
 and evolution events using SQLite as the backend.
@@ -18,16 +17,15 @@ Version: 1.0.0
 import json
 import sqlite3
 from contextlib import closing, contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from .agent_lifecycle import Agent, AgentStatus, PerformanceRecord
 
 
 class AgentStorage:
-    """
-    SQLite-based storage for agent orchestration system.
+    """SQLite-based storage for agent orchestration system.
 
     Provides persistent storage for:
     - Agent data (capabilities, specializations, metadata)
@@ -43,20 +41,21 @@ class AgentStorage:
         >>> retrieved = await storage.get_agent(agent.id)
 
     Validates: Requirements 1.1, 1.2, 1.4, 12.1, 12.5
+
     """
 
-    def __init__(self, db_path: str):
-        """
-        Initialize storage with database path.
+    def __init__(self, db_path: str) -> None:
+        """Initialize storage with database path.
 
         Args:
             db_path: Path to SQLite database file
 
         Time Complexity: O(1)
+
         """
         self.db_path = db_path
         # Cache for active agents — invalidated on any write
-        self._active_agents_cache: Optional[list] = None
+        self._active_agents_cache: list | None = None
         self._ensure_database()
 
     @contextmanager
@@ -95,7 +94,7 @@ class AgentStorage:
                     successful_tasks INTEGER NOT NULL,
                     metadata TEXT NOT NULL
                 )
-            """
+            """,
             )
 
             # Performance records table
@@ -112,7 +111,7 @@ class AgentStorage:
                     timestamp TEXT NOT NULL,
                     FOREIGN KEY (agent_id) REFERENCES agents(id)
                 )
-            """
+            """,
             )
 
             # Evolution events table
@@ -126,7 +125,7 @@ class AgentStorage:
                     details TEXT NOT NULL,
                     timestamp TEXT NOT NULL
                 )
-            """
+            """,
             )
 
             # Create indexes for efficient queries
@@ -134,14 +133,14 @@ class AgentStorage:
                 """
                 CREATE INDEX IF NOT EXISTS idx_agents_status
                 ON agents(status)
-            """
+            """,
             )
 
             cursor.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_performance_agent_type
                 ON performance_records(agent_id, task_type)
-            """
+            """,
             )
 
             # Additional indexes for hot query paths
@@ -149,32 +148,31 @@ class AgentStorage:
                 """
                 CREATE INDEX IF NOT EXISTS idx_performance_timestamp
                 ON performance_records(timestamp)
-            """
+            """,
             )
 
             cursor.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_evolution_type
                 ON evolution_events(event_type)
-            """
+            """,
             )
 
             # Only create the task_assignments index if the table exists
             if cursor.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='task_assignments'"
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='task_assignments'",
             ).fetchone():
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_task_assignments_agent
                     ON task_assignments(agent_id)
-                """
+                """,
                 )
 
             conn.commit()
 
     async def store_agent(self, agent: Agent) -> None:
-        """
-        Store new agent in database.
+        """Store new agent in database.
 
         Args:
             agent: Agent to store
@@ -183,6 +181,7 @@ class AgentStorage:
         Performance Target: <5ms
 
         Validates: Requirement 1.1
+
         """
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -210,7 +209,7 @@ class AgentStorage:
             conn.commit()
         self._active_agents_cache = None  # Invalidate cache
 
-    async def get_agent(self, agent_id: str) -> Optional[Agent]:
+    async def get_agent(self, agent_id: str) -> Agent | None:
         with self._get_conn() as conn:
             cursor = conn.cursor()
 
@@ -245,14 +244,14 @@ class AgentStorage:
         )
 
     async def update_agent(self, agent: Agent) -> None:
-        """
-        Update existing agent.
+        """Update existing agent.
 
         Args:
             agent: Agent with updated data
 
         Time Complexity: O(1)
         Performance Target: <5ms
+
         """
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -285,7 +284,8 @@ class AgentStorage:
         self._active_agents_cache = None  # Invalidate cache
 
     async def get_performance_records_bulk(
-        self, agent_ids: list[str]
+        self,
+        agent_ids: list[str],
     ) -> dict[str, list[PerformanceRecord]]:
         """Fetch performance records for multiple agents in a single query.
 
@@ -298,6 +298,7 @@ class AgentStorage:
 
         Time Complexity: O(n) where n is total matching records
         Performance Target: <20ms for 1000 records across 100 agents
+
         """
         if not agent_ids:
             return {}
@@ -306,7 +307,7 @@ class AgentStorage:
         # via the parameterized execute() call below (CWE-89 safe).
         placeholders = ",".join(["?"] * len(agent_ids))
         query = (
-            "SELECT agent_id, task_id, task_type, success,"
+            "SELECT agent_id, task_id, task_type, success,"  # noqa: S608 - SQL parameterization reviewed
             " completion_time_ms, resource_usage, timestamp"
             " FROM performance_records"
             f" WHERE agent_id IN ({placeholders})"
@@ -328,9 +329,8 @@ class AgentStorage:
             result[row[0]].append(record)
         return result
 
-    async def query_agents(self, status: Optional[AgentStatus] = None) -> list[Agent]:
-        """
-        Query agents by status.
+    async def query_agents(self, status: AgentStatus | None = None) -> list[Agent]:
+        """Query agents by status.
 
         Args:
             status: Filter by status (None for all agents)
@@ -340,6 +340,7 @@ class AgentStorage:
 
         Time Complexity: O(n) where n is matching agents
         Performance Target: <50ms for 1000 agents
+
         """
         with self._get_conn() as conn:
             if status:
@@ -353,7 +354,7 @@ class AgentStorage:
                 rows = conn.execute(
                     """SELECT id, status, capabilities, specializations,
                               created_at, last_active, total_tasks, successful_tasks, metadata
-                       FROM agents"""
+                       FROM agents""",
                 ).fetchall()
 
         if not rows:
@@ -381,8 +382,7 @@ class AgentStorage:
         return agents
 
     async def get_active_agents(self) -> list[Agent]:
-        """
-        Get all active agents.
+        """Get all active agents.
 
         Returns:
             List of active agents
@@ -391,6 +391,7 @@ class AgentStorage:
         Performance Target: <50ms for 1000 agents
 
         Validates: Requirement 7.5
+
         """
         if self._active_agents_cache is not None:
             return list(self._active_agents_cache)
@@ -399,8 +400,7 @@ class AgentStorage:
         return list(agents)
 
     async def store_performance_record(self, agent_id: str, record: PerformanceRecord) -> None:
-        """
-        Store performance record for agent.
+        """Store performance record for agent.
 
         Args:
             agent_id: Agent identifier
@@ -410,6 +410,7 @@ class AgentStorage:
         Performance Target: <5ms
 
         Validates: Requirement 12.1, 12.5
+
         """
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -435,10 +436,12 @@ class AgentStorage:
             conn.commit()
 
     async def get_performance_records(
-        self, agent_id: str, task_type: Optional[str] = None, limit: Optional[int] = None
+        self,
+        agent_id: str,
+        task_type: str | None = None,
+        limit: int | None = None,
     ) -> list[PerformanceRecord]:
-        """
-        Get performance records for agent.
+        """Get performance records for agent.
 
         Args:
             agent_id: Agent identifier
@@ -450,6 +453,7 @@ class AgentStorage:
 
         Time Complexity: O(n) where n is matching records
         Performance Target: <20ms for 1000 records
+
         """
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -495,8 +499,7 @@ class AgentStorage:
         return records
 
     async def store_evolution_event(self, event: dict[str, Any]) -> None:
-        """
-        Store evolution event.
+        """Store evolution event.
 
         Args:
             event: Evolution event data
@@ -505,6 +508,7 @@ class AgentStorage:
         Performance Target: <5ms
 
         Validates: Requirements 1.4, 3.5, 5.3, 20.1
+
         """
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -527,10 +531,12 @@ class AgentStorage:
             conn.commit()
 
     async def record_task_assignment(
-        self, task_id: str, agent_id: str, timestamp: datetime
+        self,
+        task_id: str,
+        agent_id: str,
+        timestamp: datetime,
     ) -> None:
-        """
-        Record task assignment to agent.
+        """Record task assignment to agent.
 
         Args:
             task_id: Task identifier
@@ -541,6 +547,7 @@ class AgentStorage:
         Performance Target: <5ms
 
         Validates: Requirement 7.4
+
         """
         # For now, store as metadata in agent
         # In production, would have separate assignments table
@@ -549,15 +556,12 @@ class AgentStorage:
             if "assignments" not in agent.metadata:
                 agent.metadata["assignments"] = []
             agent.metadata["assignments"].append(
-                {"task_id": task_id, "timestamp": timestamp.isoformat()}
+                {"task_id": task_id, "timestamp": timestamp.isoformat()},
             )
             await self.update_agent(agent)
 
-    async def create_agent_atomic(
-        self, agent: "Agent", task_requirements: dict[str, Any]
-    ) -> None:
-        """
-        Store a new agent and its creation event in a single transaction.
+    async def create_agent_atomic(self, agent: "Agent", task_requirements: dict[str, Any]) -> None:
+        """Store a new agent and its creation event in a single transaction.
 
         Batches the INSERT for the agent row and the evolution event into one
         commit, reducing round-trips from 3 to 1 and eliminating the separate
@@ -571,11 +575,12 @@ class AgentStorage:
         Performance Target: <5ms
 
         Validates: Requirements 1.1, 1.4
+
         """
         with self._get_conn() as conn:
             cursor = conn.cursor()
 
-            now_iso = datetime.now(tz=timezone.utc).isoformat()
+            now_iso = datetime.now(tz=UTC).isoformat()
 
             cursor.execute(
                 """

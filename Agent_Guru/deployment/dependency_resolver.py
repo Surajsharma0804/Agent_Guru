@@ -1,5 +1,4 @@
-"""
-Dependency resolution for the Guru Deployment System.
+"""Dependency resolution for the Guru Deployment System.
 
 Resolves package dependencies, detects conflicts and cycles, and
 produces a topological installation order.
@@ -11,7 +10,6 @@ Space Complexity: O(V + E) for the dependency graph
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Optional
 
 import structlog
 from packaging.requirements import Requirement
@@ -24,8 +22,7 @@ logger = structlog.get_logger(__name__)
 
 
 class DependencyResolver:
-    """
-    Resolves package dependencies using a topological sort approach.
+    """Resolves package dependencies using a topological sort approach.
 
     Caches resolution results to avoid redundant computation (Property 36).
     """
@@ -39,10 +36,9 @@ class DependencyResolver:
         package_name: str,
         version: str,
         installed_packages: list[PackageInfo],
-        available_packages: Optional[dict[str, list[str]]] = None,
+        available_packages: dict[str, list[str]] | None = None,
     ) -> DependencyGraph:
-        """
-        Resolve all dependencies for a package.
+        """Resolve all dependencies for a package.
 
         Args:
             package_name: Name of the package to resolve.
@@ -56,6 +52,7 @@ class DependencyResolver:
         Raises:
             DependencyConflictError: If version conflict detected.
             CircularDependencyError: If circular dependency detected.
+
         """
         cache_key = (package_name, version)
         if cache_key in self._cache:
@@ -64,17 +61,28 @@ class DependencyResolver:
 
         installed_map: dict[str, str] = {p.name: p.version for p in installed_packages}
         graph = DependencyGraph()
-        self._build_graph(package_name, version, installed_map,
-                          available_packages or {}, graph, set())
+        self._build_graph(
+            package_name,
+            version,
+            installed_map,
+            available_packages or {},
+            graph,
+            set(),
+        )
 
         if graph.has_cycle():
+            msg = f"Circular dependency detected involving '{package_name}'"
             raise CircularDependencyError(
-                f"Circular dependency detected involving '{package_name}'"
+                msg,
             )
 
         self._cache[cache_key] = graph
-        logger.info("dependencies_resolved", package=package_name,
-                    version=version, total_nodes=len(graph.nodes))
+        logger.info(
+            "dependencies_resolved",
+            package=package_name,
+            version=version,
+            total_nodes=len(graph.nodes),
+        )
         return graph
 
     def check_conflicts(
@@ -82,8 +90,7 @@ class DependencyResolver:
         packages: list[tuple[str, str]],
         installed_packages: list[PackageInfo],
     ) -> list[Conflict]:
-        """
-        Check for version conflicts in a list of packages.
+        """Check for version conflicts in a list of packages.
 
         Returns a list of Conflict objects (empty if no conflicts).
         """
@@ -106,19 +113,20 @@ class DependencyResolver:
                             package_name=pkg_name,
                             required_versions=versions,
                             required_by=[r[1] for r in reqs],
-                        )
+                        ),
                     )
         return conflicts
 
     def get_installation_order(self, dependency_graph: DependencyGraph) -> list[str]:
-        """
-        Compute topological sort of the dependency graph.
+        """Compute topological sort of the dependency graph.
 
         Raises:
             CircularDependencyError: If cycle detected.
+
         """
         if dependency_graph.has_cycle():
-            raise CircularDependencyError("Dependency graph contains a cycle")
+            msg = "Dependency graph contains a cycle"
+            raise CircularDependencyError(msg)
         return dependency_graph.topological_sort()
 
     def find_dependents(
@@ -126,8 +134,7 @@ class DependencyResolver:
         package_name: str,
         installed_packages: list[PackageInfo],
     ) -> list[str]:
-        """
-        Find all packages that depend on the given package.
+        """Find all packages that depend on the given package.
 
         Returns list of dependent package names.
         """
@@ -159,8 +166,9 @@ class DependencyResolver:
     ) -> None:
         """Recursively build the dependency graph using DFS."""
         if package_name in visiting:
+            msg = f"Circular dependency detected: '{package_name}' is already being resolved"
             raise CircularDependencyError(
-                f"Circular dependency detected: '{package_name}' is already being resolved"
+                msg,
             )
         if package_name in graph.nodes:
             return  # Already resolved
@@ -174,8 +182,14 @@ class DependencyResolver:
         for dep_name, dep_version in deps:
             node.dependencies.append(dep_name)
             graph.edges.append((package_name, dep_name))
-            self._build_graph(dep_name, dep_version, installed_map,
-                              available_packages, graph, visiting)
+            self._build_graph(
+                dep_name,
+                dep_version,
+                installed_map,
+                available_packages,
+                graph,
+                visiting,
+            )
 
         visiting.discard(package_name)
 
@@ -186,8 +200,7 @@ class DependencyResolver:
         installed_map: dict[str, str],
         available_packages: dict[str, list[str]],
     ) -> list[tuple[str, str]]:
-        """
-        Get direct dependencies for a package.
+        """Get direct dependencies for a package.
 
         In production this would query PyPI metadata. Here we use
         available_packages as a mock dependency registry.
@@ -205,14 +218,15 @@ class DependencyResolver:
                     if dep_name in installed_map:
                         dep_version = installed_map[dep_name]
                     elif dep_name in available_packages:
-                        candidates = [v for v in available_packages[dep_name]
-                                      if not v.startswith("dep:")]
+                        candidates = [
+                            v for v in available_packages[dep_name] if not v.startswith("dep:")
+                        ]
                         dep_version = candidates[0] if candidates else "0.0.0"
                     else:
                         dep_version = "0.0.0"
                     deps.append((dep_name, dep_version))
-                except (KeyError, ValueError) as exc:
-                    logger.warning("Dependency resolution skipped for entry: %s", exc)
+                except (KeyError, ValueError):
+                    logger.exception("Dependency resolution skipped for entry")
         return deps
 
     @staticmethod
@@ -221,5 +235,5 @@ class DependencyResolver:
         try:
             parsed = [Version(v) for v in versions]
             return len({str(v) for v in parsed}) <= 1
-        except Exception as e:
+        except Exception:
             return len(set(versions)) <= 1

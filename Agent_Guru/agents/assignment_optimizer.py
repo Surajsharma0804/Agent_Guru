@@ -1,12 +1,11 @@
-"""
-Assignment Optimizer - Verifies task assignment optimality vs random baseline.
+"""Assignment Optimizer - Verifies task assignment optimality vs random baseline.
 
 Validates: Requirements 24.1, 24.2, 24.3, 24.4, 24.5
 """
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -28,8 +27,7 @@ class AssignmentOutcome:
 
 
 class AssignmentOptimizer:
-    """
-    Verifies that specialization-based assignment outperforms random assignment.
+    """Verifies that specialization-based assignment outperforms random assignment.
 
     Maintains a running comparison of:
     - Specialization-based success rate (actual outcomes)
@@ -45,6 +43,7 @@ class AssignmentOptimizer:
         >>> degraded = optimizer.detect_quality_degradation()
 
     Validates: Requirements 24.1, 24.2, 24.3, 24.4, 24.5
+
     """
 
     def __init__(
@@ -60,11 +59,8 @@ class AssignmentOptimizer:
         self.window_size = window_size
         self._outcomes: list[AssignmentOutcome] = []
 
-    async def compute_expected_success_probability(
-        self, agent_id: str, task_type: str
-    ) -> float:
-        """
-        Compute expected success probability based on agent specialization.
+    async def compute_expected_success_probability(self, agent_id: str, task_type: str) -> float:
+        """Compute expected success probability based on agent specialization.
 
         Uses the agent's specialization score for the task type as the
         probability estimate. Falls back to 0.5 if no specialization exists.
@@ -85,8 +81,7 @@ class AssignmentOptimizer:
         expected_probability: float,
         actual_success: bool,
     ) -> dict[str, Any]:
-        """
-        Record actual outcome and compare to expected probability.
+        """Record actual outcome and compare to expected probability.
 
         Returns a dict with 'expected', 'actual', and 'deviation'.
 
@@ -99,7 +94,7 @@ class AssignmentOptimizer:
             task_type=task_type,
             expected_probability=expected_probability,
             actual_success=actual_success,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
         )
         self._outcomes.append(outcome)
 
@@ -113,8 +108,7 @@ class AssignmentOptimizer:
         }
 
     def detect_quality_degradation(self) -> bool:
-        """
-        Detect if assignment quality has degraded vs the random baseline.
+        """Detect if assignment quality has degraded vs the random baseline.
 
         Compares the recent window's actual success rate to the baseline.
         Returns True if specialization-based rate is worse than baseline
@@ -131,8 +125,7 @@ class AssignmentOptimizer:
         return (self.baseline_success_rate - actual_rate) >= self.degradation_threshold
 
     def maintain_baseline_comparison(self) -> dict[str, Any]:
-        """
-        Return running comparison of specialization-based vs random assignment.
+        """Return running comparison of specialization-based vs random assignment.
 
         Validates: Requirements 24.4, 24.5
         """

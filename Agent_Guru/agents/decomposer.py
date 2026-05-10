@@ -1,5 +1,4 @@
-"""
-Command Decomposer - Parses voice commands into structured sub-tasks.
+"""Command Decomposer - Parses voice commands into structured sub-tasks.
 
 Transforms natural language voice commands (e.g. "open YouTube and play music")
 into ordered lists of atomic SubTask objects with dependency analysis.
@@ -16,7 +15,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Optional
 
 from .task_decomposer import Task
 
@@ -112,10 +110,10 @@ _TASK_TYPE_CAPABILITIES: dict[str, list[str]] = {
 # Dependency rules: task_type → list of task_types it depends on
 # (i.e. these must complete before the current step)
 _DEPENDENCY_RULES: dict[str, list[str]] = {
-    "media_control": ["navigation"],   # must open app before controlling media
-    "search": ["navigation"],          # must open browser before searching
+    "media_control": ["navigation"],  # must open app before controlling media
+    "search": ["navigation"],  # must open browser before searching
     "file_operation": ["navigation"],  # may need app open first
-    "communication": ["navigation"],   # may need app open first
+    "communication": ["navigation"],  # may need app open first
 }
 
 
@@ -134,6 +132,7 @@ class ParsedStep:
         task_type: Inferred task type based on action_verb.
         target: The object/target of the action (remainder after verb).
         capabilities: Required capabilities for this step.
+
     """
 
     raw_text: str
@@ -171,6 +170,7 @@ class CommandDecomposer:
         media_control ['<id_of_navigation_task>']
 
     Validates: Requirements 1 (Agent Registration), 2 (Task Decomposition)
+
     """
 
     # Wake-word prefixes to strip before parsing
@@ -192,11 +192,14 @@ class CommandDecomposer:
 
         Raises:
             ValueError: If max_steps < 1 or default_priority < 0.
+
         """
         if max_steps < 1:
-            raise ValueError("max_steps must be >= 1")
+            msg = "max_steps must be >= 1"
+            raise ValueError(msg)
         if default_priority < 0:
-            raise ValueError("default_priority must be >= 0")
+            msg = "default_priority must be >= 0"
+            raise ValueError(msg)
 
         self.max_steps = max_steps
         self.default_priority = default_priority
@@ -208,8 +211,8 @@ class CommandDecomposer:
     async def decompose(
         self,
         command: str,
-        parent_task_id: Optional[str] = None,
-        base_requirements: Optional[dict[str, object]] = None,
+        parent_task_id: str | None = None,
+        base_requirements: dict[str, object] | None = None,
     ) -> list[Task]:
         """Decompose a voice command into an ordered list of atomic Tasks.
 
@@ -225,6 +228,7 @@ class CommandDecomposer:
 
         Time Complexity: O(n) where n is command token count
         Validates: Requirements 2.1, 2.6
+
         """
         if not command or not command.strip():
             return []
@@ -249,6 +253,7 @@ class CommandDecomposer:
 
         Time Complexity: O(n)
         Validates: Requirements 2.1
+
         """
         if not command or not command.strip():
             return []
@@ -258,9 +263,7 @@ class CommandDecomposer:
         steps = steps[: self.max_steps]
         return [self._parse_step(s) for s in steps]
 
-    async def analyze_dependencies(
-        self, tasks: list[Task]
-    ) -> dict[str, list[str]]:
+    async def analyze_dependencies(self, tasks: list[Task]) -> dict[str, list[str]]:
         """Return a dependency map for a list of tasks.
 
         Args:
@@ -271,6 +274,7 @@ class CommandDecomposer:
 
         Time Complexity: O(k) where k is number of tasks
         Validates: Requirements 2.6
+
         """
         return {t.id: list(t.dependencies) for t in tasks}
 
@@ -288,6 +292,7 @@ class CommandDecomposer:
             Command with wake-word prefix removed.
 
         Time Complexity: O(n)
+
         """
         return self._WAKE_WORD_RE.sub("", command).strip()
 
@@ -304,6 +309,7 @@ class CommandDecomposer:
             Non-empty list of step strings.
 
         Time Complexity: O(n)
+
         """
         parts = _SPLIT_RE.split(command)
         steps = [p.strip() for p in parts if p and p.strip()]
@@ -322,6 +328,7 @@ class CommandDecomposer:
             :class:`ParsedStep` with all fields populated.
 
         Time Complexity: O(v) where v is vocabulary size (constant)
+
         """
         tokens = step_text.lower().split()
         action_verb, task_type = self._identify_verb(tokens)
@@ -348,6 +355,7 @@ class CommandDecomposer:
             Tuple of (action_verb, task_type).  Falls back to ("", "generic").
 
         Time Complexity: O(1) – dict lookup
+
         """
         for token in tokens[:2]:
             # Strip trailing punctuation
@@ -370,6 +378,7 @@ class CommandDecomposer:
             Target string, stripped of leading/trailing whitespace.
 
         Time Complexity: O(n)
+
         """
         if not action_verb:
             return step_text.strip()
@@ -380,7 +389,7 @@ class CommandDecomposer:
     def _build_tasks(
         self,
         parsed_steps: list[ParsedStep],
-        parent_task_id: Optional[str],
+        parent_task_id: str | None,
         base_requirements: dict[str, object],
     ) -> list[Task]:
         """Convert ParsedStep objects into Task objects with dependency edges.
@@ -398,6 +407,7 @@ class CommandDecomposer:
             Ordered list of :class:`Task` objects.
 
         Time Complexity: O(k²) worst case, O(k) typical
+
         """
         import uuid
 
@@ -408,7 +418,7 @@ class CommandDecomposer:
         # Track the most recent task ID for each task_type
         latest_by_type: dict[str, str] = {}
 
-        for i, (step, step_id) in enumerate(zip(parsed_steps, step_ids)):
+        for i, (step, step_id) in enumerate(zip(parsed_steps, step_ids, strict=False)):
             # Determine dependencies for this step
             dep_ids: list[str] = []
             required_predecessors = _DEPENDENCY_RULES.get(step.task_type, [])

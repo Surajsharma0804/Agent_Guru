@@ -1,12 +1,11 @@
-"""
-Population Manager - Maintains optimal agent population size.
+"""Population Manager - Maintains optimal agent population size.
 
 Validates: Requirements 13.1, 13.2, 13.3, 13.4, 13.5
 """
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from .agent_lifecycle import AgentStatus
@@ -29,8 +28,7 @@ class PopulationSnapshot:
 
 
 class PopulationManager:
-    """
-    Maintains optimal agent population size.
+    """Maintains optimal agent population size.
 
     Triggers aggressive merging when population exceeds max_agents,
     and becomes conservative with retirement when below min_agents.
@@ -44,6 +42,7 @@ class PopulationManager:
         >>> print(result["status"])
 
     Validates: Requirements 13.1, 13.2, 13.3, 13.4, 13.5
+
     """
 
     def __init__(
@@ -60,10 +59,11 @@ class PopulationManager:
         self._history: list[PopulationSnapshot] = []
 
     async def evaluate_population_size(
-        self, task_diversity: int = 1, workload_volume: int = 1
+        self,
+        task_diversity: int = 1,
+        workload_volume: int = 1,
     ) -> dict[str, Any]:
-        """
-        Evaluate current population and return status with recommendations.
+        """Evaluate current population and return status with recommendations.
 
         Considers task_diversity and workload_volume when assessing optimality.
 
@@ -76,6 +76,7 @@ class PopulationManager:
 
         Time Complexity: O(n)
         Validates: Requirements 13.1, 13.2, 13.3, 13.4
+
         """
         active = await self.storage.query_agents(status=AgentStatus.ACTIVE)
         count = len(active)
@@ -89,12 +90,12 @@ class PopulationManager:
         if count > effective_max:
             status = "overpopulated"
             recommendations.append(
-                f"Population {count} exceeds max {effective_max}. Trigger aggressive merging."
+                f"Population {count} exceeds max {effective_max}. Trigger aggressive merging.",
             )
         elif count < effective_min:
             status = "underpopulated"
             recommendations.append(
-                f"Population {count} below min {effective_min}. Be conservative with retirement."
+                f"Population {count} below min {effective_min}. Be conservative with retirement.",
             )
         else:
             status = "optimal"
@@ -103,7 +104,7 @@ class PopulationManager:
             logger.info("Population suboptimal: %s", "; ".join(recommendations))
 
         snapshot = PopulationSnapshot(
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
             total_agents=len(await self.storage.query_agents()),
             active_agents=count,
             recommendations=recommendations,
@@ -117,13 +118,13 @@ class PopulationManager:
         }
 
     async def trigger_aggressive_merging(self) -> int:
-        """
-        Trigger aggressive merging to reduce population.
+        """Trigger aggressive merging to reduce population.
 
         Returns:
             Number of merge operations performed
 
         Validates: Requirement 13.1
+
         """
         candidates = await self.merger.detect_merge_candidates()
         count = 0
@@ -137,13 +138,12 @@ class PopulationManager:
                 merged_ids.add(agent_a_id)
                 merged_ids.add(agent_b_id)
                 count += 1
-            except (ValueError, Exception) as exc:
-                logger.warning("Merge failed for %s + %s: %s", agent_a_id, agent_b_id, exc)
+            except (ValueError, Exception):
+                logger.exception("Merge failed for %s + %s", agent_a_id, agent_b_id)
         return count
 
     def adjust_retirement_threshold(self, base_threshold: float) -> float:
-        """
-        Adjust retirement threshold based on population size.
+        """Adjust retirement threshold based on population size.
 
         When underpopulated, raises the threshold (harder to retire).
         When overpopulated, lowers the threshold (easier to retire).
@@ -155,6 +155,7 @@ class PopulationManager:
             Adjusted threshold
 
         Validates: Requirement 13.2
+
         """
         if not self._history:
             return base_threshold
@@ -169,8 +170,7 @@ class PopulationManager:
         return base_threshold
 
     def track_population_trends(self) -> dict[str, Any]:
-        """
-        Return population trend data for reporting.
+        """Return population trend data for reporting.
 
         Validates: Requirement 13.5
         """
@@ -178,7 +178,8 @@ class PopulationManager:
             return {"trend": "unknown", "snapshots": 0}
 
         counts = [s.active_agents for s in self._history]
-        if len(counts) < 2:
+        if len(counts) < 2:  # noqa: PLR2004 - Small integer threshold
+
             return {"trend": "stable", "snapshots": len(counts), "current": counts[-1]}
 
         delta = counts[-1] - counts[0]

@@ -1,5 +1,4 @@
-"""
-Duplicate Detector - Detects and prevents duplicate agents.
+"""Duplicate Detector - Detects and prevents duplicate agents.
 
 This module implements duplicate detection functionality to prevent creating
 agents with identical or near-identical capabilities and specializations.
@@ -20,7 +19,7 @@ Date: 2026-03-13
 Version: 1.0.0
 """
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .agent_lifecycle import Agent
@@ -29,8 +28,7 @@ if TYPE_CHECKING:
 
 
 class DuplicateDetector:
-    """
-    Detects and prevents duplicate agents.
+    """Detects and prevents duplicate agents.
 
     Uses pairwise similarity computation to identify agents with identical
     or near-identical capabilities. Integrates with AgentMerger to automatically
@@ -53,6 +51,7 @@ class DuplicateDetector:
         ...     pass
 
     Validates: Requirements 1.5, 14.1, 14.2, 14.3, 14.4, 14.5
+
     """
 
     def __init__(
@@ -60,9 +59,8 @@ class DuplicateDetector:
         storage: "AgentStorage",
         merger: "AgentMerger",
         duplication_threshold: float = 0.95,
-    ):
-        """
-        Initialize duplicate detector.
+    ) -> None:
+        """Initialize duplicate detector.
 
         Args:
             storage: Agent storage backend
@@ -75,11 +73,12 @@ class DuplicateDetector:
         Time Complexity: O(1)
 
         Validates: Requirements 1.5, 14.2
+
         """
         if not 0.0 <= duplication_threshold <= 1.0:
+            msg = f"duplication_threshold must be in range [0.0, 1.0], got {duplication_threshold}"
             raise ValueError(
-                f"duplication_threshold must be in range [0.0, 1.0], "
-                f"got {duplication_threshold}"
+                msg,
             )
 
         self.storage = storage
@@ -87,8 +86,7 @@ class DuplicateDetector:
         self.duplication_threshold = duplication_threshold
 
     async def detect_duplicates(self) -> list[tuple[str, str, float]]:
-        """
-        Detect duplicate agents in the population.
+        """Detect duplicate agents in the population.
 
         Performs pairwise similarity comparison of all active agents to find
         duplicates. Returns pairs that exceed the duplication threshold.
@@ -107,6 +105,7 @@ class DuplicateDetector:
             ...     print(f"Duplicates: {agent1_id}, {agent2_id} ({similarity:.2f})")
 
         Validates: Requirements 14.1, 14.2
+
         """
         agents = await self.storage.get_active_agents()
         duplicates = []
@@ -116,7 +115,8 @@ class DuplicateDetector:
             for agent2 in agents[i + 1 :]:
                 # Calculate similarity using merger's similarity function
                 similarity = self.merger._calculate_similarity(
-                    agent1.specializations, agent2.specializations
+                    agent1.specializations,
+                    agent2.specializations,
                 )
 
                 if similarity >= self.duplication_threshold:
@@ -127,11 +127,8 @@ class DuplicateDetector:
 
         return duplicates
 
-    async def pre_creation_check(
-        self, proposed_capabilities: dict[str, float]
-    ) -> Optional[str]:
-        """
-        Check if proposed agent would be duplicate before creation.
+    async def pre_creation_check(self, proposed_capabilities: dict[str, float]) -> str | None:
+        """Check if proposed agent would be duplicate before creation.
 
         Compares proposed capabilities against all existing active agents
         to prevent creating duplicates.
@@ -156,6 +153,7 @@ class DuplicateDetector:
             ...     agent = await lifecycle_manager.create_agent(...)
 
         Validates: Requirements 1.5, 14.4
+
         """
         agents = await self.storage.get_active_agents()
 
@@ -163,7 +161,8 @@ class DuplicateDetector:
             # Compare proposed capabilities with existing agent
             # Use specializations as proxy for capabilities
             similarity = self.merger._calculate_similarity(
-                proposed_capabilities, agent.specializations
+                proposed_capabilities,
+                agent.specializations,
             )
 
             if similarity >= self.duplication_threshold:
@@ -172,8 +171,7 @@ class DuplicateDetector:
         return None
 
     async def auto_merge_duplicates(self) -> list["Agent"]:
-        """
-        Automatically merge all detected duplicates.
+        """Automatically merge all detected duplicates.
 
         Detects duplicate agents and merges them using the AgentMerger.
         Processes duplicates in order of highest similarity first.
@@ -190,6 +188,7 @@ class DuplicateDetector:
             >>> print(f"Merged {len(merged_agents)} duplicate pairs")
 
         Validates: Requirements 14.3, 14.5
+
         """
         duplicates = await self.detect_duplicates()
         merged_agents = []
@@ -216,8 +215,7 @@ class DuplicateDetector:
         return merged_agents
 
     async def get_similarity_matrix(self) -> dict[tuple[str, str], float]:
-        """
-        Compute full similarity matrix for all active agents.
+        """Compute full similarity matrix for all active agents.
 
         Useful for analysis and visualization of agent population structure.
 
@@ -235,6 +233,7 @@ class DuplicateDetector:
             ...         print(f"{id1} <-> {id2}: {similarity:.2f}")
 
         Validates: Requirement 14.1
+
         """
         agents = await self.storage.get_active_agents()
         matrix = {}
@@ -243,7 +242,8 @@ class DuplicateDetector:
         for i, agent1 in enumerate(agents):
             for agent2 in agents[i + 1 :]:
                 similarity = self.merger._calculate_similarity(
-                    agent1.specializations, agent2.specializations
+                    agent1.specializations,
+                    agent2.specializations,
                 )
 
                 # Store both directions for convenience
@@ -252,11 +252,8 @@ class DuplicateDetector:
 
         return matrix
 
-    async def find_most_similar_agent(
-        self, target_agent_id: str
-    ) -> Optional[tuple[str, float]]:
-        """
-        Find the most similar agent to a target agent.
+    async def find_most_similar_agent(self, target_agent_id: str) -> tuple[str, float] | None:
+        """Find the most similar agent to a target agent.
 
         Args:
             target_agent_id: Agent to find similar agents for
@@ -275,6 +272,7 @@ class DuplicateDetector:
             ...     print(f"Most similar: {similar_id} ({similarity:.2f})")
 
         Validates: Requirement 14.1
+
         """
         target_agent = await self.storage.get_agent(target_agent_id)
         if not target_agent:
@@ -289,7 +287,8 @@ class DuplicateDetector:
                 continue
 
             similarity = self.merger._calculate_similarity(
-                target_agent.specializations, agent.specializations
+                target_agent.specializations,
+                agent.specializations,
             )
 
             if similarity > max_similarity:
@@ -302,8 +301,7 @@ class DuplicateDetector:
         return None
 
     async def get_duplicate_clusters(self) -> list[list[str]]:
-        """
-        Group agents into duplicate clusters.
+        """Group agents into duplicate clusters.
 
         Identifies groups of agents that are all duplicates of each other
         (transitive closure of duplication relationship).
@@ -322,6 +320,7 @@ class DuplicateDetector:
             ...         print(f"Duplicate cluster: {cluster}")
 
         Validates: Requirement 14.1
+
         """
         duplicates = await self.detect_duplicates()
 
@@ -340,7 +339,7 @@ class DuplicateDetector:
         visited = set()
         clusters = []
 
-        for start_id in adjacency.keys():
+        for start_id in adjacency:
             if start_id in visited:
                 continue
             cluster: list[str] = []

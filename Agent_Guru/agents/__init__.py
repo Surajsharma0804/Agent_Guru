@@ -1,5 +1,4 @@
-"""
-Agent Guru - Agent Orchestration Module
+"""Agent Guru - Agent Orchestration Module.
 
 Multi-agent coordination system for Agent Guru.
 
@@ -19,13 +18,13 @@ from Agent_Guru.agents.task_assigner import TaskAssigner
 from Agent_Guru.agents.task_decomposer import TaskDecomposer
 
 __all__ = [
-    "OrchestrationSystem",
-    "TaskResult",
-    "AgentOrchestrator",
-    "Task",
-    "TaskStatus",
-    "TaskDecomposer",
-    "TaskAssigner",
     "AgentLifecycleManager",
+    "AgentOrchestrator",
+    "OrchestrationSystem",
     "PerformanceTracker",
+    "Task",
+    "TaskAssigner",
+    "TaskDecomposer",
+    "TaskResult",
+    "TaskStatus",
 ]

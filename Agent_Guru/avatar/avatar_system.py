@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.avatar.avatar_system
+"""Module: Agent_Guru.avatar.avatar_system
 Purpose: Production facade coordinating all avatar sub-components.
 
 GuruAvatarSystem is the single entry-point for:
@@ -18,10 +17,7 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Callable
-from typing import Any, Optional
-
-import numpy as np
+from typing import TYPE_CHECKING, Any
 
 from Agent_Guru.avatar.config import AvatarConfig
 from Agent_Guru.avatar.emotion.recognizer import EmotionRecognizer
@@ -37,6 +33,11 @@ from Agent_Guru.avatar.personality.engine import PersonalityEngine
 from Agent_Guru.avatar.rendering.renderer import AvatarRenderer
 from Agent_Guru.avatar.state_manager import StateManager
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import numpy as np
+
 logger = logging.getLogger("guruvision.avatar.system")
 
 
@@ -47,11 +48,12 @@ class GuruAvatarSystem:
         config: AvatarConfig instance or path to config file.
         render_backend: Rendering backend override.
         personality: Initial personality (GURU or MAYA).
+
     """
 
     def __init__(
         self,
-        config: Optional[Any] = None,
+        config: Any | None = None,  # noqa: ANN401
         render_backend: str = "headless",
         personality: PersonalityType = PersonalityType.GURU,
     ) -> None:
@@ -71,11 +73,11 @@ class GuruAvatarSystem:
         self._initialized = False
 
         self._state_manager = StateManager()
-        self._emotion_recognizer: Optional[EmotionRecognizer] = None
-        self._lip_sync: Optional[LipSyncController] = None
-        self._personality_engine: Optional[PersonalityEngine] = None
-        self._renderer: Optional[AvatarRenderer] = None
-        self._perf_monitor: Optional[PerformanceMonitor] = None
+        self._emotion_recognizer: EmotionRecognizer | None = None
+        self._lip_sync: LipSyncController | None = None
+        self._personality_engine: PersonalityEngine | None = None
+        self._renderer: AvatarRenderer | None = None
+        self._perf_monitor: PerformanceMonitor | None = None
 
         self._error_callbacks: list[Callable[[Exception, str, dict[str, Any]], None]] = []
         self._start_time = 0.0
@@ -101,7 +103,7 @@ class GuruAvatarSystem:
                 map_to_27=self._config.map_to_27_emotions,
             )
         except Exception as exc:
-            logger.error("EmotionRecognizer init failed: %s", exc)
+            logger.exception("EmotionRecognizer init failed")
             self._notify_error(exc, "emotion_recognizer", {})
             self._emotion_recognizer = EmotionRecognizer(model="heuristic")
 
@@ -113,17 +115,15 @@ class GuruAvatarSystem:
                 buffer_size=self._config.audio_buffer_size,
             )
         except Exception as exc:
-            logger.error("LipSyncController init failed: %s", exc)
+            logger.exception("LipSyncController init failed")
             self._notify_error(exc, "lip_sync", {})
             self._lip_sync = LipSyncController()
 
         # Personality engine
         try:
-            self._personality_engine = PersonalityEngine(
-                self._config.personality_profile_path
-            )
+            self._personality_engine = PersonalityEngine(self._config.personality_profile_path)
         except Exception as exc:
-            logger.error("PersonalityEngine init failed: %s", exc)
+            logger.exception("PersonalityEngine init failed")
             self._notify_error(exc, "personality_engine", {})
             self._personality_engine = PersonalityEngine()
 
@@ -138,7 +138,7 @@ class GuruAvatarSystem:
             )
             self._renderer.initialize_display()
         except Exception as exc:
-            logger.error("AvatarRenderer init failed: %s — using headless", exc)
+            logger.exception("AvatarRenderer init failed: %s — using headless")
             self._notify_error(exc, "renderer", {})
             self._renderer = AvatarRenderer(backend="headless")
             self._renderer.initialize_display()
@@ -150,8 +150,8 @@ class GuruAvatarSystem:
                 max_memory_mb=self._config.max_memory_mb,
             )
             self._perf_monitor.start()
-        except Exception as exc:
-            logger.warning("PerformanceMonitor init failed: %s", exc)
+        except Exception:
+            logger.exception("PerformanceMonitor init failed")
             self._perf_monitor = None
 
         # Set initial personality
@@ -163,7 +163,8 @@ class GuruAvatarSystem:
         self._initialized = True
         logger.info(
             "GuruAvatarSystem initialized: personality=%s backend=%s",
-            self._initial_personality.value, self._config.render_backend,
+            self._initial_personality.value,
+            self._config.render_backend,
         )
         return True
 
@@ -192,7 +193,7 @@ class GuruAvatarSystem:
         try:
             raw_emotion = self._emotion_recognizer.detect_emotion_smooth(frame)
         except Exception as exc:
-            logger.warning("Emotion detection failed: %s — using neutral", exc)
+            logger.exception("Emotion detection failed: %s — using neutral")
             self._notify_error(exc, "emotion_recognizer", {"frame_shape": frame.shape})
             raw_emotion = EmotionState.neutral()
 
@@ -206,9 +207,7 @@ class GuruAvatarSystem:
         self._state_manager.update_emotion(modulated)
         return modulated
 
-    def process_speech_audio(
-        self, audio: np.ndarray, sample_rate: int
-    ) -> LipSyncState:
+    def process_speech_audio(self, audio: np.ndarray, sample_rate: int) -> LipSyncState:
         """Process speech audio for lip sync and update state."""
         self._require_initialized()
 
@@ -218,14 +217,14 @@ class GuruAvatarSystem:
         try:
             lip_state = self._lip_sync.process_audio_chunk(audio, sample_rate)
         except Exception as exc:
-            logger.warning("Lip sync failed: %s — using neutral", exc)
+            logger.exception("Lip sync failed: %s — using neutral")
             self._notify_error(exc, "lip_sync", {})
             lip_state = LipSyncState.neutral()
 
         self._state_manager.update_lip_sync(lip_state)
         return lip_state
 
-    def render_frame(self) -> Optional[np.ndarray]:
+    def render_frame(self) -> np.ndarray | None:
         """Render the current avatar state to a frame."""
         self._require_initialized()
 
@@ -243,16 +242,16 @@ class GuruAvatarSystem:
                 self._perf_monitor.record_latency(latency_ms)
             return frame
         except Exception as exc:
-            logger.error("Render failed: %s", exc)
+            logger.exception("Render failed")
             self._notify_error(exc, "renderer", {})
             return None
 
     def update(
         self,
-        frame: Optional[np.ndarray] = None,
-        audio: Optional[np.ndarray] = None,
+        frame: np.ndarray | None = None,
+        audio: np.ndarray | None = None,
         sample_rate: int = 16000,
-    ) -> Optional[np.ndarray]:
+    ) -> np.ndarray | None:
         """Single-call update: process inputs and render."""
         self._require_initialized()
         if frame is not None:
@@ -319,13 +318,12 @@ class GuruAvatarSystem:
 
     def _require_initialized(self) -> None:
         if not self._initialized:
-            raise RuntimeError("GuruAvatarSystem.initialize() must be called first")
+            msg = "GuruAvatarSystem.initialize() must be called first"
+            raise RuntimeError(msg)
 
-    def _notify_error(
-        self, exc: Exception, component: str, context: dict[str, Any]
-    ) -> None:
+    def _notify_error(self, exc: Exception, component: str, context: dict[str, Any]) -> None:
         for cb in self._error_callbacks:
             try:
                 cb(exc, component, context)
-            except Exception as cb_exc:
-                logger.warning("Error callback raised: %s", cb_exc)
+            except Exception:
+                logger.exception("Error callback raised")

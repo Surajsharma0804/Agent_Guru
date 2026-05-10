@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.core.error_handler
-Purpose: Comprehensive error handling, retry, and recovery for Agent Guru
+"""Module: Agent_Guru.core.error_handler
+Purpose: Comprehensive error handling, retry, and recovery for Agent Guru.
 
 Provides:
 - ErrorHandler: Centralized error handling with speech feedback
@@ -21,32 +20,39 @@ import json
 import logging
 import threading
 import time
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 logger = logging.getLogger(__name__)
 
 # BUG-020: moved log path from .kiro/ (IDE config dir — bad for production)
 # to a proper OS application-data directory so logs survive working directory
 # changes and are never accidentally committed to git.
-import os as _os
+import os as _os  # noqa: E402
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 if _os.name == "nt":
     _DEFAULT_LOG_PATH = (
         Path(_os.environ.get("AGENT_GURU_LOG_DIR", ""))
         if _os.environ.get("AGENT_GURU_LOG_DIR")
         else Path(_os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
-        / "agent_guru" / "logs" / "errors.log"
+        / "agent_guru"
+        / "logs"
+        / "errors.log"
     )
 else:
     _DEFAULT_LOG_PATH = (
         Path(_os.environ.get("AGENT_GURU_LOG_DIR", ""))
         if _os.environ.get("AGENT_GURU_LOG_DIR")
         else Path(_os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-        / "agent_guru" / "logs" / "errors.log"
+        / "agent_guru"
+        / "logs"
+        / "errors.log"
     )
 _MAX_LOG_SIZE_BYTES = 100 * 1024 * 1024  # 100MB
 
@@ -59,6 +65,7 @@ _DEFAULT_BACKOFF_FACTOR = 2.0
 
 class ErrorSeverity(str, Enum):
     """Error severity levels."""
+
     DEBUG = "debug"
     INFO = "info"
     WARNING = "warning"
@@ -68,6 +75,7 @@ class ErrorSeverity(str, Enum):
 
 class ErrorCategory(str, Enum):
     """Error categories for routing and recovery."""
+
     MICROPHONE = "microphone"
     STT = "stt"
     INTENT = "intent"
@@ -93,7 +101,9 @@ class ErrorRecord:
         context: Additional context dict
         recovery_attempted: Whether recovery was attempted
         recovered: Whether recovery succeeded
+
     """
+
     timestamp: str
     category: ErrorCategory
     severity: ErrorSeverity
@@ -117,8 +127,7 @@ class ErrorRecord:
 
 
 class RetryPolicy:
-    """
-    Exponential backoff retry policy for transient failures.
+    """Exponential backoff retry policy for transient failures.
 
     Algorithm:
         delay = min(base_delay * backoff_factor^attempt, max_delay)
@@ -131,6 +140,7 @@ class RetryPolicy:
     Example:
         >>> policy = RetryPolicy(max_retries=3, base_delay=0.5)
         >>> result = policy.execute(lambda: call_api())
+
     """
 
     def __init__(
@@ -152,15 +162,20 @@ class RetryPolicy:
 
         Raises:
             ValueError: If parameters are invalid
+
         """
         if max_retries < 0:
-            raise ValueError(f"max_retries must be >= 0, got {max_retries}")
+            msg = f"max_retries must be >= 0, got {max_retries}"
+            raise ValueError(msg)
         if base_delay < 0:
-            raise ValueError(f"base_delay must be >= 0, got {base_delay}")
+            msg = f"base_delay must be >= 0, got {base_delay}"
+            raise ValueError(msg)
         if max_delay < base_delay:
-            raise ValueError("max_delay must be >= base_delay")
+            msg = "max_delay must be >= base_delay"
+            raise ValueError(msg)
         if backoff_factor < 1.0:
-            raise ValueError(f"backoff_factor must be >= 1.0, got {backoff_factor}")
+            msg = f"backoff_factor must be >= 1.0, got {backoff_factor}"
+            raise ValueError(msg)
 
         self._max_retries = max_retries
         self._base_delay = base_delay
@@ -168,7 +183,7 @@ class RetryPolicy:
         self._backoff_factor = backoff_factor
         self._retryable = retryable_exceptions or (Exception,)
 
-    def execute(self, func: Callable, *args, **kwargs) -> Any:
+    def execute(self, func: Callable, *args, **kwargs) -> Any:  # noqa: ANN401
         """Execute function with retry on failure.
 
         Time Complexity: O(max_retries)
@@ -183,6 +198,7 @@ class RetryPolicy:
 
         Raises:
             Last exception if all retries exhausted
+
         """
         last_exc: Exception | None = None
 
@@ -193,16 +209,19 @@ class RetryPolicy:
                 last_exc = e
                 if attempt < self._max_retries:
                     delay = min(
-                        self._base_delay * (self._backoff_factor ** attempt),
+                        self._base_delay * (self._backoff_factor**attempt),
                         self._max_delay,
                     )
-                    logger.warning(
+                    logger.exception(
                         "Attempt %d/%d failed: %s. Retrying in %.2fs",
-                        attempt + 1, self._max_retries + 1, e, delay,
+                        attempt + 1,
+                        self._max_retries + 1,
+                        e,
+                        delay,
                     )
                     time.sleep(delay)
                 else:
-                    logger.error("All %d attempts failed: %s", self._max_retries + 1, e)
+                    logger.exception("All %d attempts failed", self._max_retries + 1)
 
         raise last_exc  # type: ignore
 
@@ -214,9 +233,10 @@ class RetryPolicy:
 
         Returns:
             Delay in seconds
+
         """
         return min(
-            self._base_delay * (self._backoff_factor ** attempt),
+            self._base_delay * (self._backoff_factor**attempt),
             self._max_delay,
         )
 
@@ -238,8 +258,7 @@ class RetryPolicy:
 
 
 class ErrorLogger:
-    """
-    Structured error logger with file rotation.
+    """Structured error logger with file rotation.
 
     Writes JSONL-format error records to disk.
     Rotates log file when it exceeds max_size_bytes.
@@ -264,14 +283,15 @@ class ErrorLogger:
 
         Args:
             record: ErrorRecord to log
+
         """
         with self._lock:
             self._rotate_if_needed()
             try:
-                with open(self._log_path, "a", encoding="utf-8") as f:
+                with open(self._log_path, "a", encoding="utf-8") as f:  # noqa: PTH123
                     f.write(json.dumps(record.to_dict()) + "\n")
-            except OSError as e:
-                logger.warning("ErrorLogger: could not write to %s: %s", self._log_path, e)
+            except OSError:
+                logger.exception("ErrorLogger: could not write to %s", self._log_path)
 
     def _rotate_if_needed(self) -> None:
         """Rotate log file if it exceeds max size."""
@@ -280,8 +300,8 @@ class ErrorLogger:
                 rotated = self._log_path.with_suffix(".log.1")
                 self._log_path.rename(rotated)
                 logger.info("ErrorLogger: rotated %s → %s", self._log_path, rotated)
-        except OSError as e:
-            logger.warning("ErrorLogger: rotation failed: %s", e)
+        except OSError:
+            logger.exception("ErrorLogger: rotation failed")
 
     def get_recent_errors(self, n: int = 100) -> list[ErrorRecord]:
         """Read the n most recent error records.
@@ -291,27 +311,30 @@ class ErrorLogger:
 
         Returns:
             List of ErrorRecord (most recent last)
+
         """
         if not self._log_path.exists():
             return []
 
         records = []
         try:
-            with open(self._log_path, encoding="utf-8") as f:
+            with open(self._log_path, encoding="utf-8") as f:  # noqa: PTH123
                 lines = f.readlines()
             for line in lines[-n:]:
                 try:
                     d = json.loads(line.strip())
-                    records.append(ErrorRecord(
-                        timestamp=d.get("timestamp", ""),
-                        category=ErrorCategory(d.get("category", "unknown")),
-                        severity=ErrorSeverity(d.get("severity", "error")),
-                        component=d.get("component", ""),
-                        message=d.get("message", ""),
-                        context=d.get("context", {}),
-                        recovery_attempted=d.get("recovery_attempted", False),
-                        recovered=d.get("recovered", False),
-                    ))
+                    records.append(
+                        ErrorRecord(
+                            timestamp=d.get("timestamp", ""),
+                            category=ErrorCategory(d.get("category", "unknown")),
+                            severity=ErrorSeverity(d.get("severity", "error")),
+                            component=d.get("component", ""),
+                            message=d.get("message", ""),
+                            context=d.get("context", {}),
+                            recovery_attempted=d.get("recovery_attempted", False),
+                            recovered=d.get("recovered", False),
+                        ),
+                    )
                 except (json.JSONDecodeError, ValueError):
                     continue
         except OSError:
@@ -321,8 +344,7 @@ class ErrorLogger:
 
 
 class ErrorHandler:
-    """
-    Centralized error handler for the voice pipeline.
+    """Centralized error handler for the voice pipeline.
 
     Handles:
     - Microphone errors with retry
@@ -334,6 +356,7 @@ class ErrorHandler:
     Example:
         >>> handler = ErrorHandler()
         >>> handler.handle(ErrorCategory.MICROPHONE, "Device disconnected")
+
     """
 
     def __init__(
@@ -346,6 +369,7 @@ class ErrorHandler:
         Args:
             error_logger: ErrorLogger instance (creates default if None)
             speech_callback: Callback to speak error messages to user
+
         """
         self._logger = error_logger or ErrorLogger()
         self._speech_callback = speech_callback
@@ -374,12 +398,13 @@ class ErrorHandler:
 
         Returns:
             True if error was recovered, False otherwise
+
         """
         with self._lock:
             self._error_counts[category] += 1
 
         record = ErrorRecord(
-            timestamp=datetime.now(tz=timezone.utc).isoformat(),
+            timestamp=datetime.now(tz=UTC).isoformat(),
             category=category,
             severity=severity,
             component=component,
@@ -401,19 +426,18 @@ class ErrorHandler:
             user_message = self._get_user_message(category, message)
             try:
                 self._speech_callback(user_message)
-            except Exception as e:
-                logger.warning("Speech callback failed: %s", e)
+            except Exception:
+                logger.exception("Speech callback failed")
 
         return recovered
 
-    def register_recovery_handler(
-        self, category: ErrorCategory, handler: Callable
-    ) -> None:
+    def register_recovery_handler(self, category: ErrorCategory, handler: Callable) -> None:
         """Register a recovery handler for an error category.
 
         Args:
             category: Error category
             handler: Callable that attempts recovery, returns True on success
+
         """
         self._recovery_handlers[category] = handler
 
@@ -432,9 +456,9 @@ class ErrorHandler:
             return False
         try:
             return bool(handler(record))
-        except Exception as e:
+        except Exception:
             # BUG-013: replaced f-string logger call with %s lazy-format
-            logger.error("Recovery handler failed for %s: %s", category.value, e)
+            logger.exception("Recovery handler failed for %s", category.value)
             return False
 
     @staticmethod

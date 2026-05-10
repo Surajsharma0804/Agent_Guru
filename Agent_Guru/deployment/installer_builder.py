@@ -1,5 +1,4 @@
-"""
-Installer Builder for the Guru Deployment System.
+"""Installer Builder for the Guru Deployment System.
 
 Generates platform-specific installer configurations for:
 - Windows MSI (WiX Toolset)
@@ -17,10 +16,12 @@ from __future__ import annotations
 import platform
 import subprocess
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import structlog
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = structlog.get_logger(__name__)
 
@@ -33,8 +34,8 @@ class WindowsInstallerConfig:
     version: str
     manufacturer: str
     install_dir: str = r"C:\Program Files\AgentGuru"
-    icon_path: Optional[Path] = None
-    license_path: Optional[Path] = None
+    icon_path: Path | None = None
+    license_path: Path | None = None
     start_menu_shortcut: bool = True
     desktop_shortcut: bool = True
     auto_start: bool = False
@@ -48,9 +49,9 @@ class MacOSInstallerConfig:
     app_name: str
     version: str
     bundle_id: str
-    icon_path: Optional[Path] = None
-    background_path: Optional[Path] = None
-    code_sign_identity: Optional[str] = None
+    icon_path: Path | None = None
+    background_path: Path | None = None
+    code_sign_identity: str | None = None
     notarize: bool = False
     min_macos_version: str = "11.0"
 
@@ -64,7 +65,7 @@ class LinuxPackageConfig:
     maintainer: str
     description: str
     homepage: str = ""
-    icon_path: Optional[Path] = None
+    icon_path: Path | None = None
     categories: list[str] = field(default_factory=lambda: ["Utility", "AI"])
     dependencies: list[str] = field(default_factory=list)
 
@@ -80,8 +81,8 @@ class AndroidBuildConfig:
     min_sdk_version: int = 24
     target_sdk_version: int = 34
     permissions: list[str] = field(default_factory=list)
-    icon_path: Optional[Path] = None
-    splash_screen_path: Optional[Path] = None
+    icon_path: Path | None = None
+    splash_screen_path: Path | None = None
     enable_crashlytics: bool = True
     enable_proguard: bool = True
 
@@ -96,16 +97,15 @@ class IOSBuildConfig:
     build_number: int
     min_ios_version: str = "14.0"
     permissions: dict[str, str] = field(default_factory=dict)
-    icon_path: Optional[Path] = None
-    launch_screen_path: Optional[Path] = None
+    icon_path: Path | None = None
+    launch_screen_path: Path | None = None
     enable_crashlytics: bool = True
     team_id: str = ""
     provisioning_profile_name: str = ""
 
 
 class InstallerBuilder:
-    """
-    Generates installer configurations and build scripts.
+    """Generates installer configurations and build scripts.
 
     Actual compilation requires platform-specific toolchains:
     - Windows: WiX Toolset (candle.exe, light.exe)
@@ -124,8 +124,7 @@ class InstallerBuilder:
     # ------------------------------------------------------------------
 
     def generate_windows_wix(self, config: WindowsInstallerConfig) -> Path:
-        """
-        Generate WiX Toolset XML configuration for Windows MSI.
+        """Generate WiX Toolset XML configuration for Windows MSI.
 
         Returns path to the generated .wxs file.
         """
@@ -169,14 +168,14 @@ class InstallerBuilder:
         logger.info("windows_wix_generated", path=str(out_path))
         return out_path
 
-    def build_windows_msi(self, config: WindowsInstallerConfig) -> Optional[Path]:
-        """
-        Build Windows MSI using WiX Toolset (requires candle.exe + light.exe).
+    def build_windows_msi(self, config: WindowsInstallerConfig) -> Path | None:
+        """Build Windows MSI using WiX Toolset (requires candle.exe + light.exe).
 
         Returns path to MSI if successful, None if toolchain not available.
 
         Raises:
             ValueError: If config values contain path traversal sequences.
+
         """
         wxs_path = self.generate_windows_wix(config)
         # Sanitize version/name before embedding in filenames
@@ -193,14 +192,14 @@ class InstallerBuilder:
             # shell=False (explicit) with a list — no shell interpolation possible.
             # All paths are resolved under self._output_dir; no user-controlled
             # shell expansion.  nosec B603: shell=False, args are internally built.
-            subprocess.run(  # nosec B603
-                ["candle.exe", str(wxs_path), "-o", str(wixobj)],
+            subprocess.run(  # nosec B603  # noqa: S603
+                ["candle.exe", str(wxs_path), "-o", str(wixobj)],  # noqa: S607
                 check=True,
                 capture_output=True,
                 shell=False,  # explicit — never allow shell=True here
             )
-            subprocess.run(  # nosec B603
-                ["light.exe", str(wixobj), "-o", str(msi_path)],
+            subprocess.run(  # nosec B603  # noqa: S603
+                ["light.exe", str(wixobj), "-o", str(msi_path)],  # noqa: S607
                 check=True,
                 capture_output=True,
                 shell=False,
@@ -208,7 +207,7 @@ class InstallerBuilder:
             logger.info("windows_msi_built", path=str(msi_path))
             return msi_path
         except (subprocess.CalledProcessError, FileNotFoundError) as exc:
-            logger.warning("windows_msi_build_failed", error=str(exc))
+            logger.exception("windows_msi_build_failed", error=str(exc))
             return None
 
     # ------------------------------------------------------------------
@@ -296,14 +295,16 @@ Homepage: {config.homepage}
 
     def generate_buildozer_spec(self, config: AndroidBuildConfig) -> Path:
         """Generate buildozer.spec for Android APK/AAB build."""
-        permissions = "\n".join(
-            f"android.permissions = {p}" for p in config.permissions
-        ) if config.permissions else "android.permissions = INTERNET,RECORD_AUDIO,CAMERA"
+        permissions = (
+            "\n".join(f"android.permissions = {p}" for p in config.permissions)
+            if config.permissions
+            else "android.permissions = INTERNET,RECORD_AUDIO,CAMERA"
+        )
 
         spec = f"""[app]
 title = {config.app_name}
-package.name = {config.package_name.split('.')[-1]}
-package.domain = {'.'.join(config.package_name.split('.')[:-1])}
+package.name = {config.package_name.split(".")[-1]}
+package.domain = {".".join(config.package_name.split(".")[:-1])}
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = {config.version_name}
@@ -330,8 +331,7 @@ android.enable_androidx = True
     def generate_android_manifest(self, config: AndroidBuildConfig) -> Path:
         """Generate AndroidManifest.xml template."""
         permissions_xml = "\n    ".join(
-            f'<uses-permission android:name="android.permission.{p}" />'
-            for p in config.permissions
+            f'<uses-permission android:name="android.permission.{p}" />' for p in config.permissions
         )
         manifest = f"""<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -375,8 +375,7 @@ android.enable_androidx = True
     def generate_ios_info_plist(self, config: IOSBuildConfig) -> Path:
         """Generate Info.plist for iOS app."""
         permissions_xml = "\n    ".join(
-            f"<key>{k}</key>\n    <string>{v}</string>"
-            for k, v in config.permissions.items()
+            f"<key>{k}</key>\n    <string>{v}</string>" for k, v in config.permissions.items()
         )
         plist = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -416,16 +415,17 @@ android.enable_androidx = True
 
     @staticmethod
     def _safe_filename(value: str) -> str:
-        """
-        Strip characters that are unsafe in filenames or shell arguments.
+        """Strip characters that are unsafe in filenames or shell arguments.
 
         Allows alphanumerics, dots, hyphens, and underscores only.
         Raises ValueError if the result is empty.
         """
         import re
+
         sanitized = re.sub(r"[^\w.\-]", "_", value)
         if not sanitized:
-            raise ValueError(f"Filename component '{value}' is empty after sanitization")
+            msg = f"Filename component '{value}' is empty after sanitization"
+            raise ValueError(msg)
         return sanitized
 
     @staticmethod

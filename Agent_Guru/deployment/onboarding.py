@@ -1,5 +1,4 @@
-"""
-Onboarding flow for the Guru Deployment System.
+"""Onboarding flow for the Guru Deployment System.
 
 Guides new users through complete AGENT_GURU setup:
 1. Welcome
@@ -15,10 +14,10 @@ Supports interrupted onboarding (saves progress, resumes on next launch).
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from pydantic import BaseModel, Field, field_validator
@@ -61,7 +60,8 @@ class UserProfile(BaseModel):
         try:
             date.fromisoformat(v)
         except ValueError as exc:
-            raise ValueError(f"Invalid date_of_birth: {v}") from exc
+            msg = f"Invalid date_of_birth: {v}"
+            raise ValueError(msg) from exc
         return v
 
 
@@ -69,16 +69,17 @@ class LLMConfig(BaseModel):
     """LLM configuration collected during onboarding."""
 
     provider: str = Field(..., pattern=r"^(ollama|openai|gemini|anthropic|deepseek)$")
-    api_key: Optional[str] = Field(None, description="API key for cloud providers")
-    model_name: Optional[str] = None
-    ollama_url: Optional[str] = Field(None, description="Ollama server URL for local mode")
+    api_key: str | None = Field(None, description="API key for cloud providers")
+    model_name: str | None = None
+    ollama_url: str | None = Field(None, description="Ollama server URL for local mode")
 
     @field_validator("api_key")
     @classmethod
-    def validate_api_key(cls, v: Optional[str], info: Any) -> Optional[str]:
+    def validate_api_key(cls, v: str | None, info: Any) -> str | None:  # noqa: ANN401
         # Cloud providers require an API key
         if v is not None and len(v.strip()) == 0:
-            raise ValueError("api_key must not be empty if provided")
+            msg = "api_key must not be empty if provided"
+            raise ValueError(msg)
         return v
 
 
@@ -87,17 +88,16 @@ class OnboardingState(BaseModel):
 
     completed: bool = False
     current_step: OnboardingStep = OnboardingStep.WELCOME
-    profile: Optional[UserProfile] = None
-    llm_config: Optional[LLMConfig] = None
+    profile: UserProfile | None = None
+    llm_config: LLMConfig | None = None
     biometric_enrolled: bool = False
     permissions_granted: list[str] = Field(default_factory=list)
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
+    started_at: str | None = None
+    completed_at: str | None = None
 
 
 class OnboardingManager:
-    """
-    Manages the onboarding flow with persistent state.
+    """Manages the onboarding flow with persistent state.
 
     Supports:
     - Automatic launch on first run
@@ -106,7 +106,7 @@ class OnboardingManager:
     - Back navigation
     """
 
-    def __init__(self, state_path: Optional[Path] = None) -> None:
+    def __init__(self, state_path: Path | None = None) -> None:
         self._state_path = state_path or Path(".guru/onboarding_state.json")
         self._state_path.parent.mkdir(parents=True, exist_ok=True)
         self._state = self._load_state()
@@ -132,13 +132,12 @@ class OnboardingManager:
         return self._state.model_copy(deep=True)
 
     def start_onboarding(self) -> OnboardingState:
-        """
-        Start or resume onboarding.
+        """Start or resume onboarding.
 
         If already completed, resets to allow re-running from settings.
         """
         if not self._state.started_at:
-            self._state.started_at = datetime.now(timezone.utc).isoformat()
+            self._state.started_at = datetime.now(UTC).isoformat()
         self._save_state()
         logger.info("onboarding_started", step=self._state.current_step.value)
         return self.get_state()
@@ -152,10 +151,9 @@ class OnboardingManager:
     def complete_step(
         self,
         step: OnboardingStep,
-        data: Optional[dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
     ) -> OnboardingState:
-        """
-        Complete a step and advance to the next.
+        """Complete a step and advance to the next.
 
         Args:
             step: The step being completed.
@@ -166,11 +164,12 @@ class OnboardingManager:
 
         Raises:
             ValueError: If step data is invalid or step is out of order.
+
         """
         if step != self._state.current_step:
+            msg = f"Expected step '{self._state.current_step.value}', got '{step.value}'"
             raise ValueError(
-                f"Expected step '{self._state.current_step.value}', "
-                f"got '{step.value}'"
+                msg,
             )
 
         self._apply_step_data(step, data or {})
@@ -180,12 +179,11 @@ class OnboardingManager:
             # All steps complete
             self._state.current_step = OnboardingStep.COMPLETE
             self._state.completed = True
-            self._state.completed_at = datetime.now(timezone.utc).isoformat()
+            self._state.completed_at = datetime.now(UTC).isoformat()
             logger.info("onboarding_completed")
         else:
             self._state.current_step = next_step
-            logger.info("onboarding_step_completed", step=step.value,
-                        next_step=next_step.value)
+            logger.info("onboarding_step_completed", step=step.value, next_step=next_step.value)
 
         self._save_state()
         return self.get_state()
@@ -200,16 +198,17 @@ class OnboardingManager:
         return self.get_state()
 
     def skip_step(self, step: OnboardingStep) -> OnboardingState:
-        """
-        Skip an optional step (e.g., biometric enrollment).
+        """Skip an optional step (e.g., biometric enrollment).
 
         Only BIOMETRIC step is skippable.
         """
         _skippable = {OnboardingStep.BIOMETRIC}
         if step not in _skippable:
-            raise ValueError(f"Step '{step.value}' is not skippable")
+            msg = f"Step '{step.value}' is not skippable"
+            raise ValueError(msg)
         if step != self._state.current_step:
-            raise ValueError(f"Cannot skip step '{step.value}' — not the current step")
+            msg = f"Cannot skip step '{step.value}' — not the current step"
+            raise ValueError(msg)
 
         next_step = self._next_step(step)
         self._state.current_step = next_step or OnboardingStep.COMPLETE
@@ -243,7 +242,7 @@ class OnboardingManager:
             self._state.permissions_granted = list(data.get("granted", []))
 
     @staticmethod
-    def _next_step(step: OnboardingStep) -> Optional[OnboardingStep]:
+    def _next_step(step: OnboardingStep) -> OnboardingStep | None:
         """Return the next step after the given step, or None if last."""
         idx = _STEP_ORDER.index(step)
         if idx + 1 < len(_STEP_ORDER):
@@ -256,10 +255,8 @@ class OnboardingManager:
                 raw = json.loads(self._state_path.read_text())
                 return OnboardingState(**raw)
             except Exception as exc:
-                logger.warning("onboarding_state_load_error", error=str(exc))
+                logger.exception("onboarding_state_load_error", error=str(exc))
         return OnboardingState()
 
     def _save_state(self) -> None:
-        self._state_path.write_text(
-            self._state.model_dump_json(indent=2)
-        )
+        self._state_path.write_text(self._state.model_dump_json(indent=2))

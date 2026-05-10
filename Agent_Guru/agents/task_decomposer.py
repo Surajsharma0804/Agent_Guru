@@ -1,5 +1,4 @@
-"""
-Task Decomposer - Decomposes complex tasks into sub-tasks with dependencies.
+"""Task Decomposer - Decomposes complex tasks into sub-tasks with dependencies.
 
 Analyzes task complexity and breaks complex tasks into smaller, manageable
 sub-tasks with clear dependencies and parallelization hints.
@@ -15,7 +14,7 @@ Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from .agent_lifecycle import Agent  # noqa: F401 – re-exported for convenience
 
@@ -38,6 +37,7 @@ class Task:
         dependencies: IDs of tasks that must complete before this one
         parent_task_id: ID of the parent task if this is a sub-task
         metadata: Arbitrary additional data
+
     """
 
     id: str
@@ -47,7 +47,7 @@ class Task:
     success_criteria: list[str]
     priority: int
     dependencies: list[str]
-    parent_task_id: Optional[str] = None
+    parent_task_id: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -61,6 +61,7 @@ class SubTask:
         requirements: Inherited or derived requirements
         dependencies: Indices into the sibling sub-task list
         can_parallelize: Whether this sub-task can run in parallel
+
     """
 
     description: str
@@ -91,7 +92,7 @@ _MULTI_STEP_KEYWORDS = frozenset(
         "third",
         "next",
         "lastly",
-    }
+    },
 )
 
 # Decomposition templates keyed by task_type
@@ -205,6 +206,7 @@ class TaskDecomposer:
         >>> print(len(subtasks))  # 3
 
     Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5
+
     """
 
     def __init__(
@@ -226,15 +228,21 @@ class TaskDecomposer:
             ValueError: If any parameter is out of valid range.
 
         Validates: Requirements 6.4, 6.5
+
         """
         if max_decomposition_depth < 1:
-            raise ValueError("max_decomposition_depth must be >= 1")
-        if min_subtask_count < 2:
-            raise ValueError("min_subtask_count must be >= 2")
+            msg = "max_decomposition_depth must be >= 1"
+            raise ValueError(msg)
+        if min_subtask_count < 2:  # noqa: PLR2004 - Small integer threshold
+
+            msg = "min_subtask_count must be >= 2"
+            raise ValueError(msg)
         if max_subtask_count < min_subtask_count:
-            raise ValueError("max_subtask_count must be >= min_subtask_count")
+            msg = "max_subtask_count must be >= min_subtask_count"
+            raise ValueError(msg)
         if not 0.0 <= complexity_threshold <= 1.0:
-            raise ValueError("complexity_threshold must be in [0.0, 1.0]")
+            msg = "complexity_threshold must be in [0.0, 1.0]"
+            raise ValueError(msg)
 
         self.max_depth = max_decomposition_depth
         self.min_subtasks = min_subtask_count
@@ -256,6 +264,7 @@ class TaskDecomposer:
 
         Time Complexity: O(n) where n is description word count
         Validates: Requirement 6.1
+
         """
         return self._calculate_complexity(task) > self.complexity_threshold
 
@@ -279,6 +288,7 @@ class TaskDecomposer:
 
         Time Complexity: O(k) where k is number of sub-tasks
         Validates: Requirements 6.2, 6.3, 6.4, 6.5
+
         """
         # Depth limit – return as-is
         if current_depth >= self.max_depth:
@@ -315,7 +325,7 @@ class TaskDecomposer:
                         "parent_task": task.id,
                         "can_parallelize": sub.can_parallelize,
                     },
-                )
+                ),
             )
 
         return task_objects
@@ -339,28 +349,35 @@ class TaskDecomposer:
 
         Time Complexity: O(n) where n is description word count
         Validates: Requirement 6.1
+
         """
         score = 0.0
 
         # Factor 1: description length
         words = task.description.lower().split()
-        if len(words) > 50:
+        if len(words) > 50:  # noqa: PLR2004 - Threshold
+
             score += 0.3
-        elif len(words) > 20:
+        elif len(words) > 20:  # noqa: PLR2004 - Threshold
+
             score += 0.2
 
         # Factor 2: number of requirements
         req_count = len(task.requirements)
-        if req_count > 5:
+        if req_count > 5:  # noqa: PLR2004 - Small integer threshold
+
             score += 0.3
-        elif req_count > 3:
+        elif req_count > 3:  # noqa: PLR2004 - Small integer threshold
+
             score += 0.2
 
         # Factor 3: number of success criteria
         criteria_count = len(task.success_criteria)
-        if criteria_count > 5:
+        if criteria_count > 5:  # noqa: PLR2004 - Small integer threshold
+
             score += 0.2
-        elif criteria_count > 3:
+        elif criteria_count > 3:  # noqa: PLR2004 - Small integer threshold
+
             score += 0.1
 
         # Factor 4: complex task type
@@ -387,6 +404,7 @@ class TaskDecomposer:
 
         Time Complexity: O(1) – template lookup
         Validates: Requirements 6.2, 6.3
+
         """
         template = _DECOMPOSITION_TEMPLATES.get(task.task_type)
         if template:

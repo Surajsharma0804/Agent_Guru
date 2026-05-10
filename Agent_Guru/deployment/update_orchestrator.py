@@ -1,5 +1,4 @@
-"""
-Update Orchestrator for the Guru Deployment System.
+"""Update Orchestrator for the Guru Deployment System.
 
 Coordinates multi-package updates with transactional semantics:
 resolve → verify → snapshot → install → commit/rollback.
@@ -11,14 +10,11 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import structlog
 
-from .crypto_verifier import CryptoVerifier
-from .dependency_resolver import DependencyResolver
 from .exceptions import (
     CircularDependencyError,
     DependencyConflictError,
@@ -35,15 +31,20 @@ from .models import (
     TransactionResult,
     TransactionState,
 )
-from .package_manager import PackageManager
-from .rollback_manager import RollbackManager
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from .crypto_verifier import CryptoVerifier
+    from .dependency_resolver import DependencyResolver
+    from .package_manager import PackageManager
+    from .rollback_manager import RollbackManager
 
 logger = structlog.get_logger(__name__)
 
 
 class UpdateOrchestrator:
-    """
-    Coordinates multi-package updates with transactional semantics.
+    """Coordinates multi-package updates with transactional semantics.
 
     Execution order per transaction:
     1. Resolve dependencies
@@ -66,7 +67,7 @@ class UpdateOrchestrator:
         self._cv = crypto_verifier
         self._dr = dependency_resolver
         self._rm = rollback_manager
-        self._active_transaction: Optional[Transaction] = None
+        self._active_transaction: Transaction | None = None
         self._lock = asyncio.Lock()
         self._audit_entries: list[AuditLogEntry] = []
 
@@ -75,36 +76,39 @@ class UpdateOrchestrator:
     # ------------------------------------------------------------------
 
     def begin_update(self, packages: list[tuple[str, str]]) -> Transaction:
-        """
-        Create a new update transaction.
+        """Create a new update transaction.
 
         Raises:
             TransactionInProgressError: If another transaction is active.
+
         """
         if self._active_transaction is not None:
+            msg = f"Transaction '{self._active_transaction.transaction_id}' is already in progress"
             raise TransactionInProgressError(
-                f"Transaction '{self._active_transaction.transaction_id}' is already in progress"
+                msg,
             )
         txn = Transaction(
             transaction_id=str(uuid.uuid4()),
             packages=list(packages),
             state=TransactionState.PENDING,
-            start_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
         )
         self._active_transaction = txn
-        logger.info("transaction_started", transaction_id=txn.transaction_id,
-                    packages=[p[0] for p in packages])
+        logger.info(
+            "transaction_started",
+            transaction_id=txn.transaction_id,
+            packages=[p[0] for p in packages],
+        )
         return txn
 
     async def execute_transaction(
         self,
         transaction: Transaction,
         target_env: Path,
-        package_paths: Optional[dict[str, Path]] = None,
-        signatures: Optional[dict[str, tuple[Optional[bytes], Optional[bytes]]]] = None,
+        package_paths: dict[str, Path] | None = None,
+        signatures: dict[str, tuple[bytes | None, bytes | None]] | None = None,
     ) -> TransactionResult:
-        """
-        Execute an update transaction.
+        """Execute an update transaction.
 
         Args:
             transaction: The transaction to execute.
@@ -114,33 +118,41 @@ class UpdateOrchestrator:
 
         Returns:
             TransactionResult indicating success or failure.
+
         """
         async with self._lock:
             return await self._run_transaction(
-                transaction, target_env, package_paths or {}, signatures or {}
+                transaction,
+                target_env,
+                package_paths or {},
+                signatures or {},
             )
 
     def rollback_transaction(self, transaction: Transaction) -> None:
         """Mark transaction as rolled back and clear active transaction."""
         transaction.state = TransactionState.ROLLED_BACK
-        transaction.end_time = datetime.now(timezone.utc)
-        if self._active_transaction and \
-                self._active_transaction.transaction_id == transaction.transaction_id:
+        transaction.end_time = datetime.now(UTC)
+        if (
+            self._active_transaction
+            and self._active_transaction.transaction_id == transaction.transaction_id
+        ):
             self._active_transaction = None
         logger.info("transaction_rolled_back", transaction_id=transaction.transaction_id)
 
     def commit_transaction(self, transaction: Transaction) -> None:
         """Commit transaction and clean up rollback snapshot."""
         transaction.state = TransactionState.COMMITTED
-        transaction.end_time = datetime.now(timezone.utc)
+        transaction.end_time = datetime.now(UTC)
         if transaction.snapshot_id:
             self._rm.delete_snapshot(transaction.snapshot_id)
-        if self._active_transaction and \
-                self._active_transaction.transaction_id == transaction.transaction_id:
+        if (
+            self._active_transaction
+            and self._active_transaction.transaction_id == transaction.transaction_id
+        ):
             self._active_transaction = None
         logger.info("transaction_committed", transaction_id=transaction.transaction_id)
 
-    def get_active_transaction(self) -> Optional[Transaction]:
+    def get_active_transaction(self) -> Transaction | None:
         """Return the currently active transaction, if any."""
         return self._active_transaction
 
@@ -157,7 +169,7 @@ class UpdateOrchestrator:
         transaction: Transaction,
         target_env: Path,
         package_paths: dict[str, Path],
-        signatures: dict[str, tuple[Optional[bytes], Optional[bytes]]],
+        signatures: dict[str, tuple[bytes | None, bytes | None]],
     ) -> TransactionResult:
         transaction.state = TransactionState.EXECUTING
         installed: list[str] = []
@@ -167,9 +179,7 @@ class UpdateOrchestrator:
             installed_pkgs = self._pm.get_installed_packages(target_env)
             install_order: list[str] = []
             for pkg_name, pkg_version in transaction.packages:
-                graph = self._dr.resolve_dependencies(
-                    pkg_name, pkg_version, installed_pkgs
-                )
+                graph = self._dr.resolve_dependencies(pkg_name, pkg_version, installed_pkgs)
                 order = self._dr.get_installation_order(graph)
                 for p in order:
                     if p not in install_order:
@@ -199,9 +209,12 @@ class UpdateOrchestrator:
 
             # Step 5: Commit
             self.commit_transaction(transaction)
-            self._audit(OperationType.UPDATE, None, "SUCCESS",
-                        {"transaction_id": transaction.transaction_id,
-                         "installed": installed})
+            self._audit(
+                OperationType.UPDATE,
+                None,
+                "SUCCESS",
+                {"transaction_id": transaction.transaction_id, "installed": installed},
+            )
             return TransactionResult(
                 success=True,
                 transaction_id=transaction.transaction_id,
@@ -215,17 +228,24 @@ class UpdateOrchestrator:
             UnsignedPackageError,
             InstallationError,
         ) as exc:
-            logger.error("transaction_failed", transaction_id=transaction.transaction_id,
-                         error=str(exc))
+            logger.exception(
+                "transaction_failed",
+                transaction_id=transaction.transaction_id,
+                error=str(exc),
+            )
             # Rollback
             if transaction.snapshot_id:
                 try:
                     self._rm.restore_snapshot(transaction.snapshot_id, target_env)
                 except Exception as rb_exc:
-                    logger.error("rollback_failed", error=str(rb_exc))
+                    logger.exception("rollback_failed", error=str(rb_exc))
             self.rollback_transaction(transaction)
-            self._audit(OperationType.UPDATE, None, "FAILURE",
-                        {"transaction_id": transaction.transaction_id, "error": str(exc)})
+            self._audit(
+                OperationType.UPDATE,
+                None,
+                "FAILURE",
+                {"transaction_id": transaction.transaction_id, "error": str(exc)},
+            )
             return TransactionResult(
                 success=False,
                 transaction_id=transaction.transaction_id,
@@ -234,23 +254,25 @@ class UpdateOrchestrator:
                 rollback_performed=bool(transaction.snapshot_id),
             )
         finally:
-            if self._active_transaction and \
-                    self._active_transaction.transaction_id == transaction.transaction_id:
+            if (
+                self._active_transaction
+                and self._active_transaction.transaction_id == transaction.transaction_id
+            ):
                 self._active_transaction = None
 
     def _audit(
         self,
         operation: OperationType,
-        package_name: Optional[str],
+        package_name: str | None,
         result: str,
         details: dict,
     ) -> None:
         self._audit_entries.append(
             AuditLogEntry(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation=operation,
                 result=result,
                 package_name=package_name,
                 details=details,
-            )
+            ),
         )

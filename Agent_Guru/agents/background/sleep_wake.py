@@ -1,5 +1,4 @@
-"""
-Sleep/Wake Coordinator - Manages power mode transitions across all components.
+"""Sleep/Wake Coordinator - Manages power mode transitions across all components.
 
 Coordinates sleep/wake transitions to optimise battery usage:
 - Sleep mode: <5% battery per hour (wake word detection only)
@@ -19,9 +18,9 @@ import asyncio
 import logging
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +44,12 @@ class ComponentPowerState:
         mode: Current power mode.
         last_transition: Timestamp of last mode change.
         transition_count: Total number of mode transitions.
+
     """
 
     name: str
     mode: PowerMode
-    last_transition: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    last_transition: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     transition_count: int = 0
 
 
@@ -77,6 +77,7 @@ class SleepWakeCoordinator:
         >>> await coordinator.enter_wake_mode()
 
     Validates: Requirements 12.2, 12.3, 12.10
+
     """
 
     def __init__(
@@ -90,16 +91,18 @@ class SleepWakeCoordinator:
 
         Raises:
             ValueError: If auto_sleep_seconds < 0.
+
         """
         if auto_sleep_seconds < 0:
-            raise ValueError("auto_sleep_seconds must be >= 0")
+            msg = "auto_sleep_seconds must be >= 0"
+            raise ValueError(msg)
 
         self._auto_sleep_seconds = auto_sleep_seconds
         self._components: dict[str, ComponentPowerState] = {}
         self._current_mode: PowerMode = PowerMode.SLEEP
-        self._callback: Optional[ModeChangeCallback] = None
-        self._auto_sleep_task: Optional[asyncio.Task] = None  # type: ignore[type-arg]
-        self._last_activity: datetime = datetime.now(tz=timezone.utc)
+        self._callback: ModeChangeCallback | None = None
+        self._auto_sleep_task: asyncio.Task | None = None  # type: ignore[type-arg]
+        self._last_activity: datetime = datetime.now(tz=UTC)
 
     # ------------------------------------------------------------------
     # Registration
@@ -113,9 +116,11 @@ class SleepWakeCoordinator:
 
         Raises:
             ValueError: If component is already registered.
+
         """
         if name in self._components:
-            raise ValueError(f"Component '{name}' is already registered")
+            msg = f"Component '{name}' is already registered"
+            raise ValueError(msg)
         self._components[name] = ComponentPowerState(
             name=name,
             mode=PowerMode.SLEEP,
@@ -130,9 +135,11 @@ class SleepWakeCoordinator:
 
         Raises:
             KeyError: If component is not registered.
+
         """
         if name not in self._components:
-            raise KeyError(f"Component '{name}' is not registered")
+            msg = f"Component '{name}' is not registered"
+            raise KeyError(msg)
         del self._components[name]
 
     def set_mode_callback(self, callback: ModeChangeCallback) -> None:
@@ -140,6 +147,7 @@ class SleepWakeCoordinator:
 
         Args:
             callback: Async callable(component_name, new_mode).
+
         """
         self._callback = callback
 
@@ -177,7 +185,7 @@ class SleepWakeCoordinator:
         Validates: Requirement 12.2, 12.3
         """
         self._current_mode = PowerMode.WAKE
-        self._last_activity = datetime.now(tz=timezone.utc)
+        self._last_activity = datetime.now(tz=UTC)
 
         for state in self._components.values():
             await self._set_component_mode(state, PowerMode.WAKE)
@@ -190,7 +198,7 @@ class SleepWakeCoordinator:
 
     def record_activity(self) -> None:
         """Record user activity to reset the auto-sleep timer."""
-        self._last_activity = datetime.now(tz=timezone.utc)
+        self._last_activity = datetime.now(tz=UTC)
         if self._auto_sleep_seconds > 0 and self._current_mode == PowerMode.WAKE:
             self._start_auto_sleep_timer()
 
@@ -214,9 +222,11 @@ class SleepWakeCoordinator:
 
         Raises:
             KeyError: If component is not registered.
+
         """
         if name not in self._components:
-            raise KeyError(f"Component '{name}' is not registered")
+            msg = f"Component '{name}' is not registered"
+            raise KeyError(msg)
         return self._components[name].mode
 
     def list_components(self) -> list[ComponentPowerState]:
@@ -227,24 +237,20 @@ class SleepWakeCoordinator:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    async def _set_component_mode(
-        self, state: ComponentPowerState, mode: PowerMode
-    ) -> None:
+    async def _set_component_mode(self, state: ComponentPowerState, mode: PowerMode) -> None:
         """Update a component's power mode and invoke the callback."""
         if state.mode == mode:
             return
 
         state.mode = mode
-        state.last_transition = datetime.now(tz=timezone.utc)
+        state.last_transition = datetime.now(tz=UTC)
         state.transition_count += 1
 
         if self._callback:
             try:
                 await self._callback(state.name, mode)
-            except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "Mode callback failed for '%s': %s", state.name, exc
-                )
+            except Exception as exc:
+                logger.exception("Mode callback failed for '%s': %s", state.name, exc)
 
     def _start_auto_sleep_timer(self) -> None:
         """(Re)start the auto-sleep countdown."""

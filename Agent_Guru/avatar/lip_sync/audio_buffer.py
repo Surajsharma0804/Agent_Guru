@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.avatar.lip_sync.audio_buffer
+"""Module: Agent_Guru.avatar.lip_sync.audio_buffer
 Purpose: Thread-safe ring buffer for streaming audio processing.
 
 Provides smooth audio buffering for lip sync with:
@@ -14,7 +13,6 @@ Requirements: Req 6.2 (Audio buffering smoothness)
 from __future__ import annotations
 
 import threading
-from typing import Optional
 
 import numpy as np
 
@@ -25,6 +23,7 @@ class AudioRingBuffer:
     Args:
         capacity: Maximum number of samples in the buffer.
         dtype: NumPy dtype for audio samples.
+
     """
 
     def __init__(self, capacity: int = 16384, dtype: np.dtype = np.float32) -> None:
@@ -55,6 +54,7 @@ class AudioRingBuffer:
 
         Returns:
             Number of samples actually written (may be less if buffer full).
+
         """
         with self._lock:
             n = len(data)
@@ -67,17 +67,17 @@ class AudioRingBuffer:
             # Handle wrap-around
             end = self._write_pos + n_write
             if end <= self._capacity:
-                self._buffer[self._write_pos:end] = data[:n_write]
+                self._buffer[self._write_pos : end] = data[:n_write]
             else:
                 first = self._capacity - self._write_pos
-                self._buffer[self._write_pos:] = data[:first]
-                self._buffer[:n_write - first] = data[first:n_write]
+                self._buffer[self._write_pos :] = data[:first]
+                self._buffer[: n_write - first] = data[first:n_write]
 
             self._write_pos = (self._write_pos + n_write) % self._capacity
             self._size += n_write
             return n_write
 
-    def read(self, n: int) -> Optional[np.ndarray]:
+    def read(self, n: int) -> np.ndarray | None:
         """Read up to n samples from the buffer.
 
         Args:
@@ -85,6 +85,7 @@ class AudioRingBuffer:
 
         Returns:
             Array of samples, or None if buffer is empty.
+
         """
         with self._lock:
             if self._size == 0:
@@ -95,11 +96,11 @@ class AudioRingBuffer:
 
             end = self._read_pos + n_read
             if end <= self._capacity:
-                out[:] = self._buffer[self._read_pos:end]
+                out[:] = self._buffer[self._read_pos : end]
             else:
                 first = self._capacity - self._read_pos
-                out[:first] = self._buffer[self._read_pos:]
-                out[first:] = self._buffer[:n_read - first]
+                out[:first] = self._buffer[self._read_pos :]
+                out[first:] = self._buffer[: n_read - first]
 
             self._read_pos = (self._read_pos + n_read) % self._capacity
             self._size -= n_read

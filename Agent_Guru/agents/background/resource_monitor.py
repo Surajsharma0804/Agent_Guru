@@ -1,5 +1,4 @@
-"""
-Resource Monitor - Monitors battery, thermal, network, and audio focus.
+"""Resource Monitor - Monitors battery, thermal, network, and audio focus.
 
 Tracks system resource states and triggers appropriate responses:
 - Low battery (<20%): enter sleep mode
@@ -21,14 +20,14 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Battery thresholds
-BATTERY_LOW_THRESHOLD = 20.0       # % — enter sleep mode
+BATTERY_LOW_THRESHOLD = 20.0  # % — enter sleep mode
 BATTERY_CRITICAL_THRESHOLD = 10.0  # % — stop all services
 
 
@@ -46,7 +45,7 @@ class NetworkState(Enum):
 
     ONLINE = "online"
     OFFLINE = "offline"
-    METERED = "metered"   # Connected but limited (mobile data)
+    METERED = "metered"  # Connected but limited (mobile data)
 
 
 class AudioFocusState(Enum):
@@ -54,8 +53,8 @@ class AudioFocusState(Enum):
 
     GAINED = "gained"
     LOST = "lost"
-    LOST_TRANSIENT = "lost_transient"   # Temporary loss (e.g. phone call)
-    DUCKED = "ducked"                   # Reduced volume (e.g. notification)
+    LOST_TRANSIENT = "lost_transient"  # Temporary loss (e.g. phone call)
+    DUCKED = "ducked"  # Reduced volume (e.g. notification)
 
 
 @dataclass
@@ -69,14 +68,15 @@ class ResourceSnapshot:
         network_state: Current network connectivity.
         audio_focus: Current audio focus state.
         timestamp: When this snapshot was taken.
+
     """
 
-    battery_percent: Optional[float]
+    battery_percent: float | None
     is_charging: bool
     thermal_state: ThermalState
     network_state: NetworkState
     audio_focus: AudioFocusState
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 # Async callback type
@@ -104,11 +104,12 @@ class ResourceMonitor:
         >>> snapshot = monitor.get_snapshot()
 
     Validates: Requirements 12.9, 12.10, 12.15, 12.16
+
     """
 
     def __init__(self) -> None:
         """Initialise the resource monitor with safe default states."""
-        self._battery_percent: Optional[float] = 100.0
+        self._battery_percent: float | None = 100.0
         self._is_charging: bool = False
         self._thermal_state: ThermalState = ThermalState.NORMAL
         self._network_state: NetworkState = NetworkState.ONLINE
@@ -125,6 +126,7 @@ class ResourceMonitor:
 
         Args:
             callback: Async callable(ResourceSnapshot).
+
         """
         self._callbacks.append(callback)
 
@@ -136,6 +138,7 @@ class ResourceMonitor:
 
         Raises:
             ValueError: If callback is not registered.
+
         """
         self._callbacks.remove(callback)
 
@@ -143,9 +146,7 @@ class ResourceMonitor:
     # State updates
     # ------------------------------------------------------------------
 
-    async def update_battery(
-        self, percent: float, is_charging: bool = False
-    ) -> None:
+    async def update_battery(self, percent: float, is_charging: bool = False) -> None:
         """Update battery level and trigger callbacks.
 
         Args:
@@ -156,9 +157,12 @@ class ResourceMonitor:
             ValueError: If percent is outside [0, 100].
 
         Validates: Requirement 12.5, 12.10
+
         """
-        if not 0.0 <= percent <= 100.0:
-            raise ValueError(f"Battery percent must be in [0, 100], got {percent}")
+        if not 0.0 <= percent <= 100.0:  # noqa: PLR2004 - Percentage/large threshold
+
+            msg = f"Battery percent must be in [0, 100], got {percent}"
+            raise ValueError(msg)
 
         self._battery_percent = percent
         self._is_charging = is_charging
@@ -177,6 +181,7 @@ class ResourceMonitor:
             state: New thermal state.
 
         Validates: Requirement 12.9
+
         """
         if state != self._thermal_state:
             logger.info("Thermal state changed: %s → %s", self._thermal_state.value, state.value)
@@ -190,6 +195,7 @@ class ResourceMonitor:
             state: New network state.
 
         Validates: Requirement 12.15
+
         """
         if state != self._network_state:
             logger.info("Network state changed: %s → %s", self._network_state.value, state.value)
@@ -203,6 +209,7 @@ class ResourceMonitor:
             state: New audio focus state.
 
         Validates: Requirement 12.16
+
         """
         if state != self._audio_focus:
             logger.info("Audio focus changed: %s → %s", self._audio_focus.value, state.value)
@@ -257,5 +264,5 @@ class ResourceMonitor:
         for callback in self._callbacks:
             try:
                 await callback(snapshot)
-            except Exception as exc:  # noqa: BLE001
-                logger.error("Resource callback failed: %s", exc)
+            except Exception:
+                logger.exception("Resource callback failed")

@@ -1,5 +1,4 @@
-"""
-Data models for the Guru Deployment System.
+"""Data models for the Guru Deployment System.
 
 All models use Pydantic for validation and dataclasses for lightweight structures.
 """
@@ -8,9 +7,9 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 class TransactionState(str, enum.Enum):
@@ -38,9 +37,9 @@ class OperationType(str, enum.Enum):
 class VerificationPolicy(str, enum.Enum):
     """Package signature verification policy."""
 
-    STRICT = "STRICT"       # All packages must be signed
+    STRICT = "STRICT"  # All packages must be signed
     PERMISSIVE = "PERMISSIVE"  # Unsigned packages allowed with warning
-    DISABLED = "DISABLED"   # No verification
+    DISABLED = "DISABLED"  # No verification
 
 
 @dataclass
@@ -52,7 +51,7 @@ class PackageInfo:
     install_path: Path
     dependencies: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
-    install_timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    install_timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     checksum: str = ""
 
 
@@ -96,7 +95,8 @@ class DependencyGraph:
     def topological_sort(self) -> list[str]:
         """Return packages in installation order (dependencies first)."""
         if self.has_cycle():
-            raise ValueError("Dependency graph contains a cycle")
+            msg = "Dependency graph contains a cycle"
+            raise ValueError(msg)
 
         # Build adjacency: src -> [dst] where edge (src, dst) means src depends on dst
         adj: dict[str, list[str]] = {n: [] for n in self.nodes}
@@ -139,8 +139,8 @@ class TrustedKey:
     key_id: str
     public_key: bytes
     owner: str
-    added_timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    expiry: Optional[datetime] = None
+    added_timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    expiry: datetime | None = None
     metadata: dict[str, str] = field(default_factory=dict)
 
 
@@ -152,7 +152,7 @@ class Snapshot:
     timestamp: datetime
     packages: list[PackageInfo] = field(default_factory=list)
     registry_state: bytes = b""
-    storage_path: Path = field(default_factory=lambda: Path("."))
+    storage_path: Path = field(default_factory=lambda: Path())
     size_bytes: int = 0
 
 
@@ -164,8 +164,8 @@ class Transaction:
     packages: list[tuple[str, str]] = field(default_factory=list)
     snapshot_id: str = ""
     state: TransactionState = TransactionState.PENDING
-    start_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    end_time: Optional[datetime] = None
+    start_time: datetime = field(default_factory=lambda: datetime.now(UTC))
+    end_time: datetime | None = None
 
 
 @dataclass
@@ -175,7 +175,7 @@ class TransactionResult:
     success: bool
     transaction_id: str
     installed_packages: list[str] = field(default_factory=list)
-    error: Optional[str] = None
+    error: str | None = None
     rollback_performed: bool = False
 
 
@@ -186,8 +186,8 @@ class AuditLogEntry:
     timestamp: datetime
     operation: OperationType
     result: str  # SUCCESS or FAILURE
-    package_name: Optional[str] = None
-    version: Optional[str] = None
+    package_name: str | None = None
+    version: str | None = None
     details: dict[str, Any] = field(default_factory=dict)
     user: str = "system"
     entry_hash: str = ""  # SHA-256 of previous entry + this entry content
@@ -201,7 +201,7 @@ class RepositoryConfig:
     url: str
     priority: int = 0
     verify_ssl: bool = True
-    credentials: Optional[tuple[str, str]] = None
+    credentials: tuple[str, str] | None = None
 
 
 @dataclass

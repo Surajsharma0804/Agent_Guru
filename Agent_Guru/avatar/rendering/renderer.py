@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.avatar.rendering.renderer
+"""Module: Agent_Guru.avatar.rendering.renderer
 Purpose: Production avatar renderer with FACS-based expression system.
 
 Architecture:
@@ -22,10 +21,9 @@ Requirements: Req 4 (Avatar Rendering), Req 11.5
 from __future__ import annotations
 
 import logging
-import threading
 import time
 from collections import deque
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -35,6 +33,9 @@ from Agent_Guru.avatar.models import (
     EmotionState,
     PersonalityType,
 )
+
+if TYPE_CHECKING:
+    import threading
 
 logger = logging.getLogger("guruvision.avatar.renderer")
 
@@ -46,59 +47,60 @@ logger = logging.getLogger("guruvision.avatar.renderer")
 # BGR colour palettes for each personality
 _PERSONALITY_PALETTE: dict[PersonalityType, dict[str, tuple[int, int, int]]] = {
     PersonalityType.GURU: {
-        "background": (30, 30, 50),       # Dark navy
-        "skin":       (180, 140, 110),     # Warm skin tone
-        "hair":       (40, 30, 20),        # Dark brown
-        "eyes":       (60, 80, 120),       # Blue-grey
-        "text":       (220, 220, 255),     # Light blue-white
-        "accent":     (100, 160, 220),     # Professional blue
+        "background": (30, 30, 50),  # Dark navy
+        "skin": (180, 140, 110),  # Warm skin tone
+        "hair": (40, 30, 20),  # Dark brown
+        "eyes": (60, 80, 120),  # Blue-grey
+        "text": (220, 220, 255),  # Light blue-white
+        "accent": (100, 160, 220),  # Professional blue
     },
     PersonalityType.MAYA: {
-        "background": (40, 20, 40),        # Dark purple
-        "skin":       (200, 160, 130),     # Warm skin tone
-        "hair":       (60, 40, 80),        # Dark purple-brown
-        "eyes":       (80, 120, 80),       # Green
-        "text":       (255, 220, 240),     # Warm pink-white
-        "accent":     (200, 100, 160),     # Warm pink
+        "background": (40, 20, 40),  # Dark purple
+        "skin": (200, 160, 130),  # Warm skin tone
+        "hair": (60, 40, 80),  # Dark purple-brown
+        "eyes": (80, 120, 80),  # Green
+        "text": (255, 220, 240),  # Warm pink-white
+        "accent": (200, 100, 160),  # Warm pink
     },
 }
 
 # Emotion → background tint (BGR)
 _EMOTION_TINT: dict[str, tuple[int, int, int]] = {
-    "joy":          (0, 200, 200),
-    "happy":        (0, 200, 200),
-    "sadness":      (150, 80, 40),
-    "anger":        (30, 30, 200),
-    "fear":         (150, 40, 150),
-    "disgust":      (40, 120, 40),
-    "surprise":     (40, 200, 40),
-    "amusement":    (0, 180, 180),
-    "excitement":   (0, 220, 255),
-    "awe":          (100, 200, 255),
-    "admiration":   (80, 160, 220),
-    "adoration":    (100, 180, 255),
-    "triumph":      (0, 200, 255),
-    "calmness":     (120, 160, 120),
-    "relief":       (100, 180, 100),
+    "joy": (0, 200, 200),
+    "happy": (0, 200, 200),
+    "sadness": (150, 80, 40),
+    "anger": (30, 30, 200),
+    "fear": (150, 40, 150),
+    "disgust": (40, 120, 40),
+    "surprise": (40, 200, 40),
+    "amusement": (0, 180, 180),
+    "excitement": (0, 220, 255),
+    "awe": (100, 200, 255),
+    "admiration": (80, 160, 220),
+    "adoration": (100, 180, 255),
+    "triumph": (0, 200, 255),
+    "calmness": (120, 160, 120),
+    "relief": (100, 180, 100),
     "satisfaction": (80, 180, 80),
-    "nostalgia":    (120, 100, 160),
-    "romance":      (100, 80, 200),
-    "interest":     (60, 160, 200),
+    "nostalgia": (120, 100, 160),
+    "romance": (100, 80, 200),
+    "interest": (60, 160, 200),
     "entrancement": (80, 140, 220),
-    "anxiety":      (100, 60, 140),
-    "awkwardness":  (100, 100, 120),
-    "boredom":      (100, 100, 100),
-    "confusion":    (120, 100, 80),
-    "craving":      (60, 100, 180),
-    "empathic_pain":(80, 60, 120),
-    "horror":       (20, 20, 160),
-    "neutral":      (120, 120, 120),
+    "anxiety": (100, 60, 140),
+    "awkwardness": (100, 100, 120),
+    "boredom": (100, 100, 100),
+    "confusion": (120, 100, 80),
+    "craving": (60, 100, 180),
+    "empathic_pain": (80, 60, 120),
+    "horror": (20, 20, 160),
+    "neutral": (120, 120, 120),
 }
 
 
 # ---------------------------------------------------------------------------
 # FACS expression renderer
 # ---------------------------------------------------------------------------
+
 
 class FACSExpressionRenderer:
     """Render facial expressions using FACS Action Units.
@@ -125,10 +127,11 @@ class FACSExpressionRenderer:
 
         Returns:
             Modified frame.
+
         """
         try:
             import cv2  # type: ignore[import]
-        except ImportError as e:
+        except ImportError:
             return frame
 
         cx, cy = face_center
@@ -160,16 +163,22 @@ class FACSExpressionRenderer:
 
         # Left brow
         lbx = cx - int(r * 0.35)
-        cv2.line(frame,
-                 (lbx - int(r * 0.12), brow_y + int(brow_lower * 3)),
-                 (lbx + int(r * 0.12), brow_y - int(brow_lower * 3)),
-                 brow_color, brow_thickness)
+        cv2.line(
+            frame,
+            (lbx - int(r * 0.12), brow_y + int(brow_lower * 3)),
+            (lbx + int(r * 0.12), brow_y - int(brow_lower * 3)),
+            brow_color,
+            brow_thickness,
+        )
         # Right brow
         rbx = cx + int(r * 0.35)
-        cv2.line(frame,
-                 (rbx - int(r * 0.12), brow_y - int(brow_lower * 3)),
-                 (rbx + int(r * 0.12), brow_y + int(brow_lower * 3)),
-                 brow_color, brow_thickness)
+        cv2.line(
+            frame,
+            (rbx - int(r * 0.12), brow_y - int(brow_lower * 3)),
+            (rbx + int(r * 0.12), brow_y + int(brow_lower * 3)),
+            brow_color,
+            brow_thickness,
+        )
 
         # --- Draw eyes ---
         eye_y = cy - int(r * 0.25)
@@ -178,11 +187,9 @@ class FACSExpressionRenderer:
         eye_color = palette.get("eyes", (60, 80, 120))
 
         # Left eye
-        cv2.ellipse(frame, (cx - int(r * 0.3), eye_y), (eye_rx, eye_ry),
-                    0, 0, 360, eye_color, -1)
+        cv2.ellipse(frame, (cx - int(r * 0.3), eye_y), (eye_rx, eye_ry), 0, 0, 360, eye_color, -1)
         # Right eye
-        cv2.ellipse(frame, (cx + int(r * 0.3), eye_y), (eye_rx, eye_ry),
-                    0, 0, 360, eye_color, -1)
+        cv2.ellipse(frame, (cx + int(r * 0.3), eye_y), (eye_rx, eye_ry), 0, 0, 360, eye_color, -1)
 
         # Eye pupils
         pupil_r = max(1, int(eye_rx * 0.4))
@@ -190,7 +197,8 @@ class FACSExpressionRenderer:
         cv2.circle(frame, (cx + int(r * 0.3), eye_y), pupil_r, (10, 10, 10), -1)
 
         # --- Draw cheeks (AU6) ---
-        if cheek_raise > 0.2:
+        if cheek_raise > 0.2:  # noqa: PLR2004 - Threshold value
+
             int(cheek_raise * 40)
             cheek_color = (80, 80, 200)
             cheek_r = int(r * 0.15)
@@ -203,22 +211,37 @@ class FACSExpressionRenderer:
         mouth_y = cy + int(r * 0.3)
         mouth_w = int(r * 0.35)
 
-        if smile > 0.3:
+        if smile > 0.3:  # noqa: PLR2004 - Threshold value
+
             # Smile arc
             smile_depth = int(smile * r * 0.15)
-            cv2.ellipse(frame, (cx, mouth_y), (mouth_w, smile_depth + 4),
-                        0, 0, 180, (30, 30, 30), 2)
-        elif frown > 0.3:
+            cv2.ellipse(
+                frame,
+                (cx, mouth_y),
+                (mouth_w, smile_depth + 4),
+                0,
+                0,
+                180,
+                (30, 30, 30),
+                2,
+            )
+        elif frown > 0.3:  # noqa: PLR2004 - Threshold value
+
             # Frown arc (inverted)
             frown_depth = int(frown * r * 0.12)
-            cv2.ellipse(frame, (cx, mouth_y + frown_depth), (mouth_w, frown_depth + 4),
-                        0, 180, 360, (30, 30, 30), 2)
+            cv2.ellipse(
+                frame,
+                (cx, mouth_y + frown_depth),
+                (mouth_w, frown_depth + 4),
+                0,
+                180,
+                360,
+                (30, 30, 30),
+                2,
+            )
         else:
             # Neutral line
-            cv2.line(frame,
-                     (cx - mouth_w, mouth_y),
-                     (cx + mouth_w, mouth_y),
-                     (30, 30, 30), 2)
+            cv2.line(frame, (cx - mouth_w, mouth_y), (cx + mouth_w, mouth_y), (30, 30, 30), 2)
 
         return frame
 
@@ -226,6 +249,7 @@ class FACSExpressionRenderer:
 # ---------------------------------------------------------------------------
 # Main renderer
 # ---------------------------------------------------------------------------
+
 
 class AvatarRenderer:
     """Production avatar renderer with FACS expression system.
@@ -237,6 +261,7 @@ class AvatarRenderer:
         height: Display height in pixels.
         title: Window title (opencv backend).
         transition_duration: Emotion transition duration in seconds.
+
     """
 
     def __init__(
@@ -256,9 +281,9 @@ class AvatarRenderer:
         self._transition_duration = transition_duration
 
         self._running = False
-        self._render_thread: Optional[threading.Thread] = None
-        self._last_frame: Optional[np.ndarray] = None
-        self._last_state: Optional[AvatarState] = None
+        self._render_thread: threading.Thread | None = None
+        self._last_frame: np.ndarray | None = None
+        self._last_state: AvatarState | None = None
 
         # FPS tracking
         self._frame_count = 0
@@ -267,8 +292,8 @@ class AvatarRenderer:
         self._frame_times: deque[float] = deque(maxlen=100)
 
         # Transition state
-        self._transition_start: Optional[float] = None
-        self._prev_emotion: Optional[EmotionState] = None
+        self._transition_start: float | None = None
+        self._prev_emotion: EmotionState | None = None
         self._prev_aus: dict[int, float] = {}
 
         # FACS renderer
@@ -289,11 +314,12 @@ class AvatarRenderer:
                 return True
             try:
                 import cv2  # type: ignore[import]
+
                 cv2.namedWindow(self._title, cv2.WINDOW_RESIZABLE)
                 logger.info("OpenCV display initialized (%dx%d)", self._width, self._height)
                 return True
-            except Exception as exc:
-                logger.error("OpenCV display init failed: %s — using headless", exc)
+            except Exception:
+                logger.exception("OpenCV display init failed: %s — using headless")
                 self._backend = "headless"
                 return True
         elif self._backend == "pyqt":
@@ -311,6 +337,7 @@ class AvatarRenderer:
         if self._backend == "opencv" and self._cv2_available:
             try:
                 import cv2  # type: ignore[import]
+
                 cv2.destroyWindow(self._title)
             except cv2.error as exc:
                 logger.debug("cv2.destroyWindow failed during shutdown: %s", exc)
@@ -335,6 +362,7 @@ class AvatarRenderer:
 
         Returns:
             BGR uint8 frame of shape (height, width, 3).
+
         """
         t_start = time.perf_counter()
         frame = np.zeros((self._height, self._width, 3), dtype=np.uint8)
@@ -372,9 +400,16 @@ class AvatarRenderer:
 
             # Draw hair (top arc)
             hair_color = palette["hair"]
-            cv2.ellipse(frame, (cx, cy - face_radius // 4),
-                        (face_radius + 10, face_radius + 20),
-                        0, 180, 360, hair_color, -1)
+            cv2.ellipse(
+                frame,
+                (cx, cy - face_radius // 4),
+                (face_radius + 10, face_radius + 20),
+                0,
+                180,
+                360,
+                hair_color,
+                -1,
+            )
 
             # Apply FACS expressions
             frame = self._facs_renderer.apply_aus(frame, aus, (cx, cy), face_radius, palette)
@@ -382,40 +417,69 @@ class AvatarRenderer:
             # Apply lip sync mouth override
             mouth_open = state.lip_sync.mouth_open_ratio
             lip_spread = state.lip_sync.lip_spread
-            if mouth_open > 0.05:
+            if mouth_open > 0.05:  # noqa: PLR2004 - Threshold value
+
                 mouth_y = cy + int(face_radius * 0.3)
                 mouth_w = int(face_radius * 0.35 * (1.0 + lip_spread * 0.2))
                 mouth_h = max(2, int(face_radius * 0.15 * mouth_open))
                 # Draw open mouth
-                cv2.ellipse(frame, (cx, mouth_y), (mouth_w, mouth_h),
-                            0, 0, 180, (20, 20, 20), -1)
+                cv2.ellipse(frame, (cx, mouth_y), (mouth_w, mouth_h), 0, 0, 180, (20, 20, 20), -1)
                 # Teeth
-                if mouth_open > 0.3:
+                if mouth_open > 0.3:  # noqa: PLR2004 - Threshold value
+
                     teeth_h = max(1, mouth_h - 2)
-                    cv2.ellipse(frame, (cx, mouth_y), (mouth_w - 4, teeth_h),
-                                0, 0, 180, (240, 240, 240), -1)
+                    cv2.ellipse(
+                        frame,
+                        (cx, mouth_y),
+                        (mouth_w - 4, teeth_h),
+                        0,
+                        0,
+                        180,
+                        (240, 240, 240),
+                        -1,
+                    )
 
             # Personality label
             label = state.personality_type.value.upper()
             accent = palette.get("accent", (200, 200, 200))
-            cv2.putText(frame, label, (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, accent, 2)
+            cv2.putText(frame, label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, accent, 2)
 
             # Emotion label with confidence
             emotion_text = f"{state.emotion.emotion} ({state.emotion.confidence:.2f})"
             text_color = palette.get("text", (220, 220, 220))
-            cv2.putText(frame, emotion_text, (10, self._height - 40),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 1)
+            cv2.putText(
+                frame,
+                emotion_text,
+                (10, self._height - 40),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                text_color,
+                1,
+            )
 
             # Valence/arousal indicator
             va_text = f"V:{state.emotion.valence:+.2f} A:{state.emotion.arousal:+.2f}"
-            cv2.putText(frame, va_text, (10, self._height - 20),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, text_color, 1)
+            cv2.putText(
+                frame,
+                va_text,
+                (10, self._height - 20),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.4,
+                text_color,
+                1,
+            )
 
             # FPS counter
             fps_text = f"FPS: {self._measured_fps:.1f}"
-            cv2.putText(frame, fps_text, (self._width - 100, 25),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 1)
+            cv2.putText(
+                frame,
+                fps_text,
+                (self._width - 100, 25),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                text_color,
+                1,
+            )
 
         self._last_frame = frame
         self._last_state = state
@@ -433,19 +497,21 @@ class AvatarRenderer:
 
         Returns:
             True on success.
+
         """
         if self._backend == "opencv" and self._cv2_available:
             try:
                 import cv2  # type: ignore[import]
+
                 cv2.imshow(self._title, frame)
                 cv2.waitKey(1)
                 return True
-            except Exception as exc:
-                logger.error("display_frame failed: %s", exc)
+            except Exception:
+                logger.exception("display_frame failed")
                 return False
         return True  # headless / pyqt
 
-    def get_last_frame(self) -> Optional[np.ndarray]:
+    def get_last_frame(self) -> np.ndarray | None:
         """Return the most recently rendered frame."""
         return self._last_frame
 
@@ -466,8 +532,7 @@ class AvatarRenderer:
     def _interpolate_aus(self, emotion: EmotionState) -> dict[int, float]:
         """Interpolate FACS AUs for smooth emotion transitions."""
         target_aus = {
-            k: v * emotion.confidence
-            for k, v in EMOTION_FACS_MAP.get(emotion.emotion, {}).items()
+            k: v * emotion.confidence for k, v in EMOTION_FACS_MAP.get(emotion.emotion, {}).items()
         }
 
         # Also use AUs from the emotion state itself if provided
@@ -513,6 +578,7 @@ class AvatarRenderer:
     def _check_cv2() -> bool:
         try:
             import cv2  # noqa: F401
+
             return True
         except ImportError:
             return False

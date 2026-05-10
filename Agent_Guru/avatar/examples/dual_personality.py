@@ -1,5 +1,4 @@
-"""
-Example: Switching between Guru and Maya personalities.
+"""Example: Switching between Guru and Maya personalities.
 
 Run:
     python -m Agent_Guru.avatar.examples.dual_personality
@@ -16,13 +15,8 @@ def main() -> None:
 
     for personality in (PersonalityType.GURU, PersonalityType.MAYA, PersonalityType.GURU):
         system.set_personality(personality)
-        state = system.get_current_state()
-        frame = system.render_frame()
-        print(
-            f"Personality: {personality.value:4s} | "
-            f"Formality: {state.personality.formality:.2f} | "
-            f"Frame: {frame.shape}"
-        )
+        system.get_current_state()
+        system.render_frame()
 
     system.stop()
 

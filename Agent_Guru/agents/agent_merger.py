@@ -1,5 +1,4 @@
-"""
-Agent Merger - Merges agents with overlapping specializations.
+"""Agent Merger - Merges agents with overlapping specializations.
 
 This module implements agent merging functionality to reduce redundancy in the
 agent population by combining agents with similar specializations.
@@ -21,7 +20,7 @@ Version: 1.0.0
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -32,8 +31,7 @@ if TYPE_CHECKING:
 
 
 class AgentMerger:
-    """
-    Merges agents with overlapping specializations.
+    """Merges agents with overlapping specializations.
 
     Uses cosine similarity to detect overlap between agent specializations.
     When agents have similarity above threshold, they are merged into a single
@@ -51,6 +49,7 @@ class AgentMerger:
         ...     print(f"Merged agents with similarity {similarity:.2f}")
 
     Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 14.1, 14.2, 14.3
+
     """
 
     def __init__(
@@ -58,9 +57,8 @@ class AgentMerger:
         storage: "AgentStorage",
         lifecycle_manager: "AgentLifecycleManager",
         similarity_threshold: float = 0.85,
-    ):
-        """
-        Initialize agent merger.
+    ) -> None:
+        """Initialize agent merger.
 
         Args:
             storage: Agent storage backend for retrieving agents
@@ -73,10 +71,12 @@ class AgentMerger:
         Time Complexity: O(1)
 
         Validates: Requirements 3.1, 14.2
+
         """
         if not 0.0 <= similarity_threshold <= 1.0:
+            msg = f"similarity_threshold must be in range [0.0, 1.0], got {similarity_threshold}"
             raise ValueError(
-                f"similarity_threshold must be in range [0.0, 1.0], " f"got {similarity_threshold}"
+                msg,
             )
 
         self.storage = storage
@@ -86,8 +86,7 @@ class AgentMerger:
         self._similarity_cache: dict[tuple, float] = {}
 
     async def detect_merge_candidates(self) -> list[tuple[str, str, float]]:
-        """
-        Detect pairs of agents with overlapping specializations.
+        """Detect pairs of agents with overlapping specializations.
 
         Performs pairwise comparison of all active agents using cosine similarity
         on their specialization vectors. Returns pairs that exceed the similarity
@@ -107,6 +106,7 @@ class AgentMerger:
             ...     print(f"Agents {agent1_id} and {agent2_id}: {similarity:.2f}")
 
         Validates: Requirements 3.1, 14.1, 14.2
+
         """
         agents = await self.storage.get_active_agents()
         candidates = []
@@ -115,7 +115,8 @@ class AgentMerger:
         for i, agent1 in enumerate(agents):
             for agent2 in agents[i + 1 :]:
                 similarity = self._calculate_similarity(
-                    agent1.specializations, agent2.specializations
+                    agent1.specializations,
+                    agent2.specializations,
                 )
 
                 if similarity >= self.similarity_threshold:
@@ -127,8 +128,7 @@ class AgentMerger:
         return candidates
 
     async def merge_agents(self, agent_id_1: str, agent_id_2: str) -> "Agent":
-        """
-        Merge two agents into one.
+        """Merge two agents into one.
 
         Creates a new agent that combines the specializations, capabilities,
         and performance histories of both source agents. The merged agent:
@@ -159,12 +159,14 @@ class AgentMerger:
             >>> print(f"Specializations: {merged.specializations}")
 
         Validates: Requirements 3.2, 3.3, 3.4, 3.5, 14.3
+
         """
         agent1 = await self.storage.get_agent(agent_id_1)
         agent2 = await self.storage.get_agent(agent_id_2)
 
         if not agent1 or not agent2:
-            raise ValueError(f"One or both agents not found: {agent_id_1}, {agent_id_2}")
+            msg = f"One or both agents not found: {agent_id_1}, {agent_id_2}"
+            raise ValueError(msg)
 
         # Get performance histories from storage
         agent1.performance_history = await self.storage.get_performance_records(agent_id_1)
@@ -209,14 +211,14 @@ class AgentMerger:
             capabilities=merged_capabilities,
             specializations=merged_specializations,
             performance_history=merged_history,
-            created_at=datetime.now(tz=timezone.utc),
-            last_active=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
+            last_active=datetime.now(tz=UTC),
             total_tasks=agent1.total_tasks + agent2.total_tasks,
             successful_tasks=agent1.successful_tasks + agent2.successful_tasks,
             metadata={
                 "merged_from": [agent_id_1, agent_id_2],
                 "merge_reason": "overlapping_specializations",
-                "merge_timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "merge_timestamp": datetime.now(tz=UTC).isoformat(),
             },
         )
 
@@ -239,7 +241,8 @@ class AgentMerger:
                 "merged_agent": merged_agent.id,
                 "merged_specializations": merged_specializations,
                 "similarity_score": self._calculate_similarity(
-                    agent1.specializations, agent2.specializations
+                    agent1.specializations,
+                    agent2.specializations,
                 ),
             },
         )
@@ -247,8 +250,7 @@ class AgentMerger:
         return merged_agent
 
     def _calculate_similarity(self, spec1: dict[str, float], spec2: dict[str, float]) -> float:
-        """
-        Calculate cosine similarity between specialization vectors.
+        """Calculate cosine similarity between specialization vectors.
 
         Results are cached by frozen key for repeated calls within the same session.
 
@@ -265,6 +267,7 @@ class AgentMerger:
         Performance Target: <1ms per calculation
 
         Validates: Requirements 3.1, 14.1
+
         """
         # Handle empty specializations
         if not spec1 or not spec2:
@@ -288,7 +291,8 @@ class AgentMerger:
         norm2 = np.linalg.norm(vec2)
 
         # Handle zero vectors (no specializations)
-        if norm1 < 1e-10 or norm2 < 1e-10:
+        if norm1 < 1e-10 or norm2 < 1e-10:  # noqa: PLR2004 - Epsilon value
+
             result = 0.0
         else:
             result = float(np.clip(dot_product / (norm1 * norm2), 0.0, 1.0))

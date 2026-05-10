@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.avatar.config
+"""Module: Agent_Guru.avatar.config
 Purpose: Pydantic-validated configuration for the Avatar and Emotion Engine.
 
 Supports:
@@ -17,7 +16,7 @@ import json
 import logging
 import threading
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("guruvision.avatar.config")
 
@@ -35,20 +34,26 @@ try:
         """
 
         # Emotion recognition
-        emotion_model: str = Field(default="auto", description="Emotion backend: DeepFace, FER, heuristic, auto")
+        emotion_model: str = Field(
+            default="auto",
+            description="Emotion backend: DeepFace, FER, heuristic, auto",
+        )
         emotion_confidence_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
         emotion_smoothing_window: int = Field(default=5, ge=1, le=30)
-        map_to_27_emotions: bool = Field(default=True, description="Map 7-emotion output to 27-emotion taxonomy")
+        map_to_27_emotions: bool = Field(
+            default=True,
+            description="Map 7-emotion output to 27-emotion taxonomy",
+        )
 
         # Lip sync
-        lip_sync_model_path: Optional[str] = Field(default=None)
+        lip_sync_model_path: str | None = Field(default=None)
         lip_sync_threshold_ms: float = Field(default=50.0, gt=0.0)
         audio_buffer_size: int = Field(default=4096, ge=512)
 
         # Personality
-        personality_profile_path: Optional[str] = Field(default=None)
-        guru_profile_path: Optional[str] = Field(default=None)
-        maya_profile_path: Optional[str] = Field(default=None)
+        personality_profile_path: str | None = Field(default=None)
+        guru_profile_path: str | None = Field(default=None)
+        maya_profile_path: str | None = Field(default=None)
 
         # Rendering
         render_backend: str = Field(default="headless")
@@ -66,7 +71,7 @@ try:
         enable_gpu: bool = Field(default=True)
 
         # Paths
-        avatar_model_path: Optional[str] = Field(default=None)
+        avatar_model_path: str | None = Field(default=None)
 
         @field_validator("emotion_model")
         @classmethod
@@ -87,23 +92,29 @@ try:
         model_config = {"frozen": False}
 
         @classmethod
-        def from_file(cls, path: str) -> "AvatarConfig":
+        def from_file(cls, path: str) -> AvatarConfig:
             """Load configuration from a JSON or YAML file."""
             from Agent_Guru.utils.path_utils import safe_path as _safe_path
+
             # Resolve the full path first so that any .. sequences are collapsed
             # before we validate containment — prevents CWE-22 path traversal.
             resolved = _safe_path(Path(path).resolve().parent, Path(path).resolve().name)
             if not resolved.exists():
-                raise FileNotFoundError(f"Config file not found: {path}")
+                msg = f"Config file not found: {path}"
+                raise FileNotFoundError(msg)
 
             suffix = resolved.suffix.lower()
             if suffix in (".yaml", ".yml"):
                 try:
                     import yaml  # type: ignore[import]
+
                     with resolved.open() as fh:
                         raw = yaml.safe_load(fh)
-                except ImportError as e:
-                    raise ImportError("PyYAML required for YAML config files: pip install pyyaml") from None
+                except ImportError:
+                    msg = "PyYAML required for YAML config files: pip install pyyaml"
+                    raise ImportError(
+                        msg,
+                    ) from None
             else:
                 with resolved.open() as fh:
                     raw = json.load(fh)
@@ -111,7 +122,7 @@ try:
             return cls(**raw)
 
         @classmethod
-        def default(cls) -> "AvatarConfig":
+        def default(cls) -> AvatarConfig:
             """Return a default configuration."""
             return cls()
 
@@ -140,21 +151,21 @@ except ImportError:
         emotion_confidence_threshold: float = 0.5
         emotion_smoothing_window: int = 5
         map_to_27_emotions: bool = True
-        lip_sync_model_path: Optional[str] = None
+        lip_sync_model_path: str | None = None
         lip_sync_threshold_ms: float = 50.0
         audio_buffer_size: int = 4096
-        personality_profile_path: Optional[str] = None
-        guru_profile_path: Optional[str] = None
-        maya_profile_path: Optional[str] = None
+        personality_profile_path: str | None = None
+        guru_profile_path: str | None = None
+        maya_profile_path: str | None = None
         render_backend: str = "headless"
         target_fps: int = 60
         display_width: int = 640
         display_height: int = 480
         transition_duration_ms: float = 350.0
-        max_cpu_percent: float = 800.0   # sum across all cores — 8 cores × 100% = 800% max
-        max_memory_mb: float = 6144.0   # 6GB — covers Whisper + LLM + avatar
+        max_cpu_percent: float = 800.0  # sum across all cores — 8 cores × 100% = 800% max
+        max_memory_mb: float = 6144.0  # 6GB — covers Whisper + LLM + avatar
         enable_gpu: bool = True
-        avatar_model_path: Optional[str] = None
+        avatar_model_path: str | None = None
 
         def __post_init__(self) -> None:
             if self.emotion_model not in _VALID_EMOTION_MODELS:
@@ -163,18 +174,20 @@ except ImportError:
                 self.render_backend = "headless"
 
         @classmethod
-        def from_file(cls, path: str) -> "AvatarConfig":
+        def from_file(cls, path: str) -> AvatarConfig:
             from Agent_Guru.utils.path_utils import safe_path as _safe_path
+
             resolved = _safe_path(Path(path).resolve().parent, Path(path).resolve().name)
             if not resolved.exists():
-                raise FileNotFoundError(f"Config file not found: {path}")
+                msg = f"Config file not found: {path}"
+                raise FileNotFoundError(msg)
             with resolved.open() as fh:
                 raw = json.load(fh)
             fields = {f.name for f in dataclasses.fields(cls)}
             return cls(**{k: v for k, v in raw.items() if k in fields})
 
         @classmethod
-        def default(cls) -> "AvatarConfig":
+        def default(cls) -> AvatarConfig:
             return cls()
 
         def to_dict(self) -> dict[str, Any]:
@@ -188,6 +201,7 @@ except ImportError:
 # Hot-reload watcher
 # ---------------------------------------------------------------------------
 
+
 class ConfigWatcher:
     """Watch a config file for changes and reload automatically.
 
@@ -195,20 +209,21 @@ class ConfigWatcher:
         config_path: Path to the config file to watch.
         callback: Called with the new AvatarConfig when file changes.
         poll_interval: Polling interval in seconds (watchdog fallback).
+
     """
 
     def __init__(
         self,
         config_path: str,
-        callback: Any,
+        callback: Any,  # noqa: ANN401
         poll_interval: float = 2.0,
     ) -> None:
         self._config_path = Path(config_path).resolve()
         self._callback = callback
         self._poll_interval = poll_interval
-        self._last_mtime: Optional[float] = None
+        self._last_mtime: float | None = None
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
     def start(self) -> None:
         """Start watching the config file."""
@@ -239,10 +254,11 @@ class ConfigWatcher:
                         try:
                             new_config = AvatarConfig.from_file(str(self._config_path))
                             self._callback(new_config)
-                        except Exception as exc:
-                            logger.error("Config reload failed: %s", exc)
+                        except Exception:
+                            logger.exception("Config reload failed")
                     self._last_mtime = mtime
             except Exception as exc:
                 logger.debug("Config watch error: %s", exc)
             import time
+
             time.sleep(self._poll_interval)

@@ -1,14 +1,15 @@
-"""
-Shared fixtures for deployment system tests.
-"""
+"""Shared fixtures for deployment system tests."""
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from Agent_Guru.deployment.models import Configuration, RepositoryConfig, VerificationPolicy
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.fixture
@@ -22,7 +23,7 @@ def config(tmp_path: Path) -> Configuration:
     """Provide a test configuration with temp directories."""
     return Configuration(
         repositories=[
-            RepositoryConfig(name="test-repo", url="https://test.example.com", priority=0)
+            RepositoryConfig(name="test-repo", url="https://test.example.com", priority=0),
         ],
         verification_policy=VerificationPolicy.STRICT,
         cache_dir=tmp_path / "cache",

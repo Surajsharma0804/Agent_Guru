@@ -1,4 +1,5 @@
 """Autonomous Agentic Task Execution with ReAct-style decomposition."""
+
 from __future__ import annotations
 
 import asyncio
@@ -6,7 +7,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,8 @@ MAX_RECOVERY_ATTEMPTS = 3
 CONFIRMATION_REQUIRED_ACTIONS = {"financial", "communication", "persistent_data"}
 
 try:
-    from playwright.async_api import async_playwright  # type: ignore[import]
+    from playwright.async_api import async_playwright  # type: ignore[import]  # noqa: F401
+
     _PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     _PLAYWRIGHT_AVAILABLE = False
@@ -36,6 +38,7 @@ class ActionType(Enum):
 @dataclass
 class UIAction:
     """A single UI action in a task sequence."""
+
     action_type: ActionType
     target: str
     value: str = ""
@@ -46,23 +49,25 @@ class UIAction:
 @dataclass
 class ActionResult:
     """Result of executing a UI action."""
+
     success: bool
     action: UIAction
-    before_state: Optional[str] = None
-    after_state: Optional[str] = None
-    error: Optional[str] = None
+    before_state: str | None = None
+    after_state: str | None = None
+    error: str | None = None
     latency_ms: float = 0.0
 
 
 @dataclass
 class AgenticTask:
     """A high-level agentic task."""
+
     task_id: str
     description: str
     task_type: str = "general"
     actions: list[UIAction] = field(default_factory=list)
     status: str = "pending"
-    result: Optional[str] = None
+    result: str | None = None
     created_at: float = field(default_factory=time.time)
 
 
@@ -84,7 +89,7 @@ class ComputerUseAgent:
         self._cancelled = False
         self._audit_log: list[dict[str, Any]] = []
 
-    async def perceive(self, screenshot: Optional[bytes] = None) -> dict[str, Any]:
+    async def perceive(self, screenshot: bytes | None = None) -> dict[str, Any]:
         """Identify UI elements from screenshot within 200ms."""
         start = time.perf_counter()
         # Stub: in production uses GPT-4V/Gemini Vision
@@ -106,23 +111,27 @@ class ComputerUseAgent:
                 category = "financial"
             elif task.task_type == "email_composition":
                 category = "communication"
-            actions.append(UIAction(
-                action_type=ActionType.CLICK,
-                target=step,
-                requires_confirmation=category in CONFIRMATION_REQUIRED_ACTIONS,
-                action_category=category,
-            ))
+            actions.append(
+                UIAction(
+                    action_type=ActionType.CLICK,
+                    target=step,
+                    requires_confirmation=category in CONFIRMATION_REQUIRED_ACTIONS,
+                    action_category=category,
+                ),
+            )
         if not actions:
-            actions.append(UIAction(
-                action_type=ActionType.CLICK,
-                target=task.description[:50],
-            ))
+            actions.append(
+                UIAction(
+                    action_type=ActionType.CLICK,
+                    target=task.description[:50],
+                ),
+            )
         return actions
 
     async def execute(
         self,
         task: AgenticTask,
-        confirm_callback: Optional[Any] = None,
+        confirm_callback: Any | None = None,  # noqa: ANN401
     ) -> AgenticTask:
         """Execute task with confirmation gate and timeout."""
         self._cancelled = False
@@ -152,9 +161,9 @@ class ComputerUseAgent:
                             task.status = "failed"
                             return task
 
-        except asyncio.TimeoutError as e:
+        except TimeoutError:
             task.status = "timeout"
-            logger.warning("Task %s timed out after %ds", task.task_id, TASK_TIMEOUT_S)
+            logger.exception("Task %s timed out after %ds", task.task_id, task.timeout_seconds if hasattr(task, "timeout_seconds") else 0)
             return task
 
         task.status = "completed"
@@ -189,17 +198,20 @@ class ComputerUseAgent:
         await asyncio.sleep(0)
         elapsed_ms = (time.perf_counter() - start) * 1000
         logger.info("Halted in %.1fms", elapsed_ms)
-        raise asyncio.CancelledError("Task halted by user")
+        msg = "Task halted by user"
+        raise asyncio.CancelledError(msg)
 
     def _log_action(self, action: UIAction, result: ActionResult) -> None:
-        self._audit_log.append({
-            "action": action.action_type.value,
-            "target": action.target,
-            "success": result.success,
-            "before": result.before_state,
-            "after": result.after_state,
-            "ts": time.time(),
-        })
+        self._audit_log.append(
+            {
+                "action": action.action_type.value,
+                "target": action.target,
+                "success": result.success,
+                "before": result.before_state,
+                "after": result.after_state,
+                "ts": time.time(),
+            },
+        )
 
     def get_audit_log(self) -> list[dict[str, Any]]:
         return list(self._audit_log)

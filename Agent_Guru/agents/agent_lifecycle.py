@@ -1,5 +1,4 @@
-"""
-Agent Lifecycle Manager - Manages agent creation, retirement, and lifecycle transitions.
+"""Agent Lifecycle Manager - Manages agent creation, retirement, and lifecycle transitions.
 
 This module handles the complete lifecycle of agents in the orchestration system,
 from creation through retirement, ensuring no pre-defined roles and tracking
@@ -19,7 +18,7 @@ Version: 1.0.0
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -53,8 +52,7 @@ class PerformanceRecord:
 
 @dataclass
 class Agent:
-    """
-    An agent with capabilities and performance history.
+    """An agent with capabilities and performance history.
 
     Agents are dynamically created entities that execute tasks and develop
     specializations based on performance patterns. They are NOT pre-defined
@@ -73,6 +71,7 @@ class Agent:
         metadata: Additional agent metadata
 
     Validates: Requirements 1.1, 1.2
+
     """
 
     id: str
@@ -88,8 +87,7 @@ class Agent:
 
 
 class AgentLifecycleManager:
-    """
-    Manages agent creation, retirement, and lifecycle transitions.
+    """Manages agent creation, retirement, and lifecycle transitions.
 
     Enforces constraints:
     - No pre-defined role names (researcher, coder, planner, etc.)
@@ -109,11 +107,11 @@ class AgentLifecycleManager:
         >>> print(f"Created agent: {agent.id}")
 
     Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 5.1, 5.2, 5.3, 5.4, 5.5
+
     """
 
-    def __init__(self, storage: "AgentStorage"):
-        """
-        Initialize with storage backend.
+    def __init__(self, storage: "AgentStorage") -> None:
+        """Initialize with storage backend.
 
         Args:
             storage: Agent storage backend for persistence
@@ -121,6 +119,7 @@ class AgentLifecycleManager:
         Time Complexity: O(1)
 
         Validates: Requirement 1.1
+
         """
         self.storage = storage
 
@@ -145,10 +144,11 @@ class AgentLifecycleManager:
         }
 
     async def create_agent(
-        self, task_requirements: dict[str, Any], initial_capabilities: dict[str, float]
+        self,
+        task_requirements: dict[str, Any],
+        initial_capabilities: dict[str, float],
     ) -> Agent:
-        """
-        Create new agent based on task requirements.
+        """Create new agent based on task requirements.
 
         Creates a dynamically generated agent with capabilities matching
         the task requirements. Validates that no forbidden role names are
@@ -176,14 +176,18 @@ class AgentLifecycleManager:
             >>> print(f"Agent {agent.id} created with {len(agent.capabilities)} capabilities")
 
         Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5
+
         """
         # Validate no forbidden role names
         # Validates: Requirement 1.3
-        for capability in initial_capabilities.keys():
+        for capability in initial_capabilities:
             if capability.lower() in self.forbidden_role_names:
-                raise ValueError(
+                msg = (
                     f"Forbidden role name '{capability}' in capabilities. "
                     f"Use task-specific capability names instead."
+                )
+                raise ValueError(
+                    msg,
                 )
 
         # Create agent with unique ID — start directly as ACTIVE to avoid
@@ -195,8 +199,8 @@ class AgentLifecycleManager:
             capabilities=initial_capabilities.copy(),
             specializations={},
             performance_history=[],
-            created_at=datetime.now(tz=timezone.utc),
-            last_active=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
+            last_active=datetime.now(tz=UTC),
             total_tasks=0,
             successful_tasks=0,
             metadata={
@@ -210,9 +214,9 @@ class AgentLifecycleManager:
         await self.storage.create_agent_atomic(agent, task_requirements)
 
         return agent
+
     async def retire_agent(self, agent_id: str, reason: str) -> None:
-        """
-        Retire agent due to underperformance or redundancy.
+        """Retire agent due to underperformance or redundancy.
 
         Transitions agent through retiring state to retired, recording
         final performance metrics and evolution event. Performance history
@@ -229,6 +233,7 @@ class AgentLifecycleManager:
             >>> await manager.retire_agent("agent_123", "underperformance")
 
         Validates: Requirements 5.1, 5.2, 5.3, 5.4
+
         """
         agent = await self.storage.get_agent(agent_id)
         if not agent:
@@ -251,7 +256,7 @@ class AgentLifecycleManager:
                 "total_tasks": agent.total_tasks,
                 "success_rate": success_rate,
                 "final_specializations": agent.specializations,
-                "retirement_timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "retirement_timestamp": datetime.now(tz=UTC).isoformat(),
             },
         )
 
@@ -263,8 +268,7 @@ class AgentLifecycleManager:
         # Note: Performance history is NOT deleted (Requirement 5.4)
 
     async def get_active_agents(self) -> list[Agent]:
-        """
-        Get all active agents.
+        """Get all active agents.
 
         Returns:
             List of agents with ACTIVE status
@@ -273,14 +277,18 @@ class AgentLifecycleManager:
         Performance Target: <50ms for 1000 agents
 
         Validates: Requirement 7.5
+
         """
         return await self.storage.query_agents(status=AgentStatus.ACTIVE)
 
     async def _record_evolution_event(
-        self, event_type: str, agent_ids: list[str], reason: str, details: dict[str, Any]
+        self,
+        event_type: str,
+        agent_ids: list[str],
+        reason: str,
+        details: dict[str, Any],
     ) -> None:
-        """
-        Record evolution event for GitHub sync.
+        """Record evolution event for GitHub sync.
 
         Records significant changes in agent population for version control
         and analysis. Events include creation, merge, split, and retirement.
@@ -295,12 +303,13 @@ class AgentLifecycleManager:
         Performance Target: <5ms per event
 
         Validates: Requirements 1.4, 3.5, 5.3, 20.1
+
         """
         event = {
             "event_type": event_type,
             "agent_ids": agent_ids,
             "reason": reason,
             "details": details,
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
         await self.storage.store_evolution_event(event)

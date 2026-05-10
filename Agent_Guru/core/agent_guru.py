@@ -26,10 +26,12 @@ import platform
 import signal
 import threading
 import time
-from collections.abc import Callable
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from Agent_Guru.core.voice_pipeline import PipelineState, VoicePipeline
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,7 @@ class AgentGuru:
     Performance:
         - State transitions: O(1)
         - End-to-end latency: <4s target
+
     """
 
     def __init__(
@@ -69,6 +72,7 @@ class AgentGuru:
             personality: Active personality ("guru" or "maya").
             enable_auth: Enable biometric authentication.
             enable_policy: Enable policy/permission checks.
+
         """
         self.personality = personality
         self.enable_auth = enable_auth
@@ -80,20 +84,20 @@ class AgentGuru:
         self._stop_event = threading.Event()
 
         # Optional subsystem references (lazy-loaded)
-        self._auth_manager: Optional[Any] = None
-        self._policy_manager: Optional[Any] = None
-        self._memory_manager: Optional[Any] = None
+        self._auth_manager: Any | None = None
+        self._policy_manager: Any | None = None
+        self._memory_manager: Any | None = None
 
         # Callbacks for platform-specific integrations
-        self._on_wake: Optional[Callable[[str], None]] = None
-        self._on_response: Optional[Callable[[str], None]] = None
-        self._on_error: Optional[Callable[[str], None]] = None
+        self._on_wake: Callable[[str], None] | None = None
+        self._on_response: Callable[[str], None] | None = None
+        self._on_error: Callable[[str], None] | None = None
 
         # BUG-008: wake word listener thread (optional — registered by caller)
         # When set, _service_loop() starts this in a daemon thread so it runs
         # concurrently with the housekeeping loop.
-        self._wake_word_listener: Optional[Callable[[], None]] = None
-        self._wake_thread: Optional[threading.Thread] = None
+        self._wake_word_listener: Callable[[], None] | None = None
+        self._wake_thread: threading.Thread | None = None
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -105,8 +109,11 @@ class AgentGuru:
         Loads managers lazily to avoid import errors on platforms
         where optional dependencies are not installed.
         """
-        logger.info("Initializing AgentGuru (platform=%s, personality=%s)",
-                    _PLATFORM, self.personality)
+        logger.info(
+            "Initializing AgentGuru (platform=%s, personality=%s)",
+            _PLATFORM,
+            self.personality,
+        )
 
         if self.enable_auth:
             self._init_auth()
@@ -161,6 +168,7 @@ class AgentGuru:
 
         Args:
             personality: Detected personality ("guru" or "maya").
+
         """
         self.personality = personality
         logger.info("Wake word detected: %s", personality)
@@ -173,6 +181,7 @@ class AgentGuru:
 
         Args:
             transcript: Transcribed speech text.
+
         """
         logger.info("Speech captured: %r", transcript[:80])
         self._pipeline.speech_captured(transcript)
@@ -182,6 +191,7 @@ class AgentGuru:
 
         Args:
             response: Response text for TTS.
+
         """
         logger.info("Response ready: %r", response[:80])
         self._pipeline.response_ready(response)
@@ -197,6 +207,7 @@ class AgentGuru:
 
         Args:
             error: Error description.
+
         """
         logger.error("Pipeline error: %s", error)
         self._pipeline.report_error(error)
@@ -286,12 +297,12 @@ class AgentGuru:
             logger.warning(
                 "_service_loop: no wake-word listener registered. "
                 "Call register_wake_word_listener() before run_as_background_service() "
-                "or use the async path in main.py which wires WakeWordManager."
+                "or use the async path in main.py which wires WakeWordManager.",
             )
 
-        _IDLE_POLL_S   = 0.5   # low-power poll when waiting for wake word
+        _IDLE_POLL_S = 0.5  # low-power poll when waiting for wake word
         _ACTIVE_POLL_S = 0.05  # fast poll during active processing
-        _HOUSEKEEP_S   = 60.0  # how often to log housekeeping stats
+        _HOUSEKEEP_S = 60.0  # how often to log housekeeping stats
 
         last_housekeep = time.monotonic()
 
@@ -317,9 +328,7 @@ class AgentGuru:
             self._wake_thread.join(timeout=2.0)
             self._wake_thread = None
 
-    def _on_state_change(
-        self, old_state: PipelineState, new_state: PipelineState
-    ) -> None:
+    def _on_state_change(self, old_state: PipelineState, new_state: PipelineState) -> None:
         """Log pipeline state transitions."""
         logger.debug("State: %s → %s", old_state.value, new_state.value)
 
@@ -333,7 +342,7 @@ class AgentGuru:
             getattr(self._memory_manager, "interaction_count", lambda: "n/a")(),
         )
 
-    def _handle_signal(self, signum: int, frame: Any) -> None:
+    def _handle_signal(self, signum: int, frame: Any) -> None:  # noqa: ANN401
         """Handle OS signals for graceful shutdown."""
         logger.info("Received signal %d — shutting down", signum)
         self.shutdown()
@@ -342,33 +351,37 @@ class AgentGuru:
         """Lazily initialize auth manager."""
         try:
             from Agent_Guru.security.auth_manager import AuthManager
+
             self._auth_manager = AuthManager()
             self._auth_manager.initialize()
             logger.info("AuthManager initialized")
-        except Exception as exc:
-            logger.warning("AuthManager unavailable: %s", exc)
+        except Exception:
+            logger.exception("AuthManager unavailable")
 
     def _init_policy(self) -> None:
         """Lazily initialize policy manager."""
         try:
             from Agent_Guru.policy.policy_manager import PolicyManager
+
             self._policy_manager = PolicyManager()
             self._policy_manager.initialize()
             logger.info("PolicyManager initialized")
-        except Exception as exc:
-            logger.warning("PolicyManager unavailable: %s", exc)
+        except Exception:
+            logger.exception("PolicyManager unavailable")
 
     def _init_memory(self) -> None:
         """Lazily initialize memory manager."""
         try:
             from Agent_Guru.memory.memory_manager import MemoryConfig, MemoryManager
+
             # BUG-028: pass MemoryConfig() so the sync path matches main.py
             # which always passes an explicit config for consistent defaults.
             self._memory_manager = MemoryManager(MemoryConfig())
             logger.info("MemoryManager initialized")
-        except Exception as exc:
-            logger.warning("MemoryManager unavailable: %s", exc)
+        except Exception:
+            logger.exception("MemoryManager unavailable")
 
     def _ensure_initialized(self) -> None:
         if not self._initialized:
-            raise RuntimeError("AgentGuru not initialized. Call initialize() first.")
+            msg = "AgentGuru not initialized. Call initialize() first."
+            raise RuntimeError(msg)

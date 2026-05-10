@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.core.performance
-Purpose: Performance monitoring and optimization utilities
+"""Module: Agent_Guru.core.performance
+Purpose: Performance monitoring and optimization utilities.
 
 Provides:
 - LatencyTracker: Per-stage latency measurement with P50/P95/P99
@@ -32,16 +31,18 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from enum import Enum
+from typing import Self
 
 logger = logging.getLogger(__name__)
 
 
 class PipelineStage(str, Enum):
     """Pipeline stages for latency tracking."""
+
     WAKE_WORD = "wake_word"
     STT = "stt"
     INTENT = "intent"
-    LLM_FIRST_TOKEN = "llm_first_token"  # BUG-032: removed incorrect nosec B105 — not a password
+    LLM_FIRST_TOKEN = "llm_first_token"  # BUG-032: removed incorrect nosec B105 — not a password  # noqa: S105 - Not a real secret
     TTS = "tts"
     END_TO_END = "end_to_end"
     STARTUP = "startup"
@@ -50,7 +51,7 @@ class PipelineStage(str, Enum):
 # Performance targets in milliseconds
 _TARGETS_MS: dict[PipelineStage, float] = {
     PipelineStage.WAKE_WORD: 50.0,
-    PipelineStage.STT: 120.0,       # per second of audio
+    PipelineStage.STT: 120.0,  # per second of audio
     PipelineStage.INTENT: 50.0,
     PipelineStage.LLM_FIRST_TOKEN: 300.0,
     PipelineStage.TTS: 200.0,
@@ -79,7 +80,9 @@ class LatencyStats:
         max_ms: Maximum latency
         target_ms: Performance target
         meets_target: Whether P95 meets the target
+
     """
+
     stage: PipelineStage
     count: int
     mean_ms: float
@@ -93,8 +96,7 @@ class LatencyStats:
 
 
 class LatencyTracker:
-    """
-    Per-stage latency tracker with percentile statistics.
+    """Per-stage latency tracker with percentile statistics.
 
     Uses a fixed-size deque for O(1) append and bounded memory.
     Percentiles computed on demand from sorted samples.
@@ -110,9 +112,11 @@ class LatencyTracker:
 
         Args:
             window_size: Maximum samples to keep per stage
+
         """
         if window_size < 1:
-            raise ValueError(f"window_size must be >= 1, got {window_size}")
+            msg = f"window_size must be >= 1, got {window_size}"
+            raise ValueError(msg)
         self._window_size = window_size
         self._samples: dict[PipelineStage, deque[float]] = {
             stage: deque(maxlen=window_size) for stage in PipelineStage
@@ -127,9 +131,11 @@ class LatencyTracker:
         Args:
             stage: Pipeline stage
             latency_ms: Latency in milliseconds
+
         """
         if latency_ms < 0:
-            raise ValueError(f"latency_ms must be >= 0, got {latency_ms}")
+            msg = f"latency_ms must be >= 0, got {latency_ms}"
+            raise ValueError(msg)
         with self._lock:
             self._samples[stage].append(latency_ms)
 
@@ -143,6 +149,7 @@ class LatencyTracker:
 
         Returns:
             LatencyStats or None if no samples recorded
+
         """
         with self._lock:
             samples = sorted(self._samples[stage])
@@ -180,6 +187,7 @@ class LatencyTracker:
 
         Args:
             stage: Stage to clear, or None to clear all
+
         """
         with self._lock:
             if stage is not None:
@@ -190,13 +198,13 @@ class LatencyTracker:
 
 
 class StageTimer:
-    """
-    Context manager for timing a pipeline stage.
+    """Context manager for timing a pipeline stage.
 
     Example:
         >>> tracker = LatencyTracker()
         >>> with StageTimer(tracker, PipelineStage.INTENT):
         ...     result = parse_intent(text)
+
     """
 
     def __init__(self, tracker: LatencyTracker, stage: PipelineStage) -> None:
@@ -204,7 +212,7 @@ class StageTimer:
         self._stage = stage
         self._start: float = 0.0
 
-    def __enter__(self) -> StageTimer:
+    def __enter__(self) -> Self:
         self._start = time.perf_counter()
         return self
 
@@ -228,6 +236,7 @@ class StartupTimer:
 
         Returns:
             Elapsed time in milliseconds since start
+
         """
         elapsed_ms = (time.perf_counter() - self._start) * 1000
         self._checkpoints[name] = elapsed_ms
@@ -248,8 +257,7 @@ class StartupTimer:
 
 
 class ResourceMonitor:
-    """
-    CPU and memory usage monitor.
+    """CPU and memory usage monitor.
 
     Uses psutil for cross-platform resource monitoring.
     Falls back gracefully if psutil is not available.
@@ -259,9 +267,10 @@ class ResourceMonitor:
         self._psutil_available = False
         try:
             import psutil  # noqa: F401
+
             self._psutil_available = True
-        except ImportError as e:
-            logger.warning("psutil not available - resource monitoring disabled: %s", e)
+        except ImportError:
+            logger.exception("psutil not available - resource monitoring disabled")
 
     def get_cpu_percent(self, interval: float = 0.1) -> float:
         """Get current CPU usage percentage.
@@ -271,14 +280,16 @@ class ResourceMonitor:
 
         Returns:
             CPU usage percentage (0.0-100.0), or -1.0 if unavailable
+
         """
         if not self._psutil_available:
             return -1.0
         try:
             import psutil
+
             return psutil.cpu_percent(interval=interval)
-        except Exception as e:
-            logger.warning("CPU measurement failed: %s", e)
+        except Exception:
+            logger.exception("CPU measurement failed")
             return -1.0
 
     def get_memory_mb(self) -> float:
@@ -286,6 +297,7 @@ class ResourceMonitor:
 
         Returns:
             Memory usage in MB, or -1.0 if unavailable
+
         """
         if not self._psutil_available:
             return -1.0
@@ -293,10 +305,11 @@ class ResourceMonitor:
             import os
 
             import psutil
+
             proc = psutil.Process(os.getpid())
             return proc.memory_info().rss / (1024 * 1024)
-        except Exception as e:
-            logger.warning("Memory measurement failed: %s", e)
+        except Exception:
+            logger.exception("Memory measurement failed")
             return -1.0
 
     def meets_idle_cpu_target(self) -> bool:

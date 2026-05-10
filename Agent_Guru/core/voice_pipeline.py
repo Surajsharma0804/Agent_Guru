@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.core.voice_pipeline
-Purpose: End-to-end voice pipeline state machine
+"""Module: Agent_Guru.core.voice_pipeline
+Purpose: End-to-end voice pipeline state machine.
 
 Wires together:
   wake word → STT → intent → action/LLM → TTS → playback
@@ -27,9 +26,11 @@ from __future__ import annotations
 
 import logging
 import threading
-from collections.abc import Callable
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -40,16 +41,18 @@ _EXIT_COMMANDS = {"exit", "goodbye", "bye", "quit", "shutdown"}
 
 class PipelineState(str, Enum):
     """Voice pipeline states."""
-    IDLE = "idle"               # Waiting for wake word
-    LISTENING = "listening"     # Capturing speech after wake word
-    PROCESSING = "processing"   # Running STT + intent + action/LLM
-    RESPONDING = "responding"   # Playing TTS response
-    PAUSED = "paused"           # Explicitly paused by user
-    STOPPED = "stopped"         # Terminated
+
+    IDLE = "idle"  # Waiting for wake word
+    LISTENING = "listening"  # Capturing speech after wake word
+    PROCESSING = "processing"  # Running STT + intent + action/LLM
+    RESPONDING = "responding"  # Playing TTS response
+    PAUSED = "paused"  # Explicitly paused by user
+    STOPPED = "stopped"  # Terminated
 
 
 class PipelineEvent(str, Enum):
     """Events that drive state transitions."""
+
     WAKE_WORD_DETECTED = "wake_word_detected"
     SPEECH_CAPTURED = "speech_captured"
     INTENT_RESOLVED = "intent_resolved"
@@ -97,8 +100,7 @@ _TRANSITIONS: dict[PipelineState, dict[PipelineEvent, PipelineState]] = {
 
 
 class VoicePipeline:
-    """
-    End-to-end voice pipeline state machine.
+    """End-to-end voice pipeline state machine.
 
     Coordinates all voice assistant components through a well-defined
     state machine. Each state has clear entry/exit actions and valid
@@ -121,6 +123,7 @@ class VoicePipeline:
     Performance:
         - State transition: O(1)
         - Event dispatch: O(k) where k = number of listeners
+
     """
 
     def __init__(self) -> None:
@@ -143,9 +146,8 @@ class VoicePipeline:
         """Return current pipeline state."""
         return self._state
 
-    def dispatch(self, event: PipelineEvent, data: Any = None) -> bool:
-        """
-        Dispatch an event to drive a state transition.
+    def dispatch(self, event: PipelineEvent, data: Any = None) -> bool:  # noqa: ANN401
+        """Dispatch an event to drive a state transition.
 
         Time Complexity: O(1) for transition lookup + O(k) for listeners
 
@@ -155,6 +157,7 @@ class VoicePipeline:
 
         Returns:
             True if transition occurred, False if event not valid in current state
+
         """
         with self._lock:
             current = self._state
@@ -166,20 +169,25 @@ class VoicePipeline:
                 return False
 
             self._state = next_state
-            logger.info("Pipeline: %s → %s (event: %s)", current.value, next_state.value, event.value)
+            logger.info(
+                "Pipeline: %s → %s (event: %s)",
+                current.value,
+                next_state.value,
+                event.value,
+            )
 
         # Notify listeners outside lock
         for listener in self._state_listeners:
             try:
                 listener(current, next_state)
-            except Exception as e:
-                logger.error("State listener error: %s", e)
+            except Exception:
+                logger.exception("State listener error")
 
         for listener in self._event_listeners:
             try:
                 listener(event, data)
-            except Exception as e:
-                logger.error("Event listener error: %s", e)
+            except Exception:
+                logger.exception("Event listener error")
 
         return True
 
@@ -188,6 +196,7 @@ class VoicePipeline:
 
         Args:
             callback: Called with (old_state, new_state) on each transition
+
         """
         self._state_listeners.append(callback)
 
@@ -196,6 +205,7 @@ class VoicePipeline:
 
         Args:
             callback: Called with (event, data) on each dispatch
+
         """
         self._event_listeners.append(callback)
 
@@ -216,6 +226,7 @@ class VoicePipeline:
 
         Args:
             transcript: STT transcription result
+
         """
         self._last_transcript = transcript
 
@@ -234,15 +245,20 @@ class VoicePipeline:
         Args:
             intent: Resolved intent name
             response: Optional response text for TTS
+
         """
         self._last_response = response
-        return self.dispatch(PipelineEvent.INTENT_RESOLVED, {"intent": intent, "response": response})
+        return self.dispatch(
+            PipelineEvent.INTENT_RESOLVED,
+            {"intent": intent, "response": response},
+        )
 
     def response_ready(self, response: str) -> bool:
         """Signal that LLM response is ready for TTS.
 
         Args:
             response: LLM response text
+
         """
         self._last_response = response
         return self.dispatch(PipelineEvent.RESPONSE_READY, response)
@@ -256,6 +272,7 @@ class VoicePipeline:
 
         Args:
             error: Error description
+
         """
         self._error_count += 1
         logger.error("Pipeline error: %s", error)

@@ -1,5 +1,4 @@
-"""
-Rollback Manager for the Guru Deployment System.
+"""Rollback Manager for the Guru Deployment System.
 
 Creates snapshots of system state and restores them on failure.
 Uses hard links where possible to minimize disk usage (Property 37).
@@ -12,11 +11,9 @@ from __future__ import annotations
 
 import html
 import json
-import pickle
 import shutil
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import structlog
 
@@ -30,14 +27,16 @@ from .models import (
     Snapshot,
 )
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 logger = structlog.get_logger(__name__)
 
 _MIN_FREE_BYTES = 100 * 1024 * 1024  # 100 MB minimum
 
 
 class RollbackManager:
-    """
-    Creates and restores system snapshots for transactional rollback.
+    """Creates and restores system snapshots for transactional rollback.
 
     Snapshots are stored as JSON metadata + pickled package list in
     the .guru/snapshots/ directory.
@@ -57,10 +56,9 @@ class RollbackManager:
         self,
         snapshot_id: str,
         packages: list[PackageInfo],
-        target_env: Optional[Path] = None,
+        target_env: Path | None = None,
     ) -> Snapshot:
-        """
-        Create a snapshot of the current system state.
+        """Create a snapshot of the current system state.
 
         Args:
             snapshot_id: Unique identifier for this snapshot.
@@ -72,9 +70,11 @@ class RollbackManager:
 
         Raises:
             InsufficientSpaceError: If not enough disk space.
+
         """
         if not snapshot_id or not snapshot_id.strip():
-            raise ValueError("snapshot_id must not be empty")
+            msg = "snapshot_id must not be empty"
+            raise ValueError(msg)
 
         snap_dir = self._snapshot_dir / snapshot_id
         if snap_dir.exists():
@@ -85,7 +85,7 @@ class RollbackManager:
         if self._config.require_space_checks:
             self._check_space(snap_dir)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         snapshot = Snapshot(
             snapshot_id=snapshot_id,
             timestamp=now,
@@ -117,37 +117,50 @@ class RollbackManager:
         size = sum(f.stat().st_size for f in snap_dir.rglob("*") if f.is_file())
         snapshot.size_bytes = size
 
-        self._audit(OperationType.SNAPSHOT, None, "SUCCESS",
-                    {"snapshot_id": snapshot_id, "package_count": len(packages)})
-        logger.info("snapshot_created", snapshot_id=snapshot_id,
-                    packages=len(packages), size_bytes=size)
+        self._audit(
+            OperationType.SNAPSHOT,
+            None,
+            "SUCCESS",
+            {"snapshot_id": snapshot_id, "package_count": len(packages)},
+        )
+        logger.info(
+            "snapshot_created",
+            snapshot_id=snapshot_id,
+            packages=len(packages),
+            size_bytes=size,
+        )
         return snapshot
 
     def restore_snapshot(
         self,
         snapshot_id: str,
-        target_env: Optional[Path] = None,
+        target_env: Path | None = None,
     ) -> list[PackageInfo]:
-        """
-        Restore system to a previous snapshot.
+        """Restore system to a previous snapshot.
 
         Returns the list of packages from the snapshot.
 
         Raises:
             SnapshotNotFoundError: If snapshot does not exist.
             RestoreError: If restore fails.
+
         """
         snap_dir = self._snapshot_dir / snapshot_id
         if not snap_dir.exists():
-            raise SnapshotNotFoundError(f"Snapshot '{html.escape(str(snapshot_id))}' not found")
+            msg = f"Snapshot '{html.escape(str(snapshot_id))}' not found"
+            raise SnapshotNotFoundError(msg)
 
         meta_path = snap_dir / "metadata.json"
         if not meta_path.exists():
-            raise RestoreError(f"Snapshot '{html.escape(str(snapshot_id))}' is corrupted (missing metadata.json)")
+            msg = f"Snapshot '{html.escape(str(snapshot_id))}' is corrupted (missing metadata.json)"
+            raise RestoreError(
+                msg,
+            )
 
         try:
             meta = json.loads(meta_path.read_text())
             import datetime as _dt
+
             packages: list[PackageInfo] = [
                 PackageInfo(
                     name=p["name"],
@@ -160,10 +173,16 @@ class RollbackManager:
                 for p in meta.get("packages", [])
             ]
         except Exception as exc:
-            raise RestoreError(f"Failed to load snapshot '{html.escape(str(snapshot_id))}': {exc}") from exc
-
-        self._audit(OperationType.ROLLBACK, None, "SUCCESS",
-                    {"snapshot_id": snapshot_id, "package_count": len(packages)})
+            msg = f"Failed to load snapshot '{html.escape(str(snapshot_id))}': {exc}"
+            raise RestoreError(
+                msg,
+            ) from exc
+        self._audit(
+            OperationType.ROLLBACK,
+            None,
+            "SUCCESS",
+            {"snapshot_id": snapshot_id, "package_count": len(packages)},
+        )
         logger.info("snapshot_restored", snapshot_id=snapshot_id, packages=len(packages))
         return packages
 
@@ -193,16 +212,14 @@ class RollbackManager:
                         packages=[],  # Lazy-load packages on restore
                         storage_path=snap_dir,
                         size_bytes=size,
-                    )
+                    ),
                 )
             except Exception as exc:
-                logger.warning("snapshot_metadata_error", path=str(snap_dir), error=str(exc))
-
+                logger.exception("snapshot_metadata_error", path=str(snap_dir), error=str(exc))
         return sorted(snapshots, key=lambda s: s.timestamp, reverse=True)
 
-    def prune_snapshots(self, retention_policy: Optional[RetentionPolicy] = None) -> int:
-        """
-        Prune old snapshots according to retention policy.
+    def prune_snapshots(self, retention_policy: RetentionPolicy | None = None) -> int:
+        """Prune old snapshots according to retention policy.
 
         Returns number of snapshots deleted.
         """
@@ -211,7 +228,7 @@ class RollbackManager:
         deleted = 0
 
         # Keep the most recent max_snapshots
-        to_delete = snapshots[policy.max_snapshots:]
+        to_delete = snapshots[policy.max_snapshots :]
         for snap in to_delete:
             self.delete_snapshot(snap.snapshot_id)
             deleted += 1
@@ -239,12 +256,14 @@ class RollbackManager:
 
         Raises:
             ValueError: If the resolved path escapes ``self._snapshot_dir``.
+
         """
         base = self._snapshot_dir.resolve()
         resolved = path.resolve()
         if not resolved.is_relative_to(base):
+            msg = f"Path '{path}' resolves outside the allowed snapshot directory '{base}'"
             raise ValueError(
-                f"Path '{path}' resolves outside the allowed snapshot directory '{base}'"
+                msg,
             )
         return resolved
 
@@ -252,31 +271,36 @@ class RollbackManager:
         """Raise InsufficientSpaceError if free space is below minimum."""
         try:
             usage = shutil.disk_usage(str(path))
-            min_bytes = int(self._config.min_free_space_gb * 1024 ** 3)
+            min_bytes = int(self._config.min_free_space_gb * 1024**3)
             if usage.free < max(min_bytes, _MIN_FREE_BYTES):
-                raise InsufficientSpaceError(
+                msg = (
                     f"Insufficient disk space for snapshot. "
                     f"Required: {min_bytes / (1024**3):.2f} GB, "
                     f"Available: {usage.free / (1024**3):.2f} GB"
                 )
-        except InsufficientSpaceError as e:
+                raise InsufficientSpaceError(
+                    msg,
+                )
+        except InsufficientSpaceError as exc:
             raise
-        except OSError as exc:
-            logger.warning("disk_check_failed", path=str(path), error=str(exc))  # Non-fatal if disk check fails
-
+            logger.exception(
+                "disk_check_failed",
+                path=str(path),
+                error=str(exc),
+            )  # Non-fatal if disk check fails
     def _audit(
         self,
         operation: OperationType,
-        package_name: Optional[str],
+        package_name: str | None,
         result: str,
         details: dict,
     ) -> None:
         self._audit_entries.append(
             AuditLogEntry(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation=operation,
                 result=result,
                 package_name=package_name,
                 details=details,
-            )
+            ),
         )
