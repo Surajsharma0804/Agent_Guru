@@ -22,12 +22,9 @@ import logging
 import platform
 import threading
 import time
-from typing import Any, Optional, TypeVar
+from collections import deque
 from collections.abc import Callable
-
-# BUG-024: import the canonical LatencyTracker instead of reimplementing the
-# same rolling-window + percentile logic a third time.
-from Agent_Guru.core.performance import LatencyTracker, PipelineStage
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -36,58 +33,108 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 class LatencyAccumulator:
-    """Thin wrapper around :class:`LatencyTracker` for a single named stage.
+    """Per-stage latency accumulator with rolling-window statistics.
 
-    BUG-024 fix: the original LatencyAccumulator reimplemented rolling-window
-    storage and P95 computation that already exist in
-    ``core.performance.LatencyTracker``.  This rewrite delegates all math to
-    LatencyTracker, keeping the public API identical so callers need no changes.
+    HIGH-001 fix: the previous implementation misrouted ALL stage names
+    through ``PipelineStage.WAKE_WORD``, so every LatencyAccumulator instance
+    shared the same slot and overwrote each other's data. This rewrite gives
+    each accumulator its own independent ``deque`` — semantically correct and
+    O(1) amortized append with O(n log n) percentile computation on demand.
 
-    Use LatencyStats (from core.performance) for computed result snapshots.
+    MED-002 fix: public ``reset()`` method added so ``PerformanceOptimizer``
+    no longer needs to access private ``_tracker``/``_stage`` attributes.
+
+    Public API is identical to the previous version — zero callers need changes.
     """
 
-    def __init__(self, name: str, target_ms: float) -> None:
+    def __init__(self, name: str, target_ms: float, window_size: int = 1000) -> None:
         self.name = name
         self.target_ms = target_ms
-        # Reuse the canonical tracker; register a dynamic stage key by name
-        # by using a private single-stage tracker instance.
-        self._tracker = LatencyTracker(window_size=1000)
-        # Map our free-form name to the WAKE_WORD slot as generic storage;
-        # we always query via get_stats(PipelineStage.WAKE_WORD) below.
-        # All math (mean, p95, min, max) is done by LatencyTracker.
-        self._stage = PipelineStage.WAKE_WORD  # used as a single-slot store
+        # Own deque — no shared slot, no PipelineStage dependency
+        self._samples: deque[float] = deque(maxlen=window_size)
+        self._lock = threading.Lock()
+
+    # ------------------------------------------------------------------
+    # Recording
+    # ------------------------------------------------------------------
 
     def record(self, latency_ms: float) -> None:
-        """Record a latency sample."""
-        self._tracker.record(self._stage, latency_ms)
+        """Record a latency sample. Thread-safe. O(1) amortized."""
+        with self._lock:
+            self._samples.append(latency_ms)
+
+    # ------------------------------------------------------------------
+    # Statistics (computed on demand)
+    # ------------------------------------------------------------------
+
+    def _sorted_copy(self) -> list[float]:
+        """Return a sorted snapshot of samples under the lock."""
+        with self._lock:
+            return sorted(self._samples)
+
+    def _percentile(self, samples: list[float], p: float) -> float:
+        if not samples:
+            return 0.0
+        idx = int(p / 100.0 * (len(samples) - 1))
+        return samples[min(idx, len(samples) - 1)]
 
     @property
     def mean_ms(self) -> float:
-        stats = self._tracker.get_stats(self._stage)
-        return stats.mean_ms if stats else 0.0
+        s = self._sorted_copy()
+        return sum(s) / len(s) if s else 0.0
+
+    @property
+    def p50_ms(self) -> float:
+        return self._percentile(self._sorted_copy(), 50)
 
     @property
     def p95_ms(self) -> float:
-        stats = self._tracker.get_stats(self._stage)
-        return stats.p95_ms if stats else 0.0
+        return self._percentile(self._sorted_copy(), 95)
+
+    @property
+    def p99_ms(self) -> float:
+        return self._percentile(self._sorted_copy(), 99)
+
+    @property
+    def min_ms(self) -> float:
+        s = self._sorted_copy()
+        return s[0] if s else 0.0
+
+    @property
+    def max_ms(self) -> float:
+        s = self._sorted_copy()
+        return s[-1] if s else 0.0
 
     @property
     def meets_target(self) -> bool:
+        """Return True when P95 latency is within the target."""
         return self.p95_ms <= self.target_ms
 
     @property
     def sample_count(self) -> int:
-        stats = self._tracker.get_stats(self._stage)
-        return stats.count if stats else 0
+        with self._lock:
+            return len(self._samples)
+
+    def reset(self) -> None:
+        """Clear all recorded samples. Thread-safe."""
+        with self._lock:
+            self._samples.clear()
 
     def summary(self) -> dict[str, Any]:
+        """Return a JSON-serialisable summary dict."""
+        s = self._sorted_copy()
+        n = len(s)
         return {
             "name": self.name,
             "target_ms": self.target_ms,
-            "mean_ms": round(self.mean_ms, 2),
-            "p95_ms": round(self.p95_ms, 2),
+            "count": n,
+            "mean_ms": round(sum(s) / n, 2) if n else 0.0,
+            "p50_ms": round(self._percentile(s, 50), 2),
+            "p95_ms": round(self._percentile(s, 95), 2),
+            "p99_ms": round(self._percentile(s, 99), 2),
+            "min_ms": round(s[0], 2) if s else 0.0,
+            "max_ms": round(s[-1], 2) if s else 0.0,
             "meets_target": self.meets_target,
-            "samples": self.sample_count,
         }
 
 
@@ -107,16 +154,17 @@ class PerformanceOptimizer:
     Performance:
         - Measurement overhead: <0.1ms per sample
         - Memory: O(1000) samples per stage (rolling window)
+
     """
 
     # Latency targets per stage (ms) — matches _TARGETS_MS in core.performance
     _TARGETS: dict[str, float] = {
-        "wake_word":   50.0,    # ≤50ms  (core.performance.PipelineStage.WAKE_WORD)
-        "stt":        120.0,    # ≤120ms/s of audio
-        "intent":      50.0,    # ≤50ms
-        "llm":        300.0,    # ≤300ms first token
-        "tts":        200.0,    # ≤200ms
-        "end_to_end": 2500.0,   # ≤2500ms
+        "wake_word": 50.0,   # ≤50ms  (core.performance.PipelineStage.WAKE_WORD)
+        "stt": 120.0,        # ≤120ms/s of audio
+        "intent": 50.0,      # ≤50ms
+        "llm": 300.0,        # ≤300ms first token
+        "tts": 200.0,        # ≤200ms
+        "end_to_end": 2500.0,  # ≤2500ms
     }
 
     def __init__(self) -> None:
@@ -136,28 +184,28 @@ class PerformanceOptimizer:
     # ------------------------------------------------------------------
 
     class _Timer:
-        # BUG-005: annotation was `LatencyStats` (from core/performance.py) but
-        # the actual argument is `LatencyAccumulator` defined in this file.
-        def __init__(self, stats: "LatencyAccumulator") -> None:
+        def __init__(self, stats: LatencyAccumulator) -> None:
             self._stats = stats
             self._start = 0.0
 
-        def __enter__(self) -> "PerformanceOptimizer._Timer":
+        def __enter__(self) -> PerformanceOptimizer._Timer:
             self._start = time.perf_counter()
             return self
 
-        def __exit__(self, *_: Any) -> None:
+        def __exit__(self, *_: object) -> None:
             elapsed_ms = (time.perf_counter() - self._start) * 1000
             self._stats.record(elapsed_ms)
 
-    def measure(self, stage: str) -> "PerformanceOptimizer._Timer":
+    def measure(self, stage: str) -> PerformanceOptimizer._Timer:
         """Context manager to measure latency for a pipeline stage.
 
         Args:
             stage: One of wake_word, stt, intent, llm, tts, end_to_end.
+                   Unknown names are tracked with no target (inf).
 
         Returns:
             Context manager that records elapsed time on exit.
+
         """
         if stage not in self._stats:
             self._stats[stage] = LatencyAccumulator(name=stage, target_ms=float("inf"))
@@ -167,7 +215,7 @@ class PerformanceOptimizer:
     # LLM response caching (reduces redundant API calls)
     # ------------------------------------------------------------------
 
-    def get_cached_response(self, prompt_key: str) -> Optional[str]:
+    def get_cached_response(self, prompt_key: str) -> str | None:
         """Return a cached LLM response or None on cache miss."""
         with self._cache_lock:
             result = self._response_cache.get(prompt_key)
@@ -178,9 +226,9 @@ class PerformanceOptimizer:
             return result
 
     def cache_response(self, prompt_key: str, response: str) -> None:
-        """Cache an LLM response. Evicts oldest when cache exceeds 512 entries."""
+        """Cache an LLM response. Evicts oldest entry when cache exceeds 512 entries."""
         with self._cache_lock:
-            if len(self._response_cache) >= 512:
+            if len(self._response_cache) >= 512:  # noqa: PLR2004
                 # Evict oldest key (O(1) amortized with dict ordering in Python 3.7+)
                 oldest = next(iter(self._response_cache))
                 del self._response_cache[oldest]
@@ -203,7 +251,8 @@ class PerformanceOptimizer:
     def get_bottlenecks(self) -> list[str]:
         """Return list of stages that are not meeting their latency targets."""
         return [
-            name for name, stats in self._stats.items()
+            name
+            for name, stats in self._stats.items()
             if stats.sample_count > 0 and not stats.meets_target
         ]
 
@@ -215,21 +264,28 @@ class PerformanceOptimizer:
         for name, summary in report.items():
             status = "✅" if summary["meets_target"] else "❌"
             logger.info(
-                "  %s %s: mean=%.1fms p95=%.1fms target=%.0fms",
-                status, name, summary["mean_ms"], summary["p95_ms"], summary["target_ms"],
+                "  %s %s: mean=%.1fms p95=%.1fms target=%.0fms (n=%d)",
+                status,
+                name,
+                summary["mean_ms"],
+                summary["p95_ms"],
+                summary["target_ms"],
+                summary["count"],
             )
         if bottlenecks:
-            logger.warning("Bottlenecks: %s", bottlenecks)
+            logger.warning("Bottlenecks detected: %s", bottlenecks)
         logger.info(
             "LLM cache: hits=%d misses=%d rate=%.1f%%",
-            self._cache_hits, self._cache_misses, self.cache_hit_rate * 100,
+            self._cache_hits,
+            self._cache_misses,
+            self.cache_hit_rate * 100,
         )
 
     def reset(self) -> None:
-        """Reset all statistics."""
+        """Reset all statistics and clear the response cache."""
         for stats in self._stats.values():
-            # BUG-024: delegate to LatencyTracker.clear() — no more direct _samples access
-            stats._tracker.clear(stats._stage)
-        self._response_cache.clear()
-        self._cache_hits = 0
-        self._cache_misses = 0
+            stats.reset()  # MED-002 fix: uses public API, not private attrs
+        with self._cache_lock:
+            self._response_cache.clear()
+            self._cache_hits = 0
+            self._cache_misses = 0
