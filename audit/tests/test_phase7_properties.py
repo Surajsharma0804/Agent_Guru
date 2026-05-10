@@ -52,18 +52,22 @@ def _module_layer(file_path: str) -> str | None:
 
 
 def _is_lazy_import_line(node: ast.AST, source_lines: list[str]) -> bool:
-    """Return True if this import has a # noqa: PLC0415 comment on its line.
+    """Return True if this import has a # layer-exempt or # noqa: PLC0415 marker.
 
-    PLC0415 = 'import-outside-toplevel' — we explicitly allow lazy imports
-    that are annotated with this noqa comment because they are an accepted
-    architectural pattern for avoiding circular / layer-crossing imports at
-    the module boundary while still using the cross-layer utility at runtime.
+    Lazy imports that are intentionally inside functions to avoid module-level
+    layer crossing are annotated with:
+        # layer-exempt: <reason>
+    or (for backwards compatibility):
+        # noqa: PLC0415
+
+    These are accepted architectural patterns for optional dependencies and
+    cross-layer utilities that are only needed at runtime.
     """
     lineno = getattr(node, "lineno", None)
     if lineno is None or lineno > len(source_lines):
         return False
     line = source_lines[lineno - 1]  # lineno is 1-indexed
-    return "PLC0415" in line
+    return "layer-exempt" in line or "PLC0415" in line
 
 
 def detect_layer_violations(

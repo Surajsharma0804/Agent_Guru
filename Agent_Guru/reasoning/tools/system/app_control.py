@@ -44,7 +44,7 @@ class PlatformAppController:
         try:
             if system == "windows":
                 # Lazy import: keeps reasoning/ free of module-level platform/ dependency
-                from Agent_Guru.platform.subprocess_utils import run_cmd
+                from Agent_Guru.platform.subprocess_utils import run_cmd  # layer-exempt: lazy import avoids module-level reasoning→platform dependency
 
                 # Windows: use cmd /c start to launch via App Paths registry
                 run_cmd(["cmd", "/c", "start", "", app_name], check=False)  # nosec B603 B607

@@ -71,7 +71,7 @@ def _detect_platform() -> str:
     """
     # Lazy import: platform layer is only needed at runtime, not import time.
     # This keeps memory/ independent of platform/ at the module boundary.
-    from Agent_Guru.platform.platform_detector import PlatformDetector
+    from Agent_Guru.platform.platform_detector import PlatformDetector  # layer-exempt: lazy import avoids module-level memory→platform dependency
 
     return PlatformDetector.detect().os_name.lower()
 
