@@ -1,5 +1,4 @@
-"""
-Emotion recognition module.
+"""Emotion recognition module.
 
 Classifies 7 emotions from an aligned 112x112 face image.
 Uses an ONNX model when available; falls back to a brightness/contrast
@@ -11,7 +10,6 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 
@@ -20,7 +18,13 @@ from Agent_Guru.vision.exceptions import InvalidImageError
 logger = logging.getLogger("guruvision.emotion")
 
 EMOTION_LABELS: list[str] = [
-    "neutral", "happy", "sad", "angry", "surprised", "fearful", "disgusted"
+    "neutral",
+    "happy",
+    "sad",
+    "angry",
+    "surprised",
+    "fearful",
+    "disgusted",
 ]
 
 
@@ -32,6 +36,7 @@ class EmotionResult:
         emotion: Dominant emotion label (one of EMOTION_LABELS).
         confidence: Confidence of the dominant emotion in [0.0, 1.0].
         all_scores: Score for each emotion; values sum to ~1.0.
+
     """
 
     emotion: str
@@ -45,18 +50,19 @@ class EmotionRecognizer:
     Args:
         model_path: Optional path to an ONNX emotion model.
         use_gpu: Use CUDAExecutionProvider when True.
+
     """
 
     _EXPECTED_SHAPE: tuple[int, int, int] = (112, 112, 3)
 
     def __init__(
         self,
-        model_path: Optional[str] = None,
+        model_path: str | None = None,
         use_gpu: bool = False,
     ) -> None:
         self.model_path = model_path
         self.use_gpu = use_gpu
-        self._session: Optional[object] = None
+        self._session: object | None = None
 
     def recognize(self, aligned_face: np.ndarray) -> EmotionResult:
         """Classify the emotion in an aligned face image.
@@ -69,6 +75,7 @@ class EmotionRecognizer:
 
         Raises:
             InvalidImageError: If aligned_face has wrong shape or dtype.
+
         """
         self._validate_face(aligned_face)
 
@@ -78,7 +85,7 @@ class EmotionRecognizer:
         else:
             scores = self._heuristic_scores(aligned_face)
 
-        all_scores = {label: float(s) for label, s in zip(EMOTION_LABELS, scores)}
+        all_scores = {label: float(s) for label, s in zip(EMOTION_LABELS, scores, strict=False)}
         dominant_idx = int(np.argmax(scores))
         return EmotionResult(
             emotion=EMOTION_LABELS[dominant_idx],
@@ -90,10 +97,10 @@ class EmotionRecognizer:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _get_session(self) -> Optional[object]:
+    def _get_session(self) -> object | None:
         if self._session is not None:
             return self._session
-        if not self.model_path or not os.path.isfile(self.model_path):
+        if not self.model_path or not os.path.isfile(self.model_path):  # noqa: PTH113
             if self.model_path:
                 logger.warning(
                     "Emotion ONNX model not found at '%s', using heuristic fallback",
@@ -112,8 +119,8 @@ class EmotionRecognizer:
             logger.info("Loaded emotion ONNX model from '%s'", self.model_path)
             return self._session
         except Exception as exc:
-            logger.error(
-                "Failed to load emotion ONNX model from '%s': %s", self.model_path, exc
+            logger.exception(
+                "Failed to load emotion ONNX model from '%s': %s", self.model_path, exc,
             )
             return None
 
@@ -123,15 +130,16 @@ class EmotionRecognizer:
 
         Raises:
             InvalidImageError: If shape or dtype is wrong.
+
         """
         if face.shape != EmotionRecognizer._EXPECTED_SHAPE:
+            msg = f"Expected face shape {EmotionRecognizer._EXPECTED_SHAPE}, got {face.shape}"
             raise InvalidImageError(
-                f"Expected face shape {EmotionRecognizer._EXPECTED_SHAPE}, got {face.shape}"
+                msg,
             )
         if face.dtype != np.uint8:
-            raise InvalidImageError(
-                f"Expected face dtype uint8, got {face.dtype}"
-            )
+            msg = f"Expected face dtype uint8, got {face.dtype}"
+            raise InvalidImageError(msg)
 
     @staticmethod
     def _run_onnx(session: object, face: np.ndarray) -> np.ndarray:
@@ -151,26 +159,26 @@ class EmotionRecognizer:
         """
         logger.warning(
             "No emotion model available — using brightness/contrast heuristic fallback. "
-            "Results are not meaningful without a real ONNX model."
+            "Results are not meaningful without a real ONNX model.",
         )
         gray = (
             0.114 * face[:, :, 0].astype(np.float32)
             + 0.587 * face[:, :, 1].astype(np.float32)
             + 0.299 * face[:, :, 2].astype(np.float32)
         )
-        brightness = float(np.mean(gray)) / 255.0   # 0..1
-        contrast = float(np.std(gray)) / 128.0       # 0..~1
+        brightness = float(np.mean(gray)) / 255.0  # 0..1
+        contrast = float(np.std(gray)) / 128.0  # 0..~1
 
         n = len(EMOTION_LABELS)
         base = np.ones(n, dtype=np.float32)
 
-        base[0] += 1.0 - abs(brightness - 0.5) * 2   # neutral: mid-brightness
-        base[1] += brightness * contrast               # happy: bright + contrasty
-        base[2] += (1.0 - brightness) * 0.8           # sad: dark
-        base[3] += contrast * (1.0 - brightness)      # angry: high contrast, dark
-        base[4] += contrast * brightness               # surprised: high contrast, bright
+        base[0] += 1.0 - abs(brightness - 0.5) * 2  # neutral: mid-brightness
+        base[1] += brightness * contrast  # happy: bright + contrasty
+        base[2] += (1.0 - brightness) * 0.8  # sad: dark
+        base[3] += contrast * (1.0 - brightness)  # angry: high contrast, dark
+        base[4] += contrast * brightness  # surprised: high contrast, bright
         base[5] += (1.0 - contrast) * (1.0 - brightness)  # fearful: low contrast, dark
-        base[6] += (1.0 - contrast) * brightness      # disgusted: low contrast, bright
+        base[6] += (1.0 - contrast) * brightness  # disgusted: low contrast, bright
 
         return EmotionRecognizer._softmax(base)
 

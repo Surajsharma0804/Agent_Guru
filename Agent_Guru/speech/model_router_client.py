@@ -1,5 +1,4 @@
-"""
-Model Router Client for intelligent STT/TTS model selection.
+"""Model Router Client for intelligent STT/TTS model selection.
 
 ZERO COMPROMISE - BEST IMPLEMENTATION
 
@@ -14,34 +13,38 @@ This module provides integration with the Model Router for optimal model selecti
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class ModelType(Enum):
     """Model type for STT/TTS."""
+
     STT = "stt"
     TTS = "tts"
 
 
 class ModelLocation(Enum):
     """Model location (local or cloud)."""
+
     LOCAL = "local"
     CLOUD = "cloud"
 
 
 class CloudProvider(Enum):
     """Supported cloud providers."""
+
     GOOGLE = "google"  # Google Cloud Speech/TTS
-    AZURE = "azure"    # Azure Speech
-    AWS = "aws"        # AWS Transcribe/Polly
+    AZURE = "azure"  # Azure Speech
+    AWS = "aws"  # AWS Transcribe/Polly
 
 
 @dataclass
 class ModelInfo:
     """Information about a selected model."""
+
     model_id: str
     location: ModelLocation
-    provider: Optional[CloudProvider] = None
+    provider: CloudProvider | None = None
     estimated_latency_ms: float = 0.0
     estimated_accuracy: float = 0.0
     estimated_cost: float = 0.0
@@ -50,6 +53,7 @@ class ModelInfo:
 @dataclass
 class ModelPerformanceMetrics:
     """Performance metrics for a model."""
+
     model_id: str
     accuracy: float  # 0.0 to 1.0
     latency_ms: float
@@ -60,14 +64,14 @@ class ModelPerformanceMetrics:
 
 class NetworkState(Enum):
     """Network connectivity state."""
-    ONLINE_GOOD = "online_good"      # Good connection
-    ONLINE_POOR = "online_poor"      # Poor connection
-    OFFLINE = "offline"              # No connection
+
+    ONLINE_GOOD = "online_good"  # Good connection
+    ONLINE_POOR = "online_poor"  # Poor connection
+    OFFLINE = "offline"  # No connection
 
 
 class ModelRouterClient:
-    """
-    Client for Model Router integration.
+    """Client for Model Router integration.
 
     Features:
     - Intelligent local/cloud model selection
@@ -83,15 +87,15 @@ class ModelRouterClient:
         self,
         prefer_local: bool = False,
         prefer_cloud: bool = False,
-        enable_caching: bool = True
-    ):
-        """
-        Initialize Model Router Client.
+        enable_caching: bool = True,
+    ) -> None:
+        """Initialize Model Router Client.
 
         Args:
             prefer_local: Prefer local models (local-only mode)
             prefer_cloud: Prefer cloud models (cloud-only mode)
             enable_caching: Enable model result caching
+
         """
         self.prefer_local = prefer_local
         self.prefer_cloud = prefer_cloud
@@ -126,10 +130,9 @@ class ModelRouterClient:
     def select_stt_model(
         self,
         language: str = "en",
-        context: Optional[dict[str, Any]] = None
+        context: dict[str, Any] | None = None,
     ) -> ModelInfo:
-        """
-        Select optimal STT model based on current conditions.
+        """Select optimal STT model based on current conditions.
 
         Args:
             language: Target language code
@@ -137,6 +140,7 @@ class ModelRouterClient:
 
         Returns:
             ModelInfo with selected model details
+
         """
         # Update context if provided
         if context:
@@ -151,17 +155,15 @@ class ModelRouterClient:
         # Select model based on location
         if location == ModelLocation.LOCAL:
             return self._select_local_stt_model(language)
-        else:
-            return self._select_cloud_stt_model(language)
+        return self._select_cloud_stt_model(language)
 
     def select_tts_model(
         self,
         language: str = "en",
         gender: str = "male",
-        context: Optional[dict[str, Any]] = None
+        context: dict[str, Any] | None = None,
     ) -> ModelInfo:
-        """
-        Select optimal TTS model based on current conditions.
+        """Select optimal TTS model based on current conditions.
 
         Args:
             language: Target language code
@@ -170,6 +172,7 @@ class ModelRouterClient:
 
         Returns:
             ModelInfo with selected model details
+
         """
         # Update context if provided
         if context:
@@ -184,17 +187,15 @@ class ModelRouterClient:
         # Select model based on location
         if location == ModelLocation.LOCAL:
             return self._select_local_tts_model(language, gender)
-        else:
-            return self._select_cloud_tts_model(language, gender)
+        return self._select_cloud_tts_model(language, gender)
 
     def fallback_to_local(
         self,
         model_type: ModelType,
         language: str = "en",
-        gender: Optional[str] = None
+        gender: str | None = None,
     ) -> ModelInfo:
-        """
-        Fallback to local model when cloud model fails.
+        """Fallback to local model when cloud model fails.
 
         Must complete within 1 second.
 
@@ -205,6 +206,7 @@ class ModelRouterClient:
 
         Returns:
             ModelInfo with local model details
+
         """
         start_time = time.time()
 
@@ -216,7 +218,8 @@ class ModelRouterClient:
         # Verify fallback completed within 1 second
         elapsed = time.time() - start_time
         if not (elapsed < 1.0):
-            raise AssertionError(f"Fallback took {elapsed:.3f}s, must be <1s")
+            msg = f"Fallback took {elapsed:.3f}s, must be <1s"
+            raise AssertionError(msg)
 
         return model_info
 
@@ -226,10 +229,9 @@ class ModelRouterClient:
         accuracy: float,
         latency_ms: float,
         cost: float,
-        success: bool
-    ):
-        """
-        Track model performance metrics.
+        success: bool,
+    ) -> None:
+        """Track model performance metrics.
 
         Args:
             model_id: Model identifier
@@ -237,6 +239,7 @@ class ModelRouterClient:
             latency_ms: Latency in milliseconds
             cost: Cost per request
             success: Whether request succeeded
+
         """
         if model_id not in self._metrics:
             self._metrics[model_id] = ModelPerformanceMetrics(
@@ -245,7 +248,7 @@ class ModelRouterClient:
                 latency_ms=latency_ms,
                 cost_per_request=cost,
                 success_rate=1.0 if success else 0.0,
-                total_requests=1
+                total_requests=1,
             )
         else:
             metrics = self._metrics[model_id]
@@ -255,77 +258,79 @@ class ModelRouterClient:
             metrics.accuracy = (metrics.accuracy * total + accuracy) / (total + 1)
             metrics.latency_ms = (metrics.latency_ms * total + latency_ms) / (total + 1)
             metrics.cost_per_request = (metrics.cost_per_request * total + cost) / (total + 1)
-            metrics.success_rate = (metrics.success_rate * total + (1.0 if success else 0.0)) / (total + 1)
+            metrics.success_rate = (metrics.success_rate * total + (1.0 if success else 0.0)) / (
+                total + 1
+            )
             metrics.total_requests += 1
 
-    def get_performance_metrics(self, model_id: str) -> Optional[ModelPerformanceMetrics]:
-        """
-        Get performance metrics for a model.
+    def get_performance_metrics(self, model_id: str) -> ModelPerformanceMetrics | None:
+        """Get performance metrics for a model.
 
         Args:
             model_id: Model identifier
 
         Returns:
             ModelPerformanceMetrics or None if not tracked
+
         """
         return self._metrics.get(model_id)
 
-    def cache_result(self, key: str, result: Any):
-        """
-        Cache model result for common phrases.
+    def cache_result(self, key: str, result: Any) -> None:  # noqa: ANN401
+        """Cache model result for common phrases.
 
         Args:
             key: Cache key (e.g., text for TTS, audio hash for STT)
             result: Result to cache
+
         """
         if self.enable_caching:
             self._cache[key] = result
 
-    def get_cached_result(self, key: str) -> Optional[Any]:
-        """
-        Get cached result.
+    def get_cached_result(self, key: str) -> Any | None:  # noqa: ANN401
+        """Get cached result.
 
         Args:
             key: Cache key
 
         Returns:
             Cached result or None
+
         """
         if self.enable_caching:
             return self._cache.get(key)
         return None
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear model result cache."""
         self._cache.clear()
 
-    def set_network_state(self, state: NetworkState):
-        """
-        Set current network state.
+    def set_network_state(self, state: NetworkState) -> None:
+        """Set current network state.
 
         Args:
             state: Network connectivity state
+
         """
         self._network_state = state
 
-    def set_battery_state(self, low: bool):
-        """
-        Set battery state.
+    def set_battery_state(self, low: bool) -> None:
+        """Set battery state.
 
         Args:
             low: Whether battery is low
+
         """
         self._battery_low = low
 
     def _determine_model_location(self, model_type: ModelType) -> ModelLocation:
-        """
-        Determine whether to use local or cloud model.
+        """Determine whether to use local or cloud model.
 
         Args:
             model_type: Type of model
 
         Returns:
             ModelLocation (LOCAL or CLOUD)
+
         """
         # User preferences override
         if self.prefer_local:
@@ -358,7 +363,7 @@ class ModelRouterClient:
             location=ModelLocation.LOCAL,
             estimated_latency_ms=200.0,
             estimated_accuracy=0.85,
-            estimated_cost=0.0
+            estimated_cost=0.0,
         )
 
     def _select_local_tts_model(self, language: str, gender: str) -> ModelInfo:
@@ -371,7 +376,7 @@ class ModelRouterClient:
             location=ModelLocation.LOCAL,
             estimated_latency_ms=150.0,
             estimated_accuracy=0.80,
-            estimated_cost=0.0
+            estimated_cost=0.0,
         )
 
     def _select_cloud_stt_model(self, language: str) -> ModelInfo:
@@ -386,7 +391,7 @@ class ModelRouterClient:
             provider=provider,
             estimated_latency_ms=300.0,
             estimated_accuracy=0.95,
-            estimated_cost=0.006  # $0.006 per 15 seconds
+            estimated_cost=0.006,  # $0.006 per 15 seconds
         )
 
     def _select_cloud_tts_model(self, language: str, gender: str) -> ModelInfo:
@@ -401,5 +406,5 @@ class ModelRouterClient:
             provider=provider,
             estimated_latency_ms=200.0,
             estimated_accuracy=0.92,
-            estimated_cost=0.000004  # $4 per 1M characters
+            estimated_cost=0.000004,  # $4 per 1M characters
         )

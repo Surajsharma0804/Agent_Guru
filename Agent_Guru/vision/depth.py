@@ -1,5 +1,4 @@
-"""
-Depth Estimator for the Agent Guru Vision System.
+"""Depth Estimator for the Agent Guru Vision System.
 
 Provides monocular depth estimation via MiDaS/Depth Anything ONNX models.
 
@@ -16,14 +15,17 @@ Requirements: 2.1–2.7
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import structlog
 
-from Agent_Guru.vision.model_manager import ModelManager
 from Agent_Guru.vision.vision_models import DepthMap, VisionConfig
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from Agent_Guru.vision.model_manager import ModelManager
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
@@ -41,6 +43,7 @@ class DepthEstimator:
         _infer_fn: Optional callable for testing; replaces ONNX inference.
             Signature: ``(frame: np.ndarray) -> np.ndarray``
             Output: float32 array of shape (H, W) with raw depth values.
+
     """
 
     def __init__(
@@ -61,16 +64,14 @@ class DepthEstimator:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _get_session(self) -> Any:
+    def _get_session(self) -> Any:  # noqa: ANN401
         if self._infer_fn is not None:
             return None
         if self._session is None:
             try:
-                self._session = self._model_manager.load_model(
-                    "depth_estimator", self._model_path
-                )
+                self._session = self._model_manager.load_model("depth_estimator", self._model_path)
             except Exception as exc:
-                logger.error(
+                logger.exception(
                     "DepthEstimator: failed to load model",
                     path=self._model_path,
                     error=str(exc),
@@ -88,6 +89,7 @@ class DepthEstimator:
         # Resize to model input size (384×384 for MiDaS v3.1)
         try:
             import cv2  # type: ignore[import]
+
             resized = cv2.resize(frame, (384, 384)).astype(np.float32) / 255.0
         except ImportError:
             resized = (
@@ -105,6 +107,7 @@ class DepthEstimator:
         # Resize back to original frame dimensions
         try:
             import cv2  # type: ignore[import]
+
             raw = cv2.resize(raw, (w, h), interpolation=cv2.INTER_LINEAR)
         except ImportError:
             pass  # keep model output size; normalisation still applies
@@ -115,14 +118,16 @@ class DepthEstimator:
     def _normalise(raw: np.ndarray) -> np.ndarray:
         """Normalise raw depth values to [0.0, 1.0]."""
         mn, mx = float(raw.min()), float(raw.max())
-        if mx - mn < 1e-6:
+        if mx - mn < 1e-6:  # noqa: PLR2004 - Epsilon value
+
             return np.zeros_like(raw, dtype=np.float32)
         return ((raw - mn) / (mx - mn)).astype(np.float32)
 
     @staticmethod
     def _is_dark_or_featureless(frame: np.ndarray) -> bool:
         """Return True when the frame is too dark or featureless for depth."""
-        grey = frame.mean(axis=2) if frame.ndim == 3 else frame.astype(np.float32)
+        grey = frame.mean(axis=2) if frame.ndim == 3 else frame.astype(np.float32)  # noqa: PLR2004 - Small integer threshold
+
         mean_brightness = float(grey.mean())
         variance = float(grey.var())
         return mean_brightness < _DARK_BRIGHTNESS_THRESHOLD or variance < _LOW_VARIANCE_THRESHOLD
@@ -140,6 +145,7 @@ class DepthEstimator:
         Returns:
             DepthMap with data in [0.0, 1.0] and same (H, W) as input.
             Returns ``is_null=True`` when frame is too dark or featureless.
+
         """
         h, w = frame.shape[:2]
 
@@ -162,8 +168,9 @@ class DepthEstimator:
         if normalised.shape != (h, w):
             try:
                 import cv2  # type: ignore[import]
+
                 normalised = cv2.resize(normalised, (w, h), interpolation=cv2.INTER_LINEAR)
-            except ImportError as e:
+            except ImportError:
                 normalised = np.zeros((h, w), dtype=np.float32)
 
         confidence = float(1.0 - normalised.std())

@@ -1,5 +1,4 @@
-"""
-Main Speech Engine Facade - ZERO COMPROMISE IMPLEMENTATION
+"""Main Speech Engine Facade - ZERO COMPROMISE IMPLEMENTATION.
 
 This module provides the main facade for the speech engine, integrating all components:
 - Wake word detection (dual personality)
@@ -17,9 +16,8 @@ This module provides the main facade for the speech engine, integrating all comp
 import logging
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
 
 import numpy as np
 
@@ -57,6 +55,7 @@ from Agent_Guru.speech.tts.voice_cloner import VoiceCloner
 
 class EngineState(Enum):
     """Speech engine state."""
+
     UNINITIALIZED = "uninitialized"
     INITIALIZING = "initializing"
     READY = "ready"
@@ -67,19 +66,19 @@ class EngineState(Enum):
 @dataclass
 class VoiceInteractionResult:
     """Result of a complete voice interaction."""
+
     transcription: TranscriptionResult
     emotion: EmotionResult
-    command: Optional[CommandResult]
-    response_text: Optional[str]
-    response_audio: Optional[np.ndarray]
+    command: CommandResult | None
+    response_text: str | None
+    response_audio: np.ndarray | None
     personality: PersonalityType
     context_id: str
     processing_time_ms: float
 
 
 class SpeechEngine:
-    """
-    Main Speech Engine Facade - ZERO COMPROMISE
+    """Main Speech Engine Facade - ZERO COMPROMISE.
 
     Integrates all speech components into a unified interface:
     - Wake word detection (Guru/Maya)
@@ -95,51 +94,50 @@ class SpeechEngine:
     Pipeline: capture → process → wake word → STT → emotion → interpret → context → TTS
     """
 
-    def __init__(self, config: Optional[SpeechEngineConfig] = None):
-        """
-        Initialize Speech Engine.
+    def __init__(self, config: SpeechEngineConfig | None = None) -> None:
+        """Initialize Speech Engine.
 
         Args:
             config: Speech engine configuration (uses defaults if None)
+
         """
         self.config = config or SpeechEngineConfig()
         self._state = EngineState.UNINITIALIZED
         self._state_lock = threading.Lock()
 
-        # Components (initialized in initialize())
-        self.audio_capture: Optional[AudioCapture] = None
-        self.audio_processor: Optional[AudioProcessor] = None
-        self.wake_word_detector: Optional[WakeWordDetector] = None
-        self.noise_cancellation: Optional[AdvancedNoiseCancellation] = None
-        self.streaming_manager: Optional[StreamingAudioManager] = None
-        self.stt_transcriber: Optional[WhisperTranscriber] = None
-        self.language_detector: Optional[LanguageDetector] = None
-        self.tts_engine: Optional[TTSEngine] = None
-        self.voice_cloner: Optional[VoiceCloner] = None
-        self.emotion_detector: Optional[EmotionDetector] = None
-        self.voice_feature_extractor: Optional[VoiceFeatureExtractor] = None
-        self.command_parser: Optional[CommandParser] = None
-        self.context_manager: Optional[ConversationContextManager] = None
-        self.background_service: Optional[BackgroundServiceManager] = None
-        self.model_router: Optional[ModelRouterClient] = None
-        self.agent_orchestration: Optional[AgentOrchestrationClient] = None
-        self.memory_client: Optional[MemoryClient] = None
-        self.goal_manager_client: Optional[GoalManagerClient] = None
+        self.audio_capture: AudioCapture | None = None
+        self.audio_processor: AudioProcessor | None = None
+        self.wake_word_detector: WakeWordDetector | None = None
+        self.noise_cancellation: AdvancedNoiseCancellation | None = None
+        self.streaming_manager: StreamingAudioManager | None = None
+        self.stt_transcriber: WhisperTranscriber | None = None
+        self.language_detector: LanguageDetector | None = None
+        self.tts_engine: TTSEngine | None = None
+        self.voice_cloner: VoiceCloner | None = None
+        self.emotion_detector: EmotionDetector | None = None
+        self.voice_feature_extractor: VoiceFeatureExtractor | None = None
+        self.command_parser: CommandParser | None = None
+        self.context_manager: ConversationContextManager | None = None
+        self.background_service: BackgroundServiceManager | None = None
+        self.model_router: ModelRouterClient | None = None
+        self.agent_orchestration: AgentOrchestrationClient | None = None
+        self.memory_client: MemoryClient | None = None
+        self.goal_manager_client: GoalManagerClient | None = None
 
         # Current state
-        self._current_personality: Optional[PersonalityType] = None
-        self._current_context_id: Optional[str] = None
+        self._current_personality: PersonalityType | None = None
+        self._current_context_id: str | None = None
 
         # Logging
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
 
     def initialize(self) -> None:
-        """
-        Initialize all speech engine components.
+        """Initialize all speech engine components.
 
         Raises:
             GuruSpeechError: If initialization fails
+
         """
         with self._state_lock:
             if self._state == EngineState.INITIALIZING:
@@ -151,11 +149,11 @@ class SpeechEngine:
             # Initialize audio components
             self.audio_capture = MicrophoneCapture(
                 sample_rate=self.config.audio.sample_rate,
-                channels=self.config.audio.channels
+                channels=self.config.audio.channels,
             )
             self.audio_processor = AudioProcessor(
                 config=self.config.audio_processing,
-                sample_rate=self.config.audio.sample_rate
+                sample_rate=self.config.audio.sample_rate,
             )
             self.wake_word_detector = WakeWordDetector()
             self.noise_cancellation = AdvancedNoiseCancellation()
@@ -170,9 +168,7 @@ class SpeechEngine:
             self.streaming_manager = StreamingAudioManager(config=stream_config)
 
             # Initialize STT components
-            self.stt_transcriber = WhisperTranscriber(
-                model_size=self.config.stt.model_size
-            )
+            self.stt_transcriber = WhisperTranscriber(model_size=self.config.stt.model_size)
             self.language_detector = LanguageDetector()
 
             # Initialize TTS components
@@ -190,7 +186,7 @@ class SpeechEngine:
             # Initialize background service
             self.background_service = BackgroundServiceManager(
                 wake_word_callback=self._on_wake_word_detected,
-                command_callback=self._on_command_received
+                command_callback=self._on_command_received,
             )
 
             # Initialize model router
@@ -208,16 +204,16 @@ class SpeechEngine:
         except Exception as e:
             with self._state_lock:
                 self._state = EngineState.ERROR
-            self.logger.error("Failed to initialize Speech Engine: %s", e, exc_info=True)
-            raise GuruSpeechError(f"Initialization failed: {e}") from e
+            self.logger.exception("Failed to initialize Speech Engine: %s", e)
+            msg = f"Initialization failed: {e}"
+            raise GuruSpeechError(msg) from e
 
     async def process_voice_input(
         self,
         audio: np.ndarray,
-        personality: Optional[PersonalityType] = None
+        personality: PersonalityType | None = None,
     ) -> VoiceInteractionResult:
-        """
-        Process voice input through complete pipeline.
+        """Process voice input through complete pipeline.
 
         Pipeline: process → STT → emotion → command → context
 
@@ -230,8 +226,10 @@ class SpeechEngine:
 
         Raises:
             GuruSpeechError: If processing fails
+
         """
         import time
+
         start_time = time.time()
 
         try:
@@ -240,9 +238,11 @@ class SpeechEngine:
 
             # Step 1: Audio processing
             if self.audio_processor is None:
-                raise RuntimeError("Audio processor not initialized")
+                msg = "Audio processor not initialized"
+                raise RuntimeError(msg)
             if self.noise_cancellation is None:
-                raise RuntimeError("Noise cancellation not initialized")
+                msg = "Noise cancellation not initialized"
+                raise RuntimeError(msg)
 
             processed_audio = await self.audio_processor.process_chunk(audio)
             processed_audio = await self.noise_cancellation.reduce_noise(processed_audio)
@@ -259,7 +259,7 @@ class SpeechEngine:
                             personality = wake_word_result.personality
                         else:
                             personality = PersonalityType.GURU  # Default
-                    except Exception as e:
+                    except Exception:
                         personality = PersonalityType.GURU  # Default on error
 
             self._current_personality = personality
@@ -274,24 +274,26 @@ class SpeechEngine:
             command = None
             if transcription.text:
                 if self.command_parser is None:
-                    raise RuntimeError("Command parser not initialized")
+                    msg = "Command parser not initialized"
+                    raise RuntimeError(msg)
                 command = self.command_parser.interpret(transcription.text)
 
             # Step 5a: Route command to agent orchestration
             if command and command.is_command and self.agent_orchestration:
                 try:
                     await self.agent_orchestration.route_command(command)
-                except Exception as e:
-                    self.logger.warning("Agent orchestration routing failed: %s", e)
+                except Exception:
+                    self.logger.exception("Agent orchestration routing failed")
 
             # Step 6: Context management
             if self.context_manager is None:
-                raise RuntimeError("Context manager not initialized")
+                msg = "Context manager not initialized"
+                raise RuntimeError(msg)
 
             if self._current_context_id is None:
                 context_id, _ = self.context_manager.create_context(
                     user_id="default_user",
-                    personality=personality
+                    personality=personality,
                 )
                 self._current_context_id = context_id
 
@@ -299,7 +301,7 @@ class SpeechEngine:
                 context_id=self._current_context_id,
                 speaker="user",
                 text=transcription.text,
-                emotion=emotion.primary_emotion
+                emotion=emotion.primary_emotion,
             )
 
             # Step 6a: Store emotion state and conversation turn in memory
@@ -308,7 +310,7 @@ class SpeechEngine:
                     await self.memory_client.store_emotion_state(
                         user_id="default_user",
                         emotion=emotion.primary_emotion,
-                        timestamp=datetime.now(tz=timezone.utc),
+                        timestamp=datetime.now(tz=UTC),
                         confidence=emotion.confidence,
                     )
                     await self.memory_client.store_conversation_turn(
@@ -318,8 +320,8 @@ class SpeechEngine:
                         emotion=emotion.primary_emotion,
                         personality=personality.value,
                     )
-                except Exception as e:
-                    self.logger.warning("Memory storage failed: %s", e)
+                except Exception:
+                    self.logger.exception("Memory storage failed")
 
             # Step 7: Generate response (placeholder - would integrate with LLM)
             response_text = None
@@ -338,13 +340,13 @@ class SpeechEngine:
                 response_audio=response_audio,
                 personality=personality,
                 context_id=self._current_context_id,
-                processing_time_ms=processing_time
+                processing_time_ms=processing_time,
             )
 
         except Exception as e:
             with self._state_lock:
                 self._state = EngineState.ERROR
-            self.logger.error("Voice processing failed: %s", e, exc_info=True)
+            self.logger.exception("Voice processing failed: %s", e)
 
             # Preserve context even on error
             if self._current_context_id and self.context_manager is not None:
@@ -352,13 +354,14 @@ class SpeechEngine:
                     self.context_manager.add_turn(
                         context_id=self._current_context_id,
                         speaker="system",
-                        text=f"Error: {str(e)}",
-                        emotion=EmotionType.NEUTRAL
+                        text=f"Error: {e!s}",
+                        emotion=EmotionType.NEUTRAL,
                     )
-                except Exception as ctx_exc:  # noqa: BLE001
-                    self.logger.warning("Failed to record error turn in context: %s", ctx_exc)
+                except Exception:
+                    self.logger.exception("Failed to record error turn in context")
 
-            raise GuruSpeechError(f"Voice processing failed: {e}") from e
+            msg = f"Voice processing failed: {e}"
+            raise GuruSpeechError(msg) from e
 
     def transcribe(
         self,
@@ -375,16 +378,16 @@ class SpeechEngine:
 
         Returns:
             TranscriptionResult with text, language, confidence.
+
         """
         return self.transcribe_with_personality(audio_data, PersonalityType.GURU)
 
     def transcribe_with_personality(
         self,
         audio: np.ndarray,
-        personality: PersonalityType
+        personality: PersonalityType,
     ) -> TranscriptionResult:
-        """
-        Transcribe audio with personality-specific settings.
+        """Transcribe audio with personality-specific settings.
 
         Args:
             audio: Audio data to transcribe
@@ -392,9 +395,11 @@ class SpeechEngine:
 
         Returns:
             TranscriptionResult with transcription
+
         """
         if self.stt_transcriber is None:
-            raise RuntimeError("STT transcriber not initialized")
+            msg = "STT transcriber not initialized"
+            raise RuntimeError(msg)
 
         # Transcribe with automatic language detection (Whisper handles this)
         result = self.stt_transcriber.transcribe(
@@ -416,7 +421,7 @@ class SpeechEngine:
         self,
         text: str,
         personality: "PersonalityType",
-        emotion: "Optional[EmotionType]" = None,
+        emotion: "EmotionType | None" = None,
     ) -> "tuple[np.ndarray, int]":
         """Synthesize speech and return (audio_array, sample_rate).
 
@@ -429,19 +434,20 @@ class SpeechEngine:
 
         Returns:
             Tuple of (float32 numpy array in [-1, 1], sample_rate_hz).
+
         """
         if self.tts_engine is None:
-            raise RuntimeError("TTS engine not initialized")
+            msg = "TTS engine not initialized"
+            raise RuntimeError(msg)
         return self.tts_engine.synthesize_to_array(text, personality, emotion)
 
     def synthesize_response(
         self,
         text: str,
         personality: PersonalityType,
-        emotion: Optional[EmotionType] = None
+        emotion: EmotionType | None = None,
     ) -> np.ndarray:
-        """
-        Synthesize speech response with personality and emotion.
+        """Synthesize speech response with personality and emotion.
 
         Args:
             text: Text to synthesize
@@ -450,19 +456,21 @@ class SpeechEngine:
 
         Returns:
             Audio data as numpy array
+
         """
         # Default to NEUTRAL if emotion is None
         if emotion is None:
             emotion = EmotionType.NEUTRAL
 
         if self.tts_engine is None:
-            raise RuntimeError("TTS engine not initialized")
+            msg = "TTS engine not initialized"
+            raise RuntimeError(msg)
 
         # Synthesize speech with personality and emotion
         audio, _ = self.tts_engine.synthesize_to_array(
             text=text,
             personality=personality,
-            emotion=emotion
+            emotion=emotion,
         )
 
         self.logger.info(
@@ -501,17 +509,16 @@ class SpeechEngine:
                 initialised (call :meth:`initialize` first).
             :class:`~Agent_Guru.speech.exceptions.VoiceBiometricError`:
                 If feature extraction fails.
+
         """
         if self.voice_feature_extractor is None:
-            raise RuntimeError("Voice feature extractor not initialized")
+            msg = "Voice feature extractor not initialized"
+            raise RuntimeError(msg)
 
         import asyncio
         import concurrent.futures
 
-        coro = self.voice_feature_extractor.extract_features(
-            audio,
-            self.config.audio.sample_rate
-        )
+        coro = self.voice_feature_extractor.extract_features(audio, self.config.audio.sample_rate)
 
         try:
             # Check if we're inside a running event loop
@@ -530,42 +537,38 @@ class SpeechEngine:
             else:
                 result = asyncio.run(coro)
         except concurrent.futures.TimeoutError as exc:
-            raise RuntimeError("Voice feature extraction timed out after 10s") from exc
+            msg = "Voice feature extraction timed out after 10s"
+            raise RuntimeError(msg) from exc
 
         return result
 
     def detect_emotion(self, audio: np.ndarray) -> EmotionResult:
-        """
-        Detect emotion from voice.
+        """Detect emotion from voice.
 
         Args:
             audio: Audio data
 
         Returns:
             EmotionResult with detected emotions
+
         """
         if self.emotion_detector is None:
-            raise RuntimeError("Emotion detector not initialized")
+            msg = "Emotion detector not initialized"
+            raise RuntimeError(msg)
 
-        return self.emotion_detector.detect_emotion(
-            audio,
-            self.config.audio.sample_rate
-        )
+        return self.emotion_detector.detect_emotion(audio, self.config.audio.sample_rate)
 
-    def clone_voice(
-        self,
-        audio_samples: list[np.ndarray],
-        voice_id: str
-    ) -> None:
-        """
-        Clone voice from audio samples.
+    def clone_voice(self, audio_samples: list[np.ndarray], voice_id: str) -> None:
+        """Clone voice from audio samples.
 
         Args:
             audio_samples: List of audio samples (5+ minutes total)
             voice_id: Unique identifier for cloned voice
+
         """
         if self.voice_cloner is None:
-            raise RuntimeError("Voice cloner not initialized")
+            msg = "Voice cloner not initialized"
+            raise RuntimeError(msg)
 
         self.voice_cloner.enroll_voice(audio_samples, voice_id)
         self.logger.info("Voice cloned successfully: %s", voice_id)
@@ -632,7 +635,7 @@ class SpeechEngine:
             self.logger.info("Speech Engine shutdown complete")
 
         except Exception as e:
-            self.logger.error("Error during shutdown: %s", e, exc_info=True)
+            self.logger.exception("Error during shutdown: %s", e)
         finally:
             # ALWAYS set state to UNINITIALIZED, even on error
             with self._state_lock:

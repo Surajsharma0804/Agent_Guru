@@ -29,7 +29,7 @@ class LoopDetector:
         # Per-session state tracking: session_id -> deque of state hashes (bounded)
         self._traces: dict[str, deque[str]] = {}
 
-    def record_state(self, session_id: str, state: Any) -> LoopDetectionResult:
+    def record_state(self, session_id: str, state: Any) -> LoopDetectionResult:  # noqa: ANN401
         """Record a new state and check for loops.
 
         Args:
@@ -38,6 +38,7 @@ class LoopDetector:
 
         Returns:
             LoopDetectionResult — loop_detected=True if threshold exceeded
+
         """
         state_hash = self._hash_state(state)
 
@@ -71,7 +72,9 @@ class LoopDetector:
         )
 
     def check_sequence(
-        self, states: list[Any], threshold: int | None = None
+        self,
+        states: list[Any],
+        threshold: int | None = None,
     ) -> LoopDetectionResult:
         """Check a sequence of states for loops without storing.
 
@@ -81,6 +84,7 @@ class LoopDetector:
 
         Returns:
             LoopDetectionResult
+
         """
         t = threshold if threshold is not None else self._threshold
         hashes = [self._hash_state(s) for s in states]
@@ -112,7 +116,7 @@ class LoopDetector:
         return list(self._traces.get(session_id, []))
 
     @staticmethod
-    def _hash_state(state: Any) -> str:
+    def _hash_state(state: Any) -> str:  # noqa: ANN401
         """Compute a deterministic hash of a state."""
         try:
             if isinstance(state, str):
@@ -121,7 +125,7 @@ class LoopDetector:
                 serialized = json.dumps(state, sort_keys=True, default=str)
             else:
                 serialized = str(state)
-        except Exception as e:
+        except Exception:
             serialized = repr(state)
 
         return hashlib.sha256(serialized.encode()).hexdigest()

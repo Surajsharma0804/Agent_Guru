@@ -8,12 +8,13 @@ from enum import Enum
 
 import numpy as np
 
-from ..exceptions import StreamingError
-from ..models import StreamMetrics
+from Agent_Guru.speech.exceptions import StreamingError
+from Agent_Guru.speech.models import StreamMetrics
 
 
 class AudioCodec(Enum):
     """Supported audio codecs."""
+
     PCM = "pcm"
     OPUS = "opus"
     AAC = "aac"
@@ -22,6 +23,7 @@ class AudioCodec(Enum):
 @dataclass
 class StreamConfig:
     """Streaming configuration."""
+
     sample_rate: int = 16000
     channels: int = 1
     chunk_duration_ms: int = 100  # 100-500ms chunks
@@ -34,6 +36,7 @@ class StreamConfig:
 @dataclass
 class StreamState:
     """Internal streaming state."""
+
     buffer: deque[np.ndarray] = field(default_factory=deque)
     latencies: deque[float] = field(default_factory=lambda: deque(maxlen=100))
     jitters: deque[float] = field(default_factory=lambda: deque(maxlen=100))
@@ -46,8 +49,7 @@ class StreamState:
 
 
 class StreamingAudioManager:
-    """
-    Manage real-time audio streaming with <500ms end-to-end latency.
+    """Manage real-time audio streaming with <500ms end-to-end latency.
 
     Features:
     - Multiple codec support (PCM, Opus, AAC)
@@ -63,12 +65,12 @@ class StreamingAudioManager:
     - <1% packet loss
     """
 
-    def __init__(self, config: StreamConfig):
-        """
-        Initialize streaming audio manager.
+    def __init__(self, config: StreamConfig) -> None:
+        """Initialize streaming audio manager.
 
         Args:
             config: Streaming configuration
+
         """
         self.config = config
         self._input_state = StreamState()
@@ -76,12 +78,8 @@ class StreamingAudioManager:
         self._running = False
 
         # Calculate buffer size in samples
-        self._buffer_size_samples = int(
-            config.buffer_size_ms * config.sample_rate / 1000
-        )
-        self._chunk_size_samples = int(
-            config.chunk_duration_ms * config.sample_rate / 1000
-        )
+        self._buffer_size_samples = int(config.buffer_size_ms * config.sample_rate / 1000)
+        self._chunk_size_samples = int(config.chunk_duration_ms * config.sample_rate / 1000)
 
         # Codec handlers
         self._codec_handlers = {
@@ -90,12 +88,8 @@ class StreamingAudioManager:
             AudioCodec.AAC: self._aac_codec,
         }
 
-    async def stream_input(
-        self,
-        audio_source: AsyncIterator[bytes]
-    ) -> AsyncIterator[np.ndarray]:
-        """
-        Stream audio input with buffering and format conversion.
+    async def stream_input(self, audio_source: AsyncIterator[bytes]) -> AsyncIterator[np.ndarray]:
+        """Stream audio input with buffering and format conversion.
 
         Processes incoming audio bytes, converts to numpy arrays,
         and yields chunks with latency tracking.
@@ -108,6 +102,7 @@ class StreamingAudioManager:
 
         Raises:
             StreamingError: If streaming fails
+
         """
         self._running = True
         self._input_state = StreamState()
@@ -145,17 +140,17 @@ class StreamingAudioManager:
                     await self._adapt_input_buffer(latency_ms)
 
         except Exception as e:
-            raise StreamingError(f"Input streaming failed: {e}") from e
+            msg = f"Input streaming failed: {e}"
+            raise StreamingError(msg) from e
         finally:
             self._running = False
 
     async def stream_output(
         self,
         audio_data: AsyncIterator[np.ndarray],
-        sample_rate: int
+        sample_rate: int,
     ) -> AsyncIterator[bytes]:
-        """
-        Stream audio output with encoding.
+        """Stream audio output with encoding.
 
         Encodes numpy arrays to bytes using configured codec
         and yields encoded chunks with latency tracking.
@@ -169,6 +164,7 @@ class StreamingAudioManager:
 
         Raises:
             StreamingError: If streaming fails
+
         """
         self._running = True
         self._output_state = StreamState()
@@ -205,16 +201,17 @@ class StreamingAudioManager:
                     await self._adapt_output_buffer(latency_ms)
 
         except Exception as e:
-            raise StreamingError(f"Output streaming failed: {e}") from e
+            msg = f"Output streaming failed: {e}"
+            raise StreamingError(msg) from e
         finally:
             self._running = False
 
     async def get_metrics(self) -> StreamMetrics:
-        """
-        Get streaming performance metrics.
+        """Get streaming performance metrics.
 
         Returns:
             StreamMetrics with latency, jitter, packet loss, buffer stats
+
         """
         # Calculate average latency
         input_latencies = list(self._input_state.latencies)
@@ -243,12 +240,11 @@ class StreamingAudioManager:
             packet_loss_percent=packet_loss_percent,
             buffer_size=self._buffer_size_samples,
             buffer_underruns=total_underruns,
-            buffer_overruns=total_overruns
+            buffer_overruns=total_overruns,
         )
 
     async def adapt_buffer_size(self, network_latency_ms: float) -> None:
-        """
-        Adapt buffer size based on network conditions.
+        """Adapt buffer size based on network conditions.
 
         Balances latency vs reliability:
         - Low latency: smaller buffer (faster response, more underruns)
@@ -256,6 +252,7 @@ class StreamingAudioManager:
 
         Args:
             network_latency_ms: Measured network latency in milliseconds
+
         """
         if not self.config.enable_adaptive_buffering:
             return
@@ -264,18 +261,17 @@ class StreamingAudioManager:
         # Target: 2x network latency for reliability
         target_buffer_ms = min(
             max(network_latency_ms * 2, 100),  # Min 100ms
-            self.config.max_latency_ms  # Max configured latency
+            self.config.max_latency_ms,  # Max configured latency
         )
 
         # Update buffer size
         old_buffer_ms = self.config.buffer_size_ms
         self.config.buffer_size_ms = int(target_buffer_ms)
-        self._buffer_size_samples = int(
-            self.config.buffer_size_ms * self.config.sample_rate / 1000
-        )
+        self._buffer_size_samples = int(self.config.buffer_size_ms * self.config.sample_rate / 1000)
 
         # Log adaptation (in production, use proper logging)
-        if abs(old_buffer_ms - self.config.buffer_size_ms) > 10:
+        if abs(old_buffer_ms - self.config.buffer_size_ms) > 10:  # noqa: PLR2004 - Threshold
+
             pass  # Buffer size adapted
 
     async def stop(self) -> None:
@@ -332,8 +328,7 @@ class StreamingAudioManager:
         return audio_int16.astype(np.float32) / 32767.0
 
     def _encode_opus(self, audio_array: np.ndarray, sample_rate: int) -> bytes:
-        """
-        Encode to Opus format.
+        """Encode to Opus format.
 
         Note: This is a placeholder. In production, use opuslib or similar.
         """
@@ -342,8 +337,7 @@ class StreamingAudioManager:
         return self._encode_pcm(audio_array, sample_rate)
 
     def _decode_opus(self, audio_bytes: bytes) -> np.ndarray:
-        """
-        Decode from Opus format.
+        """Decode from Opus format.
 
         Note: This is a placeholder. In production, use opuslib or similar.
         """
@@ -352,8 +346,7 @@ class StreamingAudioManager:
         return self._decode_pcm(audio_bytes)
 
     def _encode_aac(self, audio_array: np.ndarray, sample_rate: int) -> bytes:
-        """
-        Encode to AAC format.
+        """Encode to AAC format.
 
         Note: This is a placeholder. In production, use pyaac or similar.
         """
@@ -362,8 +355,7 @@ class StreamingAudioManager:
         return self._encode_pcm(audio_array, sample_rate)
 
     def _decode_aac(self, audio_bytes: bytes) -> np.ndarray:
-        """
-        Decode from AAC format.
+        """Decode from AAC format.
 
         Note: This is a placeholder. In production, use pyaac or similar.
         """

@@ -1,5 +1,4 @@
-"""
-Face alignment and normalization module.
+"""Face alignment and normalization module.
 
 Aligns detected faces to a standard 112x112 ArcFace template using
 landmark-based similarity transforms (or bbox crop as fallback).
@@ -13,11 +12,12 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from Agent_Guru.vision.detection.detector import Detection
+if TYPE_CHECKING:
+    from Agent_Guru.vision.detection.detector import Detection
 
 logger = logging.getLogger(__name__)
 
@@ -91,12 +91,15 @@ class FaceAligner:
         detection = Detection(bbox=(100, 80, 120, 140), landmarks=None, confidence=0.9)
         aligned = aligner.align(frame, detection)
         assert aligned.shape == (112, 112, 3)
+
     """
 
     def __init__(self, output_size: tuple[int, int] = (112, 112)) -> None:
-        if len(output_size) != 2 or output_size[0] <= 0 or output_size[1] <= 0:
+        if len(output_size) != 2 or output_size[0] <= 0 or output_size[1] <= 0:  # noqa: PLR2004 - Small integer threshold
+
+            msg = f"output_size must be a tuple of two positive integers, got {output_size}"
             raise ValueError(
-                f"output_size must be a tuple of two positive integers, got {output_size}"
+                msg,
             )
         self.output_size = output_size  # (height, width)
 
@@ -120,15 +123,17 @@ class FaceAligner:
 
         Raises:
             ValueError: If *frame* is not a valid 3-channel NumPy array.
+
         """
         if not isinstance(frame, np.ndarray):
-            raise ValueError("frame must be a numpy ndarray")
-        if frame.ndim != 3 or frame.shape[2] != 3:
-            raise ValueError(
-                f"frame must have shape (H, W, 3), got {frame.shape}"
-            )
+            msg = "frame must be a numpy ndarray"
+            raise ValueError(msg)
+        if frame.ndim != 3 or frame.shape[2] != 3:  # noqa: PLR2004 - Small integer threshold
 
-        h_out, w_out = self.output_size
+            msg = f"frame must have shape (H, W, 3), got {frame.shape}"
+            raise ValueError(msg)
+
+        _h_out, _w_out = self.output_size
 
         # ------------------------------------------------------------------
         # Path 1: landmark-based similarity transform
@@ -138,9 +143,7 @@ class FaceAligner:
             if aligned is not None:
                 return aligned
             # Fall through to bbox crop on failure
-            logger.debug(
-                "Landmark-based alignment failed; falling back to bbox crop."
-            )
+            logger.debug("Landmark-based alignment failed; falling back to bbox crop.")
 
         # ------------------------------------------------------------------
         # Path 2: bbox crop + resize fallback
@@ -151,9 +154,7 @@ class FaceAligner:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _align_with_landmarks(
-        self, frame: np.ndarray, landmarks: np.ndarray
-    ) -> Optional[np.ndarray]:
+    def _align_with_landmarks(self, frame: np.ndarray, landmarks: np.ndarray) -> np.ndarray | None:
         """Compute similarity transform from landmarks and warp the frame.
 
         Args:
@@ -163,19 +164,16 @@ class FaceAligner:
 
         Returns:
             Warped face image of shape ``(H, W, 3)`` or ``None`` on failure.
+
         """
         if not _CV2_AVAILABLE:
-            logger.warning(
-                "cv2 not available — cannot perform landmark-based alignment."
-            )
+            logger.warning("cv2 not available — cannot perform landmark-based alignment.")
             return None
 
         try:
             lm = np.array(landmarks, dtype=np.float32)
             if lm.shape != (5, 2):
-                logger.warning(
-                    "Unexpected landmarks shape %s; expected (5, 2).", lm.shape
-                )
+                logger.warning("Unexpected landmarks shape %s; expected (5, 2).", lm.shape)
                 return None
 
             # Scale the template to the requested output size
@@ -183,9 +181,7 @@ class FaceAligner:
 
             # Estimate partial affine (similarity) transform: rotation, scale,
             # translation — no shear.
-            transform_matrix, _ = cv2.estimateAffinePartial2D(
-                lm, template, method=cv2.LMEDS
-            )
+            transform_matrix, _ = cv2.estimateAffinePartial2D(lm, template, method=cv2.LMEDS)
 
             if transform_matrix is None:
                 logger.debug("estimateAffinePartial2D returned None.")
@@ -202,13 +198,11 @@ class FaceAligner:
             )
             return warped.astype(np.uint8)
 
-        except Exception as exc:
-            logger.warning("Landmark alignment error: %s", exc)
+        except Exception:
+            logger.exception("Landmark alignment error")
             return None
 
-    def _align_with_bbox(
-        self, frame: np.ndarray, bbox: tuple[int, int, int, int]
-    ) -> np.ndarray:
+    def _align_with_bbox(self, frame: np.ndarray, bbox: tuple[int, int, int, int]) -> np.ndarray:
         """Crop the bounding-box region and resize to output_size.
 
         Handles out-of-bounds bboxes by clamping to the frame dimensions.
@@ -220,6 +214,7 @@ class FaceAligner:
 
         Returns:
             Cropped and resized face image of shape ``(H, W, 3)``.
+
         """
         h_out, w_out = self.output_size
         frame_h, frame_w = frame.shape[:2]
@@ -261,6 +256,7 @@ class FaceAligner:
 
         Returns:
             Scaled template array of shape ``(5, 2)``.
+
         """
         h_out, w_out = self.output_size
         scale_x = w_out / 112.0
@@ -281,6 +277,7 @@ class FaceAligner:
 
         Returns:
             Resized image of shape ``(h, w, C)``.
+
         """
         src_h, src_w = image.shape[:2]
         row_idx = (np.arange(h) * src_h / h).astype(int)

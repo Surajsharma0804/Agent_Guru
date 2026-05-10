@@ -1,5 +1,4 @@
-"""
-Custom exception hierarchy for the GuruVision facial recognition system.
+"""Custom exception hierarchy for the GuruVision facial recognition system.
 
 All exceptions derive from GuruVisionError so callers can catch the entire
 family with a single except clause when needed.
@@ -12,6 +11,7 @@ Requirements: 17.1, 17.2, 17.3, 32.1
 # Base
 # ---------------------------------------------------------------------------
 
+
 class GuruVisionError(Exception):
     """Base exception for all GuruVision errors."""
 
@@ -19,6 +19,7 @@ class GuruVisionError(Exception):
 # ---------------------------------------------------------------------------
 # Lifecycle
 # ---------------------------------------------------------------------------
+
 
 class InitializationError(GuruVisionError):
     """Raised when the engine or a sub-module fails to initialise."""
@@ -31,6 +32,7 @@ class ConfigurationError(GuruVisionError):
 # ---------------------------------------------------------------------------
 # Pipeline
 # ---------------------------------------------------------------------------
+
 
 class DetectionError(GuruVisionError):
     """Raised when face detection fails unrecoverably."""
@@ -60,6 +62,7 @@ class TrackingError(GuruVisionError):
 # Storage
 # ---------------------------------------------------------------------------
 
+
 class DatabaseError(GuruVisionError):
     """Raised when the face database operation fails."""
 
@@ -67,6 +70,7 @@ class DatabaseError(GuruVisionError):
 # ---------------------------------------------------------------------------
 # Legacy / feature-extraction aliases (kept for backward compatibility)
 # ---------------------------------------------------------------------------
+
 
 class FaceExtractionError(GuruVisionError):
     """Base exception for face feature extraction errors (legacy alias)."""

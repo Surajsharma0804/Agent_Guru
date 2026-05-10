@@ -8,9 +8,8 @@ bus, dispatcher, model manager).
 from __future__ import annotations
 
 import struct
-import threading
 import zlib
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -23,13 +22,16 @@ from Agent_Guru.vision.vision_models import (
     VisionEvent,
 )
 
+if TYPE_CHECKING:
+    import threading
+
 # ---------------------------------------------------------------------------
 # Class-level cache isolation — prevents test order-dependent failures
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(autouse=True)
-def _isolate_insightface_cache() -> Any:
+def _isolate_insightface_cache() -> Any:  # noqa: ANN401
     """Save and restore FaceFeatureExtractor class-level InsightFace cache.
 
     Some tests (e.g. TestInsightfaceDetect, TestInsightfaceExtract) inject
@@ -72,6 +74,7 @@ def _make_png(width: int = 64, height: int = 64, fill: int = 128) -> bytes:
 
     Returns:
         PNG-encoded bytes.
+
     """
     sig = b"\x89PNG\r\n\x1a\n"
 
@@ -152,6 +155,7 @@ def make_frame(height: int = 480, width: int = 640, brightness: int = 128) -> np
 
     Returns:
         uint8 ndarray of shape (height, width, 3).
+
     """
     return np.full((height, width, 3), brightness, dtype=np.uint8)
 
@@ -201,7 +205,7 @@ def make_vision_event(
     event_type: str = "object_detected",
     source_module: str = "scene",
     confidence: float = 0.9,
-    **metadata: Any,
+    **metadata: Any,  # noqa: ANN401
 ) -> VisionEvent:
     """Create a VisionEvent with sensible defaults.
 
@@ -213,6 +217,7 @@ def make_vision_event(
 
     Returns:
         A populated VisionEvent.
+
     """
     return VisionEvent(
         event_type=event_type,

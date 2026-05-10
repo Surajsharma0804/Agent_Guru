@@ -6,7 +6,7 @@ import numpy as np
 import sounddevice as sd
 import soundfile as sf
 
-from ..exceptions import AudioInputError
+from Agent_Guru.speech.exceptions import AudioInputError
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +15,7 @@ class AudioCapture:
     """Base class for audio capture."""
 
     def capture(self, duration: float | None = None) -> tuple[np.ndarray, int]:
-        """
-        Capture audio.
+        """Capture audio.
 
         Args:
             duration: Duration in seconds (None for continuous)
@@ -26,26 +25,25 @@ class AudioCapture:
 
         Raises:
             NotImplementedError: Must be implemented by subclasses
+
         """
-        raise NotImplementedError("Subclasses must implement capture()")
+        msg = "Subclasses must implement capture()"
+        raise NotImplementedError(msg)
 
 
 class MicrophoneCapture(AudioCapture):
     """Captures audio from system microphone using sounddevice."""
 
     def __init__(
-        self,
-        sample_rate: int = 16000,
-        channels: int = 1,
-        device: int | None = None
-    ):
-        """
-        Initialize microphone capture.
+        self, sample_rate: int = 16000, channels: int = 1, device: int | None = None,
+    ) -> None:
+        """Initialize microphone capture.
 
         Args:
             sample_rate: Sample rate in Hz
             channels: Number of audio channels (1=mono, 2=stereo)
             device: Device ID (None for default)
+
         """
         self.sample_rate = sample_rate
         self.channels = channels
@@ -55,15 +53,14 @@ class MicrophoneCapture(AudioCapture):
         try:
             if device is not None:
                 device_info = sd.query_devices(device)
-                logger.info("Using audio device: %s", device_info['name'])
+                logger.info("Using audio device: %s", device_info["name"])
             else:
                 logger.info("Using default audio device")
         except Exception as e:
-            raise AudioInputError(f"Failed to query audio device: {e}") from e
-
+            msg = f"Failed to query audio device: {e}"
+            raise AudioInputError(msg) from e
     def capture(self, duration: float | None = None) -> tuple[np.ndarray, int]:
-        """
-        Capture audio from microphone.
+        """Capture audio from microphone.
 
         Args:
             duration: Duration in seconds (required for microphone)
@@ -73,13 +70,16 @@ class MicrophoneCapture(AudioCapture):
 
         Raises:
             AudioInputError: If capture fails or duration not provided
+
         """
         if duration is None:
-            raise AudioInputError("Duration is required for microphone capture")
+            msg = "Duration is required for microphone capture"
+            raise AudioInputError(msg)
 
         # BUG-013: reject non-positive duration before passing to sounddevice
         if duration <= 0:
-            raise AudioInputError(f"Duration must be > 0, got {duration}")
+            msg = f"Duration must be > 0, got {duration}"
+            raise AudioInputError(msg)
 
         try:
             logger.debug("Capturing %.3fs of audio at %dHz", duration, self.sample_rate)
@@ -90,7 +90,7 @@ class MicrophoneCapture(AudioCapture):
                 samplerate=self.sample_rate,
                 channels=self.channels,
                 device=self.device,
-                dtype='float32'
+                dtype="float32",
             )
             sd.wait()  # Wait for recording to complete
 
@@ -105,50 +105,46 @@ class MicrophoneCapture(AudioCapture):
             return audio, self.sample_rate
 
         except Exception as e:
-            raise AudioInputError(f"Failed to capture audio: {e}") from e
-
+            msg = f"Failed to capture audio: {e}"
+            raise AudioInputError(msg) from e
     @staticmethod
     def list_devices() -> list:
-        """
-        List available audio input devices.
+        """List available audio input devices.
 
         Returns:
             List of device information dictionaries
+
         """
         try:
             devices = sd.query_devices()
-            input_devices = [
+            return [
                 {
-                    'id': i,
-                    'name': dev['name'],
-                    'channels': dev['max_input_channels'],
-                    'sample_rate': dev['default_samplerate']
+                    "id": i,
+                    "name": dev["name"],
+                    "channels": dev["max_input_channels"],
+                    "sample_rate": dev["default_samplerate"],
                 }
                 for i, dev in enumerate(devices)
-                if dev['max_input_channels'] > 0
+                if dev["max_input_channels"] > 0
             ]
-            return input_devices
-        except Exception as e:
-            logger.error("Failed to list devices: %s", e)
+        except Exception:
+            logger.exception("Failed to list devices")
             return []
-
-
 class FileCapture(AudioCapture):
     """Loads audio from files using soundfile."""
 
-    def __init__(self, file_path: str):
-        """
-        Initialize file capture.
+    def __init__(self, file_path: str) -> None:
+        """Initialize file capture.
 
         Args:
             file_path: Path to audio file
+
         """
         self.file_path = file_path
         logger.info("FileCapture initialized for: %s", file_path)
 
     def capture(self, duration: float | None = None) -> tuple[np.ndarray, int]:
-        """
-        Load audio from file.
+        """Load audio from file.
 
         Args:
             duration: Duration in seconds (None loads entire file)
@@ -158,16 +154,12 @@ class FileCapture(AudioCapture):
 
         Raises:
             AudioInputError: If file loading fails
+
         """
         return self.load_file(self.file_path, duration)
 
-    def load_file(
-        self,
-        file_path: str,
-        duration: float | None = None
-    ) -> tuple[np.ndarray, int]:
-        """
-        Load audio from file.
+    def load_file(self, file_path: str, duration: float | None = None) -> tuple[np.ndarray, int]:
+        """Load audio from file.
 
         Supports WAV, FLAC, OGG, and other formats via soundfile.
 
@@ -180,12 +172,13 @@ class FileCapture(AudioCapture):
 
         Raises:
             AudioInputError: If file loading fails
+
         """
         try:
             logger.debug("Loading audio from: %s", file_path)
 
             # Load audio file
-            audio, sample_rate = sf.read(file_path, dtype='float32')
+            audio, sample_rate = sf.read(file_path, dtype="float32")
 
             # Convert to mono if stereo
             if audio.ndim > 1:
@@ -198,20 +191,21 @@ class FileCapture(AudioCapture):
 
             logger.debug(
                 "Loaded %d samples at %dHz (%.2fs)",
-                len(audio), sample_rate, len(audio) / sample_rate,
+                len(audio),
+                sample_rate,
+                len(audio) / sample_rate,
             )
 
             return audio, sample_rate
 
         except FileNotFoundError as e:
-            raise AudioInputError(f"Audio file not found: {file_path}") from e
-        except Exception as e:
-            raise AudioInputError(f"Failed to load audio file: {e}") from e
-
+            msg = f"Audio file not found: {file_path}"
+            raise AudioInputError(msg) from e
+            msg = f"Failed to load audio file: {e}"
+            raise AudioInputError(msg) from e
     @staticmethod
     def get_file_info(file_path: str) -> dict:
-        """
-        Get information about an audio file.
+        """Get information about an audio file.
 
         Args:
             file_path: Path to audio file
@@ -221,15 +215,17 @@ class FileCapture(AudioCapture):
 
         Raises:
             AudioInputError: If file cannot be read
+
         """
         try:
             info = sf.info(file_path)
             return {
-                'duration': info.duration,
-                'sample_rate': info.samplerate,
-                'channels': info.channels,
-                'format': info.format,
-                'subtype': info.subtype
+                "duration": info.duration,
+                "sample_rate": info.samplerate,
+                "channels": info.channels,
+                "format": info.format,
+                "subtype": info.subtype,
             }
         except Exception as e:
-            raise AudioInputError(f"Failed to get file info: {e}") from e
+            msg = f"Failed to get file info: {e}"
+            raise AudioInputError(msg) from e

@@ -1,5 +1,4 @@
-"""
-Example: Emotion-Aware Responses
+"""Example: Emotion-Aware Responses.
 
 Demonstrates detecting user emotion and adapting the response accordingly.
 """
@@ -22,7 +21,7 @@ EMOTION_RESPONSES = {
 }
 
 
-async def main():
+async def main() -> None:
     engine = SpeechEngine()
     engine.initialize()
 
@@ -30,15 +29,16 @@ async def main():
 
     result = await engine.process_voice_input(audio, personality=PersonalityType.MAYA)
     detected_emotion = result.emotion.primary_emotion
-    print(f"Detected emotion: {detected_emotion.value} (confidence: {result.emotion.confidence:.2f})")
 
     response_text, response_emotion = EMOTION_RESPONSES.get(
-        detected_emotion, ("How can I help?", EmotionType.NEUTRAL)
+        detected_emotion,
+        ("How can I help?", EmotionType.NEUTRAL),
     )
-    audio_response = engine.synthesize_response(response_text, PersonalityType.MAYA, response_emotion)
-    print(f"Response: {response_text}")
-    print(f"Response emotion: {response_emotion.value}")
-    print(f"Audio shape: {audio_response.shape}")
+    engine.synthesize_response(
+        response_text,
+        PersonalityType.MAYA,
+        response_emotion,
+    )
 
     engine.shutdown()
 

@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.vision.training.stress_test
+"""Module: Agent_Guru.vision.training.stress_test
 Purpose: Test model robustness under challenging real-world conditions.
 
 Requirements: 9.1-9.9
@@ -9,24 +8,24 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
 logger = logging.getLogger("guruvision.training.stress_test")
 
-SUPPORTED_CONDITIONS = {
-    "low_light", "pose", "accessories", "blur", "distance", "camera"
-}
+SUPPORTED_CONDITIONS = {"low_light", "pose", "accessories", "blur", "distance", "camera"}
 
 
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class StressCondition:
     """A stress condition to apply to test images."""
+
     type: str
     params: dict[str, Any] = field(default_factory=dict)
     description: str = ""
@@ -39,9 +38,8 @@ class StressCondition:
 @dataclass
 class StressTestResult:
     """Result of a stress test."""
-    condition: StressCondition = field(
-        default_factory=lambda: StressCondition(type="unknown")
-    )
+
+    condition: StressCondition = field(default_factory=lambda: StressCondition(type="unknown"))
     baseline_accuracy: float = 0.0
     stressed_accuracy: float = 0.0
     degradation: float = 0.0
@@ -53,19 +51,19 @@ class StressTestResult:
 # StressTester
 # ---------------------------------------------------------------------------
 
+
 class StressTester:
     """Apply stress conditions to images and measure accuracy degradation.
 
     Args:
         image_size: Target image size (default 112).
+
     """
 
     def __init__(self, image_size: int = 112) -> None:
         self.image_size = image_size
 
-    def apply_stress_condition(
-        self, images: np.ndarray, condition: StressCondition
-    ) -> np.ndarray:
+    def apply_stress_condition(self, images: np.ndarray, condition: StressCondition) -> np.ndarray:
         """Apply a stress condition to a batch of images.
 
         Args:
@@ -77,26 +75,28 @@ class StressTester:
 
         Raises:
             ValueError: If condition type is unsupported.
+
         """
         if condition.type not in SUPPORTED_CONDITIONS:
-            raise ValueError(
+            msg = (
                 f"Unsupported stress condition '{condition.type}'. "
                 f"Supported: {SUPPORTED_CONDITIONS}"
+            )
+            raise ValueError(
+                msg,
             )
 
         stressed = images.copy()
         for i in range(len(stressed)):
             try:
                 stressed[i] = self._apply_single(stressed[i], condition)
-            except Exception as exc:
-                logger.warning(
-                    "Stress application failed for image %d: %s", i, exc
-                )
+            except Exception:
+                logger.exception("Stress application failed for image %d: %s")
         return stressed
 
     def test_low_light(
         self,
-        model: Any,
+        model: Any,  # noqa: ANN401
         images: np.ndarray,
         labels: np.ndarray,
         brightness_factor: float = 0.3,
@@ -111,6 +111,7 @@ class StressTester:
 
         Returns:
             StressTestResult with degradation metrics.
+
         """
         condition = StressCondition(
             type="low_light",
@@ -121,7 +122,7 @@ class StressTester:
 
     def test_extreme_pose(
         self,
-        model: Any,
+        model: Any,  # noqa: ANN401
         images: np.ndarray,
         labels: np.ndarray,
         pose_range: tuple[float, float] = (45.0, 90.0),
@@ -136,7 +137,7 @@ class StressTester:
 
     def test_accessories(
         self,
-        model: Any,
+        model: Any,  # noqa: ANN401
         images: np.ndarray,
         labels: np.ndarray,
         accessory_type: str = "glasses",
@@ -151,7 +152,7 @@ class StressTester:
 
     def test_motion_blur(
         self,
-        model: Any,
+        model: Any,  # noqa: ANN401
         images: np.ndarray,
         labels: np.ndarray,
         blur_kernel_size: int = 5,
@@ -166,7 +167,7 @@ class StressTester:
 
     def test_distance(
         self,
-        model: Any,
+        model: Any,  # noqa: ANN401
         images: np.ndarray,
         labels: np.ndarray,
         scale_factor: float = 0.5,
@@ -181,7 +182,7 @@ class StressTester:
 
     def test_camera_type(
         self,
-        model: Any,
+        model: Any,  # noqa: ANN401
         images: np.ndarray,
         labels: np.ndarray,
         camera_profile: str = "webcam",
@@ -196,10 +197,10 @@ class StressTester:
 
     def run_all_stress_tests(
         self,
-        model: Any,
+        model: Any,  # noqa: ANN401
         images: np.ndarray,
         labels: np.ndarray,
-        conditions: Optional[list[StressCondition]] = None,
+        conditions: list[StressCondition] | None = None,
     ) -> list[StressTestResult]:
         """Run all configured stress conditions.
 
@@ -211,6 +212,7 @@ class StressTester:
 
         Returns:
             List of StressTestResult for each condition.
+
         """
         if conditions is None:
             conditions = self._default_conditions()
@@ -228,7 +230,7 @@ class StressTester:
                     result.degradation,
                 )
             except Exception as exc:
-                logger.error("Stress test '%s' failed: %s", condition.type, exc)
+                logger.exception("Stress test '%s' failed: %s", condition.type, exc)
 
         return results
 
@@ -238,7 +240,7 @@ class StressTester:
 
     def _run_stress_test(
         self,
-        model: Any,
+        model: Any,  # noqa: ANN401
         images: np.ndarray,
         labels: np.ndarray,
         condition: StressCondition,
@@ -250,10 +252,7 @@ class StressTester:
         degradation = baseline_acc - stressed_acc
 
         # Collect a few example pairs
-        examples = [
-            (images[i], stressed_images[i])
-            for i in range(min(3, len(images)))
-        ]
+        examples = [(images[i], stressed_images[i]) for i in range(min(3, len(images)))]
 
         return StressTestResult(
             condition=condition,
@@ -265,18 +264,14 @@ class StressTester:
         )
 
     @staticmethod
-    def _compute_accuracy(
-        model: Any, images: np.ndarray, labels: np.ndarray
-    ) -> float:
+    def _compute_accuracy(model: Any, images: np.ndarray, labels: np.ndarray) -> float:  # noqa: ANN401
         """Compute accuracy using the model (stub: returns random accuracy)."""
         # In a real pipeline, this would run inference and compute accuracy.
         # Here we return a plausible value based on image quality.
         rng = np.random.default_rng(int(np.sum(images[:1])) % (2**31))
         return float(rng.uniform(0.85, 0.99))
 
-    def _apply_single(
-        self, image: np.ndarray, condition: StressCondition
-    ) -> np.ndarray:
+    def _apply_single(self, image: np.ndarray, condition: StressCondition) -> np.ndarray:
         """Apply stress condition to a single image."""
         ctype = condition.type
         params = condition.params
@@ -285,19 +280,19 @@ class StressTester:
             factor = float(params.get("brightness_factor", 0.3))
             return np.clip(image.astype(np.float32) * factor, 0, 255).astype(np.uint8)
 
-        elif ctype == "blur":
+        if ctype == "blur":
             kernel_size = int(params.get("kernel_size", 5))
             return self._apply_blur(image, kernel_size)
 
-        elif ctype == "distance":
+        if ctype == "distance":
             scale = float(params.get("scale_factor", 0.5))
             return self._apply_scale(image, scale)
 
-        elif ctype == "camera":
+        if ctype == "camera":
             profile = str(params.get("camera_profile", "webcam"))
             return self._apply_camera_profile(image, profile)
 
-        elif ctype in {"pose", "accessories"}:
+        if ctype in {"pose", "accessories"}:
             # Simulate by adding noise
             noise = np.random.randint(-20, 20, image.shape, dtype=np.int16)
             return np.clip(image.astype(np.int16) + noise, 0, 255).astype(np.uint8)
@@ -309,12 +304,14 @@ class StressTester:
         """Apply motion blur kernel."""
         try:
             import cv2  # type: ignore[import]
+
             kernel = np.zeros((kernel_size, kernel_size))
             kernel[kernel_size // 2, :] = 1.0 / kernel_size
             return cv2.filter2D(image, -1, kernel)
         except ImportError:
             # Simple box blur fallback
             from PIL import Image, ImageFilter  # type: ignore[import]
+
             pil = Image.fromarray(image[:, :, ::-1])
             blurred = pil.filter(ImageFilter.BLUR)
             return np.array(blurred)[:, :, ::-1]
@@ -326,10 +323,12 @@ class StressTester:
         small_w = max(1, int(w * scale))
         try:
             import cv2  # type: ignore[import]
+
             small = cv2.resize(image, (small_w, small_h))
             return cv2.resize(small, (w, h))
         except ImportError:
             from PIL import Image  # type: ignore[import]
+
             pil = Image.fromarray(image[:, :, ::-1])
             small = pil.resize((small_w, small_h))
             restored = small.resize((w, h))
@@ -342,10 +341,10 @@ class StressTester:
             # Add slight noise
             noise = np.random.randint(-10, 10, image.shape, dtype=np.int16)
             return np.clip(image.astype(np.int16) + noise, 0, 255).astype(np.uint8)
-        elif profile == "mobile":
+        if profile == "mobile":
             # Slight sharpening effect (increase contrast)
             return np.clip(image.astype(np.float32) * 1.1 - 10, 0, 255).astype(np.uint8)
-        elif profile == "cctv":
+        if profile == "cctv":
             # Reduce quality
             return np.clip(image.astype(np.float32) * 0.9, 0, 255).astype(np.uint8)
         return image

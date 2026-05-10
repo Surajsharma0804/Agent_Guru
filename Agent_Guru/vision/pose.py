@@ -1,5 +1,4 @@
-"""
-Pose Estimator for the Agent Guru Vision System.
+"""Pose Estimator for the Agent Guru Vision System.
 
 Provides:
 - PoseEstimator: Full-body skeleton estimation using MediaPipe Pose.
@@ -15,13 +14,15 @@ Requirements: 6.1–6.6
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import structlog
 
 from Agent_Guru.vision.vision_models import PoseKeypoint, PoseResult, VisionEvent
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
@@ -93,12 +94,12 @@ def _classify_posture(kps: list[PoseKeypoint]) -> str | None:
 
     # raising_hand: wrist above shoulder (lower y value in image coords)
     for wrist, shoulder in (("left_wrist", "left_shoulder"), ("right_wrist", "right_shoulder")):
-        if visible(wrist) and visible(shoulder):
-            if kp[wrist].y < kp[shoulder].y - 0.05:
-                return "raising_hand"
+        if visible(wrist) and visible(shoulder) and kp[wrist].y < kp[shoulder].y - 0.05:
+            return "raising_hand"
 
     # lying_down: shoulders and hips at similar y (horizontal body)
-    if abs(shoulder_y - hip_y) < 0.12:
+    if abs(shoulder_y - hip_y) < 0.12:  # noqa: PLR2004 - Threshold value
+
         return "lying_down"
 
     # sitting: hips close to or below knees
@@ -130,6 +131,7 @@ class PoseEstimator:
                         ...
                     ]
                 }
+
     """
 
     def __init__(self, _infer_fn: Callable[..., Any] | None = None) -> None:
@@ -157,7 +159,8 @@ class PoseEstimator:
                 enable_segmentation=False,
                 min_detection_confidence=0.5,
             ) as pose:
-                rgb = frame[:, :, :3] if frame.ndim == 3 else frame
+                rgb = frame[:, :, :3] if frame.ndim == 3 else frame  # noqa: PLR2004 - Small integer threshold
+
                 result = pose.process(rgb)
                 if not result.pose_landmarks:
                     return []
@@ -172,11 +175,11 @@ class PoseEstimator:
                                 "visibility": float(lm.visibility),
                             }
                             for lm in lms
-                        ]
-                    }
+                        ],
+                    },
                 ]
-        except ImportError as e:
-            logger.warning("PoseEstimator: MediaPipe not available: %s", e)
+        except ImportError:
+            logger.exception("PoseEstimator: MediaPipe not available")
             return []
 
     # ------------------------------------------------------------------
@@ -185,7 +188,9 @@ class PoseEstimator:
 
     @staticmethod
     def _extract_coco17(
-        landmarks: list[dict[str, float]], frame_h: int, frame_w: int
+        landmarks: list[dict[str, float]],
+        frame_h: int,
+        frame_w: int,
     ) -> list[PoseKeypoint]:
         """Extract 17 COCO keypoints from 33 MediaPipe landmarks.
 
@@ -199,6 +204,7 @@ class PoseEstimator:
 
         Returns:
             List of exactly 17 PoseKeypoint objects.
+
         """
         kps: list[PoseKeypoint] = []
         for name, mp_idx in _COCO_17_FROM_MP:
@@ -215,7 +221,7 @@ class PoseEstimator:
                         x=float(lm["x"]) * frame_w,
                         y=float(lm["y"]) * frame_h,
                         confidence=0.0,
-                    )
+                    ),
                 )
             else:
                 kps.append(
@@ -224,7 +230,7 @@ class PoseEstimator:
                         x=float(lm["x"]) * frame_w,
                         y=float(lm["y"]) * frame_h,
                         confidence=visibility,
-                    )
+                    ),
                 )
         return kps
 
@@ -241,6 +247,7 @@ class PoseEstimator:
         Returns:
             List of PoseResult, at most _MAX_PERSONS entries.
             Each PoseResult contains exactly 17 COCO keypoints.
+
         """
         frame_h, frame_w = frame.shape[:2]
         raw_persons = self._run_inference(frame)
@@ -255,7 +262,7 @@ class PoseEstimator:
                     keypoints=kps,
                     person_id=person_id,
                     posture_label=posture,
-                )
+                ),
             )
 
         logger.debug("PoseEstimator: frame processed", persons=len(results))
@@ -270,13 +277,14 @@ class PoseEstimator:
 
         Returns:
             A VisionEvent with event_type="pose_estimated".
+
         """
         return VisionEvent(
             event_type="pose_estimated",
             timestamp=VisionEvent.now_timestamp(),
             source_module="pose",
             confidence=float(
-                np.mean([kp.confidence for kp in result.keypoints if kp.confidence > 0.0] or [0.0])
+                np.mean([kp.confidence for kp in result.keypoints if kp.confidence > 0.0] or [0.0]),
             ),
             metadata={
                 "person_id": result.person_id,

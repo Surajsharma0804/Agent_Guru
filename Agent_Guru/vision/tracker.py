@@ -1,5 +1,4 @@
-"""
-Object Tracker for the Agent Guru Vision System.
+"""Object Tracker for the Agent Guru Vision System.
 
 Implements the ByteTrack two-stage association algorithm:
   Stage 1: Match high-confidence detections (≥0.5) to existing tracks via IoU.
@@ -29,8 +28,8 @@ logger: structlog.BoundLogger = structlog.get_logger(__name__)
 _MAX_OBJECTS: int = 20
 _MAX_OCCLUSION_FRAMES: int = 30
 _HIGH_CONF_THRESHOLD: float = 0.5
-_IOU_HIGH_THRESHOLD: float = 0.3   # IoU threshold for high-conf stage
-_IOU_LOW_THRESHOLD: float = 0.2    # IoU threshold for low-conf stage
+_IOU_HIGH_THRESHOLD: float = 0.3  # IoU threshold for high-conf stage
+_IOU_LOW_THRESHOLD: float = 0.2  # IoU threshold for low-conf stage
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +90,7 @@ def _greedy_match(
         matched: list of (track_idx, det_idx) pairs
         unmatched_tracks: indices of unmatched tracks
         unmatched_dets: indices of unmatched detections
+
     """
     if not tracks or not detections:
         return [], list(range(len(tracks))), list(range(len(detections)))
@@ -134,6 +134,7 @@ class ObjectTracker:
     Args:
         max_objects: Maximum simultaneous tracked objects (default 20).
         max_occlusion_frames: Frames to keep a track alive without detection (default 30).
+
     """
 
     def __init__(
@@ -155,9 +156,7 @@ class ObjectTracker:
     # Public API
     # ------------------------------------------------------------------
 
-    def update(
-        self, detections: list[DetectedObject], frame_seq: int
-    ) -> list[TrackingUpdate]:
+    def update(self, detections: list[DetectedObject], frame_seq: int) -> list[TrackingUpdate]:
         """Run one ByteTrack update step.
 
         Args:
@@ -166,15 +165,22 @@ class ObjectTracker:
 
         Returns:
             List of TrackingUpdate objects (active + newly lost tracks).
+
         """
         # Split detections by confidence
         high_dets = [d for d in detections if d.confidence >= _HIGH_CONF_THRESHOLD]
         low_dets = [d for d in detections if d.confidence < _HIGH_CONF_THRESHOLD]
 
         # Stage 1: match high-confidence detections to all active tracks
-        active_tracks = [t for t in self._tracks if t.frames_since_seen == 0 or t.frames_since_seen <= self._max_occlusion_frames]
+        active_tracks = [
+            t
+            for t in self._tracks
+            if t.frames_since_seen == 0 or t.frames_since_seen <= self._max_occlusion_frames
+        ]
         matched_h, unmatched_tracks_h, unmatched_dets_h = _greedy_match(
-            active_tracks, high_dets, _IOU_HIGH_THRESHOLD
+            active_tracks,
+            high_dets,
+            _IOU_HIGH_THRESHOLD,
         )
 
         # Apply stage-1 matches
@@ -190,8 +196,10 @@ class ObjectTracker:
 
         # Stage 2: match low-confidence detections to unmatched tracks
         unmatched_active = [active_tracks[i] for i in unmatched_tracks_h]
-        matched_l, unmatched_tracks_l, unmatched_dets_l = _greedy_match(
-            unmatched_active, low_dets, _IOU_LOW_THRESHOLD
+        matched_l, _unmatched_tracks_l, _unmatched_dets_l = _greedy_match(
+            unmatched_active,
+            low_dets,
+            _IOU_LOW_THRESHOLD,
         )
         for ti, di in matched_l:
             track = unmatched_active[ti]
@@ -239,13 +247,12 @@ class ObjectTracker:
                     frames_since_seen=track.frames_since_seen,
                     is_new=is_new,
                     is_lost=is_lost,
-                )
+                ),
             )
 
         # Remove tracks that have exceeded occlusion limit
         self._tracks = [
-            t for t in self._tracks
-            if t.frames_since_seen <= self._max_occlusion_frames
+            t for t in self._tracks if t.frames_since_seen <= self._max_occlusion_frames
         ]
 
         logger.debug(
@@ -256,9 +263,7 @@ class ObjectTracker:
         )
         return updates
 
-    def make_events(
-        self, updates: list[TrackingUpdate], frame_seq: int
-    ) -> list[VisionEvent]:
+    def make_events(self, updates: list[TrackingUpdate], frame_seq: int) -> list[VisionEvent]:
         """Build VisionEvents for appeared/disappeared tracking updates.
 
         Args:
@@ -268,6 +273,7 @@ class ObjectTracker:
         Returns:
             List of VisionEvents with event_type "object_appeared" or
             "object_disappeared".
+
         """
         events: list[VisionEvent] = []
         for upd in updates:
@@ -284,7 +290,7 @@ class ObjectTracker:
                             "class_label": upd.class_label,
                             "frame_seq": frame_seq,
                         },
-                    )
+                    ),
                 )
             elif upd.is_lost:
                 events.append(
@@ -299,7 +305,7 @@ class ObjectTracker:
                             "class_label": upd.class_label,
                             "frame_seq": frame_seq,
                         },
-                    )
+                    ),
                 )
         return events
 

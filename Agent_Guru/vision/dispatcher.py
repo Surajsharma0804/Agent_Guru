@@ -1,5 +1,4 @@
-"""
-Frame Dispatcher for the Agent Guru Vision System.
+"""Frame Dispatcher for the Agent Guru Vision System.
 
 Receives raw frames and fans them out to all enabled vision modules in
 parallel using ``asyncio.gather``.  Module failures are isolated: an
@@ -16,12 +15,13 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Coroutine
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import structlog
 
-from Agent_Guru.vision.bus import VisionEventBus
+if TYPE_CHECKING:
+    from Agent_Guru.vision.bus import VisionEventBus
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
@@ -35,12 +35,13 @@ class FrameDispatcher:
     Args:
         event_bus: Optional VisionEventBus used for module suspension checks.
             When provided, modules with no subscribers are skipped.
+
     """
 
-    def __init__(self, event_bus: Optional[VisionEventBus] = None) -> None:
+    def __init__(self, event_bus: VisionEventBus | None = None) -> None:
         self._handlers: dict[str, ModuleHandler] = {}
         self._enabled: set[str] = set()
-        self._event_bus: Optional[VisionEventBus] = event_bus
+        self._event_bus: VisionEventBus | None = event_bus
 
     # ------------------------------------------------------------------
     # Module registration
@@ -54,6 +55,7 @@ class FrameDispatcher:
         Args:
             name: Unique module name (e.g. "scene", "depth", "ocr").
             handler: Async callable ``(frame: np.ndarray, frame_seq: int) → Any``.
+
         """
         self._handlers[name] = handler
         self._enabled.add(name)
@@ -71,9 +73,11 @@ class FrameDispatcher:
 
         Raises:
             KeyError: If the module has not been registered.
+
         """
         if name not in self._handlers:
-            raise KeyError(f"Module not registered: {name!r}")
+            msg = f"Module not registered: {name!r}"
+            raise KeyError(msg)
         self._enabled.add(name)
         logger.debug("Module enabled", module=name)
 
@@ -85,9 +89,11 @@ class FrameDispatcher:
 
         Raises:
             KeyError: If the module has not been registered.
+
         """
         if name not in self._handlers:
-            raise KeyError(f"Module not registered: {name!r}")
+            msg = f"Module not registered: {name!r}"
+            raise KeyError(msg)
         self._enabled.discard(name)
         logger.debug("Module disabled", module=name)
 
@@ -96,6 +102,7 @@ class FrameDispatcher:
 
         Returns:
             Sorted list of enabled module names.
+
         """
         return sorted(self._enabled)
 
@@ -116,6 +123,7 @@ class FrameDispatcher:
 
         Returns:
             Dict mapping module name → result (or Exception on failure).
+
         """
         active = self._get_dispatchable_modules()
 
@@ -129,8 +137,8 @@ class FrameDispatcher:
             try:
                 result = await handler(frame, frame_seq)
                 results[name] = result
-            except Exception as exc:  # noqa: BLE001
-                logger.error(
+            except Exception as exc:
+                logger.exception(
                     "Module raised exception during dispatch",
                     module=name,
                     frame_seq=frame_seq,

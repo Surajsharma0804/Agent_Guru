@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.vision.training.pipeline
+"""Module: Agent_Guru.vision.training.pipeline
 Purpose: Pipeline orchestrator — coordinate all pipeline stages.
 
 Requirements: 12.3
@@ -11,15 +10,17 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
-from .config_manager import Config
 from .dataset_manager import DatasetManager
 from .evaluation import BenchmarkResult, EvaluationEngine
 from .failure_analysis import FailureAnalysis, FailureAnalyzer
 from .improvement import ImprovementStrategyManager
 from .report import ModelMetadata, Report, ReportGenerator
 from .stress_test import StressCondition, StressTester, StressTestResult
+
+if TYPE_CHECKING:
+    from .config_manager import Config
 
 logger = logging.getLogger("guruvision.training.pipeline")
 
@@ -28,9 +29,11 @@ logger = logging.getLogger("guruvision.training.pipeline")
 # Data structures
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class PipelineResult:
     """Result of a complete pipeline run."""
+
     success: bool = False
     model_path: str = ""
     onnx_path: str = ""
@@ -43,6 +46,7 @@ class PipelineResult:
 @dataclass
 class ImprovementResult:
     """Result of the improvement loop."""
+
     iterations: int = 0
     final_benchmark_results: list[BenchmarkResult] = field(default_factory=list)
     all_targets_met: bool = False
@@ -53,11 +57,13 @@ class ImprovementResult:
 # PipelineOrchestrator
 # ---------------------------------------------------------------------------
 
+
 class PipelineOrchestrator:
     """Coordinate execution of all pipeline stages.
 
     Args:
         config: Pipeline configuration.
+
     """
 
     def __init__(self, config: Config) -> None:
@@ -71,7 +77,7 @@ class PipelineOrchestrator:
         )
         self._failure_analyzer = FailureAnalyzer()
         self._improvement_manager = ImprovementStrategyManager(
-            current_backbone=config.training.backbone
+            current_backbone=config.training.backbone,
         )
         self._stress_tester = StressTester()
         self._report_generator = ReportGenerator(config.reporting.output_dir)
@@ -79,7 +85,7 @@ class PipelineOrchestrator:
         self._model_path: str = ""
         self._onnx_path: str = ""
         self._benchmark_results: list[BenchmarkResult] = []
-        self._failure_analysis: Optional[FailureAnalysis] = None
+        self._failure_analysis: FailureAnalysis | None = None
         self._stress_results: list[StressTestResult] = []
 
     def run_full_pipeline(self) -> PipelineResult:
@@ -87,6 +93,7 @@ class PipelineOrchestrator:
 
         Returns:
             PipelineResult with paths and status.
+
         """
         start = time.time()
         stages: list[str] = []
@@ -118,7 +125,8 @@ class PipelineOrchestrator:
 
             logger.info(
                 "Pipeline complete in %.1fs. Targets met: %s",
-                total_time, all_targets_met,
+                total_time,
+                all_targets_met,
             )
 
             return PipelineResult(
@@ -131,31 +139,28 @@ class PipelineOrchestrator:
                 stages_completed=stages,
             )
 
-        except Exception as exc:
-            logger.error("Pipeline failed: %s", exc)
+        except Exception:
+            logger.exception("Pipeline failed")
             return PipelineResult(
                 success=False,
                 total_time=time.time() - start,
                 stages_completed=stages,
             )
 
-    def run_training_stage(self) -> Any:
+    def run_training_stage(self) -> Any:  # noqa: ANN401
         """Run the training stage.
 
         Returns:
             Training result object (or None if training skipped).
+
         """
         logger.info("Starting training stage")
         dataset_dir = self.config.dataset.training_path
         output_dir = self.config.training.output_dir
 
         if not Path(dataset_dir).exists():
-            logger.warning(
-                "Training dataset not found at '%s'. Skipping training.", dataset_dir
-            )
-            self._model_path = str(
-                Path(output_dir) / self.config.training.checkpoint_name
-            )
+            logger.warning("Training dataset not found at '%s'. Skipping training.", dataset_dir)
+            self._model_path = str(Path(output_dir) / self.config.training.checkpoint_name)
             return None
 
         try:
@@ -180,13 +185,11 @@ class PipelineOrchestrator:
             self._model_path = train_arcface_model(train_cfg)
             logger.info("Training complete. Model saved to '%s'", self._model_path)
             return {"model_path": self._model_path}
-        except Exception as exc:
-            logger.error("Training failed: %s", exc)
+        except Exception:
+            logger.exception("Training failed")
             return None
 
-    def run_evaluation_stage(
-        self, model_path: str
-    ) -> list[BenchmarkResult]:
+    def run_evaluation_stage(self, model_path: str) -> list[BenchmarkResult]:
         """Run evaluation on all configured benchmarks.
 
         Args:
@@ -194,6 +197,7 @@ class PipelineOrchestrator:
 
         Returns:
             List of BenchmarkResult objects.
+
         """
         logger.info("Starting evaluation stage")
         results: list[BenchmarkResult] = []
@@ -218,18 +222,14 @@ class PipelineOrchestrator:
                     use_onnx=use_onnx,
                 )
                 results.append(result)
-                logger.info(
-                    "Benchmark '%s': accuracy=%.4f", benchmark_name, result.accuracy
-                )
+                logger.info("Benchmark '%s': accuracy=%.4f", benchmark_name, result.accuracy)
             except Exception as exc:
-                logger.error("Evaluation failed for '%s': %s", benchmark_name, exc)
+                logger.exception("Evaluation failed for '%s': %s", benchmark_name, exc)
 
         self._benchmark_results = results
         return results
 
-    def run_improvement_loop(
-        self, max_iterations: int = 3
-    ) -> ImprovementResult:
+    def run_improvement_loop(self, max_iterations: int = 3) -> ImprovementResult:
         """Run iterative improvement loop.
 
         Args:
@@ -237,14 +237,13 @@ class PipelineOrchestrator:
 
         Returns:
             ImprovementResult with final benchmark results.
+
         """
         logger.info("Starting improvement loop (max_iterations=%d)", max_iterations)
         import numpy as np
 
         history: list[dict[str, Any]] = []
-        current_results = self._benchmark_results or self.run_evaluation_stage(
-            self._model_path
-        )
+        current_results = self._benchmark_results or self.run_evaluation_stage(self._model_path)
 
         for iteration in range(max_iterations):
             comparisons = self._eval_engine.compare_against_targets(current_results)
@@ -268,11 +267,13 @@ class PipelineOrchestrator:
 
             strategy = strategies[0]
             applied = self._improvement_manager.apply_strategy(strategy)
-            history.append({
-                "iteration": iteration + 1,
-                "strategy": strategy.name,
-                "success": applied.success,
-            })
+            history.append(
+                {
+                    "iteration": iteration + 1,
+                    "strategy": strategy.name,
+                    "success": applied.success,
+                },
+            )
 
             # Re-evaluate
             current_results = self.run_evaluation_stage(self._model_path)
@@ -287,9 +288,7 @@ class PipelineOrchestrator:
             history=history,
         )
 
-    def run_stress_testing_stage(
-        self, model_path: str
-    ) -> list[StressTestResult]:
+    def run_stress_testing_stage(self, model_path: str) -> list[StressTestResult]:
         """Run stress testing on the model.
 
         Args:
@@ -297,6 +296,7 @@ class PipelineOrchestrator:
 
         Returns:
             List of StressTestResult objects.
+
         """
         logger.info("Starting stress testing stage")
         import numpy as np
@@ -321,7 +321,10 @@ class PipelineOrchestrator:
             conditions = None  # type: ignore[assignment]
 
         results = self._stress_tester.run_all_stress_tests(
-            model=None, images=images, labels=labels, conditions=conditions
+            model=None,
+            images=images,
+            labels=labels,
+            conditions=conditions,
         )
         self._stress_results = results
         return results
@@ -331,19 +334,18 @@ class PipelineOrchestrator:
 
         Returns:
             Compiled Report object.
+
         """
         logger.info("Generating final report")
 
-        comparisons = self._eval_engine.compare_against_targets(
-            self._benchmark_results
-        )
+        comparisons = self._eval_engine.compare_against_targets(self._benchmark_results)
 
         metadata = ModelMetadata(
             architecture=self.config.training.backbone,
             embedding_size=self.config.training.embedding_size,
         )
 
-        report = self._report_generator.compile_results(
+        return self._report_generator.compile_results(
             benchmark_results=self._benchmark_results,
             failure_analysis=self._failure_analysis,
             stress_test_results=self._stress_results,
@@ -351,7 +353,6 @@ class PipelineOrchestrator:
             target_comparison=comparisons,
             pipeline_name=self.config.name,
         )
-        return report
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -361,6 +362,7 @@ class PipelineOrchestrator:
         """Log the complete configuration at pipeline start."""
         import json
         from dataclasses import asdict
+
         try:
             config_dict = {
                 "name": self.config.name,
@@ -377,5 +379,5 @@ class PipelineOrchestrator:
                 "Pipeline configuration:\n%s",
                 json.dumps(config_dict, indent=2, default=str),
             )
-        except Exception as exc:
-            logger.warning("Could not log configuration: %s", exc)
+        except Exception:
+            logger.exception("Could not log configuration")

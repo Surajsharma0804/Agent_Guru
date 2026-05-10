@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.speech.tts.synthesis_engine
-Purpose: Production TTS SynthesisEngine with voice profiles, rate adjustment, prosody
+"""Module: Agent_Guru.speech.tts.synthesis_engine
+Purpose: Production TTS SynthesisEngine with voice profiles, rate adjustment, prosody.
 
 Wraps CoquiTTSEngine with:
 - Multiple voice profiles (male/female/neutral)
@@ -54,9 +53,10 @@ _PAUSE_DURATIONS = {
 
 class VoiceProfile(str, Enum):
     """Available voice profiles."""
-    GURU = "guru"       # Male, professional
-    MAYA = "maya"       # Female, warm
-    NEUTRAL = "neutral" # Gender-neutral
+
+    GURU = "guru"  # Male, professional
+    MAYA = "maya"  # Female, warm
+    NEUTRAL = "neutral"  # Gender-neutral
 
 
 @dataclass
@@ -70,7 +70,9 @@ class SynthesisConfig:
         volume: Output volume (0.0 to 1.0)
         enable_prosody: Whether to apply prosody/punctuation handling
         use_gpu: Whether to use GPU acceleration
+
     """
+
     voice_profile: VoiceProfile = VoiceProfile.GURU
     speech_rate: float = 1.0
     sample_rate: int = _MIN_SAMPLE_RATE
@@ -80,16 +82,16 @@ class SynthesisConfig:
 
     def __post_init__(self) -> None:
         if not _MIN_RATE <= self.speech_rate <= _MAX_RATE:
+            msg = f"speech_rate must be between {_MIN_RATE} and {_MAX_RATE}, got {self.speech_rate}"
             raise ValueError(
-                f"speech_rate must be between {_MIN_RATE} and {_MAX_RATE}, "
-                f"got {self.speech_rate}"
+                msg,
             )
         if self.sample_rate < _MIN_SAMPLE_RATE:
-            raise ValueError(
-                f"sample_rate must be >= {_MIN_SAMPLE_RATE}, got {self.sample_rate}"
-            )
+            msg = f"sample_rate must be >= {_MIN_SAMPLE_RATE}, got {self.sample_rate}"
+            raise ValueError(msg)
         if not 0.0 <= self.volume <= 1.0:
-            raise ValueError(f"volume must be between 0.0 and 1.0, got {self.volume}")
+            msg = f"volume must be between 0.0 and 1.0, got {self.volume}"
+            raise ValueError(msg)
 
 
 @dataclass
@@ -106,7 +108,9 @@ class SynthesisResult:
         latency_ms: Synthesis latency in milliseconds
         success: Whether synthesis succeeded
         error: Error message if synthesis failed
+
     """
+
     audio_bytes: bytes
     sample_rate: int
     duration_seconds: float
@@ -119,8 +123,7 @@ class SynthesisResult:
 
 
 class SynthesisEngine:
-    """
-    Production TTS synthesis engine with voice profiles and prosody.
+    """Production TTS synthesis engine with voice profiles and prosody.
 
     Provides a unified interface for text-to-speech synthesis with:
     - Multiple voice profiles (Guru/Maya/Neutral)
@@ -139,6 +142,7 @@ class SynthesisEngine:
         - Synthesis latency: <200ms P95
         - Sample rate: 22050 Hz
         - Throughput: >5 sentences/second
+
     """
 
     def __init__(self, config: SynthesisConfig | None = None) -> None:
@@ -146,6 +150,7 @@ class SynthesisEngine:
 
         Args:
             config: Synthesis configuration. Uses defaults if None.
+
         """
         self._config = config or SynthesisConfig()
         self._lock = threading.Lock()
@@ -155,7 +160,7 @@ class SynthesisEngine:
 
         logger.info(
             f"SynthesisEngine initialized: profile={self._config.voice_profile.value}, "
-            f"rate={self._config.speech_rate}x, sample_rate={self._config.sample_rate}Hz"
+            f"rate={self._config.speech_rate}x, sample_rate={self._config.sample_rate}Hz",
         )
 
     def initialize(self) -> None:
@@ -164,16 +169,16 @@ class SynthesisEngine:
             return
         try:
             from Agent_Guru.speech.tts.tts_engine import CoquiTTSEngine
+
             self._coqui_engine = CoquiTTSEngine(use_gpu=self._config.use_gpu)
             self._initialized = True
             logger.info("SynthesisEngine: Kokoro TTS engine loaded")
-        except Exception as e:
-            logger.warning("TTS engine unavailable: %s. Using silence fallback.", e)
+        except Exception:
+            logger.exception("TTS engine unavailable: %s. Using silence fallback.")
             self._initialized = True  # Mark as initialized even without model
 
     def synthesize(self, text: str) -> SynthesisResult:
-        """
-        Synthesize text to audio.
+        """Synthesize text to audio.
 
         Time Complexity: O(n) where n = len(text)
         Space Complexity: O(n) for audio output
@@ -183,6 +188,7 @@ class SynthesisEngine:
 
         Returns:
             SynthesisResult with audio bytes and metadata
+
         """
         start = time.perf_counter()
 
@@ -190,10 +196,7 @@ class SynthesisEngine:
             self.initialize()
 
         # Apply prosody preprocessing
-        if self._config.enable_prosody:
-            processed_text = self._apply_prosody(text)
-        else:
-            processed_text = text
+        processed_text = self._apply_prosody(text) if self._config.enable_prosody else text
 
         # Clear interruption flag
         self._interrupted.clear()
@@ -216,7 +219,7 @@ class SynthesisEngine:
 
         except Exception as e:
             latency_ms = (time.perf_counter() - start) * 1000
-            logger.error("Synthesis failed: %s", e)
+            logger.exception("Synthesis failed")
             return SynthesisResult(
                 audio_bytes=b"",
                 sample_rate=self._config.sample_rate,
@@ -243,6 +246,7 @@ class SynthesisEngine:
 
         Args:
             profile: New voice profile
+
         """
         self._config.voice_profile = profile
         logger.info("Voice profile switched to: %s", profile.value)
@@ -255,11 +259,11 @@ class SynthesisEngine:
 
         Raises:
             ValueError: If rate is out of bounds
+
         """
         if not _MIN_RATE <= rate <= _MAX_RATE:
-            raise ValueError(
-                f"speech_rate must be between {_MIN_RATE} and {_MAX_RATE}, got {rate}"
-            )
+            msg = f"speech_rate must be between {_MIN_RATE} and {_MAX_RATE}, got {rate}"
+            raise ValueError(msg)
         self._config.speech_rate = rate
         logger.info("Speech rate set to: %sx", rate)
 
@@ -272,8 +276,7 @@ class SynthesisEngine:
     # ------------------------------------------------------------------
 
     def _synthesize_audio(self, text: str) -> tuple[bytes, int]:
-        """
-        Synthesize audio using available TTS engine.
+        """Synthesize audio using available TTS engine.
 
         Falls back to silence if no TTS engine is available.
 
@@ -282,6 +285,7 @@ class SynthesisEngine:
 
         Returns:
             Tuple of (audio_bytes, sample_rate)
+
         """
         if self._coqui_engine is not None:
             try:
@@ -293,16 +297,17 @@ class SynthesisEngine:
                     volume=self._config.volume,
                 )
                 return audio_bytes, self._config.sample_rate
-            except Exception as e:
-                logger.warning("CoquiTTS synthesis failed: %s. Using silence fallback.", e)
+            except Exception:
+                logger.exception("CoquiTTS synthesis failed: %s. Using silence fallback.")
 
         # Fallback: generate silence (for testing/offline mode)
         return self._generate_silence(text), self._config.sample_rate
 
-    def _profile_to_personality(self) -> Any:
+    def _profile_to_personality(self) -> Any:  # noqa: ANN401
         """Map VoiceProfile to PersonalityType."""
         try:
             from Agent_Guru.speech.models import PersonalityType
+
             mapping = {
                 VoiceProfile.GURU: PersonalityType.GURU,
                 VoiceProfile.MAYA: PersonalityType.MAYA,
@@ -313,8 +318,7 @@ class SynthesisEngine:
             return None
 
     def _apply_prosody(self, text: str) -> str:
-        """
-        Apply prosody preprocessing for natural speech.
+        """Apply prosody preprocessing for natural speech.
 
         - Normalizes whitespace
         - Handles abbreviations
@@ -327,6 +331,7 @@ class SynthesisEngine:
 
         Returns:
             Prosody-processed text
+
         """
         if not text:
             return text
@@ -351,9 +356,9 @@ class SynthesisEngine:
 
         # Remove markdown formatting
         text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)  # Bold
-        text = re.sub(r"\*(.+?)\*", r"\1", text)       # Italic
-        text = re.sub(r"`(.+?)`", r"\1", text)          # Code
-        text = re.sub(r"#{1,6}\s", "", text)             # Headers
+        text = re.sub(r"\*(.+?)\*", r"\1", text)  # Italic
+        text = re.sub(r"`(.+?)`", r"\1", text)  # Code
+        text = re.sub(r"#{1,6}\s", "", text)  # Headers
 
         # Remove URLs (replace with "link")
         text = re.sub(r"https?://\S+", "link", text)
@@ -364,8 +369,7 @@ class SynthesisEngine:
         return text.strip()
 
     def _generate_silence(self, text: str) -> bytes:
-        """
-        Generate silence audio as fallback.
+        """Generate silence audio as fallback.
 
         Duration is estimated from text length (average speaking rate).
 
@@ -374,6 +378,7 @@ class SynthesisEngine:
 
         Returns:
             WAV-format silence bytes
+
         """
         import io
         import wave
@@ -398,8 +403,7 @@ class SynthesisEngine:
 
     @staticmethod
     def _estimate_duration(audio_bytes: bytes, sample_rate: int) -> float:
-        """
-        Estimate audio duration from WAV bytes.
+        """Estimate audio duration from WAV bytes.
 
         Args:
             audio_bytes: WAV audio bytes
@@ -407,6 +411,7 @@ class SynthesisEngine:
 
         Returns:
             Duration in seconds
+
         """
         if not audio_bytes:
             return 0.0
@@ -414,11 +419,12 @@ class SynthesisEngine:
         try:
             import io
             import wave
+
             with wave.open(io.BytesIO(audio_bytes), "rb") as wf:
                 frames = wf.getnframes()
                 rate = wf.getframerate()
                 return frames / float(rate) if rate > 0 else 0.0
-        except Exception as e:
+        except Exception:
             # Rough estimate: 2 bytes per sample, 1 channel
             header_size = 44  # WAV header
             data_size = max(0, len(audio_bytes) - header_size)

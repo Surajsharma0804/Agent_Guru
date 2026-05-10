@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.vision.training.evaluation
+"""Module: Agent_Guru.vision.training.evaluation
 Purpose: Evaluate trained models on benchmark datasets and compute metrics.
 
 Requirements: 5.1-5.9, 6.1-6.4
@@ -10,7 +9,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -28,9 +27,11 @@ DEFAULT_TARGETS: dict[str, float] = {
 # Data structures
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ROCCurve:
     """ROC curve data."""
+
     fpr: np.ndarray = field(default_factory=lambda: np.array([]))
     tpr: np.ndarray = field(default_factory=lambda: np.array([]))
     thresholds: np.ndarray = field(default_factory=lambda: np.array([]))
@@ -39,17 +40,19 @@ class ROCCurve:
 @dataclass
 class Metrics:
     """Evaluation metrics for a binary classification task."""
+
     accuracy: float = 0.0
     precision: float = 0.0
     recall: float = 0.0
     f1_score: float = 0.0
-    far: float = 0.0   # False Accept Rate
-    frr: float = 0.0   # False Reject Rate
+    far: float = 0.0  # False Accept Rate
+    frr: float = 0.0  # False Reject Rate
 
 
 @dataclass
 class BenchmarkResult:
     """Result of evaluating a model on a benchmark dataset."""
+
     benchmark_name: str = ""
     accuracy: float = 0.0
     optimal_threshold: float = 0.5
@@ -64,6 +67,7 @@ class BenchmarkResult:
 @dataclass
 class TargetComparison:
     """Comparison of achieved accuracy against target."""
+
     benchmark: str = ""
     achieved: float = 0.0
     target: float = 0.0
@@ -74,6 +78,7 @@ class TargetComparison:
 # ---------------------------------------------------------------------------
 # BenchmarkLoader
 # ---------------------------------------------------------------------------
+
 
 class BenchmarkLoader:
     """Load benchmark datasets (LFW, CFP-FP, AgeDB-30, IJB-C).
@@ -87,9 +92,9 @@ class BenchmarkLoader:
         self.benchmark_path = benchmark_path
         self.benchmark_name = benchmark_name.lower().replace("-", "_")
         if self.benchmark_name not in self.SUPPORTED:
+            msg = f"Unsupported benchmark '{benchmark_name}'. Supported: {self.SUPPORTED}"
             raise ValueError(
-                f"Unsupported benchmark '{benchmark_name}'. "
-                f"Supported: {self.SUPPORTED}"
+                msg,
             )
 
     def load_pairs(self) -> list[tuple[str, str]]:
@@ -97,6 +102,7 @@ class BenchmarkLoader:
 
         Returns:
             List of (image_path_1, image_path_2) tuples.
+
         """
         path = Path(self.benchmark_path)
         pairs_file = path / "pairs.txt"
@@ -110,25 +116,27 @@ class BenchmarkLoader:
 
         Returns:
             List of boolean labels.
+
         """
         path = Path(self.benchmark_path)
         labels_file = path / "labels.txt"
         if labels_file.exists():
-            with open(labels_file) as f:
+            with open(labels_file) as f:  # noqa: PTH123
                 return [line.strip() == "1" for line in f if line.strip()]
         return []
 
-    def load_metadata(self) -> Optional[Any]:
+    def load_metadata(self) -> Any | None:  # noqa: ANN401
         """Load benchmark metadata if available."""
         return None
 
     @staticmethod
     def _parse_pairs_file(pairs_file: Path) -> list[tuple[str, str]]:
         pairs: list[tuple[str, str]] = []
-        with open(pairs_file) as f:
+        with open(pairs_file) as f:  # noqa: PTH123
             for line in f:
                 parts = line.strip().split()
-                if len(parts) >= 2:
+                if len(parts) >= 2:  # noqa: PLR2004 - Small integer threshold
+
                     pairs.append((parts[0], parts[1]))
         return pairs
 
@@ -137,23 +145,25 @@ class BenchmarkLoader:
 # EvaluationEngine
 # ---------------------------------------------------------------------------
 
+
 class EvaluationEngine:
     """Evaluate models on benchmark datasets and compute metrics.
 
     Args:
         targets: Dict mapping benchmark name to accuracy target.
         embedding_dim: Embedding dimension for model loading.
+
     """
 
     def __init__(
         self,
-        targets: Optional[dict[str, float]] = None,
+        targets: dict[str, float] | None = None,
         embedding_dim: int = 512,
     ) -> None:
         self.targets = targets or DEFAULT_TARGETS.copy()
         self.embedding_dim = embedding_dim
 
-    def load_model(self, model_path: str, use_onnx: bool = False) -> Any:
+    def load_model(self, model_path: str, use_onnx: bool = False) -> Any:  # noqa: ANN401
         """Load a model for inference.
 
         Args:
@@ -165,16 +175,21 @@ class EvaluationEngine:
 
         Raises:
             FileNotFoundError: If model file does not exist.
+
         """
         if not Path(model_path).exists():
-            raise FileNotFoundError(f"Model not found: {model_path}")
+            msg = f"Model not found: {model_path}"
+            raise FileNotFoundError(msg)
 
         if use_onnx or model_path.endswith(".onnx"):
             return self._load_onnx(model_path)
         return self._load_pytorch(model_path)
 
     def extract_embeddings(
-        self, model: Any, images: np.ndarray, use_onnx: bool = False
+        self,
+        model: Any,  # noqa: ANN401
+        images: np.ndarray,
+        use_onnx: bool = False,
     ) -> np.ndarray:
         """Extract embeddings for a batch of images.
 
@@ -185,14 +200,13 @@ class EvaluationEngine:
 
         Returns:
             Float32 array of shape (N, embedding_dim).
+
         """
         if use_onnx or hasattr(model, "run"):
             return self._extract_onnx(model, images)
         return self._extract_pytorch(model, images)
 
-    def compute_similarity(
-        self, embeddings1: np.ndarray, embeddings2: np.ndarray
-    ) -> np.ndarray:
+    def compute_similarity(self, embeddings1: np.ndarray, embeddings2: np.ndarray) -> np.ndarray:
         """Compute cosine similarity between pairs of embeddings.
 
         Args:
@@ -201,6 +215,7 @@ class EvaluationEngine:
 
         Returns:
             Array of shape (N,) with cosine similarity scores in [-1, 1].
+
         """
         # L2 normalize
         norm1 = np.linalg.norm(embeddings1, axis=1, keepdims=True) + 1e-10
@@ -209,9 +224,7 @@ class EvaluationEngine:
         e2 = embeddings2 / norm2
         return np.sum(e1 * e2, axis=1)
 
-    def compute_roc(
-        self, scores: np.ndarray, labels: np.ndarray
-    ) -> ROCCurve:
+    def compute_roc(self, scores: np.ndarray, labels: np.ndarray) -> ROCCurve:
         """Compute ROC curve.
 
         Args:
@@ -220,6 +233,7 @@ class EvaluationEngine:
 
         Returns:
             ROCCurve with fpr, tpr, thresholds arrays.
+
         """
         thresholds = np.linspace(scores.min(), scores.max(), 200)
         fprs, tprs = [], []
@@ -239,9 +253,7 @@ class EvaluationEngine:
             thresholds=thresholds,
         )
 
-    def find_optimal_threshold(
-        self, scores: np.ndarray, labels: np.ndarray
-    ) -> float:
+    def find_optimal_threshold(self, scores: np.ndarray, labels: np.ndarray) -> float:
         """Find threshold that maximizes accuracy.
 
         Args:
@@ -250,6 +262,7 @@ class EvaluationEngine:
 
         Returns:
             Optimal threshold value.
+
         """
         thresholds = np.linspace(scores.min(), scores.max(), 200)
         best_acc = 0.0
@@ -277,6 +290,7 @@ class EvaluationEngine:
 
         Returns:
             Metrics dataclass.
+
         """
         preds = (scores >= threshold).astype(int)
         tp = int(np.sum((preds == 1) & (labels == 1)))
@@ -287,11 +301,9 @@ class EvaluationEngine:
         accuracy = (tp + tn) / max(tp + fp + tn + fn, 1)
         precision = tp / max(tp + fp, 1)
         recall = tp / max(tp + fn, 1)
-        f1 = (
-            2 * precision * recall / max(precision + recall, 1e-10)
-        )
-        far = fp / max(fp + tn, 1)   # False Accept Rate
-        frr = fn / max(fn + tp, 1)   # False Reject Rate
+        f1 = 2 * precision * recall / max(precision + recall, 1e-10)
+        far = fp / max(fp + tn, 1)  # False Accept Rate
+        frr = fn / max(fn + tp, 1)  # False Reject Rate
 
         return Metrics(
             accuracy=accuracy,
@@ -304,7 +316,7 @@ class EvaluationEngine:
 
     def evaluate_benchmark(
         self,
-        model: Any,
+        model: Any,  # noqa: ANN401
         benchmark_name: str,
         benchmark_path: str = "",
         use_onnx: bool = False,
@@ -321,6 +333,7 @@ class EvaluationEngine:
 
         Returns:
             BenchmarkResult with all metrics.
+
         """
         import time
 
@@ -328,9 +341,11 @@ class EvaluationEngine:
 
         # Try to load real data; fall back to synthetic
         pairs, labels_bool = self._load_benchmark_data(
-            benchmark_name, benchmark_path, num_synthetic_pairs
+            benchmark_name,
+            benchmark_path,
+            num_synthetic_pairs,
         )
-        labels = np.array([int(l) for l in labels_bool])
+        labels = np.array([int(label) for label in labels_bool])
 
         # Generate synthetic embeddings (real pipeline would extract from images)
         rng = np.random.default_rng(42)
@@ -368,7 +383,8 @@ class EvaluationEngine:
         )
 
     def compare_against_targets(
-        self, results: list[BenchmarkResult]
+        self,
+        results: list[BenchmarkResult],
     ) -> dict[str, TargetComparison]:
         """Compare benchmark results against performance targets.
 
@@ -377,6 +393,7 @@ class EvaluationEngine:
 
         Returns:
             Dict mapping benchmark name to TargetComparison.
+
         """
         comparisons: dict[str, TargetComparison] = {}
         for result in results:
@@ -392,9 +409,7 @@ class EvaluationEngine:
             )
         return comparisons
 
-    def is_production_ready(
-        self, comparisons: dict[str, TargetComparison]
-    ) -> bool:
+    def is_production_ready(self, comparisons: dict[str, TargetComparison]) -> bool:
         """Return True if all benchmarks with targets pass.
 
         Args:
@@ -402,6 +417,7 @@ class EvaluationEngine:
 
         Returns:
             True if all targets are met.
+
         """
         if not comparisons:
             return False
@@ -411,10 +427,10 @@ class EvaluationEngine:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _load_pytorch(self, model_path: str) -> Any:
+    def _load_pytorch(self, model_path: str) -> Any:  # noqa: ANN401
         import torch
-        import torch.nn as nn
-        import torchvision.models as models  # type: ignore[import]
+        from torch import nn
+        from torchvision import models  # type: ignore[import]
 
         checkpoint = torch.load(model_path, map_location="cpu", weights_only=True)
         saved_dim = checkpoint.get("embedding_dim", self.embedding_dim)
@@ -425,38 +441,39 @@ class EvaluationEngine:
         return backbone
 
     @staticmethod
-    def _load_onnx(model_path: str) -> Any:
+    def _load_onnx(model_path: str) -> Any:  # noqa: ANN401
         import onnxruntime as ort  # type: ignore[import]
+
         return ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
 
     @staticmethod
-    def _extract_pytorch(model: Any, images: np.ndarray) -> np.ndarray:
+    def _extract_pytorch(model: Any, images: np.ndarray) -> np.ndarray:  # noqa: ANN401
         import torch
+
         with torch.no_grad():
             tensor = torch.from_numpy(images)
             out = model(tensor)
         return out.numpy()
 
     @staticmethod
-    def _extract_onnx(session: Any, images: np.ndarray) -> np.ndarray:
+    def _extract_onnx(session: Any, images: np.ndarray) -> np.ndarray:  # noqa: ANN401
         input_name = session.get_inputs()[0].name
         return session.run(None, {input_name: images})[0]
 
     @staticmethod
     def _compute_auc(roc: ROCCurve) -> float:
         """Compute AUC using trapezoidal rule."""
-        if len(roc.fpr) < 2:
+        if len(roc.fpr) < 2:  # noqa: PLR2004 - Small integer threshold
+
             return 0.0
         # Sort by fpr
         idx = np.argsort(roc.fpr)
         fpr = roc.fpr[idx]
         tpr = roc.tpr[idx]
-        return float(np.trapz(tpr, fpr))
+        return float(np.trapezoid(tpr, fpr))
 
     @staticmethod
-    def _far_at_frr(
-        scores: np.ndarray, labels: np.ndarray, frr_target: float
-    ) -> float:
+    def _far_at_frr(scores: np.ndarray, labels: np.ndarray, frr_target: float) -> float:
         """Compute FAR at a given FRR target."""
         thresholds = np.linspace(scores.min(), scores.max(), 500)
         best_far = 1.0

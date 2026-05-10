@@ -58,31 +58,28 @@ class TestingModeManager:
         Only works in testing mode.
         """
         if not self._enabled:
-            raise RuntimeError("Testing mode is not enabled")
+            msg = "Testing mode is not enabled"
+            raise RuntimeError(msg)
         injected = (
-            text
-            + " I think maybe possibly according to a study I'm not sure about, "
+            text + " I think maybe possibly according to a study I'm not sure about, "
             "the answer could be something I believe I assume."
         )
-        self._injections.append(
-            InjectionRecord(injection_type="hallucination", content=injected)
-        )
+        self._injections.append(InjectionRecord(injection_type="hallucination", content=injected))
         logger.debug("Injected hallucination into text (len=%d)", len(injected))
         return injected
 
     def inject_malformed_output(self, expected_format: str = "json") -> str:
         """Inject malformed output for validation testing."""
         if not self._enabled:
-            raise RuntimeError("Testing mode is not enabled")
+            msg = "Testing mode is not enabled"
+            raise RuntimeError(msg)
         malformed_map = {
             "json": "{invalid json: missing quotes}",
             "xml": "<root><unclosed>",
             "markdown": "",
         }
         content = malformed_map.get(expected_format, "{bad}")
-        self._injections.append(
-            InjectionRecord(injection_type="malformed_output", content=content)
-        )
+        self._injections.append(InjectionRecord(injection_type="malformed_output", content=content))
         logger.debug("Injected malformed %s output", expected_format)
         return content
 

@@ -5,7 +5,7 @@ All models use Pydantic v2 for validation and serialization.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -164,7 +164,7 @@ class VerificationResult(BaseModel):
     status: VerificationStatus = VerificationStatus.PASSED
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     hallucination: HallucinationDetectionResult = Field(
-        default_factory=HallucinationDetectionResult
+        default_factory=HallucinationDetectionResult,
     )
     validation: OutputValidationResult = Field(default_factory=OutputValidationResult)
     tool_check: ToolOutputCheckResult = Field(default_factory=ToolOutputCheckResult)
@@ -172,7 +172,7 @@ class VerificationResult(BaseModel):
     confidence_score: ConfidenceScore = Field(default_factory=ConfidenceScore)
     feedback: SelfCorrectionFeedback = Field(default_factory=SelfCorrectionFeedback)
     latency_ms: float = 0.0
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("confidence")
@@ -247,7 +247,7 @@ class VerificationLogEntry(BaseModel):
     hallucination_detected: bool
     validation_passed: bool
     loop_detected: bool
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     context_type: str = ""  # "llm_response", "task_output", "storage"
     metadata: dict[str, Any] = Field(default_factory=dict)
 

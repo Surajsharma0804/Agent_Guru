@@ -1,5 +1,4 @@
-"""
-Agent Orchestration Client for Speech Engine.
+"""Agent Orchestration Client for Speech Engine.
 
 Routes voice commands to the Agent Orchestration system for execution.
 Provides status update notifications back to the speech engine.
@@ -16,8 +15,8 @@ Date: 2026-03-14
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from .models import CommandResult
 
@@ -29,15 +28,14 @@ class RoutingResult:
     """Result of routing a command to agent orchestration."""
 
     success: bool
-    task_id: Optional[str]
+    task_id: str | None
     output: Any
-    error: Optional[str] = None
-    routed_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    error: str | None = None
+    routed_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 class AgentOrchestrationClient:
-    """
-    Client for routing voice commands to the Agent Orchestration system.
+    """Client for routing voice commands to the Agent Orchestration system.
 
     Wraps the OrchestrationSystem with a speech-engine-friendly interface:
     - Converts CommandResult → Task and routes to orchestration
@@ -51,19 +49,20 @@ class AgentOrchestrationClient:
         >>> client = AgentOrchestrationClient(orchestration_system)
         >>> result = await client.route_command(command_result, user_id="user_1")
         >>> print(result.success)
+
     """
 
     def __init__(
         self,
-        orchestration_system: Optional[Any] = None,
-        status_callback: Optional[Callable[[str, str, Any], None]] = None,
+        orchestration_system: Any | None = None,  # noqa: ANN401
+        status_callback: Callable[[str, str, Any], None] | None = None,
     ) -> None:
-        """
-        Initialize the client.
+        """Initialize the client.
 
         Args:
             orchestration_system: OrchestrationSystem instance (None = disabled)
             status_callback: Optional callback(task_id, status, output) for updates
+
         """
         self._system = orchestration_system
         self._status_callback = status_callback
@@ -78,8 +77,7 @@ class AgentOrchestrationClient:
         command: CommandResult,
         user_id: str = "default_user",
     ) -> RoutingResult:
-        """
-        Route a parsed voice command to the orchestration system.
+        """Route a parsed voice command to the orchestration system.
 
         Args:
             command: Parsed command from CommandParser
@@ -87,6 +85,7 @@ class AgentOrchestrationClient:
 
         Returns:
             RoutingResult with success status and task output
+
         """
         if not command.is_command or command.action_id is None:
             return RoutingResult(
@@ -121,7 +120,7 @@ class AgentOrchestrationClient:
             return result
 
         except Exception as exc:
-            logger.error("Command routing failed for %s: %s", command.action_id, exc)
+            logger.exception("Command routing failed for %s", command.action_id)
             return RoutingResult(
                 success=False,
                 task_id=None,
@@ -129,9 +128,8 @@ class AgentOrchestrationClient:
                 error=str(exc),
             )
 
-    def _build_task(self, command: CommandResult, user_id: str) -> Any:
-        """
-        Build an orchestration Task from a CommandResult.
+    def _build_task(self, command: CommandResult, user_id: str) -> Any:  # noqa: ANN401
+        """Build an orchestration Task from a CommandResult.
 
         Uses duck-typing so we don't hard-import the agents module.
         Falls back to a simple namespace object when Task is unavailable.
@@ -150,7 +148,7 @@ class AgentOrchestrationClient:
                     "user_id": user_id,
                 },
             )
-        except Exception as e:
+        except Exception:
             # Fallback: simple namespace
             import types
 
@@ -167,13 +165,13 @@ class AgentOrchestrationClient:
             task.dependencies = []
             return task
 
-    def _notify_status(self, task_id: str, status: str, output: Any) -> None:
+    def _notify_status(self, task_id: str, status: str, output: Any) -> None:  # noqa: ANN401
         """Fire status callback if registered."""
         if self._status_callback:
             try:
                 self._status_callback(task_id, status, output)
-            except Exception as exc:
-                logger.warning("Status callback failed: %s", exc)
+            except Exception:
+                logger.exception("Status callback failed")
 
     def get_pending_tasks(self) -> dict[str, RoutingResult]:
         """Return snapshot of pending/completed task results."""

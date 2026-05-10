@@ -16,9 +16,9 @@ from typing import Any
 try:
     import defusedxml.ElementTree as _defused_ET  # type: ignore[import-untyped]
 except ImportError as _defusedxml_import_error:  # pragma: no cover
+    msg = "defusedxml is required for safe XML parsing. Install it with: pip install defusedxml"
     raise ImportError(
-        "defusedxml is required for safe XML parsing. "
-        "Install it with: pip install defusedxml"
+        msg,
     ) from _defusedxml_import_error
 
 from Agent_Guru.verifier.models import (
@@ -41,7 +41,7 @@ class OutputValidator:
 
     def validate(
         self,
-        output: Any,
+        output: Any,  # noqa: ANN401
         expected_schema: dict[str, Any] | None = None,
         expected_format: str | None = None,
     ) -> OutputValidationResult:
@@ -54,6 +54,7 @@ class OutputValidator:
 
         Returns:
             OutputValidationResult with violations if any
+
         """
         violations: list[ValidationViolation] = []
         format_detected = "unknown"
@@ -79,11 +80,7 @@ class OutputValidator:
             violations.extend(schema_violations)
 
         valid = len(violations) == 0
-        details = (
-            f"{len(violations)} violation(s) found"
-            if violations
-            else "Output is valid"
-        )
+        details = f"{len(violations)} violation(s) found" if violations else "Output is valid"
 
         return OutputValidationResult(
             valid=valid,
@@ -97,7 +94,7 @@ class OutputValidator:
         stripped = text.strip()
         if not stripped:
             return "empty"
-        if stripped.startswith("{") or stripped.startswith("["):
+        if stripped.startswith(("{", "[")):
             try:
                 json.loads(stripped)
                 return "json"
@@ -113,9 +110,7 @@ class OutputValidator:
             return "markdown"
         return "text"
 
-    def _validate_format(
-        self, output: Any, expected_format: str
-    ) -> list[ValidationViolation]:
+    def _validate_format(self, output: Any, expected_format: str) -> list[ValidationViolation]:  # noqa: ANN401
         """Validate that output matches expected format."""
         violations: list[ValidationViolation] = []
         fmt = expected_format.lower()
@@ -131,7 +126,7 @@ class OutputValidator:
                         message="Expected JSON string or dict/list",
                         expected="str | dict | list",
                         actual=type(output).__name__,
-                    )
+                    ),
                 )
                 return violations
             try:
@@ -144,7 +139,7 @@ class OutputValidator:
                         message=f"Invalid JSON: {e}",
                         expected="valid JSON",
                         actual=output[:100],
-                    )
+                    ),
                 )
 
         elif fmt == "xml":
@@ -156,7 +151,7 @@ class OutputValidator:
                         message="Expected XML string",
                         expected="str",
                         actual=type(output).__name__,
-                    )
+                    ),
                 )
                 return violations
             try:
@@ -169,7 +164,7 @@ class OutputValidator:
                         message=f"Invalid XML: {e}",
                         expected="valid XML",
                         actual=output[:100],
-                    )
+                    ),
                 )
 
         elif fmt == "markdown":
@@ -181,13 +176,16 @@ class OutputValidator:
                         message="Expected markdown string",
                         expected="str",
                         actual=type(output).__name__,
-                    )
+                    ),
                 )
 
         return violations
 
     def _validate_schema(
-        self, output: Any, schema: dict[str, Any], path: str = ""
+        self,
+        output: Any,  # noqa: ANN401
+        schema: dict[str, Any],
+        path: str = "",
     ) -> list[ValidationViolation]:
         """Recursively validate output against a JSON schema-like dict.
 
@@ -226,7 +224,7 @@ class OutputValidator:
                         message=f"Expected type '{expected_type}'",
                         expected=expected_type,
                         actual=type(output).__name__,
-                    )
+                    ),
                 )
                 return violations  # Can't validate further
 
@@ -242,10 +240,9 @@ class OutputValidator:
                             message=f"Required field '{req_field}' is missing",
                             expected=req_field,
                             actual="<missing>",
-                        )
+                        ),
                     )
 
-        # Properties (recursive)
         properties = schema.get("properties", {})
         if isinstance(output, dict) and properties:
             for prop_name, prop_schema in properties.items():
@@ -262,7 +259,9 @@ class OutputValidator:
         if isinstance(output, list) and items_schema:
             for i, item in enumerate(output):
                 child_violations = self._validate_schema(
-                    item, items_schema, path=f"{field_path}[{i}]"
+                    item,
+                    items_schema,
+                    path=f"{field_path}[{i}]",
                 )
                 violations.extend(child_violations)
 
@@ -278,7 +277,7 @@ class OutputValidator:
                         message=f"Value {output} is below minimum {minimum}",
                         expected=f">= {minimum}",
                         actual=str(output),
-                    )
+                    ),
                 )
             if maximum is not None and output > maximum:
                 violations.append(
@@ -288,7 +287,7 @@ class OutputValidator:
                         message=f"Value {output} exceeds maximum {maximum}",
                         expected=f"<= {maximum}",
                         actual=str(output),
-                    )
+                    ),
                 )
 
         # String length constraints
@@ -303,7 +302,7 @@ class OutputValidator:
                         message=f"String length {len(output)} below minLength {min_length}",
                         expected=f"length >= {min_length}",
                         actual=str(len(output)),
-                    )
+                    ),
                 )
             if max_length is not None and len(output) > max_length:
                 violations.append(
@@ -313,7 +312,7 @@ class OutputValidator:
                         message=f"String length {len(output)} exceeds maxLength {max_length}",
                         expected=f"length <= {max_length}",
                         actual=str(len(output)),
-                    )
+                    ),
                 )
 
         return violations

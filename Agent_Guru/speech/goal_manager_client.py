@@ -1,5 +1,4 @@
-"""
-Goal Manager Client for Speech Engine.
+"""Goal Manager Client for Speech Engine.
 
 Enables voice-driven task creation by routing task-creation commands
 to the Goal Manager system with verbal confirmation support.
@@ -14,8 +13,8 @@ Date: 2026-03-14
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -25,16 +24,15 @@ class TaskCreationResult:
     """Result of creating a task via voice command."""
 
     success: bool
-    goal_id: Optional[str]
+    goal_id: str | None
     description: str
     confirmation_text: str
-    error: Optional[str] = None
-    created_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    error: str | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 class GoalManagerClient:
-    """
-    Client for creating goals/tasks via voice commands.
+    """Client for creating goals/tasks via voice commands.
 
     Converts voice-driven task descriptions into Goal Manager goals,
     and generates verbal confirmation text for TTS synthesis.
@@ -49,14 +47,15 @@ class GoalManagerClient:
         >>> result = await client.create_task("Remind me to call John at 3pm")
         >>> print(result.confirmation_text)
         "Task created: Remind me to call John at 3pm"
+
     """
 
-    def __init__(self, goal_manager: Optional[Any] = None) -> None:
-        """
-        Initialize the client.
+    def __init__(self, goal_manager: Any | None = None) -> None:  # noqa: ANN401
+        """Initialize the client.
 
         Args:
             goal_manager: GoalManager instance (None = disabled)
+
         """
         self._manager = goal_manager
         logger.info(
@@ -68,10 +67,9 @@ class GoalManagerClient:
         self,
         description: str,
         priority: str = "medium",
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> TaskCreationResult:
-        """
-        Create a task from a voice command description.
+        """Create a task from a voice command description.
 
         Args:
             description: Natural language task description from voice command
@@ -80,6 +78,7 @@ class GoalManagerClient:
 
         Returns:
             TaskCreationResult with goal_id and verbal confirmation text
+
         """
         if not description or not description.strip():
             return TaskCreationResult(
@@ -127,7 +126,7 @@ class GoalManagerClient:
             )
 
         except Exception as exc:
-            logger.error("Failed to create task '%s': %s", description, exc)
+            logger.exception("Failed to create task '%s': %s", description, exc)
             return TaskCreationResult(
                 success=False,
                 goal_id=None,
@@ -137,14 +136,14 @@ class GoalManagerClient:
             )
 
     async def cancel_task(self, goal_id: str) -> bool:
-        """
-        Cancel a previously created task.
+        """Cancel a previously created task.
 
         Args:
             goal_id: Goal identifier to cancel
 
         Returns:
             True if cancelled successfully, False on error
+
         """
         if self._manager is None:
             return True
@@ -153,13 +152,12 @@ class GoalManagerClient:
             await self._manager.cancel_goal(goal_id)
             logger.info("Voice task cancelled: goal_id=%s", goal_id)
             return True
-        except Exception as exc:
-            logger.warning("Failed to cancel task %s: %s", goal_id, exc)
+        except Exception:
+            logger.exception("Failed to cancel task %s: %s")
             return False
 
     def build_confirmation_text(self, description: str, success: bool) -> str:
-        """
-        Build verbal confirmation text for TTS synthesis.
+        """Build verbal confirmation text for TTS synthesis.
 
         Args:
             description: Task description
@@ -167,6 +165,7 @@ class GoalManagerClient:
 
         Returns:
             Natural language confirmation for TTS
+
         """
         if success:
             return f"Task created: {description}"

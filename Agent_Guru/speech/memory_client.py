@@ -1,5 +1,4 @@
-"""
-Memory System Client for Speech Engine.
+"""Memory System Client for Speech Engine.
 
 Stores emotion states, conversation turns, and user preferences
 in the Memory System for long-term learning.
@@ -15,8 +14,8 @@ Date: 2026-03-14
 import logging
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from .models import EmotionType
 
@@ -32,12 +31,11 @@ class ConversationTurn:
     text: str
     emotion: EmotionType
     personality: str
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 class MemoryClient:
-    """
-    Client for storing speech-related data in the Memory System.
+    """Client for storing speech-related data in the Memory System.
 
     Provides:
     - Emotion state storage for long-term mood tracking
@@ -53,19 +51,20 @@ class MemoryClient:
     Example:
         >>> client = MemoryClient(memory_system)
         >>> await client.store_emotion_state("user_1", EmotionType.HAPPY, datetime.now())
+
     """
 
     def __init__(
         self,
-        memory_system: Optional[Any] = None,
+        memory_system: Any | None = None,  # noqa: ANN401
         max_buffer_size: int = 1000,
     ) -> None:
-        """
-        Initialize the client.
+        """Initialize the client.
 
         Args:
             memory_system: Memory system instance (None = disabled)
             max_buffer_size: Maximum local buffer size before oldest entries drop
+
         """
         self._system = memory_system
         self._max_buffer = max_buffer_size
@@ -83,10 +82,9 @@ class MemoryClient:
         emotion: EmotionType,
         timestamp: datetime,
         confidence: float = 1.0,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
-        """
-        Store an emotion state observation for a user.
+        """Store an emotion state observation for a user.
 
         Args:
             user_id: User identifier
@@ -97,6 +95,7 @@ class MemoryClient:
 
         Returns:
             True if stored successfully, False on error
+
         """
         record: dict[str, Any] = {
             "user_id": user_id,
@@ -115,8 +114,8 @@ class MemoryClient:
         try:
             await self._system.store_emotion_state(user_id, record)
             return True
-        except Exception as exc:
-            logger.warning("Failed to store emotion state: %s", exc)
+        except Exception:
+            logger.exception("Failed to store emotion state")
             return False
 
     async def store_conversation_turn(
@@ -126,10 +125,9 @@ class MemoryClient:
         text: str,
         emotion: EmotionType,
         personality: str,
-        timestamp: Optional[datetime] = None,
+        timestamp: datetime | None = None,
     ) -> bool:
-        """
-        Store a conversation turn for context learning.
+        """Store a conversation turn for context learning.
 
         Args:
             user_id: User identifier
@@ -141,6 +139,7 @@ class MemoryClient:
 
         Returns:
             True if stored successfully, False on error
+
         """
         turn = ConversationTurn(
             user_id=user_id,
@@ -148,7 +147,7 @@ class MemoryClient:
             text=text,
             emotion=emotion,
             personality=personality,
-            timestamp=timestamp or datetime.now(tz=timezone.utc),
+            timestamp=timestamp or datetime.now(tz=UTC),
         )
 
         # Buffer locally — deque auto-evicts oldest
@@ -162,24 +161,25 @@ class MemoryClient:
                 "user_id": turn.user_id,
                 "speaker": turn.speaker,
                 "text": turn.text,
-                "emotion": turn.emotion.value if hasattr(turn.emotion, "value") else str(turn.emotion),
+                "emotion": turn.emotion.value
+                if hasattr(turn.emotion, "value")
+                else str(turn.emotion),
                 "personality": turn.personality,
                 "timestamp": turn.timestamp.isoformat(),
             }
             await self._system.store_conversation_turn(user_id, record)
             return True
-        except Exception as exc:
-            logger.warning("Failed to store conversation turn: %s", exc)
+        except Exception:
+            logger.exception("Failed to store conversation turn")
             return False
 
     async def store_user_preference(
         self,
         user_id: str,
         preference_key: str,
-        preference_value: Any,
+        preference_value: Any,  # noqa: ANN401
     ) -> bool:
-        """
-        Store a user preference extracted from conversation.
+        """Store a user preference extracted from conversation.
 
         Args:
             user_id: User identifier
@@ -188,6 +188,7 @@ class MemoryClient:
 
         Returns:
             True if stored successfully, False on error
+
         """
         if self._system is None:
             return True
@@ -195,13 +196,12 @@ class MemoryClient:
         try:
             await self._system.store_preference(user_id, preference_key, preference_value)
             return True
-        except Exception as exc:
-            logger.warning("Failed to store preference: %s", exc)
+        except Exception:
+            logger.exception("Failed to store preference")
             return False
 
     def get_recent_emotions(self, user_id: str, limit: int = 10) -> list[dict[str, Any]]:
-        """
-        Get recent emotion records from local buffer for a user.
+        """Get recent emotion records from local buffer for a user.
 
         Args:
             user_id: User identifier
@@ -209,13 +209,13 @@ class MemoryClient:
 
         Returns:
             List of emotion records (most recent last)
+
         """
         user_records = [r for r in self._emotion_buffer if r["user_id"] == user_id]
         return user_records[-limit:]
 
     def get_recent_turns(self, user_id: str, limit: int = 10) -> list[ConversationTurn]:
-        """
-        Get recent conversation turns from local buffer for a user.
+        """Get recent conversation turns from local buffer for a user.
 
         Args:
             user_id: User identifier
@@ -223,6 +223,7 @@ class MemoryClient:
 
         Returns:
             List of conversation turns (most recent last)
+
         """
         user_turns = [t for t in self._conversation_buffer if t.user_id == user_id]
         return user_turns[-limit:]

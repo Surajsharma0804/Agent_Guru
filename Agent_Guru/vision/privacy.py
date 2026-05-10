@@ -1,5 +1,4 @@
-"""
-Privacy Filter for the Agent Guru Vision System.
+"""Privacy Filter for the Agent Guru Vision System.
 
 Anonymizes frames before any persistence:
 - Gaussian blur (σ=15) applied to all face bounding boxes.
@@ -24,7 +23,9 @@ _BLUR_KERNEL_SIZE: int = 31  # Must be odd; 31 ≈ 6σ for σ=5, but we use σ=1
 
 
 def _gaussian_blur_region(
-    frame: np.ndarray, bbox: BoundingBox, sigma: float = _BLUR_SIGMA
+    frame: np.ndarray,
+    bbox: BoundingBox,
+    sigma: float = _BLUR_SIGMA,
 ) -> np.ndarray:
     """Apply Gaussian blur to a rectangular region of a frame in-place.
 
@@ -35,6 +36,7 @@ def _gaussian_blur_region(
 
     Returns:
         The modified frame (same array).
+
     """
     h, w = frame.shape[:2]
     x1 = max(0, int(bbox.x))
@@ -49,6 +51,7 @@ def _gaussian_blur_region(
 
     try:
         import cv2  # type: ignore[import]
+
         # Kernel size must be odd and ≥ 1
         k = max(3, int(6 * sigma) | 1)  # bitwise OR 1 ensures odd
         blurred = cv2.GaussianBlur(region, (k, k), sigma)
@@ -69,11 +72,11 @@ def _numpy_box_blur(region: np.ndarray, radius: int) -> np.ndarray:
         # Horizontal pass
         result = np.cumsum(result, axis=1)
         result[:, radius:] = result[:, radius:] - result[:, :-radius]
-        result = result[:, radius - 1:] / radius
+        result = result[:, radius - 1 :] / radius
         # Vertical pass
         result = np.cumsum(result, axis=0)
         result[radius:] = result[radius:] - result[:-radius]
-        result = result[radius - 1:] / radius
+        result = result[radius - 1 :] / radius
     # Resize back to original shape if needed
     if result.shape != region.shape:
         result = region.astype(np.float32)  # fallback: no blur
@@ -87,6 +90,7 @@ class PrivacyFilter:
         camera_enabled: When False, all methods return empty/unmodified results
                         without raising exceptions.
         blur_sigma: Gaussian blur standard deviation for face anonymization.
+
     """
 
     def __init__(
@@ -112,9 +116,7 @@ class PrivacyFilter:
         self._camera_enabled = value
         logger.info("PrivacyFilter: camera_enabled changed", value=value)
 
-    async def anonymize_faces(
-        self, frame: np.ndarray, face_boxes: list[BoundingBox]
-    ) -> np.ndarray:
+    async def anonymize_faces(self, frame: np.ndarray, face_boxes: list[BoundingBox]) -> np.ndarray:
         """Apply Gaussian blur to all detected face regions.
 
         Args:
@@ -124,6 +126,7 @@ class PrivacyFilter:
         Returns:
             Frame with face regions blurred. Returns original frame unchanged
             when camera is disabled.
+
         """
         if not self._camera_enabled:
             return frame
@@ -139,7 +142,9 @@ class PrivacyFilter:
         return result
 
     async def blur_off_task(
-        self, frame: np.ndarray, relevant_region: BoundingBox | None
+        self,
+        frame: np.ndarray,
+        relevant_region: BoundingBox | None,
     ) -> np.ndarray:
         """Blur all pixels outside the relevant region.
 
@@ -152,6 +157,7 @@ class PrivacyFilter:
         Returns:
             Frame with off-task regions blurred. Returns original frame
             unchanged when camera is disabled.
+
         """
         if not self._camera_enabled:
             return frame
@@ -162,8 +168,7 @@ class PrivacyFilter:
         if relevant_region is None:
             # Blur entire frame
             entire = BoundingBox(x=0, y=0, width=w, height=h)
-            result = _gaussian_blur_region(result, entire, self._blur_sigma)
-            return result
+            return _gaussian_blur_region(result, entire, self._blur_sigma)
 
         # Blur everything outside the relevant region
         rx1 = max(0, int(relevant_region.x))

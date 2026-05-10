@@ -1,5 +1,4 @@
-"""
-Scene Understanding module for the Agent Guru Vision System.
+"""Scene Understanding module for the Agent Guru Vision System.
 
 Provides:
 - ObjectDetector: YOLOv8 ONNX-based object detection with configurable threshold
@@ -12,13 +11,11 @@ Requirements: 1.1-1.8
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import structlog
 
-from Agent_Guru.vision.model_manager import ModelManager
 from Agent_Guru.vision.vision_models import (
     BoundingBox,
     DepthMap,
@@ -26,34 +23,131 @@ from Agent_Guru.vision.vision_models import (
     VisionConfig,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from Agent_Guru.vision.model_manager import ModelManager
+
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
 COCO_LABELS: list[str] = [
-    "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train",
-    "truck", "boat", "traffic light", "fire hydrant", "stop sign",
-    "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
-    "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag",
-    "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite",
-    "baseball bat", "baseball glove", "skateboard", "surfboard",
-    "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon",
-    "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot",
-    "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant",
-    "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote",
-    "keyboard", "cell phone", "microwave", "oven", "toaster", "sink",
-    "refrigerator", "book", "clock", "vase", "scissors", "teddy bear",
-    "hair drier", "toothbrush",
+    "person",
+    "bicycle",
+    "car",
+    "motorcycle",
+    "airplane",
+    "bus",
+    "train",
+    "truck",
+    "boat",
+    "traffic light",
+    "fire hydrant",
+    "stop sign",
+    "parking meter",
+    "bench",
+    "bird",
+    "cat",
+    "dog",
+    "horse",
+    "sheep",
+    "cow",
+    "elephant",
+    "bear",
+    "zebra",
+    "giraffe",
+    "backpack",
+    "umbrella",
+    "handbag",
+    "tie",
+    "suitcase",
+    "frisbee",
+    "skis",
+    "snowboard",
+    "sports ball",
+    "kite",
+    "baseball bat",
+    "baseball glove",
+    "skateboard",
+    "surfboard",
+    "tennis racket",
+    "bottle",
+    "wine glass",
+    "cup",
+    "fork",
+    "knife",
+    "spoon",
+    "bowl",
+    "banana",
+    "apple",
+    "sandwich",
+    "orange",
+    "broccoli",
+    "carrot",
+    "hot dog",
+    "pizza",
+    "donut",
+    "cake",
+    "chair",
+    "couch",
+    "potted plant",
+    "bed",
+    "dining table",
+    "toilet",
+    "tv",
+    "laptop",
+    "mouse",
+    "remote",
+    "keyboard",
+    "cell phone",
+    "microwave",
+    "oven",
+    "toaster",
+    "sink",
+    "refrigerator",
+    "book",
+    "clock",
+    "vase",
+    "scissors",
+    "teddy bear",
+    "hair drier",
+    "toothbrush",
 ]
 
 SCENE_LABELS: list[str] = [
-    "office", "kitchen", "bedroom", "living_room", "bathroom",
-    "dining_room", "hallway", "garage", "basement", "attic",
-    "street", "park", "forest", "beach", "mountain",
-    "desert", "field", "river", "lake", "ocean",
-    "restaurant", "store", "hospital", "school", "library",
-    "gym", "stadium", "airport", "train_station", "parking_lot",
+    "office",
+    "kitchen",
+    "bedroom",
+    "living_room",
+    "bathroom",
+    "dining_room",
+    "hallway",
+    "garage",
+    "basement",
+    "attic",
+    "street",
+    "park",
+    "forest",
+    "beach",
+    "mountain",
+    "desert",
+    "field",
+    "river",
+    "lake",
+    "ocean",
+    "restaurant",
+    "store",
+    "hospital",
+    "school",
+    "library",
+    "gym",
+    "stadium",
+    "airport",
+    "train_station",
+    "parking_lot",
 ]
 
 _UNCERTAIN_THRESHOLD: float = 0.4
+
 
 class ObjectDetector:
     """YOLOv8-based object detector using ONNX Runtime.
@@ -66,6 +160,7 @@ class ObjectDetector:
             Signature: (frame: np.ndarray) -> np.ndarray
             Output shape: (N, 6) where each row is
             [cx_norm, cy_norm, w_norm, h_norm, confidence, class_id]
+
     """
 
     def __init__(
@@ -80,16 +175,24 @@ class ObjectDetector:
         self._model_path = model_path
         self._infer_fn = _infer_fn
         self._session: Any = None
-        logger.info("ObjectDetector initialised", model_path=model_path, threshold=config.detection_threshold)
+        logger.info(
+            "ObjectDetector initialised",
+            model_path=model_path,
+            threshold=config.detection_threshold,
+        )
 
-    def _get_session(self) -> Any:
+    def _get_session(self) -> Any:  # noqa: ANN401
         if self._infer_fn is not None:
             return None
         if self._session is None:
             try:
                 self._session = self._model_manager.load_model("object_detector", self._model_path)
             except Exception as exc:
-                logger.error("ObjectDetector: failed to load model", path=self._model_path, error=str(exc))
+                logger.exception(
+                    "ObjectDetector: failed to load model",
+                    path=self._model_path,
+                    error=str(exc),
+                )
                 raise
         return self._session
 
@@ -98,6 +201,7 @@ class ObjectDetector:
             return self._infer_fn(frame)
         session = self._get_session()
         import cv2  # type: ignore[import]
+
         resized = cv2.resize(frame, (640, 640)).astype(np.float32) / 255.0
         blob = np.transpose(resized, (2, 0, 1))[np.newaxis]
         input_name = session.get_inputs()[0].name
@@ -107,8 +211,7 @@ class ObjectDetector:
         class_scores = raw[:, 4:]
         class_ids = np.argmax(class_scores, axis=1)
         confidences = class_scores[np.arange(len(class_ids)), class_ids]
-        detections = np.column_stack([boxes_norm, confidences, class_ids.astype(np.float32)])
-        return detections
+        return np.column_stack([boxes_norm, confidences, class_ids.astype(np.float32)])
 
     async def detect(self, frame: np.ndarray) -> list[DetectedObject]:
         """Detect objects in a frame, filtering by detection_threshold.
@@ -118,6 +221,7 @@ class ObjectDetector:
 
         Returns:
             List of DetectedObject instances with confidence >= detection_threshold.
+
         """
         threshold = self._config.detection_threshold
         h, w = frame.shape[:2]
@@ -143,7 +247,7 @@ class ObjectDetector:
                     class_label=label,
                     confidence=conf,
                     bounding_box=BoundingBox(x=x_px, y=y_px, width=bw_px, height=bh_px),
-                )
+                ),
             )
         logger.debug("ObjectDetector: detections", count=len(objects), threshold=threshold)
         return objects
@@ -161,6 +265,7 @@ class SceneClassifier:
         _infer_fn: Optional callable for testing; replaces ONNX inference.
             Signature: (frame: np.ndarray) -> np.ndarray
             Output: 1-D float32 array of length 30 (softmax scores).
+
     """
 
     def __init__(
@@ -177,14 +282,18 @@ class SceneClassifier:
         self._session: Any = None
         logger.info("SceneClassifier initialised", model_path=model_path)
 
-    def _get_session(self) -> Any:
+    def _get_session(self) -> Any:  # noqa: ANN401
         if self._infer_fn is not None:
             return None
         if self._session is None:
             try:
                 self._session = self._model_manager.load_model("scene_classifier", self._model_path)
             except Exception as exc:
-                logger.error("SceneClassifier: failed to load model", path=self._model_path, error=str(exc))
+                logger.exception(
+                    "SceneClassifier: failed to load model",
+                    path=self._model_path,
+                    error=str(exc),
+                )
                 raise
         return self._session
 
@@ -193,6 +302,7 @@ class SceneClassifier:
             return self._infer_fn(frame)
         session = self._get_session()
         import cv2  # type: ignore[import]
+
         resized = cv2.resize(frame, (224, 224)).astype(np.float32) / 255.0
         blob = np.transpose(resized, (2, 0, 1))[np.newaxis]
         input_name = session.get_inputs()[0].name
@@ -211,6 +321,7 @@ class SceneClassifier:
         Returns:
             Tuple of (scene_label, confidence). Returns ("uncertain", conf)
             when top-1 confidence < 0.4.
+
         """
         loop = asyncio.get_running_loop()
         scores = await loop.run_in_executor(None, self._run_inference, frame)
@@ -238,6 +349,7 @@ class SpatialReasoner:
     Args:
         near_threshold: Normalised depth value below which objects are "near".
         far_threshold: Normalised depth value above which objects are "far".
+
     """
 
     def __init__(
@@ -263,6 +375,7 @@ class SpatialReasoner:
 
         Returns:
             List of (obj_a_label, relation, obj_b_label) triples.
+
         """
         if depth_map is not None and not depth_map.is_null:
             self._annotate_depth(objects, depth_map)
@@ -306,9 +419,7 @@ class SpatialReasoner:
         )
         return inter / union if union > 0.0 else 0.0
 
-    def _pair_relations(
-        self, a: DetectedObject, b: DetectedObject
-    ) -> list[tuple[str, str, str]]:
+    def _pair_relations(self, a: DetectedObject, b: DetectedObject) -> list[tuple[str, str, str]]:
         result: list[tuple[str, str, str]] = []
         la = a.class_label
         lb = b.class_label
@@ -341,7 +452,8 @@ class SpatialReasoner:
                 result.append((la, "far", lb))
 
         iou = self._iou(a, b)
-        if iou > 0.1:
+        if iou > 0.1:  # noqa: PLR2004 - Threshold value
+
             if a.depth_range is not None and b.depth_range is not None:
                 depth_a = (a.depth_range[0] + a.depth_range[1]) / 2.0
                 depth_b = (b.depth_range[0] + b.depth_range[1]) / 2.0
@@ -359,9 +471,7 @@ class SpatialReasoner:
 
         return result
 
-    def _annotate_depth(
-        self, objects: list[DetectedObject], depth_map: DepthMap
-    ) -> None:
+    def _annotate_depth(self, objects: list[DetectedObject], depth_map: DepthMap) -> None:
         h, w = depth_map.data.shape[:2]
         for obj in objects:
             bb = obj.bounding_box

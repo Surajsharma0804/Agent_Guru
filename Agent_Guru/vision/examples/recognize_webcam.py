@@ -1,5 +1,4 @@
-"""
-Example: Real-time face recognition from a webcam.
+r"""Example: Real-time face recognition from a webcam.
 
 Usage:
     python -m Agent_Guru.vision.examples.recognize_webcam \\
@@ -23,8 +22,7 @@ def main() -> int:
 
     try:
         import cv2  # type: ignore[import]
-    except ImportError as e:
-        print("ERROR: opencv-python is required. Install with: pip install opencv-python", file=sys.stderr)
+    except ImportError:
         return 1
 
     from Agent_Guru.vision.engine import GuruVisionEngine
@@ -32,7 +30,7 @@ def main() -> int:
     engine = GuruVisionEngine(config_path=args.config)
 
     def on_ready(data: dict) -> None:
-        print("GuruVision engine ready.")
+        pass
 
     engine.register_callback("system_ready", on_ready)
     engine.initialize()
@@ -40,7 +38,6 @@ def main() -> int:
 
     cap = engine.open_video_source(args.camera)
 
-    print("Press 'q' to quit.")
     try:
         while True:
             ret, frame = cap.read()
@@ -57,8 +54,13 @@ def main() -> int:
                 cv2.putText(frame, label, (x, y - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
                 if face.emotion:
                     cv2.putText(
-                        frame, face.emotion, (x, y + h + 16),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 0), 1,
+                        frame,
+                        face.emotion,
+                        (x, y + h + 16),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.45,
+                        (255, 255, 0),
+                        1,
                     )
 
             cv2.imshow("GuruVision", frame)

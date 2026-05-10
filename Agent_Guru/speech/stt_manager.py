@@ -23,23 +23,27 @@ Architecture:
 Author: Agent Guru Team
 Date: 2026-03-20
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import time
-from collections.abc import AsyncIterator, Callable, Coroutine
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
+
+from Agent_Guru.platform.platform_detector import PlatformDetector
 
 from .exceptions import ModelLoadError, TranscriptionError
 from .models import TranscriptionResult
 from .stt.language_detector import Language, LanguageDetector
 from .stt.whisper_stt import WhisperTranscriber
-from Agent_Guru.platform.platform_detector import PlatformDetector
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Callable, Coroutine
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +93,7 @@ class STTManagerConfig:
         offline_mode: Force offline-only operation (no cloud fallback).
         on_partial_result: Optional async callback for streaming partial results.
         on_final_result: Optional async callback for final transcription results.
+
     """
 
     platform: str = ""
@@ -96,17 +101,13 @@ class STTManagerConfig:
     compute_type: str = "float32"
     device: str = "cpu"
     beam_size: int = 5
-    language: Optional[str] = None
+    language: str | None = None
     enable_language_detection: bool = True
     streaming_chunk_duration: float = 0.5  # 500 ms chunks
     max_latency_ms: float = 1000.0  # <1 second target
     offline_mode: bool = False
-    on_partial_result: Optional[
-        Callable[[TranscriptionResult], Coroutine[Any, Any, None]]
-    ] = None
-    on_final_result: Optional[
-        Callable[[TranscriptionResult], Coroutine[Any, Any, None]]
-    ] = None
+    on_partial_result: Callable[[TranscriptionResult], Coroutine[Any, Any, None]] | None = None
+    on_final_result: Callable[[TranscriptionResult], Coroutine[Any, Any, None]] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +138,7 @@ class _MobileSTTBackend:
         self,
         audio: np.ndarray,
         sample_rate: int,
-        language: Optional[str] = None,
+        language: str | None = None,
     ) -> TranscriptionResult:
         """Transcribe audio using the native mobile API.
 
@@ -148,6 +149,7 @@ class _MobileSTTBackend:
 
         Returns:
             :class:`~Agent_Guru.speech.models.TranscriptionResult`.
+
         """
         if self._platform == "android":
             return self._transcribe_android(audio, sample_rate, language)
@@ -171,19 +173,17 @@ class _MobileSTTBackend:
         try:
             from jnius import autoclass  # type: ignore[import]
 
-            self._SpeechRecognizer = autoclass(
-                "android.speech.SpeechRecognizer"
-            )
+            self._SpeechRecognizer = autoclass("android.speech.SpeechRecognizer")
             logger.debug("Android SpeechRecognizer initialized")
-        except Exception as exc:
-            logger.warning("Android SpeechRecognizer unavailable: %s", exc)
+        except Exception:
+            logger.exception("Android SpeechRecognizer unavailable")
             self._SpeechRecognizer = None
 
     def _transcribe_android(
         self,
         audio: np.ndarray,
         sample_rate: int,
-        language: Optional[str],
+        language: str | None,
     ) -> TranscriptionResult:
         """Transcribe using Android SpeechRecognizer API.
 
@@ -219,8 +219,8 @@ class _MobileSTTBackend:
                 segments=[],
                 duration=duration,
             )
-        except Exception as exc:
-            logger.warning("Android transcription error: %s", exc)
+        except Exception:
+            logger.exception("Android transcription error")
             return TranscriptionResult(
                 text="",
                 language=language or "en",
@@ -240,15 +240,15 @@ class _MobileSTTBackend:
 
             self._SFSpeechRecognizer = Speech.SFSpeechRecognizer
             logger.debug("iOS SFSpeechRecognizer initialized")
-        except Exception as exc:
-            logger.warning("iOS Speech Framework unavailable: %s", exc)
+        except Exception:
+            logger.exception("iOS Speech Framework unavailable")
             self._SFSpeechRecognizer = None
 
     def _transcribe_ios(
         self,
         audio: np.ndarray,
         sample_rate: int,
-        language: Optional[str],
+        language: str | None,
     ) -> TranscriptionResult:
         """Transcribe using Apple Speech Framework.
 
@@ -269,7 +269,7 @@ class _MobileSTTBackend:
 
             locale_id = language or "en-US"
             recognizer = self._SFSpeechRecognizer.alloc().initWithLocale_(
-                Speech.NSLocale.alloc().initWithLocaleIdentifier_(locale_id)
+                Speech.NSLocale.alloc().initWithLocaleIdentifier_(locale_id),
             )
             if not recognizer or not recognizer.isAvailable():
                 return TranscriptionResult(
@@ -288,8 +288,8 @@ class _MobileSTTBackend:
                 segments=[],
                 duration=duration,
             )
-        except Exception as exc:
-            logger.warning("iOS transcription error: %s", exc)
+        except Exception:
+            logger.exception("iOS transcription error")
             return TranscriptionResult(
                 text="",
                 language=language or "en",
@@ -339,6 +339,7 @@ class STTManager:
         Args:
             config: Manager configuration.  Defaults to
                 :class:`STTManagerConfig` with auto-detected platform.
+
         """
         self._config = config or STTManagerConfig()
         if not self._config.platform:
@@ -350,9 +351,7 @@ class STTManager:
         self._active_backend: STTBackend | None = None
         self._initialized: bool = False
 
-        logger.info(
-            "STTManager created — platform=%s", self._config.platform
-        )
+        logger.info("STTManager created — platform=%s", self._config.platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -368,6 +367,7 @@ class STTManager:
         Raises:
             RuntimeError: If already initialized.
             ModelLoadError: If the backend fails to load.
+
         """
         if self._initialized:
             logger.warning("STTManager already initialized")
@@ -405,13 +405,12 @@ class STTManager:
                 device=self._config.device,
             )
             # Trigger lazy model load now so first transcription is fast
-            await asyncio.get_running_loop().run_in_executor(
-                None, self._whisper._load_model
-            )
+            await asyncio.get_running_loop().run_in_executor(None, self._whisper._load_model)
             self._active_backend = STTBackend.WHISPER
             logger.debug("Desktop Whisper backend loaded (model=%s)", self._config.model_size)
         except Exception as exc:
-            raise ModelLoadError(f"Failed to initialize Whisper backend: {exc}") from exc
+            msg = f"Failed to initialize Whisper backend: {exc}"
+            raise ModelLoadError(msg) from exc
 
     async def _init_android(self) -> None:
         """Initialize Android SpeechRecognizer backend."""
@@ -419,8 +418,8 @@ class STTManager:
         try:
             self._mobile_backend.initialize()
             self._active_backend = STTBackend.ANDROID_SPEECH
-        except Exception as exc:
-            logger.warning("Android STT init failed: %s — using fallback", exc)
+        except Exception:
+            logger.exception("Android STT init failed: %s — using fallback")
             # Fall back to Whisper if available
             try:
                 await self._init_desktop()
@@ -433,8 +432,8 @@ class STTManager:
         try:
             self._mobile_backend.initialize()
             self._active_backend = STTBackend.IOS_SPEECH
-        except Exception as exc:
-            logger.warning("iOS STT init failed: %s — using fallback", exc)
+        except Exception:
+            logger.exception("iOS STT init failed: %s — using fallback")
             try:
                 await self._init_desktop()
             except ModelLoadError:
@@ -456,7 +455,7 @@ class STTManager:
         self,
         audio: np.ndarray,
         sample_rate: int = 16000,
-        language: Optional[str] = None,
+        language: str | None = None,
     ) -> TranscriptionResult:
         """Transcribe audio to text.
 
@@ -475,12 +474,15 @@ class STTManager:
         Raises:
             RuntimeError: If :meth:`initialize` has not been called.
             TranscriptionError: If transcription fails on all backends.
+
         """
         if not self._initialized:
-            raise RuntimeError("Call initialize() before transcribe()")
+            msg = "Call initialize() before transcribe()"
+            raise RuntimeError(msg)
 
         if audio is None or audio.size == 0:
-            raise TranscriptionError("Empty audio data provided")
+            msg = "Empty audio data provided"
+            raise TranscriptionError(msg)
 
         # Resolve language
         effective_language = language or self._config.language
@@ -492,7 +494,8 @@ class STTManager:
         try:
             result = await self._run_transcription(audio, sample_rate, effective_language)
         except Exception as exc:
-            raise TranscriptionError(f"Transcription failed: {exc}") from exc
+            msg = f"Transcription failed: {exc}"
+            raise TranscriptionError(msg) from exc
 
         latency_ms = (time.perf_counter() - t_start) * 1000
         logger.debug(
@@ -505,8 +508,8 @@ class STTManager:
         if self._config.on_final_result is not None:
             try:
                 await self._config.on_final_result(result)
-            except Exception as exc:
-                logger.error("on_final_result callback error: %s", exc)
+            except Exception:
+                logger.exception("on_final_result callback error")
 
         return result
 
@@ -514,7 +517,7 @@ class STTManager:
         self,
         audio: np.ndarray,
         sample_rate: int,
-        language: Optional[str],
+        language: str | None,
     ) -> TranscriptionResult:
         """Dispatch transcription to the active backend.
 
@@ -525,6 +528,7 @@ class STTManager:
 
         Returns:
             :class:`~Agent_Guru.speech.models.TranscriptionResult`.
+
         """
         if self._active_backend == STTBackend.WHISPER and self._whisper is not None:
             loop = asyncio.get_running_loop()
@@ -533,10 +537,14 @@ class STTManager:
                 lambda: self._whisper.transcribe(audio, sample_rate, language),  # type: ignore[union-attr]
             )
 
-        if self._active_backend in (
-            STTBackend.ANDROID_SPEECH,
-            STTBackend.IOS_SPEECH,
-        ) and self._mobile_backend is not None:
+        if (
+            self._active_backend
+            in (
+                STTBackend.ANDROID_SPEECH,
+                STTBackend.IOS_SPEECH,
+            )
+            and self._mobile_backend is not None
+        ):
             loop = asyncio.get_running_loop()
             return await loop.run_in_executor(
                 None,
@@ -561,7 +569,7 @@ class STTManager:
         self,
         audio_chunks: AsyncIterator[np.ndarray],
         sample_rate: int = 16000,
-        language: Optional[str] = None,
+        language: str | None = None,
     ) -> AsyncIterator[TranscriptionResult]:
         """Stream transcription results as audio chunks arrive.
 
@@ -579,9 +587,11 @@ class STTManager:
 
         Raises:
             RuntimeError: If :meth:`initialize` has not been called.
+
         """
         if not self._initialized:
-            raise RuntimeError("Call initialize() before transcribe_stream()")
+            msg = "Call initialize() before transcribe_stream()"
+            raise RuntimeError(msg)
 
         effective_language = language or self._config.language
         buffer: list[np.ndarray] = []
@@ -605,11 +615,11 @@ class STTManager:
                     if self._config.on_partial_result is not None:
                         try:
                             await self._config.on_partial_result(partial)
-                        except Exception as exc:
-                            logger.error("on_partial_result callback error: %s", exc)
+                        except Exception:
+                            logger.exception("on_partial_result callback error")
                     yield partial
-                except TranscriptionError as exc:
-                    logger.warning("Streaming chunk transcription failed: %s", exc)
+                except TranscriptionError:
+                    logger.exception("Streaming chunk transcription failed")
 
         # Flush remaining buffer
         if buffer:
@@ -619,11 +629,11 @@ class STTManager:
                 if self._config.on_partial_result is not None:
                     try:
                         await self._config.on_partial_result(final)
-                    except Exception as exc:
-                        logger.error("on_partial_result callback error: %s", exc)
+                    except Exception:
+                        logger.exception("on_partial_result callback error")
                 yield final
-            except TranscriptionError as exc:
-                logger.warning("Streaming flush transcription failed: %s", exc)
+            except TranscriptionError:
+                logger.exception("Streaming flush transcription failed")
 
     # ------------------------------------------------------------------
     # Language detection
@@ -637,15 +647,14 @@ class STTManager:
 
         Returns:
             BCP-47 language code string (e.g. ``"en"``, ``"es"``).
+
         """
         if not self._language_detector or not text.strip():
             return "en"
         result = self._language_detector.detect_language(text)
         return result.language.value if result.language != Language.UNKNOWN else "en"
 
-    def _detect_language_from_audio(
-        self, audio: np.ndarray, sample_rate: int
-    ) -> Optional[str]:
+    def _detect_language_from_audio(self, audio: np.ndarray, sample_rate: int) -> str | None:
         """Attempt language detection from audio characteristics.
 
         Currently delegates to Whisper's built-in language detection by
@@ -658,6 +667,7 @@ class STTManager:
 
         Returns:
             Language code string or ``None`` to let the backend auto-detect.
+
         """
         # Whisper handles auto-detection natively when language=None
         return None
@@ -691,11 +701,28 @@ class STTManager:
 
         Returns:
             List of BCP-47 language code strings.
+
         """
         if self._language_detector is not None:
             return [lang.value for lang in self._language_detector.get_supported_languages()]
         # Whisper supports 99 languages; return common subset
         return [
-            "en", "es", "fr", "de", "it", "pt", "ru", "pl", "nl",
-            "zh", "ja", "ko", "hi", "ar", "tr", "vi", "id", "th",
+            "en",
+            "es",
+            "fr",
+            "de",
+            "it",
+            "pt",
+            "ru",
+            "pl",
+            "nl",
+            "zh",
+            "ja",
+            "ko",
+            "hi",
+            "ar",
+            "tr",
+            "vi",
+            "id",
+            "th",
         ]

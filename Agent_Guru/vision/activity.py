@@ -1,5 +1,4 @@
-"""
-Activity Recognizer for the Agent Guru Vision System.
+"""Activity Recognizer for the Agent Guru Vision System.
 
 Classifies human activities from temporal sequences of video frames using
 SlowFast R50 or VideoMAE-S ONNX models.
@@ -18,24 +17,35 @@ from __future__ import annotations
 
 import time
 from collections import deque
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import structlog
 
 from Agent_Guru.vision.vision_models import ActivityResult, VisionEvent
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
 ACTIVITY_CATEGORIES: list[str] = [
-    "walking", "running", "sitting", "standing", "typing",
-    "eating", "drinking", "reading", "writing", "phone_use", "idle",
+    "walking",
+    "running",
+    "sitting",
+    "standing",
+    "typing",
+    "eating",
+    "drinking",
+    "reading",
+    "writing",
+    "phone_use",
+    "idle",
 ]
 
 _MIN_BUFFER_FRAMES: int = 8
 _CONFIDENCE_GATE: float = 0.7
-_INPUT_FRAMES: int = 8       # SlowFast/VideoMAE temporal window
+_INPUT_FRAMES: int = 8  # SlowFast/VideoMAE temporal window
 _FRAME_SIZE: tuple[int, int] = (224, 224)  # H x W for model input
 
 
@@ -47,6 +57,7 @@ class ActivityRecognizer:
             Signature: ``(frames: np.ndarray) -> np.ndarray``
             Input shape: (1, T, H, W, 3) float32 normalised [0,1].
             Output shape: (1, 11) float32 logits.
+
     """
 
     def __init__(self, _infer_fn: Callable[..., Any] | None = None) -> None:
@@ -68,12 +79,14 @@ class ActivityRecognizer:
 
         Returns:
             Softmax probabilities of shape (11,).
+
         """
         # Preprocess: resize, normalise to [0,1], stack → (1, T, H, W, 3)
         processed: list[np.ndarray] = []
         for f in frames:
             try:
                 import cv2  # type: ignore[import]
+
                 resized = cv2.resize(f, (_FRAME_SIZE[1], _FRAME_SIZE[0]))
             except ImportError:
                 # Fallback: nearest-neighbour resize via numpy slicing
@@ -94,21 +107,25 @@ class ActivityRecognizer:
 
                 from Agent_Guru.vision.model_manager import ModelManager
 
-                model_path = os.path.join("models", "activity_slowfast.onnx")
-                if not os.path.exists(model_path):
+                model_path = os.path.join("models", "activity_slowfast.onnx")  # noqa: PTH118
+                if not os.path.exists(model_path):  # noqa: PTH110
                     # Graceful fallback: uniform distribution
-                    return np.ones(len(ACTIVITY_CATEGORIES), dtype=np.float32) / len(ACTIVITY_CATEGORIES)
+                    return np.ones(len(ACTIVITY_CATEGORIES), dtype=np.float32) / len(
+                        ACTIVITY_CATEGORIES,
+                    )
 
                 mm = ModelManager()
                 session = mm.load_model("activity_slowfast", model_path)
                 input_name = session.get_inputs()[0].name
                 logits = session.run(None, {input_name: batch})[0]
             except Exception as exc:
-                logger.warning("ActivityRecognizer: inference failed", error=str(exc))
-                return np.ones(len(ACTIVITY_CATEGORIES), dtype=np.float32) / len(ACTIVITY_CATEGORIES)
+                logger.exception("ActivityRecognizer: inference failed", error=str(exc))
+                return np.ones(len(ACTIVITY_CATEGORIES), dtype=np.float32) / len(
+                    ACTIVITY_CATEGORIES,
+                )
 
         # Softmax
-        logits = np.asarray(logits).ravel()[:len(ACTIVITY_CATEGORIES)]
+        logits = np.asarray(logits).ravel()[: len(ACTIVITY_CATEGORIES)]
         exp_l = np.exp(logits - logits.max())
         return exp_l / exp_l.sum()
 
@@ -121,6 +138,7 @@ class ActivityRecognizer:
 
         Args:
             frame: uint8 RGB array of shape (H, W, 3).
+
         """
         self._frame_buffer.append(frame)
 
@@ -134,6 +152,7 @@ class ActivityRecognizer:
         Returns:
             ActivityResult when buffer is sufficient and confidence ≥ gate,
             None when buffer is insufficient.
+
         """
         buf = frame_buffer if frame_buffer is not None else list(self._frame_buffer)
 
@@ -185,6 +204,7 @@ class ActivityRecognizer:
 
         Returns:
             List of 0–2 VisionEvents.
+
         """
         events: list[VisionEvent] = []
         if result.confidence < _CONFIDENCE_GATE:
@@ -200,7 +220,7 @@ class ActivityRecognizer:
                     "activity_label": result.activity_label,
                     "frame_seq": frame_seq,
                 },
-            )
+            ),
         )
 
         if result.changed and result.previous_label is not None:
@@ -215,7 +235,7 @@ class ActivityRecognizer:
                         "new_label": result.activity_label,
                         "frame_seq": frame_seq,
                     },
-                )
+                ),
             )
 
         return events

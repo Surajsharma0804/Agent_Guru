@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.vision.training.config_manager
+"""Module: Agent_Guru.vision.training.config_manager
 Purpose: Load, validate, and manage pipeline configuration from YAML/JSON files.
 
 Requirements: 1.1, 1.2, 12.1, 12.2, 12.4
@@ -11,7 +10,7 @@ import json
 import logging
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("guruvision.training.config_manager")
 
@@ -19,9 +18,11 @@ logger = logging.getLogger("guruvision.training.config_manager")
 # Configuration dataclasses
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class DatasetConfig:
     """Dataset configuration."""
+
     root_dir: str = "Agent_Guru/vision/data"
     training_name: str = "ms1m-arcface"
     training_path: str = "Agent_Guru/vision/data/training"
@@ -31,6 +32,7 @@ class DatasetConfig:
 @dataclass
 class TrainingConfig:
     """Training configuration."""
+
     backbone: str = "resnet50"
     embedding_size: int = 512
     batch_size: int = 32
@@ -54,18 +56,22 @@ class TrainingConfig:
 @dataclass
 class EvaluationConfig:
     """Evaluation configuration."""
+
     batch_size: int = 64
     use_onnx: bool = False
-    targets: dict[str, float] = field(default_factory=lambda: {
-        "lfw": 0.997,
-        "cfp_fp": 0.98,
-        "agedb_30": 0.97,
-    })
+    targets: dict[str, float] = field(
+        default_factory=lambda: {
+            "lfw": 0.997,
+            "cfp_fp": 0.98,
+            "agedb_30": 0.97,
+        },
+    )
 
 
 @dataclass
 class ExportConfig:
     """ONNX export configuration."""
+
     dynamic_batch: bool = True
     opset_version: int = 11
     optimize: bool = True
@@ -75,6 +81,7 @@ class ExportConfig:
 @dataclass
 class StressTestConfig:
     """Stress testing configuration."""
+
     enabled: bool = True
     conditions: list[dict[str, Any]] = field(default_factory=list)
 
@@ -82,6 +89,7 @@ class StressTestConfig:
 @dataclass
 class ReportingConfig:
     """Reporting configuration."""
+
     output_dir: str = "Agent_Guru/vision/data/reports"
     formats: list[str] = field(default_factory=lambda: ["json", "html"])
 
@@ -89,6 +97,7 @@ class ReportingConfig:
 @dataclass
 class Config:
     """Complete pipeline configuration."""
+
     name: str = "guruvision-pipeline"
     version: str = "1.0.0"
     random_seed: int = 42
@@ -103,6 +112,7 @@ class Config:
 @dataclass
 class ValidationResult:
     """Result of configuration validation."""
+
     valid: bool
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -111,6 +121,7 @@ class ValidationResult:
 # ---------------------------------------------------------------------------
 # ConfigManager
 # ---------------------------------------------------------------------------
+
 
 class ConfigManager:
     """Load, validate, and provide access to pipeline configuration.
@@ -122,6 +133,7 @@ class ConfigManager:
         >>> config = manager.load_config("config.yaml")
         >>> result = manager.validate_config(config)
         >>> print(result.valid)
+
     """
 
     SUPPORTED_BACKBONES = {"resnet50", "resnet100", "vit"}
@@ -129,7 +141,7 @@ class ConfigManager:
     SUPPORTED_FORMATS = {"pdf", "html", "json"}
 
     def __init__(self) -> None:
-        self._config: Optional[Config] = None
+        self._config: Config | None = None
 
     def load_config(self, config_path: str) -> Config:
         """Load configuration from YAML or JSON file.
@@ -143,10 +155,12 @@ class ConfigManager:
         Raises:
             FileNotFoundError: If config file does not exist.
             ValueError: If file format is unsupported or content is invalid.
+
         """
         path = Path(config_path)
         if not path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
+            msg = f"Configuration file not found: {config_path}"
+            raise FileNotFoundError(msg)
 
         suffix = path.suffix.lower()
         if suffix in {".yaml", ".yml"}:
@@ -154,7 +168,8 @@ class ConfigManager:
         elif suffix == ".json":
             data = self._load_json(path)
         else:
-            raise ValueError(f"Unsupported config format: {suffix}. Use .yaml or .json")
+            msg = f"Unsupported config format: {suffix}. Use .yaml or .json"
+            raise ValueError(msg)
 
         config = self._dict_to_config(data)
         self._config = config
@@ -169,6 +184,7 @@ class ConfigManager:
 
         Returns:
             ValidationResult with valid flag and any errors/warnings.
+
         """
         errors: list[str] = []
         warnings: list[str] = []
@@ -177,8 +193,7 @@ class ConfigManager:
         tc = config.training
         if tc.backbone not in self.SUPPORTED_BACKBONES:
             errors.append(
-                f"Unsupported backbone '{tc.backbone}'. "
-                f"Supported: {self.SUPPORTED_BACKBONES}"
+                f"Unsupported backbone '{tc.backbone}'. Supported: {self.SUPPORTED_BACKBONES}",
             )
         if tc.embedding_size <= 0:
             errors.append(f"embedding_size must be > 0, got {tc.embedding_size}")
@@ -189,9 +204,7 @@ class ConfigManager:
         if tc.learning_rate <= 0:
             errors.append(f"learning_rate must be > 0, got {tc.learning_rate}")
         if not (0.0 < tc.arcface_margin < 1.0):
-            errors.append(
-                f"arcface_margin must be in (0, 1), got {tc.arcface_margin}"
-            )
+            errors.append(f"arcface_margin must be in (0, 1), got {tc.arcface_margin}")
         if tc.arcface_scale <= 0:
             errors.append(f"arcface_scale must be > 0, got {tc.arcface_scale}")
         if not (0.0 < tc.val_split < 1.0):
@@ -203,13 +216,12 @@ class ConfigManager:
             errors.append(f"evaluation.batch_size must be > 0, got {ec.batch_size}")
         for benchmark, target in ec.targets.items():
             if not (0.0 <= target <= 1.0):
-                errors.append(
-                    f"Target for '{benchmark}' must be in [0, 1], got {target}"
-                )
+                errors.append(f"Target for '{benchmark}' must be in [0, 1], got {target}")
 
         # Validate export config
         xc = config.export
-        if xc.opset_version < 9:
+        if xc.opset_version < 9:  # noqa: PLR2004 - Threshold
+
             errors.append(f"opset_version must be >= 9, got {xc.opset_version}")
 
         # Validate reporting config
@@ -217,8 +229,7 @@ class ConfigManager:
         for fmt in rc.formats:
             if fmt not in self.SUPPORTED_FORMATS:
                 warnings.append(
-                    f"Unsupported report format '{fmt}'. "
-                    f"Supported: {self.SUPPORTED_FORMATS}"
+                    f"Unsupported report format '{fmt}'. Supported: {self.SUPPORTED_FORMATS}",
                 )
 
         valid = len(errors) == 0
@@ -232,19 +243,22 @@ class ConfigManager:
     def get_training_config(self) -> TrainingConfig:
         """Return training configuration from loaded config."""
         if self._config is None:
-            raise RuntimeError("No configuration loaded. Call load_config() first.")
+            msg = "No configuration loaded. Call load_config() first."
+            raise RuntimeError(msg)
         return self._config.training
 
     def get_evaluation_config(self) -> EvaluationConfig:
         """Return evaluation configuration from loaded config."""
         if self._config is None:
-            raise RuntimeError("No configuration loaded. Call load_config() first.")
+            msg = "No configuration loaded. Call load_config() first."
+            raise RuntimeError(msg)
         return self._config.evaluation
 
     def get_dataset_config(self) -> DatasetConfig:
         """Return dataset configuration from loaded config."""
         if self._config is None:
-            raise RuntimeError("No configuration loaded. Call load_config() first.")
+            msg = "No configuration loaded. Call load_config() first."
+            raise RuntimeError(msg)
         return self._config.dataset
 
     def save_config(self, config: Config, output_path: str) -> None:
@@ -253,11 +267,12 @@ class ConfigManager:
         Args:
             config: Configuration to save.
             output_path: Destination file path.
+
         """
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         data = self._config_to_dict(config)
-        with open(path, "w", encoding="utf-8") as f:
+        with open(path, "w", encoding="utf-8") as f:  # noqa: PTH123
             json.dump(data, f, indent=2)
         logger.info("Saved configuration to '%s'", output_path)
 
@@ -269,6 +284,7 @@ class ConfigManager:
 
         Returns:
             Config with scenario-appropriate defaults.
+
         """
         config = Config()
         if scenario == "quick_eval":
@@ -300,16 +316,17 @@ class ConfigManager:
         """Load YAML file, falling back to JSON-compatible loader."""
         try:
             import yaml  # type: ignore[import]
-            with open(path, encoding="utf-8") as f:
+
+            with open(path, encoding="utf-8") as f:  # noqa: PTH123
                 return yaml.safe_load(f) or {}
         except ImportError:
             # Fallback: try to parse as JSON (subset of YAML)
-            with open(path, encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:  # noqa: PTH123
                 return json.load(f)
 
     @staticmethod
     def _load_json(path: Path) -> dict[str, Any]:
-        with open(path, encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:  # noqa: PTH123
             return json.load(f)
 
     @staticmethod
@@ -343,7 +360,10 @@ class ConfigManager:
                 arcface_scale=t.get("arcface_scale", config.training.arcface_scale),
                 distributed=t.get("distributed", config.training.distributed),
                 num_gpus=t.get("num_gpus", config.training.num_gpus),
-                checkpoint_interval=t.get("checkpoint_interval", config.training.checkpoint_interval),
+                checkpoint_interval=t.get(
+                    "checkpoint_interval",
+                    config.training.checkpoint_interval,
+                ),
                 log_interval=t.get("log_interval", config.training.log_interval),
                 output_dir=t.get("output_dir", config.training.output_dir),
                 checkpoint_name=t.get("checkpoint_name", config.training.checkpoint_name),
@@ -414,6 +434,7 @@ def verify_gpu() -> dict[str, Any]:
     Returns:
         Dict with keys: available (bool), device_count (int),
         device_names (list[str]), cuda_version (str | None).
+
     """
     result: dict[str, Any] = {
         "available": False,
@@ -423,12 +444,12 @@ def verify_gpu() -> dict[str, Any]:
     }
     try:
         import torch
+
         result["available"] = torch.cuda.is_available()
         result["device_count"] = torch.cuda.device_count()
         result["cuda_version"] = torch.version.cuda
         result["device_names"] = [
-            torch.cuda.get_device_name(i)
-            for i in range(result["device_count"])
+            torch.cuda.get_device_name(i) for i in range(result["device_count"])
         ]
         if result["available"]:
             logger.info(
@@ -439,6 +460,6 @@ def verify_gpu() -> dict[str, Any]:
             )
         else:
             logger.warning("No GPU available. Training will use CPU.")
-    except ImportError as e:
-        logger.warning("PyTorch not installed; cannot verify GPU.: %s", e)
+    except ImportError:
+        logger.exception("PyTorch not installed; cannot verify GPU.")
     return result

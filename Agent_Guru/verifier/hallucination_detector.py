@@ -24,21 +24,36 @@ from Agent_Guru.verifier.models import (
 # ---------------------------------------------------------------------------
 
 _UNCERTAINTY_PATTERNS = [
-    re.compile(r"\b(I think|I believe|I'm not sure|I'm uncertain|probably|possibly|maybe|perhaps|might be|could be|I guess|I assume)\b", re.IGNORECASE),
-    re.compile(r"\b(as far as I know|to the best of my knowledge|I recall|I remember)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(I think|I believe|I'm not sure|I'm uncertain|probably|possibly|maybe|perhaps|might be|could be|I guess|I assume)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(as far as I know|to the best of my knowledge|I recall|I remember)\b",
+        re.IGNORECASE,
+    ),
 ]
 
 # Fabrication signal patterns
 _FABRICATION_PATTERNS = [
-    re.compile(r"\b(according to .{0,30}study|research shows|studies show|experts say|scientists found)\b", re.IGNORECASE),
-    re.compile(r"\b(in \d{4}|on (January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2})\b", re.IGNORECASE),
+    re.compile(
+        r"\b(according to .{0,30}study|research shows|studies show|experts say|scientists found)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(in \d{4}|on (January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2})\b",
+        re.IGNORECASE,
+    ),
     re.compile(r"\b\d+(\.\d+)?%\b"),  # Specific percentages
     re.compile(r"\$\d[\d,]*(\.\d+)?\b"),  # Specific dollar amounts
 ]
 
 # Contradiction signal patterns
 _CONTRADICTION_PATTERNS = [
-    re.compile(r"\b(however|but|although|despite|on the other hand|in contrast|nevertheless|yet|while)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(however|but|although|despite|on the other hand|in contrast|nevertheless|yet|while)\b",
+        re.IGNORECASE,
+    ),
 ]
 
 
@@ -68,6 +83,7 @@ class HallucinationDetector:
 
         Returns:
             HallucinationDetectionResult with aggregated findings
+
         """
         if not text or not text.strip():
             return HallucinationDetectionResult(
@@ -117,19 +133,20 @@ class HallucinationDetector:
         # Aggregate: confidence = mean of technique scores
         # Lower score = more likely hallucination
         avg_score = sum(technique_scores) / len(technique_scores)
-        detected = avg_score < self._threshold or len(hallucination_types) >= 2
+        detected = avg_score < self._threshold or len(hallucination_types) >= 2  # noqa: PLR2004 - Small integer threshold
+
 
         return HallucinationDetectionResult(
             detected=detected,
             hallucination_types=hallucination_types,
             confidence=avg_score,
-            details="; ".join(details_parts) if details_parts else "No hallucination signals detected",
+            details="; ".join(details_parts)
+            if details_parts
+            else "No hallucination signals detected",
             techniques_used=techniques_used,
         )
 
-    def _check_factual_consistency(
-        self, text: str, expected_facts: list[str]
-    ) -> dict[str, Any]:
+    def _check_factual_consistency(self, text: str, expected_facts: list[str]) -> dict[str, Any]:
         """Check if text contradicts known facts."""
         if not expected_facts:
             return {"flagged": False, "score": 0.9, "detail": ""}
@@ -160,9 +177,7 @@ class HallucinationDetector:
             }
         return {"flagged": False, "score": 0.9, "detail": ""}
 
-    def _check_cross_reference(
-        self, text: str, context: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _check_cross_reference(self, text: str, context: dict[str, Any]) -> dict[str, Any]:
         """Validate claims against provided context."""
         if not context:
             return {"flagged": False, "score": 0.85, "detail": ""}
@@ -181,7 +196,8 @@ class HallucinationDetector:
         words = len(text.split())
         contradiction_density = contradiction_count / max(words, 1)
 
-        if contradiction_density > 0.1:  # >10% contradiction markers
+        if contradiction_density > 0.1:  # >10% contradiction markers  # noqa: PLR2004 (Threshold value)
+
             return {
                 "flagged": True,
                 "score": max(0.2, 0.8 - contradiction_density),
@@ -192,7 +208,8 @@ class HallucinationDetector:
         # Simple heuristic: specific numbers/dates not in context
         specific_claims = re.findall(r"\b\d{4}\b|\b\d+%\b|\$\d+", text)
         unsupported = [c for c in specific_claims if c not in context_str]
-        if len(unsupported) > 2:
+        if len(unsupported) > 2:  # noqa: PLR2004 - Small integer threshold
+
             return {
                 "flagged": True,
                 "score": max(0.3, 0.85 - len(unsupported) * 0.1),
@@ -212,7 +229,8 @@ class HallucinationDetector:
         uncertainty_density = uncertainty_count / max(words, 1)
 
         # High uncertainty density suggests the model is guessing
-        if uncertainty_density > 0.05:  # >5% uncertainty markers
+        if uncertainty_density > 0.05:  # >5% uncertainty markers  # noqa: PLR2004 (Threshold value)
+
             score = max(0.3, 0.8 - uncertainty_density * 2)
             return {
                 "flagged": True,
@@ -237,7 +255,8 @@ class HallucinationDetector:
         words = len(text.split())
         fabrication_density = fabrication_count / max(words, 1)
 
-        if fabrication_density > 0.08:  # >8% fabrication markers
+        if fabrication_density > 0.08:  # >8% fabrication markers  # noqa: PLR2004 (Threshold value)
+
             score = max(0.2, 0.85 - fabrication_density * 2)
             return {
                 "flagged": True,

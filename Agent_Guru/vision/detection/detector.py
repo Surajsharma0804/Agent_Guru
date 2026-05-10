@@ -1,5 +1,4 @@
-"""
-Face detection module using RetinaFace (InsightFace) with OpenCV Haar cascade fallback.
+"""Face detection module using RetinaFace (InsightFace) with OpenCV Haar cascade fallback.
 
 Provides FaceDetector and Detection dataclass for locating faces in images/video frames.
 
@@ -16,7 +15,6 @@ import logging
 import threading
 import warnings
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -81,10 +79,11 @@ class Detection:
             keypoints: left_eye, right_eye, nose, left_mouth, right_mouth.
             May be None when using the OpenCV Haar cascade fallback.
         confidence: Detection confidence score in [0.0, 1.0].
+
     """
 
     bbox: tuple[int, int, int, int]  # x, y, w, h
-    landmarks: Optional[np.ndarray]  # shape (5, 2) — 5 facial keypoints
+    landmarks: np.ndarray | None  # shape (5, 2) — 5 facial keypoints
     confidence: float  # 0.0 to 1.0
 
 
@@ -117,6 +116,7 @@ class FaceDetector:
         for d in detections:
             x, y, w, h = d.bbox
             _logger.info("Face at (%s,%s) size %sx%s, conf=%.2f", x, y, w, h, d.confidence)
+
     """
 
     def __init__(
@@ -125,19 +125,20 @@ class FaceDetector:
         use_gpu: bool = False,
     ) -> None:
         if not 0.0 <= confidence_threshold <= 1.0:
+            msg = f"confidence_threshold must be in [0.0, 1.0], got {confidence_threshold}"
             raise ValueError(
-                f"confidence_threshold must be in [0.0, 1.0], got {confidence_threshold}"
+                msg,
             )
         self.confidence_threshold = confidence_threshold
         self._use_gpu = use_gpu
 
         # Lazy-init state — populated on first detect() call
-        self._insightface_app: Optional[object] = None
+        self._insightface_app: object | None = None
         self._insightface_init_attempted: bool = False
 
         if not _INSIGHTFACE_AVAILABLE:
             logger.warning(
-                "InsightFace not available — FaceDetector will use OpenCV Haar cascade fallback."
+                "InsightFace not available — FaceDetector will use OpenCV Haar cascade fallback.",
             )
 
     # ------------------------------------------------------------------
@@ -160,9 +161,11 @@ class FaceDetector:
 
         Raises:
             ValueError: If *frame* is not a valid NumPy array.
+
         """
         if not isinstance(frame, np.ndarray):
-            raise ValueError("frame must be a numpy ndarray")
+            msg = "frame must be a numpy ndarray"
+            raise ValueError(msg)
 
         # Ensure we have a 3-channel uint8 image
         frame = self._ensure_bgr(frame)
@@ -183,8 +186,10 @@ class FaceDetector:
 
         Returns:
             List of :class:`Detection` objects.
+
         """
         import asyncio
+
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self.detect, frame)
 
@@ -192,7 +197,7 @@ class FaceDetector:
     # Lazy model initialisation
     # ------------------------------------------------------------------
 
-    def _get_insightface_app(self) -> Optional[object]:
+    def _get_insightface_app(self) -> object | None:
         """Lazily initialise InsightFace with a 15-second thread timeout."""
         if self._insightface_init_attempted:
             return self._insightface_app
@@ -209,9 +214,7 @@ class FaceDetector:
                 from insightface.app import FaceAnalysis  # type: ignore[import-untyped]
 
                 ctx_id = 0 if self._use_gpu else -1
-                providers = (
-                    ["CUDAExecutionProvider"] if self._use_gpu else ["CPUExecutionProvider"]
-                )
+                providers = ["CUDAExecutionProvider"] if self._use_gpu else ["CPUExecutionProvider"]
                 app = FaceAnalysis(name="buffalo_l", providers=providers)
                 app.prepare(ctx_id=ctx_id, det_size=(640, 640))
                 result_holder.append(app)
@@ -224,7 +227,7 @@ class FaceDetector:
 
         if t.is_alive():
             logger.warning(
-                "InsightFace init timed out after 15s — falling back to OpenCV Haar cascade."
+                "InsightFace init timed out after 15s — falling back to OpenCV Haar cascade.",
             )
         elif error_holder:
             logger.warning(
@@ -245,8 +248,8 @@ class FaceDetector:
         """Run RetinaFace detection via InsightFace."""
         try:
             faces = app.get(frame)  # type: ignore[union-attr]
-        except Exception as exc:
-            logger.warning("InsightFace detection failed: %s — returning empty list.", exc)
+        except Exception:
+            logger.exception("InsightFace detection failed: %s — returning empty list.")
             return []
 
         results: list[Detection] = []
@@ -263,18 +266,18 @@ class FaceDetector:
                             1.0,
                             float(face.det_score) if hasattr(face, "det_score") else 1.0,
                         ),
-                    )
+                    ),
                 )
                 if conf < self.confidence_threshold:
                     continue
-                landmarks: Optional[np.ndarray] = None
+                landmarks: np.ndarray | None = None
                 if hasattr(face, "kps") and face.kps is not None:
                     landmarks = np.array(face.kps, dtype=np.float32)
                     if landmarks.shape != (5, 2):
                         landmarks = None
                 results.append(Detection(bbox=(x, y, w, h), landmarks=landmarks, confidence=conf))
-            except Exception as exc:  # pragma: no cover
-                logger.warning("Skipping malformed InsightFace detection: %s", exc)
+            except Exception:  # pragma: no cover
+                logger.exception("Skipping malformed InsightFace detection")
 
         return results
 
@@ -287,13 +290,16 @@ class FaceDetector:
         try:
             grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             cascade = cv2.CascadeClassifier(
-                cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+                cv2.data.haarcascades + "haarcascade_frontalface_default.xml",
             )
             faces = cascade.detectMultiScale(
-                grey, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
+                grey,
+                scaleFactor=1.1,
+                minNeighbors=5,
+                minSize=(30, 30),
             )
-        except Exception as exc:
-            logger.warning("OpenCV Haar detection failed: %s — returning empty list.", exc)
+        except Exception:
+            logger.exception("OpenCV Haar detection failed: %s — returning empty list.")
             return []
 
         results: list[Detection] = []
@@ -310,7 +316,7 @@ class FaceDetector:
                     bbox=(int(x), int(y), int(w), int(h)),
                     landmarks=None,
                     confidence=conf,
-                )
+                ),
             )
         return results
 
@@ -321,12 +327,14 @@ class FaceDetector:
     @staticmethod
     def _ensure_bgr(frame: np.ndarray) -> np.ndarray:
         """Convert frame to 3-channel uint8 BGR if needed."""
-        if frame.ndim == 2:
+        if frame.ndim == 2:  # noqa: PLR2004 - Small integer threshold
+
             # Greyscale → BGR
             if _CV2_AVAILABLE:
                 return cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
             return np.stack([frame, frame, frame], axis=-1).astype(np.uint8)
-        if frame.ndim == 3 and frame.shape[2] == 4:
+        if frame.ndim == 3 and frame.shape[2] == 4:  # noqa: PLR2004 - Small integer threshold
+
             # BGRA → BGR
             if _CV2_AVAILABLE:
                 return cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)

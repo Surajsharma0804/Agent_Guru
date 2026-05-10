@@ -15,7 +15,10 @@ from Agent_Guru.verifier.models import ToolOutputCheckResult
 # Common error indicator patterns in tool outputs
 _ERROR_PATTERNS = [
     re.compile(r"\b(error|exception|traceback|failed|failure|fatal|critical)\b", re.IGNORECASE),
-    re.compile(r"\b(errno|oserror|ioerror|valueerror|typeerror|keyerror|indexerror)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(errno|oserror|ioerror|valueerror|typeerror|keyerror|indexerror)\b",
+        re.IGNORECASE,
+    ),
     re.compile(r"(Traceback \(most recent call last\)|File \".*\", line \d+)", re.IGNORECASE),
     re.compile(r"\b(null|undefined|none)\b.*\b(error|exception)\b", re.IGNORECASE),
     re.compile(r"HTTP [45]\d{2}", re.IGNORECASE),  # HTTP error codes
@@ -47,7 +50,7 @@ class ToolOutputChecker:
     def check(
         self,
         tool_name: str,
-        output: Any,
+        output: Any,  # noqa: ANN401
         input_params: dict[str, Any] | None = None,
     ) -> ToolOutputCheckResult:
         """Check tool output for errors and consistency.
@@ -59,6 +62,7 @@ class ToolOutputChecker:
 
         Returns:
             ToolOutputCheckResult
+
         """
         error_indicators: list[str] = []
         schema_valid = True
@@ -84,17 +88,11 @@ class ToolOutputChecker:
 
         # 3. Semantic consistency
         if input_params:
-            semantically_consistent = self._check_semantic_consistency(
-                output, input_params
-            )
+            semantically_consistent = self._check_semantic_consistency(output, input_params)
             if not semantically_consistent:
                 details_parts.append("Semantic inconsistency detected between input and output")
 
-        safe = (
-            len(error_indicators) == 0
-            and schema_valid
-            and semantically_consistent
-        )
+        safe = len(error_indicators) == 0 and schema_valid and semantically_consistent
 
         return ToolOutputCheckResult(
             safe=safe,
@@ -104,7 +102,7 @@ class ToolOutputChecker:
             details="; ".join(details_parts) if details_parts else "Tool output is safe",
         )
 
-    def _check_schema(self, output: Any, schema: dict[str, Any]) -> bool:
+    def _check_schema(self, output: Any, schema: dict[str, Any]) -> bool:  # noqa: ANN401
         """Simple schema check: verify required fields present."""
         if not isinstance(output, dict):
             return schema.get("type") != "object"
@@ -134,9 +132,7 @@ class ToolOutputChecker:
 
         return True
 
-    def _check_semantic_consistency(
-        self, output: Any, input_params: dict[str, Any]
-    ) -> bool:
+    def _check_semantic_consistency(self, output: Any, input_params: dict[str, Any]) -> bool:  # noqa: ANN401
         """Check if output is semantically consistent with inputs.
 
         Heuristic: if input specifies a count/limit, output shouldn't exceed it.
@@ -148,13 +144,10 @@ class ToolOutputChecker:
         has_success = any(p.search(output_str) for p in _SUCCESS_PATTERNS)
 
         # If output has errors but no success signals, flag it
-        if has_error and not has_success and len(output_str) < 500:
+        if has_error and not has_success and len(output_str) < 500:  # noqa: PLR2004 - Percentage/large threshold
+
             return False
 
         # Check limit consistency
         limit = input_params.get("limit") or input_params.get("count") or input_params.get("max")
-        if limit and isinstance(output, list):
-            if len(output) > int(limit):
-                return False
-
-        return True
+        return not (limit and isinstance(output, list) and len(output) > int(limit))

@@ -1,5 +1,4 @@
-"""
-Example: Train a custom GuruVision face recognition model.
+r"""Example: Train a custom GuruVision face recognition model.
 
 Usage:
     python -m Agent_Guru.vision.examples.train_model \\
@@ -26,9 +25,7 @@ from pathlib import Path
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Train a custom GuruVision ArcFace model"
-    )
+    parser = argparse.ArgumentParser(description="Train a custom GuruVision ArcFace model")
     parser.add_argument("--dataset_dir", required=True, help="Path to raw dataset directory")
     parser.add_argument("--output_dir", required=True, help="Directory to save model artifacts")
     parser.add_argument("--config", default=None, help="Optional YAML/JSON config file")
@@ -38,7 +35,6 @@ def main() -> int:
     output_dir = Path(args.output_dir)
 
     if not dataset_dir.exists():
-        print(f"ERROR: dataset_dir '{dataset_dir}' does not exist.", file=sys.stderr)
         return 1
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -48,33 +44,22 @@ def main() -> int:
     from Agent_Guru.vision.training.preprocess import preprocess_dataset, validate_dataset_structure
     from Agent_Guru.vision.training.train import TrainingConfig, train_arcface_model
 
-    print(f"Step 1/3 — Validating dataset structure in '{dataset_dir}' …")
     issues = validate_dataset_structure(str(dataset_dir))
     if issues:
-        for issue in issues:
-            print(f"  WARNING: {issue}")
+        for _issue in issues:
+            pass
 
     aligned_dir = output_dir / "aligned_dataset"
-    print(f"Step 2/3 — Preprocessing dataset → '{aligned_dir}' …")
-    report = preprocess_dataset(str(dataset_dir), str(aligned_dir))
-    print(
-        f"  Processed {report['total_images']} images, "
-        f"aligned {report['aligned_images']}, "
-        f"skipped {report['skipped_images']}"
-    )
+    preprocess_dataset(str(dataset_dir), str(aligned_dir))
 
-    print("Step 3/3 — Training ArcFace model …")
     cfg = TrainingConfig(
         dataset_dir=str(aligned_dir),
         output_dir=str(output_dir),
     )
     checkpoint_path = train_arcface_model(cfg)
-    print(f"  Checkpoint saved: {checkpoint_path}")
 
     onnx_path = output_dir / "guru_face_model.onnx"
     export_to_onnx(str(checkpoint_path), str(onnx_path))
-    print(f"  ONNX model exported: {onnx_path}")
-    print("Training complete.")
     return 0
 
 

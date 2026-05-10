@@ -2,4 +2,4 @@
 
 from .emotion_detector import EmotionDetector
 
-__all__ = ['EmotionDetector']
+__all__ = ["EmotionDetector"]

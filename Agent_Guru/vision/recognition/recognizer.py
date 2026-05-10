@@ -1,5 +1,4 @@
-"""
-Face recognition module using ONNX Runtime for embedding extraction.
+"""Face recognition module using ONNX Runtime for embedding extraction.
 
 Extracts 512-dim L2-normalised embeddings from aligned 112x112 faces.
 Falls back to random normalised vectors when onnxruntime or model is unavailable.
@@ -9,7 +8,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 
 import numpy as np
 
@@ -29,6 +27,7 @@ class FaceRecognizer:
     Args:
         model_path: Path to the ArcFace ONNX model file.
         use_gpu: Use CUDAExecutionProvider when True, else CPUExecutionProvider.
+
     """
 
     EMBEDDING_DIM: int = 512
@@ -37,7 +36,7 @@ class FaceRecognizer:
     def __init__(self, model_path: str, use_gpu: bool = False) -> None:
         self.model_path = model_path
         self.use_gpu = use_gpu
-        self._session: Optional[object] = None  # lazy init
+        self._session: object | None = None  # lazy init
 
     # ------------------------------------------------------------------
     # Public API
@@ -54,6 +53,7 @@ class FaceRecognizer:
 
         Raises:
             InvalidImageError: If aligned_face has wrong shape or dtype.
+
         """
         self._validate_face(aligned_face)
 
@@ -75,13 +75,12 @@ class FaceRecognizer:
 
         Returns:
             Similarity score in [-1.0, 1.0].
+
         """
         score = float(np.dot(emb1, emb2))
         return float(np.clip(score, -1.0, 1.0))
 
-    def compute_similarity_batch(
-        self, query: np.ndarray, gallery: np.ndarray
-    ) -> np.ndarray:
+    def compute_similarity_batch(self, query: np.ndarray, gallery: np.ndarray) -> np.ndarray:
         """Vectorized cosine similarity between one query and N gallery embeddings.
 
         Uses matrix multiplication instead of a Python loop — O(n) with a
@@ -93,6 +92,7 @@ class FaceRecognizer:
 
         Returns:
             Similarity scores, shape (N,), values in [-1.0, 1.0].
+
         """
         scores = gallery @ query  # (N, 512) @ (512,) → (N,)
         return np.clip(scores, -1.0, 1.0)
@@ -115,6 +115,7 @@ class FaceRecognizer:
 
         Returns:
             ``True`` if the embeddings are similar enough, ``False`` otherwise.
+
         """
         return verify_embedding(emb1, emb2, threshold)
 
@@ -122,7 +123,7 @@ class FaceRecognizer:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _get_session(self) -> Optional[object]:
+    def _get_session(self) -> object | None:
         """Lazy-init the ONNX Runtime session.
 
         Returns None only in explicit test/dev mode (when model_path is empty
@@ -135,17 +136,20 @@ class FaceRecognizer:
         # Allow explicit test/dev bypass via a sentinel path prefix
         _is_test_mode = not self.model_path or self.model_path.startswith("test_")
 
-        if not os.path.isfile(self.model_path):
+        if not os.path.isfile(self.model_path):  # noqa: PTH113
             if _is_test_mode:
                 logger.warning(
                     "FaceRecognizer: test mode — no model at '%s', random fallback active",
                     self.model_path,
                 )
                 return None
-            raise RuntimeError(
+            msg = (
                 f"ArcFace ONNX model not found at '{self.model_path}'. "
                 "Download the model and place it at the configured path. "
                 "See docs/models.md for instructions."
+            )
+            raise RuntimeError(
+                msg,
             )
 
         try:
@@ -160,8 +164,9 @@ class FaceRecognizer:
             logger.info("Loaded ArcFace ONNX model from '%s'", self.model_path)
             return self._session
         except Exception as exc:
+            msg = f"Failed to load ArcFace ONNX model from '{self.model_path}': {exc}"
             raise RuntimeError(
-                f"Failed to load ArcFace ONNX model from '{self.model_path}': {exc}"
+                msg,
             ) from exc
 
     @staticmethod
@@ -173,28 +178,30 @@ class FaceRecognizer:
 
         Raises:
             InvalidImageError: If shape or dtype is wrong.
+
         """
         if face.shape != FaceRecognizer._EXPECTED_SHAPE:
+            msg = f"Expected face shape {FaceRecognizer._EXPECTED_SHAPE}, got {face.shape}"
             raise InvalidImageError(
-                f"Expected face shape {FaceRecognizer._EXPECTED_SHAPE}, got {face.shape}"
+                msg,
             )
         if face.dtype != np.uint8:
-            raise InvalidImageError(
-                f"Expected face dtype uint8, got {face.dtype}"
-            )
+            msg = f"Expected face dtype uint8, got {face.dtype}"
+            raise InvalidImageError(msg)
 
     @staticmethod
     def _preprocess(face: np.ndarray) -> np.ndarray:
         """BGR uint8 (112,112,3) → float32 NCHW (1,3,112,112) in [-1,1]."""
         rgb = face[:, :, ::-1].astype(np.float32)  # BGR → RGB
-        normalized = rgb / 127.5 - 1.0             # [0,255] → [-1,1]
-        chw = normalized.transpose(2, 0, 1)         # HWC → CHW
-        return chw[np.newaxis, ...]                  # → NCHW
+        normalized = rgb / 127.5 - 1.0  # [0,255] → [-1,1]
+        chw = normalized.transpose(2, 0, 1)  # HWC → CHW
+        return chw[np.newaxis, ...]  # → NCHW
 
     @staticmethod
     def _l2_normalize(vec: np.ndarray) -> np.ndarray:
         norm = np.linalg.norm(vec)
-        if norm < 1e-10:
+        if norm < 1e-10:  # noqa: PLR2004 - Epsilon value
+
             return vec
         return vec / norm
 

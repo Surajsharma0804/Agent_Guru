@@ -2,19 +2,21 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
 
 class PersonalityType(Enum):
     """AI personality types."""
+
     GURU = "guru"  # Male personality
     MAYA = "maya"  # Female personality
 
 
 class EmotionType(Enum):
     """Emotion types detected from voice."""
+
     HAPPY = "happy"
     SAD = "sad"
     ANGRY = "angry"
@@ -27,6 +29,7 @@ class EmotionType(Enum):
 @dataclass
 class WakeWordDetection:
     """Wake word detection result."""
+
     wake_word: str
     personality: PersonalityType
     confidence: float
@@ -37,16 +40,18 @@ class WakeWordDetection:
 @dataclass
 class TranscriptionSegment:
     """A segment of transcribed text."""
+
     text: str
     start_time: float
     end_time: float
-    speaker_id: Optional[int] = None
+    speaker_id: int | None = None
     confidence: float = 1.0
 
 
 @dataclass
 class TranscriptionResult:
     """Speech-to-text transcription result."""
+
     text: str
     language: str
     confidence: float
@@ -75,6 +80,7 @@ class VoiceFeatures:
         is_live: True when liveness_score meets the liveness threshold
             (>= 0.55).  The BiometricAuthenticator MUST reject authentication
             when this field is False.
+
     """
 
     feature_vector: np.ndarray
@@ -88,6 +94,7 @@ class VoiceFeatures:
 @dataclass
 class EmotionResult:
     """Emotion detection result."""
+
     primary_emotion: EmotionType
     emotion_scores: dict[EmotionType, float]
     confidence: float
@@ -98,6 +105,7 @@ class EmotionResult:
 @dataclass
 class EmotionHistory:
     """Emotion history over time."""
+
     emotions: list[EmotionResult]
     dominant_emotion: EmotionType
     emotion_transitions: list[tuple[EmotionType, EmotionType, float]]
@@ -106,6 +114,7 @@ class EmotionHistory:
 @dataclass
 class VoiceModel:
     """Voice cloning model."""
+
     model_id: str
     user_id: str
     voice_characteristics: dict[str, float]
@@ -118,6 +127,7 @@ class VoiceModel:
 @dataclass
 class NoiseProfile:
     """Noise profile for adaptive cancellation."""
+
     noise_type: str
     noise_level: float
     snr: float
@@ -127,6 +137,7 @@ class NoiseProfile:
 @dataclass
 class StreamMetrics:
     """Streaming audio metrics."""
+
     latency_ms: float
     jitter_ms: float
     packet_loss_percent: float
@@ -138,18 +149,20 @@ class StreamMetrics:
 @dataclass
 class ConversationTurn:
     """A single turn in a conversation."""
+
     speaker: str
     text: str
     timestamp: float
-    emotion: Optional[EmotionType] = None
+    emotion: EmotionType | None = None
 
 
 @dataclass
 class ConversationContext:
     """Conversation context state."""
+
     personality: PersonalityType
     turns: list[ConversationTurn]
-    current_topic: Optional[str] = None
+    current_topic: str | None = None
     user_preferences: dict[str, Any] = field(default_factory=dict)
     created_at: float = 0.0
     updated_at: float = 0.0
@@ -158,8 +171,9 @@ class ConversationContext:
 @dataclass
 class TTSConfig:
     """Text-to-speech configuration."""
+
     personality: PersonalityType
-    emotion: Optional[EmotionType] = None
+    emotion: EmotionType | None = None
     speech_rate: float = 1.0
     pitch: float = 1.0
     volume: float = 1.0
@@ -169,8 +183,9 @@ class TTSConfig:
 @dataclass
 class CommandResult:
     """Command interpretation result."""
+
     is_command: bool
-    action_id: Optional[str]
+    action_id: str | None
     parameters: dict[str, Any]
     confidence: float
     raw_text: str

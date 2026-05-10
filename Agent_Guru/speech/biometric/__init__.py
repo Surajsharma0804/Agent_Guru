@@ -2,4 +2,4 @@
 
 from .voice_features import VoiceFeatureExtractor
 
-__all__ = ['VoiceFeatureExtractor']
+__all__ = ["VoiceFeatureExtractor"]

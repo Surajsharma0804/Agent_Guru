@@ -7,6 +7,7 @@ Supports three backends in priority order:
 
 All backends share the same async API and WakeWordDetection result type.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -20,9 +21,8 @@ from typing import Any
 
 import numpy as np
 
-
-from ..exceptions import GuruSpeechError
-from ..models import PersonalityType, WakeWordDetection
+from Agent_Guru.speech.exceptions import GuruSpeechError
+from Agent_Guru.speech.models import PersonalityType, WakeWordDetection
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 try:
     import pvporcupine  # type: ignore[import]
+
     _HAS_PORCUPINE = True
 except ImportError:
     _HAS_PORCUPINE = False
@@ -38,19 +39,22 @@ except ImportError:
 try:
     from vosk import KaldiRecognizer  # type: ignore[import]
     from vosk import Model as VoskModel
+
     _HAS_VOSK = True
 except ImportError:
     _HAS_VOSK = False
 
 try:
-    import openwakeword  # type: ignore[import]
+    import openwakeword  # type: ignore[import]  # noqa: F401
     from openwakeword.model import Model as OWWModel  # type: ignore[import]
+
     _HAS_OWW = True
 except ImportError:
     _HAS_OWW = False
 
 try:
     import librosa  # type: ignore[import]
+
     _HAS_LIBROSA = True
 except ImportError:
     _HAS_LIBROSA = False
@@ -63,6 +67,7 @@ class WakeWordError(GuruSpeechError):
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class WakeWordConfig:
@@ -82,14 +87,17 @@ class WakeWordConfig:
         vosk_model_path: Path to a Vosk model directory.
         porcupine_access_key: Picovoice access key (reads
             ``PICOVOICE_ACCESS_KEY`` env var when empty).
+
     """
 
-    wake_words: dict[str, PersonalityType] = field(default_factory=lambda: {
-        "hey guru": PersonalityType.GURU,
-        "guru": PersonalityType.GURU,
-        "hey maya": PersonalityType.MAYA,
-        "maya": PersonalityType.MAYA,
-    })
+    wake_words: dict[str, PersonalityType] = field(
+        default_factory=lambda: {
+            "hey guru": PersonalityType.GURU,
+            "guru": PersonalityType.GURU,
+            "hey maya": PersonalityType.MAYA,
+            "maya": PersonalityType.MAYA,
+        },
+    )
     sensitivity: float = 0.5
     sample_rate: int = 16_000
     frame_length: int = 512
@@ -105,6 +113,7 @@ class WakeWordConfig:
 # ---------------------------------------------------------------------------
 # Main detector
 # ---------------------------------------------------------------------------
+
 
 class WakeWordDetector:
     """Production wake word detector with automatic backend selection.
@@ -155,15 +164,12 @@ class WakeWordDetector:
         3. Vosk — offline keyword spotting
         4. MFCC energy fallback — always available, least accurate
         """
-        access_key = (
-            self.config.porcupine_access_key
-            or os.environ.get("PICOVOICE_ACCESS_KEY", "")
-        )
+        access_key = self.config.porcupine_access_key or os.environ.get("PICOVOICE_ACCESS_KEY", "")
         if _HAS_PORCUPINE and access_key:
             return "porcupine"
         if _HAS_OWW:
             return "openwakeword"
-        if _HAS_VOSK and os.path.isdir(self.config.vosk_model_path):
+        if _HAS_VOSK and os.path.isdir(self.config.vosk_model_path):  # noqa: PTH112
             return "vosk"
         return "mfcc"
 
@@ -171,38 +177,43 @@ class WakeWordDetector:
     # Lazy initialisers
     # ------------------------------------------------------------------
 
-    def _get_vosk_recognizer(self) -> Any:
+    def _get_vosk_recognizer(self) -> Any:  # noqa: ANN401
         """Lazily initialise and return the Vosk recogniser."""
         if self._vosk_recognizer is None:
             if not _HAS_VOSK:
-                raise WakeWordError("vosk is not installed — run: pip install vosk")
-            if not os.path.isdir(self.config.vosk_model_path):
-                raise WakeWordError(
+                msg = "vosk is not installed — run: pip install vosk"
+                raise WakeWordError(msg)
+            if not os.path.isdir(self.config.vosk_model_path):  # noqa: PTH112
+                msg = (
                     f"Vosk model not found at '{self.config.vosk_model_path}'. "
                     "Download from https://alphacephei.com/vosk/models"
                 )
+                raise WakeWordError(
+                    msg,
+                )
             import vosk  # type: ignore[import]
+
             vosk.SetLogLevel(-1)
             model = VoskModel(self.config.vosk_model_path)
-            grammar = json.dumps(list(self.config.wake_words.keys()) + ["[unk]"])
-            self._vosk_recognizer = KaldiRecognizer(
-                model, self.config.sample_rate, grammar
-            )
+            grammar = json.dumps([*list(self.config.wake_words.keys()), "[unk]"])
+            self._vosk_recognizer = KaldiRecognizer(model, self.config.sample_rate, grammar)
             self._vosk_recognizer.SetWords(True)
             logger.info("Vosk recogniser initialised (model=%s)", self.config.vosk_model_path)
         return self._vosk_recognizer
 
-    def _get_porcupine(self) -> Any:
+    def _get_porcupine(self) -> Any:  # noqa: ANN401
         """Lazily initialise and return the Porcupine handle."""
         if self._porcupine is None:
             if not _HAS_PORCUPINE:
-                raise WakeWordError("pvporcupine is not installed — run: pip install pvporcupine")
-            access_key = (
-                self.config.porcupine_access_key
-                or os.environ.get("PICOVOICE_ACCESS_KEY", "")
+                msg = "pvporcupine is not installed — run: pip install pvporcupine"
+                raise WakeWordError(msg)
+            access_key = self.config.porcupine_access_key or os.environ.get(
+                "PICOVOICE_ACCESS_KEY",
+                "",
             )
             if not access_key:
-                raise WakeWordError("PICOVOICE_ACCESS_KEY is required for Porcupine backend")
+                msg = "PICOVOICE_ACCESS_KEY is required for Porcupine backend"
+                raise WakeWordError(msg)
             available = pvporcupine.KEYWORDS
             valid = [kw for kw in self.config.wake_words if kw in available]
             if not valid:
@@ -229,6 +240,7 @@ class WakeWordDetector:
         Returns:
             :class:`~Agent_Guru.speech.models.WakeWordDetection` when a wake
             word is found, ``None`` otherwise.
+
         """
         if audio is None or len(audio) == 0:
             return None
@@ -257,6 +269,7 @@ class WakeWordDetector:
             asyncio.get_running_loop()
             # A loop IS running — run in a separate thread to avoid deadlock
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 future = pool.submit(asyncio.run, self.detect(audio))
                 return future.result()
@@ -264,14 +277,13 @@ class WakeWordDetector:
             # No loop running — safe to create one
             return asyncio.run(self.detect(audio))
 
-    async def add_wake_word(
-        self, phrase: str, personality: PersonalityType
-    ) -> None:
+    async def add_wake_word(self, phrase: str, personality: PersonalityType) -> None:
         """Register a new wake word phrase.
 
         Args:
             phrase: The phrase to detect (case-insensitive).
             personality: Personality to activate on detection.
+
         """
         self.config.wake_words[phrase.strip().lower()] = personality
         # Reset Vosk recogniser so the new grammar takes effect
@@ -283,6 +295,7 @@ class WakeWordDetector:
 
         Args:
             phrase: The phrase to remove (case-insensitive).
+
         """
         key = phrase.strip().lower()
         self.config.wake_words.pop(key, None)
@@ -301,11 +314,11 @@ class WakeWordDetector:
 
         Raises:
             ValueError: If *sensitivity* is outside [0.0, 1.0].
+
         """
         if not 0.0 <= sensitivity <= 1.0:
-            raise ValueError(
-                f"Sensitivity must be in [0.0, 1.0], got {sensitivity}"
-            )
+            msg = f"Sensitivity must be in [0.0, 1.0], got {sensitivity}"
+            raise ValueError(msg)
         self.config.sensitivity = sensitivity
         # Reset Porcupine so new sensitivity takes effect on next call
         if self._porcupine is not None:
@@ -405,9 +418,7 @@ class WakeWordDetector:
     # Backend implementations
     # ------------------------------------------------------------------
 
-    async def _detect_openwakeword(
-        self, audio: np.ndarray, now: float
-    ) -> WakeWordDetection | None:
+    async def _detect_openwakeword(self, audio: np.ndarray, now: float) -> WakeWordDetection | None:
         """Detect using openWakeWord — free, no API key, neural network.
 
         openWakeWord uses pre-trained ONNX models for common wake phrases.
@@ -442,12 +453,11 @@ class WakeWordDetector:
             chunk_size = 1280
             max_score = 0.0
             for start in range(0, len(audio_int16) - chunk_size + 1, chunk_size):
-                chunk = audio_int16[start:start + chunk_size]
+                chunk = audio_int16[start : start + chunk_size]
                 prediction = self._oww_model.predict(chunk)
                 # Get max score across all models
-                for model_name, score in prediction.items():
-                    if score > max_score:
-                        max_score = score
+                for score in prediction.values():
+                    max_score = max(max_score, score)
 
             # Threshold: 0.5 is a good balance of sensitivity vs false positives
             threshold = max(0.3, 1.0 - self.config.sensitivity)
@@ -464,21 +474,21 @@ class WakeWordDetector:
                 )
                 logger.info(
                     "Wake word detected (openWakeWord): %s → %s (score=%.3f)",
-                    phrase, personality, max_score,
+                    phrase,
+                    personality,
+                    max_score,
                 )
                 return detection
 
-        except Exception as exc:
-            logger.warning("openWakeWord error: %s — falling back to MFCC", exc)
+        except Exception:
+            logger.exception("openWakeWord error: %s — falling back to MFCC")
             self._oww_model = None
             self._backend = "mfcc"
             return await self._detect_mfcc(audio, now)
 
         return None
 
-    async def _detect_porcupine(
-        self, audio: np.ndarray, now: float
-    ) -> WakeWordDetection | None:
+    async def _detect_porcupine(self, audio: np.ndarray, now: float) -> WakeWordDetection | None:
         """Detect using Picovoice Porcupine."""
         try:
             porcupine = self._get_porcupine()
@@ -502,14 +512,12 @@ class WakeWordDetector:
                     )
                     logger.info("Wake word detected (porcupine): %s", keyword)
                     return result
-        except Exception as exc:
-            logger.warning("Porcupine detection error: %s — falling back to MFCC", exc)
+        except Exception:
+            logger.exception("Porcupine detection error: %s — falling back to MFCC")
             return await self._detect_mfcc(audio, now)
         return None
 
-    async def _detect_vosk(
-        self, audio: np.ndarray, now: float
-    ) -> WakeWordDetection | None:
+    async def _detect_vosk(self, audio: np.ndarray, now: float) -> WakeWordDetection | None:
         """Detect using Vosk keyword spotting."""
         try:
             recognizer = self._get_vosk_recognizer()
@@ -537,14 +545,12 @@ class WakeWordDetector:
                     )
                     logger.info("Wake word detected (vosk): %s", phrase)
                     return detection
-        except Exception as exc:
-            logger.warning("Vosk detection error: %s — falling back to MFCC", exc)
+        except Exception:
+            logger.exception("Vosk detection error: %s — falling back to MFCC")
             return await self._detect_mfcc(audio, now)
         return None
 
-    async def _detect_mfcc(
-        self, audio: np.ndarray, now: float
-    ) -> WakeWordDetection | None:
+    async def _detect_mfcc(self, audio: np.ndarray, now: float) -> WakeWordDetection | None:
         """MFCC energy-based fallback detector.
 
         Uses a sliding energy buffer: if enough consecutive frames exceed the
@@ -561,7 +567,7 @@ class WakeWordDetector:
         if len(audio) == 0:
             return None
 
-        rms = float(np.sqrt(np.mean(audio ** 2)))
+        rms = float(np.sqrt(np.mean(audio**2)))
         peak = float(np.max(np.abs(audio)))
         threshold = self.config.energy_threshold * (1.0 - self.config.sensitivity * 0.5)
 
@@ -610,7 +616,11 @@ class WakeWordDetector:
             )
             logger.info(
                 "Wake word detected (mfcc fallback): %s → %s (rms=%.4f, peak=%.4f, threshold=%.4f)",
-                phrase, personality, rms, peak, threshold
+                phrase,
+                personality,
+                rms,
+                peak,
+                threshold,
             )
             return detection
 
@@ -632,7 +642,8 @@ class WakeWordDetector:
         - Speech ZCR std: typically 0.05 – 0.20
         - Music ZCR std: typically 0.01 – 0.06
         """
-        if len(audio) < 512:
+        if len(audio) < 512:  # noqa: PLR2004 - Percentage/large threshold
+
             return False
 
         audio_f = audio.astype(np.float32)
@@ -647,28 +658,37 @@ class WakeWordDetector:
         frame_size = int(16000 * 0.02)  # 20ms at 16kHz
         n_frames = len(audio_f) // frame_size
         if n_frames > 1:
-            zcr_per_frame = np.array([
-                float(np.mean(np.abs(np.diff(np.sign(audio_f[i*frame_size:(i+1)*frame_size])))) / 2)
-                for i in range(n_frames)
-            ])
+            zcr_per_frame = np.array(
+                [
+                    float(
+                        np.mean(
+                            np.abs(
+                                np.diff(np.sign(audio_f[i * frame_size : (i + 1) * frame_size])),
+                            ),
+                        )
+                        / 2,
+                    )
+                    for i in range(n_frames)
+                ],
+            )
             zcr_std = float(np.std(zcr_per_frame))
         else:
             zcr_std = 1.0  # can't compute — assume speech
 
         # Music: high flatness AND low ZCR variance
-        is_music = flatness > 0.20 and zcr_std < 0.08
+        is_music = flatness > 0.20 and zcr_std < 0.08  # noqa: PLR2004 - Threshold value
+
 
         if is_music:
             logger.debug(
                 "Music detection: flatness=%.3f zcr_std=%.3f → rejected",
-                flatness, zcr_std,
+                flatness,
+                zcr_std,
             )
 
         return is_music
 
-    def _match_phrase_by_spectrum(
-        self, audio: np.ndarray
-    ) -> tuple[str, "PersonalityType"]:
+    def _match_phrase_by_spectrum(self, audio: np.ndarray) -> tuple[str, PersonalityType]:
         """Match audio to the most likely wake word phrase.
 
         Primary method: transcribe the audio with Whisper (fast, accurate).
@@ -676,6 +696,7 @@ class WakeWordDetector:
 
         Returns:
             Tuple of (matched_phrase, PersonalityType).
+
         """
         # ── Primary: transcribe with Whisper and check for "maya" ────────
         try:
@@ -685,8 +706,7 @@ class WakeWordDetector:
                 # Check for Maya keywords
                 if any(kw in t_lower for kw in ("maya", "hey maya", "hi maya")):
                     maya_phrases = [
-                        p for p, pt in self.config.wake_words.items()
-                        if pt.value.lower() == "maya"
+                        p for p, pt in self.config.wake_words.items() if pt.value.lower() == "maya"
                     ]
                     if maya_phrases:
                         phrase = "hey maya" if "hey maya" in maya_phrases else maya_phrases[0]
@@ -695,14 +715,16 @@ class WakeWordDetector:
                 # Check for Guru keywords
                 if any(kw in t_lower for kw in ("guru", "hey guru", "hi guru")):
                     guru_phrases = [
-                        p for p, pt in self.config.wake_words.items()
-                        if pt.value.lower() == "guru"
+                        p for p, pt in self.config.wake_words.items() if pt.value.lower() == "guru"
                     ]
                     if guru_phrases:
                         phrase = "hey guru" if "hey guru" in guru_phrases else guru_phrases[0]
                         logger.info("Wake word transcript: %r → GURU", transcript)
                         return phrase, self.config.wake_words[phrase]
-                logger.debug("Wake word transcript %r — no keyword match, using spectral", transcript)
+                logger.debug(
+                    "Wake word transcript %r — no keyword match, using spectral",
+                    transcript,
+                )
         except Exception as exc:
             logger.debug("Wake word transcription failed: %s — using spectral fallback", exc)
 
@@ -715,17 +737,12 @@ class WakeWordDetector:
         high_power = float(np.mean(spectrum[mid:]) + 1e-10)
         high_ratio = high_power / (low_power + high_power)
 
-        maya_phrases = [
-            p for p, pt in self.config.wake_words.items()
-            if pt.value.lower() == "maya"
-        ]
-        guru_phrases = [
-            p for p, pt in self.config.wake_words.items()
-            if pt.value.lower() == "guru"
-        ]
+        maya_phrases = [p for p, pt in self.config.wake_words.items() if pt.value.lower() == "maya"]
+        guru_phrases = [p for p, pt in self.config.wake_words.items() if pt.value.lower() == "guru"]
 
         # Maya voices tend to have more high-frequency energy (threshold ~0.45)
-        if maya_phrases and high_ratio >= 0.45:
+        if maya_phrases and high_ratio >= 0.45:  # noqa: PLR2004 - Threshold value
+
             phrase = maya_phrases[0]
             return phrase, self.config.wake_words[phrase]
 
@@ -750,6 +767,7 @@ class WakeWordDetector:
 
         Returns:
             Transcribed text, or empty string on failure.
+
         """
         try:
             from faster_whisper import WhisperModel  # type: ignore[import]
@@ -757,21 +775,24 @@ class WakeWordDetector:
             # Use cached instance — injected at startup or loaded on first call
             if not hasattr(self, "_whisper_tiny") or self._whisper_tiny is None:
                 import torch
+
                 if torch.cuda.is_available():
                     try:
                         self._whisper_tiny = WhisperModel(
-                            "tiny", device="cuda", compute_type="int8"
+                            "tiny",
+                            device="cuda",
+                            compute_type="int8",
                         )
                         logger.info("Whisper tiny loaded for wake word detection on cuda (int8)")
                     except Exception:
                         self._whisper_tiny = WhisperModel(
-                            "tiny", device="cpu", compute_type="float32"
+                            "tiny",
+                            device="cpu",
+                            compute_type="float32",
                         )
                         logger.info("Whisper tiny loaded for wake word detection on cpu (float32)")
                 else:
-                    self._whisper_tiny = WhisperModel(
-                        "tiny", device="cpu", compute_type="float32"
-                    )
+                    self._whisper_tiny = WhisperModel("tiny", device="cpu", compute_type="float32")
                     logger.info("Whisper tiny loaded for wake word detection on cpu")
 
             segments, _ = self._whisper_tiny.transcribe(
@@ -800,4 +821,5 @@ class WakeWordDetector:
                 self._porcupine.delete()
             except Exception as exc:  # noqa: BLE001
                 import logging as _logging
+
                 _logging.getLogger(__name__).debug("Porcupine cleanup failed: %s", exc)

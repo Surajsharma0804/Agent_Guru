@@ -1,5 +1,4 @@
-"""
-Face feature extraction for Agent Guru.
+"""Face feature extraction for Agent Guru.
 
 Provides face detection and 512-dim embedding extraction.
 NO authentication logic — all auth decisions go to BiometricAuthenticator.
@@ -16,7 +15,6 @@ import logging
 import threading
 import time
 import warnings
-from typing import Optional
 
 import numpy as np
 
@@ -34,6 +32,7 @@ _EXTRACTION_TIMEOUT_S: float = 0.5
 
 try:
     import cv2  # type: ignore[import-untyped]
+
     _CV2_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _CV2_AVAILABLE = False
@@ -42,6 +41,7 @@ except ImportError:  # pragma: no cover
         ImportWarning,
         stacklevel=2,
     )
+
 
 def _check_insightface_available(timeout: float = 0.0) -> bool:
     """Check if InsightFace is importable using importlib (non-blocking).
@@ -53,27 +53,31 @@ def _check_insightface_available(timeout: float = 0.0) -> bool:
     not used — the check is always instantaneous.
     """
     import importlib.util
+
     return importlib.util.find_spec("insightface") is not None
 
 
 _INSIGHTFACE_AVAILABLE: bool = _check_insightface_available()
 
 
-def _decode_image(image_data: bytes) -> "np.ndarray":
+def _decode_image(image_data: bytes) -> np.ndarray:
     """Decode raw image bytes to a BGR array.
 
     Raises:
         InvalidImageError: If bytes cannot be decoded.
+
     """
     if not image_data:
-        raise InvalidImageError("image_data is empty")
+        msg = "image_data is empty"
+        raise InvalidImageError(msg)
     if not _CV2_AVAILABLE:
         logger.warning("cv2 unavailable — using synthetic image")
         return np.full((64, 64, 3), 128, dtype=np.uint8)
     arr = np.frombuffer(image_data, dtype=np.uint8)
     img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     if img is None:
-        raise InvalidImageError("Failed to decode image — unsupported format or corrupt bytes")
+        msg = "Failed to decode image — unsupported format or corrupt bytes"
+        raise InvalidImageError(msg)
     return img  # type: ignore[return-value]
 
 
@@ -88,7 +92,7 @@ def _stub_embedding(image_data: bytes) -> np.ndarray:
     return vec
 
 
-def _compute_quality(img: "np.ndarray") -> FaceQuality:
+def _compute_quality(img: np.ndarray) -> FaceQuality:
     """Estimate face image quality."""
     if not _CV2_AVAILABLE:
         return FaceQuality(overall_score=0.8, sharpness=0.8, brightness=0.8, pose_score=0.8)
@@ -123,12 +127,13 @@ class FaceFeatureExtractor:
         liveness_threshold: Minimum liveness score for is_live=True. Default 0.5.
         use_gpu: Use GPU acceleration when InsightFace is available. Default False.
         insightface_init_timeout: Seconds to wait for InsightFace init. Default 5.
+
     """
 
     # Class-level shared InsightFace app cache (keyed by use_gpu flag).
     # _shared_app[key] = app object or None (None means init failed/timed out)
     # _shared_events[key] = Event that is set once init has completed
-    _shared_app: dict[bool, Optional[object]] = {}
+    _shared_app: dict[bool, object | None] = {}
     _shared_events: dict[bool, threading.Event] = {}
     _shared_lock: threading.Lock = threading.Lock()
 
@@ -139,7 +144,8 @@ class FaceFeatureExtractor:
         insightface_init_timeout: float = 30.0,
     ) -> None:
         if not 0.0 <= liveness_threshold <= 1.0:
-            raise ValueError("liveness_threshold must be in [0.0, 1.0]")
+            msg = "liveness_threshold must be in [0.0, 1.0]"
+            raise ValueError(msg)
         self.liveness_threshold = liveness_threshold
         self._use_gpu = use_gpu
         self._insightface_init_timeout = insightface_init_timeout
@@ -155,6 +161,7 @@ class FaceFeatureExtractor:
 
         Raises:
             InvalidImageError: If image_data cannot be decoded.
+
         """
         img = _decode_image(image_data)
         detections = self._run_detection(img)
@@ -168,6 +175,7 @@ class FaceFeatureExtractor:
             InvalidImageError: If image_data cannot be decoded.
             FaceNotFoundError: If no face is detected.
             ExtractionTimeoutError: If extraction exceeds 500 ms.
+
         """
         # Ensure InsightFace is initialised before starting the latency timer.
         # The init may block for up to insightface_init_timeout seconds on first
@@ -180,8 +188,9 @@ class FaceFeatureExtractor:
         embedding, bbox, is_live, liveness_score = self._extract(img, image_data)
         elapsed = time.monotonic() - start
         if elapsed > _EXTRACTION_TIMEOUT_S:
+            msg = f"Face extraction took {elapsed:.3f}s, exceeding the 500ms limit"
             raise ExtractionTimeoutError(
-                f"Face extraction took {elapsed:.3f}s, exceeding the 500ms limit"
+                msg,
             )
         return FaceFeatures(
             embedding=embedding,
@@ -198,18 +207,20 @@ class FaceFeatureExtractor:
         Raises:
             InvalidImageError: If image_data cannot be decoded.
             FaceNotFoundError: If no face is detected.
+
         """
         img = _decode_image(image_data)
         detections = self._run_detection(img)
         if not detections:
-            raise FaceNotFoundError("No face detected in image for liveness check")
+            msg = "No face detected in image for liveness check"
+            raise FaceNotFoundError(msg)
         return self._liveness_check(img, detections[0])
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _get_insightface_app(self) -> Optional[object]:
+    def _get_insightface_app(self) -> object | None:
         """Lazily initialise InsightFace with a thread timeout.
 
         Uses a class-level shared cache so InsightFace is initialised at most
@@ -251,6 +262,7 @@ class FaceFeatureExtractor:
         def _init() -> None:
             try:
                 from insightface.app import FaceAnalysis  # type: ignore[import-untyped]
+
                 ctx_id = 0 if self._use_gpu else -1
                 providers = ["CUDAExecutionProvider" if self._use_gpu else "CPUExecutionProvider"]
                 app = FaceAnalysis(name="buffalo_l", providers=providers)
@@ -263,7 +275,7 @@ class FaceFeatureExtractor:
         t.start()
         t.join(timeout=self._insightface_init_timeout)
 
-        app: Optional[object] = None
+        app: object | None = None
         if t.is_alive():
             logger.warning(
                 "InsightFace init timed out after %.1fs — using stub embeddings",
@@ -280,7 +292,7 @@ class FaceFeatureExtractor:
         event.set()  # Unblock any waiting callers.
         return app
 
-    def _run_detection(self, img: "np.ndarray") -> list[FaceDetection]:
+    def _run_detection(self, img: np.ndarray) -> list[FaceDetection]:
         app = self._get_insightface_app()
         if app is not None:
             return self._insightface_detect(img, app)
@@ -294,30 +306,35 @@ class FaceFeatureExtractor:
             detections = [FaceDetection(bounding_box=bbox, detection_confidence=0.5)]
         return detections
 
-    def _insightface_detect(self, img: "np.ndarray", app: object) -> list[FaceDetection]:
+    def _insightface_detect(self, img: np.ndarray, app: object) -> list[FaceDetection]:
         try:
             faces = app.get(img)  # type: ignore[union-attr]
         except Exception as exc:
-            raise FaceExtractionError(f"InsightFace detection failed: {exc}") from exc
+            msg = f"InsightFace detection failed: {exc}"
+            raise FaceExtractionError(msg) from exc
         results: list[FaceDetection] = []
         for face in faces:
             box = face.bbox.astype(int)
             x, y, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
             w, h = max(1, x2 - x), max(1, y2 - y)
-            conf = float(max(0.0, min(1.0, float(face.det_score) if hasattr(face, "det_score") else 1.0)))
+            conf = float(
+                max(0.0, min(1.0, float(face.det_score) if hasattr(face, "det_score") else 1.0)),
+            )
             bbox = BoundingBox(x=x, y=y, width=w, height=h, confidence=conf)
             lm = np.array(face.kps, dtype=np.float32) if hasattr(face, "kps") else None
-            results.append(FaceDetection(bounding_box=bbox, landmarks=lm, detection_confidence=conf))
+            results.append(
+                FaceDetection(bounding_box=bbox, landmarks=lm, detection_confidence=conf),
+            )
         return results
 
-    def _opencv_detect(self, img: "np.ndarray") -> list[FaceDetection]:
+    def _opencv_detect(self, img: np.ndarray) -> list[FaceDetection]:
         if not _CV2_AVAILABLE:
             h, w = img.shape[:2]
             bbox = BoundingBox(x=0, y=0, width=w, height=h, confidence=0.5)
             return [FaceDetection(bounding_box=bbox, detection_confidence=0.5)]
         grey = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+            cv2.data.haarcascades + "haarcascade_frontalface_default.xml",
         )
         faces = cascade.detectMultiScale(grey, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
         results: list[FaceDetection] = []
@@ -327,7 +344,9 @@ class FaceFeatureExtractor:
         return results
 
     def _extract(
-        self, img: "np.ndarray", image_data: bytes
+        self,
+        img: np.ndarray,
+        image_data: bytes,
     ) -> tuple[np.ndarray, BoundingBox, bool, float]:
         app = self._get_insightface_app()
         if app is not None:
@@ -335,33 +354,43 @@ class FaceFeatureExtractor:
         return self._stub_extract(img, image_data)
 
     def _insightface_extract(
-        self, img: "np.ndarray", app: object
+        self,
+        img: np.ndarray,
+        app: object,
     ) -> tuple[np.ndarray, BoundingBox, bool, float]:
         try:
             faces = app.get(img)  # type: ignore[union-attr]
         except Exception as exc:
-            raise FaceExtractionError(f"InsightFace extraction failed: {exc}") from exc
+            msg = f"InsightFace extraction failed: {exc}"
+            raise FaceExtractionError(msg) from exc
         if not faces:
-            raise FaceNotFoundError("No face detected in image")
+            msg = "No face detected in image"
+            raise FaceNotFoundError(msg)
         face = max(faces, key=lambda f: float(f.det_score) if hasattr(f, "det_score") else 0.0)
         if not hasattr(face, "embedding") or face.embedding is None:
-            raise FaceExtractionError("InsightFace did not return an embedding")
+            msg = "InsightFace did not return an embedding"
+            raise FaceExtractionError(msg)
         emb = np.array(face.embedding, dtype=np.float32)
         if emb.shape != (512,):
-            raise FaceExtractionError(f"Expected 512-dim embedding, got {emb.shape}")
+            msg = f"Expected 512-dim embedding, got {emb.shape}"
+            raise FaceExtractionError(msg)
         norm = np.linalg.norm(emb)
         if norm > 0:
             emb /= norm
         box = face.bbox.astype(int)
         x, y, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
         w, h = max(1, x2 - x), max(1, y2 - y)
-        conf = float(max(0.0, min(1.0, float(face.det_score) if hasattr(face, "det_score") else 1.0)))
+        conf = float(
+            max(0.0, min(1.0, float(face.det_score) if hasattr(face, "det_score") else 1.0)),
+        )
         bbox = BoundingBox(x=x, y=y, width=w, height=h, confidence=conf)
         is_live, liveness_score = self._liveness_check(img, FaceDetection(bounding_box=bbox))
         return emb, bbox, is_live, liveness_score
 
     def _stub_extract(
-        self, img: "np.ndarray", image_data: bytes
+        self,
+        img: np.ndarray,
+        image_data: bytes,
     ) -> tuple[np.ndarray, BoundingBox, bool, float]:
         """Extract stub embedding when InsightFace is unavailable.
 
@@ -372,7 +401,7 @@ class FaceFeatureExtractor:
         """
         logger.warning(
             "InsightFace unavailable — returning stub embedding. "
-            "Install insightface for production-quality face recognition."
+            "Install insightface for production-quality face recognition.",
         )
         h, w = img.shape[:2]
         # Use the whole image as the face bounding box in stub mode
@@ -382,9 +411,7 @@ class FaceFeatureExtractor:
         is_live, liveness_score = self._liveness_check(img, detection)
         return emb, bbox, is_live, liveness_score
 
-    def _liveness_check(
-        self, img: "np.ndarray", detection: FaceDetection
-    ) -> tuple[bool, float]:
+    def _liveness_check(self, img: np.ndarray, detection: FaceDetection) -> tuple[bool, float]:
         """Texture-based liveness heuristic (anti-spoofing)."""
         if not _CV2_AVAILABLE:
             score = 0.7
@@ -401,6 +428,6 @@ class FaceFeatureExtractor:
             lap_var = float(cv2.Laplacian(grey, cv2.CV_64F).var())
             score = float(min(1.0, lap_var / 200.0))
             return score >= self.liveness_threshold, round(score, 4)
-        except Exception as exc:
-            logger.warning("Liveness check failed: %s — defaulting to not-live", exc)
+        except Exception:
+            logger.exception("Liveness check failed: %s — defaulting to not-live")
             return False, 0.0

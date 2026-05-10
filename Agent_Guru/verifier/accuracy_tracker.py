@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class AccuracySnapshot:
     """Point-in-time accuracy snapshot."""
 
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     false_positive_rate: float = 0.0
     false_negative_rate: float = 0.0
     total_verifications: int = 0
@@ -67,7 +67,7 @@ class AccuracyTracker:
 
     @property
     def false_positive_rate(self) -> float:
-        """FP / (FP + TN)"""
+        """FP / (FP + TN)."""
         fp = sum(1 for pred, actual in self._labels if pred and not actual)
         tn = sum(1 for pred, actual in self._labels if not pred and not actual)
         denom = fp + tn
@@ -75,7 +75,7 @@ class AccuracyTracker:
 
     @property
     def false_negative_rate(self) -> float:
-        """FN / (FN + TP)"""
+        """FN / (FN + TP)."""
         fn = sum(1 for pred, actual in self._labels if not pred and actual)
         tp = sum(1 for pred, actual in self._labels if pred and actual)
         denom = fn + tp

@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.vision.training.dataset_manager
+"""Module: Agent_Guru.vision.training.dataset_manager
 Purpose: Download, preprocess, and manage training and evaluation datasets.
 
 Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 3.9
@@ -10,19 +9,17 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
 logger = logging.getLogger("guruvision.training.dataset_manager")
 
 # Supported datasets
-SUPPORTED_DATASETS = {
-    "ms1m-arcface", "vggface2", "lfw", "cfp-fp", "agedb-30", "ijb-c"
-}
+SUPPORTED_DATASETS = {"ms1m-arcface", "vggface2", "lfw", "cfp-fp", "agedb-30", "ijb-c"}
 
 _IMAGE_EXTENSIONS: frozenset = frozenset(
-    {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp"}
+    {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp"},
 )
 
 
@@ -30,9 +27,11 @@ _IMAGE_EXTENSIONS: frozenset = frozenset(
 # Data structures
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class BoundingBox:
     """Face bounding box."""
+
     x1: float
     y1: float
     x2: float
@@ -43,6 +42,7 @@ class BoundingBox:
 @dataclass
 class Landmarks:
     """Five facial landmarks."""
+
     left_eye: tuple[float, float] = (0.0, 0.0)
     right_eye: tuple[float, float] = (0.0, 0.0)
     nose: tuple[float, float] = (0.0, 0.0)
@@ -53,6 +53,7 @@ class Landmarks:
 @dataclass
 class DatasetStats:
     """Dataset statistics."""
+
     num_identities: int = 0
     num_images: int = 0
     images_per_identity: dict[str, int] = field(default_factory=dict)
@@ -63,16 +64,18 @@ class DatasetStats:
 @dataclass
 class DownloadResult:
     """Result of a dataset download operation."""
+
     success: bool
     dataset_name: str
     output_dir: str
     num_files: int = 0
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 @dataclass
 class VerificationResult:
     """Result of dataset integrity verification."""
+
     valid: bool
     dataset_path: str
     num_identities: int = 0
@@ -83,6 +86,7 @@ class VerificationResult:
 @dataclass
 class PreprocessResult:
     """Result of dataset preprocessing."""
+
     success: bool
     output_dir: str
     num_processed: int = 0
@@ -94,6 +98,7 @@ class PreprocessResult:
 # FaceAligner
 # ---------------------------------------------------------------------------
 
+
 class FaceAligner:
     """Detect faces and align them to a canonical 112x112 pose.
 
@@ -103,22 +108,26 @@ class FaceAligner:
     TARGET_SIZE: tuple[int, int] = (112, 112)
 
     # Reference landmarks for 112x112 alignment (ArcFace standard)
-    _REFERENCE_LANDMARKS = np.array([
-        [38.2946, 51.6963],
-        [73.5318, 51.5014],
-        [56.0252, 71.7366],
-        [41.5493, 92.3655],
-        [70.7299, 92.2041],
-    ], dtype=np.float32)
+    _REFERENCE_LANDMARKS = np.array(
+        [
+            [38.2946, 51.6963],
+            [73.5318, 51.5014],
+            [56.0252, 71.7366],
+            [41.5493, 92.3655],
+            [70.7299, 92.2041],
+        ],
+        dtype=np.float32,
+    )
 
     def __init__(self, use_insightface: bool = True) -> None:
-        self._detector: Optional[Any] = None
+        self._detector: Any | None = None
         if use_insightface:
             self._detector = self._try_load_insightface()
 
-    def _try_load_insightface(self) -> Optional[Any]:
+    def _try_load_insightface(self) -> Any | None:  # noqa: ANN401
         try:
             import insightface  # type: ignore[import]
+
             app = insightface.app.FaceAnalysis(
                 name="buffalo_sc",
                 providers=["CPUExecutionProvider"],
@@ -137,6 +146,7 @@ class FaceAligner:
 
         Returns:
             List of BoundingBox objects.
+
         """
         if self._detector is None:
             return []
@@ -156,9 +166,7 @@ class FaceAligner:
             logger.debug("Face detection failed: %s", exc)
             return []
 
-    def get_landmarks(
-        self, image: np.ndarray, bbox: BoundingBox
-    ) -> Optional[Landmarks]:
+    def get_landmarks(self, image: np.ndarray, bbox: BoundingBox) -> Landmarks | None:
         """Extract 5-point landmarks for a detected face.
 
         Args:
@@ -167,6 +175,7 @@ class FaceAligner:
 
         Returns:
             Landmarks or None if extraction fails.
+
         """
         if self._detector is None:
             return None
@@ -174,10 +183,8 @@ class FaceAligner:
             faces = self._detector.get(image)
             for face in faces:
                 fb = face.bbox
-                if (
-                    abs(float(fb[0]) - bbox.x1) < 5
-                    and abs(float(fb[1]) - bbox.y1) < 5
-                ):
+                if abs(float(fb[0]) - bbox.x1) < 5 and abs(float(fb[1]) - bbox.y1) < 5:  # noqa: PLR2004 - Small integer threshold
+
                     kps = face.kps
                     return Landmarks(
                         left_eye=(float(kps[0][0]), float(kps[0][1])),
@@ -190,9 +197,7 @@ class FaceAligner:
             logger.debug("Landmark extraction failed: %s", exc)
         return None
 
-    def align_face(
-        self, image: np.ndarray, landmarks: Optional[Landmarks] = None
-    ) -> np.ndarray:
+    def align_face(self, image: np.ndarray, landmarks: Landmarks | None = None) -> np.ndarray:
         """Align a face to 112x112 using similarity transform.
 
         Args:
@@ -201,32 +206,40 @@ class FaceAligner:
 
         Returns:
             Aligned 112x112 BGR uint8 numpy array.
+
         """
         if landmarks is None:
             return self._resize_to_target(image)
 
         try:
             import cv2  # type: ignore[import]
-            src_pts = np.array([
-                [landmarks.left_eye[0], landmarks.left_eye[1]],
-                [landmarks.right_eye[0], landmarks.right_eye[1]],
-                [landmarks.nose[0], landmarks.nose[1]],
-                [landmarks.left_mouth[0], landmarks.left_mouth[1]],
-                [landmarks.right_mouth[0], landmarks.right_mouth[1]],
-            ], dtype=np.float32)
+
+            src_pts = np.array(
+                [
+                    [landmarks.left_eye[0], landmarks.left_eye[1]],
+                    [landmarks.right_eye[0], landmarks.right_eye[1]],
+                    [landmarks.nose[0], landmarks.nose[1]],
+                    [landmarks.left_mouth[0], landmarks.left_mouth[1]],
+                    [landmarks.right_mouth[0], landmarks.right_mouth[1]],
+                ],
+                dtype=np.float32,
+            )
 
             transform = cv2.estimateAffinePartial2D(
-                src_pts, self._REFERENCE_LANDMARKS, method=cv2.LMEDS
+                src_pts,
+                self._REFERENCE_LANDMARKS,
+                method=cv2.LMEDS,
             )[0]
             if transform is None:
                 return self._resize_to_target(image)
 
-            aligned = cv2.warpAffine(
-                image, transform, self.TARGET_SIZE,
+            return cv2.warpAffine(
+                image,
+                transform,
+                self.TARGET_SIZE,
                 flags=cv2.INTER_LINEAR,
                 borderMode=cv2.BORDER_REFLECT,
             )
-            return aligned
         except Exception as exc:
             logger.debug("Alignment failed: %s", exc)
             return self._resize_to_target(image)
@@ -235,16 +248,18 @@ class FaceAligner:
         """Resize image to target size."""
         try:
             import cv2  # type: ignore[import]
+
             return cv2.resize(image, self.TARGET_SIZE)
         except ImportError:
             from PIL import Image  # type: ignore[import]
+
             pil = Image.fromarray(image[:, :, ::-1]).resize(self.TARGET_SIZE)
             return np.array(pil)[:, :, ::-1]
 
 
 # ---------------------------------------------------------------------------
-# FaceDataset (PyTorch)
 # ---------------------------------------------------------------------------
+
 
 class FaceDataset:
     """PyTorch-compatible face dataset with augmentation support.
@@ -253,6 +268,7 @@ class FaceDataset:
         root_dir: Root directory with identity sub-directories.
         augment: Whether to apply data augmentation.
         image_size: Target image size (default 112).
+
     """
 
     def __init__(
@@ -292,6 +308,7 @@ class FaceDataset:
     def _load_image(self, path: str) -> np.ndarray:
         try:
             import cv2  # type: ignore[import]
+
             img = cv2.imread(path)
             if img is None:
                 return np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
@@ -299,43 +316,42 @@ class FaceDataset:
         except ImportError:
             return np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
 
-    def _to_tensor(self, image: np.ndarray) -> Any:
+    def _to_tensor(self, image: np.ndarray) -> Any:  # noqa: ANN401
         import torch
-        rgb = image[:, :, ::-1].copy()
-        tensor = torch.from_numpy(
-            rgb.astype(np.float32).transpose(2, 0, 1) / 127.5 - 1.0
-        )
-        return tensor
 
-    def _augment(self, tensor: Any) -> Any:
+        rgb = image[:, :, ::-1].copy()
+        return torch.from_numpy(rgb.astype(np.float32).transpose(2, 0, 1) / 127.5 - 1.0)
+
+    def _augment(self, tensor: Any) -> Any:  # noqa: ANN401
         """Apply random augmentation: flip, brightness jitter."""
         import torch
+
         # Random horizontal flip
-        if torch.rand(1).item() > 0.5:
+        if torch.rand(1).item() > 0.5:  # noqa: PLR2004 - Threshold value
+
             tensor = torch.flip(tensor, dims=[2])
         # Random brightness jitter
         factor = 0.8 + torch.rand(1).item() * 0.4  # [0.8, 1.2]
-        tensor = torch.clamp(tensor * factor, -1.0, 1.0)
-        return tensor
+        return torch.clamp(tensor * factor, -1.0, 1.0)
 
 
 # ---------------------------------------------------------------------------
 # DatasetManager
 # ---------------------------------------------------------------------------
 
+
 class DatasetManager:
     """Download, preprocess, and manage training and evaluation datasets.
 
     Args:
         root_dir: Root directory for all datasets.
+
     """
 
     def __init__(self, root_dir: str = "Agent_Guru/vision/data") -> None:
         self.root_dir = root_dir
 
-    def download_dataset(
-        self, dataset_name: str, output_dir: str
-    ) -> DownloadResult:
+    def download_dataset(self, dataset_name: str, output_dir: str) -> DownloadResult:
         """Download a dataset to the specified directory.
 
         Note: Actual download requires dataset-specific credentials/URLs.
@@ -347,6 +363,7 @@ class DatasetManager:
 
         Returns:
             DownloadResult indicating success or failure.
+
         """
         if dataset_name not in SUPPORTED_DATASETS:
             return DownloadResult(
@@ -354,16 +371,15 @@ class DatasetManager:
                 dataset_name=dataset_name,
                 output_dir=output_dir,
                 error_message=(
-                    f"Unsupported dataset '{dataset_name}'. "
-                    f"Supported: {SUPPORTED_DATASETS}"
+                    f"Unsupported dataset '{dataset_name}'. Supported: {SUPPORTED_DATASETS}"
                 ),
             )
 
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         logger.info(
-            "Dataset '%s' directory prepared at '%s'. "
-            "Manual download required for large datasets.",
-            dataset_name, output_dir,
+            "Dataset '%s' directory prepared at '%s'. Manual download required for large datasets.",
+            dataset_name,
+            output_dir,
         )
         return DownloadResult(
             success=True,
@@ -380,6 +396,7 @@ class DatasetManager:
 
         Returns:
             VerificationResult with counts and any errors.
+
         """
         errors: list[str] = []
         root = Path(dataset_path)
@@ -394,14 +411,13 @@ class DatasetManager:
         identity_dirs = [p for p in root.iterdir() if p.is_dir()]
         if not identity_dirs:
             errors.append(f"No identity directories found in: {dataset_path}")
-            return VerificationResult(
-                valid=False, dataset_path=dataset_path, errors=errors
-            )
+            return VerificationResult(valid=False, dataset_path=dataset_path, errors=errors)
 
         num_images = 0
         for identity_dir in identity_dirs:
             images = [
-                p for p in identity_dir.iterdir()
+                p
+                for p in identity_dir.iterdir()
                 if p.is_file() and p.suffix.lower() in _IMAGE_EXTENSIONS
             ]
             num_images += len(images)
@@ -418,7 +434,7 @@ class DatasetManager:
         self,
         dataset_path: str,
         output_dir: str,
-        aligner: Optional[FaceAligner] = None,
+        aligner: FaceAligner | None = None,
     ) -> PreprocessResult:
         """Detect and align faces from a raw dataset.
 
@@ -429,6 +445,7 @@ class DatasetManager:
 
         Returns:
             PreprocessResult with statistics.
+
         """
         _aligner = aligner or FaceAligner(use_insightface=False)
         root = Path(dataset_path)
@@ -455,9 +472,9 @@ class DatasetManager:
                     out_path = out_identity / img_path.name
                     self._save_image(aligned, out_path)
                     num_processed += 1
-                except Exception as exc:
+                except Exception:
                     failed.append(str(img_path))
-                    logger.warning("Preprocessing failed for %s: %s", img_path, exc)
+                    logger.exception("Preprocessing failed for %s: %s")
 
         return PreprocessResult(
             success=True,
@@ -475,6 +492,7 @@ class DatasetManager:
 
         Returns:
             DatasetStats with identity and image counts.
+
         """
         stats = DatasetStats()
         root = Path(dataset_path)
@@ -487,7 +505,8 @@ class DatasetManager:
 
         for identity_dir in identity_dirs:
             images = [
-                p for p in identity_dir.iterdir()
+                p
+                for p in identity_dir.iterdir()
                 if p.is_file() and p.suffix.lower() in _IMAGE_EXTENSIONS
             ]
             stats.images_per_identity[identity_dir.name] = len(images)
@@ -504,7 +523,7 @@ class DatasetManager:
                         )
                     else:
                         stats.failed_images.append(str(img_path))
-                except Exception as e:
+                except Exception:
                     stats.failed_images.append(str(img_path))
 
         return stats
@@ -516,7 +535,7 @@ class DatasetManager:
         shuffle: bool = True,
         augment: bool = False,
         num_workers: int = 0,
-    ) -> Any:
+    ) -> Any:  # noqa: ANN401
         """Create a PyTorch DataLoader for the dataset.
 
         Args:
@@ -528,8 +547,10 @@ class DatasetManager:
 
         Returns:
             torch.utils.data.DataLoader instance.
+
         """
         from torch.utils.data import DataLoader
+
         dataset = FaceDataset(dataset_path, augment=augment)
         return DataLoader(
             dataset,
@@ -540,32 +561,35 @@ class DatasetManager:
         )
 
     @staticmethod
-    def _load_image(path: Path) -> Optional[np.ndarray]:
+    def _load_image(path: Path) -> np.ndarray | None:
         try:
             import cv2  # type: ignore[import]
-            img = cv2.imread(str(path))
-            return img
+
+            return cv2.imread(str(path))
         except ImportError:
             pass
         try:
             from PIL import Image  # type: ignore[import]
+
             pil = Image.open(path).convert("RGB")
             rgb = np.array(pil, dtype=np.uint8)
             return rgb[:, :, ::-1]
-        except Exception as e:
+        except Exception:
             return None
 
     @staticmethod
     def _save_image(image: np.ndarray, path: Path) -> bool:
         try:
             import cv2  # type: ignore[import]
+
             return bool(cv2.imwrite(str(path), image))
         except ImportError:
             pass
         try:
             from PIL import Image  # type: ignore[import]
+
             rgb = image[:, :, ::-1]
             Image.fromarray(rgb).save(str(path))
             return True
-        except Exception as e:
+        except Exception:
             return False

@@ -1,5 +1,4 @@
-"""
-Liveness detection module — anti-spoofing for face recognition.
+"""Liveness detection module — anti-spoofing for face recognition.
 
 Primary: ONNX anti-spoofing model (e.g. Silent-Face / MiniFASNet).
 Fallback: Laplacian variance (texture richness) + optional EAR blink bonus.
@@ -13,7 +12,6 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -30,6 +28,7 @@ class LivenessResult:
         is_live: True if the face is classified as live.
         score: Confidence score in [0.0, 1.0]; higher = more likely live.
         method: Analysis method used — "onnx", "texture", or "combined".
+
     """
 
     is_live: bool
@@ -51,6 +50,7 @@ class LivenessDetector:
             When provided and the file exists, ONNX inference is used.
             Otherwise falls back to the Laplacian heuristic.
         use_gpu: Use CUDAExecutionProvider when True.
+
     """
 
     # Laplacian variance normalisation constant.
@@ -68,26 +68,27 @@ class LivenessDetector:
     def __init__(
         self,
         threshold: float = 0.5,
-        model_path: Optional[str] = None,
+        model_path: str | None = None,
         use_gpu: bool = False,
     ) -> None:
         self.threshold = threshold
         self._model_path = model_path
         self._use_gpu = use_gpu
-        self._session: Optional[object] = None
+        self._session: object | None = None
 
     # ------------------------------------------------------------------
     # ONNX session
     # ------------------------------------------------------------------
 
-    def _get_session(self) -> Optional[object]:
+    def _get_session(self) -> object | None:
         """Lazy-load the ONNX anti-spoofing model. Returns None if unavailable."""
         if self._session is not None:
             return self._session
-        if not self._model_path or not os.path.isfile(self._model_path):
+        if not self._model_path or not os.path.isfile(self._model_path):  # noqa: PTH113
             return None
         try:
             import onnxruntime as ort  # type: ignore[import]
+
             providers = (
                 ["CUDAExecutionProvider", "CPUExecutionProvider"]
                 if self._use_gpu
@@ -96,7 +97,7 @@ class LivenessDetector:
             self._session = ort.InferenceSession(self._model_path, providers=providers)
             logger.info("Loaded liveness ONNX model from '%s'", self._model_path)
         except Exception as exc:
-            logger.warning(
+            logger.exception(
                 "Failed to load liveness ONNX model from '%s': %s — using heuristic fallback",
                 self._model_path,
                 exc,
@@ -114,12 +115,23 @@ class LivenessDetector:
             inp = session.get_inputs()[0]  # type: ignore[union-attr]
             # Shape is typically [1, 3, H, W]; fall back to 80 (MiniFASNet default)
             shape = inp.shape
-            model_h = int(shape[2]) if len(shape) >= 4 and isinstance(shape[2], int) and shape[2] > 0 else 80
-            model_w = int(shape[3]) if len(shape) >= 4 and isinstance(shape[3], int) and shape[3] > 0 else 80
+            model_h = (
+                int(shape[2])
+                if len(shape) >= 4 and isinstance(shape[2], int) and shape[2] > 0  # noqa: PLR2004 - Small integer threshold
+
+                else 80
+            )
+            model_w = (
+                int(shape[3])
+                if len(shape) >= 4 and isinstance(shape[3], int) and shape[3] > 0  # noqa: PLR2004 - Small integer threshold
+
+                else 80
+            )
 
             # Resize face to model input size, then normalise to [-1, 1]
             try:
                 import cv2  # type: ignore[import]
+
                 resized = cv2.resize(face, (model_w, model_h))
             except ImportError:
                 row_idx = (np.arange(model_h) * face.shape[0] / model_h).astype(int)
@@ -133,19 +145,20 @@ class LivenessDetector:
             outputs = session.run(None, {input_name: blob})  # type: ignore[union-attr]
             logits = outputs[0][0]
             # Assume binary output: [spoof_score, live_score]
-            if len(logits) >= 2:
+            if len(logits) >= 2:  # noqa: PLR2004 - Small integer threshold
+
                 exp = np.exp(logits - np.max(logits))
                 probs = exp / exp.sum()
                 return float(probs[1])  # live probability
             return float(1.0 / (1.0 + np.exp(-float(logits[0]))))
-        except Exception as exc:
-            logger.warning("Liveness ONNX inference failed: %s — using heuristic", exc)
+        except Exception:
+            logger.exception("Liveness ONNX inference failed: %s — using heuristic")
             return -1.0
 
     def check_liveness(
         self,
         aligned_face: np.ndarray,
-        landmarks: Optional[np.ndarray] = None,
+        landmarks: np.ndarray | None = None,
     ) -> LivenessResult:
         """Determine whether the face is live.
 
@@ -162,6 +175,7 @@ class LivenessDetector:
 
         Raises:
             InvalidImageError: If aligned_face has wrong shape or dtype.
+
         """
         self._validate_face(aligned_face)
 
@@ -196,25 +210,27 @@ class LivenessDetector:
 
         Raises:
             InvalidImageError: If shape or dtype is wrong.
+
         """
         if face.shape != LivenessDetector._EXPECTED_SHAPE:
+            msg = f"Expected face shape {LivenessDetector._EXPECTED_SHAPE}, got {face.shape}"
             raise InvalidImageError(
-                f"Expected face shape {LivenessDetector._EXPECTED_SHAPE}, got {face.shape}"
+                msg,
             )
         if face.dtype != np.uint8:
-            raise InvalidImageError(
-                f"Expected face dtype uint8, got {face.dtype}"
-            )
+            msg = f"Expected face dtype uint8, got {face.dtype}"
+            raise InvalidImageError(msg)
 
     @staticmethod
     def _texture_score(face: np.ndarray) -> float:
         """Laplacian variance normalised to [0, 1]."""
         try:
             import cv2  # type: ignore[import]
+
             gray = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
             lap = cv2.Laplacian(gray, cv2.CV_64F)
-        except ImportError as e:
-            logger.warning("cv2 not available — falling back to numpy Laplacian: %s", e)
+        except ImportError:
+            logger.exception("cv2 not available — falling back to numpy Laplacian")
             gray = (
                 0.114 * face[:, :, 0].astype(np.float64)
                 + 0.587 * face[:, :, 1].astype(np.float64)
@@ -222,6 +238,7 @@ class LivenessDetector:
             )
             kernel = np.array([[0, 1, 0], [1, -4, 1], [0, 1, 0]], dtype=np.float64)
             from numpy.lib.stride_tricks import sliding_window_view  # noqa: PLC0415
+
             padded = np.pad(gray, 1, mode="reflect")
             windows = sliding_window_view(padded, (3, 3))
             lap = (windows * kernel).sum(axis=(-2, -1))
@@ -242,6 +259,7 @@ class LivenessDetector:
 
         Returns:
             True if a blink (eye closure) is detected.
+
         """
         left_eye = landmarks[0].astype(np.float64)
         right_eye = landmarks[1].astype(np.float64)

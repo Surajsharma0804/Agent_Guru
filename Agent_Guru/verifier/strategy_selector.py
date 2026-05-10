@@ -71,6 +71,7 @@ class VerificationStrategySelector:
 
         Returns:
             VerificationStrategy
+
         """
         detected_type = task_type or self._detect_task_type(response)
 
@@ -83,7 +84,7 @@ class VerificationStrategySelector:
                 use_confidence_scoring=True,
                 reason="Factual response requires hallucination detection",
             )
-        elif detected_type == "code":
+        if detected_type == "code":
             return VerificationStrategy(
                 use_hallucination_detection=False,
                 use_output_validation=True,
@@ -92,7 +93,7 @@ class VerificationStrategySelector:
                 use_confidence_scoring=True,
                 reason="Code response requires output validation",
             )
-        elif detected_type == "tool_result":
+        if detected_type == "tool_result":
             return VerificationStrategy(
                 use_hallucination_detection=True,
                 use_output_validation=True,
@@ -101,7 +102,7 @@ class VerificationStrategySelector:
                 use_confidence_scoring=True,
                 reason="Tool result requires full verification",
             )
-        elif detected_type == "creative":
+        if detected_type == "creative":
             return VerificationStrategy(
                 use_hallucination_detection=False,
                 use_output_validation=False,
@@ -110,20 +111,19 @@ class VerificationStrategySelector:
                 use_confidence_scoring=True,
                 reason="Creative content — minimal verification",
             )
-        else:
-            # Default: full verification
-            return VerificationStrategy(
-                use_hallucination_detection=True,
-                use_output_validation=True,
-                use_tool_checking=False,
-                use_loop_detection=True,
-                use_confidence_scoring=True,
-                reason="Default full verification strategy",
-            )
+        # Default: full verification
+        return VerificationStrategy(
+            use_hallucination_detection=True,
+            use_output_validation=True,
+            use_tool_checking=False,
+            use_loop_detection=True,
+            use_confidence_scoring=True,
+            reason="Default full verification strategy",
+        )
 
     def select_for_task_output(
         self,
-        output: Any,
+        output: Any,  # noqa: ANN401
         expected_schema: dict[str, Any] | None = None,
     ) -> VerificationStrategy:
         """Select strategy for verifying a task output."""

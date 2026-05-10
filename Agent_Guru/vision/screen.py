@@ -1,5 +1,4 @@
-"""
-Screen Analyzer for the Agent Guru Vision System.
+"""Screen Analyzer for the Agent Guru Vision System.
 
 Parses UI screenshots to identify all interactive elements for the
 Computer Use Agent.
@@ -20,19 +19,30 @@ Requirements: 7.1–7.9
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import structlog
 
 from Agent_Guru.vision.vision_models import BoundingBox, ScreenAnalysis, UIElement, VisionEvent
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
 UI_ELEMENT_TYPES: list[str] = [
-    "button", "text_field", "dropdown", "checkbox", "radio_button",
-    "link", "menu_item", "icon", "scrollbar", "tab", "image",
+    "button",
+    "text_field",
+    "dropdown",
+    "checkbox",
+    "radio_button",
+    "link",
+    "menu_item",
+    "icon",
+    "scrollbar",
+    "tab",
+    "image",
 ]
 
 _MODAL_COVERAGE_THRESHOLD: float = 0.30  # 30% screen coverage → modal
@@ -46,6 +56,7 @@ class ScreenAnalyzer:
         _infer_fn: Optional callable for testing; replaces YOLO inference.
             Signature: ``(image: np.ndarray) -> list[dict]``
             Each dict: ``{element_type, x, y, width, height, confidence, text}``
+
     """
 
     def __init__(self, _infer_fn: Callable[..., Any] | None = None) -> None:
@@ -66,8 +77,8 @@ class ScreenAnalyzer:
 
             from Agent_Guru.vision.model_manager import ModelManager
 
-            model_path = os.path.join("models", "yolov8_ui.onnx")
-            if not os.path.exists(model_path):
+            model_path = os.path.join("models", "yolov8_ui.onnx")  # noqa: PTH118
+            if not os.path.exists(model_path):  # noqa: PTH110
                 logger.warning("ScreenAnalyzer: UI model not found, returning empty")
                 return []
 
@@ -77,9 +88,11 @@ class ScreenAnalyzer:
             # Preprocess: resize to 640×640, normalise
             try:
                 import cv2  # type: ignore[import]
+
                 resized = cv2.resize(screenshot, (640, 640))
             except ImportError:
-                resized = screenshot[:640, :640] if screenshot.shape[0] >= 640 else screenshot
+                resized = screenshot[:640, :640] if screenshot.shape[0] >= 640 else screenshot  # noqa: PLR2004 - Percentage/large threshold
+
 
             inp = resized.astype(np.float32) / 255.0
             inp = np.transpose(inp, (2, 0, 1))[np.newaxis]  # (1, 3, 640, 640)
@@ -103,18 +116,20 @@ class ScreenAnalyzer:
                 scale_y = h / 640.0
                 x = (cx - bw / 2) * scale_x
                 y = (cy - bh / 2) * scale_y
-                elements.append({
-                    "element_type": UI_ELEMENT_TYPES[cls_id],
-                    "x": float(x),
-                    "y": float(y),
-                    "width": float(bw * scale_x),
-                    "height": float(bh * scale_y),
-                    "confidence": conf,
-                    "text": None,
-                })
+                elements.append(
+                    {
+                        "element_type": UI_ELEMENT_TYPES[cls_id],
+                        "x": float(x),
+                        "y": float(y),
+                        "width": float(bw * scale_x),
+                        "height": float(bh * scale_y),
+                        "confidence": conf,
+                        "text": None,
+                    },
+                )
             return elements
         except Exception as exc:
-            logger.error("ScreenAnalyzer: detection failed", error=str(exc))
+            logger.exception("ScreenAnalyzer: detection failed", error=str(exc))
             return []
 
     def _extract_text(self, screenshot: np.ndarray, bbox: BoundingBox) -> str | None:
@@ -139,7 +154,7 @@ class ScreenAnalyzer:
             finally:
                 loop.close()
             return result.text.strip() or None
-        except Exception as e:
+        except Exception:
             return None
 
     # ------------------------------------------------------------------
@@ -147,9 +162,7 @@ class ScreenAnalyzer:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _detect_modal(
-        elements: list[UIElement], frame_h: int, frame_w: int
-    ) -> bool:
+    def _detect_modal(elements: list[UIElement], frame_h: int, frame_w: int) -> bool:
         """Detect modal dialog by checking if any element covers >30% of screen."""
         screen_area = frame_h * frame_w
         for el in elements:
@@ -160,7 +173,9 @@ class ScreenAnalyzer:
 
     @staticmethod
     def _find_primary_content(
-        elements: list[UIElement], frame_h: int, frame_w: int
+        elements: list[UIElement],
+        frame_h: int,
+        frame_w: int,
     ) -> BoundingBox | None:
         """Find the largest non-chrome content region."""
         chrome_types = {"scrollbar", "menu_item", "tab", "icon"}
@@ -192,7 +207,7 @@ class ScreenAnalyzer:
                     text=el.text,
                     is_interactive=el.is_interactive,
                     layer_priority=priority,
-                )
+                ),
             )
         return result
 
@@ -210,6 +225,7 @@ class ScreenAnalyzer:
 
         Returns:
             ScreenAnalysis with all detected UI elements and layout JSON.
+
         """
         frame_h, frame_w = screenshot.shape[:2]
         raw_elements = self._run_detection(screenshot)
@@ -243,14 +259,20 @@ class ScreenAnalyzer:
                     text=text,
                     is_interactive=el_type in interactive_types,
                     layer_priority=1,  # will be updated below
-                )
+                ),
             )
 
         modal_detected = self._detect_modal(elements, frame_h, frame_w)
         elements = self._assign_layer_priority(elements, modal_detected)
         primary_content = self._find_primary_content(elements, frame_h, frame_w)
 
-        layout_json = self._build_layout_json(elements, primary_content, modal_detected, frame_h, frame_w)
+        layout_json = self._build_layout_json(
+            elements,
+            primary_content,
+            modal_detected,
+            frame_h,
+            frame_w,
+        )
 
         return ScreenAnalysis(
             elements=elements,

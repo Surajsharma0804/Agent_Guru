@@ -1,5 +1,4 @@
-"""
-Vision Event Bus for the Agent Guru Vision System.
+"""Vision Event Bus for the Agent Guru Vision System.
 
 Provides async pub/sub delivery of VisionEvents to registered subscribers,
 with optional filtering by event type, minimum confidence, and source module.
@@ -12,21 +11,22 @@ Design goals:
 - Standalone importability: no other Agent Guru components required.
 """
 
-import logging
-_logger = logging.getLogger(__name__)
-
 from __future__ import annotations
 
-import asyncio
-import uuid
-from collections import defaultdict
-from collections.abc import Callable, Coroutine
-from dataclasses import dataclass
-from typing import Any, Optional
+import logging
 
-import structlog
+_logger = logging.getLogger(__name__)
 
-from Agent_Guru.vision.vision_models import VisionEvent
+import asyncio  # noqa: E402
+import uuid  # noqa: E402
+from collections import defaultdict  # noqa: E402
+from collections.abc import Callable, Coroutine  # noqa: E402
+from dataclasses import dataclass  # noqa: E402
+from typing import Any  # noqa: E402
+
+import structlog  # noqa: E402
+
+from Agent_Guru.vision.vision_models import VisionEvent  # noqa: E402
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
@@ -99,6 +99,7 @@ class VisionEventBus:
 
         Returns:
             A unique subscription ID string (UUID4).
+
         """
         sub_id = str(uuid.uuid4())
         sub = _Subscription(
@@ -131,10 +132,12 @@ class VisionEventBus:
 
         Raises:
             KeyError: If the subscription ID is not found.
+
         """
         sub = self._subscriptions.pop(subscription_id, None)
         if sub is None:
-            raise KeyError(f"Unknown subscription_id: {subscription_id!r}")
+            msg = f"Unknown subscription_id: {subscription_id!r}"
+            raise KeyError(msg)
 
         if sub.source_module:
             count = self._module_subscriber_counts.get(sub.source_module, 0)
@@ -155,12 +158,9 @@ class VisionEventBus:
 
         Args:
             event: The VisionEvent to publish.
+
         """
-        matching = [
-            sub
-            for sub in self._subscriptions.values()
-            if self._matches(sub, event)
-        ]
+        matching = [sub for sub in self._subscriptions.values() if self._matches(sub, event)]
 
         if not matching:
             return
@@ -168,8 +168,8 @@ class VisionEventBus:
         async def _safe_call(sub: _Subscription) -> None:
             try:
                 await sub.callback(event)
-            except Exception as exc:  # noqa: BLE001
-                logger.error(
+            except Exception as exc:
+                logger.exception(
                     "Subscriber callback raised exception",
                     sub_id=sub.subscription_id,
                     event_type=event.event_type,
@@ -186,7 +186,7 @@ class VisionEventBus:
         self,
         event_type: str,
         timeout: float = 1.0,
-    ) -> Optional[VisionEvent]:
+    ) -> VisionEvent | None:
         """One-shot request: wait for the next event of the given type.
 
         Registers a temporary subscriber, waits up to ``timeout`` seconds
@@ -198,6 +198,7 @@ class VisionEventBus:
 
         Returns:
             The first matching VisionEvent, or ``None`` on timeout.
+
         """
         loop = asyncio.get_running_loop()
         future: asyncio.Future[VisionEvent] = loop.create_future()
@@ -209,7 +210,7 @@ class VisionEventBus:
         sub_id = self.subscribe([event_type], _one_shot)
         try:
             return await asyncio.wait_for(asyncio.shield(future), timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return None
         finally:
             try:
@@ -231,11 +232,12 @@ class VisionEventBus:
 
         Returns:
             Number of active subscribers for that module.
+
         """
         # Count subscriptions that match this module (either explicitly or via wildcard)
         count = 0
         for sub in self._subscriptions.values():
-            if sub.source_module == "" or sub.source_module == source_module:
+            if sub.source_module in ("", source_module):
                 count += 1
         return count
 
@@ -247,6 +249,7 @@ class VisionEventBus:
 
         Returns:
             True if any subscriber would receive events from this module.
+
         """
         return self.get_subscriber_count(source_module) > 0
 
@@ -264,9 +267,7 @@ class VisionEventBus:
         if event.confidence < sub.min_confidence:
             return False
         # Source module filter
-        if sub.source_module and event.source_module != sub.source_module:
-            return False
-        return True
+        return not (sub.source_module and event.source_module != sub.source_module)
 
     # ------------------------------------------------------------------
     # Introspection

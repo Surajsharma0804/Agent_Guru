@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.vision.training.export
+"""Module: Agent_Guru.vision.training.export
 Purpose: Export a trained PyTorch ArcFace backbone to ONNX format and
          validate numerical equivalence between the two runtimes.
 
@@ -11,7 +10,6 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
@@ -25,9 +23,10 @@ _EQUIVALENCE_TOLERANCE: float = 1e-3
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def export_to_onnx(
     checkpoint_path: str,
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
     opset_version: int = 11,
     embedding_dim: int = 512,
 ) -> str:
@@ -49,13 +48,15 @@ def export_to_onnx(
     Raises:
         FileNotFoundError: If checkpoint_path does not exist.
         ImportError: If PyTorch or torchvision is not installed.
+
     """
-    if not os.path.isfile(checkpoint_path):
-        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+    if not os.path.isfile(checkpoint_path):  # noqa: PTH113
+        msg = f"Checkpoint not found: {checkpoint_path}"
+        raise FileNotFoundError(msg)
 
     import torch
-    import torch.nn as nn
-    import torchvision.models as models  # type: ignore[import]
+    from torch import nn
+    from torchvision import models  # type: ignore[import]
 
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
     saved_embedding_dim = checkpoint.get("embedding_dim", embedding_dim)
@@ -90,7 +91,7 @@ def export_to_onnx(
         opset_version,
         saved_embedding_dim,
     )
-    return os.path.abspath(output_path)
+    return os.path.abspath(output_path)  # noqa: PTH100
 
 
 def validate_onnx_equivalence(
@@ -119,15 +120,17 @@ def validate_onnx_equivalence(
         FileNotFoundError: If either file does not exist.
         ImportError: If PyTorch, torchvision, or onnxruntime is not installed.
         AssertionError: If any sample exceeds the tolerance.
+
     """
     for path in (checkpoint_path, onnx_path):
-        if not os.path.isfile(path):
-            raise FileNotFoundError(f"File not found: {path}")
+        if not os.path.isfile(path):  # noqa: PTH113
+            msg = f"File not found: {path}"
+            raise FileNotFoundError(msg)
 
     import onnxruntime as ort  # type: ignore[import]
     import torch
-    import torch.nn as nn
-    import torchvision.models as models  # type: ignore[import]
+    from torch import nn
+    from torchvision import models  # type: ignore[import]
 
     # Load PyTorch model
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
@@ -159,11 +162,16 @@ def validate_onnx_equivalence(
             if diff > tolerance:
                 logger.error(
                     "Sample %d: max diff %.6f exceeds tolerance %.6f",
-                    i, diff, tolerance,
+                    i,
+                    diff,
+                    tolerance,
                 )
-                raise AssertionError(
+                msg = (
                     f"ONNX/PyTorch mismatch on sample {i}: "
                     f"max_diff={diff:.6f} > tolerance={tolerance}"
+                )
+                raise AssertionError(
+                    msg,
                 )
 
     logger.info(
