@@ -1,5 +1,4 @@
-"""
-Model Checkpoint Cleanup Script
+"""Model Checkpoint Cleanup Script.
 
 This script removes unnecessary training checkpoints from the intent classifier
 model directory, keeping only files needed for production inference.
@@ -23,9 +22,11 @@ Author: Kiro AI
 Date: 2026-02-19
 """
 
+import logging
 import shutil
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
 
 def get_directory_size(path: Path) -> float:
     """Get total size of directory in GB.
@@ -35,6 +36,7 @@ def get_directory_size(path: Path) -> float:
 
     Returns:
         Size in GB
+
     """
     total_size = sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
     return total_size / (1024**3)
@@ -46,20 +48,15 @@ def cleanup_model_checkpoints(model_dir: str, dry_run: bool = True) -> None:
     Args:
         model_dir: Path to model directory
         dry_run: If True, only show what would be deleted without actually deleting
+
     """
     model_path = Path(model_dir)
 
     if not model_path.exists():
-        print(f"❌ Model directory not found: {model_path}")
         return
-
-    print(f"\n{'='*80}")
-    print("Model Checkpoint Cleanup")
-    print(f"{'='*80}\n")
 
     # Calculate initial size
     initial_size = get_directory_size(model_path)
-    print(f"📊 Initial directory size: {initial_size:.2f} GB\n")
 
     # Files and directories to delete
 
@@ -76,18 +73,13 @@ def cleanup_model_checkpoints(model_dir: str, dry_run: bool = True) -> None:
         "test_results.json",
     ]
 
-    print("📋 Files/directories that will be KEPT:")
     for item in files_to_keep:
         item_path = model_path / item
         if item_path.exists():
             if item_path.is_dir():
                 size = get_directory_size(item_path)
-                print(f"  ✓ {item} ({size*1024:.2f} MB)")
             else:
                 size = item_path.stat().st_size / (1024**2)
-                print(f"  ✓ {item} ({size:.2f} MB)")
-
-    print(f"\n{'='*80}\n")
 
     # Find files to delete
     files_to_delete: list[Path] = []
@@ -107,71 +99,46 @@ def cleanup_model_checkpoints(model_dir: str, dry_run: bool = True) -> None:
         files_to_delete.append(logs_dir)
 
     if not files_to_delete:
-        print("✅ No checkpoint files found to delete. Directory is already clean!")
         return
 
     # Calculate space to be freed
     space_to_free = 0.0
-    print("🗑️  Files/directories to DELETE:")
     for delete_item in files_to_delete:
         if delete_item.is_dir():
             size = get_directory_size(delete_item)
             space_to_free += size
-            print(f"  ❌ {delete_item.name}/ ({size:.2f} GB)")
         else:
             size = delete_item.stat().st_size / (1024**3)
             space_to_free += size
-            print(f"  ❌ {delete_item.name} ({size:.2f} GB)")
-
-    print(f"\n{'='*80}")
-    print(f"💾 Space to be freed: {space_to_free:.2f} GB")
-    print(f"📊 Final directory size: {initial_size - space_to_free:.2f} GB")
-    print(f"{'='*80}\n")
 
     if dry_run:
-        print("🔍 DRY RUN MODE - No files were deleted")
-        print("   Run with dry_run=False to actually delete files")
         return
 
     # Confirm deletion
-    print("⚠️  WARNING: This will permanently delete the files listed above!")
     response = input("   Type 'DELETE' to confirm: ")
 
     if response != "DELETE":
-        print("\n❌ Cleanup cancelled")
         return
 
     # Delete files
-    print("\n🗑️  Deleting files...")
     deleted_count = 0
 
     for delete_item in files_to_delete:
         try:
             if delete_item.is_dir():
                 shutil.rmtree(delete_item)
-                print(f"  ✓ Deleted directory: {delete_item.name}/")
             else:
                 delete_item.unlink()
-                print(f"  ✓ Deleted file: {delete_item.name}")
             deleted_count += 1
-        except Exception as e:
-            print(f"  ❌ Failed to delete {delete_item.name}: {e}")
+        except Exception:
+            logger.exception("Operation failed")
 
     # Calculate final size
     final_size = get_directory_size(model_path)
-    actual_freed = initial_size - final_size
-
-    print(f"\n{'='*80}")
-    print("✅ Cleanup Complete!")
-    print(f"{'='*80}")
-    print(f"📊 Initial size: {initial_size:.2f} GB")
-    print(f"📊 Final size: {final_size:.2f} GB")
-    print(f"💾 Space freed: {actual_freed:.2f} GB")
-    print(f"🗑️  Files deleted: {deleted_count}")
-    print(f"{'='*80}\n")
+    initial_size - final_size
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     import argparse
 
